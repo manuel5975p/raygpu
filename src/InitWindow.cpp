@@ -1,4 +1,4 @@
-#include "raygpu.h"
+#include <raygpu.h>
 #include <webgpu/webgpu_cpp.h>
 #include <iostream>
 #include <chrono>
@@ -241,6 +241,27 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     swapChainDesc.presentMode = WGPUPresentMode_Fifo;
     g_wgpustate.swapChain = wgpuDeviceCreateSwapChain(g_wgpustate.device, sample->surface.Get(), &swapChainDesc);*/
     #endif
+    glfwSetWindowSizeCallback(window, [](GLFWwindow* window, int width, int height){
+        //wgpuSurfaceRelease(g_wgpustate.surface);
+        //g_wgpustate.surface = wgpu::glfw::CreateSurfaceForWindow(g_wgpustate.instance, window).MoveToCHandle();
+        WGPUSurfaceCapabilities capabilities;
+        wgpuSurfaceGetCapabilities(g_wgpustate.surface, g_wgpustate.adapter, &capabilities);
+        WGPUSurfaceConfiguration config = {};
+        config.alphaMode = WGPUCompositeAlphaMode_Opaque;
+        config.usage = WGPUTextureUsage_RenderAttachment;
+        config.device = g_wgpustate.device;
+        config.format = (WGPUTextureFormat)capabilities.formats[0];
+        config.presentMode = WGPUPresentMode_Immediate;
+
+        config.width = width;
+        config.height = height;
+        g_wgpustate.width = width;
+        g_wgpustate.height = height;
+        wgpuTextureViewRelease(depthTexture.view);
+        wgpuTextureRelease(depthTexture.tex);
+        depthTexture = LoadDepthTexture(width, height);
+        wgpuSurfaceConfigure(g_wgpustate.surface, &config);
+    });
     
     //#ifndef __EMSCRIPTEN__
     wgpu::SurfaceCapabilities capabilities;
@@ -252,6 +273,8 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
 
     config.width = width;
     config.height = height;
+    g_wgpustate.width = width;
+    g_wgpustate.height = height;
     sample->surface.Configure(&config);
     //#endif
     g_wgpustate.adapter = sample->adapter.MoveToCHandle();
@@ -322,7 +345,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
 
     WGPUSampler sampler = wgpuDeviceCreateSampler(g_wgpustate.device, &samplerDesc);
     setStateSampler(g_wgpustate.rstate, 2, sampler);
-    
+    g_wgpustate.init_timestamp = NanoTime();
     #ifndef __EMSCRIPTEN__
     return window;
     #else

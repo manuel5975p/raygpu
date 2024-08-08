@@ -67,7 +67,7 @@ inline Vector4 Vector4Normalize(Vector4 vec){
 typedef struct Matrix{
     float data[16];
 } Matrix;
-inline Matrix MatrixIdentity(){
+inline Matrix MatrixIdentity(void){
     Matrix ret = {0};
     ret.data[0] = 1;
     ret.data[5] = 1;
@@ -189,7 +189,7 @@ inline Matrix ScreenMatrix(int width, int height) {
 }
 
 inline Matrix MatrixTranspose(Matrix mat){
-    Matrix ret;
+    Matrix ret = {0};
     for(int i = 0;i < 4;i++){
         for(int j = 0;j < 4;j++){
             ret.data[j * 4 + i] = mat.data[i * 4 + j];

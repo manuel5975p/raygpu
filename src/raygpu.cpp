@@ -83,6 +83,12 @@ void drawCurrentBatch(){
     }
     g_wgpustate.current_vertices.clear();
 }
+uint32_t GetScreenWidth (cwoid){
+    return g_wgpustate.width;
+}
+uint32_t GetScreenHeight(cwoid){
+    return g_wgpustate.height;
+}
 void BeginDrawing(){
     glfwPollEvents();
     WGPUSurfaceTexture surfaceTexture;
@@ -104,6 +110,8 @@ void EndDrawing(){
 
     wgpuTextureRelease(g_wgpustate.currentSurfaceTexture.texture);
     wgpuTextureViewRelease(g_wgpustate.currentSurfaceTextureView);
+    g_wgpustate.last_timestamps[g_wgpustate.total_frames % 32] = NanoTime();
+    ++g_wgpustate.total_frames;
 }
 void rlBegin(draw_mode mode){
     if(g_wgpustate.current_drawmode != mode){
@@ -115,7 +123,7 @@ void rlEnd(){
 
 }
 Image LoadImageFromTexture(Texture tex){
-    
+    #ifndef __EMSCRIPTEN__
     auto& device = g_wgpustate.device;
     Image ret {tex.format, tex.width, tex.height, nullptr};
     WGPUBufferDescriptor b{};
@@ -151,14 +159,15 @@ Image LoadImageFromTexture(Texture tex){
     #ifdef WEBGPU_BACKEND_DAWN
     wgpuDeviceTick(device);
     #endif
-    
-    auto onBuffer2Mapped = [](WGPUBufferMapAsyncStatus status, void* userdata){
+    std::pair<Image*, wgpu::Buffer*> ibpair{&ret, &readtex};
+    auto onBuffer2Mapped = [&ibpair](wgpu::MapAsyncStatus status, const char* userdata){
         //std::cout << "Backcalled: " << status << std::endl;
-        if(status != WGPUBufferMapAsyncStatus_Success){
-            std::cout << status << std::endl;
+        if(status != wgpu::MapAsyncStatus::Success){
+            std::cout << userdata << std::endl;
         }
-        assert(status == WGPUBufferMapAsyncStatus_Success);
-        std::pair<Image*, wgpu::Buffer*>* rei = (std::pair<Image*, wgpu::Buffer*>*)userdata;
+        assert(status == wgpu::MapAsyncStatus::Success);
+        //std::pair<Image*, wgpu::Buffer*>* rei = (std::pair<Image*, wgpu::Buffer*>*)userdata;
+        std::pair<Image*, wgpu::Buffer*>* rei = &ibpair;
         const void* map = wgpuBufferGetConstMappedRange(rei->second->Get(), 0, wgpuBufferGetSize(rei->second->Get()));
         rei->first->data = std::realloc(rei->first->data, wgpuBufferGetSize(rei->second->Get()));
         std::memcpy(rei->first->data, map, wgpuBufferGetSize(rei->second->Get()));
@@ -168,15 +177,15 @@ Image LoadImageFromTexture(Texture tex){
         //wgpuBufferDestroy(*rei->second);
     };
 
-    std::pair<Image*, wgpu::Buffer*> ibpair{&ret, &readtex};
+    
     
     #ifndef __EMSCRIPTEN__
     WGPUFutureWaitInfo winfo{};
-    wgpu::BufferMapCallbackInfo cbinfo{};
-    cbinfo.callback = onBuffer2Mapped;
-    cbinfo.userdata = &ibpair;
-    cbinfo.mode = wgpu::CallbackMode::WaitAnyOnly;
-    wgpu::Future fut = readtex.MapAsync(wgpu::MapMode::Read, 0, size_t(std::ceil(4.0 * tex.width / 256.0) * 256) * tex.height, cbinfo);
+    //wgpu::BufferMapCallbackInfo cbinfo{};
+    //cbinfo.callback = onBuffer2Mapped;
+    //cbinfo.userdata = &ibpair;
+    //cbinfo.mode = wgpu::CallbackMode::WaitAnyOnly;
+    wgpu::Future fut = readtex.MapAsync(wgpu::MapMode::Read, 0, size_t(std::ceil(4.0 * tex.width / 256.0) * 256) * tex.height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped);
     winfo.future = fut;
     wgpuInstanceWaitAny(g_wgpustate.instance, 1, &winfo, 1000000000);
     #else 
@@ -204,10 +213,10 @@ Image LoadImageFromTexture(Texture tex){
     #endif*/
     //readtex.Destroy();
     return ret;
-    //#else
-    //std::cerr << "LoadImageFromTexture not supported on web\n";
-    //return Image{tex.format, 0, 0, nullptr};
-    
+    #else
+    std::cerr << "LoadImageFromTexture not supported on web\n";
+    return Image{tex.format, 0, 0, nullptr};
+    #endif
 }
 Texture LoadTextureFromImage(Image img){
     Texture ret;
@@ -246,8 +255,18 @@ Texture LoadTextureFromImage(Image img){
     ret.view = wgpuTextureCreateView(ret.tex, &vdesc);
     return ret;
 }
+uint64_t NanoTime(cwoid){
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+}
+double GetTime(cwoid){
+    uint64_t nano_diff = NanoTime() - g_wgpustate.init_timestamp;
 
-
+    return double(nano_diff) * 1e-9;
+}
+uint32_t GetFPS(cwoid){
+    auto [minit, maxit] = std::minmax_element(std::begin(g_wgpustate.last_timestamps), std::end(g_wgpustate.last_timestamps));
+    return uint32_t(std::round(32e9 / (*maxit - *minit)));
+}
 WGPUShaderModule LoadShaderFromMemory(const char* shaderSource) {
     WGPUShaderModuleWGSLDescriptor shaderCodeDesc{};
     shaderCodeDesc.chain.next = nullptr;

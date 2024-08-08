@@ -1,2 +1,5 @@
 build/
 dawn/
+debug/
+*.gz
+.gitignore

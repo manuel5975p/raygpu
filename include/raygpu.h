@@ -1,6 +1,16 @@
 #include <GLFW/glfw3.h>
 #include <webgpu/webgpu.h>
+#include <stdbool.h>
 #include "mathutils.h"
+#ifdef __cplusplus
+#define EXTERN_C_BEGIN extern "C" {
+#define EXTERN_C_END }
+#define cwoid
+#else
+#define EXTERN_C_BEGIN
+#define EXTERN_C_END
+#define cwoid void
+#endif
 struct vertex{
     Vector3 pos;
     Vector2 uv ;
@@ -30,7 +40,7 @@ typedef struct ShaderInputs{
     uint32_t per_instance_sizes[8]; //In bytes
 
     uint32_t uniform_count; //Also includes storage
-    uniform_type uniform_types[8];
+    enum uniform_type uniform_types[8];
     uint32_t uniform_minsizes[8]; //In bytes
 }ShaderInputs;
 
@@ -49,10 +59,10 @@ typedef struct RenderTexture{
     Texture depth;
 }RenderTexture;
 
-extern "C"{
-    WGPUDevice GetDevice();
-    WGPUQueue GetQueue();
-}
+EXTERN_C_BEGIN
+    WGPUDevice GetDevice(cwoid);
+    WGPUQueue GetQueue(cwoid);
+EXTERN_C_END
 typedef struct full_renderstate{
     WGPUShaderModule shader;
     WGPUTextureView color;
@@ -102,25 +112,44 @@ enum draw_mode{
     RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS
 };
 
-extern "C"{
+EXTERN_C_BEGIN
     GLFWwindow* InitWindow(uint32_t width, uint32_t height);
-    void BeginDrawing();
-    void EndDrawing();
+    uint32_t GetScreenWidth (cwoid);
+    uint32_t GetScreenHeight(cwoid);
+
+
+    /**
+     * @brief Get the time elapsed since InitWindow() in seconds since 
+     * 
+     * @return double
+     */
+    double GetTime(cwoid);
+    /**
+     * @brief Return the unix timestamp in nanosecond precision
+     *
+     * (implemented with high_resolution_clock::now().time_since_epoch())
+     * @return uint64_t 
+     */
+    uint64_t NanoTime(cwoid);
+
+    uint32_t GetFPS(cwoid);
+    void BeginDrawing(cwoid);
+    void EndDrawing(cwoid);
     Texture LoadTextureFromImage(Image img);
     Image LoadImageFromTexture(Texture tex);
 
     
     void UseTexture(Texture tex);
-    void UseNoTexture();
+    void UseNoTexture(cwoid);
     void rlColor4f(float r, float g, float b, float alpha);
     void rlTexCoord2f(float u, float v);
     void rlVertex2f(float x, float y);
     void rlVertex3f(float x, float y, float z);
-    void rlBegin(draw_mode mode);
-    void rlEnd();
+    void rlBegin(enum draw_mode mode);
+    void rlEnd(cwoid);
 
     void BeginTextureMode(RenderTexture rtex);
-    void EndTextureMode();
+    void EndTextureMode(cwoid);
 
     WGPUShaderModule LoadShaderFromMemory(const char* shaderSource);
     WGPUShaderModule LoadShader(const char* path);
@@ -142,14 +171,14 @@ extern "C"{
     void setStateUniformBuffer (full_renderstate* state, uint32_t index, const void* data, size_t size);
     void setStateStorageBuffer (full_renderstate* state, uint32_t index, const void* data, size_t size);
     void updateBindGroup       (full_renderstate* state);
-    void updatePipeline        (full_renderstate* state, draw_mode drawmode);
+    void updatePipeline        (full_renderstate* state, enum draw_mode drawmode);
     void updateRenderPassDesc  (full_renderstate* state);
     void setTargetTextures     (full_renderstate* state, WGPUTextureView c, WGPUTextureView d);
 
     void DrawTexturePro(Texture texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint);
 
     Image LoadImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32_t checkerCount);
-}
-struct wgpustate;
+EXTERN_C_END
+typedef struct wgpustate wgpustate;
 extern wgpustate g_wgpustate;
 
