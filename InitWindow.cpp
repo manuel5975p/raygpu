@@ -2,7 +2,6 @@
 #include <webgpu/webgpu_cpp.h>
 #include <iostream>
 #include <chrono>
-#include "vertex_buffer.hpp"
 #include "GLFW/glfw3.h"
 #ifndef __EMSCRIPTEN__
 #include "dawn/dawn_proc.h"
@@ -16,20 +15,20 @@ constexpr char shaderSource[] = R"(
 struct VertexInput {
     @location(0) position: vec3f,
     @location(1) uv: vec2f,
-    @location(2) color: vec3f,
+    @location(2) color: vec4f,
 };
 
 struct VertexOutput {
     @builtin(position) position: vec4f,
     @location(0) uv: vec2f,
-    @location(1) color: vec3f,
+    @location(1) color: vec4f,
 };
 
 /**
  * A structure holding the value of our uniforms
  */
 struct MyUniforms {
-    x: mat4x4f
+    trf: mat4x4f
 };
 
 // Instead of the simple uTime variable, our uniform variable is a struct
@@ -37,11 +36,14 @@ struct MyUniforms {
 @group(0) @binding(1) var gradientTexture: texture_2d<f32>;
 @group(0) @binding(2) var grsampler: sampler;
 
+//Can be omitted
+@group(0) @binding(3) var<storage> storig: array<vec4f>;
+
 //@builtin(instance_index) instanceID: u32;
 @vertex
 fn vs_main(@builtin(instance_index) instanceIdx : u32, in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    out.position = vec4f(in.position.x, in.position.y, 0.0f, 1.0f);
+    out.position = uMyUniforms.trf * vec4f(in.position.xyz + storig[0].xyz * 0.3f, 1.0f);
     out.color = in.color;
     out.uv = in.uv;
     return out;
@@ -49,14 +51,13 @@ fn vs_main(@builtin(instance_index) instanceIdx : u32, in: VertexInput) -> Verte
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    return vec4f(textureSample(gradientTexture, grsampler, in.uv).rgb, 1.0f);
+    return vec4f(textureSample(gradientTexture, grsampler, in.uv).rgb, 1.0f) * in.color;
     //return vec4f(in.uv.xy, 0.0f, 1.0f);
 }
 )";
-
-
-wgpustate g_wgpustate;
-
+extern Texture depthTexture;
+struct full_renderstate;
+#include "wgpustate.inc"
 struct webgpu_cxx_state{
     wgpu::Instance instance{};
     wgpu::Adapter adapter{};
@@ -67,7 +68,6 @@ struct webgpu_cxx_state{
     full_renderstate* rstate = nullptr;
     Texture depthTexture{};
 };
-
 webgpu_cxx_state* sample;
 GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     sample = new webgpu_cxx_state;
@@ -103,6 +103,10 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
         return nullptr;
     }
     wgpu::DeviceDescriptor deviceDesc = {};
+    wgpu::RequiredLimits limits;
+    limits.limits.maxTextureDimension2D = 1 << 13;
+    deviceDesc.requiredLimits = &limits;
+
     deviceDesc.SetDeviceLostCallback(
         wgpu::CallbackMode::AllowSpontaneous,
         [](const wgpu::Device&, wgpu::DeviceLostReason reason, const char* message) {
@@ -163,7 +167,6 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     if (sample->device == nullptr) {
         return nullptr;
     }
-    
     #else
     sample->instance = wgpu::CreateInstance(nullptr);
     wgpu::RequestAdapterOptions adapterOptions = {};
@@ -207,8 +210,6 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
         }
         std::cout << "Success" << std::endl;
     #endif
-    
-    #ifndef __EMSCRIPTEN__
     glfwInit();
         glfwSetErrorCallback([](int code, const char* message) {
         std::cerr << "GLFW error: " << code << " - " << message;
@@ -217,13 +218,12 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     if (!glfwInit()) {
         abort();
     }
-    // Create the test window with no client API.
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    
     GLFWwindow* window = glfwCreateWindow(width, height, "Dawn window", nullptr, nullptr);
     if (!window) {
         abort();
     }
+    #ifndef __EMSCRIPTEN__
     sample->surface = wgpu::glfw::CreateSurfaceForWindow(sample->instance, window);
     #else
     //WGPUTextureFormat swapChainFormat = WGPUTextureFormat_RGBA8Unorm;
@@ -260,23 +260,68 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     g_wgpustate.instance = sample->instance.MoveToCHandle();
     g_wgpustate.surface = sample->surface.MoveToCHandle();
     g_wgpustate.frameBufferFormat = (WGPUTextureFormat)config.format;
+    g_wgpustate.whitePixel = LoadTextureFromImage(LoadImageChecker(Color{255,255,255,255}, Color{255,255,255,255}, 1, 1, 0));
 
     WGPUShaderModule tShader = LoadShaderFromMemory(shaderSource);
     RenderTexture rtex = LoadRenderTexture(width, height);
-    g_wgpustate.rstate = new full_renderstate(tShader, {{uniform_buffer, 16 * sizeof(float)}, {texture2d,0}, {sampler, 0}}, {3,2,3}, rtex.color.view, rtex.depth.view);
+    g_wgpustate.rstate = new full_renderstate;
+    WGPUBufferDescriptor dummy{};
+    dummy.mappedAtCreation = false;
+    dummy.size = 64;
+    dummy.usage = WGPUBufferUsage_Storage;
+
+    float data[16] = {0};
+    //std::fill(data, data + 16, 1.0f);
+
+    g_wgpustate.dummyStorageBuffer = wgpuDeviceCreateBuffer(GetDevice(), &dummy);
+    
+    ShaderInputs shaderInputs{};
+    auto arraySetter = [](uint32_t (&dat)[8], std::initializer_list<uint32_t> arg){
+        for(auto it = arg.begin();it != arg.end();it++){
+            dat[it - arg.begin()] = *it;
+        }
+    };
+    auto uarraySetter = [](uniform_type (&dat)[8], std::initializer_list<uniform_type> arg){
+        for(auto it = arg.begin();it != arg.end();it++){
+            dat[it - arg.begin()] = *it;
+        }
+    };
+    
+    glfwSetKeyCallback(
+        window, 
+        [](GLFWwindow* window, int key, int scancode, int action, int mods){
+            if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
+                glfwSetWindowShouldClose(window, true);
+            }
+        }
+    );
+    shaderInputs.per_vertex_count = 3;
+    shaderInputs.per_instance_count = 0;
+    
+    shaderInputs.uniform_count = 4;
+    arraySetter(shaderInputs.per_vertex_sizes, {3,2,4});
+    arraySetter(shaderInputs.uniform_minsizes, {64, 0, 0, 0});
+    uarraySetter(shaderInputs.uniform_types, {uniform_buffer, texture2d, sampler, storage_buffer});
+    
+    depthTexture = rtex.depth;
+
+    init_full_renderstate(g_wgpustate.rstate, tShader, shaderInputs, rtex.color.view, rtex.depth.view);
+    setStateStorageBuffer(g_wgpustate.rstate, 3, data, 64);
     WGPUSamplerDescriptor samplerDesc{};
     samplerDesc.addressModeU = WGPUAddressMode_Repeat;
     samplerDesc.addressModeV = WGPUAddressMode_Repeat;
     samplerDesc.addressModeW = WGPUAddressMode_Repeat;
     samplerDesc.magFilter    = WGPUFilterMode_Nearest;
-    samplerDesc.minFilter    = WGPUFilterMode_Nearest;
-    samplerDesc.mipmapFilter = WGPUMipmapFilterMode_Nearest;
+    samplerDesc.minFilter    = WGPUFilterMode_Linear;
+    samplerDesc.mipmapFilter = WGPUMipmapFilterMode_Linear;
     samplerDesc.compare      = WGPUCompareFunction_Undefined;
     samplerDesc.lodMinClamp  = 0.0f;
     samplerDesc.lodMaxClamp  = 1.0f;
     samplerDesc.maxAnisotropy = 1;
+
+
     WGPUSampler sampler = wgpuDeviceCreateSampler(g_wgpustate.device, &samplerDesc);
-    g_wgpustate.rstate->setSampler(2, sampler);
+    setStateSampler(g_wgpustate.rstate, 2, sampler);
     
     #ifndef __EMSCRIPTEN__
     return window;

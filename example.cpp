@@ -1,9 +1,10 @@
 #include <webgpu/webgpu_cpp.h>
 #include <iostream>
 #include <chrono>
-#include "vertex_buffer.hpp"
 #include "GLFW/glfw3.h"
 #include "raygpu.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include </usr/include/stb_image_write.h>
 #ifndef __EMSCRIPTEN__
 #include "dawn/dawn_proc.h"
 #include "dawn/native/DawnNative.h"
@@ -17,81 +18,80 @@ uint64_t nanoTime(){
     using namespace chrono;
     return duration_cast<nanoseconds>(high_resolution_clock::now().time_since_epoch()).count();
 }
-Texture depthTexture;
 
+#include "wgpustate.inc"
+Texture checkers;
+RenderTexture rtex;
 
+uint64_t frames = 0;
+uint64_t total_frames = 0;
+uint64_t stmp = nanoTime();
 int main(){
-    uint32_t width = 400;
-    uint32_t height = 400;
+    constexpr uint32_t width = 1000;
+    constexpr uint32_t height = 1000;
     auto window = InitWindow(width, height);
-    if(
-        #ifndef __EMSCRIPTEN__
-        window == nullptr
-         ||
-         #endif
-        g_wgpustate.surface == nullptr){
-        std::terminate();
-    }
     
-    
-    
-    Texture tex(LoadImageChecker(Color{255,0,0,255}, Color{0,255,0,255}, 100, 100, 10));
-    Texture single(LoadImageChecker(Color{255,255,255,255}, Color{255,255,255,255}, 1, 1, 0));
+        
+    //Matrix udata = MatrixLookAt(Vector3{0,0,0.2}, Vector3{0,0,0}, Vector3{0,1,0});
+    //Matrix udata = MatrixIdentity();
 
-    rlTexCoord2f(0.1, 0.1);
-    rlColor3f(1,0.5,0);
-    rlVertex2f(0, 0);
-    rlColor3f(0,0,1);
-    rlTexCoord2f(0.1, 0.9);
-    rlVertex2f(1,0);
-    rlColor3f(1,1,1);
-    rlTexCoord2f(0.9, 0.1);
-    rlVertex2f(0,1);
-    
-    depthTexture = LoadDepthTexture(width, height);
-    float udata[16] = {0};
+    //Matrix udata = (MatrixPerspective(1.2, 1, 0.01, 100.0));
+    checkers = LoadTextureFromImage(LoadImageChecker(Color{230, 230, 230, 255}, Color{100, 100, 100, 255}, 100, 100, 50));
 
-    
-    g_wgpustate.rstate->updateVertexBuffer(g_wgpustate.current_vertices.data(), g_wgpustate.current_vertices.size() * sizeof(vertex));
-    g_wgpustate.rstate->setTexture(1, single);
-    g_wgpustate.rstate->setUniformBuffer(0, udata, 16 * sizeof(float));
-    g_wgpustate.rstate->updateBindGroup();
+    constexpr int rtd = 2000;
+    rtex = LoadRenderTexture(rtd, rtd);
+
     auto mainloop = [](void* userdata){
-        glfwPollEvents();
-        WGPUSurfaceTexture surfaceTexture;
-        wgpuSurfaceGetCurrentTexture(g_wgpustate.surface, &surfaceTexture);
+        float z = 0;
+        Matrix udata = MatrixMultiply(MatrixPerspective(1.0, 1, 0.01, 100.0), MatrixLookAt(Vector3{0, 0, -2}, Vector3{0, 0, 0}, Vector3{0,1,0}));
+        SetUniformBuffer(0, &udata, 64 * sizeof(float));
+        BeginDrawing();
+        UseTexture(checkers);
+        BeginTextureMode(rtex);
+        rlBegin(RL_QUADS);
 
-        //WGPUTextureView nextTexture = surfaceTexture.texture.CreateView().MoveToCHandle();
-        //wgpu::Texture as;
-        //as.CreateView();
-        WGPUTextureView nextTexture = wgpuTextureCreateView(surfaceTexture.texture, nullptr);
-        g_wgpustate.rstate->setTargetTextures(nextTexture, depthTexture.view);
-        g_wgpustate.rstate->executeRenderpass([](WGPURenderPassEncoder renderPass){
-            wgpuRenderPassEncoderDraw(renderPass, 3, 1, 0, 0);
-        });
-        #ifndef __EMSCRIPTEN__
-        wgpuSurfacePresent(g_wgpustate.surface);
-        #endif // __EMSCRIPTEN__
+        rlTexCoord2f(0, 0);
+        rlColor4f(1, 0, 1, 1);
+        rlVertex3f(1, 0, z);
 
-        //sample->surface.Present();
-    };
-    #ifndef __EMSCRIPTEN__
+        rlTexCoord2f(0.0, 1.0);
+        rlColor4f(0, 1, 0, 1);
+        rlVertex3f(0, 1, z);
 
-    uint64_t frames = 0;
-    uint64_t stmp = nanoTime();
-    while(!glfwWindowShouldClose(window)){
-        mainloop(nullptr);
+        rlTexCoord2f(1.0, 0.0);
+        rlColor4f(1, 1, 1, 1);
+        rlVertex3f(-1, 0, z);
+
+        rlTexCoord2f(1.0, 1.0);
+
+        rlVertex3f(0,-1, z);
+        rlEnd();
+        EndTextureMode();
+        //UseTexture(rtex.color);
+        udata = ScreenMatrix(width, height);
+        SetUniformBuffer(0, &udata, 64 * sizeof(float));
+        DrawTexturePro(rtex.color, Rectangle(0, 0, rtd, rtd), Rectangle(0,0, width, height), Vector2(0,0), 0.0f, Color{255,255,255,255});
+        //Image img = LoadImageFromTexture(rtex.color);
+        ////if(total_frames == 3)
+        ////    stbi_write_png("ass.png", img.width, img.height, 4, img.data, std::ceil(4.0 * img.width / 256.0) * 256);
+        //std::free(img.data);
+        EndDrawing();
         
         ++frames;
+        ++total_frames;
         uint64_t nextStmp = nanoTime();
         if(nextStmp - stmp > 1000000000){
             std::cout << frames << " fps" << std::endl;
             frames = 0;
             stmp = nanoTime();
         }
-        
+
+    };
+    #ifndef __EMSCRIPTEN__
+    while(!glfwWindowShouldClose(window)){
+        mainloop(nullptr);
     }
     #else
-    emscripten_set_main_loop_arg(mainloop, nullptr, 0, true);
+    emscripten_set_main_loop_arg(mainloop, nullptr, 240, true);
     #endif // __EMSCRIPTEN__
 }

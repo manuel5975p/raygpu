@@ -8,6 +8,11 @@
 #include <cstring>
 #include <thread>
 #include "wgpustate.inc"
+#include <webgpu/webgpu_cpp.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten/html5.h>
+#include <emscripten/emscripten.h>
+#endif  // __EMSCRIPTEN__
 wgpustate g_wgpustate;
 Texture depthTexture; //TODO: uhhh move somewhere
 WGPUDevice GetDevice(){
@@ -82,7 +87,9 @@ void BeginDrawing(){
     glfwPollEvents();
     WGPUSurfaceTexture surfaceTexture;
     wgpuSurfaceGetCurrentTexture(g_wgpustate.surface, &surfaceTexture);
+    g_wgpustate.currentSurfaceTexture = surfaceTexture;
     WGPUTextureView nextTexture = wgpuTextureCreateView(surfaceTexture.texture, nullptr);
+    g_wgpustate.currentSurfaceTextureView = nextTexture;
     setTargetTextures(g_wgpustate.rstate, nextTexture, g_wgpustate.rstate->depth);
     UseNoTexture();
     updateBindGroup(g_wgpustate.rstate);
@@ -92,6 +99,11 @@ void EndDrawing(){
     #ifndef __EMSCRIPTEN__
     wgpuSurfacePresent(g_wgpustate.surface);
     #endif // __EMSCRIPTEN__
+    //WGPUSurfaceTexture surfaceTexture;
+    //wgpuSurfaceGetCurrentTexture(g_wgpustate.surface, &surfaceTexture);
+
+    wgpuTextureRelease(g_wgpustate.currentSurfaceTexture.texture);
+    wgpuTextureViewRelease(g_wgpustate.currentSurfaceTextureView);
 }
 void rlBegin(draw_mode mode){
     if(g_wgpustate.current_drawmode != mode){
@@ -103,14 +115,15 @@ void rlEnd(){
 
 }
 Image LoadImageFromTexture(Texture tex){
+    
     auto& device = g_wgpustate.device;
     Image ret {tex.format, tex.width, tex.height, nullptr};
     WGPUBufferDescriptor b{};
     b.mappedAtCreation = false;
-    b.size = 4 * tex.width * tex.height;
+    b.size = size_t(std::ceil(4.0 * tex.width / 256.0) * 256) * tex.height;
     b.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
     
-    WGPUBuffer readtex = wgpuDeviceCreateBuffer(device, &b);
+    wgpu::Buffer readtex = wgpuDeviceCreateBuffer(device, &b);
     
     WGPUCommandEncoderDescriptor commandEncoderDesc{};
     commandEncoderDesc.label = "Command Encoder";
@@ -121,10 +134,11 @@ Image LoadImageFromTexture(Texture tex){
     tbsource.origin = { 0, 0, 0 }; // equivalent of the offset argument of Queue::writeBuffer
     tbsource.aspect = WGPUTextureAspect_All; // only relevant for depth/Stencil textures
     WGPUImageCopyBuffer tbdest;
-    tbdest.buffer = readtex;
+    tbdest.buffer = readtex.Get();
     tbdest.layout.offset = 0;
-    tbdest.layout.bytesPerRow = 4 * tex.width;
+    tbdest.layout.bytesPerRow = std::ceil(4.0 * tex.width / 256.0) * 256;
     tbdest.layout.rowsPerImage = tex.height;
+
     WGPUExtent3D copysize{tex.width, tex.height, 1};
     wgpuCommandEncoderCopyTextureToBuffer(encoder, &tbsource, &tbdest, &copysize);
     
@@ -140,19 +154,37 @@ Image LoadImageFromTexture(Texture tex){
     
     auto onBuffer2Mapped = [](WGPUBufferMapAsyncStatus status, void* userdata){
         //std::cout << "Backcalled: " << status << std::endl;
-        assert(status == 0);
-        std::pair<Image*, WGPUBuffer*>* rei = (std::pair<Image*, WGPUBuffer*>*)userdata;
-        const void* map = wgpuBufferGetConstMappedRange(*rei->second, 0, wgpuBufferGetSize(*rei->second));
-        rei->first->data = std::realloc(rei->first->data, wgpuBufferGetSize(*rei->second));
-        std::memcpy(rei->first->data, map, wgpuBufferGetSize(*rei->second));
-        wgpuBufferUnmap(*rei->second);
-        wgpuBufferRelease(*rei->second);
+        if(status != WGPUBufferMapAsyncStatus_Success){
+            std::cout << status << std::endl;
+        }
+        assert(status == WGPUBufferMapAsyncStatus_Success);
+        std::pair<Image*, wgpu::Buffer*>* rei = (std::pair<Image*, wgpu::Buffer*>*)userdata;
+        const void* map = wgpuBufferGetConstMappedRange(rei->second->Get(), 0, wgpuBufferGetSize(rei->second->Get()));
+        rei->first->data = std::realloc(rei->first->data, wgpuBufferGetSize(rei->second->Get()));
+        std::memcpy(rei->first->data, map, wgpuBufferGetSize(rei->second->Get()));
+        rei->second->Unmap();
+        wgpuBufferRelease(rei->second->Get());
+        rei->second = nullptr;
         //wgpuBufferDestroy(*rei->second);
     };
 
-    std::pair<Image*, WGPUBuffer*> ibpair{&ret, &readtex};
-    wgpuBufferMapAsync(readtex, WGPUMapMode_Read, 0, 4 * tex.width * tex.height, onBuffer2Mapped, &ibpair);
-    while(ibpair.first->data == nullptr){
+    std::pair<Image*, wgpu::Buffer*> ibpair{&ret, &readtex};
+    
+    #ifndef __EMSCRIPTEN__
+    WGPUFutureWaitInfo winfo{};
+    wgpu::BufferMapCallbackInfo cbinfo{};
+    cbinfo.callback = onBuffer2Mapped;
+    cbinfo.userdata = &ibpair;
+    cbinfo.mode = wgpu::CallbackMode::WaitAnyOnly;
+    wgpu::Future fut = readtex.MapAsync(wgpu::MapMode::Read, 0, size_t(std::ceil(4.0 * tex.width / 256.0) * 256) * tex.height, cbinfo);
+    winfo.future = fut;
+    wgpuInstanceWaitAny(g_wgpustate.instance, 1, &winfo, 1000000000);
+    #else 
+    readtex.MapAsync(wgpu::MapMode::Read, 0, size_t(std::ceil(4.0 * tex.width / 256.0) * 256) * tex.height, onBuffer2Mapped, &ibpair);
+    emscripten_sleep(20);
+    #endif
+    //wgpuBufferMapAsyncF(readtex, WGPUMapMode_Read, 0, 4 * tex.width * tex.height, onBuffer2Mapped);
+    /*while(ibpair.first->data == nullptr){
         std::this_thread::sleep_for(std::chrono::microseconds(1));
         WGPUCommandBufferDescriptor cmdBufferDescriptor2{};
         cmdBufferDescriptor.label = "Command buffer";
@@ -169,8 +201,13 @@ Image LoadImageFromTexture(Texture tex){
     #ifdef WEBGPU_BACKEND_DAWN
     wgpuInstanceProcessEvents(g_wgpustate.instance);
     wgpuDeviceTick(device);
-    #endif
+    #endif*/
+    //readtex.Destroy();
     return ret;
+    //#else
+    //std::cerr << "LoadImageFromTexture not supported on web\n";
+    //return Image{tex.format, 0, 0, nullptr};
+    
 }
 Texture LoadTextureFromImage(Image img){
     Texture ret;
@@ -380,22 +417,21 @@ void updateVertexBuffer(full_renderstate* state, const void* data, size_t size){
     state->vbo = wgpuDeviceCreateBuffer(g_wgpustate.device, &bufferDesc);
     wgpuQueueWriteBuffer(g_wgpustate.queue, state->vbo, 0, data, size);
 }
-void setTexture(full_renderstate* state, uint32_t index, Texture tex){
+void setStateTexture(full_renderstate* state, uint32_t index, Texture tex){
     state->bgEntries[index] = WGPUBindGroupEntry{};
     state->bgEntries[index].binding = index;
     state->bgEntries[index].textureView = tex.view;
     updateBindGroup(state);
 }
-void setSampler(full_renderstate* state, uint32_t index, WGPUSampler sampler){
+void setStateSampler(full_renderstate* state, uint32_t index, WGPUSampler sampler){
     state->bgEntries[index] = WGPUBindGroupEntry{};
     state->bgEntries[index].binding = index;
     state->bgEntries[index].sampler = sampler;
     //updateBindGroup(state);
 }
-void setUniformBuffer(full_renderstate* state, uint32_t index, const void* data, size_t size){
+void setStateUniformBuffer(full_renderstate* state, uint32_t index, const void* data, size_t size){
     if(state->bgEntries[index].buffer){
         wgpuBufferRelease(state->bgEntries[index].buffer);
-        //wgpuBufferDestroy(state->bgEntries[index].buffer);
     }
     WGPUBufferDescriptor bufferDesc{};
     bufferDesc.size = size;
@@ -413,10 +449,9 @@ void setUniformBuffer(full_renderstate* state, uint32_t index, const void* data,
     
 }
 
-void setStorageBuffer(full_renderstate* state, uint32_t index, const void* data, size_t size){
+void setStateStorageBuffer(full_renderstate* state, uint32_t index, const void* data, size_t size){
     if(state->bgEntries[index].buffer){
         wgpuBufferRelease(state->bgEntries[index].buffer);
-        //wgpuBufferDestroy(state->bgEntries[index].buffer);
     }
     WGPUBufferDescriptor bufferDesc{};
     bufferDesc.size = size;
@@ -432,7 +467,18 @@ void setStorageBuffer(full_renderstate* state, uint32_t index, const void* data,
     state->bgEntries[index].size = size;
     updateBindGroup(state);
 }
-
+void SetTexture       (uint32_t index, Texture tex){
+    setStateTexture(g_wgpustate.rstate, index, tex);
+}
+void SetSampler       (uint32_t index, WGPUSampler sampler){
+    setStateSampler(g_wgpustate.rstate, index, sampler);
+}
+void SetUniformBuffer (uint32_t index, const void* data, size_t size){
+    setStateUniformBuffer(g_wgpustate.rstate, index, data, size);
+}
+void SetStorageBuffer (uint32_t index, const void* data, size_t size){
+    setStateStorageBuffer(g_wgpustate.rstate, index, data, size);
+}
 void updateBindGroup(full_renderstate* state){
     WGPUBindGroupDescriptor bgdesc{};
     bgdesc.entryCount = state->bglayoutdesc.entryCount;
@@ -583,13 +629,13 @@ void UseTexture(Texture tex){
     }
 
     g_wgpustate.activeTexture = tex;
-    setTexture(g_wgpustate.rstate, 1, tex);
+    setStateTexture(g_wgpustate.rstate, 1, tex);
 }
 void UseNoTexture(){
     if(g_wgpustate.activeTexture.tex != g_wgpustate.whitePixel.tex){
         drawCurrentBatch();
     }
-    setTexture(g_wgpustate.rstate, 1, g_wgpustate.whitePixel);
+    setStateTexture(g_wgpustate.rstate, 1, g_wgpustate.whitePixel);
     
 }
 /*template<typename callable>
@@ -617,8 +663,5 @@ void BeginTextureMode(RenderTexture rtex){
 }
 void EndTextureMode(){
     drawCurrentBatch();
-    WGPUSurfaceTexture surfaceTexture;
-    wgpuSurfaceGetCurrentTexture(g_wgpustate.surface, &surfaceTexture);
-    WGPUTextureView nextTexture = wgpuTextureCreateView(surfaceTexture.texture, nullptr);
-    setTargetTextures(g_wgpustate.rstate, nextTexture, depthTexture.view);
+    setTargetTextures(g_wgpustate.rstate, g_wgpustate.currentSurfaceTextureView, depthTexture.view);
 }
