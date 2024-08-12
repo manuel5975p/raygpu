@@ -244,6 +244,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     glfwSetWindowSizeCallback(window, [](GLFWwindow* window, int width, int height){
         //wgpuSurfaceRelease(g_wgpustate.surface);
         //g_wgpustate.surface = wgpu::glfw::CreateSurfaceForWindow(g_wgpustate.instance, window).MoveToCHandle();
+        g_wgpustate.drawmutex.lock();
         WGPUSurfaceCapabilities capabilities;
         wgpuSurfaceGetCapabilities(g_wgpustate.surface, g_wgpustate.adapter, &capabilities);
         WGPUSurfaceConfiguration config = {};
@@ -261,6 +262,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
         wgpuTextureRelease(depthTexture.tex);
         depthTexture = LoadDepthTexture(width, height);
         wgpuSurfaceConfigure(g_wgpustate.surface, &config);
+        g_wgpustate.drawmutex.unlock();
     });
     
     //#ifndef __EMSCRIPTEN__

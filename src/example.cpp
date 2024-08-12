@@ -62,14 +62,18 @@ int main(){
         EndTextureMode();*/
         //UseTexture(rtex.color);
         udata = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
-        SetUniformBuffer(0, &udata, 64 * sizeof(float));
-        DrawTexturePro(
-            g_wgpustate.whitePixel,
-            Rectangle(0, 0, rtd, rtd), Rectangle(GetScreenWidth() / 2.f, GetScreenHeight() / 2.f, GetScreenWidth(), GetScreenHeight()), 
-            Vector2(GetScreenWidth() / 2.f, GetScreenHeight() / 2.f), 
-            g_wgpustate.total_frames * (1.0f / 1000.0f),
-            Color{255,255,255,255}
-        );
+        SetUniformBuffer(0, &udata, 16 * sizeof(float));
+        for(size_t i = 0;i < 1000;i++){
+            DrawTexturePro(
+                g_wgpustate.whitePixel,
+                Rectangle(0, 0, 1, 1), Rectangle(i * 3, 10,20,20),
+                Vector2(0,0), 
+                g_wgpustate.total_frames * (0.0f / 1000.0f),
+                Color{255,255,255,255}
+            );
+        }
+
+        
         //Image img = LoadImageFromTexture(rtex.color);
         //std::cout << img.format << "\n";
         //if(total_frames == 3)

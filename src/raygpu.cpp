@@ -91,6 +91,7 @@ uint32_t GetScreenHeight(cwoid){
 }
 void BeginDrawing(){
     glfwPollEvents();
+    g_wgpustate.drawmutex.lock();
     WGPUSurfaceTexture surfaceTexture;
     wgpuSurfaceGetCurrentTexture(g_wgpustate.surface, &surfaceTexture);
     g_wgpustate.currentSurfaceTexture = surfaceTexture;
@@ -99,6 +100,7 @@ void BeginDrawing(){
     setTargetTextures(g_wgpustate.rstate, nextTexture, g_wgpustate.rstate->depth);
     UseNoTexture();
     updateBindGroup(g_wgpustate.rstate);
+    
 }
 void EndDrawing(){
     drawCurrentBatch();
@@ -112,6 +114,7 @@ void EndDrawing(){
     wgpuTextureViewRelease(g_wgpustate.currentSurfaceTextureView);
     g_wgpustate.last_timestamps[g_wgpustate.total_frames % 32] = NanoTime();
     ++g_wgpustate.total_frames;
+    g_wgpustate.drawmutex.unlock();
 }
 void rlBegin(draw_mode mode){
     if(g_wgpustate.current_drawmode != mode){

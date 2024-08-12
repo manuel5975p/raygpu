@@ -26,4 +26,6 @@ struct wgpustate{
     uint64_t init_timestamp;
 
     uint64_t last_timestamps[32];
+
+    std::mutex drawmutex;
 };
