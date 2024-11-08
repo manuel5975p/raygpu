@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.25)
 include(FetchContent)
 project(webgpu_standalone)
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=leak")
-FetchContent_Declare(
-    dawn
-    URL "${CMAKE_CURRENT_LIST_DIR}/dawn.tar.gz"
-)
-FetchContent_MakeAvailable(dawn)
-
+#set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=leak")
+#FetchContent_Declare(
+#    dawn
+#    URL "${CMAKE_CURRENT_LIST_DIR}/dawn.tar.gz"
+#)
+#FetchContent_MakeAvailable(dawn)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/dawn)
 # Define the download function
 function(download_file_if_not_exists url filename)
     set(DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/dl")

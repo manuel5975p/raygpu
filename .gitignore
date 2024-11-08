@@ -3,3 +3,5 @@ dawn/
 debug/
 *.gz
 .gitignore
+.cache/
+.vscode/

@@ -63,14 +63,16 @@ int main(){
         //UseTexture(rtex.color);
         udata = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
         SetUniformBuffer(0, &udata, 16 * sizeof(float));
-        for(size_t i = 0;i < 1000;i++){
-            DrawTexturePro(
-                g_wgpustate.whitePixel,
-                Rectangle(0, 0, 1, 1), Rectangle(i * 3, 10,20,20),
-                Vector2(0,0), 
-                g_wgpustate.total_frames * (0.0f / 1000.0f),
-                Color{255,255,255,255}
-            );
+        for(size_t i = 0;i < 10;i++){
+            for(size_t j = 0;j < 10;j++){
+                DrawTexturePro(
+                    g_wgpustate.whitePixel,
+                    Rectangle(0, 0, 1, 1), Rectangle(i * 10, j * 10, 8, 8),
+                    Vector2(0,0), 
+                    g_wgpustate.total_frames * (0.0f / 1000.0f),
+                    Color{255,255,255,255}
+                );
+            }
         }
 
         

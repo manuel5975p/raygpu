@@ -598,7 +598,7 @@ void updateRenderPassDesc(full_renderstate* state){
     #endif
     //std::cout << rca.depthSlice << "\n";
     state->rca.resolveTarget = nullptr;
-    state->rca.loadOp =  WGPULoadOp_Clear;
+    state->rca.loadOp =  WGPULoadOp_Load;
     state->rca.storeOp = WGPUStoreOp_Store;
     state->rca.clearValue = WGPUColor{ 0.01, 0.01, 0.2, 1.0 };
     state->renderPassDesc.colorAttachmentCount = 1;

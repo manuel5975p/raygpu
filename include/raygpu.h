@@ -108,6 +108,14 @@ typedef struct full_renderstate{
     #endif
 }full_renderstate;
 
+typedef struct Shader{
+    WGPUShaderModule shadermodule;
+
+    WGPUBindGroupLayoutDescriptor bglayoutdesc;
+    WGPUBindGroupLayout bglayout;
+    
+} Shader;
+
 enum draw_mode{
     RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS
 };
