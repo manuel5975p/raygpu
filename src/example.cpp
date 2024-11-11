@@ -20,6 +20,7 @@ RenderTexture rtex;
 uint64_t frames = 0;
 uint64_t stmp = NanoTime();
 int main(){
+    
     constexpr uint32_t width = 1000;
     constexpr uint32_t height = 1000;
     auto window = InitWindow(width, height);

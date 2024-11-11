@@ -2,6 +2,9 @@
 #include <webgpu/webgpu.h>
 #include <stdbool.h>
 #include "mathutils.h"
+
+#define STRVIEW(X) WGPUStringView{X, sizeof(X) - 1}
+
 #ifdef __cplusplus
 #define EXTERN_C_BEGIN extern "C" {
 #define EXTERN_C_END }
@@ -90,7 +93,7 @@ typedef struct full_renderstate{
     template<typename callable>
     void executeRenderpass(callable&& c){
         WGPUCommandEncoderDescriptor commandEncoderDesc = {};
-        commandEncoderDesc.label = "Command Encoder";
+        commandEncoderDesc.label = STRVIEW("Command Encoder");
         WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(GetDevice(), &commandEncoderDesc);
         WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
         wgpuRenderPassEncoderSetPipeline(renderPass, pipeline);
@@ -99,7 +102,7 @@ typedef struct full_renderstate{
         c(renderPass);
         wgpuRenderPassEncoderEnd(renderPass);
         WGPUCommandBufferDescriptor cmdBufferDescriptor{};
-        cmdBufferDescriptor.label = "Command buffer";
+        cmdBufferDescriptor.label = STRVIEW("Command buffer");
         WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &cmdBufferDescriptor);
         wgpuQueueSubmit(GetQueue(), 1, &command);
         wgpuCommandEncoderRelease(encoder);

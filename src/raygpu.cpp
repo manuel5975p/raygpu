@@ -137,7 +137,7 @@ Image LoadImageFromTexture(Texture tex){
     wgpu::Buffer readtex = wgpuDeviceCreateBuffer(device, &b);
     
     WGPUCommandEncoderDescriptor commandEncoderDesc{};
-    commandEncoderDesc.label = "Command Encoder";
+    commandEncoderDesc.label = STRVIEW("Command Encoder");
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device, &commandEncoderDesc);
     WGPUImageCopyTexture tbsource;
     tbsource.texture = tex.tex;
@@ -154,7 +154,7 @@ Image LoadImageFromTexture(Texture tex){
     wgpuCommandEncoderCopyTextureToBuffer(encoder, &tbsource, &tbdest, &copysize);
     
     WGPUCommandBufferDescriptor cmdBufferDescriptor{};
-    cmdBufferDescriptor.label = "Command buffer";
+    cmdBufferDescriptor.label = STRVIEW("Command buffer");
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &cmdBufferDescriptor);
     wgpuCommandEncoderRelease(encoder);
     wgpuQueueSubmit(g_wgpustate.queue, 1, &command);
@@ -225,7 +225,7 @@ Texture LoadTextureFromImage(Image img){
     Texture ret;
     WGPUTextureDescriptor desc = {
     nullptr,
-    nullptr,
+    WGPUStringView{nullptr, 0},
     WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc,
     WGPUTextureDimension_2D,
     WGPUExtent3D{img.width, img.height, 1},
@@ -273,8 +273,9 @@ uint32_t GetFPS(cwoid){
 WGPUShaderModule LoadShaderFromMemory(const char* shaderSource) {
     WGPUShaderModuleWGSLDescriptor shaderCodeDesc{};
     shaderCodeDesc.chain.next = nullptr;
-    shaderCodeDesc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
-    shaderCodeDesc.code = shaderSource;
+    shaderCodeDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
+    shaderCodeDesc.code = WGPUStringView{shaderSource, strlen(shaderSource)};
+    shaderCodeDesc.code = WGPUStringView{shaderSource, strlen(shaderSource)};
     WGPUShaderModuleDescriptor shaderDesc{};
     shaderDesc.nextInChain = &shaderCodeDesc.chain;
     #ifdef WEBGPU_BACKEND_WGPU
@@ -295,8 +296,8 @@ WGPUShaderModule LoadShader(const char* path) {
     file.read(shaderSource.data(), size);
     WGPUShaderModuleWGSLDescriptor shaderCodeDesc;
     shaderCodeDesc.chain.next = nullptr;
-    shaderCodeDesc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
-    shaderCodeDesc.code = shaderSource.c_str();
+    shaderCodeDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
+    shaderCodeDesc.code = WGPUStringView{shaderSource.c_str(), shaderSource.size()};
     WGPUShaderModuleDescriptor shaderDesc;
     shaderDesc.nextInChain = &shaderCodeDesc.chain;
 #ifdef WEBGPU_BACKEND_WGPU
@@ -520,7 +521,7 @@ void updatePipeline(full_renderstate* state, draw_mode drawmode){
     state->pipelineDesc.vertex.bufferCount = 1;
     state->pipelineDesc.vertex.buffers = &state->vlayout;
     state->pipelineDesc.vertex.module = state->shader;
-    state->pipelineDesc.vertex.entryPoint = "vs_main";
+    state->pipelineDesc.vertex.entryPoint = STRVIEW("vs_main");
     state->pipelineDesc.vertex.constantCount = 0;
     state->pipelineDesc.vertex.constants = nullptr;
     switch(drawmode){
@@ -544,7 +545,7 @@ void updatePipeline(full_renderstate* state, draw_mode drawmode){
     WGPUFragmentState fragmentState{};
     state->pipelineDesc.fragment = &fragmentState;
     fragmentState.module = state->shader;
-    fragmentState.entryPoint = "fs_main";
+    fragmentState.entryPoint = STRVIEW("fs_main");
     fragmentState.constantCount = 0;
     fragmentState.constants = nullptr;
     WGPUBlendState blendState{};
@@ -565,7 +566,7 @@ void updatePipeline(full_renderstate* state, draw_mode drawmode){
     // Keep a fragment only if its depth is lower than the previously blended one
     depthStencilState.depthCompare = WGPUCompareFunction_Less;
     // Each time a fragment is blended into the target, we update the value of the Z-buffer
-    depthStencilState.depthWriteEnabled = true;
+    depthStencilState.depthWriteEnabled = WGPUOptionalBool_True;
     // Store the format in a variable as later parts of the code depend on it
     WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth24Plus;
     depthStencilState.format = depthTextureFormat;
