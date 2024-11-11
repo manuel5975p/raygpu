@@ -1,7 +1,7 @@
 #include "raygpu.h"
 #include <cmath>
-using std::sinf;
-using std::cosf;
+using std::sin;
+using std::cos;
 
 void DrawTexturePro(Texture texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint){
     // Check if texture is valid
@@ -31,8 +31,8 @@ void DrawTexturePro(Texture texture, Rectangle source, Rectangle dest, Vector2 o
         }
         else
         {
-            float sinRotation = sinf(rotation);
-            float cosRotation = cosf(rotation);
+            float sinRotation = sin(rotation);
+            float cosRotation = cos(rotation);
             float x = dest.x;
             float y = dest.y;
             float dx = -origin.x;

@@ -23,9 +23,8 @@
 
 #ifdef __cplusplus
 #include <cmath>
-using std::sqrtf;
+using std::sqrt;
 using std::tan;
-using std::tanf;
 #else
 #include <math.h>
 #endif
