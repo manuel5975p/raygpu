@@ -11,6 +11,10 @@
 #include <emscripten/html5.h>
 #include <emscripten/emscripten.h>
 #endif  // __EMSCRIPTEN__
+inline std::ostream& operator<<(std::ostream& ostr, const wgpu::StringView& st){
+    ostr.write(st.data, st.length);
+    return ostr;
+}
 constexpr char shaderSource[] = R"(
 struct VertexInput {
     @location(0) position: vec3f,
@@ -68,48 +72,108 @@ struct webgpu_cxx_state{
     full_renderstate* rstate = nullptr;
     Texture depthTexture{};
 };
-webgpu_cxx_state* sample;
+//webgpu_cxx_state* sample;
 GLFWwindow* InitWindow(uint32_t width, uint32_t height){
-    sample = new webgpu_cxx_state;
-    #ifndef __EMSCRIPTEN__
-    //dawnProcSetProcs(&dawn::native::GetProcs());
-    #endif
-    #ifndef __EMSCRIPTEN__
+    webgpu_cxx_state samplev;
+    webgpu_cxx_state* sample = &samplev;
+    
+    // Create the toggles descriptor if not using emscripten.
+    wgpu::ChainedStruct* togglesChain = nullptr;
+#ifndef __EMSCRIPTEN__
+    std::vector<const char*> enableToggleNames{};
+    std::vector<const char*> disabledToggleNames{};
+
     wgpu::DawnTogglesDescriptor toggles = {};
-    toggles.enabledToggles = 0;
-    toggles.enabledToggleCount = 0;
-    toggles.disabledToggles = 0;
-    toggles.disabledToggleCount = 0;
+    toggles.enabledToggles = enableToggleNames.data();
+    toggles.enabledToggleCount = enableToggleNames.size();
+    toggles.disabledToggles = disabledToggleNames.data();
+    toggles.disabledToggleCount = disabledToggleNames.size();
+
+    togglesChain = &toggles;
+#endif  // __EMSCRIPTEN__
+
+    // Setup base adapter options with toggles.
+    wgpu::RequestAdapterOptions adapterOptions = {};
+    adapterOptions.nextInChain = togglesChain;
+    auto backendType = wgpu::BackendType::Vulkan;
+    auto adapterType = wgpu::AdapterType::Unknown;
+    adapterOptions.backendType = backendType;
+    if (backendType != wgpu::BackendType::Undefined) {
+        auto bcompat = [](wgpu::BackendType backend) {
+            switch (backend) {
+                case wgpu::BackendType::D3D12:
+                case wgpu::BackendType::Metal:
+                case wgpu::BackendType::Vulkan:
+                case wgpu::BackendType::WebGPU:
+                case wgpu::BackendType::Null:
+                    return false;
+                case wgpu::BackendType::D3D11:
+                case wgpu::BackendType::OpenGL:
+                case wgpu::BackendType::OpenGLES:
+                    return true;
+                case wgpu::BackendType::Undefined:
+                default:
+                    __builtin_unreachable();
+                    return false;
+            }
+        };
+        adapterOptions.compatibilityMode = bcompat(backendType);
+
+    }
+
+    switch (adapterType) {
+        case wgpu::AdapterType::CPU:
+            adapterOptions.forceFallbackAdapter = true;
+            break;
+        case wgpu::AdapterType::DiscreteGPU:
+            adapterOptions.powerPreference = wgpu::PowerPreference::HighPerformance;
+            break;
+        case wgpu::AdapterType::IntegratedGPU:
+            adapterOptions.powerPreference = wgpu::PowerPreference::LowPower;
+            break;
+        case wgpu::AdapterType::Unknown:
+            break;
+    }
+
+#ifndef __EMSCRIPTEN__
+    //dawnProcSetProcs(&dawn::native::GetProcs());
+
+    // Create the instance with the toggles
     wgpu::InstanceDescriptor instanceDescriptor = {};
-    instanceDescriptor.nextInChain = &toggles;
+    instanceDescriptor.nextInChain = togglesChain;
     instanceDescriptor.features.timedWaitAnyEnable = true;
     sample->instance = wgpu::CreateInstance(&instanceDescriptor);
-    wgpu::RequestAdapterOptions adapterOptions = {};
-    adapterOptions.compatibilityMode = true;
-    adapterOptions.backendType = wgpu::BackendType::Undefined;
-    adapterOptions.powerPreference = wgpu::PowerPreference::HighPerformance;
+#else
+    // Create the instance
+    sample->instance = wgpu::CreateInstance(nullptr);
+#endif  // __EMSCRIPTEN__
+
+    // Synchronously create the adapter
     sample->instance.WaitAny(
         sample->instance.RequestAdapter(
             &adapterOptions, wgpu::CallbackMode::WaitAnyOnly,
-            [](wgpu::RequestAdapterStatus status, wgpu::Adapter adapter, const char* message) {
+            [sample](wgpu::RequestAdapterStatus status, wgpu::Adapter adapter, wgpu::StringView message) {
                 if (status != wgpu::RequestAdapterStatus::Success) {
-                    std::cerr << "Failed to get an adapter: " << message << "\n";
+                    std::cerr << "Failed to get an adapter:" << message;
                     return;
                 }
                 sample->adapter = std::move(adapter);
             }),
         UINT64_MAX);
     if (sample->adapter == nullptr) {
-        return nullptr;
+        std::cerr << "Adapter is null\n";
+        abort();
     }
-    wgpu::DeviceDescriptor deviceDesc = {};
-    wgpu::RequiredLimits limits;
-    limits.limits.maxTextureDimension2D = 1 << 13;
-    deviceDesc.requiredLimits = &limits;
+    wgpu::AdapterInfo info;
+    sample->adapter.GetInfo(&info);
+    //std::cout << "Using adapter \"" << info.device << "\"\n";
 
+    // Create device descriptor with callbacks and toggles
+    wgpu::DeviceDescriptor deviceDesc = {};
+    deviceDesc.nextInChain = togglesChain;
     deviceDesc.SetDeviceLostCallback(
         wgpu::CallbackMode::AllowSpontaneous,
-        [](const wgpu::Device&, wgpu::DeviceLostReason reason, const char* message) {
+        [](const wgpu::Device&, wgpu::DeviceLostReason reason, wgpu::StringView message) {
             const char* reasonName = "";
             switch (reason) {
                 case wgpu::DeviceLostReason::Unknown:
@@ -127,10 +191,10 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
                 default:
                     __builtin_unreachable();
             }
-            std::cerr << "Device lost because of " << reasonName << ": " << message;
+            std::cerr << "Device lost because of " << reasonName << ": " << std::string(message.data, message.length);
         });
     deviceDesc.SetUncapturedErrorCallback(
-        [](const wgpu::Device&, wgpu::ErrorType type, const char* message) {
+        [](const wgpu::Device&, wgpu::ErrorType type, wgpu::StringView message) {
             const char* errorTypeName = "";
             switch (type) {
                 case wgpu::ErrorType::Validation:
@@ -148,99 +212,54 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
                 default:
                     __builtin_unreachable();
             }
-            std::cerr << errorTypeName << " error: " << message;
+            std::cerr << errorTypeName << " error: " << std::string(message.data, message.length);
         });
 
+    // Synchronously create the device
     sample->instance.WaitAny(
         sample->adapter.RequestDevice(
             &deviceDesc, wgpu::CallbackMode::WaitAnyOnly,
-            [](wgpu::RequestDeviceStatus status, wgpu::Device device, const char* message) {
+            [sample](wgpu::RequestDeviceStatus status, wgpu::Device device, wgpu::StringView message) {
                 if (status != wgpu::RequestDeviceStatus::Success) {
-                    std::cerr << "Failed to get an device:" << message;
+                    std::cerr << "Failed to get an device: " << std::string(message.data, message.length);
                     return;
                 }
                 sample->device = std::move(device);
                 sample->queue = sample->device.GetQueue();
             }),
         UINT64_MAX);
-    
     if (sample->device == nullptr) {
-        return nullptr;
+        std::cerr << "Device is null\n";
+        abort();
     }
-    #else
-    sample->instance = wgpu::CreateInstance(nullptr);
-    wgpu::RequestAdapterOptions adapterOptions = {};
-    // Create the adapter, device, and set the emscripten loop via callbacks
-    // TODO(crbug.com/42241221) Update to use the newer APIs once they are implemented in
-    // Emscripten.
-    sample->instance.RequestAdapter(
-        &adapterOptions,
-        [](WGPURequestAdapterStatus status, WGPUAdapter adapter, const char* message,
-           void* userdata) {
-            if (status != WGPURequestAdapterStatus_Success) {
-                std::cerr << "Failed to get an adapter:" << message;
-                return;
-            }
-            sample->adapter = wgpu::Adapter::Acquire(adapter);
 
-            wgpu::DeviceDescriptor deviceDesc = {};
-            sample->adapter.RequestDevice(
-                &deviceDesc,
-                [](WGPURequestDeviceStatus status, WGPUDevice device, const char* message,
-                   void* userdata) {
-                    if (status != WGPURequestDeviceStatus_Success) {
-                        std::cerr << "Failed to get an device:" << message;
-                        return;
-                    }
-                    sample->device = wgpu::Device::Acquire(device);
-                    sample->queue = sample->device.GetQueue();
-
-                    //if (sample->Setup()) {
-                    //    emscripten_set_main_loop([]() { sample->FrameImpl(); }, 0, false);
-                    //} else {
-                    //    std::cerr << "Failed to setup sample";
-                    //}
-                },
-                nullptr);
-        },
-        nullptr);
-        while(sample->queue.Get() == 0){
-            //std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            emscripten_sleep(100);
-        }
-        std::cout << "Success" << std::endl;
-    #endif
-    glfwInit();
-        glfwSetErrorCallback([](int code, const char* message) {
+    #ifndef __EMSCRIPTEN__
+    glfwSetErrorCallback([](int code, const char* message) {
         std::cerr << "GLFW error: " << code << " - " << message;
     });
 
     if (!glfwInit()) {
         abort();
     }
+
+    // Create the test window with no client API.
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     GLFWwindow* window = glfwCreateWindow(width, height, "Dawn window", nullptr, nullptr);
     if (!window) {
         abort();
     }
-    #ifndef __EMSCRIPTEN__
+
+    // Create the surface.
     sample->surface = wgpu::glfw::CreateSurfaceForWindow(sample->instance, window);
-    #else
-    //WGPUTextureFormat swapChainFormat = WGPUTextureFormat_RGBA8Unorm;
+#else
+    // Create the surface.
     wgpu::SurfaceDescriptorFromCanvasHTMLSelector canvasDesc{};
     canvasDesc.selector = "#canvas";
+
     wgpu::SurfaceDescriptor surfaceDesc = {};
     surfaceDesc.nextInChain = &canvasDesc;
-    sample->surface = sample->instance.CreateSurface(&surfaceDesc);
-    /*
-    WGPUSwapChainDescriptor swapChainDesc{};
-    swapChainDesc.width = width;
-    swapChainDesc.height = height;
-    swapChainDesc.usage = WGPUTextureUsage_RenderAttachment;
-    swapChainDesc.format = swapChainFormat;
-    swapChainDesc.presentMode = WGPUPresentMode_Fifo;
-    g_wgpustate.swapChain = wgpuDeviceCreateSwapChain(g_wgpustate.device, sample->surface.Get(), &swapChainDesc);*/
-    #endif
+    surface = instance.CreateSurface(&surfaceDesc);
+#endif
     glfwSetWindowSizeCallback(window, [](GLFWwindow* window, int width, int height){
         //wgpuSurfaceRelease(g_wgpustate.surface);
         //g_wgpustate.surface = wgpu::glfw::CreateSurfaceForWindow(g_wgpustate.instance, window).MoveToCHandle();

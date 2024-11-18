@@ -592,19 +592,17 @@ class HelloTriangleSample : public SampleBase {
     void FrameImpl() override {
         wgpu::SurfaceTexture surfaceTexture;
         surface.GetCurrentTexture(&surfaceTexture);
-        dawn::utils::ComboRenderPassDescriptor renderPass({surfaceTexture.texture.CreateView()});
-
-        wgpu::CommandEncoder encoder = device.CreateCommandEncoder();
-        {
-            wgpu::RenderPassEncoder pass = encoder.BeginRenderPass(&renderPass);
-            pass.SetPipeline(pipeline);
-            pass.SetVertexBuffer(0, vertexBuffer);
-            pass.Draw(3);
-            pass.End();
-        }
-
-        wgpu::CommandBuffer commands = encoder.Finish();
-        queue.Submit(1, &commands);
+        //dawn::utils::ComboRenderPassDescriptor renderPass({surfaceTexture.texture.CreateView()});
+        //wgpu::CommandEncoder encoder = device.CreateCommandEncoder();
+        //{
+        //    wgpu::RenderPassEncoder pass = encoder.BeginRenderPass(&renderPass);
+        //    pass.SetPipeline(pipeline);
+        //    pass.SetVertexBuffer(0, vertexBuffer);
+        //    pass.Draw(3);
+        //    pass.End();
+        //}
+        //wgpu::CommandBuffer commands = encoder.Finish();
+        //queue.Submit(1, &commands);
     }
 
     wgpu::Buffer vertexBuffer;
