@@ -35,7 +35,8 @@
 #include <thread>
 #include <utility>
 #include <vector>
-
+#include <raygpu.h>
+#include <wgpustate.inc>
 #include "dawn/common/Assert.h"
 #include "dawn/common/Log.h"
 #include "dawn/common/Platform.h"
@@ -110,7 +111,6 @@ class SampleBase {
     wgpu::Adapter adapter = nullptr;
     wgpu::Device device = nullptr;
     wgpu::Queue queue = nullptr;
-
     wgpu::Surface surface = nullptr;
 
     wgpu::TextureFormat GetPreferredSurfaceTextureFormat() { return preferredSurfaceTextureFormat; }
@@ -558,6 +558,7 @@ class HelloTriangleSample : public SampleBase {
 
   private:
     bool SetupImpl() override {
+        //init_full_renderstate(g_wgpustate.rstate, tShader, shaderInputs, rtex.color.view, rtex.depth.view);
         static const float vertexData[12] = {
             0.0f, 0.5f, 0.0f, 1.0f, -0.5f, -0.5f, 0.0f, 1.0f, 0.5f, -0.5f, 0.0f, 1.0f,
         };
