@@ -516,6 +516,20 @@ void updateBindGroup(full_renderstate* state){
     if(state->bg)wgpuBindGroupRelease(state->bg);
     state->bg = wgpuDeviceCreateBindGroup(g_wgpustate.device, &bgdesc);
 }
+WGPURenderPipeline LoadPipelineEx(const char* shaderSource, ShaderInputs shaderInputs){
+    WGPUVertexBufferLayout vblayout{};
+    WGPURenderPipeline ret;
+    WGPURenderPipelineDescriptor pdesc{};
+    //vblayout.
+    WGPUVertexAttribute attribs[8] = {};
+    attribs[0].shaderLocation = 0;
+    
+    attribs[0].format = WGPUVertexFormat_Float32x4;
+    //sure?
+    vblayout.attributeCount = shaderInputs.per_vertex_count + shaderInputs.per_instance_count;
+    return ret;
+    
+}
 void updatePipeline(full_renderstate* state, draw_mode drawmode){
     state->pipelineDesc = WGPURenderPipelineDescriptor{};
     state->pipelineDesc.vertex.bufferCount = 1;

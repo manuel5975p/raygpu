@@ -31,6 +31,7 @@ typedef struct Image{
     uint32_t width, height;
     void* data;
 }Image;
+
 enum uniform_type{
     uniform_buffer, storage_buffer, texture2d, sampler
 };
@@ -164,6 +165,9 @@ EXTERN_C_BEGIN
 
     WGPUShaderModule LoadShaderFromMemory(const char* shaderSource);
     WGPUShaderModule LoadShader(const char* path);
+
+    WGPURenderPipeline LoadPipelineEx(const char* shaderSource, ShaderInputs shaderInputs);
+
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
     Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format, bool to_be_used_as_rendertarget);
     Texture LoadTexture(uint32_t width, uint32_t height);
