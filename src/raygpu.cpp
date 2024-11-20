@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <cstring>
+#include <cstdarg>
 #include <thread>
 #include "wgpustate.inc"
 #include <webgpu/webgpu_cpp.h>
@@ -516,12 +517,27 @@ void updateBindGroup(full_renderstate* state){
     if(state->bg)wgpuBindGroupRelease(state->bg);
     state->bg = wgpuDeviceCreateBindGroup(g_wgpustate.device, &bgdesc);
 }
-WGPURenderPipeline LoadPipelineEx(const char* shaderSource, ShaderInputs shaderInputs){
+WGPURenderPipeline LoadPipelineEx(const char* shaderSource, uint32_t vertexAttributeCount, uint32_t uniform_count, ...){
     WGPUVertexBufferLayout vblayout{};
+    std::va_list list;
+    va_start(list, vertexAttributeCount + uniform_count);
+    WGPUVertexAttribute attribs[8] = {};
+    for(size_t i = 0;i < vertexAttributeCount;i++){
+        WGPUVertexAttribute vat = va_arg(list, WGPUVertexAttribute);
+        attribs[i]= vat;
+    }
+    WGPUBindGroupLayoutDescriptor bgldesc;
+    WGPUBindGroupLayoutEntry bglentry;
+    WGPUBindGroupLayout bglayout;
+
+    WGPUPipelineLayout playout;
+    WGPUPipelineLayoutDescriptor pldesc;
+    //pldesc.
+
     WGPURenderPipeline ret;
     WGPURenderPipelineDescriptor pdesc{};
+    pdesc.layout = playout;
     //vblayout.
-    WGPUVertexAttribute attribs[8] = {};
     attribs[0].shaderLocation = 0;
     
     attribs[0].format = WGPUVertexFormat_Float32x4;
