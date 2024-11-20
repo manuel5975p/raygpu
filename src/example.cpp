@@ -4,9 +4,9 @@
 #include <raygpu.h>
 #include <stb_image_write.h>
 #ifndef __EMSCRIPTEN__
-#include "dawn/dawn_proc.h"
-#include "dawn/native/DawnNative.h"
-#include "webgpu/webgpu_glfw.h"
+//#include "dawn/dawn_proc.h"
+//#include "dawn/native/DawnNative.h"
+//#include "webgpu/webgpu_glfw.h"
 #else
 #include <emscripten/html5.h>
 #include <emscripten/emscripten.h>

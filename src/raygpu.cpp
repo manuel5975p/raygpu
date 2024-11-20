@@ -517,32 +517,93 @@ void updateBindGroup(full_renderstate* state){
     if(state->bg)wgpuBindGroupRelease(state->bg);
     state->bg = wgpuDeviceCreateBindGroup(g_wgpustate.device, &bgdesc);
 }
-WGPURenderPipeline LoadPipelineEx(const char* shaderSource, uint32_t vertexAttributeCount, uint32_t uniform_count, ...){
+WGPURenderPipeline LoadPipelineEx(const char* shaderSource, uint32_t vertexAttributeStride, uint32_t vertexAttributeCount, uint32_t uniform_count, ...){
     WGPUVertexBufferLayout vblayout{};
+    WGPUShaderModule shader = LoadShaderFromMemory(shaderSource);
+
     std::va_list list;
     va_start(list, vertexAttributeCount + uniform_count);
     WGPUVertexAttribute attribs[8] = {};
     for(size_t i = 0;i < vertexAttributeCount;i++){
         WGPUVertexAttribute vat = va_arg(list, WGPUVertexAttribute);
-        attribs[i]= vat;
+        attribs[i] = vat;
     }
+    vblayout.attributes = attribs;
+    vblayout.attributeCount = vertexAttributeCount;
+    vblayout.arrayStride = vertexAttributeStride;
+    vblayout.stepMode = WGPUVertexStepMode_Vertex;
+
     WGPUBindGroupLayoutDescriptor bgldesc;
-    WGPUBindGroupLayoutEntry bglentry;
-    WGPUBindGroupLayout bglayout;
+    WGPUBindGroupLayoutEntry bglentries[8];
+    std::memset(bglentries, 0, sizeof(bglentries));
+
+    for(size_t i = 0;i < uniform_count;i++){
+        bglentries[i].binding = i;
+        //TODO
+    }
+    bgldesc.entries = bglentries;
+    bgldesc.entryCount = uniform_count;
+
+    WGPUBindGroupLayout bglayout = wgpuDeviceCreateBindGroupLayout(g_wgpustate.device, &bgldesc);
 
     WGPUPipelineLayout playout;
-    WGPUPipelineLayoutDescriptor pldesc;
-    //pldesc.
-
+    WGPUPipelineLayoutDescriptor pldesc{};
+    pldesc.bindGroupLayoutCount = 1;
+    pldesc.bindGroupLayouts = &bglayout;
+    
     WGPURenderPipeline ret;
-    WGPURenderPipelineDescriptor pdesc{};
-    pdesc.layout = playout;
+    WGPURenderPipelineDescriptor pipelineDesc{};
+    pipelineDesc.layout = playout;
+    
+    WGPUVertexState vertexState{};
+    vertexState.module = shader;
+    vertexState.bufferCount = 1;
+    vertexState.buffers = &vblayout;
+    vertexState.constantCount = 0;
+    vertexState.entryPoint = STRVIEW("vs_main");
+    pipelineDesc.vertex = vertexState;
+
+
+
+    WGPUFragmentState fragmentState{};
+
+    pipelineDesc.fragment = &fragmentState;
+    fragmentState.module = shader;
+    fragmentState.entryPoint = STRVIEW("fs_main");
+    fragmentState.constantCount = 0;
+    fragmentState.constants = nullptr;
+    WGPUBlendState blendState{};
+    blendState.color.srcFactor = WGPUBlendFactor_SrcAlpha;
+    blendState.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
+    blendState.color.operation = WGPUBlendOperation_Add;
+    blendState.alpha.srcFactor = WGPUBlendFactor_Zero;
+    blendState.alpha.dstFactor = WGPUBlendFactor_One;
+    blendState.alpha.operation = WGPUBlendOperation_Add;
+    WGPUColorTargetState colorTarget{};
+    colorTarget.format = g_wgpustate.frameBufferFormat;
+    colorTarget.blend = &blendState;
+    colorTarget.writeMask = WGPUColorWriteMask_All;
+    fragmentState.targetCount = 1;
+    fragmentState.targets = &colorTarget;
+    // We setup a depth buffer state for the render pipeline
+    WGPUDepthStencilState depthStencilState{};
+    // Keep a fragment only if its depth is lower than the previously blended one
+    depthStencilState.depthCompare = WGPUCompareFunction_Less;
+    // Each time a fragment is blended into the target, we update the value of the Z-buffer
+    depthStencilState.depthWriteEnabled = WGPUOptionalBool_True;
+    // Store the format in a variable as later parts of the code depend on it
+    WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth24Plus;
+    depthStencilState.format = depthTextureFormat;
+    // Deactivate the stencil alltogether
+    depthStencilState.stencilReadMask = 0;
+    depthStencilState.stencilWriteMask = 0;
+    depthStencilState.stencilFront.compare = WGPUCompareFunction_Always;
+    depthStencilState.stencilBack.compare = WGPUCompareFunction_Always;
+
     //vblayout.
     attribs[0].shaderLocation = 0;
     
     attribs[0].format = WGPUVertexFormat_Float32x4;
-    //sure?
-    vblayout.attributeCount = shaderInputs.per_vertex_count + shaderInputs.per_instance_count;
     return ret;
     
 }
