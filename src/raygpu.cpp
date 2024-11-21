@@ -364,7 +364,41 @@ inline WGPUVertexFormat f32format(uint32_t s){
         default: abort();
     }
     __builtin_unreachable();
-} 
+}
+WGPUBindGroupLayout bindGroupLayoutFromUniformTypes(ShaderInputs shader_inputs){
+    std::vector<WGPUBindGroupLayoutEntry> blayouts(shader_inputs.uniform_count);
+    WGPUBindGroupLayoutDescriptor bglayoutdesc = WGPUBindGroupLayoutDescriptor{};
+    std::memset(blayouts.data(), 0, blayouts.size() * sizeof(WGPUBindGroupLayoutEntry));
+    for(size_t i = 0;i < shader_inputs.uniform_count;i++){
+        blayouts[i].binding = i;
+        switch(shader_inputs.uniform_types[i]){
+            case uniform_buffer:
+                blayouts[i].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+                blayouts[i].buffer.type = WGPUBufferBindingType_Uniform;
+                blayouts[i].buffer.minBindingSize = shader_inputs.uniform_minsizes[i];
+            break;
+            case storage_buffer:{
+                blayouts[i].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+                blayouts[i].buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+                blayouts[i].buffer.minBindingSize = 0;
+            }
+            break;
+            case texture2d:
+                blayouts[i].visibility = WGPUShaderStage_Fragment;
+                blayouts[i].texture.sampleType = WGPUTextureSampleType_Float;
+                blayouts[i].texture.viewDimension = WGPUTextureViewDimension_2D;
+            break;
+            case sampler:
+                blayouts[i].visibility = WGPUShaderStage_Fragment;
+                blayouts[i].sampler.type = WGPUSamplerBindingType_Filtering;
+            break;
+            default:break;
+        }
+    }
+    bglayoutdesc.entryCount = shader_inputs.uniform_count;
+    bglayoutdesc.entries = blayouts.data();
+    return {bglayoutdesc, wgpuDeviceCreateBindGroupLayout(g_wgpustate.device, &bglayoutdesc)};
+}
 void init_full_renderstate(full_renderstate* state, const WGPUShaderModule sh, const ShaderInputs shader_inputs, WGPUTextureView c, WGPUTextureView d){
     state->shader = sh;
     state->color = c;
