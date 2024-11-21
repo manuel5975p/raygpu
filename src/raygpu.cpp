@@ -397,7 +397,7 @@ WGPUBindGroupLayout bindGroupLayoutFromUniformTypes(ShaderInputs shader_inputs){
     }
     bglayoutdesc.entryCount = shader_inputs.uniform_count;
     bglayoutdesc.entries = blayouts.data();
-    return {bglayoutdesc, wgpuDeviceCreateBindGroupLayout(g_wgpustate.device, &bglayoutdesc)};
+    return wgpuDeviceCreateBindGroupLayout(g_wgpustate.device, &bglayoutdesc);
 }
 void init_full_renderstate(full_renderstate* state, const WGPUShaderModule sh, const ShaderInputs shader_inputs, WGPUTextureView c, WGPUTextureView d){
     state->shader = sh;
@@ -551,32 +551,78 @@ void updateBindGroup(full_renderstate* state){
     if(state->bg)wgpuBindGroupRelease(state->bg);
     state->bg = wgpuDeviceCreateBindGroup(g_wgpustate.device, &bgdesc);
 }
-WGPURenderPipeline LoadPipelineEx(const char* shaderSource, uint32_t vertexAttributeStride, uint32_t vertexAttributeCount, uint32_t uniform_count, ...){
+extern "C" WGPURenderPipeline LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount){
     WGPUVertexBufferLayout vblayout{};
     WGPUShaderModule shader = LoadShaderFromMemory(shaderSource);
 
-    std::va_list list;
-    va_start(list, vertexAttributeCount + uniform_count);
-    WGPUVertexAttribute attribs[8] = {};
-    for(size_t i = 0;i < vertexAttributeCount;i++){
-        WGPUVertexAttribute vat = va_arg(list, WGPUVertexAttribute);
-        attribs[i] = vat;
+    WGPUVertexAttribute va[8] = {};
+    auto asize = [](WGPUVertexFormat fmt){
+        switch(fmt){
+            case WGPUVertexFormat_Float32:
+            case WGPUVertexFormat_Uint32:
+            case WGPUVertexFormat_Sint32:
+            return 4;
+            case WGPUVertexFormat_Float32x2:
+            case WGPUVertexFormat_Uint32x2:
+            case WGPUVertexFormat_Sint32x2:
+            return 8;
+            case WGPUVertexFormat_Float32x3:
+            case WGPUVertexFormat_Uint32x3:
+            case WGPUVertexFormat_Sint32x3:
+            return 24;
+            case WGPUVertexFormat_Float32x4:
+            case WGPUVertexFormat_Uint32x4:
+            case WGPUVertexFormat_Sint32x4:
+            return 32;
+            
+            default:break;
+        }
+        abort();
+        return 0;
+    };
+    uint32_t stride = 0;
+    for(size_t i = 0;i < attribCount;i++){
+        va[i] = attribs[i].attr;
+        stride += asize(va[i].format);
+        //TODO: handle multiple layouts for slot != 0
     }
-    vblayout.attributes = attribs;
-    vblayout.attributeCount = vertexAttributeCount;
-    vblayout.arrayStride = vertexAttributeStride;
+    
+    vblayout.attributes = va;
+    vblayout.attributeCount = attribCount;
+    vblayout.arrayStride = stride;
     vblayout.stepMode = WGPUVertexStepMode_Vertex;
 
     WGPUBindGroupLayoutDescriptor bgldesc;
     WGPUBindGroupLayoutEntry bglentries[8];
     std::memset(bglentries, 0, sizeof(bglentries));
-
-    for(size_t i = 0;i < uniform_count;i++){
+    for(size_t i = 0;i < uniformCount;i++){
         bglentries[i].binding = i;
-        //TODO
+        switch(uniforms[i].type){
+            case uniform_buffer:
+                bglentries[i].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+                bglentries[i].buffer.type = WGPUBufferBindingType_Uniform;
+                bglentries[i].buffer.minBindingSize = uniforms[i].minBindingSize;
+            break;
+            case storage_buffer:{
+                bglentries[i].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+                bglentries[i].buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+                bglentries[i].buffer.minBindingSize = 0;
+            }
+            break;
+            case texture2d:
+                bglentries[i].visibility = WGPUShaderStage_Fragment;
+                bglentries[i].texture.sampleType = WGPUTextureSampleType_Float;
+                bglentries[i].texture.viewDimension = WGPUTextureViewDimension_2D;
+            break;
+            case sampler:
+                bglentries[i].visibility = WGPUShaderStage_Fragment;
+                bglentries[i].sampler.type = WGPUSamplerBindingType_Filtering;
+            break;
+            default:break;
+        }
     }
     bgldesc.entries = bglentries;
-    bgldesc.entryCount = uniform_count;
+    bgldesc.entryCount = uniformCount;
 
     WGPUBindGroupLayout bglayout = wgpuDeviceCreateBindGroupLayout(g_wgpustate.device, &bgldesc);
 
@@ -587,6 +633,9 @@ WGPURenderPipeline LoadPipelineEx(const char* shaderSource, uint32_t vertexAttri
     
     WGPURenderPipeline ret;
     WGPURenderPipelineDescriptor pipelineDesc{};
+    pipelineDesc.multisample.count = 1;
+    pipelineDesc.multisample.mask = 0xFFFFFFFF;
+    pipelineDesc.multisample.alphaToCoverageEnabled = false;
     pipelineDesc.layout = playout;
     
     WGPUVertexState vertexState{};
@@ -619,6 +668,7 @@ WGPURenderPipeline LoadPipelineEx(const char* shaderSource, uint32_t vertexAttri
     colorTarget.writeMask = WGPUColorWriteMask_All;
     fragmentState.targetCount = 1;
     fragmentState.targets = &colorTarget;
+    pipelineDesc.fragment = &fragmentState;
     // We setup a depth buffer state for the render pipeline
     WGPUDepthStencilState depthStencilState{};
     // Keep a fragment only if its depth is lower than the previously blended one
@@ -633,12 +683,8 @@ WGPURenderPipeline LoadPipelineEx(const char* shaderSource, uint32_t vertexAttri
     depthStencilState.stencilWriteMask = 0;
     depthStencilState.stencilFront.compare = WGPUCompareFunction_Always;
     depthStencilState.stencilBack.compare = WGPUCompareFunction_Always;
-
-    //vblayout.
-    attribs[0].shaderLocation = 0;
-    
-    attribs[0].format = WGPUVertexFormat_Float32x4;
-    return ret;
+    pipelineDesc.depthStencil = &depthStencilState;
+    return wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipelineDesc);
     
 }
 void updatePipeline(full_renderstate* state, draw_mode drawmode){

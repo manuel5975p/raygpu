@@ -123,10 +123,15 @@ typedef struct Shader{
 enum draw_mode{
     RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS
 };
-struct formatAndStep{
-    WGPUVertexFormat format;
-    WGPUVertexStepMode step;
-    uint32_t offset;
+struct UniformDescriptor{
+    uniform_type type;
+    uint32_t minBindingSize;
+};
+
+struct AttributeAndResidence{
+    WGPUVertexAttribute attr;
+    uint32_t bufferSlot;
+    WGPUVertexStepMode stepMode;
 };
 
 EXTERN_C_BEGIN
@@ -171,7 +176,7 @@ EXTERN_C_BEGIN
     WGPUShaderModule LoadShaderFromMemory(const char* shaderSource);
     WGPUShaderModule LoadShader(const char* path);
 
-    WGPURenderPipeline LoadPipelineEx(const char* shaderSource, uint32_t vertexAttributeCount, uint32_t uniform_count, ...);
+    WGPURenderPipeline LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount);
 
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
     Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format, bool to_be_used_as_rendertarget);
