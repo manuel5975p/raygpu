@@ -271,7 +271,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
         config.usage = WGPUTextureUsage_RenderAttachment;
         config.device = g_wgpustate.device;
         config.format = (WGPUTextureFormat)capabilities.formats[0];
-        config.presentMode = WGPUPresentMode_Immediate;
+        config.presentMode = WGPUPresentMode_Fifo;
 
         config.width = width;
         config.height = height;

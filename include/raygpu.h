@@ -194,7 +194,7 @@ EXTERN_C_BEGIN
     WGPUShaderModule LoadShaderFromMemory(const char* shaderSource);
     WGPUShaderModule LoadShader(const char* path);
 
-    WGPURenderPipeline LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount);
+    WGPURenderPipeline LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, WGPUBindGroupLayout* layout);
 
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
     Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format, bool to_be_used_as_rendertarget);
@@ -235,11 +235,11 @@ EXTERN_C_BEGIN
             case WGPUVertexFormat_Float32x3:
             case WGPUVertexFormat_Uint32x3:
             case WGPUVertexFormat_Sint32x3:
-            return 24;
+            return 12;
             case WGPUVertexFormat_Float32x4:
             case WGPUVertexFormat_Uint32x4:
             case WGPUVertexFormat_Sint32x4:
-            return 32;
+            return 16;
             
             default:break;
         }

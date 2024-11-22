@@ -551,7 +551,7 @@ void updateBindGroup(full_renderstate* state){
     if(state->bg)wgpuBindGroupRelease(state->bg);
     state->bg = wgpuDeviceCreateBindGroup(g_wgpustate.device, &bgdesc);
 }
-extern "C" WGPURenderPipeline LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount){
+extern "C" WGPURenderPipeline LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, WGPUBindGroupLayout* layout){
     WGPUVertexBufferLayout vblayout{};
     WGPUShaderModule shader = LoadShaderFromMemory(shaderSource);
 
@@ -601,12 +601,12 @@ extern "C" WGPURenderPipeline LoadPipelineEx(const char* shaderSource, const Att
     bgldesc.entries = bglentries;
     bgldesc.entryCount = uniformCount;
 
-    WGPUBindGroupLayout bglayout = wgpuDeviceCreateBindGroupLayout(g_wgpustate.device, &bgldesc);
+    *layout = wgpuDeviceCreateBindGroupLayout(g_wgpustate.device, &bgldesc);
 
     WGPUPipelineLayout playout;
     WGPUPipelineLayoutDescriptor pldesc{};
     pldesc.bindGroupLayoutCount = 1;
-    pldesc.bindGroupLayouts = &bglayout;    
+    pldesc.bindGroupLayouts = layout;    
     playout = wgpuDeviceCreatePipelineLayout(g_wgpustate.device, &pldesc);
     WGPURenderPipeline ret;
     WGPURenderPipelineDescriptor pipelineDesc{};
