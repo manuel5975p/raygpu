@@ -14,6 +14,31 @@
 
 
 #include "wgpustate.inc"
+
+constexpr char shaderSource[] = R"(
+struct VertexInput {
+    @location(0) position: vec3f
+};
+
+struct VertexOutput {
+    @builtin(position) position: vec4f
+};
+
+
+//@builtin(instance_index) instanceID: u32;
+@vertex
+fn vs_main(in: VertexInput) -> VertexOutput {
+    var out: VertexOutput;
+    out.position = vec4f(in.position.xyz, 1.0f);
+    return out;
+}
+
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+    return vec4f(0,1,0,1);
+}
+)";
+
 Texture checkers;
 RenderTexture rtex;
 
@@ -25,13 +50,34 @@ int main(){
     constexpr uint32_t height = 1000;
     auto window = InitWindow(width, height);
     
-        
+    AttributeAndResidence aar{WGPUVertexAttribute{WGPUVertexFormat_Float32x3,0,0},0,WGPUVertexStepMode_Vertex};
+    auto pl = LoadPipelineEx(shaderSource, &aar, 1, nullptr, 0);
     //Matrix udata = MatrixLookAt(Vector3{0,0,0.2}, Vector3{0,0,0}, Vector3{0,1,0});
     //Matrix udata = MatrixIdentity();
 
     //Matrix udata = (MatrixPerspective(1.2, 1, 0.01, 100.0));
     checkers = LoadTextureFromImage(LoadImageChecker(Color{230, 230, 230, 255}, Color{100, 100, 100, 255}, 100, 100, 50));
+    WGPUBufferDescriptor bufferDesc{};
+    WGPUBufferDescriptor mapBufferDesc{};
+    
+    bufferDesc.size = 36;
+    bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex;
+    bufferDesc.mappedAtCreation = false;
 
+    WGPUBuffer vbo = wgpuDeviceCreateBuffer(g_wgpustate.device, &bufferDesc);
+    float data[9] = {0,0,0,
+                     1,0,0,
+                     0,1,0
+                    };
+    //WGPUBindGroupLayout bgdesc{};
+    //bgdesc.layout
+    WGPUBindGroup bg = wgpuDeviceCreateBindGroup(g_wgpustate.device, &bgdesc);
+    wgpuQueueWriteBuffer(g_wgpustate.queue, vbo, 0, data, sizeof(data));
+    g_wgpustate.rstate->executeRenderpassPlain([&vbo, &pl](WGPURenderPassEncoder encoder){
+        wgpuRenderPassEncoderSetPipeline(encoder, pl);
+        wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, vbo, 0, 36);
+        wgpuRenderPassEncoderDraw(encoder, 3, 1, 0, 0);
+    });
     constexpr int rtd = 2000;
     rtex = LoadRenderTexture(rtd, rtd);
 

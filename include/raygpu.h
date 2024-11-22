@@ -9,7 +9,9 @@
 #define EXTERN_C_BEGIN extern "C" {
 #define EXTERN_C_END }
 #define cwoid
+#include <cstdlib>
 #else
+#include <stdlib.h>
 #define EXTERN_C_BEGIN
 #define EXTERN_C_END
 #define cwoid void
@@ -109,6 +111,21 @@ typedef struct full_renderstate{
         wgpuCommandEncoderRelease(encoder);
         wgpuCommandBufferRelease(command);
     }
+    template<typename callable>
+    void executeRenderpassPlain(callable&& c){
+        WGPUCommandEncoderDescriptor commandEncoderDesc = {};
+        commandEncoderDesc.label = STRVIEW("Command Encoder");
+        WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(GetDevice(), &commandEncoderDesc);
+        WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
+        c(renderPass);
+        wgpuRenderPassEncoderEnd(renderPass);
+        WGPUCommandBufferDescriptor cmdBufferDescriptor{};
+        cmdBufferDescriptor.label = STRVIEW("Command buffer");
+        WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &cmdBufferDescriptor);
+        wgpuQueueSubmit(GetQueue(), 1, &command);
+        wgpuCommandEncoderRelease(encoder);
+        wgpuCommandBufferRelease(command);
+    }
     #endif
 }full_renderstate;
 
@@ -123,16 +140,17 @@ typedef struct Shader{
 enum draw_mode{
     RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS
 };
-struct UniformDescriptor{
-    uniform_type type;
+typedef struct UniformDescriptor{
+    enum uniform_type type;
     uint32_t minBindingSize;
-};
+}UniformDescriptor;
 
-struct AttributeAndResidence{
+typedef struct AttributeAndResidence{
     WGPUVertexAttribute attr;
     uint32_t bufferSlot;
     WGPUVertexStepMode stepMode;
-};
+}AttributeAndResidence;
+
 
 EXTERN_C_BEGIN
     GLFWwindow* InitWindow(uint32_t width, uint32_t height);
@@ -203,6 +221,31 @@ EXTERN_C_BEGIN
     void DrawTexturePro(Texture texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint);
 
     Image LoadImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32_t checkerCount);
+
+    inline uint32_t attributeSize(WGPUVertexFormat fmt){
+        switch(fmt){
+            case WGPUVertexFormat_Float32:
+            case WGPUVertexFormat_Uint32:
+            case WGPUVertexFormat_Sint32:
+            return 4;
+            case WGPUVertexFormat_Float32x2:
+            case WGPUVertexFormat_Uint32x2:
+            case WGPUVertexFormat_Sint32x2:
+            return 8;
+            case WGPUVertexFormat_Float32x3:
+            case WGPUVertexFormat_Uint32x3:
+            case WGPUVertexFormat_Sint32x3:
+            return 24;
+            case WGPUVertexFormat_Float32x4:
+            case WGPUVertexFormat_Uint32x4:
+            case WGPUVertexFormat_Sint32x4:
+            return 32;
+            
+            default:break;
+        }
+        abort();
+        return 0;
+    }
 EXTERN_C_END
 typedef struct wgpustate wgpustate;
 extern wgpustate g_wgpustate;

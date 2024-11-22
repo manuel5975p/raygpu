@@ -367,7 +367,7 @@ inline WGPUVertexFormat f32format(uint32_t s){
 }
 WGPUBindGroupLayout bindGroupLayoutFromUniformTypes(ShaderInputs shader_inputs){
     std::vector<WGPUBindGroupLayoutEntry> blayouts(shader_inputs.uniform_count);
-    WGPUBindGroupLayoutDescriptor bglayoutdesc = WGPUBindGroupLayoutDescriptor{};
+    WGPUBindGroupLayoutDescriptor bglayoutdesc{};
     std::memset(blayouts.data(), 0, blayouts.size() * sizeof(WGPUBindGroupLayoutEntry));
     for(size_t i = 0;i < shader_inputs.uniform_count;i++){
         blayouts[i].binding = i;
@@ -556,34 +556,11 @@ extern "C" WGPURenderPipeline LoadPipelineEx(const char* shaderSource, const Att
     WGPUShaderModule shader = LoadShaderFromMemory(shaderSource);
 
     WGPUVertexAttribute va[8] = {};
-    auto asize = [](WGPUVertexFormat fmt){
-        switch(fmt){
-            case WGPUVertexFormat_Float32:
-            case WGPUVertexFormat_Uint32:
-            case WGPUVertexFormat_Sint32:
-            return 4;
-            case WGPUVertexFormat_Float32x2:
-            case WGPUVertexFormat_Uint32x2:
-            case WGPUVertexFormat_Sint32x2:
-            return 8;
-            case WGPUVertexFormat_Float32x3:
-            case WGPUVertexFormat_Uint32x3:
-            case WGPUVertexFormat_Sint32x3:
-            return 24;
-            case WGPUVertexFormat_Float32x4:
-            case WGPUVertexFormat_Uint32x4:
-            case WGPUVertexFormat_Sint32x4:
-            return 32;
-            
-            default:break;
-        }
-        abort();
-        return 0;
-    };
+    
     uint32_t stride = 0;
     for(size_t i = 0;i < attribCount;i++){
         va[i] = attribs[i].attr;
-        stride += asize(va[i].format);
+        stride += attributeSize(va[i].format);
         //TODO: handle multiple layouts for slot != 0
     }
     
@@ -592,7 +569,7 @@ extern "C" WGPURenderPipeline LoadPipelineEx(const char* shaderSource, const Att
     vblayout.arrayStride = stride;
     vblayout.stepMode = WGPUVertexStepMode_Vertex;
 
-    WGPUBindGroupLayoutDescriptor bgldesc;
+    WGPUBindGroupLayoutDescriptor bgldesc{};
     WGPUBindGroupLayoutEntry bglentries[8];
     std::memset(bglentries, 0, sizeof(bglentries));
     for(size_t i = 0;i < uniformCount;i++){
@@ -629,8 +606,8 @@ extern "C" WGPURenderPipeline LoadPipelineEx(const char* shaderSource, const Att
     WGPUPipelineLayout playout;
     WGPUPipelineLayoutDescriptor pldesc{};
     pldesc.bindGroupLayoutCount = 1;
-    pldesc.bindGroupLayouts = &bglayout;
-    
+    pldesc.bindGroupLayouts = &bglayout;    
+    playout = wgpuDeviceCreatePipelineLayout(g_wgpustate.device, &pldesc);
     WGPURenderPipeline ret;
     WGPURenderPipelineDescriptor pipelineDesc{};
     pipelineDesc.multisample.count = 1;
@@ -645,8 +622,6 @@ extern "C" WGPURenderPipeline LoadPipelineEx(const char* shaderSource, const Att
     vertexState.constantCount = 0;
     vertexState.entryPoint = STRVIEW("vs_main");
     pipelineDesc.vertex = vertexState;
-
-
 
     WGPUFragmentState fragmentState{};
 
