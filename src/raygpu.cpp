@@ -439,6 +439,7 @@ void init_full_renderstate(full_renderstate* state, const WGPUShaderModule sh, c
         }
         state->bglayoutdesc.entryCount = shader_inputs.uniform_count;
         state->bglayoutdesc.entries = blayouts.data();
+        state->bglayoutdesc.label = STRVIEW("GlobalRenderState_BindGroupLayout");
         state->bglayout = wgpuDeviceCreateBindGroupLayout(g_wgpustate.device, &state->bglayoutdesc);
     }
     state->vbo = 0;
@@ -485,7 +486,7 @@ void setStateSampler(full_renderstate* state, uint32_t index, WGPUSampler sample
     state->bgEntries[index] = WGPUBindGroupEntry{};
     state->bgEntries[index].binding = index;
     state->bgEntries[index].sampler = sampler;
-    //updateBindGroup(state);
+    updateBindGroup(state);
 }
 void setStateUniformBuffer(full_renderstate* state, uint32_t index, const void* data, size_t size){
     if(state->bgEntries[index].buffer){

@@ -95,7 +95,11 @@ int main(){
     
     constexpr int rtd = 2000;
     rtex = LoadRenderTexture(rtd, rtd);
-
+    Matrix udata = MatrixMultiply(MatrixPerspective(1.0, double(GetScreenWidth()) / GetScreenHeight(), 0.01, 100.0), MatrixLookAt(Vector3{0, 0, -2.5}, Vector3{0, 0, 0}, Vector3{0,1,0}));
+    SetUniformBuffer(0, &udata, 64 * sizeof(float));
+        
+    udata = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
+    SetUniformBuffer(0, &udata, 16 * sizeof(float));
     auto mainloop = [&](void* userdata){
         float z = 0;
         std::cout << "<<Before:" << std::endl;
@@ -111,6 +115,7 @@ int main(){
         return;
         Matrix udata = MatrixMultiply(MatrixPerspective(1.0, double(GetScreenWidth()) / GetScreenHeight(), 0.01, 100.0), MatrixLookAt(Vector3{0, 0, -2.5}, Vector3{0, 0, 0}, Vector3{0,1,0}));
         SetUniformBuffer(0, &udata, 64 * sizeof(float));
+        
         BeginDrawing();
         /*UseTexture(checkers);
         BeginTextureMode(rtex);
@@ -134,8 +139,7 @@ int main(){
         rlEnd();
         EndTextureMode();*/
         //UseTexture(rtex.color);
-        udata = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
-        SetUniformBuffer(0, &udata, 16 * sizeof(float));
+        
         for(size_t i = 0;i < 10;i++){
             for(size_t j = 0;j < 10;j++){
                 DrawTexturePro(
