@@ -31,7 +31,7 @@ download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/mast
 
 
 #add_subdirectory(dawn)
-add_library(raygpu "src/InitWindow.cpp" "src/raygpu.cpp" "src/shapes.cpp" "src/stb_impl.c")
+add_library(raygpu "src/InitWindow.cpp" "src/raygpu.cpp" "src/shapes.cpp" "src/stb_impl.c" "src/pipeline.cpp")
 target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/include" "${CMAKE_BINARY_DIR}/dl")
 target_link_libraries(raygpu PUBLIC
     webgpu_dawn

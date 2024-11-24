@@ -1,0 +1,128 @@
+#include <raygpu.h>
+#include <wgpustate.inc>
+
+#include <cstring>
+WGPUBindGroupLayout bindGroupLayoutFromUniformTypes(const UniformDescriptor* uniforms, uint32_t uniformCount){
+    std::vector<WGPUBindGroupLayoutEntry> blayouts(uniformCount);
+    WGPUBindGroupLayoutDescriptor bglayoutdesc{};
+    std::memset(blayouts.data(), 0, blayouts.size() * sizeof(WGPUBindGroupLayoutEntry));
+    for(size_t i = 0;i < uniformCount;i++){
+        blayouts[i].binding = i;
+        switch(uniforms[i].type){
+            case uniform_buffer:
+                blayouts[i].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+                blayouts[i].buffer.type = WGPUBufferBindingType_Uniform;
+                blayouts[i].buffer.minBindingSize = uniforms[i].minBindingSize;
+            break;
+            case storage_buffer:{
+                blayouts[i].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+                blayouts[i].buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+                blayouts[i].buffer.minBindingSize = 0;
+            }
+            break;
+            case texture2d:
+                blayouts[i].visibility = WGPUShaderStage_Fragment;
+                blayouts[i].texture.sampleType = WGPUTextureSampleType_Float;
+                blayouts[i].texture.viewDimension = WGPUTextureViewDimension_2D;
+            break;
+            case sampler:
+                blayouts[i].visibility = WGPUShaderStage_Fragment;
+                blayouts[i].sampler.type = WGPUSamplerBindingType_Filtering;
+            break;
+            default:break;
+        }
+    }
+    bglayoutdesc.entryCount = uniformCount;
+    bglayoutdesc.entries = blayouts.data();
+    return wgpuDeviceCreateBindGroupLayout(g_wgpustate.device, &bglayoutdesc);
+}
+
+
+extern "C" Pipeline LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, WGPUBindGroupLayout* layout){
+    
+    WGPUShaderModule shader = LoadShaderFromMemory(shaderSource);
+
+    Pipeline ret;
+
+    uint32_t maxslot = 0;
+    for(size_t i = 0;i < attribCount;i++){
+        maxslot = std::max(maxslot, attribs[i].bufferSlot);
+    }
+    const uint32_t number_of_buffers = maxslot + 1;
+    std::vector<std::vector<WGPUVertexAttribute>> buffer_to_attributes(number_of_buffers);
+    ret.vbLayouts = new WGPUVertexBufferLayout[number_of_buffers];
+    std::vector<uint32_t> strides(number_of_buffers, 0);
+    std::vector<uint32_t> attrIndex(number_of_buffers, 0);
+    for(size_t i = 0;i < attribCount;i++){
+        buffer_to_attributes[attribs[i].bufferSlot].push_back(attribs[i].attr);
+        strides[attribs[i].bufferSlot] += attributeSize(attribs[i].attr.format);
+    }
+    for(size_t i = 0;i < number_of_buffers;i++){
+        ret.vbLayouts[i].attributes = buffer_to_attributes[i].data();
+        ret.vbLayouts[i].attributeCount = buffer_to_attributes[i].size();
+        ret.vbLayouts[i].arrayStride = strides[i];
+        ret.vbLayouts[i].stepMode = WGPUVertexStepMode_Vertex;
+    }
+
+    *layout = bindGroupLayoutFromUniformTypes(uniforms, uniformCount);
+
+    WGPUPipelineLayout playout;
+    WGPUPipelineLayoutDescriptor pldesc{};
+    pldesc.bindGroupLayoutCount = 1;
+    pldesc.bindGroupLayouts = layout;    
+    playout = wgpuDeviceCreatePipelineLayout(g_wgpustate.device, &pldesc);
+    
+    WGPURenderPipelineDescriptor pipelineDesc{};
+    pipelineDesc.multisample.count = 1;
+    pipelineDesc.multisample.mask = 0xFFFFFFFF;
+    pipelineDesc.multisample.alphaToCoverageEnabled = false;
+    pipelineDesc.layout = playout;
+    
+    WGPUVertexState vertexState{};
+    vertexState.module = shader;
+    vertexState.bufferCount = number_of_buffers;
+    vertexState.buffers = ret.vbLayouts;
+    vertexState.constantCount = 0;
+    vertexState.entryPoint = STRVIEW("vs_main");
+    pipelineDesc.vertex = vertexState;
+
+    WGPUFragmentState fragmentState{};
+
+    pipelineDesc.fragment = &fragmentState;
+    fragmentState.module = shader;
+    fragmentState.entryPoint = STRVIEW("fs_main");
+    fragmentState.constantCount = 0;
+    fragmentState.constants = nullptr;
+    WGPUBlendState blendState{};
+    blendState.color.srcFactor = WGPUBlendFactor_SrcAlpha;
+    blendState.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
+    blendState.color.operation = WGPUBlendOperation_Add;
+    blendState.alpha.srcFactor = WGPUBlendFactor_Zero;
+    blendState.alpha.dstFactor = WGPUBlendFactor_One;
+    blendState.alpha.operation = WGPUBlendOperation_Add;
+    WGPUColorTargetState colorTarget{};
+    colorTarget.format = g_wgpustate.frameBufferFormat;
+    colorTarget.blend = &blendState;
+    colorTarget.writeMask = WGPUColorWriteMask_All;
+    fragmentState.targetCount = 1;
+    fragmentState.targets = &colorTarget;
+    pipelineDesc.fragment = &fragmentState;
+    // We setup a depth buffer state for the render pipeline
+    WGPUDepthStencilState depthStencilState{};
+    // Keep a fragment only if its depth is lower than the previously blended one
+    depthStencilState.depthCompare = WGPUCompareFunction_Less;
+    // Each time a fragment is blended into the target, we update the value of the Z-buffer
+    depthStencilState.depthWriteEnabled = WGPUOptionalBool_True;
+    // Store the format in a variable as later parts of the code depend on it
+    WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth24Plus;
+    depthStencilState.format = depthTextureFormat;
+    // Deactivate the stencil alltogether
+    depthStencilState.stencilReadMask = 0;
+    depthStencilState.stencilWriteMask = 0;
+    depthStencilState.stencilFront.compare = WGPUCompareFunction_Always;
+    depthStencilState.stencilBack.compare = WGPUCompareFunction_Always;
+    pipelineDesc.depthStencil = &depthStencilState;
+    ret.pipeline =  wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipelineDesc);
+    
+    return ret;
+}

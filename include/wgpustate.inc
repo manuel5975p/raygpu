@@ -1,3 +1,6 @@
+#include <vector>
+#include <mutex>
+
 struct wgpustate{
     WGPUInstance instance;
     WGPUAdapter adapter;
