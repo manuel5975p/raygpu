@@ -1,21 +1,9 @@
 #include <GLFW/glfw3.h>
 #include <webgpu/webgpu.h>
 #include <stdbool.h>
+#include "macros_and_constants.h"
 #include "mathutils.h"
 #include "pipeline.h"
-#define STRVIEW(X) WGPUStringView{X, sizeof(X) - 1}
-
-#ifdef __cplusplus
-#define EXTERN_C_BEGIN extern "C" {
-#define EXTERN_C_END }
-#define cwoid
-#include <cstdlib>
-#else
-#include <stdlib.h>
-#define EXTERN_C_BEGIN
-#define EXTERN_C_END
-#define cwoid void
-#endif
 struct vertex{
     Vector3 pos;
     Vector2 uv ;
@@ -69,6 +57,7 @@ EXTERN_C_BEGIN
     WGPUDevice GetDevice(cwoid);
     WGPUQueue GetQueue(cwoid);
 EXTERN_C_END
+
 typedef struct full_renderstate{
     WGPUShaderModule shader;
     WGPUTextureView color;

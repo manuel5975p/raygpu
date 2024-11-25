@@ -39,7 +39,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    return vec4f(in.uv.xy,0,1);
+    return vec4f(in.uv.xy,1,1);
     return textureLoad(texter, vec2<i32>(i32(in.position.x) % 100, i32(in.position.y) % 100), 0);
 }
 )";
@@ -89,28 +89,28 @@ int main(){
     
     WGPUBindGroup bg = wgpuDeviceCreateBindGroup(g_wgpustate.device, &bgdesc);
     
-    wgpuQueueWriteBuffer(g_wgpustate.queue, vbo, 0, data, sizeof(data));
-    g_wgpustate.rstate->executeRenderpassPlain([&vbo, &pl, &bg](WGPURenderPassEncoder encoder){
-        wgpuRenderPassEncoderSetPipeline(encoder, pl);
-        wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, vbo, 0, 60);
-        wgpuRenderPassEncoderSetBindGroup(encoder,0, bg, 0, nullptr);
-        wgpuRenderPassEncoderDraw(encoder, 3, 1, 0, 0);
-    });
-    
-    constexpr int rtd = 2000;
-    rtex = LoadRenderTexture(rtd, rtd);
-    Matrix udata = MatrixMultiply(MatrixPerspective(1.0, double(GetScreenWidth()) / GetScreenHeight(), 0.01, 100.0), MatrixLookAt(Vector3{0, 0, -2.5}, Vector3{0, 0, 0}, Vector3{0,1,0}));
-    SetUniformBuffer(0, &udata, 64 * sizeof(float));
         
-    udata = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
-    SetUniformBuffer(0, &udata, 16 * sizeof(float));
+    //g_wgpustate.rstate->executeRenderpassPlain([&vbo, &pl, &bg](WGPURenderPassEncoder encoder){
+    //    UsePipeline(encoder, pl);
+    //    wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, vbo, 0, 60);
+    //    wgpuRenderPassEncoderSetBindGroup(encoder,0, bg, 0, nullptr);
+    //    wgpuRenderPassEncoderDraw(encoder, 3, 1, 0, 0);
+    //});
+    
+    //constexpr int rtd = 2000;
+    //rtex = LoadRenderTexture(rtd, rtd);
+    //Matrix udata = MatrixMultiply(MatrixPerspective(1.0, double(GetScreenWidth()) / GetScreenHeight(), 0.01, 100.0), MatrixLookAt(Vector3{0, 0, -2.5}, Vector3{0, 0, 0}, Vector3{0,1,0}));
+    //SetUniformBuffer(0, &udata, 64 * sizeof(float));    
+    //udata = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
+    //SetUniformBuffer(0, &udata, 16 * sizeof(float));
     auto mainloop = [&](void* userdata){
+        wgpuQueueWriteBuffer(g_wgpustate.queue, vbo, 0, data, sizeof(data));
         float z = 0;
         //std::cout << "<<Before:" << std::endl;
         BeginDrawing();
         //std::cout << "<<After:" << std::endl;
         g_wgpustate.rstate->executeRenderpassPlain([&](WGPURenderPassEncoder encoder){
-            wgpuRenderPassEncoderSetPipeline(encoder, pl);
+            UsePipeline(encoder, pl);
             wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, vbo, 0, 60);
             wgpuRenderPassEncoderSetBindGroup(encoder,0, bg, 0, nullptr);
             wgpuRenderPassEncoderDraw(encoder, 3, 1, 0, 0);

@@ -99,8 +99,8 @@ void BeginDrawing(){
     WGPUTextureView nextTexture = wgpuTextureCreateView(surfaceTexture.texture, nullptr);
     g_wgpustate.currentSurfaceTextureView = nextTexture;
     setTargetTextures(g_wgpustate.rstate, nextTexture, g_wgpustate.rstate->depth);
-    UseNoTexture();
-    updateBindGroup(g_wgpustate.rstate);
+    //UseNoTexture();
+    //updateBindGroup(g_wgpustate.rstate);
     
 }
 void EndDrawing(){
