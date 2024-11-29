@@ -89,7 +89,6 @@ int main(){
     
     WGPUBindGroup bg = wgpuDeviceCreateBindGroup(g_wgpustate.device, &bgdesc);
     
-        
     //g_wgpustate.rstate->executeRenderpassPlain([&vbo, &pl, &bg](WGPURenderPassEncoder encoder){
     //    UsePipeline(encoder, pl);
     //    wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, vbo, 0, 60);

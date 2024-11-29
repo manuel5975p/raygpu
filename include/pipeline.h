@@ -6,6 +6,7 @@
 
 typedef struct Pipeline{
     WGPUBindGroupLayoutDescriptor bglDesc;
+    WGPUBindGroupLayout bgl;
     WGPUVertexBufferLayout* vbLayouts;
     size_t vbLayoutCount;
     WGPURenderPipeline pipeline;
@@ -22,11 +23,12 @@ EXTERN_C_BEGIN
     }
     WGPUDevice GetDevice(cwoid);
 
-    inline BindGroup LoadBindGroup(size_t entryCount, const WGPUBindGroupEntry* entries){
+    inline BindGroup LoadBindGroup(const Pipeline* pipeline, const WGPUBindGroupEntry* entries, size_t entryCount){
         BindGroup ret zeroinit;
         WGPUBindGroupEntry* rentries = (WGPUBindGroupEntry*) calloc(entryCount, sizeof(WGPUBindGroupEntry));
         memcpy(rentries, entries, entryCount * sizeof(WGPUBindGroupEntry));
         ret.entries = rentries;
+        ret.desc.layout;
         ret.desc.entries = ret.entries;
         ret.bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &ret.desc);
         return ret;

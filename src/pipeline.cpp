@@ -38,7 +38,7 @@ WGPUBindGroupLayout bindGroupLayoutFromUniformTypes(const UniformDescriptor* uni
 }
 
 
-extern "C" Pipeline LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, WGPUBindGroupLayout* layout){
+extern "C" Pipeline LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount){
     
     WGPUShaderModule shader = LoadShaderFromMemory(shaderSource);
 
@@ -64,12 +64,12 @@ extern "C" Pipeline LoadPipelineEx(const char* shaderSource, const AttributeAndR
         ret.vbLayouts[i].stepMode = WGPUVertexStepMode_Vertex;
     }
 
-    *layout = bindGroupLayoutFromUniformTypes(uniforms, uniformCount);
+    ret.bgl = bindGroupLayoutFromUniformTypes(uniforms, uniformCount);
 
     WGPUPipelineLayout playout;
     WGPUPipelineLayoutDescriptor pldesc{};
     pldesc.bindGroupLayoutCount = 1;
-    pldesc.bindGroupLayouts = layout;    
+    pldesc.bindGroupLayouts = &ret.bgl;    
     playout = wgpuDeviceCreatePipelineLayout(g_wgpustate.device, &pldesc);
     
     WGPURenderPipelineDescriptor pipelineDesc{};
@@ -122,7 +122,7 @@ extern "C" Pipeline LoadPipelineEx(const char* shaderSource, const AttributeAndR
     depthStencilState.stencilFront.compare = WGPUCompareFunction_Always;
     depthStencilState.stencilBack.compare = WGPUCompareFunction_Always;
     pipelineDesc.depthStencil = &depthStencilState;
-    ret.pipeline =  wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipelineDesc);
+    ret.pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipelineDesc);
     
     return ret;
 }
