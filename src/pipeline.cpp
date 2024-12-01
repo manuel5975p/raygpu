@@ -37,12 +37,52 @@ WGPUBindGroupLayout bindGroupLayoutFromUniformTypes(const UniformDescriptor* uni
     return wgpuDeviceCreateBindGroupLayout(g_wgpustate.device, &bglayoutdesc);
 }
 
+DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, uint32_t uniformCount){
+    DescribedBindGroupLayout ret{};
+    
+    WGPUBindGroupLayoutEntry* blayouts = (WGPUBindGroupLayoutEntry*)malloc(uniformCount * sizeof(WGPUBindGroupLayoutEntry));
+    WGPUBindGroupLayoutDescriptor& bglayoutdesc = ret.descriptor;
+    std::memset(blayouts, 0, uniformCount * sizeof(WGPUBindGroupLayoutEntry));
+    for(size_t i = 0;i < uniformCount;i++){
+        blayouts[i].binding = i;
+        switch(uniforms[i].type){
+            case uniform_buffer:
+                blayouts[i].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+                blayouts[i].buffer.type = WGPUBufferBindingType_Uniform;
+                blayouts[i].buffer.minBindingSize = uniforms[i].minBindingSize;
+            break;
+            case storage_buffer:{
+                blayouts[i].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+                blayouts[i].buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+                blayouts[i].buffer.minBindingSize = 0;
+            }
+            break;
+            case texture2d:
+                blayouts[i].visibility = WGPUShaderStage_Fragment;
+                blayouts[i].texture.sampleType = WGPUTextureSampleType_Float;
+                blayouts[i].texture.viewDimension = WGPUTextureViewDimension_2D;
+            break;
+            case sampler:
+                blayouts[i].visibility = WGPUShaderStage_Fragment;
+                blayouts[i].sampler.type = WGPUSamplerBindingType_Filtering;
+            break;
+            default:break;
+        }
+    }
+    bglayoutdesc.entryCount = uniformCount;
+    bglayoutdesc.entries = blayouts;
+    ret.entries = blayouts;
+    ret.layout = wgpuDeviceCreateBindGroupLayout(g_wgpustate.device, &bglayoutdesc);
+    return ret;
+}
 
-extern "C" Pipeline LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount){
+
+
+extern "C" DescribedPipeline LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount){
     
     WGPUShaderModule shader = LoadShaderFromMemory(shaderSource);
 
-    Pipeline ret;
+    DescribedPipeline ret;
 
     uint32_t maxslot = 0;
     for(size_t i = 0;i < attribCount;i++){
@@ -64,12 +104,11 @@ extern "C" Pipeline LoadPipelineEx(const char* shaderSource, const AttributeAndR
         ret.vbLayouts[i].stepMode = WGPUVertexStepMode_Vertex;
     }
 
-    ret.bgl = bindGroupLayoutFromUniformTypes(uniforms, uniformCount);
-
+    ret.bglayout = LoadBindGroupLayout(uniforms, uniformCount);
     WGPUPipelineLayout playout;
     WGPUPipelineLayoutDescriptor pldesc{};
     pldesc.bindGroupLayoutCount = 1;
-    pldesc.bindGroupLayouts = &ret.bgl;    
+    pldesc.bindGroupLayouts = &ret.bglayout.layout;    
     playout = wgpuDeviceCreatePipelineLayout(g_wgpustate.device, &pldesc);
     
     WGPURenderPipelineDescriptor pipelineDesc{};
@@ -125,4 +164,25 @@ extern "C" Pipeline LoadPipelineEx(const char* shaderSource, const AttributeAndR
     ret.pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipelineDesc);
     
     return ret;
+}
+
+extern "C" DescribedBindGroup LoadBindGroup(const DescribedPipeline* pipeline, const WGPUBindGroupEntry* entries, size_t entryCount){
+    DescribedBindGroup ret zeroinit;
+    WGPUBindGroupEntry* rentries = (WGPUBindGroupEntry*) calloc(entryCount, sizeof(WGPUBindGroupEntry));
+    memcpy(rentries, entries, entryCount * sizeof(WGPUBindGroupEntry));
+    ret.entries = rentries;
+    ret.desc.layout = pipeline->bglayout.layout;
+    ret.desc.entries = ret.entries;
+    //ret.bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &ret.desc);
+    return ret;
+}
+extern "C" void UpdateBindGroup(DescribedBindGroup* bg, size_t index, WGPUBindGroupEntry entry){
+    bg->entries[index] = entry;
+    //TODO don't release and recreate here
+    wgpuBindGroupRelease(bg->bindGroup);
+    bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
+}
+extern "C" void UnloadBindGroup(DescribedBindGroup* bg){
+    free(bg->entries);
+    wgpuBindGroupRelease(bg->bindGroup);
 }

@@ -57,10 +57,11 @@ int main(){
     WGPUSamplerDescriptor sdesc;
     
     AttributeAndResidence aar[2] = {{WGPUVertexAttribute{WGPUVertexFormat_Float32x3,0,0},0,WGPUVertexStepMode_Vertex}, {WGPUVertexAttribute{WGPUVertexFormat_Float32x2, 12, 1},0,WGPUVertexStepMode_Vertex}};
-    WGPUBindGroupLayout layout;
     UniformDescriptor udesc{};
     udesc.type = texture2d;
-    auto pl = LoadPipelineEx(shaderSource, aar, 2, &udesc, 1, &layout);
+    //std::cout << "Loadpipeline" << std::endl;
+    auto pl = LoadPipelineEx(shaderSource, aar, 2, &udesc, 1);
+    //std::cout << "Loadpipelined" << std::endl;
     //Matrix udata = MatrixLookAt(Vector3{0,0,0.2}, Vector3{0,0,0}, Vector3{0,1,0});
     //Matrix udata = MatrixIdentity();
 
@@ -80,15 +81,15 @@ int main(){
                      0,1,0,0.3,0.5
                     };
     WGPUBindGroupDescriptor bgdesc{};
-    bgdesc.layout = layout;
+    bgdesc.layout = pl.bglayout.layout;
     WGPUBindGroupEntry the_texture_entry{};
     the_texture_entry.binding = 0;
     the_texture_entry.textureView = tex.view;
     bgdesc.entries = &the_texture_entry;
     bgdesc.entryCount = 1;
     
+    //std::cout << "Waypoint" << std::endl;
     WGPUBindGroup bg = wgpuDeviceCreateBindGroup(g_wgpustate.device, &bgdesc);
-    
     //g_wgpustate.rstate->executeRenderpassPlain([&vbo, &pl, &bg](WGPURenderPassEncoder encoder){
     //    UsePipeline(encoder, pl);
     //    wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, vbo, 0, 60);

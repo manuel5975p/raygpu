@@ -4,46 +4,49 @@
 #include <webgpu/webgpu.h>
 #include "macros_and_constants.h"
 
-typedef struct Pipeline{
-    WGPUBindGroupLayoutDescriptor bglDesc;
-    WGPUBindGroupLayout bgl;
-    WGPUVertexBufferLayout* vbLayouts;
-    size_t vbLayoutCount;
-    WGPURenderPipeline pipeline;
-}Pipeline;
+enum uniform_type{
+    uniform_buffer, storage_buffer, texture2d, sampler
+};
 
-typedef struct BindGroup{
+typedef struct UniformDescriptor{
+    enum uniform_type type;
+    uint32_t minBindingSize;
+}UniformDescriptor;
+
+
+
+typedef struct DescribedBindGroupLayout{
+    WGPUBindGroupLayoutDescriptor descriptor;
+    WGPUBindGroupLayoutEntry* entries;
+    WGPUBindGroupLayout layout;
+}DescribedBindGroupLayout;
+
+typedef struct DescribedBindGroup{
     WGPUBindGroupDescriptor desc;
     WGPUBindGroupEntry* entries;
     WGPUBindGroup bindGroup;
-}BindGroup;
+}DescribedBindGroup;
+
+typedef struct DescribedPipeline{
+    DescribedBindGroupLayout bglayout;
+    WGPUVertexBufferLayout* vbLayouts;
+    size_t vbLayoutCount;
+    WGPURenderPipeline pipeline;
+}DescribedPipeline;
+
 EXTERN_C_BEGIN
-    inline void UsePipeline(WGPURenderPassEncoder rpEncoder, Pipeline pl){
+    inline void UsePipeline(WGPURenderPassEncoder rpEncoder, DescribedPipeline pl){
         wgpuRenderPassEncoderSetPipeline(rpEncoder, pl.pipeline);
     }
     WGPUDevice GetDevice(cwoid);
 
-    inline BindGroup LoadBindGroup(const Pipeline* pipeline, const WGPUBindGroupEntry* entries, size_t entryCount){
-        BindGroup ret zeroinit;
-        WGPUBindGroupEntry* rentries = (WGPUBindGroupEntry*) calloc(entryCount, sizeof(WGPUBindGroupEntry));
-        memcpy(rentries, entries, entryCount * sizeof(WGPUBindGroupEntry));
-        ret.entries = rentries;
-        ret.desc.layout;
-        ret.desc.entries = ret.entries;
-        ret.bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &ret.desc);
-        return ret;
-    }
-    inline void UpdateBindGroup(BindGroup* bg, size_t index, WGPUBindGroupEntry entry){
-        bg->entries[index] = entry;
+    DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, uint32_t uniformCount);
 
-        //TODO don't release and recreate here
-        wgpuBindGroupRelease(bg->bindGroup);
-        bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
-    }
-    inline void UnloadBindGroup(BindGroup* bg){
-        free(bg->entries);
-        wgpuBindGroupRelease(bg->bindGroup);
-    }
+
+
+    DescribedBindGroup LoadBindGroup(const DescribedPipeline* pipeline, const WGPUBindGroupEntry* entries, size_t entryCount);
+    void UpdateBindGroup(DescribedBindGroup* bg, size_t index, WGPUBindGroupEntry entry);
+    void UnloadBindGroup(DescribedBindGroup* bg);
 
 EXTERN_C_END
 #endif// PIPELINE_H

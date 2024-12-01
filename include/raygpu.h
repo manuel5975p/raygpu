@@ -22,9 +22,7 @@ typedef struct Image{
     void* data;
 }Image;
 
-enum uniform_type{
-    uniform_buffer, storage_buffer, texture2d, sampler
-};
+
 
 typedef struct ShaderInputs{
     uint32_t per_vertex_count;
@@ -129,10 +127,7 @@ typedef struct Shader{
 enum draw_mode{
     RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS
 };
-typedef struct UniformDescriptor{
-    enum uniform_type type;
-    uint32_t minBindingSize;
-}UniformDescriptor;
+
 
 typedef struct AttributeAndResidence{
     WGPUVertexAttribute attr;
@@ -183,7 +178,7 @@ EXTERN_C_BEGIN
     WGPUShaderModule LoadShaderFromMemory(const char* shaderSource);
     WGPUShaderModule LoadShader(const char* path);
 
-    Pipeline LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount);
+    DescribedPipeline LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount);
 
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
     Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format, bool to_be_used_as_rendertarget);
