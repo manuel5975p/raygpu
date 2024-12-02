@@ -186,3 +186,7 @@ extern "C" void UnloadBindGroup(DescribedBindGroup* bg){
     free(bg->entries);
     wgpuBindGroupRelease(bg->bindGroup);
 }
+extern "C" void UnloadBindGroupLayout(DescribedBindGroupLayout* bglayout){
+    free(bglayout->entries);
+    wgpuBindGroupLayoutRelease(bglayout->layout);
+}

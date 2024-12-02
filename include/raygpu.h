@@ -115,6 +115,12 @@ typedef struct full_renderstate{
     }
     #endif
 }full_renderstate;
+typedef struct DescribedBuffer{
+    WGPUBufferDescriptor descriptor;
+    WGPUBuffer buffer;
+}DescribedBuffer;
+
+
 
 typedef struct Shader{
     WGPUShaderModule shadermodule;
@@ -134,6 +140,8 @@ typedef struct AttributeAndResidence{
     uint32_t bufferSlot;
     WGPUVertexStepMode stepMode;
 }AttributeAndResidence;
+
+typedef struct VertexArray VertexArray;
 
 
 EXTERN_C_BEGIN
@@ -185,7 +193,9 @@ EXTERN_C_BEGIN
     Texture LoadTexture(uint32_t width, uint32_t height);
     Texture LoadDepthTexture(uint32_t width, uint32_t height);
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
-
+    
+    DescribedBuffer LoadBuffer(const void* data, size_t size);
+    
     void SetTexture       (uint32_t index, Texture tex);
     void SetSampler       (uint32_t index, WGPUSampler sampler);
     void SetUniformBuffer (uint32_t index, const void* data, size_t size);
@@ -201,6 +211,8 @@ EXTERN_C_BEGIN
     void updatePipeline        (full_renderstate* state, enum draw_mode drawmode);
     void updateRenderPassDesc  (full_renderstate* state);
     void setTargetTextures     (full_renderstate* state, WGPUTextureView c, WGPUTextureView d);
+
+    void VertexAttribPointer(VertexArray*, uint32_t slot, WGPUVertexFormat format, uint32_t offset, WGPUVertexStepMode stepmode);
 
     void DrawTexturePro(Texture texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint);
 

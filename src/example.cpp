@@ -3,6 +3,7 @@
 #include "GLFW/glfw3.h"
 #include <raygpu.h>
 #include <stb_image_write.h>
+#include <tint/lang/wgsl/ast/extension.h>
 #ifndef __EMSCRIPTEN__
 //#include "dawn/dawn_proc.h"
 //#include "dawn/native/DawnNative.h"
@@ -68,18 +69,12 @@ int main(){
     //Matrix udata = (MatrixPerspective(1.2, 1, 0.01, 100.0));
     Texture tex = LoadTextureFromImage(LoadImageChecker(Color{255,0,0,255}, Color{0,255,0,255}, 100, 100, 10));
     checkers = LoadTextureFromImage(LoadImageChecker(Color{230, 230, 230, 255}, Color{100, 100, 100, 255}, 100, 100, 50));
-    WGPUBufferDescriptor bufferDesc{};
     WGPUBufferDescriptor mapBufferDesc{};
-    
-    bufferDesc.size = 60;
-    bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex;
-    bufferDesc.mappedAtCreation = false;
-
-    WGPUBuffer vbo = wgpuDeviceCreateBuffer(g_wgpustate.device, &bufferDesc);
     float data[15] = {0,0,0,1,0,
                      1,0,0,0,1,
                      0,1,0,0.3,0.5
                     };
+    DescribedBuffer vbo = LoadBuffer(data, sizeof(data));
     WGPUBindGroupDescriptor bgdesc{};
     bgdesc.layout = pl.bglayout.layout;
     WGPUBindGroupEntry the_texture_entry{};
@@ -104,14 +99,14 @@ int main(){
     //udata = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
     //SetUniformBuffer(0, &udata, 16 * sizeof(float));
     auto mainloop = [&](void* userdata){
-        wgpuQueueWriteBuffer(g_wgpustate.queue, vbo, 0, data, sizeof(data));
+        wgpuQueueWriteBuffer(g_wgpustate.queue, vbo.buffer, 0, data, sizeof(data));
         float z = 0;
         //std::cout << "<<Before:" << std::endl;
         BeginDrawing();
         //std::cout << "<<After:" << std::endl;
         g_wgpustate.rstate->executeRenderpassPlain([&](WGPURenderPassEncoder encoder){
             UsePipeline(encoder, pl);
-            wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, vbo, 0, 60);
+            wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, vbo.buffer, 0, 60);
             wgpuRenderPassEncoderSetBindGroup(encoder,0, bg, 0, nullptr);
             wgpuRenderPassEncoderDraw(encoder, 3, 1, 0, 0);
         });

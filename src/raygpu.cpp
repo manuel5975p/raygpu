@@ -15,6 +15,21 @@
 #include <emscripten/emscripten.h>
 #endif  // __EMSCRIPTEN__
 wgpustate g_wgpustate;
+
+typedef struct VertexArray{
+    std::vector<AttributeAndResidence> attributes;
+    std::vector<std::pair<DescribedBuffer, WGPUVertexStepMode>> buffers;
+    void add(DescribedBuffer buffer, uint32_t slot, WGPUVertexFormat fmt, uint32_t offset, WGPUVertexStepMode stepmode){
+        AttributeAndResidence insert{};
+        for(auto& _buffer : buffers){
+            if(_buffer.first.buffer == buffer.buffer){
+                if(_buffer.second == stepmode){
+                    
+                }
+            }
+        }
+    }
+}VertexArray;
 Texture depthTexture; //TODO: uhhh move somewhere
 WGPUDevice GetDevice(){
     return g_wgpustate.device;
@@ -633,6 +648,9 @@ void updateRenderPassDesc(full_renderstate* state){
     state->renderPassDesc.depthStencilAttachment = &state->dsa;
     state->renderPassDesc.timestampWrites = nullptr;
 }
+extern "C" void VertexAttribPointer(VertexArray* arr, uint32_t attr, WGPUVertexFormat format, uint32_t offset, WGPUVertexStepMode stepmode){
+
+}
 void setTargetTextures(full_renderstate* state, WGPUTextureView c, WGPUTextureView d){
     state->color = c;
     state->depth = d;
@@ -691,4 +709,13 @@ void BeginTextureMode(RenderTexture rtex){
 void EndTextureMode(){
     drawCurrentBatch();
     setTargetTextures(g_wgpustate.rstate, g_wgpustate.currentSurfaceTextureView, depthTexture.view);
+}
+extern "C" DescribedBuffer LoadBuffer(const void* data, size_t size){
+    DescribedBuffer ret{};
+    ret.descriptor.size = size;
+    ret.descriptor.mappedAtCreation = false;
+    ret.descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex;
+    ret.buffer = wgpuDeviceCreateBuffer(GetDevice(), &ret.descriptor);
+    wgpuQueueWriteBuffer(GetQueue(), ret.buffer, 0, data, size);
+    return ret;
 }

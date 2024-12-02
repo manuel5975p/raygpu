@@ -22,7 +22,6 @@ struct wgpustate{
 
     WGPUSurfaceTexture currentSurfaceTexture;
     WGPUTextureView currentSurfaceTextureView;
-    WGPUBuffer dummyStorageBuffer;
 
     // Frame timing / FPS
     uint64_t total_frames = 0;

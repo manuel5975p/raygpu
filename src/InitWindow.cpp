@@ -311,15 +311,10 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     WGPUShaderModule tShader = LoadShaderFromMemory(shaderSource);
     RenderTexture rtex = LoadRenderTexture(width, height);
     g_wgpustate.rstate = new full_renderstate;
-    WGPUBufferDescriptor dummy{};
-    dummy.mappedAtCreation = false;
-    dummy.size = 64;
-    dummy.usage = WGPUBufferUsage_Storage;
+    
 
     float data[16] = {0};
     //std::fill(data, data + 16, 1.0f);
-
-    g_wgpustate.dummyStorageBuffer = wgpuDeviceCreateBuffer(GetDevice(), &dummy);
     
     ShaderInputs shaderInputs{};
     auto arraySetter = [](uint32_t (&dat)[8], std::initializer_list<uint32_t> arg){

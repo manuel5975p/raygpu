@@ -28,9 +28,10 @@ typedef struct DescribedBindGroup{
 }DescribedBindGroup;
 
 typedef struct DescribedPipeline{
+    //TODO: Multiple bindgrouplayouts
     DescribedBindGroupLayout bglayout;
+    WGPURenderPipelineDescriptor descriptor;
     WGPUVertexBufferLayout* vbLayouts;
-    size_t vbLayoutCount;
     WGPURenderPipeline pipeline;
 }DescribedPipeline;
 
@@ -41,7 +42,7 @@ EXTERN_C_BEGIN
     WGPUDevice GetDevice(cwoid);
 
     DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, uint32_t uniformCount);
-
+    void UnloadBindGroupLayout(DescribedBindGroupLayout* bglayout);
 
 
     DescribedBindGroup LoadBindGroup(const DescribedPipeline* pipeline, const WGPUBindGroupEntry* entries, size_t entryCount);
