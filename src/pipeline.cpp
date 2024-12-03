@@ -97,6 +97,7 @@ extern "C" DescribedPipeline LoadPipelineEx(const char* shaderSource, const Attr
         buffer_to_attributes[attribs[i].bufferSlot].push_back(attribs[i].attr);
         strides[attribs[i].bufferSlot] += attributeSize(attribs[i].attr.format);
     }
+    
     for(size_t i = 0;i < number_of_buffers;i++){
         ret.vbLayouts[i].attributes = buffer_to_attributes[i].data();
         ret.vbLayouts[i].attributeCount = buffer_to_attributes[i].size();

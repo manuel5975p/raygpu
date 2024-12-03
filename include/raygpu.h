@@ -135,9 +135,10 @@ enum draw_mode{
 };
 
 
+
 typedef struct AttributeAndResidence{
     WGPUVertexAttribute attr;
-    uint32_t bufferSlot;
+    uint32_t bufferSlot; //Describes the actual buffer it will reside in
     WGPUVertexStepMode stepMode;
 }AttributeAndResidence;
 
@@ -212,7 +213,9 @@ EXTERN_C_BEGIN
     void updateRenderPassDesc  (full_renderstate* state);
     void setTargetTextures     (full_renderstate* state, WGPUTextureView c, WGPUTextureView d);
 
-    void VertexAttribPointer(VertexArray*, uint32_t slot, WGPUVertexFormat format, uint32_t offset, WGPUVertexStepMode stepmode);
+    void VertexAttribPointer(VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, WGPUVertexFormat format, uint32_t offset, WGPUVertexStepMode stepmode);
+    void EnableVertexAttribArray(VertexArray* array, uint32_t attribLocation);
+    void BindVertexArray(DescribedPipeline* pipeline, VertexArray* va);
 
     void DrawTexturePro(Texture texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint);
 

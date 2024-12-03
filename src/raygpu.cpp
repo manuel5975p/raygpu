@@ -19,17 +19,46 @@ wgpustate g_wgpustate;
 typedef struct VertexArray{
     std::vector<AttributeAndResidence> attributes;
     std::vector<std::pair<DescribedBuffer, WGPUVertexStepMode>> buffers;
-    void add(DescribedBuffer buffer, uint32_t slot, WGPUVertexFormat fmt, uint32_t offset, WGPUVertexStepMode stepmode){
+    void add(DescribedBuffer buffer, uint32_t shaderLocation, WGPUVertexFormat fmt, uint32_t offset, WGPUVertexStepMode stepmode){
         AttributeAndResidence insert{};
-        for(auto& _buffer : buffers){
+        for(size_t i = 0;i < buffers.size();i++){
+            auto& _buffer = buffers[i];
             if(_buffer.first.buffer == buffer.buffer){
                 if(_buffer.second == stepmode){
-                    
+                    insert.bufferSlot = i;
+                    insert.stepMode = stepmode;
+                    insert.attr.format = fmt;
+                    insert.attr.offset = offset;
+                    insert.attr.shaderLocation = shaderLocation;
+                    attributes.push_back(insert);
+                    return;
+                }
+                else{
+                    std::cerr << "Mixed stepmodes not implemented yet\n";
+                    exit(1);
                 }
             }
         }
+        insert.bufferSlot = buffers.size();
+        buffers.push_back({buffer, stepmode});
+        insert.stepMode = stepmode;
+        insert.attr.format = fmt;
+        insert.attr.offset = offset;
+        insert.attr.shaderLocation = shaderLocation;
+        attributes.push_back(insert);
     }
 }VertexArray;
+void VertexAttribPointer(VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, WGPUVertexFormat format, uint32_t offset, WGPUVertexStepMode stepmode){
+    array->add(*buffer, attribLocation, format, offset, stepmode);
+}
+extern "C" void BindVertexArray(DescribedPipeline* pipeline, VertexArray* va){
+    pipeline->vbLayouts = (WGPUVertexBufferLayout*) malloc(va->buffers.size() * sizeof(WGPUVertexBufferLayout));
+    
+    pipeline->descriptor.vertex.buffers = pipeline->vbLayouts;
+}
+extern "C" void EnableVertexAttribArray(VertexArray* array, uint32_t attribLocation){
+    return;
+}
 Texture depthTexture; //TODO: uhhh move somewhere
 WGPUDevice GetDevice(){
     return g_wgpustate.device;

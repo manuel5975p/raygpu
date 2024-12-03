@@ -48,6 +48,8 @@ EXTERN_C_BEGIN
     DescribedBindGroup LoadBindGroup(const DescribedPipeline* pipeline, const WGPUBindGroupEntry* entries, size_t entryCount);
     void UpdateBindGroup(DescribedBindGroup* bg, size_t index, WGPUBindGroupEntry entry);
     void UnloadBindGroup(DescribedBindGroup* bg);
+    
+    
 
 EXTERN_C_END
 #endif// PIPELINE_H
