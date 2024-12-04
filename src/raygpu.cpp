@@ -55,6 +55,33 @@ extern "C" void BindVertexArray(DescribedPipeline* pipeline, VertexArray* va){
     pipeline->vbLayouts = (WGPUVertexBufferLayout*) malloc(va->buffers.size() * sizeof(WGPUVertexBufferLayout));
     
     pipeline->descriptor.vertex.buffers = pipeline->vbLayouts;
+    pipeline->descriptor.vertex.bufferCount = va->buffers.size();
+
+    //LoadPipelineEx
+    uint32_t attribCount = va->attributes.size();
+    auto& attribs = va->attributes;
+    uint32_t maxslot = 0;
+    for(size_t i = 0;i < attribCount;i++){
+        maxslot = std::max(maxslot, attribs[i].bufferSlot);
+    }
+    const uint32_t number_of_buffers = maxslot + 1;
+    std::vector<std::vector<WGPUVertexAttribute>> buffer_to_attributes(number_of_buffers);
+    //WGPUVertexBufferLayout* vbLayouts = new WGPUVertexBufferLayout[number_of_buffers];
+    std::vector<uint32_t> strides  (number_of_buffers, 0);
+    std::vector<uint32_t> attrIndex(number_of_buffers, 0);
+    for(size_t i = 0;i < attribCount;i++){
+        buffer_to_attributes[attribs[i].bufferSlot].push_back(attribs[i].attr);
+        strides[attribs[i].bufferSlot] += attributeSize(attribs[i].attr.format);
+    }
+    
+    for(size_t i = 0;i < number_of_buffers;i++){
+        pipeline->vbLayouts[i].attributes = buffer_to_attributes[i].data();
+        pipeline->vbLayouts[i].attributeCount = buffer_to_attributes[i].size();
+        pipeline->vbLayouts[i].arrayStride = strides[i];
+        pipeline->vbLayouts[i].stepMode = va->buffers[i].second;
+    }
+    wgpuRenderPipelineRelease(pipeline->pipeline);
+    pipeline->pipeline = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipeline->descriptor);
 }
 extern "C" void EnableVertexAttribArray(VertexArray* array, uint32_t attribLocation){
     return;
@@ -677,9 +704,7 @@ void updateRenderPassDesc(full_renderstate* state){
     state->renderPassDesc.depthStencilAttachment = &state->dsa;
     state->renderPassDesc.timestampWrites = nullptr;
 }
-extern "C" void VertexAttribPointer(VertexArray* arr, uint32_t attr, WGPUVertexFormat format, uint32_t offset, WGPUVertexStepMode stepmode){
 
-}
 void setTargetTextures(full_renderstate* state, WGPUTextureView c, WGPUTextureView d){
     state->color = c;
     state->depth = d;
