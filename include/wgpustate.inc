@@ -27,7 +27,7 @@ struct wgpustate{
     uint64_t total_frames = 0;
     uint64_t init_timestamp;
 
-    uint64_t last_timestamps[32];
+    int64_t last_timestamps[32] = {0};
 
     std::mutex drawmutex;
 };

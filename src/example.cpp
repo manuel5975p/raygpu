@@ -145,7 +145,7 @@ int main(){
                     g_wgpustate.whitePixel,
                     Rectangle(0, 0, 1, 1), Rectangle(i * 10, j * 10, 8, 8),
                     Vector2(0,0), 
-                    g_wgpustate.total_frames * (1.0f / 1000.0f),
+                    g_wgpustate.total_frames * (1.0f / 100.0f),
                     Color{255,255,255,255}
                 );
             }
@@ -160,6 +160,7 @@ int main(){
         EndDrawing();
         
         ++frames;
+        //std::cout << g_wgpustate.total_frames << "\n";
         uint64_t nextStmp = NanoTime();
         if(nextStmp - stmp > 1000000000){
             std::cout << GetFPS() << "\n";

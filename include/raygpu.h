@@ -90,6 +90,11 @@ typedef struct full_renderstate{
         wgpuRenderPassEncoderSetBindGroup(renderPass, 0, bg, 0, 0);
         wgpuRenderPassEncoderSetVertexBuffer(renderPass, 0, this->vbo, 0, wgpuBufferGetSize(vbo));
         c(renderPass);
+        //if constexpr(std::is_invocable_v<callable, WGPURenderPassEncoder>){
+        //}
+        //else if constexpr(std::is_invocable_v<callable, WGPURenderPassEncoder, WGPUCommandEncoder>){
+        //    c(renderPass, encoder);
+        //}
         wgpuRenderPassEncoderEnd(renderPass);
         WGPUCommandBufferDescriptor cmdBufferDescriptor{};
         cmdBufferDescriptor.label = STRVIEW("Command buffer");

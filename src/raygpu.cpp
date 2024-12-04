@@ -131,12 +131,13 @@ void drawCurrentBatch(){
             mappedIbufDesc.mappedAtCreation = true;
             mappedIbufDesc.usage = WGPUBufferUsage_MapWrite | WGPUBufferUsage_CopySrc;
             mappedIbufDesc.size = sizeof(uint32_t) * 6 * (g_wgpustate.current_vertices.size() / 4);
-            WGPUBufferDescriptor actualIbufDesc;
+            WGPUBufferDescriptor actualIbufDesc{};
             actualIbufDesc.mappedAtCreation = false;
             actualIbufDesc.usage = WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst;
             actualIbufDesc.size = sizeof(uint32_t) * 6 * (g_wgpustate.current_vertices.size() / 4);
 
             WGPUBuffer ibuf = wgpuDeviceCreateBuffer(g_wgpustate.device, &mappedIbufDesc);
+            WGPUBuffer ibuf_actual = wgpuDeviceCreateBuffer(g_wgpustate.device, &actualIbufDesc);
             uint32_t* indices = (uint32_t*)wgpuBufferGetMappedRange(ibuf, 0, mappedIbufDesc.size);
             //std::vector<uint32_t> indices;
             //indices.resize(6 * (g_wgpustate.current_vertices.size() / 4));
@@ -152,10 +153,19 @@ void drawCurrentBatch(){
             size_t vcount = mappedIbufDesc.size / sizeof(uint32_t);//indices.size();
             wgpuBufferUnmap(ibuf);
             
-            break;
+            //break;
+            WGPUCommandEncoder enc;
+            WGPUCommandEncoderDescriptor commandEncoderDesc = {};
+            commandEncoderDesc.label = STRVIEW("Command Encoder");
+            enc = wgpuDeviceCreateCommandEncoder(GetDevice(), &commandEncoderDesc);
+            wgpuCommandEncoderCopyBufferToBuffer(enc, ibuf, 0, ibuf_actual, 0, actualIbufDesc.size);
+            WGPUCommandBufferDescriptor cmdBufferDescriptor{};
+            cmdBufferDescriptor.label = STRVIEW("Command buffer");
+            WGPUCommandBuffer command = wgpuCommandEncoderFinish(enc, &cmdBufferDescriptor);
+            wgpuQueueSubmit(GetQueue(), 1, &command);
             //wgpuQueueWriteBuffer(g_wgpustate.queue, ibuf, 0, indices.data(), indices.size() * sizeof(uint32_t));
-            g_wgpustate.rstate->executeRenderpass([ibuf, bytesize, vcount](WGPURenderPassEncoder renderPass){
-                wgpuRenderPassEncoderSetIndexBuffer(renderPass, ibuf, WGPUIndexFormat_Uint32, 0, bytesize);
+            g_wgpustate.rstate->executeRenderpass([&actualIbufDesc, ibuf, ibuf_actual, bytesize, vcount](WGPURenderPassEncoder renderPass){
+                wgpuRenderPassEncoderSetIndexBuffer(renderPass, ibuf_actual, WGPUIndexFormat_Uint32, 0, bytesize);
                 wgpuRenderPassEncoderDrawIndexed(renderPass, vcount, 1, 0, 0, 0);
             });
             wgpuBufferRelease(ibuf);
@@ -734,10 +744,10 @@ Image LoadImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32
 void UseTexture(Texture tex){
     if(g_wgpustate.activeTexture.tex != tex.tex){
         drawCurrentBatch();
+        g_wgpustate.activeTexture = tex;
+        setStateTexture(g_wgpustate.rstate, 1, tex);
     }
-
-    g_wgpustate.activeTexture = tex;
-    setStateTexture(g_wgpustate.rstate, 1, tex);
+    
 }
 void UseNoTexture(){
     if(g_wgpustate.activeTexture.tex != g_wgpustate.whitePixel.tex){
