@@ -94,26 +94,26 @@ int main(){
     
     //constexpr int rtd = 2000;
     //rtex = LoadRenderTexture(rtd, rtd);
-    //Matrix udata = MatrixMultiply(MatrixPerspective(1.0, double(GetScreenWidth()) / GetScreenHeight(), 0.01, 100.0), MatrixLookAt(Vector3{0, 0, -2.5}, Vector3{0, 0, 0}, Vector3{0,1,0}));
+    Matrix udata = MatrixMultiply(MatrixPerspective(1.0, double(GetScreenWidth()) / GetScreenHeight(), 0.01, 100.0), MatrixLookAt(Vector3{0, 0, -2.5}, Vector3{0, 0, 0}, Vector3{0,1,0}));
     //SetUniformBuffer(0, &udata, 64 * sizeof(float));    
-    //udata = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
-    //SetUniformBuffer(0, &udata, 16 * sizeof(float));
+    udata = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
+    SetUniformBuffer(0, &udata, 16 * sizeof(float));
     auto mainloop = [&](void* userdata){
-        wgpuQueueWriteBuffer(g_wgpustate.queue, vbo.buffer, 0, data, sizeof(data));
+        //wgpuQueueWriteBuffer(g_wgpustate.queue, vbo.buffer, 0, data, sizeof(data));
         float z = 0;
         //std::cout << "<<Before:" << std::endl;
-        BeginDrawing();
-        //std::cout << "<<After:" << std::endl;
-        g_wgpustate.rstate->executeRenderpassPlain([&](WGPURenderPassEncoder encoder){
-            UsePipeline(encoder, pl);
-            wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, vbo.buffer, 0, 60);
-            wgpuRenderPassEncoderSetBindGroup(encoder,0, bg, 0, nullptr);
-            wgpuRenderPassEncoderDraw(encoder, 3, 1, 0, 0);
-        });
-        EndDrawing();
-        return;
-        Matrix udata = MatrixMultiply(MatrixPerspective(1.0, double(GetScreenWidth()) / GetScreenHeight(), 0.01, 100.0), MatrixLookAt(Vector3{0, 0, -2.5}, Vector3{0, 0, 0}, Vector3{0,1,0}));
-        SetUniformBuffer(0, &udata, 64 * sizeof(float));
+        //BeginDrawing();
+        ////std::cout << "<<After:" << std::endl;
+        //g_wgpustate.rstate->executeRenderpassPlain([&](WGPURenderPassEncoder encoder){
+        //    UsePipeline(encoder, pl);
+        //    wgpuRenderPassEncoderSetVertexBuffer(encoder, 0, vbo.buffer, 0, 60);
+        //    wgpuRenderPassEncoderSetBindGroup(encoder,0, bg, 0, nullptr);
+        //    wgpuRenderPassEncoderDraw(encoder, 3, 1, 0, 0);
+        //});
+        //EndDrawing();
+        //return;
+        //Matrix udata = MatrixMultiply(MatrixPerspective(1.0, double(GetScreenWidth()) / GetScreenHeight(), 0.01, 100.0), MatrixLookAt(Vector3{0, 0, -2.5}, Vector3{0, 0, 0}, Vector3{0,1,0}));
+        //SetUniformBuffer(0, &udata, 64 * sizeof(float));
         
         BeginDrawing();
         /*UseTexture(checkers);
@@ -139,13 +139,13 @@ int main(){
         EndTextureMode();*/
         //UseTexture(rtex.color);
         
-        for(size_t i = 0;i < 10;i++){
-            for(size_t j = 0;j < 10;j++){
+        for(size_t i = 0;i < 100;i++){
+            for(size_t j = 0;j < 100;j++){
                 DrawTexturePro(
                     g_wgpustate.whitePixel,
                     Rectangle(0, 0, 1, 1), Rectangle(i * 10, j * 10, 8, 8),
                     Vector2(0,0), 
-                    g_wgpustate.total_frames * (0.0f / 1000.0f),
+                    g_wgpustate.total_frames * (1.0f / 1000.0f),
                     Color{255,255,255,255}
                 );
             }

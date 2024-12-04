@@ -127,24 +127,33 @@ void drawCurrentBatch(){
         } break;
         case RL_QUADS:{
             updateVertexBuffer(g_wgpustate.rstate, g_wgpustate.current_vertices.data(), g_wgpustate.current_vertices.size() * sizeof(vertex));
-            WGPUBufferDescriptor bd{};
-            bd.mappedAtCreation = false;
-            bd.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
-            bd.size = sizeof(uint32_t) * 6 * (g_wgpustate.current_vertices.size() / 4);
-            WGPUBuffer ibuf = wgpuDeviceCreateBuffer(g_wgpustate.device, &bd);
-            std::vector<uint32_t> indices;
-            indices.reserve(6 * (g_wgpustate.current_vertices.size() / 4));
+            WGPUBufferDescriptor mappedIbufDesc{};
+            mappedIbufDesc.mappedAtCreation = true;
+            mappedIbufDesc.usage = WGPUBufferUsage_MapWrite | WGPUBufferUsage_CopySrc;
+            mappedIbufDesc.size = sizeof(uint32_t) * 6 * (g_wgpustate.current_vertices.size() / 4);
+            WGPUBufferDescriptor actualIbufDesc;
+            actualIbufDesc.mappedAtCreation = false;
+            actualIbufDesc.usage = WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst;
+            actualIbufDesc.size = sizeof(uint32_t) * 6 * (g_wgpustate.current_vertices.size() / 4);
+
+            WGPUBuffer ibuf = wgpuDeviceCreateBuffer(g_wgpustate.device, &mappedIbufDesc);
+            uint32_t* indices = (uint32_t*)wgpuBufferGetMappedRange(ibuf, 0, mappedIbufDesc.size);
+            //std::vector<uint32_t> indices;
+            //indices.resize(6 * (g_wgpustate.current_vertices.size() / 4));
             for(size_t i = 0;i < (g_wgpustate.current_vertices.size() / 4);i++){
-                indices.push_back(i * 4+0);
-                indices.push_back(i * 4+1);
-                indices.push_back(i * 4+3);
-                indices.push_back(i * 4+1);
-                indices.push_back(i * 4+3);
-                indices.push_back(i * 4+2);
+                indices[i * 6 + 0] = (i * 4 + 0);
+                indices[i * 6 + 1] = (i * 4 + 1);
+                indices[i * 6 + 2] = (i * 4 + 3);
+                indices[i * 6 + 3] = (i * 4 + 1);
+                indices[i * 6 + 4] = (i * 4 + 3);
+                indices[i * 6 + 5] = (i * 4 + 2);
             }
-            size_t bytesize = indices.size() * sizeof(uint32_t);
-            size_t vcount = indices.size();
-            wgpuQueueWriteBuffer(g_wgpustate.queue, ibuf, 0, indices.data(), indices.size() * sizeof(uint32_t));
+            size_t bytesize = mappedIbufDesc.size;//indices.size() * sizeof(uint32_t);
+            size_t vcount = mappedIbufDesc.size / sizeof(uint32_t);//indices.size();
+            wgpuBufferUnmap(ibuf);
+            
+            break;
+            //wgpuQueueWriteBuffer(g_wgpustate.queue, ibuf, 0, indices.data(), indices.size() * sizeof(uint32_t));
             g_wgpustate.rstate->executeRenderpass([ibuf, bytesize, vcount](WGPURenderPassEncoder renderPass){
                 wgpuRenderPassEncoderSetIndexBuffer(renderPass, ibuf, WGPUIndexFormat_Uint32, 0, bytesize);
                 wgpuRenderPassEncoderDrawIndexed(renderPass, vcount, 1, 0, 0, 0);
