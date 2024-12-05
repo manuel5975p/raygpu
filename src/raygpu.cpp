@@ -116,6 +116,7 @@ void drawCurrentBatch(){
     if(g_wgpustate.current_vertices.size() == 0)return;
     
     updatePipeline(g_wgpustate.rstate, g_wgpustate.current_drawmode);
+    UpdateBindGroup(&g_wgpustate.rstate->currentBindGroup);
     switch(g_wgpustate.current_drawmode){
         case RL_TRIANGLES: [[fallthrough]];
         case RL_TRIANGLE_STRIP:{
@@ -462,12 +463,10 @@ void init_full_renderstate(full_renderstate* state, const WGPUShaderModule sh, c
     state->color = c;
     state->depth = d;
     state->vbo = 0;
-    for(uint32_t i = 0;i < 8;i++){
-        state->bgEntries[i].binding = i;
-    }
+    
     {
         std::vector<WGPUBindGroupLayoutEntry> blayouts(shader_inputs.uniform_count);
-        state->bglayoutdesc = WGPUBindGroupLayoutDescriptor{};
+        state->pipeline.bglayout = DescribedBindGroupLayout{};
         std::memset(blayouts.data(), 0, blayouts.size() * sizeof(WGPUBindGroupLayoutEntry));
         for(size_t i = 0;i < shader_inputs.uniform_count;i++){
             blayouts[i].binding = i;
@@ -495,14 +494,15 @@ void init_full_renderstate(full_renderstate* state, const WGPUShaderModule sh, c
                 default:break;
             }
         }
-        state->bglayoutdesc.entryCount = shader_inputs.uniform_count;
-        state->bglayoutdesc.entries = blayouts.data();
-        state->bglayoutdesc.label = STRVIEW("GlobalRenderState_BindGroupLayout");
-        state->bglayout = wgpuDeviceCreateBindGroupLayout(g_wgpustate.device, &state->bglayoutdesc);
+        state->pipeline.bglayout.descriptor.entryCount = shader_inputs.uniform_count;
+        state->pipeline.bglayout.descriptor.entries = blayouts.data();
+        state->pipeline.bglayout.descriptor.label = STRVIEW("GlobalRenderState_BindGroupLayout");
+        state->pipeline.bglayout.layout = wgpuDeviceCreateBindGroupLayout(g_wgpustate.device, &state->pipeline.bglayout.descriptor);
     }
+    
     state->vbo = 0;
-    state->bg = 0;
-    std::memset(state->bgEntries, 0, 8 * sizeof(WGPUBindGroupEntry));
+    //state->bg = 0;
+    //std::memset(state->bgEntries, 0, 8 * sizeof(WGPUBindGroupEntry));
     {
         uint32_t offset = 0;
         //assert(vattribute_sizes.size() <= 8);
@@ -519,6 +519,19 @@ void init_full_renderstate(full_renderstate* state, const WGPUShaderModule sh, c
         updatePipeline(state, RL_TRIANGLES);
         updateRenderPassDesc(state);  
     }
+    WGPUBindGroupEntry hacc[8] = {};
+    memset(hacc, 0, sizeof(hacc));
+    for(uint32_t i = 0;i < 8;i++){
+        hacc[i] = WGPUBindGroupEntry{};
+        hacc[i].binding = i;
+        hacc[i].buffer = 0;
+    }
+    state->currentBindGroup = LoadBindGroup(&state->pipeline, hacc, 4);
+    //state->currentBindGroup.entries = (WGPUBindGroupEntry*)calloc(8, sizeof(WGPUBindGroupEntry));// = LoadBindGroup(&state->pipeline, nullptr, 0);
+    //state->currentBindGroup.desc.entries = state->currentBindGroup.entries;
+    //state->currentBindGroup.desc.entryCount = 4;
+    //state->currentBindGroup.desc.layout = state->pipeline.bglayout.layout;
+    
 }
 void updateVertexBuffer(full_renderstate* state, const void* data, size_t size){
     if(state->vbo){
@@ -535,20 +548,22 @@ void updateVertexBuffer(full_renderstate* state, const void* data, size_t size){
     wgpuQueueWriteBuffer(g_wgpustate.queue, state->vbo, 0, data, size);
 }
 void setStateTexture(full_renderstate* state, uint32_t index, Texture tex){
-    state->bgEntries[index] = WGPUBindGroupEntry{};
-    state->bgEntries[index].binding = index;
-    state->bgEntries[index].textureView = tex.view;
-    updateBindGroup(state);
+    WGPUBindGroupEntry entry{};
+    entry.binding = index;
+    entry.textureView = tex.view;
+    UpdateBindGroupEntry(&state->currentBindGroup, index, entry);
 }
 void setStateSampler(full_renderstate* state, uint32_t index, WGPUSampler sampler){
-    state->bgEntries[index] = WGPUBindGroupEntry{};
-    state->bgEntries[index].binding = index;
-    state->bgEntries[index].sampler = sampler;
-    updateBindGroup(state);
+    WGPUBindGroupEntry entry{};
+    //state->bgEntries[index] = WGPUBindGroupEntry{};
+    entry.binding = index;
+    entry.sampler = sampler;
+    UpdateBindGroupEntry(&state->currentBindGroup, index, entry);
+    //updateBindGroup(state);
 }
 void setStateUniformBuffer(full_renderstate* state, uint32_t index, const void* data, size_t size){
-    if(state->bgEntries[index].buffer){
-        wgpuBufferRelease(state->bgEntries[index].buffer);
+    if(state->currentBindGroup.entries[index].buffer){
+        wgpuBufferRelease(state->currentBindGroup.entries[index].buffer);
     }
     WGPUBufferDescriptor bufferDesc{};
     bufferDesc.size = size;
@@ -557,18 +572,17 @@ void setStateUniformBuffer(full_renderstate* state, uint32_t index, const void* 
     WGPUBuffer uniformBuffer = wgpuDeviceCreateBuffer(g_wgpustate.device, &bufferDesc);
     wgpuQueueWriteBuffer(g_wgpustate.queue, uniformBuffer, 0, data, size);
     
-    state->bgEntries[index] = WGPUBindGroupEntry{};
-    state->bgEntries[index].binding = index;
-    state->bgEntries[index].buffer = uniformBuffer;
-    state->bgEntries[index].offset = 0;
-    state->bgEntries[index].size = size;
-    updateBindGroup(state);
-    
+    WGPUBindGroupEntry entry{};
+    entry.binding = index;
+    entry.buffer = uniformBuffer;
+    entry.offset = 0;
+    entry.size = size;
+    UpdateBindGroupEntry(&state->currentBindGroup, index, entry);
 }
 
 void setStateStorageBuffer(full_renderstate* state, uint32_t index, const void* data, size_t size){
-    if(state->bgEntries[index].buffer){
-        wgpuBufferRelease(state->bgEntries[index].buffer);
+    if(state->currentBindGroup.entries[index].buffer){
+        wgpuBufferRelease(state->currentBindGroup.entries[index].buffer);
     }
     WGPUBufferDescriptor bufferDesc{};
     bufferDesc.size = size;
@@ -577,12 +591,12 @@ void setStateStorageBuffer(full_renderstate* state, uint32_t index, const void* 
     WGPUBuffer storageBuffer = wgpuDeviceCreateBuffer(g_wgpustate.device, &bufferDesc);
     wgpuQueueWriteBuffer(g_wgpustate.queue, storageBuffer, 0, data, size);
     
-    state->bgEntries[index] = WGPUBindGroupEntry{};
-    state->bgEntries[index].binding = index;
-    state->bgEntries[index].buffer = storageBuffer;
-    state->bgEntries[index].offset = 0;
-    state->bgEntries[index].size = size;
-    updateBindGroup(state);
+    WGPUBindGroupEntry entry{};
+    entry.binding = index;
+    entry.buffer = storageBuffer;
+    entry.offset = 0;
+    entry.size = size;
+    UpdateBindGroupEntry(&state->currentBindGroup, index, entry);
 }
 void SetTexture       (uint32_t index, Texture tex){
     setStateTexture(g_wgpustate.rstate, index, tex);
@@ -597,48 +611,52 @@ void SetStorageBuffer (uint32_t index, const void* data, size_t size){
     setStateStorageBuffer(g_wgpustate.rstate, index, data, size);
 }
 void updateBindGroup(full_renderstate* state){
-    WGPUBindGroupDescriptor bgdesc{};
-    bgdesc.entryCount = state->bglayoutdesc.entryCount;
-
-    for(uint32_t i = 0;i < state->bglayoutdesc.entryCount;i++){
-        if(state->bgEntries[i].binding != i){
-            return;
-        }
+    if(state->currentBindGroup.needsUpdate){
+        state->currentBindGroup.bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &state->currentBindGroup.desc);
     }
-    bgdesc.entries = state->bgEntries;
-    bgdesc.layout = state->bglayout;
-    if(state->bg)wgpuBindGroupRelease(state->bg);
-    state->bg = wgpuDeviceCreateBindGroup(g_wgpustate.device, &bgdesc);
+    //UpdateBindGroup(DescribedBindGroup *bg, size_t index, WGPUBindGroupEntry entry)
+    //WGPUBindGroupDescriptor bgdesc{};
+    //bgdesc.entryCount = state->bglayoutdesc.entryCount;
+//
+    //for(uint32_t i = 0;i < state->bglayoutdesc.entryCount;i++){
+    //    if(state->bgEntries[i].binding != i){
+    //        return;
+    //    }
+    //}
+    //bgdesc.entries = state->bgEntries;
+    //bgdesc.layout = state->bglayout;
+    //if(state->bg)wgpuBindGroupRelease(state->bg);
+    //state->bg = wgpuDeviceCreateBindGroup(g_wgpustate.device, &bgdesc);
 }
 
 void updatePipeline(full_renderstate* state, draw_mode drawmode){
-    state->pipelineDesc = WGPURenderPipelineDescriptor{};
-    state->pipelineDesc.vertex.bufferCount = 1;
-    state->pipelineDesc.vertex.buffers = &state->vlayout;
-    state->pipelineDesc.vertex.module = state->shader;
-    state->pipelineDesc.vertex.entryPoint = STRVIEW("vs_main");
-    state->pipelineDesc.vertex.constantCount = 0;
-    state->pipelineDesc.vertex.constants = nullptr;
+    state->pipeline.descriptor = WGPURenderPipelineDescriptor{};
+    state->pipeline.descriptor.vertex.bufferCount = 1;
+    state->pipeline.descriptor.vertex.buffers = &state->vlayout;
+    state->pipeline.descriptor.vertex.module = state->shader;
+    state->pipeline.descriptor.vertex.entryPoint = STRVIEW("vs_main");
+    state->pipeline.descriptor.vertex.constantCount = 0;
+    state->pipeline.descriptor.vertex.constants = nullptr;
     switch(drawmode){
         case draw_mode::RL_QUADS:{
-            state->pipelineDesc.primitive.topology =         WGPUPrimitiveTopology_TriangleList;
-            state->pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
+            state->pipeline.descriptor.primitive.topology =         WGPUPrimitiveTopology_TriangleList;
+            state->pipeline.descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
         }break;
         case draw_mode::RL_TRIANGLES:{
-            state->pipelineDesc.primitive.topology =         WGPUPrimitiveTopology_TriangleList;
-            state->pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
+            state->pipeline.descriptor.primitive.topology =         WGPUPrimitiveTopology_TriangleList;
+            state->pipeline.descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
 
         }break;
         case draw_mode::RL_TRIANGLE_STRIP:{
-            state->pipelineDesc.primitive.topology =         WGPUPrimitiveTopology_TriangleStrip;
-            state->pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
+            state->pipeline.descriptor.primitive.topology =         WGPUPrimitiveTopology_TriangleStrip;
+            state->pipeline.descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
         }break;
     }
     
-    state->pipelineDesc.primitive.frontFace =        WGPUFrontFace_CCW;
-    state->pipelineDesc.primitive.cullMode =         WGPUCullMode_None;
+    state->pipeline.descriptor.primitive.frontFace =        WGPUFrontFace_CCW;
+    state->pipeline.descriptor.primitive.cullMode =         WGPUCullMode_None;
     WGPUFragmentState fragmentState{};
-    state->pipelineDesc.fragment = &fragmentState;
+    state->pipeline.descriptor.fragment = &fragmentState;
     fragmentState.module = state->shader;
     fragmentState.entryPoint = STRVIEW("fs_main");
     fragmentState.constantCount = 0;
@@ -670,18 +688,18 @@ void updatePipeline(full_renderstate* state, draw_mode drawmode){
     depthStencilState.stencilWriteMask = 0;
     depthStencilState.stencilFront.compare = WGPUCompareFunction_Always;
     depthStencilState.stencilBack.compare = WGPUCompareFunction_Always;
-    state->pipelineDesc.depthStencil = &depthStencilState;
-    state->pipelineDesc.multisample.count = 1;
-    state->pipelineDesc.multisample.mask = ~0u;
-    state->pipelineDesc.multisample.alphaToCoverageEnabled = false;
+    state->pipeline.descriptor.depthStencil = &depthStencilState;
+    state->pipeline.descriptor.multisample.count = 1;
+    state->pipeline.descriptor.multisample.mask = ~0u;
+    state->pipeline.descriptor.multisample.alphaToCoverageEnabled = false;
     // Create a bind group layout
     // Create the pipeline layout
     WGPUPipelineLayoutDescriptor layoutDesc{};
     layoutDesc.bindGroupLayoutCount = 1;
-    layoutDesc.bindGroupLayouts = (WGPUBindGroupLayout*)&state->bglayout;
+    layoutDesc.bindGroupLayouts = &state->pipeline.bglayout.layout;
     WGPUPipelineLayout layout = wgpuDeviceCreatePipelineLayout(g_wgpustate.device, &layoutDesc);
-    state->pipelineDesc.layout = layout;
-    state->pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &state->pipelineDesc);
+    state->pipeline.descriptor.layout = layout;
+    state->pipeline.pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &state->pipeline.descriptor);
     wgpuPipelineLayoutRelease(layout);
 }
 void updateRenderPassDesc(full_renderstate* state){

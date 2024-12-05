@@ -25,6 +25,7 @@ typedef struct DescribedBindGroup{
     WGPUBindGroupDescriptor desc;
     WGPUBindGroupEntry* entries;
     WGPUBindGroup bindGroup;
+    bool needsUpdate;
 }DescribedBindGroup;
 
 typedef struct DescribedPipeline{
@@ -46,7 +47,10 @@ EXTERN_C_BEGIN
 
 
     DescribedBindGroup LoadBindGroup(const DescribedPipeline* pipeline, const WGPUBindGroupEntry* entries, size_t entryCount);
-    void UpdateBindGroup(DescribedBindGroup* bg, size_t index, WGPUBindGroupEntry entry);
+    WGPUBindGroup GetWGPUBindGroup(DescribedBindGroup* bg);
+    
+    void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, WGPUBindGroupEntry entry);
+    void UpdateBindGroup(DescribedBindGroup* bg);
     void UnloadBindGroup(DescribedBindGroup* bg);
     
     

@@ -61,23 +61,22 @@ typedef struct full_renderstate{
     WGPUTextureView color;
     WGPUTextureView depth;
 
-    WGPURenderPipeline pipeline;
+    DescribedPipeline pipeline;
     WGPURenderPassDescriptor renderPassDesc;
     WGPURenderPassColorAttachment rca;
     WGPURenderPassDepthStencilAttachment dsa;
 
 
-    WGPUBindGroupLayoutDescriptor bglayoutdesc;
-    WGPUBindGroupLayout bglayout;
-    WGPURenderPipelineDescriptor pipelineDesc;
+    //WGPUBindGroupLayoutDescriptor bglayoutdesc;
+    //WGPUBindGroupLayout bglayout;
+    //WGPURenderPipelineDescriptor pipelineDesc;
     
     WGPUVertexBufferLayout vlayout;
     WGPUBuffer vbo;
 
     WGPUVertexAttribute attribs[8]; // Size: vlayout.attributeCount
 
-    WGPUBindGroup bg;
-    WGPUBindGroupEntry bgEntries[8]; // Size: bglayoutdesc.entryCount
+    DescribedBindGroup currentBindGroup;
 
     #ifdef __cplusplus
     template<typename callable>
@@ -86,8 +85,8 @@ typedef struct full_renderstate{
         commandEncoderDesc.label = STRVIEW("Command Encoder");
         WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(GetDevice(), &commandEncoderDesc);
         WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
-        wgpuRenderPassEncoderSetPipeline(renderPass, pipeline);
-        wgpuRenderPassEncoderSetBindGroup(renderPass, 0, bg, 0, 0);
+        wgpuRenderPassEncoderSetPipeline(renderPass, pipeline.pipeline);
+        wgpuRenderPassEncoderSetBindGroup(renderPass, 0, GetWGPUBindGroup(&currentBindGroup), 0, 0);
         wgpuRenderPassEncoderSetVertexBuffer(renderPass, 0, this->vbo, 0, wgpuBufferGetSize(vbo));
         c(renderPass);
         //if constexpr(std::is_invocable_v<callable, WGPURenderPassEncoder>){

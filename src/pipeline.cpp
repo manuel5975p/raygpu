@@ -2,6 +2,7 @@
 #include <wgpustate.inc>
 
 #include <cstring>
+#include <iostream>
 WGPUBindGroupLayout bindGroupLayoutFromUniformTypes(const UniformDescriptor* uniforms, uint32_t uniformCount){
     std::vector<WGPUBindGroupLayoutEntry> blayouts(uniformCount);
     WGPUBindGroupLayoutDescriptor bglayoutdesc{};
@@ -174,14 +175,36 @@ extern "C" DescribedBindGroup LoadBindGroup(const DescribedPipeline* pipeline, c
     ret.entries = rentries;
     ret.desc.layout = pipeline->bglayout.layout;
     ret.desc.entries = ret.entries;
+    ret.desc.entryCount = entryCount;
+    ret.needsUpdate = true;
     //ret.bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &ret.desc);
     return ret;
 }
-extern "C" void UpdateBindGroup(DescribedBindGroup* bg, size_t index, WGPUBindGroupEntry entry){
+extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, WGPUBindGroupEntry entry){
     bg->entries[index] = entry;
-    //TODO don't release and recreate here
-    wgpuBindGroupRelease(bg->bindGroup);
-    bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
+
+    //TODO don't release and recreate here or find something better lol
+    
+    if(!bg->needsUpdate && bg->bindGroup)wgpuBindGroupRelease(bg->bindGroup);
+    bg->needsUpdate = true;
+    //bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
+}
+
+extern "C" void UpdateBindGroup(DescribedBindGroup* bg){
+    bg->desc.nextInChain = nullptr;
+    //std::cout << "Updating bindgroup with " << bg->desc.entryCount << " entries" << std::endl;
+    //std::cout << "Updating bindgroup with " << bg->desc.entries[1].binding << " entries" << std::endl;
+    if(bg->needsUpdate){
+        bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
+        bg->needsUpdate = false;
+    }
+}
+WGPUBindGroup GetWGPUBindGroup(DescribedBindGroup* bg){
+    if(bg->needsUpdate){
+        bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
+        bg->needsUpdate = false;
+    }
+    return bg->bindGroup;
 }
 extern "C" void UnloadBindGroup(DescribedBindGroup* bg){
     free(bg->entries);

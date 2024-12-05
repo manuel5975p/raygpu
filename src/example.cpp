@@ -116,6 +116,12 @@ int main(){
         //SetUniformBuffer(0, &udata, 64 * sizeof(float));
         
         BeginDrawing();
+        g_wgpustate.rstate->executeRenderpassPlain([&](wgpu::RenderPassEncoder end){
+            end.SetPipeline(pl.pipeline);
+            end.SetVertexBuffer(0, vbo.buffer);
+            end.SetBindGroup(0, bg);
+            end.Draw(3);
+        });
         /*UseTexture(checkers);
         BeginTextureMode(rtex);
         rlBegin(RL_QUADS);
