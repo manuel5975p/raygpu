@@ -340,14 +340,25 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     shaderInputs.per_instance_count = 0;
     
     shaderInputs.uniform_count = 4;
-    arraySetter(shaderInputs.per_vertex_sizes, {3,2,4});
-    arraySetter(shaderInputs.uniform_minsizes, {64, 0, 0, 0});
-    uarraySetter(shaderInputs.uniform_types, {uniform_buffer, texture2d, sampler, storage_buffer});
+    UniformDescriptor desc[4] = {
+        UniformDescriptor{uniform_buffer, 64},
+        UniformDescriptor{texture2d, 0},
+        UniformDescriptor{sampler, 0},
+        UniformDescriptor{storage_buffer, 0}
+    };
+    AttributeAndResidence attrs[3] = {
+        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 0, 0}, 0, WGPUVertexStepMode_Vertex},
+        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x2, 8, 1}, 0, WGPUVertexStepMode_Vertex},
+        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 20, 2}, 0, WGPUVertexStepMode_Vertex},
+    };
+    //arraySetter(shaderInputs.per_vertex_sizes, {3,2,4});
+    //arraySetter(shaderInputs.uniform_minsizes, {64, 0, 0, 0});
+    //uarraySetter(shaderInputs.uniform_types, {uniform_buffer, texture2d, sampler, storage_buffer});
     
     depthTexture = rtex.depth;
-
-    init_full_renderstate(g_wgpustate.rstate, tShader, shaderInputs, rtex.color.view, rtex.depth.view);
+    init_full_renderstate(g_wgpustate.rstate, shaderSource, attrs, 3, desc, 4, rtex.color.view, rtex.depth.view);
     setStateStorageBuffer(g_wgpustate.rstate, 3, data, 64);
+
     WGPUSamplerDescriptor samplerDesc{};
     samplerDesc.addressModeU = WGPUAddressMode_Repeat;
     samplerDesc.addressModeV = WGPUAddressMode_Repeat;

@@ -107,6 +107,12 @@ extern "C" DescribedPipeline LoadPipelineEx(const char* shaderSource, const Attr
     }
 
     ret.bglayout = LoadBindGroupLayout(uniforms, uniformCount);
+    std::vector<WGPUBindGroupEntry> bge(uniformCount);
+    for(uint32_t i = 0;i < bge.size();i++){
+        bge[i] = WGPUBindGroupEntry{};
+        bge[i].binding = i;
+    }
+    ret.bindGroup = LoadBindGroup(&ret, bge.data(), bge.size());
     WGPUPipelineLayout playout;
     WGPUPipelineLayoutDescriptor pldesc{};
     pldesc.bindGroupLayoutCount = 1;

@@ -76,8 +76,7 @@ typedef struct full_renderstate{
 
     WGPUVertexAttribute attribs[8]; // Size: vlayout.attributeCount
 
-    DescribedBindGroup currentBindGroup;
-
+    
     #ifdef __cplusplus
     template<typename callable>
     void executeRenderpass(callable&& c){
@@ -86,7 +85,7 @@ typedef struct full_renderstate{
         WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(GetDevice(), &commandEncoderDesc);
         WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
         wgpuRenderPassEncoderSetPipeline(renderPass, pipeline.pipeline);
-        wgpuRenderPassEncoderSetBindGroup(renderPass, 0, GetWGPUBindGroup(&currentBindGroup), 0, 0);
+        wgpuRenderPassEncoderSetBindGroup(renderPass, 0, GetWGPUBindGroup(&pipeline.bindGroup), 0, 0);
         wgpuRenderPassEncoderSetVertexBuffer(renderPass, 0, this->vbo, 0, wgpuBufferGetSize(vbo));
         c(renderPass);
         //if constexpr(std::is_invocable_v<callable, WGPURenderPassEncoder>){
@@ -206,7 +205,7 @@ EXTERN_C_BEGIN
     void SetUniformBuffer (uint32_t index, const void* data, size_t size);
     void SetStorageBuffer (uint32_t index, const void* data, size_t size);
     
-    void init_full_renderstate (full_renderstate* state, const WGPUShaderModule sh, const ShaderInputs shader_inputs, WGPUTextureView c, WGPUTextureView d);
+    void init_full_renderstate (full_renderstate* state, const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniform_count, WGPUTextureView c, WGPUTextureView d);
     void updateVertexBuffer    (full_renderstate* state, const void* data, size_t size);
     void setStateTexture       (full_renderstate* state, uint32_t index, Texture tex);
     void setStateSampler       (full_renderstate* state, uint32_t index, WGPUSampler sampler);

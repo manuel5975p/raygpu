@@ -30,10 +30,12 @@ typedef struct DescribedBindGroup{
 
 typedef struct DescribedPipeline{
     //TODO: Multiple bindgrouplayouts
+    DescribedBindGroup bindGroup;
     DescribedBindGroupLayout bglayout;
     WGPURenderPipelineDescriptor descriptor;
     WGPUVertexBufferLayout* vbLayouts;
     WGPURenderPipeline pipeline;
+
 }DescribedPipeline;
 
 EXTERN_C_BEGIN
