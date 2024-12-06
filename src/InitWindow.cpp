@@ -47,7 +47,7 @@ struct MyUniforms {
 @vertex
 fn vs_main(@builtin(instance_index) instanceIdx : u32, in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    out.position = //uMyUniforms.trf * 
+    out.position = uMyUniforms.trf * 
     vec4f(in.position.xyz /*+ storig[0].xyz * 0.3f*/, 1.0f);
     out.color = in.color;
     out.uv = in.uv;
@@ -56,8 +56,8 @@ fn vs_main(@builtin(instance_index) instanceIdx : u32, in: VertexInput) -> Verte
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    //return vec4f(textureSample(gradientTexture, grsampler, in.uv).rgb, 1.0f) * in.color;
-    return vec4f(1.0f, 1.0f, 0.0f, 1.0f);
+    return vec4f(textureSample(gradientTexture, grsampler, in.uv).rgb, 1.0f) * in.color;
+    //return vec4f(1.0f, 1.0f, 0.0f, 1.0f);
 }
 )";
 extern Texture depthTexture;
@@ -354,7 +354,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     AttributeAndResidence attrs[3] = {
         AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 0, 0}, 0, WGPUVertexStepMode_Vertex},
         AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x2, 12, 1}, 0, WGPUVertexStepMode_Vertex},
-        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 20, 2}, 0, WGPUVertexStepMode_Vertex},
+        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x4, 20, 2}, 0, WGPUVertexStepMode_Vertex},
     };
     //arraySetter(shaderInputs.per_vertex_sizes, {3,2,4});
     //arraySetter(shaderInputs.uniform_minsizes, {64, 0, 0, 0});

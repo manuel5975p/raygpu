@@ -120,6 +120,10 @@ void drawCurrentBatch(){
     switch(g_wgpustate.current_drawmode){
         case RL_TRIANGLES: [[fallthrough]];
         case RL_TRIANGLE_STRIP:{
+            //std::cout << "rendering schtrip\n";
+            for(auto v : g_wgpustate.current_vertices){
+                //__builtin_dump_struct(&v, printf);
+            }
             updateVertexBuffer(g_wgpustate.rstate, g_wgpustate.current_vertices.data(), g_wgpustate.current_vertices.size() * sizeof(vertex));
             size_t vcount = g_wgpustate.current_vertices.size();
             g_wgpustate.rstate->executeRenderpass([vcount](WGPURenderPassEncoder renderPass){
@@ -696,11 +700,11 @@ void updatePipeline(full_renderstate* state, draw_mode drawmode){
     //state->pipeline.descriptor.multisample.alphaToCoverageEnabled = false;
     //// Create a bind group layout
     //// Create the pipeline layout
-    //WGPUPipelineLayoutDescriptor layoutDesc{};
-    //layoutDesc.bindGroupLayoutCount = 1;
-    //layoutDesc.bindGroupLayouts = &state->pipeline.bglayout.layout;
-    //WGPUPipelineLayout layout = wgpuDeviceCreatePipelineLayout(g_wgpustate.device, &layoutDesc);
-    //state->pipeline.descriptor.layout = layout;
+    WGPUPipelineLayoutDescriptor layoutDesc{};
+    layoutDesc.bindGroupLayoutCount = 1;
+    layoutDesc.bindGroupLayouts = &state->pipeline.bglayout.layout;
+    WGPUPipelineLayout layout = wgpuDeviceCreatePipelineLayout(g_wgpustate.device, &layoutDesc);
+    state->pipeline.descriptor.layout = layout;
     state->pipeline.pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &state->pipeline.descriptor);
     //wgpuPipelineLayoutRelease(layout);
 }

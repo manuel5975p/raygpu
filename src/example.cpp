@@ -122,6 +122,16 @@ int main(){
         //    end.SetBindGroup(0, bg);
         //    end.Draw(3);
         //});
+        //UseNoTexture();
+        //rlBegin(RL_TRIANGLES);
+        //rlColor4f(1, 1, 1, 1);
+        //rlVertex2f(0.1,0.1);
+        //rlVertex2f(0, 0.1);
+        //rlVertex2f(0.1, 0.0);
+        //rlVertex2f(-0.5, -0.5);
+        //rlVertex2f(-0.5, -0.4);
+        //rlVertex2f(-0.4, -0.5);
+        //rlEnd();
         /*UseTexture(checkers);
         BeginTextureMode(rtex);
         rlBegin(RL_QUADS);
@@ -146,10 +156,10 @@ int main(){
         //UseTexture(rtex.color);
         
         for(size_t i = 0;i < 1;i++){
-            for(size_t j = 0;j < 1;j++){
+            for(size_t j = 0;j < 3;j++){
                 DrawTexturePro(
                     g_wgpustate.whitePixel,
-                    Rectangle(0, 0, 1, 1), Rectangle(i * 0.1, j * 0.1, 0.05, 0.05),
+                    Rectangle(0, 0, 1, 1), Rectangle(i * 110, j * 110, 90, 90),
                     Vector2(0,0), 
                     g_wgpustate.total_frames * (0.0f / 100.0f),
                     Color{255, 255, 255, 255}
