@@ -243,7 +243,8 @@ EXTERN_C_BEGIN
             case WGPUVertexFormat_Sint32x4:
             return 16;
             
-            default:break;
+            default:
+            break;
         }
         abort();
         return 0;

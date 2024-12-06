@@ -81,9 +81,9 @@ DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, 
 
 extern "C" DescribedPipeline LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount){
     
-    WGPUShaderModule shader = LoadShaderFromMemory(shaderSource);
 
-    DescribedPipeline ret;
+    DescribedPipeline ret{};
+    ret.sh = LoadShaderFromMemory(shaderSource);
 
     uint32_t maxslot = 0;
     for(size_t i = 0;i < attribCount;i++){
@@ -98,9 +98,20 @@ extern "C" DescribedPipeline LoadPipelineEx(const char* shaderSource, const Attr
         buffer_to_attributes[attribs[i].bufferSlot].push_back(attribs[i].attr);
         strides[attribs[i].bufferSlot] += attributeSize(attribs[i].attr.format);
     }
+    ret.attributePool = (WGPUVertexAttribute*) calloc(attribCount, sizeof(WGPUVertexAttribute));
     
+    uint32_t poolOffset = 0;
+    std::vector<uint32_t> attributeOffsets(number_of_buffers, 0);
+
     for(size_t i = 0;i < number_of_buffers;i++){
-        ret.vbLayouts[i].attributes = buffer_to_attributes[i].data();
+        attributeOffsets[i] = poolOffset;
+        memcpy(ret.attributePool + poolOffset, buffer_to_attributes[i].data(), buffer_to_attributes[i].size() * sizeof(WGPUVertexAttribute));
+        poolOffset += buffer_to_attributes[i].size();
+    }
+    
+
+    for(size_t i = 0;i < number_of_buffers;i++){
+        ret.vbLayouts[i].attributes = ret.attributePool + attributeOffsets[i];
         ret.vbLayouts[i].attributeCount = buffer_to_attributes[i].size();
         ret.vbLayouts[i].arrayStride = strides[i];
         ret.vbLayouts[i].stepMode = WGPUVertexStepMode_Vertex;
@@ -119,58 +130,57 @@ extern "C" DescribedPipeline LoadPipelineEx(const char* shaderSource, const Attr
     pldesc.bindGroupLayouts = &ret.bglayout.layout;    
     playout = wgpuDeviceCreatePipelineLayout(g_wgpustate.device, &pldesc);
     
-    WGPURenderPipelineDescriptor pipelineDesc{};
+    WGPURenderPipelineDescriptor& pipelineDesc = ret.descriptor;
     pipelineDesc.multisample.count = 1;
     pipelineDesc.multisample.mask = 0xFFFFFFFF;
     pipelineDesc.multisample.alphaToCoverageEnabled = false;
     pipelineDesc.layout = playout;
     
     WGPUVertexState vertexState{};
-    vertexState.module = shader;
+    vertexState.module = ret.sh;
     vertexState.bufferCount = number_of_buffers;
     vertexState.buffers = ret.vbLayouts;
     vertexState.constantCount = 0;
     vertexState.entryPoint = STRVIEW("vs_main");
     pipelineDesc.vertex = vertexState;
 
-    WGPUFragmentState fragmentState{};
+    ret.fragmentState = new WGPUFragmentState{};
 
-    pipelineDesc.fragment = &fragmentState;
-    fragmentState.module = shader;
-    fragmentState.entryPoint = STRVIEW("fs_main");
-    fragmentState.constantCount = 0;
-    fragmentState.constants = nullptr;
-    WGPUBlendState blendState{};
-    blendState.color.srcFactor = WGPUBlendFactor_SrcAlpha;
-    blendState.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
-    blendState.color.operation = WGPUBlendOperation_Add;
-    blendState.alpha.srcFactor = WGPUBlendFactor_Zero;
-    blendState.alpha.dstFactor = WGPUBlendFactor_One;
-    blendState.alpha.operation = WGPUBlendOperation_Add;
-    WGPUColorTargetState colorTarget{};
-    colorTarget.format = g_wgpustate.frameBufferFormat;
-    colorTarget.blend = &blendState;
-    colorTarget.writeMask = WGPUColorWriteMask_All;
-    fragmentState.targetCount = 1;
-    fragmentState.targets = &colorTarget;
-    pipelineDesc.fragment = &fragmentState;
+    pipelineDesc.fragment = ret.fragmentState;
+    ret.fragmentState->module = ret.sh;
+    ret.fragmentState->entryPoint = STRVIEW("fs_main");
+    ret.fragmentState->constantCount = 0;
+    ret.fragmentState->constants = nullptr;
+    ret.blendState = new WGPUBlendState{};
+    ret.blendState->color.srcFactor = WGPUBlendFactor_SrcAlpha;
+    ret.blendState->color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
+    ret.blendState->color.operation = WGPUBlendOperation_Add;
+    ret.blendState->alpha.srcFactor = WGPUBlendFactor_Zero;
+    ret.blendState->alpha.dstFactor = WGPUBlendFactor_One;
+    ret.blendState->alpha.operation = WGPUBlendOperation_Add;
+    ret.colorTarget = new WGPUColorTargetState{};
+    ret.colorTarget->format = g_wgpustate.frameBufferFormat;
+    ret.colorTarget->blend = ret.blendState;
+    ret.colorTarget->writeMask = WGPUColorWriteMask_All;
+    ret.fragmentState->targetCount = 1;
+    ret.fragmentState->targets = ret.colorTarget;
+    pipelineDesc.fragment = ret.fragmentState;
     // We setup a depth buffer state for the render pipeline
-    WGPUDepthStencilState depthStencilState{};
+    ret.depthStencilState = new WGPUDepthStencilState{};
     // Keep a fragment only if its depth is lower than the previously blended one
-    depthStencilState.depthCompare = WGPUCompareFunction_Less;
+    ret.depthStencilState->depthCompare = WGPUCompareFunction_Less;
     // Each time a fragment is blended into the target, we update the value of the Z-buffer
-    depthStencilState.depthWriteEnabled = WGPUOptionalBool_True;
+    ret.depthStencilState->depthWriteEnabled = WGPUOptionalBool_True;
     // Store the format in a variable as later parts of the code depend on it
     WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth24Plus;
-    depthStencilState.format = depthTextureFormat;
+    ret.depthStencilState->format = depthTextureFormat;
     // Deactivate the stencil alltogether
-    depthStencilState.stencilReadMask = 0;
-    depthStencilState.stencilWriteMask = 0;
-    depthStencilState.stencilFront.compare = WGPUCompareFunction_Always;
-    depthStencilState.stencilBack.compare = WGPUCompareFunction_Always;
-    pipelineDesc.depthStencil = &depthStencilState;
-    ret.pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipelineDesc);
-    
+    ret.depthStencilState->stencilReadMask = 0;
+    ret.depthStencilState->stencilWriteMask = 0;
+    ret.depthStencilState->stencilFront.compare = WGPUCompareFunction_Always;
+    ret.depthStencilState->stencilBack.compare = WGPUCompareFunction_Always;
+    pipelineDesc.depthStencil = ret.depthStencilState;
+    ret.pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &ret.descriptor);
     return ret;
 }
 
@@ -193,6 +203,7 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, WGPUB
     
     if(!bg->needsUpdate && bg->bindGroup)wgpuBindGroupRelease(bg->bindGroup);
     bg->needsUpdate = true;
+    
     //bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
 }
 

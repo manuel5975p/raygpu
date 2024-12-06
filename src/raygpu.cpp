@@ -632,13 +632,13 @@ void updateBindGroup(full_renderstate* state){
 }
 
 void updatePipeline(full_renderstate* state, draw_mode drawmode){
-    state->pipeline.descriptor = WGPURenderPipelineDescriptor{};
-    state->pipeline.descriptor.vertex.bufferCount = 1;
-    state->pipeline.descriptor.vertex.buffers = &state->vlayout;
-    state->pipeline.descriptor.vertex.module = state->shader;
-    state->pipeline.descriptor.vertex.entryPoint = STRVIEW("vs_main");
-    state->pipeline.descriptor.vertex.constantCount = 0;
-    state->pipeline.descriptor.vertex.constants = nullptr;
+    //state->pipeline.descriptor = WGPURenderPipelineDescriptor{};
+    //state->pipeline.descriptor.vertex.bufferCount = 1;
+    //state->pipeline.descriptor.vertex.buffers = state->pipeline.vbLayouts;
+    //state->pipeline.descriptor.vertex.module = state->pipeline.sh;
+    //state->pipeline.descriptor.vertex.entryPoint = STRVIEW("vs_main");
+    //state->pipeline.descriptor.vertex.constantCount = 0;
+    //state->pipeline.descriptor.vertex.constants = nullptr;
     switch(drawmode){
         case draw_mode::RL_QUADS:{
             state->pipeline.descriptor.primitive.topology =         WGPUPrimitiveTopology_TriangleList;
@@ -655,54 +655,54 @@ void updatePipeline(full_renderstate* state, draw_mode drawmode){
         }break;
     }
     
-    state->pipeline.descriptor.primitive.frontFace =        WGPUFrontFace_CCW;
-    state->pipeline.descriptor.primitive.cullMode =         WGPUCullMode_None;
-    WGPUFragmentState fragmentState{};
-    state->pipeline.descriptor.fragment = &fragmentState;
-    fragmentState.module = state->shader;
-    fragmentState.entryPoint = STRVIEW("fs_main");
-    fragmentState.constantCount = 0;
-    fragmentState.constants = nullptr;
-    WGPUBlendState blendState{};
-    blendState.color.srcFactor = WGPUBlendFactor_SrcAlpha;
-    blendState.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
-    blendState.color.operation = WGPUBlendOperation_Add;
-    blendState.alpha.srcFactor = WGPUBlendFactor_Zero;
-    blendState.alpha.dstFactor = WGPUBlendFactor_One;
-    blendState.alpha.operation = WGPUBlendOperation_Add;
-    WGPUColorTargetState colorTarget{};
-    colorTarget.format = g_wgpustate.frameBufferFormat;
-    colorTarget.blend = &blendState;
-    colorTarget.writeMask = WGPUColorWriteMask_All;
-    fragmentState.targetCount = 1;
-    fragmentState.targets = &colorTarget;
-    // We setup a depth buffer state for the render pipeline
-    WGPUDepthStencilState depthStencilState{};
-    // Keep a fragment only if its depth is lower than the previously blended one
-    depthStencilState.depthCompare = WGPUCompareFunction_Less;
-    // Each time a fragment is blended into the target, we update the value of the Z-buffer
-    depthStencilState.depthWriteEnabled = WGPUOptionalBool_True;
-    // Store the format in a variable as later parts of the code depend on it
-    WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth24Plus;
-    depthStencilState.format = depthTextureFormat;
-    // Deactivate the stencil alltogether
-    depthStencilState.stencilReadMask = 0;
-    depthStencilState.stencilWriteMask = 0;
-    depthStencilState.stencilFront.compare = WGPUCompareFunction_Always;
-    depthStencilState.stencilBack.compare = WGPUCompareFunction_Always;
-    state->pipeline.descriptor.depthStencil = &depthStencilState;
-    state->pipeline.descriptor.multisample.count = 1;
-    state->pipeline.descriptor.multisample.mask = ~0u;
-    state->pipeline.descriptor.multisample.alphaToCoverageEnabled = false;
-    // Create a bind group layout
-    // Create the pipeline layout
-    WGPUPipelineLayoutDescriptor layoutDesc{};
-    layoutDesc.bindGroupLayoutCount = 1;
-    layoutDesc.bindGroupLayouts = &state->pipeline.bglayout.layout;
-    WGPUPipelineLayout layout = wgpuDeviceCreatePipelineLayout(g_wgpustate.device, &layoutDesc);
-    state->pipeline.descriptor.layout = layout;
+    //state->pipeline.descriptor.primitive.frontFace =        WGPUFrontFace_CCW;
+    //state->pipeline.descriptor.primitive.cullMode =         WGPUCullMode_None;
+    //WGPUFragmentState fragmentState{};
+    //state->pipeline.descriptor.fragment = &fragmentState;
+    //fragmentState.module = state->shader;
+    //fragmentState.entryPoint = STRVIEW("fs_main");
+    //fragmentState.constantCount = 0;
+    //fragmentState.constants = nullptr;
+    //WGPUBlendState blendState{};
+    //blendState.color.srcFactor = WGPUBlendFactor_SrcAlpha;
+    //blendState.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
+    //blendState.color.operation = WGPUBlendOperation_Add;
+    //blendState.alpha.srcFactor = WGPUBlendFactor_Zero;
+    //blendState.alpha.dstFactor = WGPUBlendFactor_One;
+    //blendState.alpha.operation = WGPUBlendOperation_Add;
+    //WGPUColorTargetState colorTarget{};
+    //colorTarget.format = g_wgpustate.frameBufferFormat;
+    //colorTarget.blend = &blendState;
+    //colorTarget.writeMask = WGPUColorWriteMask_All;
+    //fragmentState.targetCount = 1;
+    //fragmentState.targets = &colorTarget;
+    //// We setup a depth buffer state for the render pipeline
+    //WGPUDepthStencilState depthStencilState{};
+    //// Keep a fragment only if its depth is lower than the previously blended one
+    //depthStencilState.depthCompare = WGPUCompareFunction_Less;
+    //// Each time a fragment is blended into the target, we update the value of the Z-buffer
+    //depthStencilState.depthWriteEnabled = WGPUOptionalBool_True;
+    //// Store the format in a variable as later parts of the code depend on it
+    //WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth24Plus;
+    //depthStencilState.format = depthTextureFormat;
+    //// Deactivate the stencil alltogether
+    //depthStencilState.stencilReadMask = 0;
+    //depthStencilState.stencilWriteMask = 0;
+    //depthStencilState.stencilFront.compare = WGPUCompareFunction_Always;
+    //depthStencilState.stencilBack.compare = WGPUCompareFunction_Always;
+    //state->pipeline.descriptor.depthStencil = &depthStencilState;
+    //state->pipeline.descriptor.multisample.count = 1;
+    //state->pipeline.descriptor.multisample.mask = ~0u;
+    //state->pipeline.descriptor.multisample.alphaToCoverageEnabled = false;
+    //// Create a bind group layout
+    //// Create the pipeline layout
+    //WGPUPipelineLayoutDescriptor layoutDesc{};
+    //layoutDesc.bindGroupLayoutCount = 1;
+    //layoutDesc.bindGroupLayouts = &state->pipeline.bglayout.layout;
+    //WGPUPipelineLayout layout = wgpuDeviceCreatePipelineLayout(g_wgpustate.device, &layoutDesc);
+    //state->pipeline.descriptor.layout = layout;
     state->pipeline.pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &state->pipeline.descriptor);
-    wgpuPipelineLayoutRelease(layout);
+    //wgpuPipelineLayoutRelease(layout);
 }
 void updateRenderPassDesc(full_renderstate* state){
     state->renderPassDesc = WGPURenderPassDescriptor{};

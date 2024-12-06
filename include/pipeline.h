@@ -30,11 +30,18 @@ typedef struct DescribedBindGroup{
 
 typedef struct DescribedPipeline{
     //TODO: Multiple bindgrouplayouts
+    WGPUShaderModule sh;
     DescribedBindGroup bindGroup;
     DescribedBindGroupLayout bglayout;
     WGPURenderPipelineDescriptor descriptor;
     WGPUVertexBufferLayout* vbLayouts;
+    WGPUVertexAttribute* attributePool;
     WGPURenderPipeline pipeline;
+
+    WGPUBlendState* blendState;
+    WGPUFragmentState* fragmentState;
+    WGPUColorTargetState* colorTarget;
+    WGPUDepthStencilState* depthStencilState;
 
 }DescribedPipeline;
 

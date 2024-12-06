@@ -116,12 +116,12 @@ int main(){
         //SetUniformBuffer(0, &udata, 64 * sizeof(float));
         
         BeginDrawing();
-        g_wgpustate.rstate->executeRenderpassPlain([&](wgpu::RenderPassEncoder end){
-            end.SetPipeline(pl.pipeline);
-            end.SetVertexBuffer(0, vbo.buffer);
-            end.SetBindGroup(0, bg);
-            end.Draw(3);
-        });
+        //g_wgpustate.rstate->executeRenderpassPlain([&](wgpu::RenderPassEncoder end){
+        //    end.SetPipeline(pl.pipeline);
+        //    end.SetVertexBuffer(0, vbo.buffer);
+        //    end.SetBindGroup(0, bg);
+        //    end.Draw(3);
+        //});
         /*UseTexture(checkers);
         BeginTextureMode(rtex);
         rlBegin(RL_QUADS);
@@ -145,14 +145,14 @@ int main(){
         EndTextureMode();*/
         //UseTexture(rtex.color);
         
-        for(size_t i = 0;i < 100;i++){
-            for(size_t j = 0;j < 100;j++){
+        for(size_t i = 0;i < 1;i++){
+            for(size_t j = 0;j < 1;j++){
                 DrawTexturePro(
                     g_wgpustate.whitePixel,
-                    Rectangle(0, 0, 1, 1), Rectangle(i * 10, j * 10, 8, 8),
+                    Rectangle(0, 0, 1, 1), Rectangle(i * 0.1, j * 0.1, 0.05, 0.05),
                     Vector2(0,0), 
-                    g_wgpustate.total_frames * (1.0f / 100.0f),
-                    Color{255,255,255,255}
+                    g_wgpustate.total_frames * (0.0f / 100.0f),
+                    Color{255, 255, 255, 255}
                 );
             }
         }
