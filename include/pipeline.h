@@ -28,10 +28,16 @@ typedef struct DescribedBindGroup{
     bool needsUpdate;
 }DescribedBindGroup;
 
+typedef struct DescribedPipelineLayout{
+    WGPUPipelineLayoutDescriptor descriptor;
+    WGPUPipelineLayout layout;
+}DescribedPipelineLayout;
+
 typedef struct DescribedPipeline{
     //TODO: Multiple bindgrouplayouts
     WGPUShaderModule sh;
     DescribedBindGroup bindGroup;
+    DescribedPipelineLayout layout;
     DescribedBindGroupLayout bglayout;
     WGPURenderPipelineDescriptor descriptor;
     WGPUVertexBufferLayout* vbLayouts;
@@ -39,6 +45,7 @@ typedef struct DescribedPipeline{
     WGPURenderPipeline pipeline;
 
     WGPUBlendState* blendState;
+    // WGPUVertexState not required as it's a nonpointer member of WGPURenderPipelineDescriptor
     WGPUFragmentState* fragmentState;
     WGPUColorTargetState* colorTarget;
     WGPUDepthStencilState* depthStencilState;

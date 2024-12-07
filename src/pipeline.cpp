@@ -124,17 +124,16 @@ extern "C" DescribedPipeline LoadPipelineEx(const char* shaderSource, const Attr
         bge[i].binding = i;
     }
     ret.bindGroup = LoadBindGroup(&ret, bge.data(), bge.size());
-    WGPUPipelineLayout playout;
-    WGPUPipelineLayoutDescriptor pldesc{};
-    pldesc.bindGroupLayoutCount = 1;
-    pldesc.bindGroupLayouts = &ret.bglayout.layout;    
-    playout = wgpuDeviceCreatePipelineLayout(g_wgpustate.device, &pldesc);
+    ret.layout.descriptor = WGPUPipelineLayoutDescriptor{};
+    ret.layout.descriptor.bindGroupLayoutCount = 1;
+    ret.layout.descriptor.bindGroupLayouts = &ret.bglayout.layout;
+    ret.layout.layout = wgpuDeviceCreatePipelineLayout(g_wgpustate.device, &ret.layout.descriptor);
     
     WGPURenderPipelineDescriptor& pipelineDesc = ret.descriptor;
     pipelineDesc.multisample.count = 1;
     pipelineDesc.multisample.mask = 0xFFFFFFFF;
     pipelineDesc.multisample.alphaToCoverageEnabled = false;
-    pipelineDesc.layout = playout;
+    pipelineDesc.layout = ret.layout.layout;
     
     WGPUVertexState vertexState{};
     vertexState.module = ret.sh;

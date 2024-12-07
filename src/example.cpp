@@ -67,8 +67,9 @@ int main(){
     //Matrix udata = MatrixIdentity();
 
     //Matrix udata = (MatrixPerspective(1.2, 1, 0.01, 100.0));
+    rtex = LoadRenderTexture(1000, 1000);
     Texture tex = LoadTextureFromImage(LoadImageChecker(Color{255,0,0,255}, Color{0,255,0,255}, 100, 100, 10));
-    checkers = LoadTextureFromImage(LoadImageChecker(Color{230, 230, 230, 255}, Color{100, 100, 100, 255}, 100, 100, 50));
+    checkers = LoadTextureFromImage(LoadImageChecker(Color{230, 230, 230, 255}, Color{100, 100, 100, 255}, 100, 100, 10));
     WGPUBufferDescriptor mapBufferDesc{};
     float data[15] = {0,0,0,1,0,
                      1,0,0,0,1,
@@ -94,11 +95,12 @@ int main(){
     
     //constexpr int rtd = 2000;
     //rtex = LoadRenderTexture(rtd, rtd);
-    Matrix udata = MatrixMultiply(MatrixPerspective(1.0, double(GetScreenWidth()) / GetScreenHeight(), 0.01, 100.0), MatrixLookAt(Vector3{0, 0, -2.5}, Vector3{0, 0, 0}, Vector3{0,1,0}));
+    //MatrixMultiply(MatrixPerspective(1.0, double(GetScreenWidth()) / GetScreenHeight(), 0.01, 100.0), MatrixLookAt(Vector3{0, 0, -2.5}, Vector3{0, 0, 0}, Vector3{0,1,0}));
+    Matrix persp = MatrixMultiply(MatrixPerspective(1.0, double(GetScreenWidth()) / GetScreenHeight(), 0.01, 100.0), MatrixLookAt(Vector3{0, 0, -2.5}, Vector3{0, 0, 0}, Vector3{0,1,0}));
     //SetUniformBuffer(0, &udata, 64 * sizeof(float));    
-    udata = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
-    SetUniformBuffer(0, &udata, 16 * sizeof(float));
+    Matrix sc2 = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
     auto mainloop = [&](void* userdata){
+        
         //wgpuQueueWriteBuffer(g_wgpustate.queue, vbo.buffer, 0, data, sizeof(data));
         float z = 0;
         //std::cout << "<<Before:" << std::endl;
@@ -132,8 +134,9 @@ int main(){
         //rlVertex2f(-0.5, -0.4);
         //rlVertex2f(-0.4, -0.5);
         //rlEnd();
-        /*UseTexture(checkers);
+        UseTexture(checkers);
         BeginTextureMode(rtex);
+        SetUniformBuffer(0, &persp, 16 * sizeof(float));
         rlBegin(RL_QUADS);
 
         rlTexCoord2f(0, 0);
@@ -152,14 +155,20 @@ int main(){
 
         rlVertex3f(0,-1, z);
         rlEnd();
-        EndTextureMode();*/
-        //UseTexture(rtex.color);
-        
+        EndTextureMode();
+        SetUniformBuffer(0, &sc2, 16 * sizeof(float));
+        //SetUniformBuffer(0, &sc2, 16 * sizeof(float));
+        if(frames == 3){
+            Image frame = LoadImageFromTexture(rtex.color);
+            SaveImage(frame, "output.png");
+        }
+        UseTexture(rtex.color);
         for(size_t i = 0;i < 1;i++){
             for(size_t j = 0;j < 3;j++){
                 DrawTexturePro(
-                    g_wgpustate.whitePixel,
-                    Rectangle(0, 0, 1, 1), Rectangle(i * 110, j * 110, 90, 90),
+                    //g_wgpustate.whitePixel,
+                    rtex.color,
+                    Rectangle(0, 0, 1000, 1000), Rectangle(i * 110, j * 110, 90, 90),
                     Vector2(0,0), 
                     g_wgpustate.total_frames * (0.0f / 100.0f),
                     Color{255, 255, 255, 255}

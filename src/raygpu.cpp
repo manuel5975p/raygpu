@@ -15,7 +15,7 @@
 #include <emscripten/emscripten.h>
 #endif  // __EMSCRIPTEN__
 wgpustate g_wgpustate;
-
+#include <stb_image_write.h>
 typedef struct VertexArray{
     std::vector<AttributeAndResidence> attributes;
     std::vector<std::pair<DescribedBuffer, WGPUVertexStepMode>> buffers;
@@ -126,9 +126,10 @@ void drawCurrentBatch(){
             }
             updateVertexBuffer(g_wgpustate.rstate, g_wgpustate.current_vertices.data(), g_wgpustate.current_vertices.size() * sizeof(vertex));
             size_t vcount = g_wgpustate.current_vertices.size();
-            g_wgpustate.rstate->executeRenderpass([vcount](WGPURenderPassEncoder renderPass){
-                wgpuRenderPassEncoderDraw(renderPass, vcount, 1, 0, 0);
-            });
+            //g_wgpustate.rstate->executeRenderpass([vcount](WGPURenderPassEncoder renderPass){
+            //    wgpuRenderPassEncoderDraw(renderPass, vcount, 1, 0, 0);
+            //});
+            wgpuRenderPassEncoderDraw(g_wgpustate.rstate->renderpass.rpEncoder, vcount, 1, 0, 0);
         } break;
         case RL_QUADS:{
             updateVertexBuffer(g_wgpustate.rstate, g_wgpustate.current_vertices.data(), g_wgpustate.current_vertices.size() * sizeof(vertex));
@@ -169,10 +170,16 @@ void drawCurrentBatch(){
             ///WGPUCommandBuffer command = wgpuCommandEncoderFinish(enc, &cmdBufferDescriptor);
             ///wgpuQueueSubmit(GetQueue(), 1, &command);
             wgpuQueueWriteBuffer(g_wgpustate.queue, ibuf_actual, 0, indices.data(), indices.size() * sizeof(uint32_t));
-            g_wgpustate.rstate->executeRenderpass([&actualIbufDesc, ibuf_actual, bytesize, vcount](WGPURenderPassEncoder renderPass){
-                wgpuRenderPassEncoderSetIndexBuffer(renderPass, ibuf_actual, WGPUIndexFormat_Uint32, 0, bytesize);
-                wgpuRenderPassEncoderDrawIndexed(renderPass, vcount, 1, 0, 0, 0);
-            });
+            //g_wgpustate.rstate->executeRenderpass([&actualIbufDesc, ibuf_actual, bytesize, vcount](WGPURenderPassEncoder renderPass){
+            //    wgpuRenderPassEncoderSetIndexBuffer(renderPass, ibuf_actual, WGPUIndexFormat_Uint32, 0, bytesize);
+            //    wgpuRenderPassEncoderDrawIndexed(renderPass, vcount, 1, 0, 0, 0);
+            //});
+
+            wgpuRenderPassEncoderSetPipeline    (g_wgpustate.rstate->renderpass.rpEncoder, g_wgpustate.rstate->pipeline.pipeline);
+            wgpuRenderPassEncoderSetBindGroup   (g_wgpustate.rstate->renderpass.rpEncoder, 0, GetWGPUBindGroup(&g_wgpustate.rstate->pipeline.bindGroup), 0, 0);
+            wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, g_wgpustate.rstate->vbo, 0, wgpuBufferGetSize(g_wgpustate.rstate->vbo));
+            wgpuRenderPassEncoderSetIndexBuffer (g_wgpustate.rstate->renderpass.rpEncoder, ibuf_actual, WGPUIndexFormat_Uint32, 0, bytesize);
+            wgpuRenderPassEncoderDrawIndexed    (g_wgpustate.rstate->renderpass.rpEncoder, vcount, 1, 0, 0, 0);
             //wgpuBufferRelease(ibuf);
             wgpuBufferRelease(ibuf_actual);
         } break;
@@ -186,6 +193,24 @@ uint32_t GetScreenWidth (cwoid){
 uint32_t GetScreenHeight(cwoid){
     return g_wgpustate.height;
 }
+void BeginRenderPass(DescribedRenderpass* renderPass){
+    WGPUCommandEncoderDescriptor desc{};
+    desc.label = STRVIEW("another cmdencoder");
+    renderPass->cmdEncoder = wgpuDeviceCreateCommandEncoder(GetDevice(), &desc);
+    renderPass->rpEncoder = wgpuCommandEncoderBeginRenderPass(renderPass->cmdEncoder, &renderPass->renderPassDesc);
+}
+
+void EndRenderPass(DescribedRenderpass* renderPass){
+    wgpuRenderPassEncoderEnd(renderPass->rpEncoder);
+    renderPass->rpEncoder = 0;
+    WGPUCommandBufferDescriptor cmdBufferDescriptor{};
+    cmdBufferDescriptor.label = STRVIEW("CB");
+    WGPUCommandBuffer command = wgpuCommandEncoderFinish(renderPass->cmdEncoder, &cmdBufferDescriptor);
+    wgpuQueueSubmit(GetQueue(), 1, &command);
+    wgpuCommandBufferRelease(command);
+    wgpuCommandEncoderRelease(renderPass->cmdEncoder);
+    
+}
 void BeginDrawing(){
     glfwPollEvents();
     g_wgpustate.drawmutex.lock();
@@ -195,18 +220,21 @@ void BeginDrawing(){
     WGPUTextureView nextTexture = wgpuTextureCreateView(surfaceTexture.texture, nullptr);
     g_wgpustate.currentSurfaceTextureView = nextTexture;
     setTargetTextures(g_wgpustate.rstate, nextTexture, g_wgpustate.rstate->depth);
+    BeginRenderPass(&g_wgpustate.rstate->renderpass);
     //UseNoTexture();
     //updateBindGroup(g_wgpustate.rstate);
     
 }
 void EndDrawing(){
     drawCurrentBatch();
+    EndRenderPass(&g_wgpustate.rstate->renderpass);
     #ifndef __EMSCRIPTEN__
     wgpuSurfacePresent(g_wgpustate.surface);
     #endif // __EMSCRIPTEN__
     //WGPUSurfaceTexture surfaceTexture;
     //wgpuSurfaceGetCurrentTexture(g_wgpustate.surface, &surfaceTexture);
 
+    
     wgpuTextureRelease(g_wgpustate.currentSurfaceTexture.texture);
     wgpuTextureViewRelease(g_wgpustate.currentSurfaceTextureView);
     g_wgpustate.last_timestamps[g_wgpustate.total_frames % 32] = NanoTime();
@@ -225,7 +253,7 @@ void rlEnd(){
 Image LoadImageFromTexture(Texture tex){
     #ifndef __EMSCRIPTEN__
     auto& device = g_wgpustate.device;
-    Image ret {tex.format, tex.width, tex.height, nullptr};
+    Image ret {tex.format, tex.width, tex.height, size_t(std::ceil(4.0 * tex.width / 256.0) * 256), nullptr};
     WGPUBufferDescriptor b{};
     b.mappedAtCreation = false;
     b.size = size_t(std::ceil(4.0 * tex.width / 256.0) * 256) * tex.height;
@@ -268,9 +296,11 @@ Image LoadImageFromTexture(Texture tex){
         assert(status == wgpu::MapAsyncStatus::Success);
         //std::pair<Image*, wgpu::Buffer*>* rei = (std::pair<Image*, wgpu::Buffer*>*)userdata;
         std::pair<Image*, wgpu::Buffer*>* rei = &ibpair;
-        const void* map = wgpuBufferGetConstMappedRange(rei->second->Get(), 0, wgpuBufferGetSize(rei->second->Get()));
-        rei->first->data = std::realloc(rei->first->data, wgpuBufferGetSize(rei->second->Get()));
-        std::memcpy(rei->first->data, map, wgpuBufferGetSize(rei->second->Get()));
+        uint64_t bufferSize = wgpuBufferGetSize(rei->second->Get());
+        const void* map = wgpuBufferGetConstMappedRange(rei->second->Get(), 0, bufferSize);
+        //rei->first->data = std::realloc(rei->first->data, bufferSize);
+        rei->first->data = std::malloc(bufferSize);
+        std::memcpy(rei->first->data, map, bufferSize);
         rei->second->Unmap();
         wgpuBufferRelease(rei->second->Get());
         rei->second = nullptr;
@@ -353,6 +383,8 @@ Texture LoadTextureFromImage(Image img){
     //wgpuQueueWriteTexture()
     wgpuQueueWriteTexture(g_wgpustate.queue, &destination, img.data,  4 * img.width * img.height, &source, &desc.size);
     ret.view = wgpuTextureCreateView(ret.tex, &vdesc);
+    ret.width = img.width;
+    ret.height = img.height;
     return ret;
 }
 uint64_t NanoTime(cwoid){
@@ -415,6 +447,8 @@ Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format,
     tDesc.viewFormats = &tDesc.format;
 
     WGPUTextureViewDescriptor textureViewDesc{};
+    if(format == WGPUTextureFormat_Depth24Plus)
+        textureViewDesc.label = STRVIEW("Loadedtexter");
     textureViewDesc.aspect = ((format == WGPUTextureFormat_Depth24Plus) ? WGPUTextureAspect_DepthOnly : WGPUTextureAspect_All);
     textureViewDesc.baseArrayLayer = 0;
     textureViewDesc.arrayLayerCount = 1;
@@ -443,10 +477,10 @@ RenderTexture LoadRenderTexture(uint32_t width, uint32_t height){
 }
 inline WGPUVertexFormat f16format(uint32_t s){
     switch(s){
-        case 1:return WGPUVertexFormat_Float16x2  ;
-        case 2:return WGPUVertexFormat_Float32x2;
-        case 3:return WGPUVertexFormat_Float32x3;
-        case 4:return WGPUVertexFormat_Float32x4;
+        case 1:return WGPUVertexFormat_Float16  ;
+        case 2:return WGPUVertexFormat_Float16x2;
+      //case 3:return WGPUVertexFormat_Float16x3;
+        case 4:return WGPUVertexFormat_Float16x4;
         default: abort();
     }
     __builtin_unreachable();
@@ -467,7 +501,7 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     state->color = c;
     state->depth = d;
     state->vbo = 0;
-    
+    state->renderpass = DescribedRenderpass{};
     state->pipeline = LoadPipelineEx(shaderSource, attribs, attribCount, uniforms, uniform_count);
 
     /*{
@@ -700,62 +734,66 @@ void updatePipeline(full_renderstate* state, draw_mode drawmode){
     //state->pipeline.descriptor.multisample.alphaToCoverageEnabled = false;
     //// Create a bind group layout
     //// Create the pipeline layout
-    WGPUPipelineLayoutDescriptor layoutDesc{};
-    layoutDesc.bindGroupLayoutCount = 1;
-    layoutDesc.bindGroupLayouts = &state->pipeline.bglayout.layout;
-    WGPUPipelineLayout layout = wgpuDeviceCreatePipelineLayout(g_wgpustate.device, &layoutDesc);
-    state->pipeline.descriptor.layout = layout;
+    //WGPUPipelineLayoutDescriptor layoutDesc{};
+    //layoutDesc.bindGroupLayoutCount = 1;
+    //layoutDesc.bindGroupLayouts = &state->pipeline.bglayout.layout;
+    //WGPUPipelineLayout layout = wgpuDeviceCreatePipelineLayout(g_wgpustate.device, &layoutDesc);
+    //state->pipeline.descriptor.layout = layout;
     state->pipeline.pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &state->pipeline.descriptor);
     //wgpuPipelineLayoutRelease(layout);
 }
 void updateRenderPassDesc(full_renderstate* state){
-    state->renderPassDesc = WGPURenderPassDescriptor{};
-    state->rca = WGPURenderPassColorAttachment{};
-    state->rca.view = state->color;
-    state->rca.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+    state->renderpass.renderPassDesc = WGPURenderPassDescriptor{};
+    state->renderpass.rca = WGPURenderPassColorAttachment{};
+    state->renderpass.rca.view = state->color;
+    state->renderpass.rca.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
     #ifdef __EMSCRIPTEN__
-    state->rca.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+    state->renderpass.rca.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
     #endif
     //std::cout << rca.depthSlice << "\n";
-    state->rca.resolveTarget = nullptr;
-    state->rca.loadOp =  WGPULoadOp_Load;
-    state->rca.storeOp = WGPUStoreOp_Store;
-    state->rca.clearValue = WGPUColor{ 0.01, 0.01, 0.2, 1.0 };
-    state->renderPassDesc.colorAttachmentCount = 1;
-    state->renderPassDesc.colorAttachments = &state->rca;
+    state->renderpass.rca.resolveTarget = nullptr;
+    state->renderpass.rca.loadOp =  WGPULoadOp_Load;
+    state->renderpass.rca.storeOp = WGPUStoreOp_Store;
+    state->renderpass.rca.clearValue = WGPUColor{ 0.01, 0.01, 0.2, 1.0 };
+    state->renderpass.renderPassDesc.colorAttachmentCount = 1;
+    state->renderpass.renderPassDesc.colorAttachments = &state->renderpass.rca;
     // We now add a depth/stencil attachment:
-    state->dsa = WGPURenderPassDepthStencilAttachment{};
+    state->renderpass.dsa = WGPURenderPassDepthStencilAttachment{};
     // The view of the depth texture
-    state->dsa.view = state->depth;
+    state->renderpass.dsa.view = state->depth;
     //dsa.depthSlice = 0;
     // The initial value of the depth buffer, meaning "far"
-    state->dsa.depthClearValue = 1.0f;
+    state->renderpass.dsa.depthClearValue = 1.0f;
     // Operation settings comparable to the color attachment
-    state->dsa.depthLoadOp = WGPULoadOp_Clear;
-    state->dsa.depthStoreOp = WGPUStoreOp_Store;
+    state->renderpass.dsa.depthLoadOp = WGPULoadOp_Clear;
+    state->renderpass.dsa.depthStoreOp = WGPUStoreOp_Store;
     // we could turn off writing to the depth buffer globally here
-    state->dsa.depthReadOnly = false;
+    state->renderpass.dsa.depthReadOnly = false;
     // Stencil setup, mandatory but unused
-    state->dsa.stencilClearValue = 0;
+    state->renderpass.dsa.stencilClearValue = 0;
     #ifdef WEBGPU_BACKEND_WGPU
-    state->dsa.stencilLoadOp =  WGPULoadOp_Load;
-    state->dsa.stencilStoreOp = WGPUStoreOp_Store;
+    state->renderpass.dsa.stencilLoadOp =  WGPULoadOp_Load;
+    state->renderpass.dsa.stencilStoreOp = WGPUStoreOp_Store;
     #else
-    state->dsa.stencilLoadOp = WGPULoadOp_Undefined;
-    state->dsa.stencilStoreOp = WGPUStoreOp_Undefined;
+    state->renderpass.dsa.stencilLoadOp = WGPULoadOp_Undefined;
+    state->renderpass.dsa.stencilStoreOp = WGPUStoreOp_Undefined;
     #endif
-    state->dsa.stencilReadOnly = true;
-    state->renderPassDesc.depthStencilAttachment = &state->dsa;
-    state->renderPassDesc.timestampWrites = nullptr;
+    state->renderpass.dsa.stencilReadOnly = true;
+    state->renderpass.renderPassDesc.depthStencilAttachment = &state->renderpass.dsa;
+    state->renderpass.renderPassDesc.timestampWrites = nullptr;
 }
 
 void setTargetTextures(full_renderstate* state, WGPUTextureView c, WGPUTextureView d){
     state->color = c;
     state->depth = d;
     updateRenderPassDesc(state);
+    if(g_wgpustate.rstate->renderpass.rpEncoder){
+        EndRenderPass(&g_wgpustate.rstate->renderpass);
+    }
+    BeginRenderPass(&g_wgpustate.rstate->renderpass);
 }
 Image LoadImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32_t checkerCount){
-    Image ret{WGPUTextureFormat_RGBA8Unorm, width, height, std::calloc(width * height, sizeof(Color))};
+    Image ret{WGPUTextureFormat_RGBA8Unorm, width, height, width * 4, std::calloc(width * height, sizeof(Color))};
     for(uint32_t i = 0;i < height;i++){
         for(uint32_t j = 0;j < width;j++){
             const size_t index = size_t(i) * width + j;
@@ -765,6 +803,32 @@ Image LoadImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32
         }
     }
     return ret;
+}
+void SaveImage(Image img, const char* filepath){
+    //std::cout << img.format << "\n";
+    size_t stride = std::ceil(4.0 * img.width / 256.0) * 256;
+    std::string_view fp(filepath, filepath + std::strlen(filepath));
+    BGRAColor* cols = (BGRAColor*)img.data; 
+    Color* ocols = (Color*)calloc(stride * img.height, sizeof(Color));
+    for(size_t i = 0;i < (stride / sizeof(Color)) * img.height;i++){
+        ocols[i].r = cols[i].r;
+        ocols[i].g = cols[i].g;
+        ocols[i].b = cols[i].b;
+        ocols[i].a = 255;
+    }
+    if(fp.ends_with(".png")){
+        stbi_write_png(filepath, img.width, img.height, 4, ocols, stride);
+    }
+    else if(fp.ends_with(".jpg")){
+        stbi_write_jpg(filepath, img.width, img.height, 4, ocols, stride);
+    }
+    else if(fp.ends_with(".bmp")){
+        std::cerr << "Careful with bmp!" << filepath << "\n";
+        stbi_write_bmp(filepath, img.width, img.height, 4, ocols);
+    }
+    else{
+        std::cerr << "Unrecognized image format in filename " << filepath << "\n";
+    }
 }
 void UseTexture(Texture tex){
     if(g_wgpustate.activeTexture.tex != tex.tex){

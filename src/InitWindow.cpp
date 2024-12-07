@@ -119,7 +119,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
                 case wgpu::BackendType::Undefined:
                 default:
                     __builtin_unreachable();
-                    return false;
+                    //return false;
             }
         };
         adapterOptions.compatibilityMode = bcompat(backendType);
@@ -249,6 +249,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
 
     // Create the test window with no client API.
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     GLFWwindow* window = glfwCreateWindow(width, height, "Dawn window", nullptr, nullptr);
     if (!window) {
         abort();
@@ -276,7 +277,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
         config.usage = WGPUTextureUsage_RenderAttachment;
         config.device = g_wgpustate.device;
         config.format = (WGPUTextureFormat)capabilities.formats[0];
-        config.presentMode = WGPUPresentMode_Fifo;
+        config.presentMode = WGPUPresentMode_Immediate;
 
         config.width = width;
         config.height = height;
@@ -286,6 +287,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
         wgpuTextureRelease(depthTexture.tex);
         depthTexture = LoadDepthTexture(width, height);
         wgpuSurfaceConfigure(g_wgpustate.surface, &config);
+        updateRenderPassDesc(g_wgpustate.rstate);
         g_wgpustate.drawmutex.unlock();
     });
     
@@ -321,7 +323,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     float data[16] = {0};
     //std::fill(data, data + 16, 1.0f);
     
-    ShaderInputs shaderInputs{};
+    /*ShaderInputs shaderInputs{};
     auto arraySetter = [](uint32_t (&dat)[8], std::initializer_list<uint32_t> arg){
         for(auto it = arg.begin();it != arg.end();it++){
             dat[it - arg.begin()] = *it;
@@ -331,7 +333,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
         for(auto it = arg.begin();it != arg.end();it++){
             dat[it - arg.begin()] = *it;
         }
-    };
+    };*/
     
     glfwSetKeyCallback(
         window, 
@@ -341,10 +343,10 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
             }
         }
     );
-    shaderInputs.per_vertex_count = 3;
-    shaderInputs.per_instance_count = 0;
+    //shaderInputs.per_vertex_count = 3;
+    //shaderInputs.per_instance_count = 0;
     
-    shaderInputs.uniform_count = 4;
+    //shaderInputs.uniform_count = 4;
     UniformDescriptor desc[4] = {
         UniformDescriptor{uniform_buffer, 64},
         UniformDescriptor{texture2d, 0},
@@ -362,6 +364,9 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     
     depthTexture = rtex.depth;
     init_full_renderstate(g_wgpustate.rstate, shaderSource, attrs, 3, desc, 4, rtex.color.view, rtex.depth.view);
+    WGPUCommandEncoderDescriptor cedesc{};
+    cedesc.label = STRVIEW("Global Command Encoder");
+    g_wgpustate.rstate->renderpass.cmdEncoder = wgpuDeviceCreateCommandEncoder(g_wgpustate.device, &cedesc);
     setStateStorageBuffer(g_wgpustate.rstate, 3, data, 64);
 
     WGPUSamplerDescriptor samplerDesc{};
