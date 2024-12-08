@@ -41,7 +41,7 @@ struct MyUniforms {
 @group(0) @binding(2) var grsampler: sampler;
 
 //Can be omitted
-@group(0) @binding(3) var<storage> storig: array<vec4f>;
+//@group(0) @binding(3) var<storage> storig: array<vec4f>;
 
 //@builtin(instance_index) instanceID: u32;
 @vertex
@@ -367,7 +367,10 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     WGPUCommandEncoderDescriptor cedesc{};
     cedesc.label = STRVIEW("Global Command Encoder");
     g_wgpustate.rstate->renderpass.cmdEncoder = wgpuDeviceCreateCommandEncoder(g_wgpustate.device, &cedesc);
-    setStateStorageBuffer(g_wgpustate.rstate, 3, data, 64);
+    Matrix mat = MatrixIdentity();
+    SetUniformBuffer(0, &mat, 64);
+    SetTexture(1, g_wgpustate.whitePixel);
+    SetStorageBuffer(3, data, 64);
 
     WGPUSamplerDescriptor samplerDesc{};
     samplerDesc.addressModeU = WGPUAddressMode_Repeat;
@@ -383,7 +386,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
 
 
     WGPUSampler sampler = wgpuDeviceCreateSampler(g_wgpustate.device, &samplerDesc);
-    setStateSampler(g_wgpustate.rstate, 2, sampler);
+    SetSampler(2, sampler);
     g_wgpustate.init_timestamp = NanoTime();
     #ifndef __EMSCRIPTEN__
     return window;

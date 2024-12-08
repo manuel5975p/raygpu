@@ -76,8 +76,16 @@ int main(){
                      0,1,0,0.3,0.5
                     };
     DescribedBuffer vbo = LoadBuffer(data, sizeof(data));
+    VertexArray* va = LoadVertexArray();
+    VertexAttribPointer(va, &vbo, 0, WGPUVertexFormat_Float32x3, 0, WGPUVertexStepMode_Vertex);
+    EnableVertexAttribArray(va, 0);
+    VertexAttribPointer(va, &vbo, 1, WGPUVertexFormat_Float32x2, 12, WGPUVertexStepMode_Vertex);
+    EnableVertexAttribArray(va, 1);
+
+    
+    
     WGPUBindGroupDescriptor bgdesc{};
-    bgdesc.layout = pl.bglayout.layout;
+    bgdesc.layout = pl->bglayout.layout;
     WGPUBindGroupEntry the_texture_entry{};
     the_texture_entry.binding = 0;
     the_texture_entry.textureView = tex.view;
@@ -175,6 +183,18 @@ int main(){
                 );
             }
         }
+        for(size_t i = 0;i < 4;i++){
+            for(size_t j = 0;j < 800;j++){
+                DrawTexturePro(
+                    g_wgpustate.whitePixel,
+                    //rtex.color,
+                    Rectangle(0, 0, 1000, 1000), Rectangle((i+2) * 110, j * 2, 90, 1),
+                    Vector2(0,0), 
+                    g_wgpustate.total_frames * (0.0f / 100.0f),
+                    Color{255, 255, 255, 255}
+                );
+            }
+        }
 
         
         //Image img = LoadImageFromTexture(rtex.color);
@@ -193,9 +213,32 @@ int main(){
         }
 
     };
+    auto mainloop2 = [&](void* userdata){
+        BeginDrawing();
+        WGPUBindGroupEntry entry{};
+        entry.binding = 0;
+        entry.textureView = checkers.view;
+        UpdateBindGroupEntry(&pl->bindGroup, 0, entry);
+
+        BeginPipelineMode(pl);
+        
+        BindVertexArray(pl, va);
+        DrawArrays(3);
+
+        EndPipelineMode();
+        DrawTexturePro(checkers, Rectangle{0, 0, 100, 100}, Rectangle{-0.7,-0.7,1,1}, Vector2{0, 0}, 0.0f, Color{255,255,255,255});
+        EndDrawing();
+        ++frames;
+        //std::cout << g_wgpustate.total_frames << "\n";
+        uint64_t nextStmp = NanoTime();
+        if(nextStmp - stmp > 1000000000){
+            std::cout << GetFPS() << "\n";
+            stmp = NanoTime();
+        }
+    };
     #ifndef __EMSCRIPTEN__
     while(!glfwWindowShouldClose(window)){
-        mainloop(nullptr);
+        mainloop2(nullptr);
     }
     #else
     emscripten_set_main_loop_arg(mainloop, nullptr, 240, true);

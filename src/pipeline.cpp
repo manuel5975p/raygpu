@@ -79,10 +79,11 @@ DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, 
 
 
 
-extern "C" DescribedPipeline LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount){
+extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount){
     
 
-    DescribedPipeline ret{};
+    DescribedPipeline* retp = new DescribedPipeline{};
+    DescribedPipeline& ret = *retp;
     ret.sh = LoadShaderFromMemory(shaderSource);
 
     uint32_t maxslot = 0;
@@ -180,7 +181,7 @@ extern "C" DescribedPipeline LoadPipelineEx(const char* shaderSource, const Attr
     ret.depthStencilState->stencilBack.compare = WGPUCompareFunction_Always;
     pipelineDesc.depthStencil = ret.depthStencilState;
     ret.pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &ret.descriptor);
-    return ret;
+    return retp;
 }
 
 extern "C" DescribedBindGroup LoadBindGroup(const DescribedPipeline* pipeline, const WGPUBindGroupEntry* entries, size_t entryCount){

@@ -69,7 +69,6 @@ EXTERN_C_BEGIN
     void UpdateBindGroup(DescribedBindGroup* bg);
     void UnloadBindGroup(DescribedBindGroup* bg);
     
-    
 
 EXTERN_C_END
 #endif// PIPELINE_H

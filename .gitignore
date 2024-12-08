@@ -1,4 +1,5 @@
 build/
+relbuild/
 dawn/
 debug/
 *.gz

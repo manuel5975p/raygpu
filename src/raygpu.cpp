@@ -48,10 +48,13 @@ typedef struct VertexArray{
         attributes.push_back(insert);
     }
 }VertexArray;
-void VertexAttribPointer(VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, WGPUVertexFormat format, uint32_t offset, WGPUVertexStepMode stepmode){
+extern "C" VertexArray* LoadVertexArray(){
+    return new VertexArray;
+}
+extern "C" void VertexAttribPointer(VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, WGPUVertexFormat format, uint32_t offset, WGPUVertexStepMode stepmode){
     array->add(*buffer, attribLocation, format, offset, stepmode);
 }
-extern "C" void BindVertexArray(DescribedPipeline* pipeline, VertexArray* va){
+extern "C" void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va){
     pipeline->vbLayouts = (WGPUVertexBufferLayout*) malloc(va->buffers.size() * sizeof(WGPUVertexBufferLayout));
     
     pipeline->descriptor.vertex.buffers = pipeline->vbLayouts;
@@ -83,8 +86,18 @@ extern "C" void BindVertexArray(DescribedPipeline* pipeline, VertexArray* va){
     wgpuRenderPipelineRelease(pipeline->pipeline);
     pipeline->pipeline = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipeline->descriptor);
 }
+extern "C" void BindVertexArray(DescribedPipeline* pipeline, VertexArray* va){
+    for(size_t i = 0;i < va->buffers.size();i++){
+        auto& firstbuffer = va->buffers[0].first.buffer;
+        wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, va->buffers[0].first.buffer, 0, va->buffers[0].first.descriptor.size);
+    }
+}
 extern "C" void EnableVertexAttribArray(VertexArray* array, uint32_t attribLocation){
     return;
+}
+extern "C" void DrawArrays(uint32_t vertexCount){
+    auto& rp = g_wgpustate.rstate->renderpass.rpEncoder;
+    wgpuRenderPassEncoderDraw(rp, vertexCount, 1, 0, 0);
 }
 Texture depthTexture; //TODO: uhhh move somewhere
 WGPUDevice GetDevice(){
@@ -116,7 +129,7 @@ void drawCurrentBatch(){
     if(g_wgpustate.current_vertices.size() == 0)return;
     
     updatePipeline(g_wgpustate.rstate, g_wgpustate.current_drawmode);
-    UpdateBindGroup(&g_wgpustate.rstate->pipeline.bindGroup);
+    UpdateBindGroup(&g_wgpustate.rstate->currentPipeline->bindGroup);
     switch(g_wgpustate.current_drawmode){
         case RL_TRIANGLES: [[fallthrough]];
         case RL_TRIANGLE_STRIP:{
@@ -174,9 +187,8 @@ void drawCurrentBatch(){
             //    wgpuRenderPassEncoderSetIndexBuffer(renderPass, ibuf_actual, WGPUIndexFormat_Uint32, 0, bytesize);
             //    wgpuRenderPassEncoderDrawIndexed(renderPass, vcount, 1, 0, 0, 0);
             //});
-
-            wgpuRenderPassEncoderSetPipeline    (g_wgpustate.rstate->renderpass.rpEncoder, g_wgpustate.rstate->pipeline.pipeline);
-            wgpuRenderPassEncoderSetBindGroup   (g_wgpustate.rstate->renderpass.rpEncoder, 0, GetWGPUBindGroup(&g_wgpustate.rstate->pipeline.bindGroup), 0, 0);
+            
+            BindPipeline(g_wgpustate.rstate->currentPipeline);
             wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, g_wgpustate.rstate->vbo, 0, wgpuBufferGetSize(g_wgpustate.rstate->vbo));
             wgpuRenderPassEncoderSetIndexBuffer (g_wgpustate.rstate->renderpass.rpEncoder, ibuf_actual, WGPUIndexFormat_Uint32, 0, bytesize);
             wgpuRenderPassEncoderDrawIndexed    (g_wgpustate.rstate->renderpass.rpEncoder, vcount, 1, 0, 0, 0);
@@ -187,6 +199,23 @@ void drawCurrentBatch(){
     }
     g_wgpustate.current_vertices.clear();
 }
+
+extern "C" void BeginPipelineMode(DescribedPipeline* pipeline){
+    drawCurrentBatch();
+    g_wgpustate.rstate->currentPipeline = pipeline;
+    BindPipeline(pipeline);
+}
+extern "C" void EndPipelineMode(){
+    drawCurrentBatch();
+    g_wgpustate.rstate->currentPipeline = g_wgpustate.rstate->defaultPipeline;
+    BindPipeline(g_wgpustate.rstate->currentPipeline);
+}
+extern "C" void BindPipeline(DescribedPipeline* pipeline){
+    wgpuRenderPassEncoderSetPipeline (g_wgpustate.rstate->renderpass.rpEncoder, pipeline->pipeline);
+    wgpuRenderPassEncoderSetBindGroup (g_wgpustate.rstate->renderpass.rpEncoder, 0, GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
+}
+
+
 uint32_t GetScreenWidth (cwoid){
     return g_wgpustate.width;
 }
@@ -502,8 +531,8 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     state->depth = d;
     state->vbo = 0;
     state->renderpass = DescribedRenderpass{};
-    state->pipeline = LoadPipelineEx(shaderSource, attribs, attribCount, uniforms, uniform_count);
-
+    state->currentPipeline = LoadPipelineEx(shaderSource, attribs, attribCount, uniforms, uniform_count);
+    state->defaultPipeline = state->currentPipeline;
     /*{
         std::vector<WGPUBindGroupLayoutEntry> blayouts(shader_inputs.uniform_count);
         state->pipeline.bglayout = DescribedBindGroupLayout{};
@@ -591,68 +620,102 @@ void setStateTexture(full_renderstate* state, uint32_t index, Texture tex){
     WGPUBindGroupEntry entry{};
     entry.binding = index;
     entry.textureView = tex.view;
-    UpdateBindGroupEntry(&state->pipeline.bindGroup, index, entry);
+    UpdateBindGroupEntry(&state->currentPipeline->bindGroup, index, entry);
 }
 void setStateSampler(full_renderstate* state, uint32_t index, WGPUSampler sampler){
     WGPUBindGroupEntry entry{};
     //state->bgEntries[index] = WGPUBindGroupEntry{};
     entry.binding = index;
     entry.sampler = sampler;
-    UpdateBindGroupEntry(&state->pipeline.bindGroup, index, entry);
+    UpdateBindGroupEntry(&state->currentPipeline->bindGroup, index, entry);
     //updateBindGroup(state);
 }
-void setStateUniformBuffer(full_renderstate* state, uint32_t index, const void* data, size_t size){
-    if(state->pipeline.bindGroup.entries[index].buffer){
-        wgpuBufferRelease(state->pipeline.bindGroup.entries[index].buffer);
-    }
+//void setStateUniformBuffer(full_renderstate* state, uint32_t index, const void* data, size_t size){
+//    if(state->currentPipeline.bindGroup.entries[index].buffer){
+//        wgpuBufferRelease(state->currentPipeline.bindGroup.entries[index].buffer);
+//    }
+//    WGPUBufferDescriptor bufferDesc{};
+//    bufferDesc.size = size;
+//    bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
+//    bufferDesc.mappedAtCreation = false;
+//    WGPUBuffer uniformBuffer = wgpuDeviceCreateBuffer(g_wgpustate.device, &bufferDesc);
+//    wgpuQueueWriteBuffer(g_wgpustate.queue, uniformBuffer, 0, data, size);
+//    
+//    WGPUBindGroupEntry entry{};
+//    entry.binding = index;
+//    entry.buffer = uniformBuffer;
+//    entry.offset = 0;
+//    entry.size = size;
+//    UpdateBindGroupEntry(&state->currentPipeline.bindGroup, index, entry);
+//}
+//
+//void setStateStorageBuffer(full_renderstate* state, uint32_t index, const void* data, size_t size){
+//    if(state->currentPipeline.bindGroup.entries[index].buffer){
+//        wgpuBufferRelease(state->currentPipeline.bindGroup.entries[index].buffer);
+//    }
+//    WGPUBufferDescriptor bufferDesc{};
+//    bufferDesc.size = size;
+//    bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
+//    bufferDesc.mappedAtCreation = false;
+//    WGPUBuffer storageBuffer = wgpuDeviceCreateBuffer(g_wgpustate.device, &bufferDesc);
+//    wgpuQueueWriteBuffer(g_wgpustate.queue, storageBuffer, 0, data, size);
+//    
+//    WGPUBindGroupEntry entry{};
+//    entry.binding = index;
+//    entry.buffer = storageBuffer;
+//    entry.offset = 0;
+//    entry.size = size;
+//    UpdateBindGroupEntry(&state->currentPipeline.bindGroup, index, entry);
+//}
+//void SetTexture       (uint32_t index, Texture tex){
+//    setStateTexture(g_wgpustate.rstate, index, tex);
+//}
+//void SetSampler       (uint32_t index, WGPUSampler sampler){
+//    setStateSampler(g_wgpustate.rstate, index, sampler);
+//}
+void SetUniformBuffer (uint32_t index, const void* data, size_t size){
+    WGPUBindGroupEntry entry{};
     WGPUBufferDescriptor bufferDesc{};
+
     bufferDesc.size = size;
     bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
     bufferDesc.mappedAtCreation = false;
     WGPUBuffer uniformBuffer = wgpuDeviceCreateBuffer(g_wgpustate.device, &bufferDesc);
     wgpuQueueWriteBuffer(g_wgpustate.queue, uniformBuffer, 0, data, size);
-    
-    WGPUBindGroupEntry entry{};
     entry.binding = index;
     entry.buffer = uniformBuffer;
-    entry.offset = 0;
     entry.size = size;
-    UpdateBindGroupEntry(&state->pipeline.bindGroup, index, entry);
+    UpdateBindGroupEntry(&g_wgpustate.rstate->currentPipeline->bindGroup, index, entry);
 }
-
-void setStateStorageBuffer(full_renderstate* state, uint32_t index, const void* data, size_t size){
-    if(state->pipeline.bindGroup.entries[index].buffer){
-        wgpuBufferRelease(state->pipeline.bindGroup.entries[index].buffer);
-    }
+void SetStorageBuffer (uint32_t index, const void* data, size_t size){
+    WGPUBindGroupEntry entry{};
     WGPUBufferDescriptor bufferDesc{};
+
     bufferDesc.size = size;
     bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
     bufferDesc.mappedAtCreation = false;
-    WGPUBuffer storageBuffer = wgpuDeviceCreateBuffer(g_wgpustate.device, &bufferDesc);
-    wgpuQueueWriteBuffer(g_wgpustate.queue, storageBuffer, 0, data, size);
-    
+    WGPUBuffer uniformBuffer = wgpuDeviceCreateBuffer(g_wgpustate.device, &bufferDesc);
+    wgpuQueueWriteBuffer(g_wgpustate.queue, uniformBuffer, 0, data, size);
+    entry.binding = index;
+    entry.buffer = uniformBuffer;
+    entry.size = size;
+    UpdateBindGroupEntry(&g_wgpustate.rstate->currentPipeline->bindGroup, index, entry);
+}
+extern "C" void SetTexture(uint32_t index, Texture tex){
     WGPUBindGroupEntry entry{};
     entry.binding = index;
-    entry.buffer = storageBuffer;
-    entry.offset = 0;
-    entry.size = size;
-    UpdateBindGroupEntry(&state->pipeline.bindGroup, index, entry);
+    entry.textureView = tex.view;
+    UpdateBindGroupEntry(&g_wgpustate.rstate->currentPipeline->bindGroup, index, entry);
 }
-void SetTexture       (uint32_t index, Texture tex){
-    setStateTexture(g_wgpustate.rstate, index, tex);
-}
-void SetSampler       (uint32_t index, WGPUSampler sampler){
-    setStateSampler(g_wgpustate.rstate, index, sampler);
-}
-void SetUniformBuffer (uint32_t index, const void* data, size_t size){
-    setStateUniformBuffer(g_wgpustate.rstate, index, data, size);
-}
-void SetStorageBuffer (uint32_t index, const void* data, size_t size){
-    setStateStorageBuffer(g_wgpustate.rstate, index, data, size);
+extern "C" void SetSampler(uint32_t index,  WGPUSampler sampler){
+    WGPUBindGroupEntry entry{};
+    entry.binding = index;
+    entry.sampler = sampler;
+    UpdateBindGroupEntry(&g_wgpustate.rstate->currentPipeline->bindGroup, index, entry);
 }
 void updateBindGroup(full_renderstate* state){
-    if(state->pipeline.bindGroup.needsUpdate){
-        state->pipeline.bindGroup.bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &state->pipeline.bindGroup.desc);
+    if(state->currentPipeline->bindGroup.needsUpdate){
+        state->currentPipeline->bindGroup.bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &state->currentPipeline->bindGroup.desc);
     }
     //UpdateBindGroup(DescribedBindGroup *bg, size_t index, WGPUBindGroupEntry entry)
     //WGPUBindGroupDescriptor bgdesc{};
@@ -679,17 +742,17 @@ void updatePipeline(full_renderstate* state, draw_mode drawmode){
     //state->pipeline.descriptor.vertex.constants = nullptr;
     switch(drawmode){
         case draw_mode::RL_QUADS:{
-            state->pipeline.descriptor.primitive.topology =         WGPUPrimitiveTopology_TriangleList;
-            state->pipeline.descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
+            state->currentPipeline->descriptor.primitive.topology =         WGPUPrimitiveTopology_TriangleList;
+            state->currentPipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
         }break;
         case draw_mode::RL_TRIANGLES:{
-            state->pipeline.descriptor.primitive.topology =         WGPUPrimitiveTopology_TriangleList;
-            state->pipeline.descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
+            state->currentPipeline->descriptor.primitive.topology =         WGPUPrimitiveTopology_TriangleList;
+            state->currentPipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
 
         }break;
         case draw_mode::RL_TRIANGLE_STRIP:{
-            state->pipeline.descriptor.primitive.topology =         WGPUPrimitiveTopology_TriangleStrip;
-            state->pipeline.descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
+            state->currentPipeline->descriptor.primitive.topology =         WGPUPrimitiveTopology_TriangleStrip;
+            state->currentPipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
         }break;
     }
     
@@ -739,7 +802,7 @@ void updatePipeline(full_renderstate* state, draw_mode drawmode){
     //layoutDesc.bindGroupLayouts = &state->pipeline.bglayout.layout;
     //WGPUPipelineLayout layout = wgpuDeviceCreatePipelineLayout(g_wgpustate.device, &layoutDesc);
     //state->pipeline.descriptor.layout = layout;
-    state->pipeline.pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &state->pipeline.descriptor);
+    state->currentPipeline->pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &state->currentPipeline->descriptor);
     //wgpuPipelineLayoutRelease(layout);
 }
 void updateRenderPassDesc(full_renderstate* state){
@@ -831,19 +894,31 @@ void SaveImage(Image img, const char* filepath){
     }
 }
 void UseTexture(Texture tex){
-    if(g_wgpustate.activeTexture.tex != tex.tex){
-        drawCurrentBatch();
-        g_wgpustate.activeTexture = tex;
-        setStateTexture(g_wgpustate.rstate, 1, tex);
-    }
+    if(g_wgpustate.rstate->currentPipeline->bindGroup.entries[1].textureView == tex.view)return;
+    drawCurrentBatch();
+    WGPUBindGroupEntry entry{};
+    entry.binding = 1;
+    entry.textureView = tex.view;
+    UpdateBindGroupEntry(&g_wgpustate.rstate->currentPipeline->bindGroup, 1, entry);
+    //if(g_wgpustate.activeTexture.tex != tex.tex){
+    //    drawCurrentBatch();
+    //    g_wgpustate.activeTexture = tex;
+    //    setStateTexture(g_wgpustate.rstate, 1, tex);
+    //}
     
 }
 void UseNoTexture(){
-    if(g_wgpustate.activeTexture.tex != g_wgpustate.whitePixel.tex){
-        drawCurrentBatch();
-        setStateTexture(g_wgpustate.rstate, 1, g_wgpustate.whitePixel);
-    }
-    
+    if(g_wgpustate.rstate->currentPipeline->bindGroup.entries[1].textureView == g_wgpustate.whitePixel.view)return;
+
+    drawCurrentBatch();
+    WGPUBindGroupEntry entry{};
+    entry.binding = 1;
+    entry.textureView = g_wgpustate.whitePixel.view;
+    UpdateBindGroupEntry(&g_wgpustate.rstate->currentPipeline->bindGroup, 1, entry);
+    //if(g_wgpustate.activeTexture.tex != g_wgpustate.whitePixel.tex){
+    //    drawCurrentBatch();
+    //    setStateTexture(g_wgpustate.rstate, 1, g_wgpustate.whitePixel);
+    //}
 }
 /*template<typename callable>
 void executeRenderpass(callable&& c){

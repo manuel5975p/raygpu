@@ -69,16 +69,6 @@ typedef struct DescribedBuffer{
     WGPUBuffer buffer;
 }DescribedBuffer;
 
-
-
-typedef struct Shader{
-    WGPUShaderModule shadermodule;
-
-    WGPUBindGroupLayoutDescriptor bglayoutdesc;
-    WGPUBindGroupLayout bglayout;
-    
-} Shader;
-
 enum draw_mode{
     RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS
 };
@@ -120,6 +110,9 @@ EXTERN_C_BEGIN
 
     void BeginRenderPass(DescribedRenderpass* renderPass);
     void EndRenderPass(DescribedRenderpass* renderPass);
+    void BeginPipelineMode(DescribedPipeline* pipeline);
+    void EndPipelineMode();
+
     Texture LoadTextureFromImage(Image img);
     Image LoadImageFromTexture(Texture tex);
 
@@ -136,10 +129,12 @@ EXTERN_C_BEGIN
     void BeginTextureMode(RenderTexture rtex);
     void EndTextureMode(cwoid);
 
+    void BindPipeline(DescribedPipeline* pipeline);
+
     WGPUShaderModule LoadShaderFromMemory(const char* shaderSource);
     WGPUShaderModule LoadShader(const char* path);
 
-    DescribedPipeline LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount);
+    DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount);
 
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
     Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format, bool to_be_used_as_rendertarget);
@@ -148,7 +143,8 @@ EXTERN_C_BEGIN
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
     
     DescribedBuffer LoadBuffer(const void* data, size_t size);
-    
+    void BindVertexBuffer(const DescribedBuffer* buffer);
+
     void SetTexture       (uint32_t index, Texture tex);
     void SetSampler       (uint32_t index, WGPUSampler sampler);
     void SetUniformBuffer (uint32_t index, const void* data, size_t size);
@@ -165,10 +161,14 @@ EXTERN_C_BEGIN
     void updateRenderPassDesc  (full_renderstate* state);
     void setTargetTextures     (full_renderstate* state, WGPUTextureView c, WGPUTextureView d);
 
+    VertexArray* LoadVertexArray();
     void VertexAttribPointer(VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, WGPUVertexFormat format, uint32_t offset, WGPUVertexStepMode stepmode);
     void EnableVertexAttribArray(VertexArray* array, uint32_t attribLocation);
+    
+    void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va);
     void BindVertexArray(DescribedPipeline* pipeline, VertexArray* va);
-
+    
+    void DrawArrays(uint32_t vertexCount);
     void DrawTexturePro(Texture texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint);
 
     Image LoadImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32_t checkerCount);
@@ -204,7 +204,8 @@ typedef struct full_renderstate{
     WGPUTextureView color;
     WGPUTextureView depth;
 
-    DescribedPipeline pipeline;
+    DescribedPipeline* defaultPipeline;
+    DescribedPipeline* currentPipeline;
     DescribedRenderpass renderpass;
 
 
