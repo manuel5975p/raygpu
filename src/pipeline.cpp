@@ -168,7 +168,7 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     // We setup a depth buffer state for the render pipeline
     ret.depthStencilState = new WGPUDepthStencilState{};
     // Keep a fragment only if its depth is lower than the previously blended one
-    ret.depthStencilState->depthCompare = WGPUCompareFunction_Less;
+    ret.depthStencilState->depthCompare = WGPUCompareFunction_Always;
     // Each time a fragment is blended into the target, we update the value of the Z-buffer
     ret.depthStencilState->depthWriteEnabled = WGPUOptionalBool_True;
     // Store the format in a variable as later parts of the code depend on it
@@ -179,7 +179,7 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     ret.depthStencilState->stencilWriteMask = 0;
     ret.depthStencilState->stencilFront.compare = WGPUCompareFunction_Always;
     ret.depthStencilState->stencilBack.compare = WGPUCompareFunction_Always;
-    pipelineDesc.depthStencil = ret.depthStencilState;
+    //pipelineDesc.depthStencil = ret.depthStencilState;
     ret.pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &ret.descriptor);
     return retp;
 }

@@ -287,7 +287,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
         wgpuTextureRelease(depthTexture.tex);
         depthTexture = LoadDepthTexture(width, height);
         wgpuSurfaceConfigure(g_wgpustate.surface, &config);
-        updateRenderPassDesc(g_wgpustate.rstate);
+        //updateRenderPassDesc(g_wgpustate.rstate);
         g_wgpustate.drawmutex.unlock();
     });
     

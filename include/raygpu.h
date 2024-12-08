@@ -53,8 +53,8 @@ typedef struct RenderTexture{
 }RenderTexture;
 typedef struct DescribedRenderpass{
     WGPURenderPassDescriptor renderPassDesc;
-    WGPURenderPassColorAttachment rca;
-    WGPURenderPassDepthStencilAttachment dsa;
+    WGPURenderPassColorAttachment* rca;
+    WGPURenderPassDepthStencilAttachment* dsa;
     WGPUCommandEncoder cmdEncoder;
     WGPURenderPassEncoder rpEncoder; //Only non-null when in renderpass
 }DescribedRenderpass;
@@ -81,6 +81,14 @@ typedef struct AttributeAndResidence{
     WGPUVertexStepMode stepMode;
 }AttributeAndResidence;
 
+typedef struct RenderSettings{
+    uint8_t depthTest;
+    uint8_t faceCull;
+
+    WGPUCompareFunction depthCompare;
+    WGPUFrontFace frontFace;
+
+}RenderSettings;
 typedef struct VertexArray VertexArray;
 
 
@@ -107,7 +115,9 @@ EXTERN_C_BEGIN
     uint32_t GetFPS(cwoid);
     void BeginDrawing(cwoid);
     void EndDrawing(cwoid);
-
+    DescribedRenderpass LoadRenderPass(WGPUTextureView color, WGPUTextureView depth);
+    DescribedRenderpass LoadRenderPassEx(WGPUTextureView color, WGPUTextureView depth, RenderSettings settings);
+    
     void BeginRenderPass(DescribedRenderpass* renderPass);
     void EndRenderPass(DescribedRenderpass* renderPass);
     void BeginPipelineMode(DescribedPipeline* pipeline);

@@ -530,7 +530,7 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     state->color = c;
     state->depth = d;
     state->vbo = 0;
-    state->renderpass = DescribedRenderpass{};
+    state->renderpass = LoadRenderPass(c, d);
     state->currentPipeline = LoadPipelineEx(shaderSource, attribs, attribCount, uniforms, uniform_count);
     state->defaultPipeline = state->currentPipeline;
     /*{
@@ -587,7 +587,7 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
         state->vlayout.stepMode = WGPUVertexStepMode_Vertex;  
         updatePipeline(state, RL_TRIANGLES);
     }*/
-    updateRenderPassDesc(state);  
+
     //WGPUBindGroupEntry hacc[8] = {};
     //memset(hacc, 0, sizeof(hacc));
     //for(uint32_t i = 0;i < 8;i++){
@@ -805,51 +805,55 @@ void updatePipeline(full_renderstate* state, draw_mode drawmode){
     state->currentPipeline->pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &state->currentPipeline->descriptor);
     //wgpuPipelineLayoutRelease(layout);
 }
-void updateRenderPassDesc(full_renderstate* state){
-    state->renderpass.renderPassDesc = WGPURenderPassDescriptor{};
-    state->renderpass.rca = WGPURenderPassColorAttachment{};
-    state->renderpass.rca.view = state->color;
-    state->renderpass.rca.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+extern "C" DescribedRenderpass LoadRenderPass(WGPUTextureView color, WGPUTextureView depth){
+    DescribedRenderpass ret{};
+    ret.renderPassDesc = WGPURenderPassDescriptor{};
+    ret.rca = (WGPURenderPassColorAttachment*)calloc(1, sizeof(WGPURenderPassColorAttachment));
+    ret.rca->view = color;
+    ret.rca->depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
     #ifdef __EMSCRIPTEN__
-    state->renderpass.rca.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+    ret.rca.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
     #endif
     //std::cout << rca.depthSlice << "\n";
-    state->renderpass.rca.resolveTarget = nullptr;
-    state->renderpass.rca.loadOp =  WGPULoadOp_Load;
-    state->renderpass.rca.storeOp = WGPUStoreOp_Store;
-    state->renderpass.rca.clearValue = WGPUColor{ 0.01, 0.01, 0.2, 1.0 };
-    state->renderpass.renderPassDesc.colorAttachmentCount = 1;
-    state->renderpass.renderPassDesc.colorAttachments = &state->renderpass.rca;
+    ret.rca->resolveTarget = nullptr;
+    ret.rca->loadOp =  WGPULoadOp_Load;
+    ret.rca->storeOp = WGPUStoreOp_Store;
+    ret.rca->clearValue = WGPUColor{ 0.01, 0.01, 0.2, 1.0 };
+    ret.renderPassDesc.colorAttachmentCount = 1;
+    ret.renderPassDesc.colorAttachments = ret.rca;
     // We now add a depth/stencil attachment:
-    state->renderpass.dsa = WGPURenderPassDepthStencilAttachment{};
+    ret.dsa = (WGPURenderPassDepthStencilAttachment*)calloc(1, sizeof(WGPURenderPassDepthStencilAttachment));
     // The view of the depth texture
-    state->renderpass.dsa.view = state->depth;
+    ret.dsa->view = depth;
     //dsa.depthSlice = 0;
     // The initial value of the depth buffer, meaning "far"
-    state->renderpass.dsa.depthClearValue = 1.0f;
+    ret.dsa->depthClearValue = 1.0f;
     // Operation settings comparable to the color attachment
-    state->renderpass.dsa.depthLoadOp = WGPULoadOp_Clear;
-    state->renderpass.dsa.depthStoreOp = WGPUStoreOp_Store;
+    ret.dsa->depthLoadOp = WGPULoadOp_Clear;
+    ret.dsa->depthStoreOp = WGPUStoreOp_Discard;
     // we could turn off writing to the depth buffer globally here
-    state->renderpass.dsa.depthReadOnly = false;
+    ret.dsa->depthReadOnly = false;
     // Stencil setup, mandatory but unused
-    state->renderpass.dsa.stencilClearValue = 0;
+    ret.dsa->stencilClearValue = 0;
     #ifdef WEBGPU_BACKEND_WGPU
-    state->renderpass.dsa.stencilLoadOp =  WGPULoadOp_Load;
-    state->renderpass.dsa.stencilStoreOp = WGPUStoreOp_Store;
+    ret.dsa.stencilLoadOp =  WGPULoadOp_Load;
+    ret.dsa.stencilStoreOp = WGPUStoreOp_Store;
     #else
-    state->renderpass.dsa.stencilLoadOp = WGPULoadOp_Undefined;
-    state->renderpass.dsa.stencilStoreOp = WGPUStoreOp_Undefined;
+    ret.dsa->stencilLoadOp = WGPULoadOp_Undefined;
+    ret.dsa->stencilStoreOp = WGPUStoreOp_Undefined;
     #endif
-    state->renderpass.dsa.stencilReadOnly = true;
-    state->renderpass.renderPassDesc.depthStencilAttachment = &state->renderpass.dsa;
-    state->renderpass.renderPassDesc.timestampWrites = nullptr;
+    ret.dsa->stencilReadOnly = true;
+    ret.renderPassDesc.depthStencilAttachment = nullptr;//ret.dsa;
+    ret.renderPassDesc.timestampWrites = nullptr;
+    return ret;
 }
 
 void setTargetTextures(full_renderstate* state, WGPUTextureView c, WGPUTextureView d){
     state->color = c;
     state->depth = d;
-    updateRenderPassDesc(state);
+    state->renderpass.rca->view = c;
+    state->renderpass.dsa->view = d;
+    //updateRenderPassDesc(state);
     if(g_wgpustate.rstate->renderpass.rpEncoder){
         EndRenderPass(&g_wgpustate.rstate->renderpass);
     }

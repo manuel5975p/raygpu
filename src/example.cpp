@@ -215,17 +215,22 @@ int main(){
     };
     auto mainloop2 = [&](void* userdata){
         BeginDrawing();
-        WGPUBindGroupEntry entry{};
-        entry.binding = 0;
-        entry.textureView = checkers.view;
-        UpdateBindGroupEntry(&pl->bindGroup, 0, entry);
-
+        //WGPUBindGroupEntry entry{};
+        //entry.binding = 0;
+        //entry.textureView = checkers.view;
+        //UpdateBindGroupEntry(&pl->bindGroup, 0, entry);
+        
         BeginPipelineMode(pl);
+        SetTexture(0, checkers);
         
         BindVertexArray(pl, va);
         DrawArrays(3);
 
         EndPipelineMode();
+        
+        //EndRenderPass(&g_wgpustate.rstate->renderpass);
+        //BeginRenderPass(&g_wgpustate.rstate->renderpass);
+        
         DrawTexturePro(checkers, Rectangle{0, 0, 100, 100}, Rectangle{-0.7,-0.7,1,1}, Vector2{0, 0}, 0.0f, Color{255,255,255,255});
         EndDrawing();
         ++frames;
