@@ -128,7 +128,9 @@ void rlVertex3f(float x, float y, float z){
 }
 
 void drawCurrentBatch(){
-    if(g_wgpustate.current_vertices.size() == 0)return;
+    size_t vertexCount = vboptr - vboptr_base;
+    //if(vertexCount == 0)return;
+    //std::cout << "vboptr reset" << std::endl;
     
     updatePipeline(g_wgpustate.rstate, g_wgpustate.current_drawmode);
     UpdateBindGroup(&g_wgpustate.rstate->currentPipeline->bindGroup);
@@ -142,34 +144,37 @@ void drawCurrentBatch(){
             WGPUCommandEncoderDescriptor arg{};
             WGPUCommandBufferDescriptor arg2{};
             WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder(GetDevice(), &arg);
-            
+            std::cout << "Reseiz: " << g_wgpustate.rstate->vbo.buffer << std::endl;
             ResizeBuffer(&g_wgpustate.rstate->vbo, vbomap.descriptor.size);
             //wgpuCommandEncoderCopyBufferToBuffer(g_wgpustate.rstate->vbo, vbomap, uint64_t sourceOffset, WGPUBuffer destination, uint64_t destinationOffset, uint64_t size)
-            WGPUCommandBuffer buf = wgpuCommandEncoderFinish(enc, &arg2);
-            updateVertexBuffer(g_wgpustate.rstate, g_wgpustate.current_vertices.data(), g_wgpustate.current_vertices.size() * sizeof(vertex));
-            size_t vcount = g_wgpustate.current_vertices.size();
+            //WGPUCommandBuffer buf = wgpuCommandEncoderFinish(enc, &arg2);
+            //updateVertexBuffer(g_wgpustate.rstate, g_wgpustate.current_vertices.data(), vertexCount * sizeof(vertex));
+            updateVertexBuffer(g_wgpustate.rstate, vboptr_base, vertexCount * sizeof(vertex));
+            size_t vcount = vertexCount;
             //g_wgpustate.rstate->executeRenderpass([vcount](WGPURenderPassEncoder renderPass){
             //    wgpuRenderPassEncoderDraw(renderPass, vcount, 1, 0, 0);
             //});
             wgpuRenderPassEncoderDraw(g_wgpustate.rstate->renderpass.rpEncoder, vcount, 1, 0, 0);
         } break;
         case RL_QUADS:{
-            updateVertexBuffer(g_wgpustate.rstate, g_wgpustate.current_vertices.data(), g_wgpustate.current_vertices.size() * sizeof(vertex));
+            //updateVertexBuffer(g_wgpustate.rstate, g_wgpustate.current_vertices.data(), vertexCount * sizeof(vertex));
             WGPUBufferDescriptor mappedIbufDesc{};
             mappedIbufDesc.mappedAtCreation = true;
             mappedIbufDesc.usage = WGPUBufferUsage_MapWrite | WGPUBufferUsage_CopySrc;
-            mappedIbufDesc.size = sizeof(uint32_t) * 6 * (g_wgpustate.current_vertices.size() / 4);
+            mappedIbufDesc.size = sizeof(uint32_t) * 6 * (vertexCount / 4);
             WGPUBufferDescriptor actualIbufDesc{};
             actualIbufDesc.mappedAtCreation = false;
             actualIbufDesc.usage = WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst;
-            actualIbufDesc.size = sizeof(uint32_t) * 6 * (g_wgpustate.current_vertices.size() / 4);
-
+            actualIbufDesc.size = sizeof(uint32_t) * 6 * (vertexCount / 4);
+            
+            ResizeBuffer(&g_wgpustate.rstate->vbo, vbomap.descriptor.size);
+            BufferData(&g_wgpustate.rstate->vbo, vboptr_base, sizeof(vertex) * vertexCount);
             //WGPUBuffer ibuf = wgpuDeviceCreateBuffer(g_wgpustate.device, &mappedIbufDesc);
             WGPUBuffer ibuf_actual = wgpuDeviceCreateBuffer(g_wgpustate.device, &actualIbufDesc);
             //uint32_t* indices = (uint32_t*)wgpuBufferGetMappedRange(ibuf, 0, mappedIbufDesc.size);
             std::vector<uint32_t> indices;
-            indices.resize(6 * (g_wgpustate.current_vertices.size() / 4));
-            for(size_t i = 0;i < (g_wgpustate.current_vertices.size() / 4);i++){
+            indices.resize(6 * (vertexCount / 4));
+            for(size_t i = 0;i < (vertexCount / 4);i++){
                 indices[i * 6 + 0] = (i * 4 + 0);
                 indices[i * 6 + 1] = (i * 4 + 1);
                 indices[i * 6 + 2] = (i * 4 + 3);
@@ -575,6 +580,8 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
 
     state->currentPipeline = LoadPipelineEx(shaderSource, attribs, attribCount, uniforms, uniform_count, settings);
     state->defaultPipeline = state->currentPipeline;
+    float dummy = 1;
+    state->vbo = GenBuffer(&dummy, 4);
     WGPUBufferDescriptor vbmdesc{};
     vbmdesc.mappedAtCreation = true;
     vbmdesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_MapWrite;
@@ -583,6 +590,8 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     vbomap.descriptor = vbmdesc;
 
     vboptr = (vertex*)wgpuBufferGetMappedRange(vbomap.buffer, 0, vbmdesc.size);
+    //std::cout << "Mapped: " << vboptr <<"\n";
+    //exit(0);
     vboptr_base = vboptr;
     /*{
         std::vector<WGPUBindGroupLayoutEntry> blayouts(shader_inputs.uniform_count);
@@ -771,6 +780,7 @@ void ResizeBuffer(DescribedBuffer* buffer, size_t newSize){
     DescribedBuffer newbuffer{};
     newbuffer.descriptor = buffer->descriptor;
     newbuffer.descriptor.size = newSize;
+    
     newbuffer.buffer = wgpuDeviceCreateBuffer(GetDevice(), &newbuffer.descriptor);
     wgpuBufferRelease(buffer->buffer);
     *buffer = newbuffer;
