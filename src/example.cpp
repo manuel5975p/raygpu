@@ -52,8 +52,8 @@ uint64_t frames = 0;
 uint64_t stmp = NanoTime();
 int main(){
     
-    constexpr uint32_t width = 1000;
-    constexpr uint32_t height = 1000;
+    constexpr uint32_t width = 1920;
+    constexpr uint32_t height = 1080;
     auto window = InitWindow(width, height);
     WGPUSamplerDescriptor sdesc;
     
@@ -61,7 +61,10 @@ int main(){
     UniformDescriptor udesc{};
     udesc.type = texture2d;
     //std::cout << "Loadpipeline" << std::endl;
-    auto pl = LoadPipelineEx(shaderSource, aar, 2, &udesc, 1);
+    RenderSettings settings{};
+    settings.depthTest = 1;
+    settings.depthCompare = WGPUCompareFunction_LessEqual;
+    auto pl = LoadPipelineEx(shaderSource, aar, 2, &udesc, 1, settings);
     //std::cout << "Loadpipelined" << std::endl;
     //Matrix udata = MatrixLookAt(Vector3{0,0,0.2}, Vector3{0,0,0}, Vector3{0,1,0});
     //Matrix udata = MatrixIdentity();
@@ -75,7 +78,7 @@ int main(){
                      1,0,0,0,1,
                      0,1,0,0.3,0.5
                     };
-    DescribedBuffer vbo = LoadBuffer(data, sizeof(data));
+    DescribedBuffer vbo = GenBuffer(data, sizeof(data));
     VertexArray* va = LoadVertexArray();
     VertexAttribPointer(va, &vbo, 0, WGPUVertexFormat_Float32x3, 0, WGPUVertexStepMode_Vertex);
     EnableVertexAttribArray(va, 0);
@@ -214,24 +217,28 @@ int main(){
 
     };
     auto mainloop2 = [&](void* userdata){
+
         BeginDrawing();
+        //ClearBackground(Color{uint8_t(frames >> 3),uint8_t(frames >> 3),0,255});
         //WGPUBindGroupEntry entry{};
         //entry.binding = 0;
         //entry.textureView = checkers.view;
         //UpdateBindGroupEntry(&pl->bindGroup, 0, entry);
         
-        BeginPipelineMode(pl);
-        SetTexture(0, checkers);
-        
-        BindVertexArray(pl, va);
-        DrawArrays(3);
-
-        EndPipelineMode();
+        //BeginPipelineMode(pl);
+        //SetTexture(0, checkers);
+        //BindVertexArray(pl, va);
+        //DrawArrays(3);
+        //EndPipelineMode();
         
         //EndRenderPass(&g_wgpustate.rstate->renderpass);
         //BeginRenderPass(&g_wgpustate.rstate->renderpass);
-        
-        DrawTexturePro(checkers, Rectangle{0, 0, 100, 100}, Rectangle{-0.7,-0.7,1,1}, Vector2{0, 0}, 0.0f, Color{255,255,255,255});
+        for(double x = -1;x < 1; x += 0.01){
+            for(double y = -1;y < 1; y += 0.01){
+                DrawTexturePro(checkers, Rectangle{0, 0, 100, 100}, Rectangle{(float)x,(float)y,0.005f,0.005f}, Vector2{0, 0}, 0.0f, Color{255,255,255,255});
+            }
+        }
+
         EndDrawing();
         ++frames;
         //std::cout << g_wgpustate.total_frames << "\n";

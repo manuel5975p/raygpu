@@ -84,6 +84,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     
     // Create the toggles descriptor if not using emscripten.
     wgpu::ChainedStruct* togglesChain = nullptr;
+    wgpu::SType type;
 #ifndef __EMSCRIPTEN__
     std::vector<const char*> enableToggleNames{};
     std::vector<const char*> disabledToggleNames{};

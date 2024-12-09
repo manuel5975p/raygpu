@@ -14,6 +14,16 @@ typedef struct UniformDescriptor{
 }UniformDescriptor;
 
 
+typedef struct RenderSettings{
+    uint8_t depthTest;
+    uint8_t faceCull;
+
+    WGPUCompareFunction depthCompare;
+    WGPUFrontFace frontFace;
+
+    WGPUTextureView optionalDepthTexture; //Depth texture (pointer), applicable if depthTest != 0
+
+}RenderSettings;
 
 typedef struct DescribedBindGroupLayout{
     WGPUBindGroupLayoutDescriptor descriptor;
@@ -34,6 +44,8 @@ typedef struct DescribedPipelineLayout{
 }DescribedPipelineLayout;
 
 typedef struct DescribedPipeline{
+    RenderSettings settings;
+
     //TODO: Multiple bindgrouplayouts
     WGPUShaderModule sh;
     DescribedBindGroup bindGroup;
@@ -49,6 +61,7 @@ typedef struct DescribedPipeline{
     WGPUFragmentState* fragmentState;
     WGPUColorTargetState* colorTarget;
     WGPUDepthStencilState* depthStencilState;
+
 
 }DescribedPipeline;
 

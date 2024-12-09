@@ -4,11 +4,11 @@
 #include "macros_and_constants.h"
 #include "mathutils.h"
 #include "pipeline.h"
-struct vertex{
+typedef struct vertex{
     Vector3 pos;
     Vector2 uv ;
     Vector4 col;
-};
+}vertex;
 typedef struct Color{
     uint8_t r, g, b, a;
 } Color;
@@ -19,7 +19,9 @@ typedef struct BGRAColor{
 typedef struct Image{
     WGPUTextureFormat format;
     uint32_t width, height;
-    size_t rowStrideInBytes; //Does not have to match with width
+    size_t rowStrideInBytes; // Does not have to match with width
+                             // One reason for this is the fact that Texture to Buffer copy commands
+                             // Have to have a multiple of 256 bytes as row length 
     void* data;
 }Image;
 
@@ -51,7 +53,11 @@ typedef struct RenderTexture{
     Texture color;
     Texture depth;
 }RenderTexture;
+
+
+
 typedef struct DescribedRenderpass{
+    RenderSettings settings;
     WGPURenderPassDescriptor renderPassDesc;
     WGPURenderPassColorAttachment* rca;
     WGPURenderPassDepthStencilAttachment* dsa;
@@ -68,6 +74,10 @@ typedef struct DescribedBuffer{
     WGPUBufferDescriptor descriptor;
     WGPUBuffer buffer;
 }DescribedBuffer;
+static vertex* vboptr;
+static vertex* vboptr_base;
+static DescribedBuffer vbomap;
+
 
 enum draw_mode{
     RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS
@@ -81,14 +91,8 @@ typedef struct AttributeAndResidence{
     WGPUVertexStepMode stepMode;
 }AttributeAndResidence;
 
-typedef struct RenderSettings{
-    uint8_t depthTest;
-    uint8_t faceCull;
-
-    WGPUCompareFunction depthCompare;
-    WGPUFrontFace frontFace;
-
-}RenderSettings;
+/**
+ */
 typedef struct VertexArray VertexArray;
 
 
@@ -113,13 +117,16 @@ EXTERN_C_BEGIN
     uint64_t NanoTime(cwoid);
 
     uint32_t GetFPS(cwoid);
+    void ClearBackground(Color clearColor);
     void BeginDrawing(cwoid);
     void EndDrawing(cwoid);
-    DescribedRenderpass LoadRenderPass(WGPUTextureView color, WGPUTextureView depth);
-    DescribedRenderpass LoadRenderPassEx(WGPUTextureView color, WGPUTextureView depth, RenderSettings settings);
+    DescribedRenderpass LoadRenderpass(WGPUTextureView color, WGPUTextureView depth);
+    DescribedRenderpass LoadRenderpassEx(WGPUTextureView color, WGPUTextureView depth, RenderSettings settings);
+    void UpdateRenderpass(DescribedRenderpass* rp, RenderSettings newSettings);
+    void UnloadRenderpass(DescribedRenderpass rp);
     
-    void BeginRenderPass(DescribedRenderpass* renderPass);
-    void EndRenderPass(DescribedRenderpass* renderPass);
+    void BeginRenderpassEx(DescribedRenderpass* renderPass);
+    void EndRenderpassEx(DescribedRenderpass* renderPass);
     void BeginPipelineMode(DescribedPipeline* pipeline);
     void EndPipelineMode();
 
@@ -144,7 +151,7 @@ EXTERN_C_BEGIN
     WGPUShaderModule LoadShaderFromMemory(const char* shaderSource);
     WGPUShaderModule LoadShader(const char* path);
 
-    DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount);
+    DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
 
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
     Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format, bool to_be_used_as_rendertarget);
@@ -152,7 +159,10 @@ EXTERN_C_BEGIN
     Texture LoadDepthTexture(uint32_t width, uint32_t height);
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
     
-    DescribedBuffer LoadBuffer(const void* data, size_t size);
+    DescribedBuffer GenBuffer(const void* data, size_t size);
+    void BufferData(DescribedBuffer* buffer, const void* data, size_t size);
+    void ResizeBuffer(DescribedBuffer* buffer, size_t newSize);
+    void ResizeBufferAndConserve(DescribedBuffer* buffer, size_t newSize);
     void BindVertexBuffer(const DescribedBuffer* buffer);
 
     void SetTexture       (uint32_t index, Texture tex);
@@ -188,10 +198,16 @@ EXTERN_C_BEGIN
             case WGPUVertexFormat_Float32:
             case WGPUVertexFormat_Uint32:
             case WGPUVertexFormat_Sint32:
+            case WGPUVertexFormat_Float16x2:
+            case WGPUVertexFormat_Uint16x2:
+            case WGPUVertexFormat_Sint16x2:
             return 4;
             case WGPUVertexFormat_Float32x2:
             case WGPUVertexFormat_Uint32x2:
             case WGPUVertexFormat_Sint32x2:
+            case WGPUVertexFormat_Float16x4:
+            case WGPUVertexFormat_Uint16x4:
+            case WGPUVertexFormat_Sint16x4:
             return 8;
             case WGPUVertexFormat_Float32x3:
             case WGPUVertexFormat_Uint32x3:
@@ -201,7 +217,10 @@ EXTERN_C_BEGIN
             case WGPUVertexFormat_Uint32x4:
             case WGPUVertexFormat_Sint32x4:
             return 16;
-            
+            case WGPUVertexFormat_Float16:
+            case WGPUVertexFormat_Uint16:
+            case WGPUVertexFormat_Sint16:
+            return 2;
             default:
             break;
         }
@@ -216,14 +235,16 @@ typedef struct full_renderstate{
 
     DescribedPipeline* defaultPipeline;
     DescribedPipeline* currentPipeline;
-    DescribedRenderpass renderpass;
 
+    DescribedRenderpass clearPass;
+    DescribedRenderpass renderpass;
+    DescribedRenderpass* activeRenderPass;
 
     //WGPUBindGroupLayoutDescriptor bglayoutdesc;
     //WGPUBindGroupLayout bglayout;
     //WGPURenderPipelineDescriptor pipelineDesc;
     
-    WGPUBuffer vbo;
+    DescribedBuffer vbo;
 
     
     //#ifdef __cplusplus
