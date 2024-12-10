@@ -248,11 +248,11 @@ int main(){
         //UpdateStagingBuffer(&mbuf);
         //wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->activeRenderPass->rpEncoder, 0, mbuf.gpuUsable.buffer, 0, sizeof(float)*15);
         //wgpuRenderPassEncoderDraw(g_wgpustate.rstate->activeRenderPass->rpEncoder, 3, 1, 0, 0);
-        for(size_t i = 0;i < 100;i++){
-            data2[5] += 0.0001f;
+        for(size_t i = 0;i < 0;i++){
+            data2[5] += 0.001f;
             data2[5] = std::max(data2[5], -0.99f);
             data2[5] = std::fmod(data2[5]+1, 5.0f)-1;
-            data2[11] += 0.0001f;
+            data2[11] += 0.002f;
             data2[11] = std::max(data2[11], -0.99f);
             data2[11] = std::fmod(data2[11]+1, 5.0f)-1;
             DescribedBuffer buf = GenBuffer(data2, ds * 3);
@@ -280,13 +280,14 @@ int main(){
         //BeginRenderPass(&g_wgpustate.rstate->renderpass);
         for(double x = -1;x <= 1; x += 0.25){
             for(double y = -1;y <= 1; y += 0.25){
-                //SetTexture(1, g_wgpustate.whitePixel);
-                //rlBegin(RL_TRIANGLES);
-                //rlColor4f(1, 0, 1, 1);
-                //rlVertex2f(x, y);
-                //rlVertex2f(x + 0.05, y);
-                //rlVertex2f(x, y + 0.05);
-                //rlEnd();
+                SetTexture(1, g_wgpustate.whitePixel);
+                rlBegin(RL_TRIANGLES);
+                rlColor4f(0, 0.2, 1, 1);
+                rlVertex2f(x, y);
+                rlVertex2f(x + 0.05, y);
+                rlVertex2f(x, y + 0.05);
+                rlEnd();
+                
                 //assert(g_wgpustate.rstate->activeRenderPass == &g_wgpustate.rstate->renderpass);
                 //EndRenderpassEx(&g_wgpustate.rstate->renderpass);
                 //BeginRenderpassEx(&g_wgpustate.rstate->renderpass);

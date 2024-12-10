@@ -86,7 +86,7 @@ extern Vector4 nextcol;
 extern StagingBuffer vboStaging;
 extern vertex* vboptr;
 extern vertex* vboptr_base;
-extern DescribedBuffer vbomap;
+//extern DescribedBuffer vbomap;
 
 
 enum draw_mode{
