@@ -5,6 +5,7 @@
 
 #ifdef __cplusplus
 #define zeroinit {}
+#define CLITERAL(X) X
 #define EXTERN_C_BEGIN extern "C" {
 #define EXTERN_C_END }
 #define cwoid
@@ -18,6 +19,7 @@ using std::memset;
 using std::free;
 #else
 #define zeroinit  = {0}
+#define CLITERAL(X) (X)
 #include <stdlib.h>
 #include <string.h>
 #define EXTERN_C_BEGIN

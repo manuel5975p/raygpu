@@ -74,9 +74,13 @@ typedef struct DescribedBuffer{
     WGPUBufferDescriptor descriptor;
     WGPUBuffer buffer;
 }DescribedBuffer;
-static vertex* vboptr;
-static vertex* vboptr_base;
-static DescribedBuffer vbomap;
+
+
+extern Vector2 nextuv;
+extern Vector4 nextcol;
+extern vertex* vboptr;
+extern vertex* vboptr_base;
+extern DescribedBuffer vbomap;
 
 
 enum draw_mode{
@@ -136,10 +140,23 @@ EXTERN_C_BEGIN
     
     void UseTexture(Texture tex);
     void UseNoTexture(cwoid);
-    void rlColor4f(float r, float g, float b, float alpha);
-    void rlTexCoord2f(float u, float v);
-    void rlVertex2f(float x, float y);
-    void rlVertex3f(float x, float y, float z);
+    inline void rlColor4f(float r, float g, float b, float alpha){
+        nextcol.x = r;
+        nextcol.y = g;
+        nextcol.z = b;
+        nextcol.w = alpha;
+    }
+    inline void rlTexCoord2f(float u, float v){
+        nextuv.x = u;
+        nextuv.y = v;
+    }
+
+    inline void rlVertex2f(float x, float y){
+        *(vboptr++) = CLITERAL(vertex){{x, y, 0}, nextuv, nextcol};
+    }
+    inline void rlVertex3f(float x, float y, float z){
+        *(vboptr++) = CLITERAL(vertex){{x, y, z}, nextuv, nextcol};
+    }
     void rlBegin(enum draw_mode mode);
     void rlEnd(cwoid);
 

@@ -16,6 +16,15 @@
 #endif  // __EMSCRIPTEN__
 wgpustate g_wgpustate;
 #include <stb_image_write.h>
+
+
+Vector2 nextuv;
+Vector4 nextcol;
+vertex* vboptr;
+vertex* vboptr_base;
+DescribedBuffer vbomap;
+
+
 typedef struct VertexArray{
     std::vector<AttributeAndResidence> attributes;
     std::vector<std::pair<DescribedBuffer, WGPUVertexStepMode>> buffers;
@@ -106,30 +115,12 @@ WGPUDevice GetDevice(){
 WGPUQueue GetQueue(){
     return g_wgpustate.queue;
 }
-void rlColor4f(float r, float g, float b, float alpha){
-    g_wgpustate.nextcol.x = r;
-    g_wgpustate.nextcol.y = g;
-    g_wgpustate.nextcol.z = b;
-    g_wgpustate.nextcol.w = alpha;
 
-}
-void rlTexCoord2f(float u, float v){
-    g_wgpustate.nextuv.x = u;
-    g_wgpustate.nextuv.y = v;
-}
-
-void rlVertex2f(float x, float y){
-    *(vboptr++) = vertex{{x, y, 0}, g_wgpustate.nextuv, g_wgpustate.nextcol};
-    //g_wgpustate.current_vertices.push_back(vertex{{x, y, 0}, g_wgpustate.nextuv, g_wgpustate.nextcol});
-}
-void rlVertex3f(float x, float y, float z){
-    *(vboptr++) = vertex{{x, y, z}, g_wgpustate.nextuv, g_wgpustate.nextcol};
-    //g_wgpustate.current_vertices.push_back(vertex{{x, y, z}, g_wgpustate.nextuv, g_wgpustate.nextcol});
-}
 
 void drawCurrentBatch(){
     size_t vertexCount = vboptr - vboptr_base;
-    //if(vertexCount == 0)return;
+    std::cout << "vcoun = " << vertexCount << "\n";
+    if(vertexCount == 0)return;
     //std::cout << "vboptr reset" << std::endl;
     
     updatePipeline(g_wgpustate.rstate, g_wgpustate.current_drawmode);
@@ -145,6 +136,7 @@ void drawCurrentBatch(){
             WGPUCommandEncoderDescriptor arg{};
             WGPUCommandBufferDescriptor arg2{};
             WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder(GetDevice(), &arg);
+            //std::cout << "Reseiz: " << g_wgpustate.rstate->vbo.buffer << std::endl;
             ResizeBuffer(&g_wgpustate.rstate->vbo, vbomap.descriptor.size);
             wgpuCommandEncoderCopyBufferToBuffer(enc, vbomap.buffer, 0, g_wgpustate.rstate->vbo.buffer, 0, vertexCount * sizeof(vertex));
             WGPUCommandBuffer buf = wgpuCommandEncoderFinish(enc, &arg2);
@@ -158,7 +150,9 @@ void drawCurrentBatch(){
             WGPUFuture f = b.MapAsync(wgpu::MapMode::Write, 0, b.GetSize(), wgpu::CallbackMode::WaitAnyOnly, [](wgpu::MapAsyncStatus status, wgpu::StringView message){});
             WGPUFutureWaitInfo winfo{f, 0};
             wgpuInstanceWaitAny(g_wgpustate.instance, 1, &winfo, UINT64_MAX);
-            b.MoveToCHandle();
+            vbomap.buffer = b.MoveToCHandle();
+            vboptr_base = (vertex*)wgpuBufferGetMappedRange(vbomap.buffer, 0, vbomap.descriptor.size);
+            vboptr = vboptr_base;
             //WGPUBufferMapCallbackInfo x{};
             //x.userdata = 0;
             //wgpuBufferMapAsync(vbomap.buffer, WGPUMapMode_Write, 0, vbomap.descriptor.size, x);
@@ -191,7 +185,6 @@ void drawCurrentBatch(){
             ResizeBuffer(&g_wgpustate.rstate->vbo, vbomap.descriptor.size);
             wgpuCommandEncoderCopyBufferToBuffer(enc, vbomap.buffer, 0, g_wgpustate.rstate->vbo.buffer, 0, vertexCount * sizeof(vertex));
             WGPUCommandBuffer buf = wgpuCommandEncoderFinish(enc, &arg2);
-            wgpu::Buffer vb;
             wgpuBufferUnmap(vbomap.buffer);
             wgpuQueueSubmit(GetQueue(), 1, &buf);
             wgpuCommandEncoderRelease(enc);
@@ -201,7 +194,9 @@ void drawCurrentBatch(){
             WGPUFuture f = b.MapAsync(wgpu::MapMode::Write, 0, b.GetSize(), wgpu::CallbackMode::WaitAnyOnly, [](wgpu::MapAsyncStatus status, wgpu::StringView message){});
             WGPUFutureWaitInfo winfo{f, 0};
             wgpuInstanceWaitAny(g_wgpustate.instance, 1, &winfo, UINT64_MAX);
-            b.MoveToCHandle();
+            vbomap.buffer = b.MoveToCHandle();
+            vboptr_base = (vertex*)wgpuBufferGetMappedRange(vbomap.buffer, 0, vbomap.descriptor.size);
+            vboptr = vboptr_base;
             //BufferData(&g_wgpustate.rstate->vbo, vboptr_base, sizeof(vertex) * vertexCount);
             //WGPUBuffer ibuf = wgpuDeviceCreateBuffer(g_wgpustate.device, &mappedIbufDesc);
             WGPUBuffer ibuf_actual = wgpuDeviceCreateBuffer(g_wgpustate.device, &actualIbufDesc);
@@ -314,7 +309,7 @@ void BeginDrawing(){
     WGPUTextureView nextTexture = wgpuTextureCreateView(surfaceTexture.texture, nullptr);
     g_wgpustate.currentSurfaceTextureView = nextTexture;
     setTargetTextures(g_wgpustate.rstate, nextTexture, g_wgpustate.rstate->depth);
-    BeginRenderpassEx(&g_wgpustate.rstate->clearPass);
+    BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
     //EndRenderPass(&g_wgpustate.rstate->clearPass);
     //BeginRenderPass(&g_wgpustate.rstate->renderpass);
     //UseNoTexture();
@@ -622,8 +617,9 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     vbmdesc.size = (1 << 22) * sizeof(vertex);
     vbomap.buffer = wgpuDeviceCreateBuffer(GetDevice(), &vbmdesc);
     vbomap.descriptor = vbmdesc;
-
+    vboptr_base = nullptr;
     vboptr = (vertex*)wgpuBufferGetMappedRange(vbomap.buffer, 0, vbmdesc.size);
+    std::cout << "VBO Punker: " << vboptr << "\n";
     //std::cout << "Mapped: " << vboptr <<"\n";
     //exit(0);
     vboptr_base = vboptr;
@@ -927,6 +923,7 @@ void updatePipeline(full_renderstate* state, draw_mode drawmode){
     //layoutDesc.bindGroupLayouts = &state->pipeline.bglayout.layout;
     //WGPUPipelineLayout layout = wgpuDeviceCreatePipelineLayout(g_wgpustate.device, &layoutDesc);
     //state->pipeline.descriptor.layout = layout;
+    wgpuRenderPipelineRelease(state->currentPipeline->pipeline);
     state->currentPipeline->pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &state->currentPipeline->descriptor);
     //wgpuPipelineLayoutRelease(layout);
 }

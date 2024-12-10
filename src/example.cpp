@@ -219,7 +219,7 @@ int main(){
     auto mainloop2 = [&](void* userdata){
 
         BeginDrawing();
-        //ClearBackground(Color{uint8_t(frames >> 3),uint8_t(frames >> 3),0,255});
+        ClearBackground(Color{uint8_t(frames),uint8_t(frames),0,255});
         //WGPUBindGroupEntry entry{};
         //entry.binding = 0;
         //entry.textureView = checkers.view;
@@ -233,19 +233,21 @@ int main(){
         
         //EndRenderPass(&g_wgpustate.rstate->renderpass);
         //BeginRenderPass(&g_wgpustate.rstate->renderpass);
-        for(double x = -1;x < 1; x += 0.1){
-            for(double y = -1;y < 1; y += 0.1){
+        for(double x = 0;x <= 0; x += 0.5){
+            for(double y = 0;y <= 0; y += 0.5){
                 rlBegin(RL_TRIANGLES);
                 rlColor4f(1, 1, 1, 1);
                 rlVertex2f(x, y);
-                rlVertex2f(x + 0.005, y);
-                rlVertex2f(x, y + 0.005);
+                rlVertex2f(x + 0.05, y);
+                rlVertex2f(x, y + 0.05);
                 rlEnd();
-                DrawTexturePro(checkers, Rectangle{0, 0, 100, 100}, Rectangle{(float)x,(float)y,0.05f,0.05f}, Vector2{0, 0}, 0.0f, Color{255,255,255,255});
+                DrawTexturePro(checkers, Rectangle{0, 0, 100, 100}, Rectangle{(float)x + 0.4f,(float)y,0.05f,0.05f}, Vector2{0, 0}, 0.0f, Color{255,255,255,255});
+                std::cout << g_wgpustate.rstate->activeRenderPass->rca->loadOp << "\n";
             }
         }
 
         EndDrawing();
+        std::cout << "frame\n\n";
         ++frames;
         //std::cout << g_wgpustate.total_frames << "\n";
         uint64_t nextStmp = NanoTime();
