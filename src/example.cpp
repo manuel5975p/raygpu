@@ -233,9 +233,15 @@ int main(){
         
         //EndRenderPass(&g_wgpustate.rstate->renderpass);
         //BeginRenderPass(&g_wgpustate.rstate->renderpass);
-        for(double x = -1;x < 1; x += 0.01){
-            for(double y = -1;y < 1; y += 0.01){
-                DrawTexturePro(checkers, Rectangle{0, 0, 100, 100}, Rectangle{(float)x,(float)y,0.005f,0.005f}, Vector2{0, 0}, 0.0f, Color{255,255,255,255});
+        for(double x = -1;x < 1; x += 0.1){
+            for(double y = -1;y < 1; y += 0.1){
+                rlBegin(RL_TRIANGLES);
+                rlColor4f(1, 1, 1, 1);
+                rlVertex2f(x, y);
+                rlVertex2f(x + 0.005, y);
+                rlVertex2f(x, y + 0.005);
+                rlEnd();
+                DrawTexturePro(checkers, Rectangle{0, 0, 100, 100}, Rectangle{(float)x,(float)y,0.05f,0.05f}, Vector2{0, 0}, 0.0f, Color{255,255,255,255});
             }
         }
 
