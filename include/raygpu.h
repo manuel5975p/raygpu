@@ -75,9 +75,15 @@ typedef struct DescribedBuffer{
     WGPUBuffer buffer;
 }DescribedBuffer;
 
+typedef struct StagingBuffer{
+    DescribedBuffer gpuUsable;
+    DescribedBuffer mappable;
+    void* map; //Nullable
+}StagingBuffer;
 
 extern Vector2 nextuv;
 extern Vector4 nextcol;
+extern StagingBuffer vboStaging;
 extern vertex* vboptr;
 extern vertex* vboptr_base;
 extern DescribedBuffer vbomap;
@@ -176,6 +182,12 @@ EXTERN_C_BEGIN
     Texture LoadDepthTexture(uint32_t width, uint32_t height);
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
     
+    StagingBuffer GenStagingBuffer(size_t size, WGPUBufferUsage usage);
+    void UpdateStagingBuffer(StagingBuffer* buffer);
+    void RecreateStagingBuffer(StagingBuffer* buffer);
+    //void MapStagingBuffer(size_t size, WGPUBufferUsage usage);
+    void UnloadStagingBuffer(StagingBuffer* buf);
+    
     DescribedBuffer GenBuffer(const void* data, size_t size);
     void BufferData(DescribedBuffer* buffer, const void* data, size_t size);
     void ResizeBuffer(DescribedBuffer* buffer, size_t newSize);
@@ -188,14 +200,14 @@ EXTERN_C_BEGIN
     void SetStorageBuffer (uint32_t index, const void* data, size_t size);
     
     void init_full_renderstate (full_renderstate* state, const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniform_count, WGPUTextureView c, WGPUTextureView d);
-    void updateVertexBuffer    (full_renderstate* state, const void* data, size_t size);
-    void setStateTexture       (full_renderstate* state, uint32_t index, Texture tex);
-    void setStateSampler       (full_renderstate* state, uint32_t index, WGPUSampler sampler);
-    void setStateUniformBuffer (full_renderstate* state, uint32_t index, const void* data, size_t size);
-    void setStateStorageBuffer (full_renderstate* state, uint32_t index, const void* data, size_t size);
-    void updateBindGroup       (full_renderstate* state);
+    //void updateVertexBuffer    (full_renderstate* state, const void* data, size_t size);
+    //void setStateTexture       (full_renderstate* state, uint32_t index, Texture tex);
+    //void setStateSampler       (full_renderstate* state, uint32_t index, WGPUSampler sampler);
+    //void setStateUniformBuffer (full_renderstate* state, uint32_t index, const void* data, size_t size);
+    //void setStateStorageBuffer (full_renderstate* state, uint32_t index, const void* data, size_t size);
+    //void updateBindGroup       (full_renderstate* state);
     void updatePipeline        (full_renderstate* state, enum draw_mode drawmode);
-    void updateRenderPassDesc  (full_renderstate* state);
+    //void updateRenderPassDesc  (full_renderstate* state);
     void setTargetTextures     (full_renderstate* state, WGPUTextureView c, WGPUTextureView d);
 
     VertexArray* LoadVertexArray();

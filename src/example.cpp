@@ -72,11 +72,21 @@ int main(){
     //Matrix udata = (MatrixPerspective(1.2, 1, 0.01, 100.0));
     rtex = LoadRenderTexture(1000, 1000);
     Texture tex = LoadTextureFromImage(LoadImageChecker(Color{255,0,0,255}, Color{0,255,0,255}, 100, 100, 10));
-    checkers = LoadTextureFromImage(LoadImageChecker(Color{230, 230, 230, 255}, Color{100, 100, 100, 255}, 100, 100, 10));
+    checkers = LoadTextureFromImage(LoadImageChecker(Color{0, 230, 230, 255}, Color{0, 100, 100, 255}, 100, 100, 10));
     WGPUBufferDescriptor mapBufferDesc{};
     float data[15] = {0,0,0,1,0,
                      1,0,0,0,1,
                      0,1,0,0.3,0.5
+                    };
+    float data2[45] = {-1,-1,0,1,0,
+                       0,-1,0,0,1,
+                       -1,0,0,0.3,0.5,
+                       -1,-1,0,1,0,
+                       0,-1,0,0,1,
+                       -1,0,0,0.3,0.5,
+                       -1,-1,0,1,0,
+                       0,-1,0,0,1,
+                       -1,0,0,0.3,0.5
                     };
     DescribedBuffer vbo = GenBuffer(data, sizeof(data));
     VertexArray* va = LoadVertexArray();
@@ -216,42 +226,85 @@ int main(){
         }
 
     };
+    StagingBuffer mbuf = GenStagingBuffer(15 * sizeof(float), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex);
+    memcpy(mbuf.map, data, sizeof(float) * 15);
+    UpdateStagingBuffer(&mbuf);
+    constexpr size_t ds = sizeof(float) * 15;
+    
+    DescribedBuffer buf2 = GenBuffer(data2, ds);
+    
     auto mainloop2 = [&](void* userdata){
 
         BeginDrawing();
-        ClearBackground(Color{uint8_t(frames),uint8_t(frames),0,255});
-        //WGPUBindGroupEntry entry{};
-        //entry.binding = 0;
-        //entry.textureView = checkers.view;
-        //UpdateBindGroupEntry(&pl->bindGroup, 0, entry);
+        //ClearBackground(Color{uint8_t(frames),uint8_t(frames),0,255});
+        WGPUBindGroupEntry entry{};
+        entry.binding = 0;
+        entry.textureView = checkers.view;
+        UpdateBindGroupEntry(&pl->bindGroup, 0, entry);
+        //DescribedBuffer buf = GenBuffer(data, ds);
+        BeginPipelineMode(pl);
+        //RecreateStagingBuffer(&mbuf);
+        //memcpy(mbuf.map, data, sizeof(float) * 15);
+        //UpdateStagingBuffer(&mbuf);
+        //wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->activeRenderPass->rpEncoder, 0, mbuf.gpuUsable.buffer, 0, sizeof(float)*15);
+        //wgpuRenderPassEncoderDraw(g_wgpustate.rstate->activeRenderPass->rpEncoder, 3, 1, 0, 0);
+        for(size_t i = 0;i < 100;i++){
+            data2[5] += 0.0001f;
+            data2[5] = std::max(data2[5], -0.99f);
+            data2[5] = std::fmod(data2[5]+1, 5.0f)-1;
+            data2[11] += 0.0001f;
+            data2[11] = std::max(data2[11], -0.99f);
+            data2[11] = std::fmod(data2[11]+1, 5.0f)-1;
+            DescribedBuffer buf = GenBuffer(data2, ds * 3);
+            
+            //RecreateStagingBuffer(&mbuf);
+            //memcpy(mbuf.map, data2, sizeof(float) * 15);
+            //UpdateStagingBuffer(&mbuf);
+            
+            wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->activeRenderPass->rpEncoder, 0, buf.buffer, 0, sizeof(float)*15);
+            wgpuRenderPassEncoderDraw(g_wgpustate.rstate->activeRenderPass->rpEncoder, 3, 1, 0, 0);
+            wgpuBufferRelease(buf.buffer);
+        }
         
-        //BeginPipelineMode(pl);
+        //wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->activeRenderPass->rpEncoder, 0, buf.buffer, 0, sizeof(float)*15);
+        //wgpuRenderPassEncoderDraw(g_wgpustate.rstate->activeRenderPass->rpEncoder, 3, 1, 0, 0);
+        //wgpuBufferRelease(buf.buffer);
+        //buf = GenBuffer(data2, ds);
+        //wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->activeRenderPass->rpEncoder, 0, buf2.buffer, 0, sizeof(float)*15);
+        //wgpuRenderPassEncoderDraw(g_wgpustate.rstate->activeRenderPass->rpEncoder, 3, 1, 0, 0);
         //SetTexture(0, checkers);
         //BindVertexArray(pl, va);
         //DrawArrays(3);
-        //EndPipelineMode();
-        
+        EndPipelineMode();
         //EndRenderPass(&g_wgpustate.rstate->renderpass);
         //BeginRenderPass(&g_wgpustate.rstate->renderpass);
-        for(double x = 0;x <= 0; x += 0.5){
-            for(double y = 0;y <= 0; y += 0.5){
-                rlBegin(RL_TRIANGLES);
-                rlColor4f(1, 1, 1, 1);
-                rlVertex2f(x, y);
-                rlVertex2f(x + 0.05, y);
-                rlVertex2f(x, y + 0.05);
-                rlEnd();
-                DrawTexturePro(checkers, Rectangle{0, 0, 100, 100}, Rectangle{(float)x + 0.4f,(float)y,0.05f,0.05f}, Vector2{0, 0}, 0.0f, Color{255,255,255,255});
-                std::cout << g_wgpustate.rstate->activeRenderPass->rca->loadOp << "\n";
+        for(double x = -1;x <= 1; x += 0.25){
+            for(double y = -1;y <= 1; y += 0.25){
+                //SetTexture(1, g_wgpustate.whitePixel);
+                //rlBegin(RL_TRIANGLES);
+                //rlColor4f(1, 0, 1, 1);
+                //rlVertex2f(x, y);
+                //rlVertex2f(x + 0.05, y);
+                //rlVertex2f(x, y + 0.05);
+                //rlEnd();
+                //assert(g_wgpustate.rstate->activeRenderPass == &g_wgpustate.rstate->renderpass);
+                //EndRenderpassEx(&g_wgpustate.rstate->renderpass);
+                //BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
+                //DrawTexturePro(g_wgpustate.whitePixel, Rectangle{0, 0, 100, 100}, Rectangle{(float)x + 0.4f,(float)y,0.05f,0.05f}, Vector2{0, 0}, 0.0f, Color{255,255,255,255});
+                //EndRenderpassEx(&g_wgpustate.rstate->renderpass);
+                //BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
+                //vboptr = vboptr_base;
+                //std::cout << g_wgpustate.rstate->activeRenderPass->dsa->depthStoreOp << "\n";
+                //std::cout << g_wgpustate.rstate->activeRenderPass->rca->storeOp << "\n";
+                //break;
             }
         }
 
         EndDrawing();
-        std::cout << "frame\n\n";
         ++frames;
         //std::cout << g_wgpustate.total_frames << "\n";
         uint64_t nextStmp = NanoTime();
-        if(nextStmp - stmp > 1000000000){
+        if(nextStmp - stmp > 100000000){
             std::cout << GetFPS() << "\n";
             stmp = NanoTime();
         }

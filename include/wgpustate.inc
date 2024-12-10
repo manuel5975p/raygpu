@@ -17,7 +17,6 @@ struct wgpustate{
     
 
     Texture whitePixel;
-    Texture activeTexture;
 
     WGPUSurfaceTexture currentSurfaceTexture;
     WGPUTextureView currentSurfaceTextureView;

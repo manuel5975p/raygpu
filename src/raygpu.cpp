@@ -119,7 +119,7 @@ WGPUQueue GetQueue(){
 
 void drawCurrentBatch(){
     size_t vertexCount = vboptr - vboptr_base;
-    std::cout << "vcoun = " << vertexCount << "\n";
+    //std::cout << "vcoun = " << vertexCount << "\n";
     if(vertexCount == 0)return;
     //std::cout << "vboptr reset" << std::endl;
     
@@ -158,13 +158,12 @@ void drawCurrentBatch(){
             //wgpuBufferMapAsync(vbomap.buffer, WGPUMapMode_Write, 0, vbomap.descriptor.size, x);
             //updateVertexBuffer(g_wgpustate.rstate, g_wgpustate.current_vertices.data(), vertexCount * sizeof(vertex));
             //updateVertexBuffer(g_wgpustate.rstate, vboptr_base, vertexCount * sizeof(vertex));
-            size_t vcount = vertexCount;
             //g_wgpustate.rstate->executeRenderpass([vcount](WGPURenderPassEncoder renderPass){
             //    wgpuRenderPassEncoderDraw(renderPass, vcount, 1, 0, 0);
             //});
             BindPipeline(g_wgpustate.rstate->currentPipeline);
             wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, g_wgpustate.rstate->vbo.buffer, 0, wgpuBufferGetSize(g_wgpustate.rstate->vbo.buffer));
-            wgpuRenderPassEncoderDraw(g_wgpustate.rstate->renderpass.rpEncoder, vcount, 1, 0, 0);
+            wgpuRenderPassEncoderDraw(g_wgpustate.rstate->renderpass.rpEncoder, vertexCount, 1, 0, 0);
         } break;
         case RL_QUADS:{
             
@@ -335,6 +334,9 @@ void EndDrawing(){
 void rlBegin(draw_mode mode){
     if(g_wgpustate.current_drawmode != mode){
         drawCurrentBatch();
+        //assert(g_wgpustate.rstate->activeRenderPass == &g_wgpustate.rstate->renderpass);
+        //EndRenderpassEx(&g_wgpustate.rstate->renderpass);
+        //BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
     }
     g_wgpustate.current_drawmode = mode;
 }
@@ -619,7 +621,7 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     vbomap.descriptor = vbmdesc;
     vboptr_base = nullptr;
     vboptr = (vertex*)wgpuBufferGetMappedRange(vbomap.buffer, 0, vbmdesc.size);
-    std::cout << "VBO Punker: " << vboptr << "\n";
+    std::cout << "VBO Punkter: " << vboptr << "\n";
     //std::cout << "Mapped: " << vboptr <<"\n";
     //exit(0);
     vboptr_base = vboptr;
@@ -806,7 +808,6 @@ extern "C" void SetSampler(uint32_t index, WGPUSampler sampler){
 void ResizeBuffer(DescribedBuffer* buffer, size_t newSize){
     if(newSize == buffer->descriptor.size)return;
 
-    size_t smaller = std::min(newSize, buffer->descriptor.size);
     DescribedBuffer newbuffer{};
     newbuffer.descriptor = buffer->descriptor;
     newbuffer.descriptor.size = newSize;
@@ -1062,7 +1063,8 @@ void SaveImage(Image img, const char* filepath){
         stbi_write_jpg(filepath, img.width, img.height, 4, ocols, stride);
     }
     else if(fp.ends_with(".bmp")){
-        std::cerr << "Careful with bmp!" << filepath << "\n";
+        //if(row)
+        //std::cerr << "Careful with bmp!" << filepath << "\n";
         stbi_write_bmp(filepath, img.width, img.height, 4, ocols);
     }
     else{
@@ -1123,13 +1125,68 @@ void EndTextureMode(){
     drawCurrentBatch();
     setTargetTextures(g_wgpustate.rstate, g_wgpustate.currentSurfaceTextureView, depthTexture.view);
 }
+
+extern "C" StagingBuffer GenStagingBuffer(size_t size, WGPUBufferUsage usage){
+    StagingBuffer ret{};
+    ret.mappable.descriptor = WGPUBufferDescriptor{
+        .nextInChain = nullptr,
+        .label = WGPUStringView{},
+        .usage = WGPUBufferUsage_MapWrite | WGPUBufferUsage_CopySrc,
+        .size = size,
+        .mappedAtCreation = true
+    };
+    ret.gpuUsable.descriptor = WGPUBufferDescriptor{
+        .nextInChain = nullptr,
+        .label = WGPUStringView{},
+        .usage = usage,
+        .size = size,
+        .mappedAtCreation = false
+    };
+    ret.gpuUsable.buffer = wgpuDeviceCreateBuffer(GetDevice(), &ret.gpuUsable.descriptor);
+    ret.mappable.buffer = wgpuDeviceCreateBuffer(GetDevice(), &ret.mappable.descriptor);
+    ret.map = wgpuBufferGetMappedRange(ret.mappable.buffer, 0, size);
+    return ret;
+}
+void RecreateStagingBuffer(StagingBuffer* buffer){
+    wgpuBufferRelease(buffer->gpuUsable.buffer);
+    buffer->gpuUsable.buffer = wgpuDeviceCreateBuffer(GetDevice(), &buffer->gpuUsable.descriptor);
+}
+
+void UpdateStagingBuffer(StagingBuffer* buffer){
+    wgpuBufferUnmap(buffer->mappable.buffer);
+    WGPUCommandEncoderDescriptor arg{};
+    WGPUCommandBufferDescriptor arg2{};
+    WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder(GetDevice(), &arg);
+    wgpuCommandEncoderCopyBufferToBuffer(enc, buffer->mappable.buffer, 0, buffer->gpuUsable.buffer, 0,buffer->mappable.descriptor.size);
+    WGPUCommandBuffer buf = wgpuCommandEncoderFinish(enc, &arg2);
+    wgpuQueueSubmit(GetQueue(), 1, &buf);
+    
+    wgpu::Buffer b(buffer->mappable.buffer);
+    WGPUFuture f = b.MapAsync(wgpu::MapMode::Write, 0, b.GetSize(), wgpu::CallbackMode::WaitAnyOnly, [](wgpu::MapAsyncStatus status, wgpu::StringView message){});
+    wgpuCommandEncoderRelease(enc);
+    wgpuCommandBufferRelease(buf);
+    WGPUFutureWaitInfo winfo{f, 0};
+    wgpuInstanceWaitAny(g_wgpustate.instance, 1, &winfo, UINT64_MAX);
+    buffer->mappable.buffer = b.MoveToCHandle();
+    buffer->map = (vertex*)wgpuBufferGetMappedRange(buffer->mappable.buffer, 0, buffer->mappable.descriptor.size);
+}
+//StagingBuffer MapStagingBuffer(size_t size, WGPUBufferUsage usage){
+//
+//}
+void UnloadStagingBuffer(StagingBuffer* buf){
+    wgpuBufferRelease(buf->gpuUsable.buffer);
+    wgpuBufferUnmap(buf->mappable.buffer);
+    wgpuBufferRelease(buf->mappable.buffer);
+}
 extern "C" DescribedBuffer GenBuffer(const void* data, size_t size){
     DescribedBuffer ret{};
     ret.descriptor.size = size;
     ret.descriptor.mappedAtCreation = false;
     ret.descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex;
     ret.buffer = wgpuDeviceCreateBuffer(GetDevice(), &ret.descriptor);
-    wgpuQueueWriteBuffer(GetQueue(), ret.buffer, 0, data, size);
+    if(data != nullptr){
+        wgpuQueueWriteBuffer(GetQueue(), ret.buffer, 0, data, size);
+    }
     return ret;
 }
 extern "C" void BufferData(DescribedBuffer* buffer, const void* data, size_t size){

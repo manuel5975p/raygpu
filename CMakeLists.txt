@@ -63,6 +63,6 @@ add_executable(example "src/example.cpp")
 target_compile_features(raygpu PUBLIC cxx_std_20)
 target_compile_features(example PUBLIC cxx_std_20)
 target_link_libraries(example PUBLIC raygpu)
-
+#set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto")
 add_executable(reference_sample "src/reference_sample.cpp")
 target_link_libraries(reference_sample PUBLIC webgpu_dawn webgpu_cpp dawn_wgpu_utils dawn_internal_config dawn::dawn_glfw glfw raygpu)
