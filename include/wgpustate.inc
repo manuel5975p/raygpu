@@ -11,10 +11,13 @@ struct wgpustate{
     uint32_t width, height;
 
     WGPUTextureFormat frameBufferFormat;
-    std::vector<vertex> current_vertices;
     draw_mode current_drawmode;
     full_renderstate* rstate;
     
+    std::vector<DescribedBuffer> smallBufferPool;
+    std::vector<DescribedBuffer> smallBufferRecyclingBin;
+
+    DescribedBuffer quadindicesCache{};
 
     Texture whitePixel;
 

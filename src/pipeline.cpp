@@ -199,6 +199,11 @@ extern "C" DescribedBindGroup LoadBindGroup(const DescribedPipeline* pipeline, c
     return ret;
 }
 extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, WGPUBindGroupEntry entry){
+    auto& newpuffer = entry.buffer;
+    auto& newtexture = entry.textureView;
+    if(newtexture && bg->entries[index].textureView == newtexture){
+        //return;
+    }
     bg->entries[index] = entry;
 
     //TODO don't release and recreate here or find something better lol

@@ -52,8 +52,8 @@ uint64_t frames = 0;
 uint64_t stmp = NanoTime();
 int main(){
     
-    constexpr uint32_t width = 1920;
-    constexpr uint32_t height = 1080;
+    constexpr uint32_t width = 8000;
+    constexpr uint32_t height = 3000;
     auto window = InitWindow(width, height);
     WGPUSamplerDescriptor sdesc;
     
@@ -72,7 +72,7 @@ int main(){
     //Matrix udata = (MatrixPerspective(1.2, 1, 0.01, 100.0));
     rtex = LoadRenderTexture(1000, 1000);
     Texture tex = LoadTextureFromImage(LoadImageChecker(Color{255,0,0,255}, Color{0,255,0,255}, 100, 100, 10));
-    checkers = LoadTextureFromImage(LoadImageChecker(Color{0, 230, 230, 255}, Color{0, 100, 100, 255}, 100, 100, 10));
+    checkers = LoadTextureFromImage(LoadImageChecker(Color{0, 255, 0, 255}, Color{0, 0, 0, 255}, 100, 100, 10));
     WGPUBufferDescriptor mapBufferDesc{};
     float data[15] = {0,0,0,1,0,
                      1,0,0,0,1,
@@ -242,7 +242,7 @@ int main(){
         entry.textureView = checkers.view;
         UpdateBindGroupEntry(&pl->bindGroup, 0, entry);
         //DescribedBuffer buf = GenBuffer(data, ds);
-        BeginPipelineMode(pl);
+        //BeginPipelineMode(pl);
         //RecreateStagingBuffer(&mbuf);
         //memcpy(mbuf.map, data, sizeof(float) * 15);
         //UpdateStagingBuffer(&mbuf);
@@ -275,21 +275,21 @@ int main(){
         //SetTexture(0, checkers);
         //BindVertexArray(pl, va);
         //DrawArrays(3);
-        EndPipelineMode();
+        //EndPipelineMode();
         //EndRenderPass(&g_wgpustate.rstate->renderpass);
         //BeginRenderPass(&g_wgpustate.rstate->renderpass);
-        for(double x = -1;x <= 1; x += 0.25){
-            for(double y = -1;y <= 1; y += 0.25){
-                SetTexture(1, g_wgpustate.whitePixel);
+        for(double x = -1;x <= 1; x += 0.05){
+            for(double y = -1;y <= 1; y += 0.5){
+                UseTexture(g_wgpustate.whitePixel);
                 rlBegin(RL_TRIANGLES);
-                rlColor4f(0, 0.2, 1, 1);
+                rlColor4f(1, 1, 1, 1);
                 rlVertex2f(x, y);
-                rlVertex2f(x + 0.05, y);
-                rlVertex2f(x, y + 0.05);
+                rlVertex2f(x + 0.04, y);
+                rlVertex2f(x, y + 0.04);
                 rlEnd();
-                
                 //assert(g_wgpustate.rstate->activeRenderPass == &g_wgpustate.rstate->renderpass);
-                DrawTexturePro(g_wgpustate.whitePixel, Rectangle{0, 0, 100, 100}, Rectangle{(float)x + 0.4f,(float)y,0.05f,0.05f}, Vector2{0, 0}, 0.0f, Color{255,255,255,255});
+                DrawTexturePro(checkers, Rectangle{0, 0, 100, 100}, Rectangle{(float)x + 0.01f,(float)y,0.02f,0.02f}, Vector2{0, 0}, 0.0f, Color{255,255,255,255});
+                //goto end;
                 //EndRenderpassEx(&g_wgpustate.rstate->renderpass);
                 //BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
                 

@@ -130,14 +130,22 @@ void drawCurrentBatch(){
         case RL_TRIANGLE_STRIP:{
             //std::cout << "rendering schtrip\n";
             //exit(0);
-            for(auto v : g_wgpustate.current_vertices){
-                //__builtin_dump_struct(&v, printf);
-            }
             //WGPUCommandEncoderDescriptor arg{};
             //WGPUCommandBufferDescriptor arg2{};
             //WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder(GetDevice(), &arg);
             //std::cout << "Reseiz: " << g_wgpustate.rstate->vbo.buffer << std::endl;
-            DescribedBuffer vbo = GenBuffer(vboptr_base, vertexCount * sizeof(vertex));
+            DescribedBuffer vbo;
+            bool allocated_via_pool = false;
+            if(vertexCount < 300 && !g_wgpustate.smallBufferPool.empty()){
+                allocated_via_pool = true;
+                vbo = g_wgpustate.smallBufferPool.back();
+                g_wgpustate.smallBufferPool.pop_back();
+                wgpuQueueWriteBuffer(GetQueue(), vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
+            }
+            else{
+                vbo = GenBuffer(vboptr_base, vertexCount * sizeof(vertex));
+            }
+            
             //wgpuCommandEncoderCopyBufferToBuffer(enc, vbomap.buffer, 0, g_wgpustate.rstate->vbo.buffer, 0, vertexCount * sizeof(vertex));
             //WGPUCommandBuffer buf = wgpuCommandEncoderFinish(enc, &arg2);
             //wgpuQueueWriteBuffer(GetQueue(), vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
@@ -166,37 +174,55 @@ void drawCurrentBatch(){
             BindPipeline(g_wgpustate.rstate->currentPipeline);
             wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, wgpuBufferGetSize(vbo.buffer));
             wgpuRenderPassEncoderDraw(g_wgpustate.rstate->renderpass.rpEncoder, vertexCount, 1, 0, 0);
-            wgpuBufferRelease(vbo.buffer);
+            if(!allocated_via_pool){
+                wgpuBufferRelease(vbo.buffer);
+            }
+            else{
+                g_wgpustate.smallBufferRecyclingBin.push_back(vbo);
+            }
         } break;
         case RL_QUADS:{
-            DescribedBuffer vbo = GenBuffer(vboptr_base, vertexCount * sizeof(vertex));
+            DescribedBuffer vbo;
+            bool allocated_via_pool = false;
+            if(vertexCount < 300 && !g_wgpustate.smallBufferPool.empty()){
+                allocated_via_pool = true;
+                vbo = g_wgpustate.smallBufferPool.back();
+                g_wgpustate.smallBufferPool.pop_back();
+                wgpuQueueWriteBuffer(GetQueue(), vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
+            }
+            else{
+                vbo = GenBuffer(vboptr_base, vertexCount * sizeof(vertex));
+            }
             const size_t quadCount = vertexCount / 4;
-            std::vector<uint32_t> indices(6 * quadCount);
-            std::cout << quadCount << " quads\n";
-            if(quadCount == 1){
-                std::cout << vboptr_base[0].pos << "\n";
-                std::cout << vboptr_base[1].pos << "\n";
-                std::cout << vboptr_base[2].pos << "\n";
-                std::cout << vboptr_base[3].pos << "\n\n";
+            
+            if(g_wgpustate.quadindicesCache.descriptor.size < 6 * quadCount * sizeof(uint32_t)){
+                std::vector<uint32_t> indices(6 * quadCount);
+                for(size_t i = 0;i < quadCount;i++){
+                    indices[i * 6 + 0] = (i * 4 + 0);
+                    indices[i * 6 + 1] = (i * 4 + 1);
+                    indices[i * 6 + 2] = (i * 4 + 3);
+                    indices[i * 6 + 3] = (i * 4 + 1);
+                    indices[i * 6 + 4] = (i * 4 + 2);
+                    indices[i * 6 + 5] = (i * 4 + 3);
+                }
+                if(g_wgpustate.quadindicesCache.buffer)wgpuBufferRelease(g_wgpustate.quadindicesCache.buffer);
+                g_wgpustate.quadindicesCache = GenBufferEx(indices.data(), 6 * quadCount * sizeof(uint32_t), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index);
             }
-            for(size_t i = 0;i < quadCount;i++){
-                indices[i * 6 + 0] = (i * 4 + 0);
-                indices[i * 6 + 1] = (i * 4 + 1);
-                indices[i * 6 + 2] = (i * 4 + 3);
-                indices[i * 6 + 3] = (i * 4 + 1);
-                indices[i * 6 + 4] = (i * 4 + 2);
-                indices[i * 6 + 5] = (i * 4 + 3);
-            }
+            const DescribedBuffer& ibuf = g_wgpustate.quadindicesCache;
             updatePipeline(g_wgpustate.rstate, g_wgpustate.current_drawmode);
             BindPipeline(g_wgpustate.rstate->currentPipeline);
             //wgpuQueueWriteBuffer(GetQueue(), vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
-            DescribedBuffer ibuf = GenBufferEx(indices.data(), indices.size() * sizeof(uint32_t), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index);
             
             wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, vertexCount * sizeof(vertex));
-            wgpuRenderPassEncoderSetIndexBuffer (g_wgpustate.rstate->renderpass.rpEncoder, ibuf.buffer, WGPUIndexFormat_Uint32, 0, indices.size() * sizeof(uint32_t));
-            wgpuRenderPassEncoderDrawIndexed    (g_wgpustate.rstate->renderpass.rpEncoder, indices.size(), 1, 0, 0, 0);
-            wgpuBufferRelease(ibuf.buffer);
-            wgpuBufferRelease(vbo.buffer);
+            wgpuRenderPassEncoderSetIndexBuffer (g_wgpustate.rstate->renderpass.rpEncoder, ibuf.buffer, WGPUIndexFormat_Uint32, 0, quadCount * 6 * sizeof(uint32_t));
+            wgpuRenderPassEncoderDrawIndexed    (g_wgpustate.rstate->renderpass.rpEncoder, quadCount * 6, 1, 0, 0, 0);
+            
+            if(!allocated_via_pool){
+                wgpuBufferRelease(vbo.buffer);
+            }
+            else{
+                g_wgpustate.smallBufferRecyclingBin.push_back(vbo);
+            }
             vboptr = vboptr_base;
             
             /*//updateVertexBuffer(g_wgpustate.rstate, g_wgpustate.current_vertices.data(), vertexCount * sizeof(vertex));
@@ -263,7 +289,6 @@ void drawCurrentBatch(){
         default:break;
     }
     vboptr = vboptr_base;
-    g_wgpustate.current_vertices.clear();
 }
 
 extern "C" void BeginPipelineMode(DescribedPipeline* pipeline){
@@ -352,6 +377,8 @@ void EndDrawing(){
     wgpuTextureViewRelease(g_wgpustate.currentSurfaceTextureView);
     g_wgpustate.last_timestamps[g_wgpustate.total_frames % 32] = NanoTime();
     ++g_wgpustate.total_frames;
+    std::copy(g_wgpustate.smallBufferRecyclingBin.begin(), g_wgpustate.smallBufferRecyclingBin.end(), std::back_inserter(g_wgpustate.smallBufferPool));
+    g_wgpustate.smallBufferRecyclingBin.clear();
     g_wgpustate.drawmutex.unlock();
 }
 void rlBegin(draw_mode mode){
@@ -861,6 +888,7 @@ void updateBindGroup(full_renderstate* state){
 }
 
 void updatePipeline(full_renderstate* state, draw_mode drawmode){
+    return;
     //state->pipeline.descriptor = WGPURenderPipelineDescriptor{};
     //state->pipeline.descriptor.vertex.bufferCount = 1;
     //state->pipeline.descriptor.vertex.buffers = state->pipeline.vbLayouts;
@@ -1081,10 +1109,11 @@ void SaveImage(Image img, const char* filepath){
 void UseTexture(Texture tex){
     if(g_wgpustate.rstate->currentPipeline->bindGroup.entries[1].textureView == tex.view)return;
     drawCurrentBatch();
-    WGPUBindGroupEntry entry{};
-    entry.binding = 1;
-    entry.textureView = tex.view;
-    UpdateBindGroupEntry(&g_wgpustate.rstate->currentPipeline->bindGroup, 1, entry);
+    SetTexture(1, tex);
+    //WGPUBindGroupEntry entry{};
+    //entry.binding = 1;
+    //entry.textureView = tex.view;
+    //UpdateBindGroupEntry(&g_wgpustate.rstate->currentPipeline->bindGroup, 1, entry);
     //if(g_wgpustate.activeTexture.tex != tex.tex){
     //    drawCurrentBatch();
     //    g_wgpustate.activeTexture = tex;
