@@ -16,8 +16,14 @@ typedef struct BGRAColor{
     uint8_t b, g, r, a;
 } BGRAColor;
 
+typedef enum PixelFormat{
+    RGBA8 = WGPUTextureFormat_RGBA8Unorm,
+    BGRA8 = WGPUTextureFormat_BGRA8Unorm,
+    GRAYSCALE = 0x100000 //No WGPU_ equivalent
+}PixelFormat;
+
 typedef struct Image{
-    WGPUTextureFormat format;
+    PixelFormat format;
     uint32_t width, height;
     size_t rowStrideInBytes; // Does not have to match with width
                              // One reason for this is the fact that Texture to Buffer copy commands

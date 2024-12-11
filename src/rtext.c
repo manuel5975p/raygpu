@@ -744,7 +744,7 @@ GlyphInfo *LoadFontData(const unsigned char *fileData, int dataSize, int fontSiz
                         // Load characters images
                         chars[i].image.width = chw;
                         chars[i].image.height = chh;
-                        chars[i].image.format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE;
+                        chars[i].image.format = GRAYSCALE;
 
                         chars[i].offsetY += (int)((float)ascent*scaleFactor);
                     }
@@ -812,7 +812,7 @@ Image GenImageFontAtlas(const GlyphInfo *glyphs, Rectangle **glyphRecs, int glyp
     glyphCount = (glyphCount > 0)? glyphCount : 95;
 
     // NOTE: Rectangles memory is loaded here!
-    Rectangle *recs = (Rectangle *)RL_MALLOC(glyphCount*sizeof(Rectangle));
+    Rectangle *recs = (Rectangle*) malloc(glyphCount * sizeof(Rectangle));
 
     // Calculate image size based on total glyph width and glyph row count
     int totalWidth = 0;
@@ -821,7 +821,7 @@ Image GenImageFontAtlas(const GlyphInfo *glyphs, Rectangle **glyphRecs, int glyp
     for (int i = 0; i < glyphCount; i++)
     {
         if (glyphs[i].image.width > maxGlyphWidth) maxGlyphWidth = glyphs[i].image.width;
-        totalWidth += glyphs[i].image.width + 2*padding;
+        totalWidth += glyphs[i].image.width + 2 * padding;
     }
 
 //#define SUPPORT_FONT_ATLAS_SIZE_CONSERVATIVE
@@ -857,9 +857,8 @@ Image GenImageFontAtlas(const GlyphInfo *glyphs, Rectangle **glyphRecs, int glyp
     }
 #endif
 
-    atlas.data = (unsigned char *)RL_CALLOC(1, atlas.width*atlas.height);   // Create a bitmap to store characters (8 bpp)
-    atlas.format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE;
-    atlas.mipmaps = 1;
+    atlas.data = (unsigned char *)calloc(1, atlas.width*atlas.height);   // Create a bitmap to store characters (8 bpp)
+    atlas.format = GRAYSCALE;
 
     // DEBUG: We can see padding in the generated image setting a gray background...
     //for (int i = 0; i < atlas.width*atlas.height; i++) ((unsigned char *)atlas.data)[i] = 100;

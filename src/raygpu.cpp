@@ -494,16 +494,20 @@ Image LoadImageFromTexture(Texture tex){
 }
 Texture LoadTextureFromImage(Image img){
     Texture ret;
+    Color* altdata = nullptr;
+    if(img.format != GRAYSCALE){
+        altdata = (Color*)calloc(img.width * img.height, sizeof(Color));
+    }
     WGPUTextureDescriptor desc = {
     nullptr,
     WGPUStringView{nullptr, 0},
     WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc,
     WGPUTextureDimension_2D,
     WGPUExtent3D{img.width, img.height, 1},
-    img.format,
+        img.format == GRAYSCALE ? WGPUTextureFormat_RGBA8Unorm : (WGPUTextureFormat)img.format,
     1,1,1,nullptr};
         
-    desc.viewFormats = &img.format;
+    desc.viewFormats = (WGPUTextureFormat*)&img.format;
     ret.tex = wgpuDeviceCreateTexture(g_wgpustate.device, &desc);
     WGPUTextureViewDescriptor vdesc{};
     vdesc.arrayLayerCount = 0;
@@ -525,10 +529,11 @@ Texture LoadTextureFromImage(Image img){
     source.bytesPerRow = 4 * img.width;
     source.rowsPerImage = img.height;
     //wgpuQueueWriteTexture()
-    wgpuQueueWriteTexture(g_wgpustate.queue, &destination, img.data,  4 * img.width * img.height, &source, &desc.size);
+    wgpuQueueWriteTexture(g_wgpustate.queue, &destination, altdata ? altdata : img.data, 4 * img.width * img.height, &source, &desc.size);
     ret.view = wgpuTextureCreateView(ret.tex, &vdesc);
     ret.width = img.width;
     ret.height = img.height;
+    if(altdata)free(altdata);
     return ret;
 }
 uint64_t NanoTime(cwoid){
@@ -1111,24 +1116,6 @@ void UnloadTexture(Texture tex){
 void UnloadImage(Image img){
     free(img.data);
 }
-extern "C" Image ImageFromImage(Image image, Rectangle rec){
-    Image result{image.format, image.width, image.height, image.rowStrideInBytes, nullptr};
-    //ret.data = calloc(img.width * img.height, 4);
-    //memcpy(ret.data, img.data, img.width * img.height * 4);
-    //return img;
-    int bytesPerPixel = 4;
-
-    result.width = (int)rec.width;
-    result.height = (int)rec.height;
-    result.data = calloc((int)rec.width*(int)rec.height*bytesPerPixel, 1);
-    result.format = image.format;
-
-    for (int y = 0; y < (int)rec.height; y++){
-        memcpy(((unsigned char *)result.data) + y*(int)rec.width*bytesPerPixel, ((unsigned char *)image.data) + ((y + (int)rec.y)*image.width + (int)rec.x)*bytesPerPixel, (int)rec.width*bytesPerPixel);
-    }
-
-    return result;
-}
 extern "C" Image LoadImageFromMemory(const void* data, size_t dataSize){
     Image image;
     uint32_t comp;
@@ -1136,7 +1123,7 @@ extern "C" Image LoadImageFromMemory(const void* data, size_t dataSize){
     return image;
 }
 extern "C" Image GenImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32_t checkerCount){
-    Image ret{WGPUTextureFormat_RGBA8Unorm, width, height, width * 4, std::calloc(width * height, sizeof(Color))};
+    Image ret{RGBA8, width, height, width * 4, std::calloc(width * height, sizeof(Color))};
     for(uint32_t i = 0;i < height;i++){
         for(uint32_t j = 0;j < width;j++){
             const size_t index = size_t(i) * width + j;
