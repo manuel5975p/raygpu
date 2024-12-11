@@ -23,6 +23,7 @@
 
 #ifdef __cplusplus
 #include <cmath>
+#include <iostream>
 using std::sqrt;
 using std::tan;
 #else
@@ -196,4 +197,13 @@ inline Matrix MatrixTranspose(Matrix mat){
     }
     return ret;
 }
+#ifdef __cplusplus
+inline std::ostream& operator<<(std::ostream& str, const Vector3& r){
+    str << "["; 
+    str << r.x << ", ";
+    str << r.y << ", ";
+    str << r.z << ", ";
+    return str << "]"; 
+}
+#endif
 #endif

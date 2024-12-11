@@ -189,6 +189,7 @@ EXTERN_C_BEGIN
     void UnloadStagingBuffer(StagingBuffer* buf);
     
     DescribedBuffer GenBuffer(const void* data, size_t size);
+    DescribedBuffer GenBufferEx(const void* data, size_t size, WGPUBufferUsage usage);
     void BufferData(DescribedBuffer* buffer, const void* data, size_t size);
     void ResizeBuffer(DescribedBuffer* buffer, size_t newSize);
     void ResizeBufferAndConserve(DescribedBuffer* buffer, size_t newSize);
@@ -273,8 +274,6 @@ typedef struct full_renderstate{
     //WGPUBindGroupLayout bglayout;
     //WGPURenderPipelineDescriptor pipelineDesc;
     
-    DescribedBuffer vbo;
-
     
     //#ifdef __cplusplus
     //template<typename callable>

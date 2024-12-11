@@ -236,7 +236,7 @@ int main(){
     auto mainloop2 = [&](void* userdata){
 
         BeginDrawing();
-        //ClearBackground(Color{uint8_t(frames),uint8_t(frames),0,255});
+        ClearBackground(Color{uint8_t(frames),uint8_t(frames),0,255});
         WGPUBindGroupEntry entry{};
         entry.binding = 0;
         entry.textureView = checkers.view;
@@ -289,8 +289,11 @@ int main(){
                 rlEnd();
                 
                 //assert(g_wgpustate.rstate->activeRenderPass == &g_wgpustate.rstate->renderpass);
+                DrawTexturePro(g_wgpustate.whitePixel, Rectangle{0, 0, 100, 100}, Rectangle{(float)x + 0.4f,(float)y,0.05f,0.05f}, Vector2{0, 0}, 0.0f, Color{255,255,255,255});
                 //EndRenderpassEx(&g_wgpustate.rstate->renderpass);
                 //BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
+                
+                //DrawTexturePro(g_wgpustate.whitePixel, Rectangle{0, 0, 100, 100}, Rectangle{(float)x + 0.4f,(float)y,0.05f,0.05f}, Vector2{0, 0}, 0.0f, Color{255,255,255,255});
                 //DrawTexturePro(g_wgpustate.whitePixel, Rectangle{0, 0, 100, 100}, Rectangle{(float)x + 0.4f,(float)y,0.05f,0.05f}, Vector2{0, 0}, 0.0f, Color{255,255,255,255});
                 //EndRenderpassEx(&g_wgpustate.rstate->renderpass);
                 //BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
@@ -300,6 +303,7 @@ int main(){
                 //break;
             }
         }
+        end:
 
         EndDrawing();
         ++frames;

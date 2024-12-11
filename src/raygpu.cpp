@@ -137,10 +137,10 @@ void drawCurrentBatch(){
             //WGPUCommandBufferDescriptor arg2{};
             //WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder(GetDevice(), &arg);
             //std::cout << "Reseiz: " << g_wgpustate.rstate->vbo.buffer << std::endl;
-            ResizeBuffer(&g_wgpustate.rstate->vbo, 1000000 * sizeof(vertex));
+            DescribedBuffer vbo = GenBuffer(vboptr_base, vertexCount * sizeof(vertex));
             //wgpuCommandEncoderCopyBufferToBuffer(enc, vbomap.buffer, 0, g_wgpustate.rstate->vbo.buffer, 0, vertexCount * sizeof(vertex));
             //WGPUCommandBuffer buf = wgpuCommandEncoderFinish(enc, &arg2);
-            wgpuQueueWriteBuffer(GetQueue(), g_wgpustate.rstate->vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
+            //wgpuQueueWriteBuffer(GetQueue(), vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
             
             //wgpuBufferUnmap(vbomap.buffer);
             //wgpuQueueSubmit(GetQueue(), 1, &buf);
@@ -162,11 +162,42 @@ void drawCurrentBatch(){
             //g_wgpustate.rstate->executeRenderpass([vcount](WGPURenderPassEncoder renderPass){
             //    wgpuRenderPassEncoderDraw(renderPass, vcount, 1, 0, 0);
             //});
+            updatePipeline(g_wgpustate.rstate, g_wgpustate.current_drawmode);
             BindPipeline(g_wgpustate.rstate->currentPipeline);
-            wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, g_wgpustate.rstate->vbo.buffer, 0, wgpuBufferGetSize(g_wgpustate.rstate->vbo.buffer));
+            wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, wgpuBufferGetSize(vbo.buffer));
             wgpuRenderPassEncoderDraw(g_wgpustate.rstate->renderpass.rpEncoder, vertexCount, 1, 0, 0);
+            wgpuBufferRelease(vbo.buffer);
         } break;
         case RL_QUADS:{
+            DescribedBuffer vbo = GenBuffer(vboptr_base, vertexCount * sizeof(vertex));
+            const size_t quadCount = vertexCount / 4;
+            std::vector<uint32_t> indices(6 * quadCount);
+            std::cout << quadCount << " quads\n";
+            if(quadCount == 1){
+                std::cout << vboptr_base[0].pos << "\n";
+                std::cout << vboptr_base[1].pos << "\n";
+                std::cout << vboptr_base[2].pos << "\n";
+                std::cout << vboptr_base[3].pos << "\n\n";
+            }
+            for(size_t i = 0;i < quadCount;i++){
+                indices[i * 6 + 0] = (i * 4 + 0);
+                indices[i * 6 + 1] = (i * 4 + 1);
+                indices[i * 6 + 2] = (i * 4 + 3);
+                indices[i * 6 + 3] = (i * 4 + 1);
+                indices[i * 6 + 4] = (i * 4 + 2);
+                indices[i * 6 + 5] = (i * 4 + 3);
+            }
+            updatePipeline(g_wgpustate.rstate, g_wgpustate.current_drawmode);
+            BindPipeline(g_wgpustate.rstate->currentPipeline);
+            //wgpuQueueWriteBuffer(GetQueue(), vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
+            DescribedBuffer ibuf = GenBufferEx(indices.data(), indices.size() * sizeof(uint32_t), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index);
+            
+            wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, vertexCount * sizeof(vertex));
+            wgpuRenderPassEncoderSetIndexBuffer (g_wgpustate.rstate->renderpass.rpEncoder, ibuf.buffer, WGPUIndexFormat_Uint32, 0, indices.size() * sizeof(uint32_t));
+            wgpuRenderPassEncoderDrawIndexed    (g_wgpustate.rstate->renderpass.rpEncoder, indices.size(), 1, 0, 0, 0);
+            wgpuBufferRelease(ibuf.buffer);
+            wgpuBufferRelease(vbo.buffer);
+            vboptr = vboptr_base;
             
             /*//updateVertexBuffer(g_wgpustate.rstate, g_wgpustate.current_vertices.data(), vertexCount * sizeof(vertex));
             WGPUBufferDescriptor mappedIbufDesc{};
@@ -201,16 +232,7 @@ void drawCurrentBatch(){
             //WGPUBuffer ibuf = wgpuDeviceCreateBuffer(g_wgpustate.device, &mappedIbufDesc);
             WGPUBuffer ibuf_actual = wgpuDeviceCreateBuffer(g_wgpustate.device, &actualIbufDesc);
             //uint32_t* indices = (uint32_t*)wgpuBufferGetMappedRange(ibuf, 0, mappedIbufDesc.size);
-            std::vector<uint32_t> indices;
-            indices.resize(6 * (vertexCount / 4));
-            for(size_t i = 0;i < (vertexCount / 4);i++){
-                indices[i * 6 + 0] = (i * 4 + 0);
-                indices[i * 6 + 1] = (i * 4 + 1);
-                indices[i * 6 + 2] = (i * 4 + 3);
-                indices[i * 6 + 3] = (i * 4 + 1);
-                indices[i * 6 + 4] = (i * 4 + 3);
-                indices[i * 6 + 5] = (i * 4 + 2);
-            }
+            
             size_t bytesize = mappedIbufDesc.size;//indices.size() * sizeof(uint32_t);
             size_t vcount = mappedIbufDesc.size / sizeof(uint32_t);//indices.size();
             //wgpuBufferUnmap(ibuf);
@@ -594,7 +616,6 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     //state->shader = sh;
     state->color = c;
     state->depth = d;
-    state->vbo = DescribedBuffer{};
     RenderSettings settings{};
     settings.depthTest = 1;
     settings.depthCompare = WGPUCompareFunction_LessEqual;
@@ -612,8 +633,6 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
 
     state->currentPipeline = LoadPipelineEx(shaderSource, attribs, attribCount, uniforms, uniform_count, settings);
     state->defaultPipeline = state->currentPipeline;
-    float dummy = 1;
-    state->vbo = GenBuffer(&dummy, 4);
     //WGPUBufferDescriptor vbmdesc{};
     //vbmdesc.mappedAtCreation = true;
     //vbmdesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_MapWrite;
@@ -694,21 +713,6 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     //state->currentBindGroup.desc.entryCount = 4;
     //state->currentBindGroup.desc.layout = state->pipeline.bglayout.layout;
     
-}
-void updateVertexBuffer(full_renderstate* state, const void* data, size_t size){
-    BufferData(&state->vbo, data, size);
-    /*if(state->vbo){
-        wgpuBufferRelease(state->vbo);
-    }
-    WGPUBufferDescriptor bufferDesc{};
-    WGPUBufferDescriptor mapBufferDesc{};
-    
-    bufferDesc.size = size;
-    bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex;
-    bufferDesc.mappedAtCreation = false;
-
-    state->vbo = wgpuDeviceCreateBuffer(g_wgpustate.device, &bufferDesc);
-    wgpuQueueWriteBuffer(g_wgpustate.queue, state->vbo, 0, data, size);*/
 }
 void setStateTexture(full_renderstate* state, uint32_t index, Texture tex){
     WGPUBindGroupEntry entry{};
@@ -875,6 +879,7 @@ void updatePipeline(full_renderstate* state, draw_mode drawmode){
 
         }break;
         case draw_mode::RL_TRIANGLE_STRIP:{
+            abort();
             state->currentPipeline->descriptor.primitive.topology =         WGPUPrimitiveTopology_TriangleStrip;
             state->currentPipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
         }break;
@@ -1180,17 +1185,21 @@ void UnloadStagingBuffer(StagingBuffer* buf){
     wgpuBufferUnmap(buf->mappable.buffer);
     wgpuBufferRelease(buf->mappable.buffer);
 }
-extern "C" DescribedBuffer GenBuffer(const void* data, size_t size){
+extern "C" DescribedBuffer GenBufferEx(const void* data, size_t size, WGPUBufferUsage usage){
     DescribedBuffer ret{};
     ret.descriptor.size = size;
     ret.descriptor.mappedAtCreation = false;
-    ret.descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex;
+    ret.descriptor.usage = usage;
     ret.buffer = wgpuDeviceCreateBuffer(GetDevice(), &ret.descriptor);
     if(data != nullptr){
         wgpuQueueWriteBuffer(GetQueue(), ret.buffer, 0, data, size);
     }
     return ret;
 }
+extern "C" DescribedBuffer GenBuffer(const void* data, size_t size){
+    return GenBufferEx(data, size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex);
+}
+
 extern "C" void BufferData(DescribedBuffer* buffer, const void* data, size_t size){
     if(buffer->descriptor.size >= size){
         wgpuQueueWriteBuffer(GetQueue(), buffer->buffer, 0, data, size);
