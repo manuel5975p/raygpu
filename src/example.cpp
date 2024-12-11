@@ -52,8 +52,8 @@ uint64_t frames = 0;
 uint64_t stmp = NanoTime();
 int main(){
     
-    constexpr uint32_t width = 8000;
-    constexpr uint32_t height = 3000;
+    constexpr uint32_t width = 1920;
+    constexpr uint32_t height = 1080;
     auto window = InitWindow(width, height);
     WGPUSamplerDescriptor sdesc;
     
@@ -71,8 +71,8 @@ int main(){
 
     //Matrix udata = (MatrixPerspective(1.2, 1, 0.01, 100.0));
     rtex = LoadRenderTexture(1000, 1000);
-    Texture tex = LoadTextureFromImage(LoadImageChecker(Color{255,0,0,255}, Color{0,255,0,255}, 100, 100, 10));
-    checkers = LoadTextureFromImage(LoadImageChecker(Color{0, 255, 0, 255}, Color{0, 0, 0, 255}, 100, 100, 10));
+    Texture tex = LoadTextureFromImage(GenImageChecker(Color{255,0,0,255}, Color{0,255,0,255}, 100, 100, 10));
+    checkers = LoadTextureFromImage(GenImageChecker(Color{0, 255, 0, 255}, Color{0, 0, 0, 255}, 100, 100, 10));
     WGPUBufferDescriptor mapBufferDesc{};
     float data[15] = {0,0,0,1,0,
                      1,0,0,0,1,
@@ -230,17 +230,18 @@ int main(){
     memcpy(mbuf.map, data, sizeof(float) * 15);
     UpdateStagingBuffer(&mbuf);
     constexpr size_t ds = sizeof(float) * 15;
-    
+    SetUniformBuffer(0, &sc2, 64);
     DescribedBuffer buf2 = GenBuffer(data2, ds);
     
     auto mainloop2 = [&](void* userdata){
 
         BeginDrawing();
-        ClearBackground(Color{uint8_t(frames),uint8_t(frames),0,255});
+        ClearBackground(Color{uint8_t(frames >> 4),uint8_t(frames>>4),0,255});
         WGPUBindGroupEntry entry{};
         entry.binding = 0;
         entry.textureView = checkers.view;
         UpdateBindGroupEntry(&pl->bindGroup, 0, entry);
+        DrawText("helo", 0, 0, 32, WHITE);
         //DescribedBuffer buf = GenBuffer(data, ds);
         //BeginPipelineMode(pl);
         //RecreateStagingBuffer(&mbuf);

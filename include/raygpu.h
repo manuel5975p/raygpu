@@ -80,6 +80,24 @@ typedef struct StagingBuffer{
     DescribedBuffer mappable;
     void* map; //Nullable
 }StagingBuffer;
+// GlyphInfo, font characters glyphs info
+typedef struct GlyphInfo {
+    int value;              // Character value (Unicode)
+    int offsetX;            // Character offset X when drawing
+    int offsetY;            // Character offset Y when drawing
+    int advanceX;           // Character advance position X
+    Image image;            // Character image data
+} GlyphInfo;
+
+// Font, font texture and GlyphInfo array data
+typedef struct Font {
+    int baseSize;           // Base size (default chars height)
+    int glyphCount;         // Number of glyph characters
+    int glyphPadding;       // Padding around the glyph characters
+    Texture texture;      // Texture atlas containing the glyphs
+    Rectangle *recs;        // Rectangles in texture for the glyphs
+    GlyphInfo *glyphs;      // Glyphs info data
+} Font;
 
 extern Vector2 nextuv;
 extern Vector4 nextcol;
@@ -88,6 +106,9 @@ extern vertex* vboptr;
 extern vertex* vboptr_base;
 //extern DescribedBuffer vbomap;
 
+#define BLANK CLITERAL(Color){0,0,0,0}
+#define BLACK CLITERAL(Color){0,0,0,255}
+#define WHITE CLITERAL(Color){255,255,255,255}
 
 enum draw_mode{
     RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS
@@ -139,11 +160,44 @@ EXTERN_C_BEGIN
     void EndRenderpassEx(DescribedRenderpass* renderPass);
     void BeginPipelineMode(DescribedPipeline* pipeline);
     void EndPipelineMode();
-
+    void* LoadFileData(const char *fileName, size_t *dataSize);
     Texture LoadTextureFromImage(Image img);
     Image LoadImageFromTexture(Texture tex);
+    Image LoadImage(const char* filename);
+    Image ImageFromImage(Image img, Rectangle rec);
+    void UnloadImage(Image img);
+    void UnloadTexture(Texture tex);
+    Image LoadImageFromMemory(const void* data, size_t dataSize);
+    Image GenImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32_t checkerCount);
+    void SaveImage(Image img, const char* filepath);
 
-    
+    void DrawFPS(int posX, int posY);                                                     // Draw current FPS
+    void DrawText(const char *text, int posX, int posY, int fontSize, Color color);       // Draw text (using default font)
+    void DrawTextEx(Font font, const char *text, Vector2 position, float fontSize, float spacing, Color tint); // Draw text using font and additional parameters
+    void DrawTextPro(Font font, const char *text, Vector2 position, Vector2 origin, float rotation, float fontSize, float spacing, Color tint); // Draw text using Font and pro parameters (rotation)
+    void DrawTextCodepoint(Font font, int codepoint, Vector2 position, float fontSize, Color tint); // Draw one character (codepoint)
+    void DrawTextCodepoints(Font font, const int *codepoints, int codepointCount, Vector2 position, float fontSize, float spacing, Color tint); // Draw multiple character (codepoint)
+    int GetCodepointNext(const char *text, int *codepointSize);
+    unsigned int TextLength(const char *text);
+    // Text font info functions
+    void SetTextLineSpacing(int spacing);                                                 // Set vertical line spacing when drawing with line-breaks
+    int MeasureText(const char *text, int fontSize);                                      // Measure string width for default font
+    Vector2 MeasureTextEx(Font font, const char *text, float fontSize, float spacing);    // Measure string size for Font
+    int GetGlyphIndex(Font font, int codepoint);                                          // Get glyph index position in font for a codepoint (unicode character), fallback to '?' if not found
+    GlyphInfo GetGlyphInfo(Font font, int codepoint);                                     // Get glyph font info data for a codepoint (unicode character), fallback to '?' if not found
+    Rectangle GetGlyphAtlasRec(Font font, int codepoint);                                 // Get glyph rectangle in font atlas for a codepoint (unicode character), fallback to '?' if not found
+    typedef enum {
+        FONT_DEFAULT = 0,               // Default font generation, anti-aliased
+        FONT_BITMAP,                    // Bitmap font generation, no anti-aliasing
+        FONT_SDF                        // SDF font generation, requires external shader
+    } FontType;
+
+    #define TRACELOG(...)
+    Font LoadFontEx(const char *fileName, int fontSize, int *codepoints, int codepointCount);
+    Font LoadFontFromImage(Image img, Color key, int firstchar);
+    Font LoadFontFromMemory(const char *fileType, const unsigned char *fileData, int dataSize, int fontSize, int *codepoints, int codepointCount);
+    GlyphInfo *LoadFontData(const unsigned char *fileData, int dataSize, int fontSize, int *codepoints, int codepointCount, int type);
+    Image GenImageFontAtlas(const GlyphInfo *glyphs, Rectangle **glyphRecs, int glyphCount, int fontSize, int padding, int packMethod);
     void UseTexture(Texture tex);
     void UseNoTexture(cwoid);
     inline void rlColor4f(float r, float g, float b, float alpha){
@@ -211,7 +265,7 @@ EXTERN_C_BEGIN
     //void updateRenderPassDesc  (full_renderstate* state);
     void setTargetTextures     (full_renderstate* state, WGPUTextureView c, WGPUTextureView d);
 
-    VertexArray* LoadVertexArray();
+    VertexArray* LoadVertexArray(cwoid);
     void VertexAttribPointer(VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, WGPUVertexFormat format, uint32_t offset, WGPUVertexStepMode stepmode);
     void EnableVertexAttribArray(VertexArray* array, uint32_t attribLocation);
     
@@ -221,8 +275,7 @@ EXTERN_C_BEGIN
     void DrawArrays(uint32_t vertexCount);
     void DrawTexturePro(Texture texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint);
 
-    Image LoadImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32_t checkerCount);
-    void SaveImage(Image img, const char* filepath);
+    
     inline uint32_t attributeSize(WGPUVertexFormat fmt){
         switch(fmt){
             case WGPUVertexFormat_Float32:

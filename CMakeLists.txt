@@ -26,6 +26,8 @@ function(download_file_if_not_exists url filename)
 endfunction()
 
 
+download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_rect_pack.h" "stb_rect_pack.h")
+download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_truetype.h" "stb_truetype.h")
 download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_image.h" "stb_image.h")
 download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_image_write.h" "stb_image_write.h")
 
@@ -36,6 +38,7 @@ set(RG_SOURCES
     "src/raygpu.cpp"
     "src/shapes.cpp"
     "src/stb_impl.c"
+    "src/rtext.c"
     "src/pipeline.cpp"
 )
 

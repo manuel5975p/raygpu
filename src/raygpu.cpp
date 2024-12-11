@@ -16,6 +16,7 @@
 #endif  // __EMSCRIPTEN__
 wgpustate g_wgpustate;
 #include <stb_image_write.h>
+#include <stb_image.h>
 
 
 Vector2 nextuv;
@@ -892,7 +893,7 @@ void updatePipeline(full_renderstate* state, draw_mode drawmode){
     //state->pipeline.descriptor = WGPURenderPipelineDescriptor{};
     //state->pipeline.descriptor.vertex.bufferCount = 1;
     //state->pipeline.descriptor.vertex.buffers = state->pipeline.vbLayouts;
-    //state->pipeline.descriptor.vertex.module = state->pipeline.sh;
+    //state->pipeline.descriptor.vertex.module = state->pipeline.sh;_-c
     //state->pipeline.descriptor.vertex.entryPoint = STRVIEW("vs_main");
     //state->pipeline.descriptor.vertex.constantCount = 0;
     //state->pipeline.descriptor.vertex.constants = nullptr;
@@ -1067,7 +1068,74 @@ void setTargetTextures(full_renderstate* state, WGPUTextureView c, WGPUTextureVi
     }
     BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
 }
-Image LoadImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32_t checkerCount){
+
+extern "C" void* LoadFileData(const char *fileName, size_t *dataSize) {
+    std::ifstream file(fileName, std::ios::binary | std::ios::ate);
+    if (!file.is_open()) {
+        *dataSize = 0;
+        return nullptr;
+    }
+
+    std::streamsize size = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    void* buffer = malloc(size);
+    if (!buffer) {
+        *dataSize = 0;
+        return nullptr;
+    }
+
+    if (!file.read(static_cast<char*>(buffer), size)) {
+        free(buffer);
+        *dataSize = 0;
+        return nullptr;
+    }
+
+    *dataSize = static_cast<size_t>(size);
+    return buffer;
+}
+extern "C" Image LoadImage(const char* filename){
+    size_t size;
+    void* data = LoadFileData(filename, &size);
+    Image ld =  LoadImageFromMemory(data, size);
+    free(data);
+    return ld;
+}
+void UnloadTexture(Texture tex){
+    if(tex.view)
+        wgpuTextureViewRelease(tex.view);
+    if(tex.tex)
+        wgpuTextureRelease(tex.tex);
+    
+}
+void UnloadImage(Image img){
+    free(img.data);
+}
+extern "C" Image ImageFromImage(Image image, Rectangle rec){
+    Image result{image.format, image.width, image.height, image.rowStrideInBytes, nullptr};
+    //ret.data = calloc(img.width * img.height, 4);
+    //memcpy(ret.data, img.data, img.width * img.height * 4);
+    //return img;
+    int bytesPerPixel = 4;
+
+    result.width = (int)rec.width;
+    result.height = (int)rec.height;
+    result.data = calloc((int)rec.width*(int)rec.height*bytesPerPixel, 1);
+    result.format = image.format;
+
+    for (int y = 0; y < (int)rec.height; y++){
+        memcpy(((unsigned char *)result.data) + y*(int)rec.width*bytesPerPixel, ((unsigned char *)image.data) + ((y + (int)rec.y)*image.width + (int)rec.x)*bytesPerPixel, (int)rec.width*bytesPerPixel);
+    }
+
+    return result;
+}
+extern "C" Image LoadImageFromMemory(const void* data, size_t dataSize){
+    Image image;
+    uint32_t comp;
+    image.data = stbi_loadf_from_memory((stbi_uc*)data, dataSize, (int*)&image.width, (int*)&image.height, (int*)&comp, 0);
+    return image;
+}
+extern "C" Image GenImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32_t checkerCount){
     Image ret{WGPUTextureFormat_RGBA8Unorm, width, height, width * 4, std::calloc(width * height, sizeof(Color))};
     for(uint32_t i = 0;i < height;i++){
         for(uint32_t j = 0;j < width;j++){

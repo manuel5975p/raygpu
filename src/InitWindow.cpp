@@ -314,7 +314,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     g_wgpustate.frameBufferFormat = (WGPUTextureFormat)config.format;
 
     
-    g_wgpustate.whitePixel = LoadTextureFromImage(LoadImageChecker(Color{255,255,255,255}, Color{255,255,255,255}, 1, 1, 0));
+    g_wgpustate.whitePixel = LoadTextureFromImage(GenImageChecker(Color{255,255,255,255}, Color{255,255,255,255}, 1, 1, 0));
 
     WGPUShaderModule tShader = LoadShaderFromMemory(shaderSource);
     RenderTexture rtex = LoadRenderTexture(width, height);
