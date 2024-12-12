@@ -263,12 +263,6 @@ EXTERN_C_BEGIN
     void SetStorageBuffer (uint32_t index, const void* data, size_t size);
     
     void init_full_renderstate (full_renderstate* state, const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniform_count, WGPUTextureView c, WGPUTextureView d);
-    //void updateVertexBuffer    (full_renderstate* state, const void* data, size_t size);
-    //void setStateTexture       (full_renderstate* state, uint32_t index, Texture tex);
-    //void setStateSampler       (full_renderstate* state, uint32_t index, WGPUSampler sampler);
-    //void setStateUniformBuffer (full_renderstate* state, uint32_t index, const void* data, size_t size);
-    //void setStateStorageBuffer (full_renderstate* state, uint32_t index, const void* data, size_t size);
-    //void updateBindGroup       (full_renderstate* state);
     void updatePipeline        (full_renderstate* state, enum draw_mode drawmode);
     //void updateRenderPassDesc  (full_renderstate* state);
     void setTargetTextures     (full_renderstate* state, WGPUTextureView c, WGPUTextureView d);

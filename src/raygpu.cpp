@@ -747,63 +747,6 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     //state->currentBindGroup.desc.layout = state->pipeline.bglayout.layout;
     
 }
-void setStateTexture(full_renderstate* state, uint32_t index, Texture tex){
-    WGPUBindGroupEntry entry{};
-    entry.binding = index;
-    entry.textureView = tex.view;
-    UpdateBindGroupEntry(&state->currentPipeline->bindGroup, index, entry);
-}
-void setStateSampler(full_renderstate* state, uint32_t index, WGPUSampler sampler){
-    WGPUBindGroupEntry entry{};
-    //state->bgEntries[index] = WGPUBindGroupEntry{};
-    entry.binding = index;
-    entry.sampler = sampler;
-    UpdateBindGroupEntry(&state->currentPipeline->bindGroup, index, entry);
-    //updateBindGroup(state);
-}
-//void setStateUniformBuffer(full_renderstate* state, uint32_t index, const void* data, size_t size){
-//    if(state->currentPipeline.bindGroup.entries[index].buffer){
-//        wgpuBufferRelease(state->currentPipeline.bindGroup.entries[index].buffer);
-//    }
-//    WGPUBufferDescriptor bufferDesc{};
-//    bufferDesc.size = size;
-//    bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
-//    bufferDesc.mappedAtCreation = false;
-//    WGPUBuffer uniformBuffer = wgpuDeviceCreateBuffer(g_wgpustate.device, &bufferDesc);
-//    wgpuQueueWriteBuffer(g_wgpustate.queue, uniformBuffer, 0, data, size);
-//    
-//    WGPUBindGroupEntry entry{};
-//    entry.binding = index;
-//    entry.buffer = uniformBuffer;
-//    entry.offset = 0;
-//    entry.size = size;
-//    UpdateBindGroupEntry(&state->currentPipeline.bindGroup, index, entry);
-//}
-//
-//void setStateStorageBuffer(full_renderstate* state, uint32_t index, const void* data, size_t size){
-//    if(state->currentPipeline.bindGroup.entries[index].buffer){
-//        wgpuBufferRelease(state->currentPipeline.bindGroup.entries[index].buffer);
-//    }
-//    WGPUBufferDescriptor bufferDesc{};
-//    bufferDesc.size = size;
-//    bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
-//    bufferDesc.mappedAtCreation = false;
-//    WGPUBuffer storageBuffer = wgpuDeviceCreateBuffer(g_wgpustate.device, &bufferDesc);
-//    wgpuQueueWriteBuffer(g_wgpustate.queue, storageBuffer, 0, data, size);
-//    
-//    WGPUBindGroupEntry entry{};
-//    entry.binding = index;
-//    entry.buffer = storageBuffer;
-//    entry.offset = 0;
-//    entry.size = size;
-//    UpdateBindGroupEntry(&state->currentPipeline.bindGroup, index, entry);
-//}
-//void SetTexture       (uint32_t index, Texture tex){
-//    setStateTexture(g_wgpustate.rstate, index, tex);
-//}
-//void SetSampler       (uint32_t index, WGPUSampler sampler){
-//    setStateSampler(g_wgpustate.rstate, index, sampler);
-//}
 void SetUniformBuffer (uint32_t index, const void* data, size_t size){
     WGPUBindGroupEntry entry{};
     WGPUBufferDescriptor bufferDesc{};
