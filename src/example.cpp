@@ -232,18 +232,23 @@ int main(){
     constexpr size_t ds = sizeof(float) * 15;
     SetUniformBuffer(0, &sc2, 64);
     DescribedBuffer buf2 = GenBuffer(data2, ds);
-    
+    auto deffont = LoadImage("deffont.png");
+    Texture latlas = LoadTextureFromImage(deffont);
     auto mainloop2 = [&](void* userdata){
 
         BeginDrawing();
-        ClearBackground(Color{uint8_t(frames >> 4),uint8_t(frames>>4),0, 255});
+        ClearBackground(Color{uint8_t(frames >> 2),uint8_t(frames >> 2),0, 255});
         //WGPUBindGroupEntry entry{};
         //entry.binding = 0;
         //entry.textureView = checkers.view;
         //UpdateBindGroupEntry(&pl->bindGroup, 0, entry);
-
-        //DrawTexturePro(GetFontDefault().texture, Rectangle(0,0,100,100), Rectangle(0,0,1,1), Vector2{0,0},0, WHITE);
-        DrawText("helo", 200, 400, 32, WHITE);
+        //SaveImage(deffont, "again.png");
+        DrawTexturePro(latlas, Rectangle(0,0,100,100), Rectangle(0,0,500,500), Vector2{0,0},0, WHITE);
+        DrawTexturePro(checkers, Rectangle(0,0,100,100), Rectangle(0,0,500,500), Vector2{0,0},0, WHITE);
+        DrawTexturePro(latlas, Rectangle(0,0,100,100), Rectangle(0,0,500,500), Vector2{0,0},0, WHITE);
+        
+        DrawText("helo", 200, 400, 30, WHITE);
+        
         //DescribedBuffer buf = GenBuffer(data, ds);
         //BeginPipelineMode(pl);
         //RecreateStagingBuffer(&mbuf);

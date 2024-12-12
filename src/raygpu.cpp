@@ -1119,7 +1119,8 @@ void UnloadImage(Image img){
 extern "C" Image LoadImageFromMemory(const void* data, size_t dataSize){
     Image image;
     uint32_t comp;
-    image.data = stbi_loadf_from_memory((stbi_uc*)data, dataSize, (int*)&image.width, (int*)&image.height, (int*)&comp, 0);
+    image.data = stbi_load_from_memory((stbi_uc*)data, dataSize, (int*)&image.width, (int*)&image.height, (int*)&comp, 0);
+    image.format = RGBA8;
     return image;
 }
 extern "C" Image GenImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32_t checkerCount){

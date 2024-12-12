@@ -17,6 +17,9 @@ struct wgpustate{
     std::vector<DescribedBuffer> smallBufferPool;
     std::vector<DescribedBuffer> smallBufferRecyclingBin;
 
+    std::unordered_map<uint64_t, WGPUBindGroup> bindGroupPool;
+    std::unordered_map<uint64_t, WGPUBindGroup> bindGroupRecyclingBin;
+
     DescribedBuffer quadindicesCache{};
 
     Texture whitePixel;

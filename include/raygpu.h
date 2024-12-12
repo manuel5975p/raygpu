@@ -185,7 +185,7 @@ EXTERN_C_BEGIN
     void DrawTextCodepoints(Font font, const int *codepoints, int codepointCount, Vector2 position, float fontSize, float spacing, Color tint); // Draw multiple character (codepoint)
     int GetCodepointNext(const char *text, int *codepointSize);
     unsigned int TextLength(const char *text);
-    // Text font info functions
+    
     void SetTextLineSpacing(int spacing);                                                 // Set vertical line spacing when drawing with line-breaks
     int MeasureText(const char *text, int fontSize);                                      // Measure string width for default font
     Vector2 MeasureTextEx(Font font, const char *text, float fontSize, float spacing);    // Measure string size for Font

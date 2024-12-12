@@ -1,8 +1,10 @@
 #include <raygpu.h>
 #include <wgpustate.inc>
-
 #include <cstring>
 #include <iostream>
+
+#define ROT_BYTES(V, C) (((V) << (C)) | ((V) >> (64 - (C))))
+
 WGPUBindGroupLayout bindGroupLayoutFromUniformTypes(const UniformDescriptor* uniforms, uint32_t uniformCount){
     std::vector<WGPUBindGroupLayoutEntry> blayouts(uniformCount);
     WGPUBindGroupLayoutDescriptor bglayoutdesc{};
@@ -186,6 +188,16 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     return retp;
 }
 
+uint64_t bgEntryHash(const WGPUBindGroupEntry& bge){
+    const uint32_t rotation = (bge.binding) & 63;
+    uint64_t value = ROT_BYTES((uint64_t)bge.buffer, rotation);
+    value ^= ROT_BYTES((uint64_t)bge.textureView, rotation);
+    value ^= ROT_BYTES((uint64_t)bge.sampler, rotation);
+    value ^= ROT_BYTES((uint64_t)bge.offset, rotation);
+    value ^= ROT_BYTES((uint64_t)bge.size, rotation);
+    return value;
+}
+
 extern "C" DescribedBindGroup LoadBindGroup(const DescribedPipeline* pipeline, const WGPUBindGroupEntry* entries, size_t entryCount){
     DescribedBindGroup ret zeroinit;
     WGPUBindGroupEntry* rentries = (WGPUBindGroupEntry*) calloc(entryCount, sizeof(WGPUBindGroupEntry));
@@ -195,6 +207,10 @@ extern "C" DescribedBindGroup LoadBindGroup(const DescribedPipeline* pipeline, c
     ret.desc.entries = ret.entries;
     ret.desc.entryCount = entryCount;
     ret.needsUpdate = true;
+    ret.descriptorHash = 0;
+    for(uint32_t i = 0;i < ret.desc.entryCount;i++){
+        ret.descriptorHash ^= bgEntryHash(ret.entries[i]);
+    }
     //ret.bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &ret.desc);
     return ret;
 }
@@ -204,7 +220,9 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, WGPUB
     if(newtexture && bg->entries[index].textureView == newtexture){
         //return;
     }
+    bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
     bg->entries[index] = entry;
+    bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
 
     //TODO don't release and recreate here or find something better lol
     

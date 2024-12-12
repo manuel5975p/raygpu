@@ -35,7 +35,10 @@ typedef struct DescribedBindGroup{
     WGPUBindGroupDescriptor desc;
     WGPUBindGroupEntry* entries;
     WGPUBindGroup bindGroup;
+    
+    uint64_t descriptorHash;
     bool needsUpdate;
+
 }DescribedBindGroup;
 
 typedef struct DescribedPipelineLayout{

@@ -20,6 +20,7 @@ using std::free;
 #else
 #define zeroinit  = {0}
 #define CLITERAL(X) (X)
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #define EXTERN_C_BEGIN
