@@ -1,5 +1,6 @@
 #include <vector>
 #include <mutex>
+#include <unordered_map>
 
 struct wgpustate{
     WGPUInstance instance;

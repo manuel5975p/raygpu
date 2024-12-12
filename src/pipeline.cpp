@@ -220,13 +220,18 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, WGPUB
     if(newtexture && bg->entries[index].textureView == newtexture){
         //return;
     }
+    uint64_t oldHash = bg->descriptorHash;
     bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
     bg->entries[index] = entry;
     bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
 
     //TODO don't release and recreate here or find something better lol
     
-    if(!bg->needsUpdate && bg->bindGroup)wgpuBindGroupRelease(bg->bindGroup);
+    if(!bg->needsUpdate && bg->bindGroup){
+        //wgpuBindGroupRelease(bg->bindGroup);
+        g_wgpustate.bindGroupPool[oldHash] = bg->bindGroup;
+        bg->bindGroup = nullptr;
+    }
     bg->needsUpdate = true;
     
     //bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
@@ -237,14 +242,21 @@ extern "C" void UpdateBindGroup(DescribedBindGroup* bg){
     //std::cout << "Updating bindgroup with " << bg->desc.entryCount << " entries" << std::endl;
     //std::cout << "Updating bindgroup with " << bg->desc.entries[1].binding << " entries" << std::endl;
     if(bg->needsUpdate){
-        bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
+        auto it = g_wgpustate.bindGroupPool.find(bg->descriptorHash);
+        if(it != g_wgpustate.bindGroupPool.end()){
+            bg->bindGroup = it->second;
+        }
+        else{
+            bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
+        }
         bg->needsUpdate = false;
     }
 }
 WGPUBindGroup GetWGPUBindGroup(DescribedBindGroup* bg){
     if(bg->needsUpdate){
-        bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
-        bg->needsUpdate = false;
+        UpdateBindGroup(bg);
+        //bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
+        //bg->needsUpdate = false;
     }
     return bg->bindGroup;
 }
