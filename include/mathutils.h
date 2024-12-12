@@ -179,6 +179,16 @@ inline Matrix MatrixPerspective(double fovY, double aspect, double nearPlane, do
 }
 inline Matrix ScreenMatrix(int width, int height) {
     Matrix ret = MatrixIdentity();
+    ret.data[idx_map(0, 3)] = -1.0f; // X translation
+    ret.data[idx_map(1, 3)] = 1.0f;  // Y translation (move to top)
+    ret.data[0] = 2.0f / ((float)width); // X scale
+    ret.data[5] = -2.0f / ((float)height); // Y scale (flip Y-axis)
+    ret.data[10] = 1; // Z scale
+    ret.data[15] = 1; // W scale
+    return ret;
+}
+inline Matrix ScreenMatrixBottomY(int width, int height) {
+    Matrix ret = MatrixIdentity();
     ret.data[idx_map(0, 3)] = -1.0f;
     ret.data[idx_map(1, 3)] = -1.0f;
     ret.data[0] = 2.0f / ((float)width);

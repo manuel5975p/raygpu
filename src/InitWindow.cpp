@@ -56,8 +56,7 @@ fn vs_main(@builtin(instance_index) instanceIdx : u32, in: VertexInput) -> Verte
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    return vec4f(textureSample(gradientTexture, grsampler, in.uv).rgb, 1.0f) * in.color;
-    //return vec4f(1.0f, 1.0f, 0.0f, 1.0f);
+    return textureSample(gradientTexture, grsampler, in.uv).rgba * in.color;
 }
 )";
 extern Texture depthTexture;

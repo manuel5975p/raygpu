@@ -495,7 +495,7 @@ Image LoadImageFromTexture(Texture tex){
 Texture LoadTextureFromImage(Image img){
     Texture ret;
     Color* altdata = nullptr;
-    if(img.format != GRAYSCALE){
+    if(img.format == GRAYSCALE){
         altdata = (Color*)calloc(img.width * img.height, sizeof(Color));
     }
     WGPUTextureDescriptor desc = {

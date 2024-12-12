@@ -297,13 +297,13 @@ extern void LoadFontDefault(void)
                 // EDIT: Change this to ints, 
                 ((unsigned int *)imFont.data)[i + j] = 0xffffffff;
             }
-            else ((unsigned int *)imFont.data)[i + j] = 0x000000ff;
+            else ((unsigned int *)imFont.data)[i + j] = 0x0000ff00;
         }
 
         counter++;
     }
 
-    if (isGpuReady) defaultFont.texture = LoadTextureFromImage(imFont);
+    /*if (isGpuReady)*/ defaultFont.texture = LoadTextureFromImage(imFont);
 
     // Reconstruct charSet using charsWidth[], charsHeight, charsDivisor, glyphCount
     //------------------------------------------------------------------------------
@@ -449,7 +449,7 @@ Image ImageFromImage(Image image, Rectangle rec)
 {
     Image result = { 0 };
 
-    int bytesPerPixel = 4;
+    int bytesPerPixel = image.format == GRAYSCALE ? 2 : 4;
 
     result.width = (int)rec.width;
     result.height = (int)rec.height;
