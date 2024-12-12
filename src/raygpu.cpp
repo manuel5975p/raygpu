@@ -397,7 +397,7 @@ void rlEnd(){
 Image LoadImageFromTexture(Texture tex){
     #ifndef __EMSCRIPTEN__
     auto& device = g_wgpustate.device;
-    Image ret {tex.format, tex.width, tex.height, size_t(std::ceil(4.0 * tex.width / 256.0) * 256), nullptr};
+    Image ret {(PixelFormat)tex.format, tex.width, tex.height, size_t(std::ceil(4.0 * tex.width / 256.0) * 256), nullptr};
     WGPUBufferDescriptor b{};
     b.mappedAtCreation = false;
     b.size = size_t(std::ceil(4.0 * tex.width / 256.0) * 256) * tex.height;

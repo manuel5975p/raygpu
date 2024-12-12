@@ -279,7 +279,7 @@ int main(){
         //EndPipelineMode();
         //EndRenderPass(&g_wgpustate.rstate->renderpass);
         //BeginRenderPass(&g_wgpustate.rstate->renderpass);
-        for(double x = -1;x <= 1; x += 0.05){
+        for(double x = -1;x <= 1; x += 0.5){
             for(double y = -1;y <= 1; y += 0.5){
                 UseTexture(g_wgpustate.whitePixel);
                 rlBegin(RL_TRIANGLES);
@@ -289,7 +289,7 @@ int main(){
                 rlVertex2f(x, y + 0.04);
                 rlEnd();
                 //assert(g_wgpustate.rstate->activeRenderPass == &g_wgpustate.rstate->renderpass);
-                DrawTexturePro(checkers, Rectangle{0, 0, 100, 100}, Rectangle{(float)x + 0.01f,(float)y,0.02f,0.02f}, Vector2{0, 0}, 0.0f, Color{255,255,255,255});
+                //DrawTexturePro(checkers, Rectangle{0, 0, 100, 100}, Rectangle{(float)x + 0.01f,(float)y,0.02f,0.02f}, Vector2{0, 0}, 0.0f, Color{255,255,255,255});
                 //goto end;
                 //EndRenderpassEx(&g_wgpustate.rstate->renderpass);
                 //BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
@@ -315,6 +315,7 @@ int main(){
             stmp = NanoTime();
         }
     };
+    LoadFontDefault();
     #ifndef __EMSCRIPTEN__
     while(!glfwWindowShouldClose(window)){
         mainloop2(nullptr);

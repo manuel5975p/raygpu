@@ -165,7 +165,7 @@ EXTERN_C_BEGIN
     void BeginRenderpassEx(DescribedRenderpass* renderPass);
     void EndRenderpassEx(DescribedRenderpass* renderPass);
     void BeginPipelineMode(DescribedPipeline* pipeline);
-    void EndPipelineMode();
+    void EndPipelineMode(cwoid);
     void* LoadFileData(const char *fileName, size_t *dataSize);
     Texture LoadTextureFromImage(Image img);
     Image LoadImageFromTexture(Texture tex);
@@ -202,6 +202,8 @@ EXTERN_C_BEGIN
     Font LoadFontEx(const char *fileName, int fontSize, int *codepoints, int codepointCount);
     Font LoadFontFromImage(Image img, Color key, int firstchar);
     Font LoadFontFromMemory(const char *fileType, const unsigned char *fileData, int dataSize, int fontSize, int *codepoints, int codepointCount);
+    void LoadFontDefault(void);
+    Font GetFontDefault(void);
     GlyphInfo *LoadFontData(const unsigned char *fileData, int dataSize, int fontSize, int *codepoints, int codepointCount, int type);
     Image GenImageFontAtlas(const GlyphInfo *glyphs, Rectangle **glyphRecs, int glyphCount, int fontSize, int padding, int packMethod);
     void UseTexture(Texture tex);

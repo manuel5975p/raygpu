@@ -107,7 +107,9 @@
         #pragma GCC diagnostic pop
     #endif
 #endif
-
+#define RL_CALLOC calloc
+#define RL_MALLOC malloc
+#define RL_FREE free
 //----------------------------------------------------------------------------------
 // Defines and Macros
 //----------------------------------------------------------------------------------
@@ -280,7 +282,7 @@ extern void LoadFontDefault(void)
         .data = calloc(128*128, 4),  // 2 bytes per pixel (gray + alpha)
         .width = 128,
         .height = 128,
-        .format = WGPUTextureFormat_RGBA8Unorm
+        .format = RGBA8
     };
 
     // Fill image.data with defaultFontData (convert from bit to pixel!)
@@ -292,6 +294,7 @@ extern void LoadFontDefault(void)
             {
                 // NOTE: We are unreferencing data as short, so,
                 // we must consider data as little-endian order (alpha + gray)
+                // EDIT: Change this to ints, 
                 ((unsigned int *)imFont.data)[i + j] = 0xffffffff;
             }
             else ((unsigned int *)imFont.data)[i + j] = 0x000000ff;
@@ -549,7 +552,7 @@ Font LoadFontFromImage(Image image, Color key, int firstChar)
         .data = pixels,
         .width = image.width,
         .height = image.height,
-        .format = WGPUTextureFormat_RGBA8Unorm
+        .format = RGBA8
     };
 
     // Set font with all data parsed from image
@@ -760,8 +763,7 @@ GlyphInfo *LoadFontData(const unsigned char *fileData, int dataSize, int fontSiz
                             .data = RL_CALLOC(chars[i].advanceX*fontSize, 2),
                             .width = chars[i].advanceX,
                             .height = fontSize,
-                            .mipmaps = 1,
-                            .format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE
+                            .format = GRAYSCALE
                         };
 
                         chars[i].image = imSpace;
@@ -926,7 +928,7 @@ Image GenImageFontAtlas(const GlyphInfo *glyphs, Rectangle **glyphRecs, int glyp
         // Fill rectangles for packaging
         for (int i = 0; i < glyphCount; i++)
         {
-            rects[i].tex = i;
+            rects[i].id = i;
             rects[i].w = glyphs[i].image.width + 2*padding;
             rects[i].h = glyphs[i].image.height + 2*padding;
         }
@@ -985,7 +987,7 @@ Image GenImageFontAtlas(const GlyphInfo *glyphs, Rectangle **glyphRecs, int glyp
 
     RL_FREE(atlas.data);
     atlas.data = dataGrayAlpha;
-    atlas.format = PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA;
+    atlas.format = GRAYSCALE;
 
     *glyphRecs = recs;
 
