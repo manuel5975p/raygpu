@@ -124,17 +124,9 @@ void drawCurrentBatch(){
     if(vertexCount == 0)return;
     //std::cout << "vboptr reset" << std::endl;
     
-    updatePipeline(g_wgpustate.rstate, g_wgpustate.current_drawmode);
     UpdateBindGroup(&g_wgpustate.rstate->currentPipeline->bindGroup);
     switch(g_wgpustate.current_drawmode){
-        case RL_TRIANGLES: [[fallthrough]];
-        case RL_TRIANGLE_STRIP:{
-            //std::cout << "rendering schtrip\n";
-            //exit(0);
-            //WGPUCommandEncoderDescriptor arg{};
-            //WGPUCommandBufferDescriptor arg2{};
-            //WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder(GetDevice(), &arg);
-            //std::cout << "Reseiz: " << g_wgpustate.rstate->vbo.buffer << std::endl;
+        case RL_LINES:{
             DescribedBuffer vbo;
             bool allocated_via_pool = false;
             if(vertexCount <= 8 && !g_wgpustate.smallBufferPool.empty()){
@@ -146,33 +138,32 @@ void drawCurrentBatch(){
             else{
                 vbo = GenBuffer(vboptr_base, vertexCount * sizeof(vertex));
             }
-            
-            //wgpuCommandEncoderCopyBufferToBuffer(enc, vbomap.buffer, 0, g_wgpustate.rstate->vbo.buffer, 0, vertexCount * sizeof(vertex));
-            //WGPUCommandBuffer buf = wgpuCommandEncoderFinish(enc, &arg2);
-            //wgpuQueueWriteBuffer(GetQueue(), vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
-            
-            //wgpuBufferUnmap(vbomap.buffer);
-            //wgpuQueueSubmit(GetQueue(), 1, &buf);
-            //wgpuCommandEncoderRelease(enc);
-            //wgpuCommandBufferRelease(buf);
-            //wgpu::Buffer b(vbomap.buffer);
-            //wgpu::Instance inst;
-            //WGPUFuture f = b.MapAsync(wgpu::MapMode::Write, 0, b.GetSize(), wgpu::CallbackMode::WaitAnyOnly, [](wgpu::MapAsyncStatus status, wgpu::StringView message){});
-            //WGPUFutureWaitInfo winfo{f, 0};
-            //wgpuInstanceWaitAny(g_wgpustate.instance, 1, &winfo, UINT64_MAX);
-            //vbomap.buffer = b.MoveToCHandle();
-            //vboptr_base = (vertex*)wgpuBufferGetMappedRange(vbomap.buffer, 0, vbomap.descriptor.size);
             vboptr = vboptr_base;
-            //WGPUBufferMapCallbackInfo x{};
-            //x.userdata = 0;
-            //wgpuBufferMapAsync(vbomap.buffer, WGPUMapMode_Write, 0, vbomap.descriptor.size, x);
-            //updateVertexBuffer(g_wgpustate.rstate, g_wgpustate.current_vertices.data(), vertexCount * sizeof(vertex));
-            //updateVertexBuffer(g_wgpustate.rstate, vboptr_base, vertexCount * sizeof(vertex));
-            //g_wgpustate.rstate->executeRenderpass([vcount](WGPURenderPassEncoder renderPass){
-            //    wgpuRenderPassEncoderDraw(renderPass, vcount, 1, 0, 0);
-            //});
-            updatePipeline(g_wgpustate.rstate, g_wgpustate.current_drawmode);
-            BindPipeline(g_wgpustate.rstate->currentPipeline);
+            BindPipeline(g_wgpustate.rstate->currentPipeline, WGPUPrimitiveTopology_LineList);
+            wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, wgpuBufferGetSize(vbo.buffer));
+            wgpuRenderPassEncoderDraw(g_wgpustate.rstate->renderpass.rpEncoder, vertexCount, 1, 0, 0);
+            if(!allocated_via_pool){
+                wgpuBufferRelease(vbo.buffer);
+            }
+            else{
+                g_wgpustate.smallBufferRecyclingBin.push_back(vbo);
+            }
+        }break;
+        case RL_TRIANGLES: [[fallthrough]];
+        case RL_TRIANGLE_STRIP:{
+            DescribedBuffer vbo;
+            bool allocated_via_pool = false;
+            if(vertexCount <= 8 && !g_wgpustate.smallBufferPool.empty()){
+                allocated_via_pool = true;
+                vbo = g_wgpustate.smallBufferPool.back();
+                g_wgpustate.smallBufferPool.pop_back();
+                wgpuQueueWriteBuffer(GetQueue(), vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
+            }
+            else{
+                vbo = GenBuffer(vboptr_base, vertexCount * sizeof(vertex));
+            }
+            vboptr = vboptr_base;
+            BindPipeline(g_wgpustate.rstate->currentPipeline, WGPUPrimitiveTopology_TriangleList);
             wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, wgpuBufferGetSize(vbo.buffer));
             wgpuRenderPassEncoderDraw(g_wgpustate.rstate->renderpass.rpEncoder, vertexCount, 1, 0, 0);
             if(!allocated_via_pool){
@@ -189,7 +180,6 @@ void drawCurrentBatch(){
                 allocated_via_pool = true;
                 vbo = g_wgpustate.smallBufferPool.back();
                 g_wgpustate.smallBufferPool.pop_back();
-                
                 wgpuQueueWriteBuffer(GetQueue(), vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
             }
             else{
@@ -211,8 +201,7 @@ void drawCurrentBatch(){
                 g_wgpustate.quadindicesCache = GenBufferEx(indices.data(), 6 * quadCount * sizeof(uint32_t), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index);
             }
             const DescribedBuffer& ibuf = g_wgpustate.quadindicesCache;
-            updatePipeline(g_wgpustate.rstate, g_wgpustate.current_drawmode);
-            BindPipeline(g_wgpustate.rstate->currentPipeline);
+            BindPipeline(g_wgpustate.rstate->currentPipeline, WGPUPrimitiveTopology_TriangleList);
             //wgpuQueueWriteBuffer(GetQueue(), vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
             
             wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, vertexCount * sizeof(vertex));
@@ -227,85 +216,41 @@ void drawCurrentBatch(){
             }
             vboptr = vboptr_base;
             
-            /*//updateVertexBuffer(g_wgpustate.rstate, g_wgpustate.current_vertices.data(), vertexCount * sizeof(vertex));
-            WGPUBufferDescriptor mappedIbufDesc{};
-            mappedIbufDesc.mappedAtCreation = true;
-            mappedIbufDesc.usage = WGPUBufferUsage_MapWrite | WGPUBufferUsage_CopySrc;
-            mappedIbufDesc.size = sizeof(uint32_t) * 6 * (vertexCount / 4);
-            WGPUBufferDescriptor actualIbufDesc{};
-            actualIbufDesc.mappedAtCreation = false;
-            actualIbufDesc.usage = WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst;
-            actualIbufDesc.size = sizeof(uint32_t) * 6 * (vertexCount / 4);
-            
-            ResizeBuffer(&g_wgpustate.rstate->vbo, vbomap.descriptor.size);
-            WGPUCommandEncoderDescriptor arg{};
-            WGPUCommandBufferDescriptor arg2{};
-            WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder(GetDevice(), &arg);
-            ResizeBuffer(&g_wgpustate.rstate->vbo, vbomap.descriptor.size);
-            wgpuCommandEncoderCopyBufferToBuffer(enc, vbomap.buffer, 0, g_wgpustate.rstate->vbo.buffer, 0, vertexCount * sizeof(vertex));
-            WGPUCommandBuffer buf = wgpuCommandEncoderFinish(enc, &arg2);
-            wgpuBufferUnmap(vbomap.buffer);
-            wgpuQueueSubmit(GetQueue(), 1, &buf);
-            wgpuCommandEncoderRelease(enc);
-            wgpuCommandBufferRelease(buf);
-            wgpu::Buffer b(vbomap.buffer);
-            wgpu::Instance inst;
-            WGPUFuture f = b.MapAsync(wgpu::MapMode::Write, 0, b.GetSize(), wgpu::CallbackMode::WaitAnyOnly, [](wgpu::MapAsyncStatus status, wgpu::StringView message){});
-            WGPUFutureWaitInfo winfo{f, 0};
-            wgpuInstanceWaitAny(g_wgpustate.instance, 1, &winfo, UINT64_MAX);
-            vbomap.buffer = b.MoveToCHandle();
-            vboptr_base = (vertex*)wgpuBufferGetMappedRange(vbomap.buffer, 0, vbomap.descriptor.size);
-            vboptr = vboptr_base;
-            //BufferData(&g_wgpustate.rstate->vbo, vboptr_base, sizeof(vertex) * vertexCount);
-            //WGPUBuffer ibuf = wgpuDeviceCreateBuffer(g_wgpustate.device, &mappedIbufDesc);
-            WGPUBuffer ibuf_actual = wgpuDeviceCreateBuffer(g_wgpustate.device, &actualIbufDesc);
-            //uint32_t* indices = (uint32_t*)wgpuBufferGetMappedRange(ibuf, 0, mappedIbufDesc.size);
-            
-            size_t bytesize = mappedIbufDesc.size;//indices.size() * sizeof(uint32_t);
-            size_t vcount = mappedIbufDesc.size / sizeof(uint32_t);//indices.size();
-            //wgpuBufferUnmap(ibuf);
-            
-            //break;
-            ///WGPUCommandEncoder enc;
-            ///WGPUCommandEncoderDescriptor commandEncoderDesc = {};
-            ///commandEncoderDesc.label = STRVIEW("Command Encoder");
-            ///enc = wgpuDeviceCreateCommandEncoder(GetDevice(), &commandEncoderDesc);
-            ///wgpuCommandEncoderCopyBufferToBuffer(enc, ibuf, 0, ibuf_actual, 0, actualIbufDesc.size);
-            ///WGPUCommandBufferDescriptor cmdBufferDescriptor{};
-            ///cmdBufferDescriptor.label = STRVIEW("Command buffer");
-            ///WGPUCommandBuffer command = wgpuCommandEncoderFinish(enc, &cmdBufferDescriptor);
-            ///wgpuQueueSubmit(GetQueue(), 1, &command);
-            wgpuQueueWriteBuffer(g_wgpustate.queue, ibuf_actual, 0, indices.data(), indices.size() * sizeof(uint32_t));
-            //g_wgpustate.rstate->executeRenderpass([&actualIbufDesc, ibuf_actual, bytesize, vcount](WGPURenderPassEncoder renderPass){
-            //    wgpuRenderPassEncoderSetIndexBuffer(renderPass, ibuf_actual, WGPUIndexFormat_Uint32, 0, bytesize);
-            //    wgpuRenderPassEncoderDrawIndexed(renderPass, vcount, 1, 0, 0, 0);
-            //});
-            
-            BindPipeline(g_wgpustate.rstate->currentPipeline);
-            wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, g_wgpustate.rstate->vbo.buffer, 0, wgpuBufferGetSize(g_wgpustate.rstate->vbo.buffer));
-            wgpuRenderPassEncoderSetIndexBuffer (g_wgpustate.rstate->renderpass.rpEncoder, ibuf_actual, WGPUIndexFormat_Uint32, 0, bytesize);
-            wgpuRenderPassEncoderDrawIndexed    (g_wgpustate.rstate->renderpass.rpEncoder, vcount, 1, 0, 0, 0);
-            //wgpuBufferRelease(ibuf);
-            wgpuBufferRelease(ibuf_actual);*/
         } break;
         default:break;
     }
     vboptr = vboptr_base;
 }
 
-extern "C" void BeginPipelineMode(DescribedPipeline* pipeline){
+extern "C" void BeginPipelineMode(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode){
     drawCurrentBatch();
     g_wgpustate.rstate->currentPipeline = pipeline;
-    BindPipeline(pipeline);
+    BindPipeline(pipeline, drawMode);
 }
 extern "C" void EndPipelineMode(){
     drawCurrentBatch();
     g_wgpustate.rstate->currentPipeline = g_wgpustate.rstate->defaultPipeline;
-    BindPipeline(g_wgpustate.rstate->currentPipeline);
+    BindPipeline(g_wgpustate.rstate->currentPipeline, g_wgpustate.rstate->currentPipeline->lastUsedAs);
 }
-extern "C" void BindPipeline(DescribedPipeline* pipeline){
-    wgpuRenderPassEncoderSetPipeline (g_wgpustate.rstate->renderpass.rpEncoder, pipeline->pipeline);
+extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode){
+    
+    switch(drawMode){
+        case WGPUPrimitiveTopology_TriangleList:
+        wgpuRenderPassEncoderSetPipeline (g_wgpustate.rstate->renderpass.rpEncoder, pipeline->pipeline);
+        break;
+        case WGPUPrimitiveTopology_TriangleStrip:
+        wgpuRenderPassEncoderSetPipeline (g_wgpustate.rstate->renderpass.rpEncoder, pipeline->pipeline_TriangleStrip);
+        break;
+        case WGPUPrimitiveTopology_LineList:
+        wgpuRenderPassEncoderSetPipeline (g_wgpustate.rstate->renderpass.rpEncoder, pipeline->pipeline_LineList);
+        break;
+        default:
+            assert(false && "Unsupported Drawmode");
+            abort();
+    }
+    pipeline->lastUsedAs = drawMode;
     wgpuRenderPassEncoderSetBindGroup (g_wgpustate.rstate->renderpass.rpEncoder, 0, GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
+
 }
 
 
@@ -393,7 +338,7 @@ void rlBegin(draw_mode mode){
     g_wgpustate.current_drawmode = mode;
 }
 void rlEnd(){
-
+    
 }
 Image LoadImageFromTexture(Texture tex){
     #ifndef __EMSCRIPTEN__
@@ -818,101 +763,8 @@ void ResizeBufferAndConserve(DescribedBuffer* buffer, size_t newSize){
     wgpuBufferRelease(buffer->buffer);
     *buffer = newbuffer;
 }
-void updateBindGroup(full_renderstate* state){
-    if(state->currentPipeline->bindGroup.needsUpdate){
-        state->currentPipeline->bindGroup.bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &state->currentPipeline->bindGroup.desc);
-    }
-    //UpdateBindGroup(DescribedBindGroup *bg, size_t index, WGPUBindGroupEntry entry)
-    //WGPUBindGroupDescriptor bgdesc{};
-    //bgdesc.entryCount = state->bglayoutdesc.entryCount;
-//
-    //for(uint32_t i = 0;i < state->bglayoutdesc.entryCount;i++){
-    //    if(state->bgEntries[i].binding != i){
-    //        return;
-    //    }
-    //}
-    //bgdesc.entries = state->bgEntries;
-    //bgdesc.layout = state->bglayout;
-    //if(state->bg)wgpuBindGroupRelease(state->bg);
-    //state->bg = wgpuDeviceCreateBindGroup(g_wgpustate.device, &bgdesc);
-}
 
-void updatePipeline(full_renderstate* state, draw_mode drawmode){
-    return;
-    //state->pipeline.descriptor = WGPURenderPipelineDescriptor{};
-    //state->pipeline.descriptor.vertex.bufferCount = 1;
-    //state->pipeline.descriptor.vertex.buffers = state->pipeline.vbLayouts;
-    //state->pipeline.descriptor.vertex.module = state->pipeline.sh;_-c
-    //state->pipeline.descriptor.vertex.entryPoint = STRVIEW("vs_main");
-    //state->pipeline.descriptor.vertex.constantCount = 0;
-    //state->pipeline.descriptor.vertex.constants = nullptr;
-    switch(drawmode){
-        case draw_mode::RL_QUADS:{
-            state->currentPipeline->descriptor.primitive.topology =         WGPUPrimitiveTopology_TriangleList;
-            state->currentPipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
-        }break;
-        case draw_mode::RL_TRIANGLES:{
-            state->currentPipeline->descriptor.primitive.topology =         WGPUPrimitiveTopology_TriangleList;
-            state->currentPipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
 
-        }break;
-        case draw_mode::RL_TRIANGLE_STRIP:{
-            abort();
-            state->currentPipeline->descriptor.primitive.topology =         WGPUPrimitiveTopology_TriangleStrip;
-            state->currentPipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
-        }break;
-    }
-    
-    //state->pipeline.descriptor.primitive.frontFace =        WGPUFrontFace_CCW;
-    //state->pipeline.descriptor.primitive.cullMode =         WGPUCullMode_None;
-    //WGPUFragmentState fragmentState{};
-    //state->pipeline.descriptor.fragment = &fragmentState;
-    //fragmentState.module = state->shader;
-    //fragmentState.entryPoint = STRVIEW("fs_main");
-    //fragmentState.constantCount = 0;
-    //fragmentState.constants = nullptr;
-    //WGPUBlendState blendState{};
-    //blendState.color.srcFactor = WGPUBlendFactor_SrcAlpha;
-    //blendState.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
-    //blendState.color.operation = WGPUBlendOperation_Add;
-    //blendState.alpha.srcFactor = WGPUBlendFactor_Zero;
-    //blendState.alpha.dstFactor = WGPUBlendFactor_One;
-    //blendState.alpha.operation = WGPUBlendOperation_Add;
-    //WGPUColorTargetState colorTarget{};
-    //colorTarget.format = g_wgpustate.frameBufferFormat;
-    //colorTarget.blend = &blendState;
-    //colorTarget.writeMask = WGPUColorWriteMask_All;
-    //fragmentState.targetCount = 1;
-    //fragmentState.targets = &colorTarget;
-    //// We setup a depth buffer state for the render pipeline
-    //WGPUDepthStencilState depthStencilState{};
-    //// Keep a fragment only if its depth is lower than the previously blended one
-    //depthStencilState.depthCompare = WGPUCompareFunction_Less;
-    //// Each time a fragment is blended into the target, we update the value of the Z-buffer
-    //depthStencilState.depthWriteEnabled = WGPUOptionalBool_True;
-    //// Store the format in a variable as later parts of the code depend on it
-    //WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth24Plus;
-    //depthStencilState.format = depthTextureFormat;
-    //// Deactivate the stencil alltogether
-    //depthStencilState.stencilReadMask = 0;
-    //depthStencilState.stencilWriteMask = 0;
-    //depthStencilState.stencilFront.compare = WGPUCompareFunction_Always;
-    //depthStencilState.stencilBack.compare = WGPUCompareFunction_Always;
-    //state->pipeline.descriptor.depthStencil = &depthStencilState;
-    //state->pipeline.descriptor.multisample.count = 1;
-    //state->pipeline.descriptor.multisample.mask = ~0u;
-    //state->pipeline.descriptor.multisample.alphaToCoverageEnabled = false;
-    //// Create a bind group layout
-    //// Create the pipeline layout
-    //WGPUPipelineLayoutDescriptor layoutDesc{};
-    //layoutDesc.bindGroupLayoutCount = 1;
-    //layoutDesc.bindGroupLayouts = &state->pipeline.bglayout.layout;
-    //WGPUPipelineLayout layout = wgpuDeviceCreatePipelineLayout(g_wgpustate.device, &layoutDesc);
-    //state->pipeline.descriptor.layout = layout;
-    wgpuRenderPipelineRelease(state->currentPipeline->pipeline);
-    state->currentPipeline->pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &state->currentPipeline->descriptor);
-    //wgpuPipelineLayoutRelease(layout);
-}
 WGPURenderPassDepthStencilAttachment* defaultDSA(WGPUTextureView depth){
     WGPURenderPassDepthStencilAttachment* dsa = (WGPURenderPassDepthStencilAttachment*)calloc(1, sizeof(WGPURenderPassDepthStencilAttachment));
     // The view of the depth texture
@@ -1046,9 +898,12 @@ extern "C" void* LoadFileData(const char *fileName, size_t *dataSize) {
 extern "C" Image LoadImage(const char* filename){
     size_t size;
     void* data = LoadFileData(filename, &size);
-    Image ld =  LoadImageFromMemory(data, size);
-    free(data);
-    return ld;
+    if(size != 0){
+        Image ld =  LoadImageFromMemory(data, size);
+        free(data);
+        return ld;
+    }
+    return Image{};
 }
 void UnloadTexture(Texture tex){
     if(tex.view)

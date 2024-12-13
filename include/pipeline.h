@@ -57,7 +57,10 @@ typedef struct DescribedPipeline{
     WGPURenderPipelineDescriptor descriptor;
     WGPUVertexBufferLayout* vbLayouts;
     WGPUVertexAttribute* attributePool;
-    WGPURenderPipeline pipeline;
+    WGPURenderPipeline pipeline; //TriangleList
+    WGPURenderPipeline pipeline_TriangleStrip;
+    WGPURenderPipeline pipeline_LineList;
+    WGPUPrimitiveTopology lastUsedAs;
 
     WGPUBlendState* blendState;
     // WGPUVertexState not required as it's a nonpointer member of WGPURenderPipelineDescriptor

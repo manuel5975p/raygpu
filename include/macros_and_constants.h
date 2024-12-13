@@ -2,7 +2,7 @@
 #define MACROS_AND_CONSTANTS
 
 #define STRVIEW(X) WGPUStringView{X, sizeof(X) - 1}
-
+#define callocnew(X) ((X*)calloc(1, (sizeof(X))))
 #ifdef __cplusplus
 #define zeroinit {}
 #define CLITERAL(X) X

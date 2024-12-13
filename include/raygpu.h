@@ -117,7 +117,7 @@ extern vertex* vboptr_base;
 #define WHITE CLITERAL(Color){255,255,255,255}
 
 enum draw_mode{
-    RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS
+    RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS, RL_LINES
 };
 
 typedef struct full_renderstate full_renderstate;
@@ -164,7 +164,7 @@ EXTERN_C_BEGIN
     
     void BeginRenderpassEx(DescribedRenderpass* renderPass);
     void EndRenderpassEx(DescribedRenderpass* renderPass);
-    void BeginPipelineMode(DescribedPipeline* pipeline);
+    void BeginPipelineMode(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode);
     void EndPipelineMode(cwoid);
     void* LoadFileData(const char *fileName, size_t *dataSize);
     Texture LoadTextureFromImage(Image img);
@@ -231,12 +231,13 @@ EXTERN_C_BEGIN
     void BeginTextureMode(RenderTexture rtex);
     void EndTextureMode(cwoid);
 
-    void BindPipeline(DescribedPipeline* pipeline);
+    void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode);
 
     WGPUShaderModule LoadShaderFromMemory(const char* shaderSource);
     WGPUShaderModule LoadShader(const char* path);
 
     DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
+    void UnloadPipeline(DescribedPipeline* pl);
 
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
     Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format, bool to_be_used_as_rendertarget);
@@ -264,7 +265,6 @@ EXTERN_C_BEGIN
     
     void init_full_renderstate (full_renderstate* state, const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniform_count, WGPUTextureView c, WGPUTextureView d);
     void updatePipeline        (full_renderstate* state, enum draw_mode drawmode);
-    //void updateRenderPassDesc  (full_renderstate* state);
     void setTargetTextures     (full_renderstate* state, WGPUTextureView c, WGPUTextureView d);
 
     VertexArray* LoadVertexArray(cwoid);
@@ -325,52 +325,6 @@ typedef struct full_renderstate{
     DescribedRenderpass renderpass;
     DescribedRenderpass* activeRenderPass;
 
-    //WGPUBindGroupLayoutDescriptor bglayoutdesc;
-    //WGPUBindGroupLayout bglayout;
-    //WGPURenderPipelineDescriptor pipelineDesc;
-    
-    
-    //#ifdef __cplusplus
-    //template<typename callable>
-    //void executeRenderpass(callable&& c){
-    //    WGPUCommandEncoderDescriptor commandEncoderDesc = {};
-    //    commandEncoderDesc.label = STRVIEW("Command Encoder");
-    //    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(GetDevice(), &commandEncoderDesc);
-    //    
-    //    WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
-    //    wgpuRenderPassEncoderSetPipeline(renderPass, pipeline.pipeline);
-    //    wgpuRenderPassEncoderSetBindGroup(renderPass, 0, GetWGPUBindGroup(&pipeline.bindGroup), 0, 0);
-    //    wgpuRenderPassEncoderSetVertexBuffer(renderPass, 0, this->vbo, 0, wgpuBufferGetSize(vbo));
-    //    c(renderPass);
-    //    //if constexpr(std::is_invocable_v<callable, WGPURenderPassEncoder>){
-    //    //}
-    //    //else if constexpr(std::is_invocable_v<callable, WGPURenderPassEncoder, WGPUCommandEncoder>){
-    //    //    c(renderPass, encoder);
-    //    //}
-    //    wgpuRenderPassEncoderEnd(renderPass);
-    //    WGPUCommandBufferDescriptor cmdBufferDescriptor{};
-    //    cmdBufferDescriptor.label = STRVIEW("Command buffer");
-    //    WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &cmdBufferDescriptor);
-    //    wgpuQueueSubmit(GetQueue(), 1, &command);
-    //    wgpuCommandEncoderRelease(encoder);
-    //    wgpuCommandBufferRelease(command);
-    //}
-    //template<typename callable>
-    //void executeRenderpassPlain(callable&& c){
-    //    WGPUCommandEncoderDescriptor commandEncoderDesc = {};
-    //    commandEncoderDesc.label = STRVIEW("Command Encoder");
-    //    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(GetDevice(), &commandEncoderDesc);
-    //    WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
-    //    c(renderPass);
-    //    wgpuRenderPassEncoderEnd(renderPass);
-    //    WGPUCommandBufferDescriptor cmdBufferDescriptor{};
-    //    cmdBufferDescriptor.label = STRVIEW("Command buffer");
-    //    WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &cmdBufferDescriptor);
-    //    wgpuQueueSubmit(GetQueue(), 1, &command);
-    //    wgpuCommandEncoderRelease(encoder);
-    //    wgpuCommandBufferRelease(command);
-    //}
-    //#endif
 }full_renderstate;
 typedef struct wgpustate wgpustate;
 extern wgpustate g_wgpustate;

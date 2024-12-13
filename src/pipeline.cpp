@@ -83,7 +83,7 @@ DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, 
 
 extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
 
-    DescribedPipeline* retp = new DescribedPipeline{};
+    DescribedPipeline* retp = callocnew(DescribedPipeline);
     DescribedPipeline& ret = *retp;
     ret.sh = LoadShaderFromMemory(shaderSource);
 
@@ -145,7 +145,7 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     vertexState.entryPoint = STRVIEW("vs_main");
     pipelineDesc.vertex = vertexState;
 
-    ret.fragmentState = new WGPUFragmentState{};
+    ret.fragmentState = callocnew(WGPUFragmentState);
 
     pipelineDesc.fragment = ret.fragmentState;
     ret.fragmentState->module = ret.sh;
@@ -159,7 +159,7 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     ret.blendState->alpha.srcFactor = WGPUBlendFactor_Zero;
     ret.blendState->alpha.dstFactor = WGPUBlendFactor_One;
     ret.blendState->alpha.operation = WGPUBlendOperation_Add;
-    ret.colorTarget = new WGPUColorTargetState{};
+    ret.colorTarget = callocnew(WGPUColorTargetState);
     ret.colorTarget->format = g_wgpustate.frameBufferFormat;
     ret.colorTarget->blend = ret.blendState;
     ret.colorTarget->writeMask = WGPUColorWriteMask_All;
@@ -169,7 +169,7 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     // We setup a depth buffer state for the render pipeline
     ret.depthStencilState = nullptr;
     if(settings.depthTest){
-        ret.depthStencilState = new WGPUDepthStencilState{};
+        ret.depthStencilState = callocnew(WGPUDepthStencilState);
         // Keep a fragment only if its depth is lower than the previously blended one
         ret.depthStencilState->depthCompare = settings.depthCompare;
         // Each time a fragment is blended into the target, we update the value of the Z-buffer
@@ -184,10 +184,26 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
         ret.depthStencilState->stencilBack.compare = WGPUCompareFunction_Always;
     }
     pipelineDesc.depthStencil = settings.depthTest ? ret.depthStencilState : nullptr;
+    ret.descriptor.primitive.frontFace = settings.frontFace;
+    ret.descriptor.primitive.cullMode = settings.faceCull ? WGPUCullMode_Back : WGPUCullMode_None;
+    
+    ret.descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
     ret.pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &ret.descriptor);
+    ret.descriptor.primitive.topology = WGPUPrimitiveTopology_LineList;
+    ret.pipeline_LineList = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &ret.descriptor);
+    ret.descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleStrip;
+    ret.descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
+    ret.pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &ret.descriptor);
     return retp;
 }
-
+extern "C" void UnloadPipeline(DescribedPipeline* pl){
+    wgpuPipelineLayoutRelease(pl->layout.layout);
+    UnloadBindGroup(&pl->bindGroup);
+    UnloadBindGroupLayout(&pl->bglayout);
+    wgpuRenderPipelineRelease(pl->pipeline);
+    wgpuRenderPipelineRelease(pl->pipeline_LineList);
+    wgpuRenderPipelineRelease(pl->pipeline_TriangleStrip);
+}
 uint64_t bgEntryHash(const WGPUBindGroupEntry& bge){
     const uint32_t rotation = (bge.binding) & 63;
     uint64_t value = ROT_BYTES((uint64_t)bge.buffer, rotation);

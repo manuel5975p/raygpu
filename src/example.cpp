@@ -291,14 +291,14 @@ int main(){
         //EndPipelineMode();
         //EndRenderPass(&g_wgpustate.rstate->renderpass);
         //BeginRenderPass(&g_wgpustate.rstate->renderpass);
-        for(double x = -1;x <= -2; x += 0.5){
+        for(double x = -1;x <= 1; x += 0.5){
             for(double y = -1;y <= 1; y += 0.5){
                 UseTexture(g_wgpustate.whitePixel);
-                rlBegin(RL_TRIANGLES);
-                rlColor4f(1, 1, 1, 1);
+                rlBegin(RL_LINES);
+                rlColor4f(0, 0, 1, 1);
                 rlVertex2f(x, y);
-                rlVertex2f(x + 0.04, y);
-                rlVertex2f(x, y + 0.04);
+                rlVertex2f(x + 0.4, y);
+                //rlVertex2f(x, y + 0.04);
                 rlEnd();
                 goto end;
                 //assert(g_wgpustate.rstate->activeRenderPass == &g_wgpustate.rstate->renderpass);

@@ -47,6 +47,7 @@ foreach(source_file IN LISTS RG_SOURCES)
     set_source_files_properties(${source_file} PROPERTIES COMPILE_FLAGS "-g")
 endforeach()
 SET_SOURCE_FILES_PROPERTIES("src/stb_impl.c" PROPERTIES COMPILE_FLAGS -w)
+SET_SOURCE_FILES_PROPERTIES("src/rtext.c" PROPERTIES COMPILE_FLAGS -w)
 target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/include" "${CMAKE_BINARY_DIR}/dl")
 target_link_libraries(raygpu PUBLIC
     webgpu_dawn
