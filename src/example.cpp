@@ -261,6 +261,9 @@ int main(){
         DrawCircleLines(900, 300, 50, Color{0,255,0,255});
         if(IsKeyPressed(GLFW_KEY_A))
             DrawText(togst.c_str(), 200, 400, 30, WHITE);
+        if(IsKeyPressed(GLFW_KEY_U)){
+            ToggleFullscreen();
+        }
         while(int cp = GetCharPressed()){
             togst += cp;
         }

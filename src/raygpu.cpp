@@ -494,6 +494,12 @@ Texture LoadTextureFromImage(Image img){
     if(altdata)free(altdata);
     return ret;
 }
+void ToggleFullscreen(){
+    //wgpuTextureViewRelease(depthTexture.view);
+    //wgpuTextureRelease(depthTexture.tex);
+    glfwSetWindowMonitor(g_wgpustate.window, glfwGetPrimaryMonitor(), 0, 0, 1920, 1200, 60);
+    //depthTexture = LoadDepthTexture(1920, 1200);
+}
 extern "C" bool IsKeyDown(int key){
     return g_wgpustate.keydown[key];
 }
@@ -589,8 +595,12 @@ Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format,
     tDesc.viewFormats = &tDesc.format;
 
     WGPUTextureViewDescriptor textureViewDesc{};
-    if(format == WGPUTextureFormat_Depth24Plus)
-        textureViewDesc.label = STRVIEW("Loadedtexter");
+    char potlabel[128]; 
+    if(format == WGPUTextureFormat_Depth24Plus){
+        int len = snprintf(potlabel, 128, "Depftex %d x %d", width, height);
+        textureViewDesc.label.data = potlabel;
+        textureViewDesc.label.length = len;
+    }
     textureViewDesc.aspect = ((format == WGPUTextureFormat_Depth24Plus) ? WGPUTextureAspect_DepthOnly : WGPUTextureAspect_All);
     textureViewDesc.baseArrayLayer = 0;
     textureViewDesc.arrayLayerCount = 1;

@@ -254,7 +254,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     if (!window) {
         abort();
     }
-
+    g_wgpustate.window = window;
     // Create the surface.
     sample->surface = wgpu::glfw::CreateSurfaceForWindow(sample->instance, window);
 #else
@@ -278,7 +278,6 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
         config.device = g_wgpustate.device;
         config.format = (WGPUTextureFormat)capabilities.formats[0];
         config.presentMode = !!(g_wgpustate.windowFlags & FLAG_VSYNC) ? WGPUPresentMode_Fifo : WGPUPresentMode_Immediate;
-
         config.width = width;
         config.height = height;
         g_wgpustate.width = width;
@@ -288,6 +287,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
         depthTexture = LoadDepthTexture(width, height);
         wgpuSurfaceConfigure(g_wgpustate.surface, &config);
         //updateRenderPassDesc(g_wgpustate.rstate);
+        g_wgpustate.rstate->renderpass.dsa->view = depthTexture.view;
         g_wgpustate.drawmutex.unlock();
     });
     

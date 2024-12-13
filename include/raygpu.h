@@ -139,6 +139,7 @@ EXTERN_C_BEGIN
     GLFWwindow* InitWindow(uint32_t width, uint32_t height);
     uint32_t GetScreenWidth (cwoid);
     uint32_t GetScreenHeight(cwoid);
+    void ToggleFullscreen(cwoid);
 
     bool IsKeyDown(int key);
     bool IsKeyPressed(int key);

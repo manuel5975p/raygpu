@@ -9,7 +9,7 @@ struct wgpustate{
     WGPUAdapter adapter;
     WGPUDevice device;
     WGPUQueue queue;
-    
+    GLFWwindow* window;
     WGPUSurface surface;
     uint32_t width, height;
 
