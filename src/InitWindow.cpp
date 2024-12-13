@@ -364,8 +364,8 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     
     depthTexture = rtex.depth;
     init_full_renderstate(g_wgpustate.rstate, shaderSource, attrs, 3, desc, 4, rtex.color.view, rtex.depth.view);
-    for(size_t i = 0;i < 100;i++){
-        g_wgpustate.smallBufferPool.push_back(GenBuffer(nullptr, sizeof(vertex) * 50));
+    for(size_t i = 0;i < 1000;i++){
+        g_wgpustate.smallBufferPool.push_back(GenBuffer(nullptr, sizeof(vertex) * 30));
     }
     WGPUCommandEncoderDescriptor cedesc{};
     cedesc.label = STRVIEW("Global Command Encoder");

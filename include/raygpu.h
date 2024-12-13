@@ -302,10 +302,10 @@ EXTERN_C_BEGIN
             case WGPUVertexFormat_Uint32x4:
             case WGPUVertexFormat_Sint32x4:
             return 16;
-            case WGPUVertexFormat_Float16:
-            case WGPUVertexFormat_Uint16:
-            case WGPUVertexFormat_Sint16:
-            return 2;
+            //case WGPUVertexFormat_Float16:
+            //case WGPUVertexFormat_Uint16:
+            //case WGPUVertexFormat_Sint16:
+            //return 2;
             default:
             break;
         }

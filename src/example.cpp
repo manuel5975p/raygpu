@@ -245,10 +245,10 @@ int main(){
         //SaveImage(deffont, "again.png");
         //DrawTexturePro(latlas, Rectangle(0,0,100,100), Rectangle(0,0,500,500), Vector2{0,0},0, WHITE);
         for(int j = 0;j < 10;j++)
-        for(int i = 0;i < 100;i++){
-            DrawTexturePro(checkers, Rectangle(0,0,100,100), Rectangle(i * 10,j*10,5,5), Vector2{0,0},0, WHITE);
-            DrawTexturePro(GetFontDefault().texture, Rectangle(0,0,100,100), Rectangle(i * 10+5,j*10,5,5), Vector2{0,0},0, WHITE);
-        }
+            for(int i = 0;i < 100;i++){
+                DrawTexturePro(checkers, Rectangle(0,0,100,100), Rectangle(i * 10,j*10,5,5), Vector2{0,0},0, WHITE);
+                //DrawTexturePro(GetFontDefault().texture, Rectangle(0,0,100,100), Rectangle(i * 10+5,j*10,5,5), Vector2{0,0},0, WHITE);
+            }
 
         //DrawTexturePro(latlas, Rectangle(0,0,100,100), Rectangle(0,0,500,500), Vector2{0,0},0, WHITE);
         

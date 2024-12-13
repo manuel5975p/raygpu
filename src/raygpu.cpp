@@ -137,7 +137,7 @@ void drawCurrentBatch(){
             //std::cout << "Reseiz: " << g_wgpustate.rstate->vbo.buffer << std::endl;
             DescribedBuffer vbo;
             bool allocated_via_pool = false;
-            if(vertexCount < 300 && !g_wgpustate.smallBufferPool.empty()){
+            if(vertexCount <= 8 && !g_wgpustate.smallBufferPool.empty()){
                 allocated_via_pool = true;
                 vbo = g_wgpustate.smallBufferPool.back();
                 g_wgpustate.smallBufferPool.pop_back();
@@ -185,10 +185,11 @@ void drawCurrentBatch(){
         case RL_QUADS:{
             DescribedBuffer vbo;
             bool allocated_via_pool = false;
-            if(vertexCount < 300 && !g_wgpustate.smallBufferPool.empty()){
+            if(vertexCount < 8 && !g_wgpustate.smallBufferPool.empty()){
                 allocated_via_pool = true;
                 vbo = g_wgpustate.smallBufferPool.back();
                 g_wgpustate.smallBufferPool.pop_back();
+                
                 wgpuQueueWriteBuffer(GetQueue(), vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
             }
             else{
