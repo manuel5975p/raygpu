@@ -214,6 +214,13 @@ EXTERN_C_BEGIN
         nextcol.z = b;
         nextcol.w = alpha;
     }
+    inline void rlColor4ub(uint8_t r, uint8_t g, uint8_t b, uint8_t a){
+        nextcol.x = ((int)r) / 255.0f;
+        nextcol.y = ((int)g) / 255.0f;
+        nextcol.z = ((int)b) / 255.0f;
+        nextcol.w = ((int)a) / 255.0f;
+    }
+
     inline void rlTexCoord2f(float u, float v){
         nextuv.x = u;
         nextuv.y = v;
@@ -221,6 +228,9 @@ EXTERN_C_BEGIN
 
     inline void rlVertex2f(float x, float y){
         *(vboptr++) = CLITERAL(vertex){{x, y, 0}, nextuv, nextcol};
+    }
+    inline void rlNormal3f(float x, float y, float z){
+        //Not supported
     }
     inline void rlVertex3f(float x, float y, float z){
         *(vboptr++) = CLITERAL(vertex){{x, y, z}, nextuv, nextcol};
@@ -275,8 +285,49 @@ EXTERN_C_BEGIN
     void BindVertexArray(DescribedPipeline* pipeline, VertexArray* va);
     
     void DrawArrays(uint32_t vertexCount);
-    void DrawTexturePro(Texture texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint);
 
+
+
+    void DrawTexturePro(Texture texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint);
+    void DrawPixel(int posX, int posY, Color color);
+    void DrawPixelV(Vector2 position, Color color);
+    void DrawLine(int startPosX, int startPosY, int endPosX, int endPosY, Color color);
+    void DrawLineV(Vector2 startPos, Vector2 endPos, Color color);
+    void DrawLineStrip(const Vector2 *points, int pointCount, Color color);
+    void DrawLineBezier(Vector2 startPos, Vector2 endPos, float thick, Color color);
+    void DrawLineEx(Vector2 startPos, Vector2 endPos, float thick, Color color);
+    void DrawCircle(int centerX, int centerY, float radius, Color color);
+    void DrawCircleV(Vector2 center, float radius, Color color);
+    void DrawCircleSector(Vector2 center, float radius, float startAngle, float endAngle, int segments, Color color);
+    void DrawCircleSectorLines(Vector2 center, float radius, float startAngle, float endAngle, int segments, Color color);
+    void DrawCircleGradient(int centerX, int centerY, float radius, Color inner, Color outer);
+    void DrawCircleLines(int centerX, int centerY, float radius, Color color);
+    void DrawCircleLinesV(Vector2 center, float radius, Color color);
+    void DrawEllipse(int centerX, int centerY, float radiusH, float radiusV, Color color);
+    void DrawEllipseLines(int centerX, int centerY, float radiusH, float radiusV, Color color);
+    void DrawRing(Vector2 center, float innerRadius, float outerRadius, float startAngle, float endAngle, int segments, Color color);
+    void DrawRingLines(Vector2 center, float innerRadius, float outerRadius, float startAngle, float endAngle, int segments, Color color);
+    void DrawRectangle(int posX, int posY, int width, int height, Color color);
+    void DrawRectangleV(Vector2 position, Vector2 size, Color color);
+    void DrawRectangleRec(Rectangle rec, Color color);
+    void DrawRectanglePro(Rectangle rec, Vector2 origin, float rotation, Color color);
+    void DrawRectangleGradientV(int posX, int posY, int width, int height, Color top, Color bottom);
+    void DrawRectangleGradientH(int posX, int posY, int width, int height, Color left, Color right);
+    void DrawRectangleGradientEx(Rectangle rec, Color topLeft, Color bottomLeft, Color topRight, Color bottomRight);
+    void DrawRectangleLines(int posX, int posY, int width, int height, Color color);
+    void DrawRectangleLinesEx(Rectangle rec, float lineThick, Color color);
+    void DrawRectangleRounded(Rectangle rec, float roundness, int segments, Color color);
+    void DrawRectangleRoundedLines(Rectangle rec, float roundness, int segments, Color color);
+    void DrawRectangleRoundedLinesEx(Rectangle rec, float roundness, int segments, float lineThick, Color color);
+    void DrawTriangle(Vector2 v1, Vector2 v2, Vector2 v3, Color color);
+    void DrawTriangleLines(Vector2 v1, Vector2 v2, Vector2 v3, Color color);
+    void DrawTriangleFan(const Vector2 *points, int pointCount, Color color);
+    void DrawTriangleStrip(const Vector2 *points, int pointCount, Color color);
+    void DrawPoly(Vector2 center, int sides, float radius, float rotation, Color color);
+    void DrawPolyLines(Vector2 center, int sides, float radius, float rotation, Color color);
+    void DrawPolyLinesEx(Vector2 center, int sides, float radius, float rotation, float lineThick, Color color);
+    void DrawSplineSegmentBezierQuadratic(Vector2 p1, Vector2 c2, Vector2 p3, float thick, Color color);
+    void DrawSplineSegmentBezierCubic(Vector2 p1, Vector2 c2, Vector2 c3, Vector2 p4, float thick, Color color);
     
     inline uint32_t attributeSize(WGPUVertexFormat fmt){
         switch(fmt){

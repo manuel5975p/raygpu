@@ -39,6 +39,7 @@ set(RG_SOURCES
     "src/shapes.cpp"
     "src/stb_impl.c"
     "src/rtext.c"
+    "src/rshapes.cpp"
     "src/pipeline.cpp"
 )
 

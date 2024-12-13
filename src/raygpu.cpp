@@ -694,6 +694,7 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     
 }
 void SetUniformBuffer (uint32_t index, const void* data, size_t size){
+    drawCurrentBatch();
     WGPUBindGroupEntry entry{};
     WGPUBufferDescriptor bufferDesc{};
 

@@ -237,21 +237,24 @@ int main(){
     auto mainloop2 = [&](void* userdata){
 
         BeginDrawing();
-        ClearBackground(Color{uint8_t(frames >> 2),uint8_t(frames >> 2),0, 255});
+        ClearBackground(Color{uint8_t(frames >> 4),uint8_t(frames >> 4),0, 255});
         //WGPUBindGroupEntry entry{};
         //entry.binding = 0;
         //entry.textureView = checkers.view;
         //UpdateBindGroupEntry(&pl->bindGroup, 0, entry);
         //SaveImage(deffont, "again.png");
         //DrawTexturePro(latlas, Rectangle(0,0,100,100), Rectangle(0,0,500,500), Vector2{0,0},0, WHITE);
-        for(int j = 0;j < 10;j++)
-            for(int i = 0;i < 100;i++){
-                DrawTexturePro(checkers, Rectangle(0,0,100,100), Rectangle(i * 10,j*10,5,5), Vector2{0,0},0, WHITE);
-                //DrawTexturePro(GetFontDefault().texture, Rectangle(0,0,100,100), Rectangle(i * 10+5,j*10,5,5), Vector2{0,0},0, WHITE);
-            }
+        //for(int j = 0;j < 10;j++)
+        //    for(int i = 0;i < 100;i++){
+        //        DrawTexturePro(checkers, Rectangle(0,0,100,100), Rectangle(i * 10,j*10,5,5), Vector2{0,0},0, WHITE);
+        //        //DrawTexturePro(GetFontDefault().texture, Rectangle(0,0,100,100), Rectangle(i * 10+5,j*10,5,5), Vector2{0,0},0, WHITE);
+        //    }
 
         //DrawTexturePro(latlas, Rectangle(0,0,100,100), Rectangle(0,0,500,500), Vector2{0,0},0, WHITE);
-        
+        SetUniformBuffer(0, &sc2, 64);
+        DrawCircle(500, 300, 50, WHITE);
+        DrawCircle(880, 300, 50, Color{255,0,0,100});
+        DrawCircleLines(900, 300, 50, Color{0,255,0,255});
         DrawText("helo", 200, 400, 30, WHITE);
         
         //DescribedBuffer buf = GenBuffer(data, ds);
@@ -291,6 +294,9 @@ int main(){
         //EndPipelineMode();
         //EndRenderPass(&g_wgpustate.rstate->renderpass);
         //BeginRenderPass(&g_wgpustate.rstate->renderpass);
+        
+        Matrix iden = MatrixIdentity();
+        SetUniformBuffer(0, &iden, 64);
         for(double x = -1;x <= 1; x += 0.5){
             for(double y = -1;y <= 1; y += 0.5){
                 UseTexture(g_wgpustate.whitePixel);
@@ -298,9 +304,10 @@ int main(){
                 rlColor4f(0, 0, 1, 1);
                 rlVertex2f(x, y);
                 rlVertex2f(x + 0.4, y);
-                //rlVertex2f(x, y + 0.04);
+                //rlVertex2f(x, y + 0.4);
                 rlEnd();
-                goto end;
+
+                //goto end;
                 //assert(g_wgpustate.rstate->activeRenderPass == &g_wgpustate.rstate->renderpass);
                 //DrawTexturePro(checkers, Rectangle{0, 0, 100, 100}, Rectangle{(float)x + 0.01f,(float)y,0.02f,0.02f}, Vector2{0, 0}, 0.0f, Color{255,255,255,255});
                 //goto end;
