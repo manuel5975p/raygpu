@@ -27,12 +27,16 @@ struct wgpustate{
 
     WGPUSurfaceTexture currentSurfaceTexture;
     WGPUTextureView currentSurfaceTextureView;
-
+    std::vector<uint8_t> keydownPrevious = std::vector<uint8_t>(512, 0);
+    std::vector<uint8_t> keydown = std::vector<uint8_t>(512, 0);
+    
+    int windowFlags = 0;
     // Frame timing / FPS
+    int targetFPS;
     uint64_t total_frames = 0;
     uint64_t init_timestamp;
 
-    int64_t last_timestamps[32] = {0};
+    int64_t last_timestamps[64] = {0};
 
     std::mutex drawmutex;
 };

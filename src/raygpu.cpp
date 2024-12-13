@@ -295,6 +295,7 @@ extern "C" void ClearBackground(Color clearColor){
 
 }
 void BeginDrawing(){
+    g_wgpustate.last_timestamps[g_wgpustate.total_frames % 64] = NanoTime();
     glfwPollEvents();
     g_wgpustate.drawmutex.lock();
     WGPUSurfaceTexture surfaceTexture;
@@ -322,11 +323,19 @@ void EndDrawing(){
     
     wgpuTextureRelease(g_wgpustate.currentSurfaceTexture.texture);
     wgpuTextureViewRelease(g_wgpustate.currentSurfaceTextureView);
-    g_wgpustate.last_timestamps[g_wgpustate.total_frames % 32] = NanoTime();
+    uint64_t beginframe_stmp = g_wgpustate.last_timestamps[g_wgpustate.total_frames % 64];
     ++g_wgpustate.total_frames;
     std::copy(g_wgpustate.smallBufferRecyclingBin.begin(), g_wgpustate.smallBufferRecyclingBin.end(), std::back_inserter(g_wgpustate.smallBufferPool));
     g_wgpustate.smallBufferRecyclingBin.clear();
+    std::swap(g_wgpustate.keydown, g_wgpustate.keydownPrevious);
     g_wgpustate.drawmutex.unlock();
+    uint64_t nanosecondsPerFrame = std::floor(1e9 / GetTargetFPS());
+    
+    uint64_t elapsed = NanoTime() - beginframe_stmp;
+    if(elapsed & (1ull << 63))return;
+    if(nanosecondsPerFrame > elapsed)
+        NanoWait(nanosecondsPerFrame - elapsed);
+    //std::this_thread::sleep_for(std::chrono::nanoseconds(nanosecondsPerFrame - elapsed));
 }
 void rlBegin(draw_mode mode){
     if(g_wgpustate.current_drawmode != mode){
@@ -491,14 +500,22 @@ double GetTime(cwoid){
     return double(nano_diff) * 1e-9;
 }
 uint32_t GetFPS(cwoid){
-    auto [minit, maxit] = std::minmax_element(std::begin(g_wgpustate.last_timestamps), std::end(g_wgpustate.last_timestamps));
-    return uint32_t(std::round(32e9 / (*maxit - *minit)));
+    auto firstzero = std::find(std::begin(g_wgpustate.last_timestamps), std::end(g_wgpustate.last_timestamps), int64_t(0));
+    auto [minit, maxit] = std::minmax_element(std::begin(g_wgpustate.last_timestamps), firstzero);
+    return uint32_t(std::round((firstzero - std::begin(g_wgpustate.last_timestamps) - 1.0) * 1.0e9 / (*maxit - *minit)));
+}
+void DrawFPS(int posX, int posY){
+    char fpstext[128] = {0};
+    std::snprintf(fpstext, 128, "%d FPS", GetFPS());
+    double ratio = double(GetFPS()) / GetTargetFPS();
+    ratio = std::max(0.0, std::min(1.0, ratio));
+    uint8_t v8 = ratio * 255;
+    DrawText(fpstext, posX, posY, 40, Color{uint8_t(255 - uint8_t(ratio * ratio * 255)), v8, 20, 255});
 }
 WGPUShaderModule LoadShaderFromMemory(const char* shaderSource) {
     WGPUShaderModuleWGSLDescriptor shaderCodeDesc{};
     shaderCodeDesc.chain.next = nullptr;
     shaderCodeDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
-    shaderCodeDesc.code = WGPUStringView{shaderSource, strlen(shaderSource)};
     shaderCodeDesc.code = WGPUStringView{shaderSource, strlen(shaderSource)};
     WGPUShaderModuleDescriptor shaderDesc{};
     shaderDesc.nextInChain = &shaderCodeDesc.chain;
@@ -1093,4 +1110,39 @@ extern "C" void BufferData(DescribedBuffer* buffer, const void* data, size_t siz
         wgpuBufferRelease(buffer->buffer);
         *buffer = GenBuffer(data, size);
     }
+}
+extern "C" void SetTargetFPS(int fps){
+    g_wgpustate.targetFPS = fps;
+}
+extern "C" int GetTargetFPS(){
+    return g_wgpustate.targetFPS;
+}
+extern "C" float GetFrameTime(){
+    if(g_wgpustate.total_frames == 0){
+        return 0.0f;
+    }
+    return 1.0e-9f * (g_wgpustate.last_timestamps[g_wgpustate.total_frames % 64] - g_wgpustate.last_timestamps[(g_wgpustate.total_frames - 1) % 64]);
+}
+extern "C" void SetConfigFlags(WindowFlag flag){
+    g_wgpustate.windowFlags |= flag;
+}
+void NanoWaitImpl(uint64_t stmp){
+    for(;;){
+        uint64_t now = NanoTime();
+        if(now >= stmp)break;
+        if(stmp - now > 2500000){
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        else if(stmp - now > 150000){
+            std::this_thread::sleep_for(std::chrono::microseconds(50));
+        }else{
+            for(;NanoTime() < stmp;){}
+            break;
+        }
+    }
+}
+
+extern "C" void NanoWait(uint64_t time){
+    NanoWaitImpl(NanoTime() + time);
+    return;
 }

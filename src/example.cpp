@@ -54,7 +54,9 @@ int main(){
     
     constexpr uint32_t width = 1920;
     constexpr uint32_t height = 1080;
+    //SetConfigFlags(FLAG_VSYNC);
     auto window = InitWindow(width, height);
+    SetTargetFPS(144);
     WGPUSamplerDescriptor sdesc;
     
     AttributeAndResidence aar[2] = {{WGPUVertexAttribute{WGPUVertexFormat_Float32x3,0,0},0,WGPUVertexStepMode_Vertex}, {WGPUVertexAttribute{WGPUVertexFormat_Float32x2, 12, 1},0,WGPUVertexStepMode_Vertex}};
@@ -256,7 +258,7 @@ int main(){
         DrawCircle(880, 300, 50, Color{255,0,0,100});
         DrawCircleLines(900, 300, 50, Color{0,255,0,255});
         DrawText("helo", 200, 400, 30, WHITE);
-        
+        DrawFPS(0, 0);
         //DescribedBuffer buf = GenBuffer(data, ds);
         //BeginPipelineMode(pl);
         //RecreateStagingBuffer(&mbuf);
@@ -325,8 +327,6 @@ int main(){
             }
         }
         end:
-
-        EndDrawing();
         ++frames;
         //std::cout << g_wgpustate.total_frames << "\n";
         uint64_t nextStmp = NanoTime();
@@ -334,6 +334,8 @@ int main(){
             std::cout << GetFPS() << "\n";
             stmp = NanoTime();
         }
+
+        EndDrawing();
     };
     LoadFontDefault();
     #ifndef __EMSCRIPTEN__

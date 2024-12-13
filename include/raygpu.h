@@ -115,10 +115,12 @@ extern vertex* vboptr_base;
 #define BLANK CLITERAL(Color){0,0,0,0}
 #define BLACK CLITERAL(Color){0,0,0,255}
 #define WHITE CLITERAL(Color){255,255,255,255}
-
-enum draw_mode{
+typedef enum WindowFlag{
+    FLAG_VSYNC = 1
+} WindowFlag;
+typedef enum draw_mode{
     RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS, RL_LINES
-};
+}draw_mode;
 
 typedef struct full_renderstate full_renderstate;
 
@@ -152,7 +154,12 @@ EXTERN_C_BEGIN
      * @return uint64_t 
      */
     uint64_t NanoTime(cwoid);
-
+    void SetConfigFlags(WindowFlag flag);
+    void SetTargetFPS(int fps);                                 // Set target FPS (maximum)
+    int GetTargetFPS();
+    float GetFrameTime(cwoid);                                  // Get time in seconds for last frame drawn (delta time)
+    void DrawFPS(int posX, int posY);                           // Draw current FPS
+    void NanoWait(uint64_t time);
     uint32_t GetFPS(cwoid);
     void ClearBackground(Color clearColor);
     void BeginDrawing(cwoid);
@@ -177,7 +184,7 @@ EXTERN_C_BEGIN
     Image GenImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32_t checkerCount);
     void SaveImage(Image img, const char* filepath);
 
-    void DrawFPS(int posX, int posY);                                                     // Draw current FPS
+    
     void DrawText(const char *text, int posX, int posY, int fontSize, Color color);       // Draw text (using default font)
     void DrawTextEx(Font font, const char *text, Vector2 position, float fontSize, float spacing, Color tint); // Draw text using font and additional parameters
     void DrawTextPro(Font font, const char *text, Vector2 position, Vector2 origin, float rotation, float fontSize, float spacing, Color tint); // Draw text using Font and pro parameters (rotation)

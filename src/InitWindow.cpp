@@ -277,7 +277,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
         config.usage = WGPUTextureUsage_RenderAttachment;
         config.device = g_wgpustate.device;
         config.format = (WGPUTextureFormat)capabilities.formats[0];
-        config.presentMode = WGPUPresentMode_Immediate;
+        config.presentMode = !!(g_wgpustate.windowFlags & FLAG_VSYNC) ? WGPUPresentMode_Fifo : WGPUPresentMode_Immediate;
 
         config.width = width;
         config.height = height;
@@ -297,7 +297,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     wgpu::SurfaceConfiguration config = {};
     config.device = sample->device;
     config.format = capabilities.formats[0];
-    config.presentMode = wgpu::PresentMode::Immediate;
+    config.presentMode = !!(g_wgpustate.windowFlags & FLAG_VSYNC) ? wgpu::PresentMode::Fifo : wgpu::PresentMode::Immediate;
 
     config.width = width;
     config.height = height;
@@ -338,6 +338,11 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     glfwSetKeyCallback(
         window, 
         [](GLFWwindow* window, int key, int scancode, int action, int mods){
+            if(action == GLFW_PRESS){
+                g_wgpustate.keydown[key] = 1;
+            }else if(action == GLFW_RELEASE){
+                g_wgpustate.keydown[key] = 0;
+            }
             if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
                 glfwSetWindowShouldClose(window, true);
             }
@@ -391,6 +396,12 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     WGPUSampler sampler = wgpuDeviceCreateSampler(g_wgpustate.device, &samplerDesc);
     SetSampler(2, sampler);
     g_wgpustate.init_timestamp = NanoTime();
+
+    if(g_wgpustate.windowFlags & FLAG_VSYNC){
+        SetTargetFPS(glfwGetVideoMode(glfwGetPrimaryMonitor())->refreshRate);
+    }
+    else
+        SetTargetFPS(60);
     #ifndef __EMSCRIPTEN__
     return window;
     #else

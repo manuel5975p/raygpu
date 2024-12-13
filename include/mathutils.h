@@ -187,6 +187,7 @@ inline Matrix ScreenMatrix(int width, int height) {
     ret.data[15] = 1; // W scale
     return ret;
 }
+
 inline Matrix ScreenMatrixBottomY(int width, int height) {
     Matrix ret = MatrixIdentity();
     ret.data[idx_map(0, 3)] = -1.0f;
