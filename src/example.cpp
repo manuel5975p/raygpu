@@ -56,7 +56,7 @@ int main(){
     constexpr uint32_t height = 1080;
     //SetConfigFlags(FLAG_VSYNC);
     auto window = InitWindow(width, height);
-    SetTargetFPS(144);
+    SetTargetFPS(30);
     WGPUSamplerDescriptor sdesc;
     
     AttributeAndResidence aar[2] = {{WGPUVertexAttribute{WGPUVertexFormat_Float32x3,0,0},0,WGPUVertexStepMode_Vertex}, {WGPUVertexAttribute{WGPUVertexFormat_Float32x2, 12, 1},0,WGPUVertexStepMode_Vertex}};
@@ -236,6 +236,7 @@ int main(){
     DescribedBuffer buf2 = GenBuffer(data2, ds);
     auto deffont = LoadImage("deffont.png");
     Texture latlas = LoadTextureFromImage(deffont);
+    std::string togst = "Helo ";
     auto mainloop2 = [&](void* userdata){
 
         BeginDrawing();
@@ -254,10 +255,15 @@ int main(){
 
         //DrawTexturePro(latlas, Rectangle(0,0,100,100), Rectangle(0,0,500,500), Vector2{0,0},0, WHITE);
         SetUniformBuffer(0, &sc2, 64);
-        DrawCircle(500, 300, 50, WHITE);
+        DrawCircle(GetMouseX(), GetMouseY(), 50, WHITE);
+        DrawCircleV(GetMousePosition(), 20, Color{255,0,0,255});
         DrawCircle(880, 300, 50, Color{255,0,0,100});
         DrawCircleLines(900, 300, 50, Color{0,255,0,255});
-        DrawText("helo", 200, 400, 30, WHITE);
+        if(IsKeyPressed(GLFW_KEY_A))
+            DrawText(togst.c_str(), 200, 400, 30, WHITE);
+        while(int cp = GetCharPressed()){
+            togst += cp;
+        }
         DrawFPS(0, 0);
         //DescribedBuffer buf = GenBuffer(data, ds);
         //BeginPipelineMode(pl);

@@ -334,7 +334,17 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
             dat[it - arg.begin()] = *it;
         }
     };*/
-    
+    glfwSetCursorPosCallback(window, [](GLFWwindow* window, double x, double y){
+        g_wgpustate.mousePos = Vector2{float(x), float(y)};
+    });
+    glfwSetMouseButtonCallback(window, [](GLFWwindow* window, int button, int action, int mods){
+        if(action == GLFW_PRESS){
+            g_wgpustate.mouseButtonDown[button] = 1;
+        }
+        else if(action == GLFW_RELEASE){
+            g_wgpustate.mouseButtonDown[button] = 0;
+        }
+    });
     glfwSetKeyCallback(
         window, 
         [](GLFWwindow* window, int key, int scancode, int action, int mods){
@@ -348,6 +358,9 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
             }
         }
     );
+    glfwSetCharCallback(window, [](GLFWwindow* window, unsigned int codePoint){
+        g_wgpustate.charQueue.push_back((int)codePoint);
+    });
     //shaderInputs.per_vertex_count = 3;
     //shaderInputs.per_instance_count = 0;
     

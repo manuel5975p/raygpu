@@ -327,7 +327,10 @@ void EndDrawing(){
     ++g_wgpustate.total_frames;
     std::copy(g_wgpustate.smallBufferRecyclingBin.begin(), g_wgpustate.smallBufferRecyclingBin.end(), std::back_inserter(g_wgpustate.smallBufferPool));
     g_wgpustate.smallBufferRecyclingBin.clear();
-    std::swap(g_wgpustate.keydown, g_wgpustate.keydownPrevious);
+    std::copy(g_wgpustate.keydown.begin(), g_wgpustate.keydown.end(), g_wgpustate.keydownPrevious.begin());
+    g_wgpustate.mousePosPrevious = g_wgpustate.mousePos;
+    std::copy(g_wgpustate.mouseButtonDown.begin(), g_wgpustate.mouseButtonDown.end(), g_wgpustate.mouseButtonDownPrevious.begin());
+    
     g_wgpustate.drawmutex.unlock();
     uint64_t nanosecondsPerFrame = std::floor(1e9 / GetTargetFPS());
     
@@ -490,6 +493,33 @@ Texture LoadTextureFromImage(Image img){
     ret.height = img.height;
     if(altdata)free(altdata);
     return ret;
+}
+extern "C" bool IsKeyDown(int key){
+    return g_wgpustate.keydown[key];
+}
+extern "C" bool IsKeyPressed(int key){
+    return g_wgpustate.keydown[key] && !g_wgpustate.keydownPrevious[key];
+}
+extern "C" int GetCharPressed(){
+    int fc = 0;
+    if(!g_wgpustate.charQueue.empty()){
+        fc = g_wgpustate.charQueue.front();
+        g_wgpustate.charQueue.pop_front();
+    }
+    return fc;
+}
+int GetMouseX(cwoid){
+    return (int)GetMousePosition().x;
+}
+int GetMouseY(cwoid){
+    return (int)GetMousePosition().y;
+}
+Vector2 GetMousePosition(cwoid){
+    return g_wgpustate.mousePos;
+}
+Vector2 GetMouseDelta(cwoid){
+    return Vector2{g_wgpustate.mousePos.x - g_wgpustate.mousePos.x,
+                   g_wgpustate.mousePos.y - g_wgpustate.mousePos.y};
 }
 uint64_t NanoTime(cwoid){
     return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();

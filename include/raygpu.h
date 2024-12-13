@@ -140,7 +140,14 @@ EXTERN_C_BEGIN
     uint32_t GetScreenWidth (cwoid);
     uint32_t GetScreenHeight(cwoid);
 
+    bool IsKeyDown(int key);
+    bool IsKeyPressed(int key);
+    int GetCharPressed(cwoid);
 
+    int GetMouseX(cwoid);
+    int GetMouseY(cwoid);
+    Vector2 GetMousePosition(cwoid);
+    Vector2 GetMouseDelta(cwoid);
     /**
      * @brief Get the time elapsed since InitWindow() in seconds since 
      * 

@@ -1,6 +1,8 @@
 #include <vector>
 #include <mutex>
 #include <unordered_map>
+#include <deque>
+#include <array>
 
 struct wgpustate{
     WGPUInstance instance;
@@ -29,6 +31,12 @@ struct wgpustate{
     WGPUTextureView currentSurfaceTextureView;
     std::vector<uint8_t> keydownPrevious = std::vector<uint8_t>(512, 0);
     std::vector<uint8_t> keydown = std::vector<uint8_t>(512, 0);
+    Vector2 mousePosPrevious;
+    Vector2 mousePos;
+    std::array<uint8_t, 16> mouseButtonDownPrevious;
+    std::array<uint8_t, 16> mouseButtonDown;
+    
+    std::deque<int> charQueue; 
     
     int windowFlags = 0;
     // Frame timing / FPS
