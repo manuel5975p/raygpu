@@ -27,4 +27,5 @@ using std::free;
 #define EXTERN_C_END
 #define cwoid void
 #endif
+#define SAMPLES 4
 #endif // MACROS_AND_CONSTANTS

@@ -396,7 +396,12 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     //uarraySetter(shaderInputs.uniform_types, {uniform_buffer, texture2d, sampler, storage_buffer});
     
     auto colorTexture = LoadTextureEx(width, height, g_wgpustate.frameBufferFormat, true);
-    depthTexture = LoadTexturePro(width, height, WGPUTextureFormat_Depth24Plus, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 1);
+    depthTexture = LoadTexturePro(width,
+                                  height, 
+                                  WGPUTextureFormat_Depth24Plus, 
+                                  WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
+                                  SAMPLES
+    );
     init_full_renderstate(g_wgpustate.rstate, shaderSource, attrs, 3, desc, 4, colorTexture.view, depthTexture.view);
     for(size_t i = 0;i < 1000;i++){
         g_wgpustate.smallBufferPool.push_back(GenBuffer(nullptr, sizeof(vertex) * 30));

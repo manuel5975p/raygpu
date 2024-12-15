@@ -132,7 +132,7 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     ret.layout.layout = wgpuDeviceCreatePipelineLayout(g_wgpustate.device, &ret.layout.descriptor);
     
     WGPURenderPipelineDescriptor& pipelineDesc = ret.descriptor;
-    pipelineDesc.multisample.count = 1;
+    pipelineDesc.multisample.count = SAMPLES;
     pipelineDesc.multisample.mask = 0xFFFFFFFF;
     pipelineDesc.multisample.alphaToCoverageEnabled = false;
     pipelineDesc.layout = ret.layout.layout;

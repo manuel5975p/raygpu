@@ -54,10 +54,10 @@ int main(){
     
     constexpr uint32_t width = 2560;
     constexpr uint32_t height = 1440;
-    SetConfigFlags(FLAG_VSYNC_HINT);
+    //SetConfigFlags(FLAG_VSYNC_HINT);
     SetConfigFlags(FLAG_FULLSCREEN_MODE);
     auto window = InitWindow(width, height);
-    SetTargetFPS(1000);
+    SetTargetFPS(144);
     HideCursor();
     ShowCursor();
     WGPUSamplerDescriptor sdesc;
@@ -258,7 +258,7 @@ int main(){
 
         //DrawTexturePro(latlas, Rectangle(0,0,100,100), Rectangle(0,0,500,500), Vector2{0,0},0, WHITE);
         //SetUniformBufferData(0, &sc2, 64);
-        DrawCircle(GetMouseX(), GetMouseY(), 50, WHITE);
+        DrawCircle(GetMouseX(), GetMouseY(), 500, WHITE);
         DrawCircleV(GetMousePosition(), 20, Color{255,0,0,255});
         DrawCircle(880, 300, 50, Color{255,0,0,100});
         DrawCircleLines(900, 300, 50, Color{0,255,0,255});

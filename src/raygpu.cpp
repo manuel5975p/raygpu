@@ -685,7 +685,9 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     settings.depthCompare = WGPUCompareFunction_LessEqual;
     settings.optionalDepthTexture = d;
     state->renderpass = LoadRenderpassEx(c, d, settings);
+    state->renderpass.renderPassDesc.label = STRVIEW("g_wgpustate::render_pass");
     state->clearPass = LoadRenderpassEx(c, d, settings);
+    state->clearPass.renderPassDesc.label = STRVIEW("g_wgpustate::clear_pass");
     state->clearPass.dsa->depthClearValue = 1.0;
     state->clearPass.dsa->depthLoadOp = WGPULoadOp_Clear;
     state->clearPass.dsa->depthStoreOp = WGPUStoreOp_Store;
@@ -960,42 +962,37 @@ void setTargetTextures(full_renderstate* state, WGPUTextureView c, WGPUTextureVi
     //LoadTexture
     
     WGPUTextureDescriptor desc{};
-    if(cres){
-        wgpuTextureViewRelease(cresv);
-        wgpuTextureRelease(cres);
+    constexpr bool multisample = SAMPLES > 1;
+    if(!cres && multisample){
+        WGPUTextureDescriptor tDesc{};
+        tDesc.format = g_wgpustate.frameBufferFormat;
+        tDesc.size = WGPUExtent3D{GetScreenWidth(), GetScreenHeight(), 1};
+        tDesc.usage = WGPUTextureUsage_RenderAttachment;
+        tDesc.dimension = WGPUTextureDimension_2D;
+        tDesc.mipLevelCount = 1;
+        tDesc.sampleCount = SAMPLES;
+        tDesc.usage  = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
+        tDesc.viewFormatCount = 1;
+        tDesc.viewFormats = &tDesc.format;
+        cres = wgpuDeviceCreateTexture(g_wgpustate.device, &tDesc);
+        WGPUTextureViewDescriptor textureViewDesc{};
+        textureViewDesc.aspect = WGPUTextureAspect_All;
+        textureViewDesc.baseArrayLayer = 0;
+        textureViewDesc.arrayLayerCount = 1;
+        textureViewDesc.baseMipLevel = 0;
+        textureViewDesc.mipLevelCount = 1;
+        textureViewDesc.dimension = WGPUTextureViewDimension_2D;
+        textureViewDesc.format = tDesc.format;
+        cresv = wgpuTextureCreateView(cres, &textureViewDesc);
     }
-
-    WGPUTextureDescriptor tDesc{};
-    tDesc.format = g_wgpustate.frameBufferFormat;
-    tDesc.size = WGPUExtent3D{GetScreenWidth(), GetScreenHeight(), 1};
-    tDesc.usage = WGPUTextureUsage_RenderAttachment;
-    tDesc.dimension = WGPUTextureDimension_2D;
-    tDesc.mipLevelCount = 1;
-    tDesc.sampleCount = 1;
-    tDesc.usage  = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
-    tDesc.viewFormatCount = 1;
-    tDesc.viewFormats = &tDesc.format;
-    cres = wgpuDeviceCreateTexture(g_wgpustate.device, &tDesc);
-    WGPUTextureViewDescriptor textureViewDesc{};
-    
-
-    textureViewDesc.aspect = WGPUTextureAspect_All;
-    textureViewDesc.baseArrayLayer = 0;
-    textureViewDesc.arrayLayerCount = 1;
-    textureViewDesc.baseMipLevel = 0;
-    textureViewDesc.mipLevelCount = 1;
-    textureViewDesc.dimension = WGPUTextureViewDimension_2D;
-    textureViewDesc.format = tDesc.format;
-    cresv = wgpuTextureCreateView(cres, &textureViewDesc);
-    state->renderpass.rca->resolveTarget = c;
-    state->renderpass.rca->view = c;
+    state->renderpass.rca->resolveTarget = multisample ? c : nullptr;
+    state->renderpass.rca->view = multisample ? cresv : c;
     if(state->renderpass.settings.depthTest){
         state->renderpass.dsa->view = d;
     }
 
-
     //TODO: Not hardcode every renderpass here
-    state->clearPass.dsa->view = c;
+    state->clearPass.rca->view = multisample ? cresv : c;
     if(state->clearPass.settings.depthTest){
         state->clearPass.dsa->view = d;
     }
