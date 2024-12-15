@@ -250,7 +250,14 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     // Create the test window with no client API.
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    GLFWwindow* window = glfwCreateWindow(width, height, "Dawn window", nullptr, nullptr);
+    //glfwWindowHint(GLFW_REFRESH_RATE, 144);
+    GLFWmonitor* mon = nullptr;
+    if(g_wgpustate.windowFlags & FLAG_FULLSCREEN_MODE){
+        mon = glfwGetPrimaryMonitor();
+        //std::cout <<glfwGetVideoMode(mon)->refreshRate << std::endl;
+        //abort();
+    }
+    GLFWwindow* window = glfwCreateWindow(width, height, "Dawn window", mon, nullptr);
     if (!window) {
         abort();
     }
@@ -277,7 +284,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
         config.usage = WGPUTextureUsage_RenderAttachment;
         config.device = g_wgpustate.device;
         config.format = (WGPUTextureFormat)capabilities.formats[0];
-        config.presentMode = !!(g_wgpustate.windowFlags & FLAG_VSYNC) ? WGPUPresentMode_Fifo : WGPUPresentMode_Immediate;
+        config.presentMode = !!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? WGPUPresentMode_Fifo : WGPUPresentMode_Immediate;
         config.width = width;
         config.height = height;
         g_wgpustate.width = width;
@@ -286,6 +293,10 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
         wgpuTextureRelease(depthTexture.tex);
         depthTexture = LoadDepthTexture(width, height);
         wgpuSurfaceConfigure(g_wgpustate.surface, &config);
+        Matrix newcamera = ScreenMatrix(width, height);
+        BufferData(&g_wgpustate.defaultScreenMatrix, &newcamera, sizeof(Matrix));
+
+        setTargetTextures(g_wgpustate.rstate, g_wgpustate.rstate->color, depthTexture.view);
         //updateRenderPassDesc(g_wgpustate.rstate);
         g_wgpustate.rstate->renderpass.dsa->view = depthTexture.view;
         g_wgpustate.drawmutex.unlock();
@@ -297,7 +308,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     wgpu::SurfaceConfiguration config = {};
     config.device = sample->device;
     config.format = capabilities.formats[0];
-    config.presentMode = !!(g_wgpustate.windowFlags & FLAG_VSYNC) ? wgpu::PresentMode::Fifo : wgpu::PresentMode::Immediate;
+    config.presentMode = !!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? wgpu::PresentMode::Fifo : wgpu::PresentMode::Immediate;
 
     config.width = width;
     config.height = height;
@@ -316,7 +327,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     g_wgpustate.whitePixel = LoadTextureFromImage(GenImageChecker(Color{255,255,255,255}, Color{255,255,255,255}, 1, 1, 0));
 
     WGPUShaderModule tShader = LoadShaderFromMemory(shaderSource);
-    RenderTexture rtex = LoadRenderTexture(width, height);
+    //RenderTexture rtex = LoadRenderTexture(width, height);
     g_wgpustate.rstate = new full_renderstate;
     
 
@@ -361,6 +372,10 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     glfwSetCharCallback(window, [](GLFWwindow* window, unsigned int codePoint){
         g_wgpustate.charQueue.push_back((int)codePoint);
     });
+    glfwSetCursorEnterCallback(window, [](GLFWwindow* window, int entered){
+        g_wgpustate.cursorInWindow = entered;
+    });
+    
     //shaderInputs.per_vertex_count = 3;
     //shaderInputs.per_instance_count = 0;
     
@@ -380,18 +395,21 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     //arraySetter(shaderInputs.uniform_minsizes, {64, 0, 0, 0});
     //uarraySetter(shaderInputs.uniform_types, {uniform_buffer, texture2d, sampler, storage_buffer});
     
-    depthTexture = rtex.depth;
-    init_full_renderstate(g_wgpustate.rstate, shaderSource, attrs, 3, desc, 4, rtex.color.view, rtex.depth.view);
+    auto colorTexture = LoadTextureEx(width, height, g_wgpustate.frameBufferFormat, true);
+    depthTexture = LoadTexturePro(width, height, WGPUTextureFormat_Depth24Plus, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 1);
+    init_full_renderstate(g_wgpustate.rstate, shaderSource, attrs, 3, desc, 4, colorTexture.view, depthTexture.view);
     for(size_t i = 0;i < 1000;i++){
         g_wgpustate.smallBufferPool.push_back(GenBuffer(nullptr, sizeof(vertex) * 30));
     }
     WGPUCommandEncoderDescriptor cedesc{};
     cedesc.label = STRVIEW("Global Command Encoder");
     g_wgpustate.rstate->renderpass.cmdEncoder = wgpuDeviceCreateCommandEncoder(g_wgpustate.device, &cedesc);
-    Matrix mat = MatrixIdentity();
-    SetUniformBuffer(0, &mat, 64);
+    Matrix m = ScreenMatrix(width, height);
+    static_assert(sizeof(Matrix) == 64, "non 4 byte floats? or what");
+    g_wgpustate.defaultScreenMatrix = GenUniformBuffer(&m, sizeof(Matrix));
+    SetUniformBuffer(0, &g_wgpustate.defaultScreenMatrix);
     SetTexture(1, g_wgpustate.whitePixel);
-    SetStorageBuffer(3, data, 64);
+    SetStorageBufferData(3, data, 64);
 
     WGPUSamplerDescriptor samplerDesc{};
     samplerDesc.addressModeU = WGPUAddressMode_Repeat;
@@ -410,8 +428,9 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
     SetSampler(2, sampler);
     g_wgpustate.init_timestamp = NanoTime();
 
-    if(g_wgpustate.windowFlags & FLAG_VSYNC){
-        SetTargetFPS(glfwGetVideoMode(glfwGetPrimaryMonitor())->refreshRate);
+    if(g_wgpustate.windowFlags & FLAG_VSYNC_HINT){
+        auto rate = glfwGetVideoMode(glfwGetPrimaryMonitor())->refreshRate;
+        SetTargetFPS(rate);
     }
     else
         SetTargetFPS(60);

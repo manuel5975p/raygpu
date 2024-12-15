@@ -52,11 +52,14 @@ uint64_t frames = 0;
 uint64_t stmp = NanoTime();
 int main(){
     
-    constexpr uint32_t width = 1920;
-    constexpr uint32_t height = 1080;
-    //SetConfigFlags(FLAG_VSYNC);
+    constexpr uint32_t width = 2560;
+    constexpr uint32_t height = 1440;
+    SetConfigFlags(FLAG_VSYNC_HINT);
+    SetConfigFlags(FLAG_FULLSCREEN_MODE);
     auto window = InitWindow(width, height);
-    SetTargetFPS(30);
+    SetTargetFPS(1000);
+    HideCursor();
+    ShowCursor();
     WGPUSamplerDescriptor sdesc;
     
     AttributeAndResidence aar[2] = {{WGPUVertexAttribute{WGPUVertexFormat_Float32x3,0,0},0,WGPUVertexStepMode_Vertex}, {WGPUVertexAttribute{WGPUVertexFormat_Float32x2, 12, 1},0,WGPUVertexStepMode_Vertex}};
@@ -159,7 +162,7 @@ int main(){
         //rlEnd();
         UseTexture(checkers);
         BeginTextureMode(rtex);
-        SetUniformBuffer(0, &persp, 16 * sizeof(float));
+        SetUniformBufferData(0, &persp, 16 * sizeof(float));
         rlBegin(RL_QUADS);
 
         rlTexCoord2f(0, 0);
@@ -179,7 +182,7 @@ int main(){
         rlVertex3f(0,-1, z);
         rlEnd();
         EndTextureMode();
-        SetUniformBuffer(0, &sc2, 16 * sizeof(float));
+        SetUniformBufferData(0, &sc2, 16 * sizeof(float));
         //SetUniformBuffer(0, &sc2, 16 * sizeof(float));
         if(frames == 3){
             Image frame = LoadImageFromTexture(rtex.color);
@@ -232,7 +235,7 @@ int main(){
     memcpy(mbuf.map, data, sizeof(float) * 15);
     UpdateStagingBuffer(&mbuf);
     constexpr size_t ds = sizeof(float) * 15;
-    SetUniformBuffer(0, &sc2, 64);
+    SetUniformBufferData(0, &sc2, 64);
     DescribedBuffer buf2 = GenBuffer(data2, ds);
     auto deffont = LoadImage("deffont.png");
     Texture latlas = LoadTextureFromImage(deffont);
@@ -254,7 +257,7 @@ int main(){
         //    }
 
         //DrawTexturePro(latlas, Rectangle(0,0,100,100), Rectangle(0,0,500,500), Vector2{0,0},0, WHITE);
-        SetUniformBuffer(0, &sc2, 64);
+        //SetUniformBufferData(0, &sc2, 64);
         DrawCircle(GetMouseX(), GetMouseY(), 50, WHITE);
         DrawCircleV(GetMousePosition(), 20, Color{255,0,0,255});
         DrawCircle(880, 300, 50, Color{255,0,0,100});
@@ -307,7 +310,7 @@ int main(){
         //BeginRenderPass(&g_wgpustate.rstate->renderpass);
         
         Matrix iden = MatrixIdentity();
-        SetUniformBuffer(0, &iden, 64);
+        SetUniformBufferData(0, &iden, 64);
         for(double x = -1;x <= 1; x += 0.5){
             for(double y = -1;y <= 1; y += 0.5){
                 UseTexture(g_wgpustate.whitePixel);
@@ -345,6 +348,7 @@ int main(){
         }
 
         EndDrawing();
+        //Image img = LoadImageFromTexture(g_wgpustate);
     };
     LoadFontDefault();
     #ifndef __EMSCRIPTEN__

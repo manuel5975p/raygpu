@@ -1,4 +1,5 @@
 #include "raygpu.h"
+#include <GLFW/glfw3.h>
 #include <cassert>
 #include <vector>
 #include <cstdlib>
@@ -278,7 +279,6 @@ void EndRenderpassEx(DescribedRenderpass* renderPass){
     wgpuQueueSubmit(GetQueue(), 1, &command);
     wgpuCommandBufferRelease(command);
     wgpuCommandEncoderRelease(renderPass->cmdEncoder);
-    
 }
 extern "C" void ClearBackground(Color clearColor){
     bool rpActive = g_wgpustate.rstate->activeRenderPass != nullptr;
@@ -305,11 +305,11 @@ void BeginDrawing(){
     g_wgpustate.currentSurfaceTextureView = nextTexture;
     setTargetTextures(g_wgpustate.rstate, nextTexture, g_wgpustate.rstate->depth);
     BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
+    SetUniformBuffer(0,&g_wgpustate.defaultScreenMatrix);
     //EndRenderPass(&g_wgpustate.rstate->clearPass);
     //BeginRenderPass(&g_wgpustate.rstate->renderpass);
     //UseNoTexture();
     //updateBindGroup(g_wgpustate.rstate);
-    
 }
 void EndDrawing(){
     drawCurrentBatch();
@@ -333,10 +333,10 @@ void EndDrawing(){
     
     g_wgpustate.drawmutex.unlock();
     uint64_t nanosecondsPerFrame = std::floor(1e9 / GetTargetFPS());
-    
+    //std::cout << nanosecondsPerFrame << "\n";
     uint64_t elapsed = NanoTime() - beginframe_stmp;
     if(elapsed & (1ull << 63))return;
-    if(nanosecondsPerFrame > elapsed)
+    if(!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) && nanosecondsPerFrame > elapsed)
         NanoWait(nanosecondsPerFrame - elapsed);
     //std::this_thread::sleep_for(std::chrono::nanoseconds(nanosecondsPerFrame - elapsed));
 }
@@ -497,7 +497,8 @@ Texture LoadTextureFromImage(Image img){
 void ToggleFullscreen(){
     //wgpuTextureViewRelease(depthTexture.view);
     //wgpuTextureRelease(depthTexture.tex);
-    glfwSetWindowMonitor(g_wgpustate.window, glfwGetPrimaryMonitor(), 0, 0, 1920, 1200, 60);
+    auto vm = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    glfwSetWindowMonitor(g_wgpustate.window, glfwGetPrimaryMonitor(), 0, 0, vm->width, vm->height, vm->refreshRate);
     //depthTexture = LoadDepthTexture(1920, 1200);
 }
 extern "C" bool IsKeyDown(int key){
@@ -527,6 +528,30 @@ Vector2 GetMouseDelta(cwoid){
     return Vector2{g_wgpustate.mousePos.x - g_wgpustate.mousePos.x,
                    g_wgpustate.mousePos.y - g_wgpustate.mousePos.y};
 }
+
+
+
+void ShowCursor(cwoid){
+    glfwSetInputMode(g_wgpustate.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+}
+void HideCursor(cwoid){
+    glfwSetInputMode(g_wgpustate.window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+}
+bool IsCursorHidden(cwoid){
+    return glfwGetInputMode(g_wgpustate.window, GLFW_CURSOR) == GLFW_CURSOR_HIDDEN;
+}
+void EnableCursor(cwoid){
+    glfwSetInputMode(g_wgpustate.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+}
+void DisableCursor(cwoid){
+    glfwSetInputMode(g_wgpustate.window, GLFW_CURSOR, GLFW_CURSOR_CAPTURED);
+}
+bool IsCursorOnScreen(cwoid){
+    return g_wgpustate.cursorInWindow;
+}
+
+
+
 uint64_t NanoTime(cwoid){
     return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
 }
@@ -583,14 +608,14 @@ WGPUShaderModule LoadShader(const char* path) {
 #endif
     return wgpuDeviceCreateShaderModule(g_wgpustate.device, &shaderDesc);
 }
-Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format, bool to_be_used_as_rendertarget){
-    WGPUTextureDescriptor tDesc{};
+Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage, uint32_t sampleCount){
+     WGPUTextureDescriptor tDesc{};
     tDesc.dimension = WGPUTextureDimension_2D;
     tDesc.size = {width, height, 1u};
     tDesc.mipLevelCount = 1;
-    tDesc.sampleCount = 1;
+    tDesc.sampleCount = sampleCount;
     tDesc.format = format;
-    tDesc.usage  = (WGPUTextureUsage_RenderAttachment * to_be_used_as_rendertarget) | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc;
+    tDesc.usage  = usage;
     tDesc.viewFormatCount = 1;
     tDesc.viewFormats = &tDesc.format;
 
@@ -615,6 +640,9 @@ Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format,
     ret.tex = wgpuDeviceCreateTexture(g_wgpustate.device, &tDesc);
     ret.view = wgpuTextureCreateView(ret.tex, &textureViewDesc);
     return ret;
+}
+Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format, bool to_be_used_as_rendertarget){
+    return LoadTexturePro(width, height, format, (WGPUTextureUsage_RenderAttachment * to_be_used_as_rendertarget) | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 1);
 }
 
 Texture LoadTexture(uint32_t width, uint32_t height){
@@ -750,7 +778,22 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     //state->currentBindGroup.desc.layout = state->pipeline.bglayout.layout;
     
 }
-void SetUniformBuffer (uint32_t index, const void* data, size_t size){
+void SetUniformBuffer (uint32_t index, DescribedBuffer* buffer){
+    WGPUBindGroupEntry entry{};
+    entry.binding = index;
+    entry.buffer = buffer->buffer;
+    entry.size = buffer->descriptor.size;
+    UpdateBindGroupEntry(&g_wgpustate.rstate->currentPipeline->bindGroup, index, entry);
+}
+void SetStorageBuffer (uint32_t index, DescribedBuffer* buffer){
+    WGPUBindGroupEntry entry{};
+    entry.binding = index;
+    entry.buffer = buffer->buffer;
+    entry.size = buffer->descriptor.size;
+    UpdateBindGroupEntry(&g_wgpustate.rstate->currentPipeline->bindGroup, index, entry);
+}
+
+void SetUniformBufferData (uint32_t index, const void* data, size_t size){
     drawCurrentBatch();
     WGPUBindGroupEntry entry{};
     WGPUBufferDescriptor bufferDesc{};
@@ -765,7 +808,7 @@ void SetUniformBuffer (uint32_t index, const void* data, size_t size){
     entry.size = size;
     UpdateBindGroupEntry(&g_wgpustate.rstate->currentPipeline->bindGroup, index, entry);
 }
-void SetStorageBuffer (uint32_t index, const void* data, size_t size){
+void SetStorageBufferData (uint32_t index, const void* data, size_t size){
     WGPUBindGroupEntry entry{};
     WGPUBufferDescriptor bufferDesc{};
 
@@ -908,16 +951,51 @@ extern "C" DescribedRenderpass LoadRenderpass(WGPUTextureView color, WGPUTexture
         .optionalDepthTexture = depth,
     });    
 }
+WGPUTexture cres = 0;
+WGPUTextureView cresv = 0;
 
 void setTargetTextures(full_renderstate* state, WGPUTextureView c, WGPUTextureView d){
     state->color = c;
     state->depth = d;
+    //LoadTexture
+    
+    WGPUTextureDescriptor desc{};
+    if(cres){
+        wgpuTextureViewRelease(cresv);
+        wgpuTextureRelease(cres);
+    }
+
+    WGPUTextureDescriptor tDesc{};
+    tDesc.format = g_wgpustate.frameBufferFormat;
+    tDesc.size = WGPUExtent3D{GetScreenWidth(), GetScreenHeight(), 1};
+    tDesc.usage = WGPUTextureUsage_RenderAttachment;
+    tDesc.dimension = WGPUTextureDimension_2D;
+    tDesc.mipLevelCount = 1;
+    tDesc.sampleCount = 1;
+    tDesc.usage  = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
+    tDesc.viewFormatCount = 1;
+    tDesc.viewFormats = &tDesc.format;
+    cres = wgpuDeviceCreateTexture(g_wgpustate.device, &tDesc);
+    WGPUTextureViewDescriptor textureViewDesc{};
+    
+
+    textureViewDesc.aspect = WGPUTextureAspect_All;
+    textureViewDesc.baseArrayLayer = 0;
+    textureViewDesc.arrayLayerCount = 1;
+    textureViewDesc.baseMipLevel = 0;
+    textureViewDesc.mipLevelCount = 1;
+    textureViewDesc.dimension = WGPUTextureViewDimension_2D;
+    textureViewDesc.format = tDesc.format;
+    cresv = wgpuTextureCreateView(cres, &textureViewDesc);
+    state->renderpass.rca->resolveTarget = c;
     state->renderpass.rca->view = c;
     if(state->renderpass.settings.depthTest){
         state->renderpass.dsa->view = d;
     }
+
+
     //TODO: Not hardcode every renderpass here
-    state->clearPass.rca->view = c;
+    state->clearPass.dsa->view = c;
     if(state->clearPass.settings.depthTest){
         state->clearPass.dsa->view = d;
     }
@@ -1140,6 +1218,12 @@ extern "C" DescribedBuffer GenBufferEx(const void* data, size_t size, WGPUBuffer
 }
 extern "C" DescribedBuffer GenBuffer(const void* data, size_t size){
     return GenBufferEx(data, size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex);
+}
+DescribedBuffer GenUniformBuffer(const void* data, size_t size){
+    return GenBufferEx(data, size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
+}
+DescribedBuffer GenStorageBuffer(const void* data, size_t size){
+    return GenBufferEx(data, size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage);
 }
 
 extern "C" void BufferData(DescribedBuffer* buffer, const void* data, size_t size){

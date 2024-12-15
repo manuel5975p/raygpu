@@ -1,4 +1,3 @@
-#include <GLFW/glfw3.h>
 #include <webgpu/webgpu.h>
 #include <stdbool.h>
 #include "macros_and_constants.h"
@@ -30,20 +29,6 @@ typedef struct Image{
                              // Have to have a multiple of 256 bytes as row length 
     void* data;
 }Image;
-
-
-
-//typedef struct ShaderInputs{
-//    uint32_t per_vertex_count;
-//    uint32_t per_vertex_sizes[8]; //In bytes
-//
-//    uint32_t per_instance_count;
-//    uint32_t per_instance_sizes[8]; //In bytes
-//
-//    uint32_t uniform_count; //Also includes storage
-//    enum uniform_type uniform_types[8];
-//    uint32_t uniform_minsizes[8]; //In bytes
-//}ShaderInputs;
 
 typedef struct Texture{
     uint32_t width, height;
@@ -116,7 +101,8 @@ extern vertex* vboptr_base;
 #define BLACK CLITERAL(Color){0,0,0,255}
 #define WHITE CLITERAL(Color){255,255,255,255}
 typedef enum WindowFlag{
-    FLAG_VSYNC = 1
+    FLAG_VSYNC_HINT         = 0x00000040,   // Set to try enabling V-Sync on GPU
+    FLAG_FULLSCREEN_MODE    = 0x00000002,   // Set to run program in fullscreen
 } WindowFlag;
 typedef enum draw_mode{
     RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS, RL_LINES
@@ -133,6 +119,7 @@ typedef struct AttributeAndResidence{
 /**
  */
 typedef struct VertexArray VertexArray;
+typedef struct GLFWwindow GLFWwindow;
 
 
 EXTERN_C_BEGIN
@@ -149,6 +136,15 @@ EXTERN_C_BEGIN
     int GetMouseY(cwoid);
     Vector2 GetMousePosition(cwoid);
     Vector2 GetMouseDelta(cwoid);
+
+    void ShowCursor(cwoid);                                      // Shows cursor
+    void HideCursor(cwoid);                                      // Hides cursor
+    bool IsCursorHidden(cwoid);                                  // Check if cursor is not visible
+    void EnableCursor(cwoid);                                    // Enables cursor (unlock cursor)
+    void DisableCursor(cwoid);                                   // Disables cursor (lock cursor)
+    bool IsCursorOnScreen(cwoid);                                // Check if cursor is on the screen
+
+
     /**
      * @brief Get the time elapsed since InitWindow() in seconds since 
      * 
@@ -265,9 +261,10 @@ EXTERN_C_BEGIN
     void UnloadPipeline(DescribedPipeline* pl);
 
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
-    Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format, bool to_be_used_as_rendertarget);
     Texture LoadTexture(uint32_t width, uint32_t height);
     Texture LoadDepthTexture(uint32_t width, uint32_t height);
+    Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format, bool to_be_used_as_rendertarget);
+    Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage, uint32_t sampleCount);
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
     
     StagingBuffer GenStagingBuffer(size_t size, WGPUBufferUsage usage);
@@ -276,6 +273,8 @@ EXTERN_C_BEGIN
     //void MapStagingBuffer(size_t size, WGPUBufferUsage usage);
     void UnloadStagingBuffer(StagingBuffer* buf);
     
+    DescribedBuffer GenUniformBuffer(const void* data, size_t size);
+    DescribedBuffer GenStorageBuffer(const void* data, size_t size);
     DescribedBuffer GenBuffer(const void* data, size_t size);
     DescribedBuffer GenBufferEx(const void* data, size_t size, WGPUBufferUsage usage);
     void BufferData(DescribedBuffer* buffer, const void* data, size_t size);
@@ -285,8 +284,10 @@ EXTERN_C_BEGIN
 
     void SetTexture       (uint32_t index, Texture tex);
     void SetSampler       (uint32_t index, WGPUSampler sampler);
-    void SetUniformBuffer (uint32_t index, const void* data, size_t size);
-    void SetStorageBuffer (uint32_t index, const void* data, size_t size);
+    void SetUniformBuffer (uint32_t index, DescribedBuffer* buffer);
+    void SetStorageBuffer (uint32_t index, DescribedBuffer* buffer);
+    void SetUniformBufferData (uint32_t index, const void* data, size_t size);
+    void SetStorageBufferData (uint32_t index, const void* data, size_t size);
     
     void init_full_renderstate (full_renderstate* state, const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniform_count, WGPUTextureView c, WGPUTextureView d);
     void updatePipeline        (full_renderstate* state, enum draw_mode drawmode);

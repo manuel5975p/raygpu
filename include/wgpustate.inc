@@ -23,16 +23,20 @@ struct wgpustate{
     std::unordered_map<uint64_t, WGPUBindGroup> bindGroupPool;
     std::unordered_map<uint64_t, WGPUBindGroup> bindGroupRecyclingBin;
 
+    DescribedBuffer defaultScreenMatrix;
+    
     DescribedBuffer quadindicesCache{};
 
     Texture whitePixel;
 
+    
     WGPUSurfaceTexture currentSurfaceTexture;
     WGPUTextureView currentSurfaceTextureView;
     std::vector<uint8_t> keydownPrevious = std::vector<uint8_t>(512, 0);
     std::vector<uint8_t> keydown = std::vector<uint8_t>(512, 0);
     Vector2 mousePosPrevious;
     Vector2 mousePos;
+    int cursorInWindow;
     std::array<uint8_t, 16> mouseButtonDownPrevious;
     std::array<uint8_t, 16> mouseButtonDown;
     
