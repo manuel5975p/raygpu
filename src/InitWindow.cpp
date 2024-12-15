@@ -73,7 +73,7 @@ struct webgpu_cxx_state{
     Texture depthTexture{};
 };
 //webgpu_cxx_state* sample;
-GLFWwindow* InitWindow(uint32_t width, uint32_t height){
+GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     g_wgpustate.instance = nullptr;
     g_wgpustate.adapter = nullptr;
     g_wgpustate.device = nullptr;
@@ -257,7 +257,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
         //std::cout <<glfwGetVideoMode(mon)->refreshRate << std::endl;
         //abort();
     }
-    GLFWwindow* window = glfwCreateWindow(width, height, "Dawn window", mon, nullptr);
+    GLFWwindow* window = glfwCreateWindow(width, height, title, mon, nullptr);
     if (!window) {
         abort();
     }
@@ -290,7 +290,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
         g_wgpustate.width = width;
         g_wgpustate.height = height;
         wgpuTextureViewRelease(depthTexture.view);
-        wgpuTextureRelease(depthTexture.tex);
+        wgpuTextureRelease(depthTexture.id);
         depthTexture = LoadDepthTexture(width, height);
         wgpuSurfaceConfigure(g_wgpustate.surface, &config);
         Matrix newcamera = ScreenMatrix(width, height);
@@ -345,6 +345,10 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
             dat[it - arg.begin()] = *it;
         }
     };*/
+    glfwSetScrollCallback(window, [](GLFWwindow* window, double xoffset, double yoffset){
+        g_wgpustate.globalScrollX += xoffset;
+        g_wgpustate.globalScrollY += yoffset;
+    });
     glfwSetCursorPosCallback(window, [](GLFWwindow* window, double x, double y){
         g_wgpustate.mousePos = Vector2{float(x), float(y)};
     });
@@ -403,6 +407,18 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height){
                                   SAMPLES
     );
     init_full_renderstate(g_wgpustate.rstate, shaderSource, attrs, 3, desc, 4, colorTexture.view, depthTexture.view);
+    {
+        int wposx, wposy;
+        glfwGetWindowPos(g_wgpustate.window, &wposx, &wposy);
+        g_wgpustate.windowPosition = Rectangle{
+            (float)wposx,
+            (float)wposy,
+            (float)GetScreenWidth(),
+            (float)GetScreenHeight()
+        };
+    }
+
+    LoadFontDefault();
     for(size_t i = 0;i < 1000;i++){
         g_wgpustate.smallBufferPool.push_back(GenBuffer(nullptr, sizeof(vertex) * 30));
     }

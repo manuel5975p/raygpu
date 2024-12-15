@@ -5,7 +5,7 @@ using std::cos;
 
 void DrawTexturePro(Texture texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint){
     // Check if texture is valid
-    if (texture.tex != nullptr){
+    if (texture.id != nullptr){
         float width = (float)texture.width;
         float height = (float)texture.height;
 

@@ -18,7 +18,7 @@
 wgpustate g_wgpustate;
 #include <stb_image_write.h>
 #include <stb_image.h>
-
+#include <sinfl.h>
 
 Vector2 nextuv;
 Vector4 nextcol;
@@ -261,6 +261,22 @@ uint32_t GetScreenWidth (cwoid){
 uint32_t GetScreenHeight(cwoid){
     return g_wgpustate.height;
 }
+uint32_t GetMonitorWidth (cwoid){
+    const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    if(mode == nullptr){
+        glfwInit();
+        return GetMonitorWidth();
+    }
+    return mode->width;
+}
+uint32_t GetMonitorHeight(cwoid){
+    const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    if(mode == nullptr){
+        glfwInit();
+        return GetMonitorWidth();
+    }
+    return mode->height;
+}
 void BeginRenderpassEx(DescribedRenderpass* renderPass){
     WGPUCommandEncoderDescriptor desc{};
     desc.label = STRVIEW("another cmdencoder");
@@ -279,6 +295,12 @@ void EndRenderpassEx(DescribedRenderpass* renderPass){
     wgpuQueueSubmit(GetQueue(), 1, &command);
     wgpuCommandBufferRelease(command);
     wgpuCommandEncoderRelease(renderPass->cmdEncoder);
+}
+void BeginRenderpass(cwoid){
+    BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
+}
+void EndRenderpass(cwoid){
+    EndRenderpassEx(&g_wgpustate.rstate->renderpass);
 }
 extern "C" void ClearBackground(Color clearColor){
     bool rpActive = g_wgpustate.rstate->activeRenderPass != nullptr;
@@ -329,6 +351,8 @@ void EndDrawing(){
     g_wgpustate.smallBufferRecyclingBin.clear();
     std::copy(g_wgpustate.keydown.begin(), g_wgpustate.keydown.end(), g_wgpustate.keydownPrevious.begin());
     g_wgpustate.mousePosPrevious = g_wgpustate.mousePos;
+    g_wgpustate.globalScrollXPrevious = g_wgpustate.globalScrollX;
+    g_wgpustate.globalScrollYPrevious = g_wgpustate.globalScrollY;
     std::copy(g_wgpustate.mouseButtonDown.begin(), g_wgpustate.mouseButtonDown.end(), g_wgpustate.mouseButtonDownPrevious.begin());
     
     g_wgpustate.drawmutex.unlock();
@@ -355,7 +379,7 @@ void rlEnd(){
 Image LoadImageFromTexture(Texture tex){
     #ifndef __EMSCRIPTEN__
     auto& device = g_wgpustate.device;
-    Image ret {(PixelFormat)tex.format, tex.width, tex.height, size_t(std::ceil(4.0 * tex.width / 256.0) * 256), nullptr};
+    Image ret {(PixelFormat)tex.format, tex.width, tex.height, size_t(std::ceil(4.0 * tex.width / 256.0) * 256), nullptr, 1};
     WGPUBufferDescriptor b{};
     b.mappedAtCreation = false;
     b.size = size_t(std::ceil(4.0 * tex.width / 256.0) * 256) * tex.height;
@@ -367,7 +391,7 @@ Image LoadImageFromTexture(Texture tex){
     commandEncoderDesc.label = STRVIEW("Command Encoder");
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device, &commandEncoderDesc);
     WGPUImageCopyTexture tbsource;
-    tbsource.texture = tex.tex;
+    tbsource.texture = tex.id;
     tbsource.mipLevel = 0;
     tbsource.origin = { 0, 0, 0 }; // equivalent of the offset argument of Queue::writeBuffer
     tbsource.aspect = WGPUTextureAspect_All; // only relevant for depth/Stencil textures
@@ -466,7 +490,7 @@ Texture LoadTextureFromImage(Image img){
     1,1,1,nullptr};
         
     desc.viewFormats = (WGPUTextureFormat*)&img.format;
-    ret.tex = wgpuDeviceCreateTexture(g_wgpustate.device, &desc);
+    ret.id = wgpuDeviceCreateTexture(g_wgpustate.device, &desc);
     WGPUTextureViewDescriptor vdesc{};
     vdesc.arrayLayerCount = 0;
     vdesc.aspect = WGPUTextureAspect_All;
@@ -478,7 +502,7 @@ Texture LoadTextureFromImage(Image img){
     vdesc.mipLevelCount = 1;
         
     WGPUImageCopyTexture destination;
-    destination.texture = ret.tex;
+    destination.texture = ret.id;
     destination.mipLevel = 0;
     destination.origin = { 0, 0, 0 }; // equivalent of the offset argument of Queue::writeBuffer
     destination.aspect = WGPUTextureAspect_All; // only relevant for depth/Stencil textures
@@ -488,7 +512,7 @@ Texture LoadTextureFromImage(Image img){
     source.rowsPerImage = img.height;
     //wgpuQueueWriteTexture()
     wgpuQueueWriteTexture(g_wgpustate.queue, &destination, altdata ? altdata : img.data, 4 * img.width * img.height, &source, &desc.size);
-    ret.view = wgpuTextureCreateView(ret.tex, &vdesc);
+    ret.view = wgpuTextureCreateView(ret.id, &vdesc);
     ret.width = img.width;
     ret.height = img.height;
     if(altdata)free(altdata);
@@ -528,7 +552,24 @@ Vector2 GetMouseDelta(cwoid){
     return Vector2{g_wgpustate.mousePos.x - g_wgpustate.mousePos.x,
                    g_wgpustate.mousePos.y - g_wgpustate.mousePos.y};
 }
-
+float GetMouseWheelMove(void){
+    return (float)(g_wgpustate.globalScrollY - g_wgpustate.globalScrollYPrevious);
+}
+Vector2 GetMouseWheelMoveV(void){
+    
+    return Vector2{
+        (float)(g_wgpustate.globalScrollX - g_wgpustate.globalScrollYPrevious),
+        (float)(g_wgpustate.globalScrollY - g_wgpustate.globalScrollYPrevious)};
+}
+bool IsMouseButtonPressed(int button){
+    return g_wgpustate.mouseButtonDown[button] && !g_wgpustate.mouseButtonDownPrevious[button];
+}
+bool IsMouseButtonDown(int button){
+    return g_wgpustate.mouseButtonDown[button];
+}
+bool IsMouseButtonReleased(int button){
+    return !g_wgpustate.mouseButtonDown[button] && g_wgpustate.mouseButtonDownPrevious[button];
+}
 
 
 void ShowCursor(cwoid){
@@ -550,7 +591,9 @@ bool IsCursorOnScreen(cwoid){
     return g_wgpustate.cursorInWindow;
 }
 
-
+bool WindowShouldClose(cwoid){
+    return glfwWindowShouldClose(g_wgpustate.window);
+}
 
 uint64_t NanoTime(cwoid){
     return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
@@ -637,8 +680,8 @@ Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format
     ret.format = format;
     ret.width = width;
     ret.height = height;
-    ret.tex = wgpuDeviceCreateTexture(g_wgpustate.device, &tDesc);
-    ret.view = wgpuTextureCreateView(ret.tex, &textureViewDesc);
+    ret.id = wgpuDeviceCreateTexture(g_wgpustate.device, &tDesc);
+    ret.view = wgpuTextureCreateView(ret.id, &textureViewDesc);
     return ret;
 }
 Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format, bool to_be_used_as_rendertarget){
@@ -1002,7 +1045,33 @@ void setTargetTextures(full_renderstate* state, WGPUTextureView c, WGPUTextureVi
     }
     BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
 }
+extern "C" char* LoadFileText(const char *fileName) {
+    std::ifstream file(fileName, std::ios::ate);
+    if (!file.is_open()) {
+        return nullptr;
+    }
 
+    std::streamsize size = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    char* buffer = (char*)malloc(size + 1);
+    if (!buffer) {
+        return nullptr;
+    }
+
+    if (!file.read(static_cast<char*>(buffer), size)) {
+        free(buffer);
+        return nullptr;
+    }
+    buffer[size] = '\0';
+    return buffer;
+}
+extern "C" void UnloadFileText(char* content){
+    free((void*)content);
+}
+extern "C" void UnloadFileData(void* content){
+    free((void*)content);
+}
 extern "C" void* LoadFileData(const char *fileName, size_t *dataSize) {
     std::ifstream file(fileName, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
@@ -1041,8 +1110,8 @@ extern "C" Image LoadImage(const char* filename){
 void UnloadTexture(Texture tex){
     if(tex.view)
         wgpuTextureViewRelease(tex.view);
-    if(tex.tex)
-        wgpuTextureRelease(tex.tex);
+    if(tex.id)
+        wgpuTextureRelease(tex.id);
     
 }
 void UnloadImage(Image img){
@@ -1056,7 +1125,7 @@ extern "C" Image LoadImageFromMemory(const void* data, size_t dataSize){
     return image;
 }
 extern "C" Image GenImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32_t checkerCount){
-    Image ret{RGBA8, width, height, width * 4, std::calloc(width * height, sizeof(Color))};
+    Image ret{RGBA8, width, height, width * 4, std::calloc(width * height, sizeof(Color)), 1};
     for(uint32_t i = 0;i < height;i++){
         for(uint32_t j = 0;j < width;j++){
             const size_t index = size_t(i) * width + j;
@@ -1267,3 +1336,81 @@ extern "C" void NanoWait(uint64_t time){
     NanoWaitImpl(NanoTime() + time);
     return;
 }
+
+unsigned char *DecompressData(const unsigned char *compData, int compDataSize, int *dataSize)
+{
+    unsigned char *data = NULL;
+
+    // Decompress data from a valid DEFLATE stream
+    data = (unsigned char *)calloc((20)*1024*1024, 1);
+    int length = sinflate(data, 20*1024*1024, compData, compDataSize);
+
+    // WARNING: RL_REALLOC can make (and leave) data copies in memory, be careful with sensitive compressed data!
+    // TODO: Use a different approach, create another buffer, copy data manually to it and wipe original buffer memory
+    unsigned char *temp = (unsigned char *)realloc(data, length);
+
+    if (temp != NULL) data = temp;
+    else TRACELOG(LOG_WARNING, "SYSTEM: Failed to re-allocate required decompression memory");
+
+    *dataSize = length;
+
+    TRACELOG(LOG_INFO, "SYSTEM: Decompress data: Comp. size: %i -> Original size: %i", compDataSize, *dataSize);
+
+    return data;
+}
+// String pointer reverse break: returns right-most occurrence of charset in s
+static const char *strprbrk(const char *s, const char *charset)
+{
+    const char *latestMatch = NULL;
+
+    for (; s = strpbrk(s, charset), s != NULL; latestMatch = s++) { }
+
+    return latestMatch;
+}
+const char *GetDirectoryPath(const char *filePath)
+{
+    /*
+    // NOTE: Directory separator is different in Windows and other platforms,
+    // fortunately, Windows also support the '/' separator, that's the one should be used
+    #if defined(_WIN32)
+        char separator = '\\';
+    #else
+        char separator = '/';
+    #endif
+    */
+    const char *lastSlash = NULL;
+    static char dirPath[2048] = { 0 };
+    memset(dirPath, 0, 2048);
+
+    // In case provided path does not contain a root drive letter (C:\, D:\) nor leading path separator (\, /),
+    // we add the current directory path to dirPath
+    if ((filePath[1] != ':') && (filePath[0] != '\\') && (filePath[0] != '/'))
+    {
+        // For security, we set starting path to current directory,
+        // obtained path will be concatenated to this
+        dirPath[0] = '.';
+        dirPath[1] = '/';
+    }
+
+    lastSlash = strprbrk(filePath, "\\/");
+    if (lastSlash)
+    {
+        if (lastSlash == filePath)
+        {
+            // The last and only slash is the leading one: path is in a root directory
+            dirPath[0] = filePath[0];
+            dirPath[1] = '\0';
+        }
+        else
+        {
+            // NOTE: Be careful, strncpy() is not safe, it does not care about '\0'
+            char *dirPathPtr = dirPath;
+            if ((filePath[1] != ':') && (filePath[0] != '\\') && (filePath[0] != '/')) dirPathPtr += 2;     // Skip drive letter, "C:"
+            memcpy(dirPathPtr, filePath, strlen(filePath) - (strlen(lastSlash) - 1));
+            dirPath[strlen(filePath) - strlen(lastSlash) + (((filePath[1] != ':') && (filePath[0] != '\\') && (filePath[0] != '/'))? 2 : 0)] = '\0';  // Add '\0' manually
+        }
+    }
+
+    return dirPath;
+}
+

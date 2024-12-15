@@ -56,7 +56,7 @@ int main(){
     constexpr uint32_t height = 1440;
     //SetConfigFlags(FLAG_VSYNC_HINT);
     SetConfigFlags(FLAG_FULLSCREEN_MODE);
-    auto window = InitWindow(width, height);
+    auto window = InitWindow(width, height, "Example");
     SetTargetFPS(144);
     HideCursor();
     ShowCursor();
@@ -278,7 +278,7 @@ int main(){
         //UpdateStagingBuffer(&mbuf);
         //wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->activeRenderPass->rpEncoder, 0, mbuf.gpuUsable.buffer, 0, sizeof(float)*15);
         //wgpuRenderPassEncoderDraw(g_wgpustate.rstate->activeRenderPass->rpEncoder, 3, 1, 0, 0);
-        for(size_t i = 0;i < 0;i++){
+        /*for(size_t i = 0;i < 0;i++){
             data2[5] += 0.001f;
             data2[5] = std::max(data2[5], -0.99f);
             data2[5] = std::fmod(data2[5]+1, 5.0f)-1;
@@ -294,7 +294,7 @@ int main(){
             wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->activeRenderPass->rpEncoder, 0, buf.buffer, 0, sizeof(float)*15);
             wgpuRenderPassEncoderDraw(g_wgpustate.rstate->activeRenderPass->rpEncoder, 3, 1, 0, 0);
             wgpuBufferRelease(buf.buffer);
-        }
+        }*/
         
         //wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->activeRenderPass->rpEncoder, 0, buf.buffer, 0, sizeof(float)*15);
         //wgpuRenderPassEncoderDraw(g_wgpustate.rstate->activeRenderPass->rpEncoder, 3, 1, 0, 0);

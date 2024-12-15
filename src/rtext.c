@@ -60,6 +60,7 @@
 
 
 #define SUPPORT_MODULE_RTEXT
+#define SUPPORT_TEXT_MANIPULATION
 #define EXTERNAL_CONFIG_FLAGS
 // Check if config flags have been externally provided on compilation line
 #if !defined(EXTERNAL_CONFIG_FLAGS)
@@ -1010,7 +1011,7 @@ void UnloadFontData(GlyphInfo *glyphs, int glyphCount)
 void UnloadFont(Font font)
 {
     // NOTE: Make sure font is not default font (fallback)
-    if (font.texture.tex != GetFontDefault().texture.tex)
+    if (font.texture.id != GetFontDefault().texture.id)
     {
         UnloadFontData(font.glyphs, font.glyphCount);
         if (isGpuReady) UnloadTexture(font.texture);
@@ -1040,7 +1041,7 @@ void UnloadFont(Font font)
 void DrawText(const char *text, int posX, int posY, int fontSize, Color color)
 {
     // Check if default font has been loaded
-    if (GetFontDefault().texture.tex != 0)
+    if (GetFontDefault().texture.id != 0)
     {
         Vector2 position = { (float)posX, (float)posY };
 
@@ -1056,7 +1057,7 @@ void DrawText(const char *text, int posX, int posY, int fontSize, Color color)
 // NOTE: chars spacing is NOT proportional to fontSize
 void DrawTextEx(Font font, const char *text, Vector2 position, float fontSize, float spacing, Color tint)
 {
-    if (font.texture.tex == 0) font = GetFontDefault();  // Security check in case of not valid font
+    if (font.texture.id == 0) font = GetFontDefault();  // Security check in case of not valid font
 
     int size = TextLength(text);    // Total size in bytes of the text, scanned by codepoints in loop
 
@@ -1171,7 +1172,7 @@ int MeasureText(const char *text, int fontSize)
     Vector2 textSize = { 0.0f, 0.0f };
 
     // Check if default font has been loaded
-    if (GetFontDefault().texture.tex != 0)
+    if (GetFontDefault().texture.id != 0)
     {
         int defaultFontSize = 10;   // Default Font chars height in pixel
         if (fontSize < defaultFontSize) fontSize = defaultFontSize;
@@ -1188,7 +1189,7 @@ Vector2 MeasureTextEx(Font font, const char *text, float fontSize, float spacing
 {
     Vector2 textSize = { 0 };
 
-    if ((isGpuReady && (font.texture.tex == 0)) ||
+    if ((isGpuReady && (font.texture.id == 0)) ||
         (text == NULL) || (text[0] == '\0')) return textSize; // Security check
 
     int size = TextLength(text);    // Get size in bytes of text
@@ -1768,7 +1769,7 @@ char *LoadUTF8(const int *codepoints, int length)
     }
 
     // Resize memory to text length + string NULL terminator
-    void *ptr = RL_REALLOC(text, size + 1);
+    void *ptr = realloc(text, size + 1);
 
     if (ptr != NULL) text = (char *)ptr;
 
@@ -1799,7 +1800,7 @@ int *LoadCodepoints(const char *text, int *count)
     }
 
     // Re-allocate buffer to the actual number of codepoints loaded
-    codepoints = (int *)RL_REALLOC(codepoints, codepointCount*sizeof(int));
+    codepoints = (int *)realloc(codepoints, codepointCount*sizeof(int));
 
     *count = codepointCount;
 

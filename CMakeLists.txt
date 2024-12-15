@@ -8,6 +8,18 @@ project(webgpu_standalone)
 #)
 #FetchContent_MakeAvailable(dawn)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/dawn)
+set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
+set(DAWN_FETCH_DEPENDENCIES ON CACHE BOOL "" FORCE)
+set(DAWN_BUILD_MONOLITHIC_LIBRARY ON CACHE BOOL "" FORCE)
+set(DAWN_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
+set(DAWN_ENABLE_NULL OFF CACHE BOOL "" FORCE)
+set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "" FORCE)
+set(ENABLE_HLSL OFF CACHE BOOL "" FORCE)
+set(ENABLE_PCH OFF CACHE BOOL "" FORCE)
+set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+set(TINT_BUILD_CMD_TOOLS OFF CACHE BOOL "" FORCE)
+set(TINT_BUILD_GLSL_VALIDATOR OFF CACHE BOOL "" FORCE)
+set(TINT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 # Define the download function
 function(download_file_if_not_exists url filename)
     set(DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/dl")
@@ -26,11 +38,11 @@ function(download_file_if_not_exists url filename)
 endfunction()
 
 
-download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_rect_pack.h" "stb_rect_pack.h")
-download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_truetype.h" "stb_truetype.h")
-download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_image.h" "stb_image.h")
-download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_image_write.h" "stb_image_write.h")
-
+#download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_rect_pack.h" "stb_rect_pack.h")
+#download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_truetype.h" "stb_truetype.h")
+#download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_image.h" "stb_image.h")
+#download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_image_write.h" "stb_image_write.h")
+#download_file_if_not_exists("https://raw.githubusercontent.com/raysan5/raygui/refs/heads/master/src/raygui.h" "raygui.h")
 
 #add_subdirectory(dawn)
 set(RG_SOURCES
@@ -38,6 +50,7 @@ set(RG_SOURCES
     "src/raygpu.cpp"
     "src/shapes.cpp"
     "src/stb_impl.c"
+    "src/sinfl_impl.c"
     "src/rtext.c"
     "src/rshapes.cpp"
     "src/pipeline.cpp"
@@ -49,7 +62,7 @@ foreach(source_file IN LISTS RG_SOURCES)
 endforeach()
 SET_SOURCE_FILES_PROPERTIES("src/stb_impl.c" PROPERTIES COMPILE_FLAGS -w)
 SET_SOURCE_FILES_PROPERTIES("src/rtext.c" PROPERTIES COMPILE_FLAGS -w)
-target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/include" "${CMAKE_BINARY_DIR}/dl")
+target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/include" "${CMAKE_BINARY_DIR}/dl" "${CMAKE_CURRENT_LIST_DIR}/external")
 target_link_libraries(raygpu PUBLIC
     webgpu_dawn
     webgpu_cpp
@@ -68,6 +81,7 @@ add_executable(example "src/example.cpp")
 target_compile_features(raygpu PUBLIC cxx_std_20)
 target_compile_features(example PUBLIC cxx_std_20)
 target_link_libraries(example PUBLIC raygpu)
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/examples")
 #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto")
 add_executable(reference_sample "src/reference_sample.cpp")
 target_link_libraries(reference_sample PUBLIC webgpu_dawn webgpu_cpp dawn_wgpu_utils dawn_internal_config dawn::dawn_glfw glfw raygpu)

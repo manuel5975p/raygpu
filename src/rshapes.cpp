@@ -98,10 +98,12 @@ static float EaseCubicInOut(float t, float b, float c, float d);    // Cubic eas
 // defining a font char white rectangle would allow drawing everything in a single draw call
 void SetShapesTexture(Texture2D texture, Rectangle source)
 {
+    return;
+    #ifdef UH_THIS_DOES_SOME_WEIRD_SHIT
     // Reset texture to default pixel if required
     // WARNING: Shapes texture should be probably better validated,
     // it can break the rendering of all shapes if misused
-    if ((texture.tex == 0) || (source.width == 0) || (source.height == 0))
+    if ((texture.id == 0) || (source.width == 0) || (source.height == 0))
     {
         //texShapes = (Texture2D){1, 1, 1, 1, 7};
         texShapesRec = Rectangle{0.0f, 0.0f, 1.0f, 1.0f};
@@ -111,6 +113,7 @@ void SetShapesTexture(Texture2D texture, Rectangle source)
         texShapes = texture;
         texShapesRec = source;
     }
+    #endif
 }
 
 // Get texture that is used for shapes drawing
@@ -134,8 +137,8 @@ void DrawPixel(int posX, int posY, Color color)
 // Draw a pixel (Vector version)
 void DrawPixelV(Vector2 position, Color color)
 {
-#if defined(SUPPORT_QUADS_DRAW_MODE)
     UseTexture(GetShapesTexture());
+#if defined(SUPPORT_QUADS_DRAW_MODE)
     Rectangle shapeRect = GetShapesTextureRectangle();
 
     rlBegin(RL_QUADS);
@@ -745,6 +748,7 @@ void DrawRectanglePro(Rectangle rec, Vector2 origin, float rotation, Color color
 
     //rlSetTexture(0);
 #else
+    UseTexture(GetShapesTexture());
     rlBegin(RL_TRIANGLES);
 
         rlColor4ub(color.r, color.g, color.b, color.a);
@@ -1173,8 +1177,8 @@ void DrawRectangleRoundedLinesEx(Rectangle rec, float roundness, int segments, f
 
     if (lineThick > 1)
     {
+    UseTexture(GetShapesTexture());
 #if defined(SUPPORT_QUADS_DRAW_MODE)
-        UseTexture(GetShapesTexture());
         Rectangle shapeRect = GetShapesTextureRectangle();
 
         rlBegin(RL_QUADS);
@@ -1349,8 +1353,8 @@ void DrawRectangleRoundedLinesEx(Rectangle rec, float roundness, int segments, f
 // NOTE: Vertex must be provided in counter-clockwise order
 void DrawTriangle(Vector2 v1, Vector2 v2, Vector2 v3, Color color)
 {
-#if defined(SUPPORT_QUADS_DRAW_MODE)
     UseTexture(GetShapesTexture());
+#if defined(SUPPORT_QUADS_DRAW_MODE)
     Rectangle shapeRect = GetShapesTextureRectangle();
 
     rlBegin(RL_QUADS);
@@ -1464,8 +1468,8 @@ void DrawPoly(Vector2 center, int sides, float radius, float rotation, Color col
     float centralAngle = rotation*DEG2RAD;
     float angleStep = 360.0f/(float)sides*DEG2RAD;
 
-#if defined(SUPPORT_QUADS_DRAW_MODE)
     UseTexture(GetShapesTexture());
+#if defined(SUPPORT_QUADS_DRAW_MODE)
     Rectangle shapeRect = GetShapesTextureRectangle();
 
     rlBegin(RL_QUADS);
@@ -1533,8 +1537,8 @@ void DrawPolyLinesEx(Vector2 center, int sides, float radius, float rotation, fl
     float exteriorAngle = 360.0f/(float)sides*DEG2RAD;
     float innerRadius = radius - (lineThick*std::cos(DEG2RAD*exteriorAngle/2.0f));
 
-#if defined(SUPPORT_QUADS_DRAW_MODE)
     UseTexture(GetShapesTexture());
+#if defined(SUPPORT_QUADS_DRAW_MODE)
     Rectangle shapeRect = GetShapesTextureRectangle();
 
     rlBegin(RL_QUADS);

@@ -242,6 +242,8 @@ int SampleBase::Run(unsigned int delay) {
                     return true;
                 case wgpu::BackendType::Undefined:
                     __builtin_unreachable();
+                default:
+                    return false;
             }
         };
         adapterOptions.compatibilityMode = bcompat(backendType);

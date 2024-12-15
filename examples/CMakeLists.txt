@@ -1,0 +1,6 @@
+add_executable(core_window core_window.c)
+add_executable(core_shapes core_shapes.c)
+add_executable(core_vsync_fullscreen core_vsync_fullscreen.c)
+target_link_libraries(core_window PUBLIC raygpu)
+target_link_libraries(core_shapes PUBLIC raygpu)
+target_link_libraries(core_vsync_fullscreen PUBLIC raygpu)
