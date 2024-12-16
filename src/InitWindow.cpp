@@ -307,7 +307,23 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     sample->surface.GetCapabilities(sample->adapter, &capabilities);
     wgpu::SurfaceConfiguration config = {};
     config.device = sample->device;
-    config.format = capabilities.formats[0];
+    //std::cout << "Supported format count: " << capabilities.formatCount << "\n";
+    wgpu::TextureFormat selectedFormat = wgpu::TextureFormat::Undefined;
+    int format_index = 0;
+    for(format_index = 0;format_index < capabilities.formatCount;format_index++){
+        if(capabilities.formats[format_index] == wgpu::TextureFormat::BGRA8Unorm ||
+           capabilities.formats[format_index] == wgpu::TextureFormat::RGBA8Unorm){
+            selectedFormat = (capabilities.formats[format_index]);
+            break;
+        }
+    }
+    if(format_index == capabilities.formatCount){
+        std::cerr << "[Warning] No RGBA8 / BGRA8 Unorm framebuffer format found, colors might be off\n"; 
+        config.format = capabilities.formats[0];
+    }
+    else{
+        config.format = selectedFormat;
+    }
     config.presentMode = !!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? wgpu::PresentMode::Fifo : wgpu::PresentMode::Immediate;
 
     config.width = width;
@@ -322,6 +338,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     g_wgpustate.instance = sample->instance.MoveToCHandle();
     g_wgpustate.surface = sample->surface.MoveToCHandle();
     g_wgpustate.frameBufferFormat = (WGPUTextureFormat)config.format;
+    //std::cout << "Supported Framebuffer Format: 0x" << std::hex << (WGPUTextureFormat)config.format << std::dec << "\n";
 
     
     g_wgpustate.whitePixel = LoadTextureFromImage(GenImageChecker(Color{255,255,255,255}, Color{255,255,255,255}, 1, 1, 0));
