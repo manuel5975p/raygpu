@@ -276,7 +276,6 @@ typedef enum {
     MOUSE_BUTTON_BACK    = 6,       // Mouse button back (advanced mouse device)
 } MouseButton;
 
-typedef struct full_renderstate full_renderstate;
 
 typedef struct AttributeAndResidence{
     WGPUVertexAttribute attr;
@@ -286,6 +285,7 @@ typedef struct AttributeAndResidence{
 
 /**
  */
+typedef struct full_renderstate full_renderstate;
 typedef struct VertexArray VertexArray;
 typedef struct GLFWwindow GLFWwindow;
 
@@ -344,6 +344,7 @@ EXTERN_C_BEGIN
     void ClearBackground(Color clearColor);
     void BeginDrawing(cwoid);
     void EndDrawing(cwoid);
+    Texture GetDepthTexture(cwoid);
 
 
     DescribedRenderpass LoadRenderpass(WGPUTextureView color, WGPUTextureView depth);

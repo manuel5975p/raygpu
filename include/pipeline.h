@@ -79,7 +79,7 @@ EXTERN_C_BEGIN
 
     DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, uint32_t uniformCount);
     void UnloadBindGroupLayout(DescribedBindGroupLayout* bglayout);
-
+    
 
     DescribedBindGroup LoadBindGroup(const DescribedPipeline* pipeline, const WGPUBindGroupEntry* entries, size_t entryCount);
     WGPUBindGroup GetWGPUBindGroup(DescribedBindGroup* bg);

@@ -114,6 +114,9 @@ Texture depthTexture; //TODO: uhhh move somewhere
 WGPUDevice GetDevice(){
     return g_wgpustate.device;
 }
+Texture GetDepthTexture(){
+    return depthTexture;
+}
 WGPUQueue GetQueue(){
     return g_wgpustate.queue;
 }
@@ -244,7 +247,6 @@ extern "C" void EndMode2D(){
     SetUniformBuffer(0, &g_wgpustate.defaultScreenMatrix);
 }
 extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode){
-    
     switch(drawMode){
         case WGPUPrimitiveTopology_TriangleList:
         wgpuRenderPassEncoderSetPipeline (g_wgpustate.rstate->renderpass.rpEncoder, pipeline->pipeline);
@@ -763,6 +765,7 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     //vboptr = (vertex*)wgpuBufferGetMappedRange(vbomap.buffer, 0, vbmdesc.size);
     vboptr = (vertex*)calloc(1000000, sizeof(vertex));
     vboptr_base = vboptr;
+    state->defaultPipeline->lastUsedAs = WGPUPrimitiveTopology_TriangleList;
     //std::cout << "VBO Punkter: " << vboptr << "\n";
     //std::cout << "Mapped: " << vboptr <<"\n";
     //exit(0);

@@ -339,7 +339,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     g_wgpustate.surface = sample->surface.MoveToCHandle();
     g_wgpustate.frameBufferFormat = (WGPUTextureFormat)config.format;
     //std::cout << "Supported Framebuffer Format: 0x" << std::hex << (WGPUTextureFormat)config.format << std::dec << "\n";
-
+    
     
     g_wgpustate.whitePixel = LoadTextureFromImage(GenImageChecker(Color{255,255,255,255}, Color{255,255,255,255}, 1, 1, 0));
 
