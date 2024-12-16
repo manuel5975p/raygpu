@@ -293,7 +293,7 @@ inline Matrix GetCameraMatrix2D(Camera2D camera){
     //   2. Rotate and Scale
     //   3. Move by -target
     Matrix matOrigin = MatrixTranslate(-camera.target.x, -camera.target.y, 0.0f);
-    Matrix matRotation = MatrixRotate(CLITERAL(Vector3){ 0.0f, 0.0f, 1.0f}, camera.rotation * DEG2RAD);
+    Matrix matRotation = MatrixRotate(CLITERAL(Vector3){ 0.0f, 0.0f, 1.0f}, camera.rotation);
     Matrix matScale = MatrixScale(camera.zoom, camera.zoom, 1.0f);
     Matrix matTranslation = MatrixTranslate(camera.offset.x, camera.offset.y, 0.0f);
 
