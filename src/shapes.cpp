@@ -2,7 +2,35 @@
 #include <cmath>
 using std::sin;
 using std::cos;
+void DrawTexture(Texture texture, int posX, int posY, Color tint)
+{
+    DrawTextureEx(texture, CLITERAL(Vector2){ (float)posX, (float)posY }, 0.0f, 1.0f, tint);
+}
 
+// Draw a texture with position defined as Vector2
+void DrawTextureV(Texture texture, Vector2 position, Color tint)
+{
+    DrawTextureEx(texture, position, 0, 1.0f, tint);
+}
+
+// Draw a texture with extended parameters
+void DrawTextureEx(Texture texture, Vector2 position, float rotation, float scale, Color tint)
+{
+    Rectangle source = { 0.0f, 0.0f, (float)texture.width, (float)texture.height };
+    Rectangle dest = { position.x, position.y, (float)texture.width*scale, (float)texture.height*scale };
+    Vector2 origin = { 0.0f, 0.0f };
+
+    DrawTexturePro(texture, source, dest, origin, rotation, tint);
+}
+
+// Draw a part of a texture (defined by a rectangle)
+void DrawTextureRec(Texture texture, Rectangle source, Vector2 position, Color tint)
+{
+    Rectangle dest = { position.x, position.y, fabsf(source.width), fabsf(source.height) };
+    Vector2 origin = { 0.0f, 0.0f };
+
+    DrawTexturePro(texture, source, dest, origin, 0.0f, tint);
+}
 void DrawTexturePro(Texture texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint){
     // Check if texture is valid
     if (texture.id != nullptr){

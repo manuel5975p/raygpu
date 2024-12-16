@@ -363,8 +363,8 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         }
     };*/
     glfwSetScrollCallback(window, [](GLFWwindow* window, double xoffset, double yoffset){
-        g_wgpustate.globalScrollX += xoffset;
-        g_wgpustate.globalScrollY += yoffset;
+        g_wgpustate.scrollThisFrame.x += xoffset;
+        g_wgpustate.scrollThisFrame.y += yoffset;
     });
     glfwSetCursorPosCallback(window, [](GLFWwindow* window, double x, double y){
         g_wgpustate.mousePos = Vector2{float(x), float(y)};
@@ -424,6 +424,8 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
                                   (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1
     );
     init_full_renderstate(g_wgpustate.rstate, shaderSource, attrs, 3, desc, 4, colorTexture.view, depthTexture.view);
+    g_wgpustate.rstate->renderExtentX = width;
+    g_wgpustate.rstate->renderExtentY = height;
     {
         int wposx, wposy;
         glfwGetWindowPos(g_wgpustate.window, &wposx, &wposy);
@@ -477,4 +479,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     #else
     return nullptr;
     #endif
+}
+void CloseWindow(cwoid){
+    glfwSetWindowShouldClose(g_wgpustate.window, GLFW_TRUE);
 }

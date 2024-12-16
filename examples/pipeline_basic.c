@@ -24,7 +24,7 @@ int main(void){
     RenderSettings settings = {0};
     settings.depthTest = 1;
     settings.depthCompare = WGPUCompareFunction_LessEqual;
-    settings.optionalDepthTexture = GetDepthTexture().view;
+    //settings.optionalDepthTexture = GetDepthTexture().view;
     DescribedPipeline* pipeline = LoadPipelineEx(shaderSource, attributes, 1,  uniforms, 1, settings);
     
     float vertices[6] = {
@@ -38,7 +38,7 @@ int main(void){
     VertexAttribPointer(vao, &vbo, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
     EnableVertexAttribArray(vao, 0);
     float uniformData[4] = {0,0,0,0};
-
+    SetTargetFPS(3000);
     while(!WindowShouldClose()){
         BeginDrawing();
         BeginPipelineMode(pipeline, WGPUPrimitiveTopology_TriangleList);

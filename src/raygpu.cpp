@@ -239,10 +239,19 @@ extern "C" void EndPipelineMode(){
 extern "C" void BeginMode2D(Camera2D camera){
     drawCurrentBatch();
     Matrix mat = GetCameraMatrix2D(camera);
-    mat = MatrixMultiply(ScreenMatrix(GetScreenWidth(), GetScreenHeight()), mat);
+    mat = MatrixMultiply(ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY), mat);
     SetUniformBufferData(0, &mat, sizeof(Matrix));
 }
 extern "C" void EndMode2D(){
+    drawCurrentBatch();
+    SetUniformBuffer(0, &g_wgpustate.defaultScreenMatrix);
+}
+void BeginMode3D(Camera3D camera){
+    drawCurrentBatch();
+    Matrix mat = GetCameraMatrix3D(camera, float(g_wgpustate.rstate->renderExtentX) / g_wgpustate.rstate->renderExtentY);
+    SetUniformBufferData(0, &mat, sizeof(Matrix));
+}
+void EndMode3D(){
     drawCurrentBatch();
     SetUniformBuffer(0, &g_wgpustate.defaultScreenMatrix);
 }
@@ -330,8 +339,10 @@ extern "C" void ClearBackground(Color clearColor){
 }
 void BeginDrawing(){
     g_wgpustate.last_timestamps[g_wgpustate.total_frames % 64] = NanoTime();
-    glfwPollEvents();
+    
     g_wgpustate.drawmutex.lock();
+    g_wgpustate.rstate->renderExtentX = GetScreenWidth();
+    g_wgpustate.rstate->renderExtentY = GetScreenHeight();
     WGPUSurfaceTexture surfaceTexture;
     wgpuSurfaceGetCurrentTexture(g_wgpustate.surface, &surfaceTexture);
     g_wgpustate.currentSurfaceTexture = surfaceTexture;
@@ -363,10 +374,10 @@ void EndDrawing(){
     g_wgpustate.smallBufferRecyclingBin.clear();
     std::copy(g_wgpustate.keydown.begin(), g_wgpustate.keydown.end(), g_wgpustate.keydownPrevious.begin());
     g_wgpustate.mousePosPrevious = g_wgpustate.mousePos;
-    g_wgpustate.globalScrollXPrevious = g_wgpustate.globalScrollX;
-    g_wgpustate.globalScrollYPrevious = g_wgpustate.globalScrollY;
+    g_wgpustate.scrollPreviousFrame = g_wgpustate.scrollThisFrame;
+    g_wgpustate.scrollThisFrame = Vector2{0, 0};
     std::copy(g_wgpustate.mouseButtonDown.begin(), g_wgpustate.mouseButtonDown.end(), g_wgpustate.mouseButtonDownPrevious.begin());
-    
+    glfwPollEvents();
     g_wgpustate.drawmutex.unlock();
     uint64_t nanosecondsPerFrame = std::floor(1e9 / GetTargetFPS());
     //std::cout << nanosecondsPerFrame << "\n";
@@ -565,13 +576,13 @@ Vector2 GetMouseDelta(cwoid){
                    g_wgpustate.mousePos.y - g_wgpustate.mousePos.y};
 }
 float GetMouseWheelMove(void){
-    return (float)(g_wgpustate.globalScrollY - g_wgpustate.globalScrollYPrevious);
+    return g_wgpustate.scrollPreviousFrame.y;
 }
 Vector2 GetMouseWheelMoveV(void){
-    
-    return Vector2{
-        (float)(g_wgpustate.globalScrollX - g_wgpustate.globalScrollYPrevious),
-        (float)(g_wgpustate.globalScrollY - g_wgpustate.globalScrollYPrevious)};
+    return g_wgpustate.scrollPreviousFrame;
+    //return Vector2{
+    //    (float)(g_wgpustate.globalScrollX - g_wgpustate.globalScrollYPrevious),
+    //    (float)(g_wgpustate.globalScrollY - g_wgpustate.globalScrollYPrevious)};
 }
 bool IsMouseButtonPressed(int button){
     return g_wgpustate.mouseButtonDown[button] && !g_wgpustate.mouseButtonDownPrevious[button];
@@ -1015,6 +1026,9 @@ WGPUTexture cres = 0;
 WGPUTextureView cresv = 0;
 
 void setTargetTextures(full_renderstate* state, WGPUTextureView c, WGPUTextureView d){
+    if(g_wgpustate.rstate->activeRenderPass){
+        EndRenderpassEx(g_wgpustate.rstate->activeRenderPass);
+    }
     state->color = c;
     state->depth = d;
     //LoadTexture
@@ -1055,9 +1069,7 @@ void setTargetTextures(full_renderstate* state, WGPUTextureView c, WGPUTextureVi
         state->clearPass.dsa->view = d;
     }
     //updateRenderPassDesc(state);
-    if(g_wgpustate.rstate->renderpass.rpEncoder){
-        EndRenderpassEx(&g_wgpustate.rstate->renderpass);
-    }
+    
     BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
 }
 extern "C" char* LoadFileText(const char *fileName) {
@@ -1227,11 +1239,18 @@ void executeRenderpass(callable&& c){
 
 
 void BeginTextureMode(RenderTexture rtex){
+    g_wgpustate.rstate->renderExtentX = rtex.color.width;
+    g_wgpustate.rstate->renderExtentY = rtex.color.height;
     setTargetTextures(g_wgpustate.rstate, rtex.color.view, rtex.depth.view);
+    Matrix mat = ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
+    SetUniformBufferData(0, &mat, sizeof(Matrix));
 }
 void EndTextureMode(){
     drawCurrentBatch();
+    g_wgpustate.rstate->renderExtentX = GetScreenWidth();
+    g_wgpustate.rstate->renderExtentY = GetScreenHeight();
     setTargetTextures(g_wgpustate.rstate, g_wgpustate.currentSurfaceTextureView, depthTexture.view);
+    SetUniformBuffer(0, &g_wgpustate.defaultScreenMatrix);
 }
 
 extern "C" StagingBuffer GenStagingBuffer(size_t size, WGPUBufferUsage usage){
@@ -1286,6 +1305,11 @@ void UnloadStagingBuffer(StagingBuffer* buf){
     wgpuBufferUnmap(buf->mappable.buffer);
     wgpuBufferRelease(buf->mappable.buffer);
 }
+int GetRandomValue(int min, int max){
+    int w = (max - min);
+    int v = rand() & w;
+    return v + min;
+}
 extern "C" DescribedBuffer GenBufferEx(const void* data, size_t size, WGPUBufferUsage usage){
     DescribedBuffer ret{};
     ret.descriptor.size = size;
@@ -1322,6 +1346,7 @@ extern "C" void SetTargetFPS(int fps){
 extern "C" int GetTargetFPS(){
     return g_wgpustate.targetFPS;
 }
+//TODO: this is bad
 extern "C" float GetFrameTime(){
     if(g_wgpustate.total_frames == 0){
         return 0.0f;
@@ -1350,6 +1375,49 @@ void NanoWaitImpl(uint64_t stmp){
 extern "C" void NanoWait(uint64_t time){
     NanoWaitImpl(NanoTime() + time);
     return;
+}
+void TraceLog(int logType, const char *text, ...){
+    // Message has level below current threshold, don't emit
+    //if (logType < logTypeLevel) return;
+
+    va_list args;
+    va_start(args, text);
+
+    //if (traceLog){
+    //    traceLog(logType, text, args);
+    //    va_end(args);
+    //    return;
+    //}
+    constexpr size_t MAX_TRACELOG_MSG_LENGTH = 2048;
+    char buffer[MAX_TRACELOG_MSG_LENGTH] = { 0 };
+    int needs_reset = 0;
+    switch (logType)
+    {
+        case LOG_TRACE: strcpy(buffer, "TRACE: "); break;
+        case LOG_DEBUG: strcpy(buffer, "DEBUG: "); break;
+        case LOG_INFO: strcpy(buffer, TERMCTL_GREEN "INFO: "); needs_reset = 1;break;
+        case LOG_WARNING: strcpy(buffer, TERMCTL_YELLOW "WARNING: ");needs_reset = 1; break;
+        case LOG_ERROR: strcpy(buffer, TERMCTL_RED "ERROR: ");needs_reset = 1; break;
+        case LOG_FATAL: strcpy(buffer, "FATAL: "); break;
+        default: break;
+    }
+    size_t offset_now = strlen(buffer);
+    
+    unsigned int textSize = (unsigned int)strlen(text);
+    memcpy(buffer + strlen(buffer), text, (textSize < (MAX_TRACELOG_MSG_LENGTH - 12))? textSize : (MAX_TRACELOG_MSG_LENGTH - 12));
+    if(needs_reset){
+        strcat(buffer, TERMCTL_RESET "\n");
+    }
+    else{
+        strcat(buffer, "\n");
+    }
+    vprintf(buffer, args);
+    fflush(stdout);
+
+    va_end(args);
+
+    if (logType == LOG_FATAL) exit(EXIT_FAILURE);  // If fatal logging, exit program
+
 }
 
 unsigned char *DecompressData(const unsigned char *compData, int compDataSize, int *dataSize)

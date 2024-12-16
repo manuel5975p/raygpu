@@ -103,35 +103,61 @@ extern vertex* vboptr;
 extern vertex* vboptr_base;
 //extern DescribedBuffer vbomap;
 #ifdef __cplusplus
-constexpr Color GRAY{ 130, 130, 130, 255 };      // Gray
-constexpr Color YELLOW{ 253, 249, 0, 255 };      // Yellow
-constexpr Color GOLD{ 255, 203, 0, 255 };        // Gold
-constexpr Color ORANGE{ 255, 161, 0, 255 };      // Orange
-constexpr Color RED{ 230, 41, 55, 255 };         // Red
-constexpr Color GREEN{ 0, 228, 48, 255 };        // Green
-constexpr Color BLUE{ 0, 121, 241, 255 };        // Blue
-constexpr Color PURPLE{ 200, 122, 255, 255 };    // Purple
-constexpr Color VIOLET{ 135, 60, 190, 255 };     // Violet
-constexpr Color BROWN{ 127, 106, 79, 255 };      // Brown
-constexpr Color WHITE{ 255, 255, 255, 255 };     // White
-constexpr Color BLACK{ 0, 0, 0, 255 };           // Black
-constexpr Color BLANK{ 0, 0, 0, 0 };             // Blank (Transparent)
-constexpr Color MAGENTA{ 255, 0, 255, 255 };     // Magenta
+constexpr Color LIGHTGRAY{ 200, 200, 200, 255 };
+constexpr Color GRAY{ 130, 130, 130, 255 };
+constexpr Color DARKGRAY{ 80, 80, 80, 255 };   
+constexpr Color YELLOW{ 253, 249, 0, 255 };  
+constexpr Color GOLD{ 255, 203, 0, 255 };  
+constexpr Color ORANGE{ 255, 161, 0, 255 };  
+constexpr Color PINK{ 255, 109, 194, 255 };
+constexpr Color RED{ 230, 41, 55, 255 };  
+constexpr Color MAROON{ 190, 33, 55, 255 };  
+constexpr Color GREEN{ 0, 228, 48, 255 };   
+constexpr Color LIME{ 0, 158, 47, 255 };   
+constexpr Color DARKGREEN{ 0, 117, 44, 255 };   
+constexpr Color SKYBLUE{ 102, 191, 255, 255 };
+constexpr Color BLUE{ 0, 121, 241, 255 };  
+constexpr Color DARKBLUE{ 0, 82, 172, 255 };   
+constexpr Color PURPLE{ 200, 122, 255, 255 };
+constexpr Color VIOLET{ 135, 60, 190, 255 }; 
+constexpr Color DARKPURPLE{112, 31, 126, 255 };
+constexpr Color BEIGE{ 211, 176, 131, 255 };
+constexpr Color BROWN{ 127, 106, 79, 255 }; 
+constexpr Color DARKBROWN{ 76, 63, 47, 255 };   
+constexpr Color WHITE{ 255, 255, 255, 255 };
+constexpr Color BLACK{ 0, 0, 0, 255 };      
+constexpr Color BLANK{ 0, 0, 0, 0 };        
+constexpr Color MAGENTA{ 255, 0, 255, 255 };  
+constexpr Color RAYWHITE{ 245, 245, 245, 255 };
 #else // No C++
+#define LIGHTGRAY  CLITERAL(Color){ 200, 200, 200, 255 }   // Light Gray
 #define GRAY       CLITERAL(Color){ 130, 130, 130, 255 }   // Gray
+#define DARKGRAY   CLITERAL(Color){ 80, 80, 80, 255 }      // Dark Gray
 #define YELLOW     CLITERAL(Color){ 253, 249, 0, 255 }     // Yellow
 #define GOLD       CLITERAL(Color){ 255, 203, 0, 255 }     // Gold
 #define ORANGE     CLITERAL(Color){ 255, 161, 0, 255 }     // Orange
+#define PINK       CLITERAL(Color){ 255, 109, 194, 255 }   // Pink
 #define RED        CLITERAL(Color){ 230, 41, 55, 255 }     // Red
+#define MAROON     CLITERAL(Color){ 190, 33, 55, 255 }     // Maroon
 #define GREEN      CLITERAL(Color){ 0, 228, 48, 255 }      // Green
+#define LIME       CLITERAL(Color){ 0, 158, 47, 255 }      // Lime
+#define DARKGREEN  CLITERAL(Color){ 0, 117, 44, 255 }      // Dark Green
+#define SKYBLUE    CLITERAL(Color){ 102, 191, 255, 255 }   // Sky Blue
 #define BLUE       CLITERAL(Color){ 0, 121, 241, 255 }     // Blue
+#define DARKBLUE   CLITERAL(Color){ 0, 82, 172, 255 }      // Dark Blue
 #define PURPLE     CLITERAL(Color){ 200, 122, 255, 255 }   // Purple
 #define VIOLET     CLITERAL(Color){ 135, 60, 190, 255 }    // Violet
+#define DARKPURPLE CLITERAL(Color){ 112, 31, 126, 255 }    // Dark Purple
+#define BEIGE      CLITERAL(Color){ 211, 176, 131, 255 }   // Beige
 #define BROWN      CLITERAL(Color){ 127, 106, 79, 255 }    // Brown
+#define DARKBROWN  CLITERAL(Color){ 76, 63, 47, 255 }      // Dark Brown
+
 #define WHITE      CLITERAL(Color){ 255, 255, 255, 255 }   // White
 #define BLACK      CLITERAL(Color){ 0, 0, 0, 255 }         // Black
 #define BLANK      CLITERAL(Color){ 0, 0, 0, 0 }           // Blank (Transparent)
 #define MAGENTA    CLITERAL(Color){ 255, 0, 255, 255 }     // Magenta
+#define RAYWHITE   CLITERAL(Color){ 245, 245, 245, 255 }   // @raysan's own White (raylib logo)
+
 #endif
 
 
@@ -261,6 +287,18 @@ typedef enum {
     KEY_VOLUME_DOWN     = 25        // Key: Android volume down button
 } KeyboardKey;
 
+typedef enum {
+    LOG_ALL = 0,        // Display all logs
+    LOG_TRACE,          // Trace logging, intended for internal use only
+    LOG_DEBUG,          // Debug logging, used for internal debugging, it should be disabled on release builds
+    LOG_INFO,           // Info logging, used for program execution info
+    LOG_WARNING,        // Warning logging, used on recoverable failures
+    LOG_ERROR,          // Error logging, used on unrecoverable failures
+    LOG_FATAL,          // Fatal logging, used to abort program: exit(EXIT_FAILURE)
+    LOG_NONE            // Disable logging
+} TraceLogLevel;
+
+
 // Required for some backwards compatibility, e.g. raygui.h
 #define MOUSE_MIDDLE_BUTTON MOUSE_BUTTON_MIDDLE
 #define MOUSE_LEFT_BUTTON MOUSE_BUTTON_LEFT
@@ -292,6 +330,7 @@ typedef struct GLFWwindow GLFWwindow;
 
 EXTERN_C_BEGIN
     GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title);
+    void CloseWindow(cwoid);
     bool WindowShouldClose(cwoid);
     uint32_t GetScreenWidth (cwoid);                             //Window width
     uint32_t GetScreenHeight(cwoid);                             //Window height
@@ -327,6 +366,8 @@ EXTERN_C_BEGIN
      * @return double
      */
     double GetTime(cwoid);
+    int GetRandomValue(int min, int max);
+    void TraceLog(int logType, const char *text, ...);
     /**
      * @brief Return the unix timestamp in nanosecond precision
      *
@@ -360,6 +401,8 @@ EXTERN_C_BEGIN
     void EndPipelineMode(cwoid);
     void BeginMode2D(Camera2D camera);
     void EndMode2D(cwoid);
+    void BeginMode3D(Camera3D camera);
+    void EndMode3D(cwoid);
     char *LoadFileText(const char* fileName);
     void UnloadFileText(char* content);
     void* LoadFileData(const char* fileName, size_t* dataSize);
@@ -405,7 +448,6 @@ EXTERN_C_BEGIN
         FONT_SDF                        // SDF font generation, requires external shader
     } FontType;
 
-    #define TRACELOG(...)
     Font LoadFontEx(const char *fileName, int fontSize, int *codepoints, int codepointCount);
     Font LoadFontFromImage(Image img, Color key, int firstchar);
     Font LoadFontFromMemory(const char *fileType, const unsigned char *fileData, int dataSize, int fontSize, int *codepoints, int codepointCount);
@@ -431,31 +473,31 @@ EXTERN_C_BEGIN
 
         return color;
     }
-    inline void rlColor4f(float r, float g, float b, float alpha){
+    static void rlColor4f(float r, float g, float b, float alpha){
         nextcol.x = r;
         nextcol.y = g;
         nextcol.z = b;
         nextcol.w = alpha;
     }
-    inline void rlColor4ub(uint8_t r, uint8_t g, uint8_t b, uint8_t a){
+    static void rlColor4ub(uint8_t r, uint8_t g, uint8_t b, uint8_t a){
         nextcol.x = ((int)r) / 255.0f;
         nextcol.y = ((int)g) / 255.0f;
         nextcol.z = ((int)b) / 255.0f;
         nextcol.w = ((int)a) / 255.0f;
     }
 
-    inline void rlTexCoord2f(float u, float v){
+    static void rlTexCoord2f(float u, float v){
         nextuv.x = u;
         nextuv.y = v;
     }
 
-    inline void rlVertex2f(float x, float y){
+    static void rlVertex2f(float x, float y){
         *(vboptr++) = CLITERAL(vertex){{x, y, 0}, nextuv, nextcol};
     }
-    inline void rlNormal3f(float x, float y, float z){
+    static void rlNormal3f(float x, float y, float z){
         //Not supported
     }
-    inline void rlVertex3f(float x, float y, float z){
+    static void rlVertex3f(float x, float y, float z){
         *(vboptr++) = CLITERAL(vertex){{x, y, z}, nextuv, nextcol};
     }
     void rlBegin(enum draw_mode mode);
@@ -519,6 +561,11 @@ EXTERN_C_BEGIN
     const char *TextFormat(const char *text, ...);
 
     void DrawTexturePro(Texture texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint);
+    void DrawTextureV(Texture texture, Vector2 position, Color tint);                                // Draw a Texture2D with position defined as Vector2
+    void DrawTextureEx(Texture texture, Vector2 position, float rotation, float scale, Color tint);  // Draw a Texture2D with extended parameters
+    void DrawTextureRec(Texture texture, Rectangle source, Vector2 position, Color tint);            // Draw a part of a texture defined by a rectangle
+    void DrawTexturePro(Texture texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint); // Draw a part of a texture defined by a rectangle with 'pro' parameters
+    //void DrawTextureNPatch(Texture2D texture, NPatchInfo nPatchInfo, Rectangle dest, Vector2 origin, float rotation, Color tint); // Draws a texture (or part of it) that stretches or shrinks nicely
     void DrawPixel(int posX, int posY, Color color);
     void DrawPixelV(Vector2 position, Color color);
     void DrawLine(int startPosX, int startPosY, int endPosX, int endPosY, Color color);
@@ -606,6 +653,8 @@ typedef struct full_renderstate{
     DescribedRenderpass renderpass;
     DescribedRenderpass* activeRenderPass;
 
+    uint32_t renderExtentX; // Dimensions of the current viewport
+    uint32_t renderExtentY; // Required for camera function
 }full_renderstate;
 typedef struct wgpustate wgpustate;
 extern wgpustate g_wgpustate;

@@ -33,14 +33,56 @@ using std::tan;
 
 typedef struct Vector4{
     float x,y,z,w;
+    #ifdef __cplusplus
+    Vector4& operator+=(const Vector4& o)noexcept{x+=o.x;y+=o.y;z+=o.z;w+=o.w;return *this;}
+    Vector4& operator-=(const Vector4& o)noexcept{x-=o.x;y-=o.y;z-=o.z;w-=o.w;return *this;}
+    Vector4& operator*=(const Vector4& o)noexcept{x*=o.x;y*=o.y;z*=o.z;w*=o.w;return *this;}
+    Vector4& operator/=(const Vector4& o)noexcept{x/=o.x;y/=o.y;z/=o.z;w/=o.w;return *this;}
+    Vector4& operator*=(float o)noexcept{x*=o;y*=o;z*=o;w*=o;return *this;}
+    Vector4& operator/=(float o)noexcept{x/=o;y/=o;z/=o;w/=o;return *this;}
+    Vector4  operator+ (const Vector4& o)const noexcept{Vector4 ret(*this);ret += o;return ret;}
+    Vector4  operator- (const Vector4& o)const noexcept{Vector4 ret(*this);ret -= o;return ret;}
+    Vector4  operator* (const Vector4& o)const noexcept{Vector4 ret(*this);ret *= o;return ret;}
+    Vector4  operator/ (const Vector4& o)const noexcept{Vector4 ret(*this);ret /= o;return ret;}
+    Vector4  operator* (float o)const noexcept{Vector4 ret(*this);ret *=o;return ret;}
+    Vector4  operator/ (float o)const noexcept{Vector4 ret(*this);ret /=o;return ret;}
+    #endif
 }Vector4;
 
 typedef struct Vector3{
     float x,y,z;
+    #ifdef __cplusplus
+    Vector3& operator+=(const Vector3& o)noexcept{x+=o.x;y+=o.y;z+=o.z;return *this;}
+    Vector3& operator-=(const Vector3& o)noexcept{x-=o.x;y-=o.y;z-=o.z;return *this;}
+    Vector3& operator*=(const Vector3& o)noexcept{x*=o.x;y*=o.y;z*=o.z;return *this;}
+    Vector3& operator/=(const Vector3& o)noexcept{x/=o.x;y/=o.y;z/=o.z;return *this;}
+    Vector3& operator*=(float o)noexcept{x*=o;y*=o;z*=o;return *this;}
+    Vector3& operator/=(float o)noexcept{x/=o;y/=o;z/=o;return *this;}
+    Vector3  operator+ (const Vector3& o)const noexcept{Vector3 ret(*this);ret += o;return ret;}
+    Vector3  operator- (const Vector3& o)const noexcept{Vector3 ret(*this);ret -= o;return ret;}
+    Vector3  operator* (const Vector3& o)const noexcept{Vector3 ret(*this);ret *= o;return ret;}
+    Vector3  operator/ (const Vector3& o)const noexcept{Vector3 ret(*this);ret /= o;return ret;}
+    Vector3  operator* (float o)const noexcept{Vector3 ret(*this);ret *=o;return ret;}
+    Vector3  operator/ (float o)const noexcept{Vector3 ret(*this);ret /=o;return ret;}
+    #endif
 }Vector3;
 
 typedef struct Vector2{
     float x,y;
+    #ifdef __cplusplus
+    Vector2& operator+=(const Vector2& o)noexcept{x+=o.x;y+=o.y;return *this;}
+    Vector2& operator-=(const Vector2& o)noexcept{x-=o.x;y-=o.y;return *this;}
+    Vector2& operator*=(const Vector2& o)noexcept{x*=o.x;y*=o.y;return *this;}
+    Vector2& operator/=(const Vector2& o)noexcept{x/=o.x;y/=o.y;return *this;}
+    Vector2& operator*=(float o)noexcept{x*=o;y*=o;return *this;}
+    Vector2& operator/=(float o)noexcept{x/=o;y/=o;return *this;}
+    Vector2  operator+ (const Vector2& o)const noexcept{Vector2 ret(*this);ret += o;return ret;}
+    Vector2  operator- (const Vector2& o)const noexcept{Vector2 ret(*this);ret -= o;return ret;}
+    Vector2  operator* (const Vector2& o)const noexcept{Vector2 ret(*this);ret *= o;return ret;}
+    Vector2  operator/ (const Vector2& o)const noexcept{Vector2 ret(*this);ret /= o;return ret;}
+    Vector2  operator* (float o)const noexcept{Vector2 ret(*this);ret *=o;return ret;}
+    Vector2  operator/ (float o)const noexcept{Vector2 ret(*this);ret /=o;return ret;}
+    #endif
 }Vector2;
 
 inline Vector2 Vector2Normalize(Vector2 vec){
@@ -280,8 +322,9 @@ inline Matrix MatrixRotate(Vector3 axis, float angle){
 
     return result;
 }
+
 inline Matrix GetCameraMatrix3D(Camera3D camera, float aspect){
-    return MatrixMultiply(MatrixPerspective(camera.fovy, aspect , 0.001, 1000), MatrixLookAt(Vector3 eye, Vector3 target, Vector3 up));
+    return MatrixMultiply(MatrixPerspective(camera.fovy, aspect , 0.001, 1000), MatrixLookAt(camera.position, camera.target, camera.up));
 }
 
 inline Matrix GetCameraMatrix2D(Camera2D camera){

@@ -156,8 +156,9 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     ret.blendState->color.srcFactor = WGPUBlendFactor_SrcAlpha;
     ret.blendState->color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
     ret.blendState->color.operation = WGPUBlendOperation_Add;
-    ret.blendState->alpha.srcFactor = WGPUBlendFactor_Zero;
-    ret.blendState->alpha.dstFactor = WGPUBlendFactor_One;
+
+    ret.blendState->alpha.srcFactor = WGPUBlendFactor_One;
+    ret.blendState->alpha.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
     ret.blendState->alpha.operation = WGPUBlendOperation_Add;
     ret.colorTarget = callocnew(WGPUColorTargetState);
     ret.colorTarget->format = g_wgpustate.frameBufferFormat;
@@ -194,6 +195,7 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     ret.descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleStrip;
     ret.descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
     ret.pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &ret.descriptor);
+    TRACELOG(LOG_INFO, "Pipeline with %d attributes and %d uniforms was loaded", attribCount, uniformCount);
     return retp;
 }
 extern "C" void UnloadPipeline(DescribedPipeline* pl){

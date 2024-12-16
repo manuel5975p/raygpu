@@ -21,7 +21,10 @@ int main(void){
         EndMode2D();
         DrawText("This is in screen space", 0, 100, 30, RED);
         DrawFPS(0,0);
-        cam.zoom *= expf(GetMouseWheelMove() * 0.1f);
+        cam.zoom = fminf(1e30f, fmaxf(1e-30f, cam.zoom * expf(GetMouseWheelMove() * 0.1f)));
+        const char* text = TextFormat("Zoom: %.4e", cam.zoom);
+        int tw = MeasureText(text, 50);
+        DrawText(text, GetScreenWidth() - tw - 20, 0, 50, WHITE);
         EndDrawing();
     }
     return 0;

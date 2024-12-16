@@ -35,8 +35,7 @@ struct wgpustate{
     Rectangle windowPosition; // Recovery after fullscreen
     std::vector<uint8_t> keydownPrevious = std::vector<uint8_t>(512, 0);
     std::vector<uint8_t> keydown = std::vector<uint8_t>(512, 0);
-    double globalScrollX = 0, globalScrollXPrevious = 0;
-    double globalScrollY = 0, globalScrollYPrevious = 0;
+    Vector2 scrollThisFrame, scrollPreviousFrame;
     Vector2 mousePosPrevious;
     Vector2 mousePos;
     int cursorInWindow;
