@@ -233,6 +233,16 @@ extern "C" void EndPipelineMode(){
     g_wgpustate.rstate->currentPipeline = g_wgpustate.rstate->defaultPipeline;
     BindPipeline(g_wgpustate.rstate->currentPipeline, g_wgpustate.rstate->currentPipeline->lastUsedAs);
 }
+extern "C" void BeginMode2D(Camera2D camera){
+    drawCurrentBatch();
+    Matrix mat = GetCameraMatrix2D(camera);
+    mat = MatrixMultiply(ScreenMatrix(GetScreenWidth(), GetScreenHeight()), mat);
+    SetUniformBufferData(0, &mat, sizeof(Matrix));
+}
+extern "C" void EndMode2D(){
+    drawCurrentBatch();
+    SetUniformBuffer(0, &g_wgpustate.defaultScreenMatrix);
+}
 extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode){
     
     switch(drawMode){
@@ -992,6 +1002,7 @@ extern "C" DescribedRenderpass LoadRenderpass(WGPUTextureView color, WGPUTexture
     return LoadRenderpassEx(color, depth, RenderSettings{
         .depthTest = false,
         .faceCull = false,
+        .sampleCount_onlyApplicableIfMoreThanOne = 1,
         .depthCompare = WGPUCompareFunction_LessEqual, //Not applicable anyway
         .frontFace = WGPUFrontFace_CCW, //Not applicable anyway
         .optionalDepthTexture = depth,

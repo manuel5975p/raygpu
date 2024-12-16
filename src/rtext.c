@@ -1046,7 +1046,7 @@ void DrawText(const char *text, int posX, int posY, int fontSize, Color color)
         Vector2 position = { (float)posX, (float)posY };
 
         int defaultFontSize = 10;   // Default Font chars height in pixel
-        if (fontSize < defaultFontSize) fontSize = defaultFontSize;
+        //if (fontSize < defaultFontSize) fontSize = defaultFontSize;
         int spacing = fontSize/defaultFontSize;
 
         DrawTextEx(GetFontDefault(), text, position, (float)fontSize, (float)spacing, color);
@@ -1064,8 +1064,10 @@ void DrawTextEx(Font font, const char *text, Vector2 position, float fontSize, f
     float textOffsetY = 0;          // Offset between lines (on linebreak '\n')
     float textOffsetX = 0.0f;       // Offset X to next character to draw
 
-    float scaleFactor = fontSize/font.baseSize;         // Character quad scaling factor
-
+    float scaleFactor = fontSize / font.baseSize;         // Character quad scaling factor
+    //printf("Scalefactor: %f\n", scaleFactor);
+    //printf("Spacing: %f\n", spacing);
+    //printf("Size: %f\n", fontSize);
     for (int i = 0; i < size;)
     {
         // Get next codepoint from byte string and glyph index in font

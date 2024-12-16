@@ -1,5 +1,5 @@
-#ifndef CAMERA_H
-#define CAMERA_H
+#ifndef MATHUTILS_H
+#define MATHUTILS_H
 /*   Copyright (c) 2015-2024 Ramon Santamaria (@raysan5)
  *
  *   This software is provided "as-is", without any express or implied warranty. In no event
@@ -17,10 +17,11 @@
  *
  *     3. This notice may not be removed or altered from any source distribution.
  *
- **********************************************************************************************/
-
-
-
+ **********************************************************************************************
+  
+ * This file contains altered source of raymath.h by Ramon Santamaria (@raysan5)
+ */
+#include <macros_and_constants.h>
 #ifdef __cplusplus
 #include <cmath>
 #include <iostream>
@@ -67,6 +68,7 @@ inline Vector4 Vector4Normalize(Vector4 vec){
 typedef struct Matrix{
     float data[16];
 } Matrix;
+
 inline Matrix MatrixIdentity(void){
     Matrix ret = {0};
     ret.data[0] = 1;
@@ -86,11 +88,21 @@ inline Matrix MatrixMultiply(Matrix A, Matrix B){
     }
     return ret;
 }
-
+inline Matrix MatrixMultiplySwap(Matrix A, Matrix B){
+   return MatrixMultiply(B, A);
+}
 inline Vector3 Vector3Subtract(Vector3 v1, Vector3 v2){
     Vector3 result = {v1.x - v2.x, v1.y - v2.y, v1.z - v2.z};
     return result;
 }
+typedef struct Camera2D {
+    Vector2 offset;         // Camera offset (displacement from target)
+    Vector2 target;         // Camera target (rotation and zoom origin)
+    float rotation;         // Camera rotation in degrees
+    float zoom;             // Camera zoom (scaling), should be 1.0f by default
+} Camera2D;
+
+
 
 // https://github.com/raysan5/raylib/blob/master/src/raymath.h
 inline Matrix MatrixLookAt(Vector3 eye, Vector3 target, Vector3 up){
@@ -208,6 +220,88 @@ inline Matrix MatrixTranspose(Matrix mat){
     }
     return ret;
 }
+inline Matrix MatrixTranslate(float x, float y, float z){    
+    return CLITERAL(Matrix){
+        1,0,0,0,// First !! column !!
+        0,1,0,0,
+        0,0,1,0,
+        x,y,z,1,
+    };
+}
+inline Matrix MatrixScale(float x, float y, float z){
+    return CLITERAL(Matrix){
+        x,0,0,0,// First !! column !!
+        0,y,0,0,
+        0,0,z,0,
+        0,0,0,1,
+    };
+}
+inline Matrix MatrixRotate(Vector3 axis, float angle){
+    Matrix result zeroinit;
+
+    float x = axis.x, y = axis.y, z = axis.z;
+
+    float lengthSquared = x * x + y * y + z * z;
+
+    if ((lengthSquared != 1.0f) && (lengthSquared != 0.0f))
+    {
+        float ilength = 1.0f / sqrtf(lengthSquared);
+        x *= ilength;
+        y *= ilength;
+        z *= ilength;
+    }
+
+    float sinres = sinf(angle * DEG2RAD);
+    float cosres = cosf(angle * DEG2RAD);
+    float t = 1.0f - cosres;
+
+    result.data[0 ] = x * x * t + cosres;
+    result.data[1 ] = y * x * t + z * sinres;
+    result.data[2 ] = z * x * t - y * sinres;
+    result.data[3 ] = 0.0f;
+    result.data[4 ] = x * y * t - z * sinres;
+    result.data[5 ] = y * y * t + cosres;
+    result.data[6 ] = z * y * t + x * sinres;
+    result.data[7 ] = 0.0f;
+    result.data[8 ] = x * z * t + y * sinres;
+    result.data[9 ] = y * z * t - x * sinres;
+    result.data[10] = z * z * t + cosres;
+    result.data[11] = 0.0f;
+    result.data[12] = 0.0f;
+    result.data[13] = 0.0f;
+    result.data[14] = 0.0f;
+    result.data[15] = 1.0f;
+
+    return result;
+}
+
+
+inline Matrix GetCameraMatrix2D(Camera2D camera){
+    Matrix matTransform zeroinit;
+    // The camera in world-space is set by
+    //   1. Move it to target
+    //   2. Rotate by -rotation and scale by (1/zoom)
+    //      When setting higher scale, it's more intuitive for the world to become bigger (= camera become smaller),
+    //      not for the camera getting bigger, hence the invert. Same deal with rotation
+    //   3. Move it by (-offset);
+    //      Offset defines target transform relative to screen, but since we're effectively "moving" screen (camera)
+    //      we need to do it into opposite direction (inverse transform)
+
+    // Having camera transform in world-space, inverse of it gives the modelview transform
+    // Since (A*B*C)' = C'*B'*A', the modelview is
+    //   1. Move to offset
+    //   2. Rotate and Scale
+    //   3. Move by -target
+    Matrix matOrigin = MatrixTranslate(-camera.target.x, -camera.target.y, 0.0f);
+    Matrix matRotation = MatrixRotate(CLITERAL(Vector3){ 0.0f, 0.0f, 1.0f}, camera.rotation * DEG2RAD);
+    Matrix matScale = MatrixScale(camera.zoom, camera.zoom, 1.0f);
+    Matrix matTranslation = MatrixTranslate(camera.offset.x, camera.offset.y, 0.0f);
+
+    matTransform = MatrixMultiplySwap(MatrixMultiplySwap(matOrigin, MatrixMultiplySwap(matScale, matRotation)), matTranslation);
+
+    return matTransform;
+}
+
 #ifdef __cplusplus
 inline std::ostream& operator<<(std::ostream& str, const Vector3& r){
     str << "["; 
@@ -216,5 +310,29 @@ inline std::ostream& operator<<(std::ostream& str, const Vector3& r){
     str << r.z << ", ";
     return str << "]"; 
 }
-#endif
-#endif
+inline std::ostream& operator<<(std::ostream& str, const Matrix& m){
+    str << m.data[0 ] << ", ";
+    str << m.data[4 ] << ", ";
+    str << m.data[8 ] << ", ";
+    str << m.data[12] << ", ";
+    str << '\n';
+    str << m.data[1 + 0 ] << ", ";
+    str << m.data[1 + 4 ] << ", ";
+    str << m.data[1 + 8 ] << ", ";
+    str << m.data[1 + 12] << ", ";
+    str << '\n';
+    str << m.data[2 + 0 ] << ", ";
+    str << m.data[2 + 4 ] << ", ";
+    str << m.data[2 + 8 ] << ", ";
+    str << m.data[2 + 12] << ", ";
+    str << '\n';
+    str << m.data[3 + 0 ] << ", ";
+    str << m.data[3 + 4 ] << ", ";
+    str << m.data[3 + 8 ] << ", ";
+    str << m.data[3 + 12] << ", ";
+    str << '\n';
+    return str; 
+}
+#endif //__cplusplus
+
+#endif // Include guard

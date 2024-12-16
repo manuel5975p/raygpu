@@ -81,8 +81,6 @@
 using Texture2D = Texture;
 Texture2D& texShapes = g_wgpustate.whitePixel;                // Texture used on shapes drawing (white pixel loaded by rlgl)
 static Rectangle texShapesRec = {0.0f, 0.0f, 1.0f, 1.0f};    // Texture source rectangle used on shapes drawing
-constexpr float DEG2RAD = M_PI / 180.0;
-constexpr float RAD2DEG = 180.0 / M_PI;
 constexpr float PI = M_PI;
 //----------------------------------------------------------------------------------
 // Module specific Functions Declaration

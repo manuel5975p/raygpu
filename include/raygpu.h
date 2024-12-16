@@ -19,6 +19,7 @@ typedef struct BGRAColor{
     uint8_t b, g, r, a;
 } BGRAColor;
 
+
 typedef enum PixelFormat{
     RGBA8 = WGPUTextureFormat_RGBA8Unorm,
     BGRA8 = WGPUTextureFormat_BGRA8Unorm,
@@ -101,10 +102,39 @@ extern StagingBuffer vboStaging;
 extern vertex* vboptr;
 extern vertex* vboptr_base;
 //extern DescribedBuffer vbomap;
+#ifdef __cplusplus
+constexpr Color GRAY{ 130, 130, 130, 255 };      // Gray
+constexpr Color YELLOW{ 253, 249, 0, 255 };      // Yellow
+constexpr Color GOLD{ 255, 203, 0, 255 };        // Gold
+constexpr Color ORANGE{ 255, 161, 0, 255 };      // Orange
+constexpr Color RED{ 230, 41, 55, 255 };         // Red
+constexpr Color GREEN{ 0, 228, 48, 255 };        // Green
+constexpr Color BLUE{ 0, 121, 241, 255 };        // Blue
+constexpr Color PURPLE{ 200, 122, 255, 255 };    // Purple
+constexpr Color VIOLET{ 135, 60, 190, 255 };     // Violet
+constexpr Color BROWN{ 127, 106, 79, 255 };      // Brown
+constexpr Color WHITE{ 255, 255, 255, 255 };     // White
+constexpr Color BLACK{ 0, 0, 0, 255 };           // Black
+constexpr Color BLANK{ 0, 0, 0, 0 };             // Blank (Transparent)
+constexpr Color MAGENTA{ 255, 0, 255, 255 };     // Magenta
+#else // No C++
+#define GRAY       CLITERAL(Color){ 130, 130, 130, 255 }   // Gray
+#define YELLOW     CLITERAL(Color){ 253, 249, 0, 255 }     // Yellow
+#define GOLD       CLITERAL(Color){ 255, 203, 0, 255 }     // Gold
+#define ORANGE     CLITERAL(Color){ 255, 161, 0, 255 }     // Orange
+#define RED        CLITERAL(Color){ 230, 41, 55, 255 }     // Red
+#define GREEN      CLITERAL(Color){ 0, 228, 48, 255 }      // Green
+#define BLUE       CLITERAL(Color){ 0, 121, 241, 255 }     // Blue
+#define PURPLE     CLITERAL(Color){ 200, 122, 255, 255 }   // Purple
+#define VIOLET     CLITERAL(Color){ 135, 60, 190, 255 }    // Violet
+#define BROWN      CLITERAL(Color){ 127, 106, 79, 255 }    // Brown
+#define WHITE      CLITERAL(Color){ 255, 255, 255, 255 }   // White
+#define BLACK      CLITERAL(Color){ 0, 0, 0, 255 }         // Black
+#define BLANK      CLITERAL(Color){ 0, 0, 0, 0 }           // Blank (Transparent)
+#define MAGENTA    CLITERAL(Color){ 255, 0, 255, 255 }     // Magenta
+#endif
 
-#define BLANK CLITERAL(Color){0,0,0,0}
-#define BLACK CLITERAL(Color){0,0,0,255}
-#define WHITE CLITERAL(Color){255,255,255,255}
+
 typedef enum WindowFlag{
     FLAG_VSYNC_HINT         = 0x00000040,   // Set to try enabling V-Sync on GPU
     FLAG_MSAA_4X_HINT       = 0x00000004,   // Set to run program in fullscreen
@@ -230,6 +260,8 @@ typedef enum {
     KEY_VOLUME_UP       = 24,       // Key: Android volume up button
     KEY_VOLUME_DOWN     = 25        // Key: Android volume down button
 } KeyboardKey;
+
+// Required for some backwards compatibility, e.g. raygui.h
 #define MOUSE_MIDDLE_BUTTON MOUSE_BUTTON_MIDDLE
 #define MOUSE_LEFT_BUTTON MOUSE_BUTTON_LEFT
 #define MOUSE_RIGHT_BUTTON MOUSE_BUTTON_RIGHT
@@ -312,6 +344,8 @@ EXTERN_C_BEGIN
     void ClearBackground(Color clearColor);
     void BeginDrawing(cwoid);
     void EndDrawing(cwoid);
+
+
     DescribedRenderpass LoadRenderpass(WGPUTextureView color, WGPUTextureView depth);
     DescribedRenderpass LoadRenderpassEx(WGPUTextureView color, WGPUTextureView depth, RenderSettings settings);
     void UpdateRenderpass(DescribedRenderpass* rp, RenderSettings newSettings);
@@ -323,6 +357,8 @@ EXTERN_C_BEGIN
     void EndRenderpassEx(DescribedRenderpass* renderPass);
     void BeginPipelineMode(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode);
     void EndPipelineMode(cwoid);
+    void BeginMode2D(Camera2D camera);
+    void EndMode2D(cwoid);
     char *LoadFileText(const char* fileName);
     void UnloadFileText(char* content);
     void* LoadFileData(const char* fileName, size_t* dataSize);
