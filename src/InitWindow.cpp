@@ -404,7 +404,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
                                   height, 
                                   WGPUTextureFormat_Depth24Plus, 
                                   WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
-                                  SAMPLES
+                                  (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1
     );
     init_full_renderstate(g_wgpustate.rstate, shaderSource, attrs, 3, desc, 4, colorTexture.view, depthTexture.view);
     {

@@ -27,5 +27,5 @@ using std::free;
 #define EXTERN_C_END
 #define cwoid void
 #endif
-#define SAMPLES 1
+#define SAMPLES dontusethis{{{{{{(((
 #endif // MACROS_AND_CONSTANTS

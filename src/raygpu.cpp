@@ -727,6 +727,7 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     settings.depthTest = 1;
     settings.depthCompare = WGPUCompareFunction_LessEqual;
     settings.optionalDepthTexture = d;
+    settings.sampleCount_onlyApplicableIfMoreThanOne = (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
     state->renderpass = LoadRenderpassEx(c, d, settings);
     state->renderpass.renderPassDesc.label = STRVIEW("g_wgpustate::render_pass");
     state->clearPass = LoadRenderpassEx(c, d, settings);
@@ -1005,7 +1006,7 @@ void setTargetTextures(full_renderstate* state, WGPUTextureView c, WGPUTextureVi
     //LoadTexture
     
     WGPUTextureDescriptor desc{};
-    constexpr bool multisample = SAMPLES > 1;
+    const bool multisample = g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT;
     if(!cres && multisample){
         WGPUTextureDescriptor tDesc{};
         tDesc.format = g_wgpustate.frameBufferFormat;
@@ -1013,7 +1014,7 @@ void setTargetTextures(full_renderstate* state, WGPUTextureView c, WGPUTextureVi
         tDesc.usage = WGPUTextureUsage_RenderAttachment;
         tDesc.dimension = WGPUTextureDimension_2D;
         tDesc.mipLevelCount = 1;
-        tDesc.sampleCount = SAMPLES;
+        tDesc.sampleCount = 4;
         tDesc.usage  = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
         tDesc.viewFormatCount = 1;
         tDesc.viewFormats = &tDesc.format;

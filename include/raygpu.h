@@ -107,6 +107,7 @@ extern vertex* vboptr_base;
 #define WHITE CLITERAL(Color){255,255,255,255}
 typedef enum WindowFlag{
     FLAG_VSYNC_HINT         = 0x00000040,   // Set to try enabling V-Sync on GPU
+    FLAG_MSAA_4X_HINT       = 0x00000004,   // Set to run program in fullscreen
     FLAG_FULLSCREEN_MODE    = 0x00000002,   // Set to run program in fullscreen
 } WindowFlag;
 typedef enum draw_mode{
@@ -378,10 +379,12 @@ EXTERN_C_BEGIN
     void SetShapesTexture(Texture tex, Rectangle rec);
     void UseTexture(Texture tex);
     void UseNoTexture(cwoid);
-    inline Color Fade(Color col, float fade_alpha){
-        return col;
+    static Color Fade(Color col, float fade_alpha){
+        float v = (1.0f - fade_alpha);
+        uint8_t a = (uint8_t)roundf(col.a * v);
+        return CLITERAL(Color){col.r, col.g, col.b, a};
     }
-    inline Color GetColor(unsigned int hexValue){
+    static Color GetColor(unsigned int hexValue){
         Color color;
 
         color.r = (uint8_t)(hexValue >> 24) & 0xFF;

@@ -17,7 +17,7 @@ typedef struct UniformDescriptor{
 typedef struct RenderSettings{
     uint8_t depthTest;
     uint8_t faceCull;
-
+    uint8_t sampleCount_onlyApplicableIfMoreThanOne;
     WGPUCompareFunction depthCompare;
     WGPUFrontFace frontFace;
 
