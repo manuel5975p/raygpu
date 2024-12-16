@@ -102,6 +102,12 @@ typedef struct Camera2D {
     float zoom;             // Camera zoom (scaling), should be 1.0f by default
 } Camera2D;
 
+typedef struct Camera3D {
+    Vector3 position;
+    Vector3 target;
+    Vector3 up;
+    float fovy;
+} Camera3D;
 
 
 // https://github.com/raysan5/raylib/blob/master/src/raymath.h
@@ -274,7 +280,9 @@ inline Matrix MatrixRotate(Vector3 axis, float angle){
 
     return result;
 }
-
+inline Matrix GetCameraMatrix3D(Camera3D camera, float aspect){
+    return MatrixMultiply(MatrixPerspective(camera.fovy, aspect , 0.001, 1000), MatrixLookAt(Vector3 eye, Vector3 target, Vector3 up));
+}
 
 inline Matrix GetCameraMatrix2D(Camera2D camera){
     Matrix matTransform zeroinit;
