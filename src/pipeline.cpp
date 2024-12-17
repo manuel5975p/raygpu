@@ -101,7 +101,7 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
         strides[attribs[i].bufferSlot] += attributeSize(attribs[i].attr.format);
     }
     ret.attributePool = (WGPUVertexAttribute*) calloc(attribCount, sizeof(WGPUVertexAttribute));
-    
+    //std::cout << "Allocating " << attribCount << " attributes\n";
     uint32_t poolOffset = 0;
     std::vector<uint32_t> attributeOffsets(number_of_buffers, 0);
 

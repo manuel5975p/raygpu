@@ -10,6 +10,7 @@
 typedef struct vertex{
     Vector3 pos;
     Vector2 uv ;
+    Vector3 normal ;
     Vector4 col;
 }vertex;
 typedef struct Color{
@@ -323,7 +324,11 @@ typedef enum {
     LOG_FATAL,          // Fatal logging, used to abort program: exit(EXIT_FAILURE)
     LOG_NONE            // Disable logging
 } TraceLogLevel;
-
+typedef enum {
+    FONT_DEFAULT = 0,   // Default font generation, anti-aliased
+    FONT_BITMAP,        // Bitmap font generation, no anti-aliasing
+    FONT_SDF            // SDF font generation, requires external shader
+} FontType;
 
 // Required for some backwards compatibility, e.g. raygui.h
 #define MOUSE_MIDDLE_BUTTON MOUSE_BUTTON_MIDDLE
@@ -468,12 +473,6 @@ EXTERN_C_BEGIN
     int GetGlyphIndex(Font font, int codepoint);                                          // Get glyph index position in font for a codepoint (unicode character), fallback to '?' if not found
     GlyphInfo GetGlyphInfo(Font font, int codepoint);                                     // Get glyph font info data for a codepoint (unicode character), fallback to '?' if not found
     Rectangle GetGlyphAtlasRec(Font font, int codepoint);                                 // Get glyph rectangle in font atlas for a codepoint (unicode character), fallback to '?' if not found
-    typedef enum {
-        FONT_DEFAULT = 0,               // Default font generation, anti-aliased
-        FONT_BITMAP,                    // Bitmap font generation, no anti-aliasing
-        FONT_SDF                        // SDF font generation, requires external shader
-    } FontType;
-
     Font LoadFontEx(const char *fileName, int fontSize, int *codepoints, int codepointCount);
     Font LoadFontFromImage(Image img, Color key, int firstchar);
     Font LoadFontFromMemory(const char *fileType, const unsigned char *fileData, int dataSize, int fontSize, int *codepoints, int codepointCount);
@@ -518,13 +517,13 @@ EXTERN_C_BEGIN
     }
 
     static void rlVertex2f(float x, float y){
-        *(vboptr++) = CLITERAL(vertex){{x, y, 0}, nextuv, nextcol};
+        *(vboptr++) = CLITERAL(vertex){{x, y, 0}, nextuv, CLITERAL(Vector3){0,0,0}, nextcol};
     }
     static void rlNormal3f(float x, float y, float z){
         //Not supported
     }
     static void rlVertex3f(float x, float y, float z){
-        *(vboptr++) = CLITERAL(vertex){{x, y, z}, nextuv, nextcol};
+        *(vboptr++) = CLITERAL(vertex){{x, y, z}, nextuv, CLITERAL(Vector3){0,0,0}, nextcol};
     }
     void rlBegin(enum draw_mode mode);
     void rlEnd(cwoid);

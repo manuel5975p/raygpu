@@ -19,7 +19,8 @@ constexpr char shaderSource[] = R"(
 struct VertexInput {
     @location(0) position: vec3f,
     @location(1) uv: vec2f,
-    @location(2) color: vec4f,
+    @location(2) normal: vec3f,
+    @location(3) color: vec4f,
 };
 
 struct VertexOutput {
@@ -407,10 +408,11 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         UniformDescriptor{sampler, 0},
         UniformDescriptor{storage_buffer, 0}
     };
-    AttributeAndResidence attrs[3] = {
+    AttributeAndResidence attrs[4] = {
         AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 0, 0}, 0, WGPUVertexStepMode_Vertex},
-        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x2, 12, 1}, 0, WGPUVertexStepMode_Vertex},
-        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x4, 20, 2}, 0, WGPUVertexStepMode_Vertex},
+        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x2, 3 * sizeof(float), 1}, 0, WGPUVertexStepMode_Vertex},
+        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 5 * sizeof(float), 1}, 0, WGPUVertexStepMode_Vertex},
+        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x4, 8 * sizeof(float), 2}, 0, WGPUVertexStepMode_Vertex},
     };
     //arraySetter(shaderInputs.per_vertex_sizes, {3,2,4});
     //arraySetter(shaderInputs.uniform_minsizes, {64, 0, 0, 0});
@@ -423,7 +425,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
                                   WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
                                   (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1
     );
-    init_full_renderstate(g_wgpustate.rstate, shaderSource, attrs, 3, desc, 4, colorTexture.view, depthTexture.view);
+    init_full_renderstate(g_wgpustate.rstate, shaderSource, attrs, 4, desc, 4, colorTexture.view, depthTexture.view);
     g_wgpustate.rstate->renderExtentX = width;
     g_wgpustate.rstate->renderExtentY = height;
     {
