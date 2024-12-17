@@ -610,6 +610,7 @@ EXTERN_C_BEGIN
     void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va);
     void BindVertexArray(DescribedPipeline* pipeline, VertexArray* va);
     void DrawArrays(uint32_t vertexCount);
+    void DrawArraysIndexed(DescribedBuffer indexBuffer, uint32_t vertexCount);
 
 
     Model LoadModel(const char *fileName);                                                // Load model from files (meshes and materials)

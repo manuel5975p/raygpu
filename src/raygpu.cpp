@@ -110,6 +110,11 @@ extern "C" void DrawArrays(uint32_t vertexCount){
     auto& rp = g_wgpustate.rstate->renderpass.rpEncoder;
     wgpuRenderPassEncoderDraw(rp, vertexCount, 1, 0, 0);
 }
+extern "C" void DrawArraysIndexed(DescribedBuffer indexBuffer, uint32_t vertexCount){
+    auto& rp = g_wgpustate.rstate->renderpass.rpEncoder;
+    wgpuRenderPassEncoderSetIndexBuffer(rp, indexBuffer.buffer, WGPUIndexFormat_Uint32, 0, indexBuffer.descriptor.size);
+    wgpuRenderPassEncoderDrawIndexed(rp, vertexCount, 1, 0, 0, 0);
+}
 Texture depthTexture; //TODO: uhhh move somewhere
 WGPUDevice GetDevice(){
     return g_wgpustate.device;

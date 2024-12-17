@@ -43,7 +43,7 @@ int main(cwoid){
         .fovy = 1.3f
     };
     Mesh cube = GenMeshCube(1.f,1.f,1.f);
-    UploadMesh(&cube, true);
+    //UploadMesh(&cube, true);
 
     DescribedPipeline* pl = DefaultPipeline();
     PreparePipeline(pl, cube.vao);
@@ -57,7 +57,7 @@ int main(cwoid){
         BeginMode3D(cam);
         BeginPipelineMode(pl, WGPUPrimitiveTopology_TriangleList);
         BindVertexArray(pl, cube.vao);
-        DrawArrays(24);
+        DrawArraysIndexed(cube.ibo, 36);
         EndMode3D();
         EndPipelineMode();
         //DrawFPS(0, 0);

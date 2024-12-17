@@ -89,7 +89,17 @@ Mesh GenMeshCube(float width, float height, float length){
     cubeMesh.normals = (float*)calloc(vertexCount, sizeof(float) * 3);
     cubeMesh.colors = (float*)calloc(vertexCount, sizeof(float) * 4);
     cubeMesh.indices = (uint32_t*)calloc(36, sizeof(uint32_t));
-    
+    uint32_t k = 0;
+    for(int i = 0; i < 36; i += 6){
+        cubeMesh.indices[i] = 4*k;
+        cubeMesh.indices[i + 1] = 4*k + 1;
+        cubeMesh.indices[i + 2] = 4*k + 2;
+        cubeMesh.indices[i + 3] = 4*k;
+        cubeMesh.indices[i + 4] = 4*k + 2;
+        cubeMesh.indices[i + 5] = 4*k + 3;
+        k++;
+    }
+    cubeMesh.triangleCount = 12;
     memcpy(cubeMesh.vertices, vertices, vertexCount * sizeof(float) * 3);
     memcpy(cubeMesh.texcoords, texcoords, vertexCount * sizeof(float) * 2);
     memcpy(cubeMesh.normals, normals, vertexCount * sizeof(float) * 4);
