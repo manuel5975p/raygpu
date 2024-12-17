@@ -200,6 +200,59 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     TRACELOG(LOG_INFO, "Pipeline with %d attributes and %d uniforms was loaded", attribCount, uniformCount);
     return retp;
 }
+typedef struct VertexArray{
+    std::vector<AttributeAndResidence> attributes;
+    std::vector<std::pair<DescribedBuffer, WGPUVertexStepMode>> buffers;
+}VertexArray;
+extern "C" void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va){
+    pipeline->vbLayouts = (WGPUVertexBufferLayout*) malloc(va->buffers.size() * sizeof(WGPUVertexBufferLayout));
+    
+    pipeline->descriptor.vertex.buffers = pipeline->vbLayouts;
+    pipeline->descriptor.vertex.bufferCount = va->buffers.size();
+
+    //LoadPipelineEx
+    uint32_t attribCount = va->attributes.size();
+    auto& attribs = va->attributes;
+    uint32_t maxslot = 0;
+    for(size_t i = 0;i < attribCount;i++){
+        maxslot = std::max(maxslot, attribs[i].bufferSlot);
+    }
+    const uint32_t number_of_buffers = maxslot + 1;
+    std::vector<std::vector<WGPUVertexAttribute>> buffer_to_attributes(number_of_buffers);
+    //WGPUVertexBufferLayout* vbLayouts = new WGPUVertexBufferLayout[number_of_buffers];
+    std::vector<uint32_t> strides  (number_of_buffers, 0);
+    std::vector<uint32_t> attrIndex(number_of_buffers, 0);
+    for(size_t i = 0;i < attribCount;i++){
+        buffer_to_attributes[attribs[i].bufferSlot].push_back(attribs[i].attr);
+        strides[attribs[i].bufferSlot] += attributeSize(attribs[i].attr.format);
+    }
+    
+    for(size_t i = 0;i < number_of_buffers;i++){
+        pipeline->vbLayouts[i].attributes = buffer_to_attributes[i].data();
+        pipeline->vbLayouts[i].attributeCount = buffer_to_attributes[i].size();
+        pipeline->vbLayouts[i].arrayStride = strides[i];
+        pipeline->vbLayouts[i].stepMode = va->buffers[i].second;
+    }
+    wgpuRenderPipelineRelease(pipeline->pipeline);
+    wgpuRenderPipelineRelease(pipeline->pipeline_TriangleStrip);
+    wgpuRenderPipelineRelease(pipeline->pipeline_LineList);
+    pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
+    pipeline->pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipeline->descriptor);
+    pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_LineList;
+    pipeline->pipeline_LineList = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipeline->descriptor);
+    pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleStrip;
+    pipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
+    pipeline->pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipeline->descriptor);
+    pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
+    pipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
+}
+DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
+    DescribedPipeline* pipeline = callocnew(DescribedPipeline);
+    pipeline->descriptor = _pipeline->descriptor;
+    
+    pipeline->bglayout.descriptor = pipeline->bglayout.descriptor;
+    pipeline->bglayout.entries = (WGPUBindGroupLayoutEntry*)calloc(pipeline->bglayout.descriptor.entryCount, sizeof(WGPUBindGroupLayoutEntry));
+}
 DescribedPipeline* DefaultPipeline(){
     return g_wgpustate.rstate->defaultPipeline;
 }

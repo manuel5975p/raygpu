@@ -36,20 +36,25 @@ int main(cwoid){
         }
     };
     
-    Camera3D cam =  CLITERAL(Camera3D){
-        .position = CLITERAL(Vector3){1,2,3},
-        .target =   CLITERAL(Vector3){0,0,0},
-        .up =       CLITERAL(Vector3){0,1,0},
-        .fovy = 1.3f
+    Camera3D cam = CLITERAL(Camera3D){
+        .position = CLITERAL(Vector3){0,0,10},
+        .target = CLITERAL(Vector3){0,0,0},
+        .up = CLITERAL(Vector3){0,1,0},
+        .fovy = 1.0f
     };
-    Mesh cube = GenMeshCube(1.f,1.f,1.f);
+    Mesh cube = GenMeshCube(3.f,3.f,3.f);
     //UploadMesh(&cube, true);
 
     DescribedPipeline* pl = DefaultPipeline();
     PreparePipeline(pl, cube.vao);
-    Texture checkers = LoadTextureFromImage(GenImageChecker(RED, BLUE, 100, 100, 4));
-    while(!WindowShouldClose()){
+    Texture checkers = LoadTextureFromImage(GenImageChecker(RED, DARKBLUE, 100, 100, 4));
+    float angle = 0.0f;
+    while(!WindowShouldClose()){        
         BeginDrawing();
+        
+        angle += GetFrameTime();
+        cam.position = (Vector3){sinf(angle) * 10.f, 5.0f, cosf(angle) * 10.f};
+
         ClearBackground(BLACK);
         UseTexture(checkers);
 
