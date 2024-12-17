@@ -99,8 +99,8 @@ extern "C" void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va){
 }
 extern "C" void BindVertexArray(DescribedPipeline* pipeline, VertexArray* va){
     for(size_t i = 0;i < va->buffers.size();i++){
-        auto& firstbuffer = va->buffers[0].first.buffer;
-        wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, va->buffers[0].first.buffer, 0, va->buffers[0].first.descriptor.size);
+        auto& firstbuffer = va->buffers[i].first.buffer;
+        wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, i, va->buffers[i].first.buffer, 0, va->buffers[i].first.descriptor.size);
     }
 }
 extern "C" void EnableVertexAttribArray(VertexArray* array, uint32_t attribLocation){
@@ -377,7 +377,6 @@ void EndDrawing(){
     g_wgpustate.scrollPreviousFrame = g_wgpustate.scrollThisFrame;
     g_wgpustate.scrollThisFrame = Vector2{0, 0};
     std::copy(g_wgpustate.mouseButtonDown.begin(), g_wgpustate.mouseButtonDown.end(), g_wgpustate.mouseButtonDownPrevious.begin());
-    glfwPollEvents();
     g_wgpustate.drawmutex.unlock();
     uint64_t nanosecondsPerFrame = std::floor(1e9 / GetTargetFPS());
     //std::cout << nanosecondsPerFrame << "\n";
@@ -385,6 +384,8 @@ void EndDrawing(){
     if(elapsed & (1ull << 63))return;
     if(!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) && nanosecondsPerFrame > elapsed)
         NanoWait(nanosecondsPerFrame - elapsed);
+    glfwPollEvents();
+
     //std::this_thread::sleep_for(std::chrono::nanoseconds(nanosecondsPerFrame - elapsed));
 }
 void rlBegin(draw_mode mode){
@@ -1026,7 +1027,9 @@ WGPUTexture cres = 0;
 WGPUTextureView cresv = 0;
 
 void setTargetTextures(full_renderstate* state, WGPUTextureView c, WGPUTextureView d){
+    DescribedRenderpass* restart = nullptr;
     if(g_wgpustate.rstate->activeRenderPass){
+        restart = g_wgpustate.rstate->activeRenderPass;
         EndRenderpassEx(g_wgpustate.rstate->activeRenderPass);
     }
     state->color = c;
@@ -1069,8 +1072,8 @@ void setTargetTextures(full_renderstate* state, WGPUTextureView c, WGPUTextureVi
         state->clearPass.dsa->view = d;
     }
     //updateRenderPassDesc(state);
-    
-    BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
+    if(restart)
+        BeginRenderpassEx(restart);
 }
 extern "C" char* LoadFileText(const char *fileName) {
     std::ifstream file(fileName, std::ios::ate);
@@ -1323,6 +1326,9 @@ extern "C" DescribedBuffer GenBufferEx(const void* data, size_t size, WGPUBuffer
 }
 extern "C" DescribedBuffer GenBuffer(const void* data, size_t size){
     return GenBufferEx(data, size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex);
+}
+DescribedBuffer GenIndexBuffer(const void* data, size_t size){
+    return GenBufferEx(data, size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index);
 }
 DescribedBuffer GenUniformBuffer(const void* data, size_t size){
     return GenBufferEx(data, size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);

@@ -195,8 +195,13 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     ret.descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleStrip;
     ret.descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
     ret.pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &ret.descriptor);
+    ret.descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
+    ret.descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
     TRACELOG(LOG_INFO, "Pipeline with %d attributes and %d uniforms was loaded", attribCount, uniformCount);
     return retp;
+}
+DescribedPipeline* DefaultPipeline(){
+    return g_wgpustate.rstate->defaultPipeline;
 }
 extern "C" void UnloadPipeline(DescribedPipeline* pl){
     wgpuPipelineLayoutRelease(pl->layout.layout);

@@ -30,6 +30,7 @@ using std::tan;
 #else
 #include <math.h>
 #endif
+#define MAPI static inline
 
 typedef struct Vector4{
     float x,y,z,w;
@@ -85,20 +86,20 @@ typedef struct Vector2{
     #endif
 }Vector2;
 
-inline Vector2 Vector2Normalize(Vector2 vec){
+MAPI Vector2 Vector2Normalize(Vector2 vec){
     float one_by_nrm = 1.0f / sqrt(vec.x * vec.x + vec.y * vec.y);
     vec.x *= one_by_nrm;
     vec.y *= one_by_nrm;
     return vec;
 }
-inline Vector3 Vector3Normalize(Vector3 vec){
+MAPI Vector3 Vector3Normalize(Vector3 vec){
     float one_by_nrm = 1.0f / sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
     vec.x *= one_by_nrm;
     vec.y *= one_by_nrm;
     vec.z *= one_by_nrm;
     return vec;
 }
-inline Vector4 Vector4Normalize(Vector4 vec){
+MAPI Vector4 Vector4Normalize(Vector4 vec){
     float one_by_nrm = 1.0f / sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z + vec.w * vec.w);
     vec.x *= one_by_nrm;
     vec.y *= one_by_nrm;
@@ -111,7 +112,7 @@ typedef struct Matrix{
     float data[16];
 } Matrix;
 
-inline Matrix MatrixIdentity(void){
+MAPI Matrix MatrixIdentity(void){
     Matrix ret = {0};
     ret.data[0] = 1;
     ret.data[5] = 1;
@@ -119,7 +120,8 @@ inline Matrix MatrixIdentity(void){
     ret.data[15] = 1;
     return ret;
 }
-inline Matrix MatrixMultiply(Matrix A, Matrix B){
+
+MAPI Matrix MatrixMultiply(Matrix A, Matrix B){
     Matrix ret = {0};
     for(int i = 0;i < 4;i++){
         for(int j = 0;j < 4;j++){
@@ -130,10 +132,10 @@ inline Matrix MatrixMultiply(Matrix A, Matrix B){
     }
     return ret;
 }
-inline Matrix MatrixMultiplySwap(Matrix A, Matrix B){
+MAPI Matrix MatrixMultiplySwap(Matrix A, Matrix B){
    return MatrixMultiply(B, A);
 }
-inline Vector3 Vector3Subtract(Vector3 v1, Vector3 v2){
+MAPI Vector3 Vector3Subtract(Vector3 v1, Vector3 v2){
     Vector3 result = {v1.x - v2.x, v1.y - v2.y, v1.z - v2.z};
     return result;
 }
@@ -150,10 +152,10 @@ typedef struct Camera3D {
     Vector3 up;
     float fovy;
 } Camera3D;
-
+typedef Camera3D Camera;    // Camera type fallback, defaults to Camera3D
 
 // https://github.com/raysan5/raylib/blob/master/src/raymath.h
-inline Matrix MatrixLookAt(Vector3 eye, Vector3 target, Vector3 up){
+MAPI Matrix MatrixLookAt(Vector3 eye, Vector3 target, Vector3 up){
     Matrix result;
 
     float length = 0.0f;
@@ -214,7 +216,7 @@ inline Matrix MatrixLookAt(Vector3 eye, Vector3 target, Vector3 up){
 /**
     @brief Perspective (radians arguments)
 */
-inline Matrix MatrixPerspective(double fovY, double aspect, double nearPlane, double farPlane){
+MAPI Matrix MatrixPerspective(double fovY, double aspect, double nearPlane, double farPlane){
     Matrix result = {0};
 
     double top = nearPlane * tan(fovY * 0.5);
@@ -237,7 +239,7 @@ inline Matrix MatrixPerspective(double fovY, double aspect, double nearPlane, do
 
     return result;
 }
-inline Matrix ScreenMatrix(int width, int height) {
+MAPI Matrix ScreenMatrix(int width, int height) {
     Matrix ret = MatrixIdentity();
     ret.data[idx_map(0, 3)] = -1.0f; // X translation
     ret.data[idx_map(1, 3)] = 1.0f;  // Y translation (move to top)
@@ -248,7 +250,7 @@ inline Matrix ScreenMatrix(int width, int height) {
     return ret;
 }
 
-inline Matrix ScreenMatrixBottomY(int width, int height) {
+MAPI Matrix ScreenMatrixBottomY(int width, int height) {
     Matrix ret = MatrixIdentity();
     ret.data[idx_map(0, 3)] = -1.0f;
     ret.data[idx_map(1, 3)] = -1.0f;
@@ -259,7 +261,7 @@ inline Matrix ScreenMatrixBottomY(int width, int height) {
     return ret;
 }
 
-inline Matrix MatrixTranspose(Matrix mat){
+MAPI Matrix MatrixTranspose(Matrix mat){
     Matrix ret = {0};
     for(int i = 0;i < 4;i++){
         for(int j = 0;j < 4;j++){
@@ -268,7 +270,7 @@ inline Matrix MatrixTranspose(Matrix mat){
     }
     return ret;
 }
-inline Matrix MatrixTranslate(float x, float y, float z){    
+MAPI Matrix MatrixTranslate(float x, float y, float z){    
     return CLITERAL(Matrix){
         1,0,0,0,// First !! column !!
         0,1,0,0,
@@ -276,7 +278,7 @@ inline Matrix MatrixTranslate(float x, float y, float z){
         x,y,z,1,
     };
 }
-inline Matrix MatrixScale(float x, float y, float z){
+MAPI Matrix MatrixScale(float x, float y, float z){
     return CLITERAL(Matrix){
         x,0,0,0,// First !! column !!
         0,y,0,0,
@@ -284,7 +286,7 @@ inline Matrix MatrixScale(float x, float y, float z){
         0,0,0,1,
     };
 }
-inline Matrix MatrixRotate(Vector3 axis, float angle){
+MAPI Matrix MatrixRotate(Vector3 axis, float angle){
     Matrix result zeroinit;
 
     float x = axis.x, y = axis.y, z = axis.z;
@@ -323,11 +325,11 @@ inline Matrix MatrixRotate(Vector3 axis, float angle){
     return result;
 }
 
-inline Matrix GetCameraMatrix3D(Camera3D camera, float aspect){
-    return MatrixMultiply(MatrixPerspective(camera.fovy, aspect , 0.001, 1000), MatrixLookAt(camera.position, camera.target, camera.up));
+MAPI Matrix GetCameraMatrix3D(Camera3D camera, float aspect){
+    return MatrixMultiply(MatrixPerspective(camera.fovy, aspect , 0.01, 1000), MatrixLookAt(camera.position, camera.target, camera.up));
 }
 
-inline Matrix GetCameraMatrix2D(Camera2D camera){
+MAPI Matrix GetCameraMatrix2D(Camera2D camera){
     Matrix matTransform zeroinit;
     // The camera in world-space is set by
     //   1. Move it to target
@@ -354,14 +356,14 @@ inline Matrix GetCameraMatrix2D(Camera2D camera){
 }
 
 #ifdef __cplusplus
-inline std::ostream& operator<<(std::ostream& str, const Vector3& r){
+MAPI std::ostream& operator<<(std::ostream& str, const Vector3& r){
     str << "["; 
     str << r.x << ", ";
     str << r.y << ", ";
     str << r.z << ", ";
     return str << "]"; 
 }
-inline std::ostream& operator<<(std::ostream& str, const Matrix& m){
+MAPI std::ostream& operator<<(std::ostream& str, const Matrix& m){
     str << m.data[0 ] << ", ";
     str << m.data[4 ] << ", ";
     str << m.data[8 ] << ", ";

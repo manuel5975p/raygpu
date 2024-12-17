@@ -250,7 +250,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
 
     // Create the test window with no client API.
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, (g_wgpustate.windowFlags & FLAG_WINDOW_RESIZABLE ) ? GLFW_TRUE : GLFW_FALSE);
     //glfwWindowHint(GLFW_REFRESH_RATE, 144);
     GLFWmonitor* mon = nullptr;
     if(g_wgpustate.windowFlags & FLAG_FULLSCREEN_MODE){
@@ -277,7 +277,9 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     glfwSetWindowSizeCallback(window, [](GLFWwindow* window, int width, int height){
         //wgpuSurfaceRelease(g_wgpustate.surface);
         //g_wgpustate.surface = wgpu::glfw::CreateSurfaceForWindow(g_wgpustate.instance, window).MoveToCHandle();
+        //while(!g_wgpustate.drawmutex.try_lock());
         g_wgpustate.drawmutex.lock();
+        std::cout << "Size callbacked " << width << " " << height << "\n";
         WGPUSurfaceCapabilities capabilities;
         wgpuSurfaceGetCapabilities(g_wgpustate.surface, g_wgpustate.adapter, &capabilities);
         WGPUSurfaceConfiguration config = {};
@@ -299,6 +301,8 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
 
         setTargetTextures(g_wgpustate.rstate, g_wgpustate.rstate->color, depthTexture.view);
         //updateRenderPassDesc(g_wgpustate.rstate);
+
+        //TODO wtf is this?
         g_wgpustate.rstate->renderpass.dsa->view = depthTexture.view;
         g_wgpustate.drawmutex.unlock();
     });
@@ -319,12 +323,13 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         }
     }
     if(format_index == capabilities.formatCount){
-        std::cerr << "[Warning] No RGBA8 / BGRA8 Unorm framebuffer format found, colors might be off\n"; 
+        TRACELOG(LOG_WARNING, "No RGBA8 / BGRA8 Unorm framebuffer format found, colors might be off"); 
         config.format = capabilities.formats[0];
     }
     else{
         config.format = selectedFormat;
     }
+    TRACELOG(LOG_INFO, "Selected surface format %s", textureFormatSpellingTable.at((WGPUTextureFormat)config.format).c_str());
     config.presentMode = !!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? wgpu::PresentMode::Fifo : wgpu::PresentMode::Immediate;
 
     config.width = width;
@@ -411,8 +416,8 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     AttributeAndResidence attrs[4] = {
         AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 0, 0}, 0, WGPUVertexStepMode_Vertex},
         AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x2, 3 * sizeof(float), 1}, 0, WGPUVertexStepMode_Vertex},
-        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 5 * sizeof(float), 1}, 0, WGPUVertexStepMode_Vertex},
-        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x4, 8 * sizeof(float), 2}, 0, WGPUVertexStepMode_Vertex},
+        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 5 * sizeof(float), 2}, 0, WGPUVertexStepMode_Vertex},
+        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x4, 8 * sizeof(float), 3}, 0, WGPUVertexStepMode_Vertex},
     };
     //arraySetter(shaderInputs.per_vertex_sizes, {3,2,4});
     //arraySetter(shaderInputs.uniform_minsizes, {64, 0, 0, 0});
@@ -485,3 +490,118 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
 void CloseWindow(cwoid){
     glfwSetWindowShouldClose(g_wgpustate.window, GLFW_TRUE);
 }
+const std::unordered_map<WGPUTextureFormat, std::string> textureFormatSpellingTable = [](){
+    std::unordered_map<WGPUTextureFormat, std::string> map;
+    map[WGPUTextureFormat_Undefined] = "WGPUTextureFormat_Undefined";
+    map[WGPUTextureFormat_R8Unorm] = "WGPUTextureFormat_R8Unorm";
+    map[WGPUTextureFormat_R8Snorm] = "WGPUTextureFormat_R8Snorm";
+    map[WGPUTextureFormat_R8Uint] = "WGPUTextureFormat_R8Uint";
+    map[WGPUTextureFormat_R8Sint] = "WGPUTextureFormat_R8Sint";
+    map[WGPUTextureFormat_R16Uint] = "WGPUTextureFormat_R16Uint";
+    map[WGPUTextureFormat_R16Sint] = "WGPUTextureFormat_R16Sint";
+    map[WGPUTextureFormat_R16Float] = "WGPUTextureFormat_R16Float";
+    map[WGPUTextureFormat_RG8Unorm] = "WGPUTextureFormat_RG8Unorm";
+    map[WGPUTextureFormat_RG8Snorm] = "WGPUTextureFormat_RG8Snorm";
+    map[WGPUTextureFormat_RG8Uint] = "WGPUTextureFormat_RG8Uint";
+    map[WGPUTextureFormat_RG8Sint] = "WGPUTextureFormat_RG8Sint";
+    map[WGPUTextureFormat_R32Float] = "WGPUTextureFormat_R32Float";
+    map[WGPUTextureFormat_R32Uint] = "WGPUTextureFormat_R32Uint";
+    map[WGPUTextureFormat_R32Sint] = "WGPUTextureFormat_R32Sint";
+    map[WGPUTextureFormat_RG16Uint] = "WGPUTextureFormat_RG16Uint";
+    map[WGPUTextureFormat_RG16Sint] = "WGPUTextureFormat_RG16Sint";
+    map[WGPUTextureFormat_RG16Float] = "WGPUTextureFormat_RG16Float";
+    map[WGPUTextureFormat_RGBA8Unorm] = "WGPUTextureFormat_RGBA8Unorm";
+    map[WGPUTextureFormat_RGBA8UnormSrgb] = "WGPUTextureFormat_RGBA8UnormSrgb";
+    map[WGPUTextureFormat_RGBA8Snorm] = "WGPUTextureFormat_RGBA8Snorm";
+    map[WGPUTextureFormat_RGBA8Uint] = "WGPUTextureFormat_RGBA8Uint";
+    map[WGPUTextureFormat_RGBA8Sint] = "WGPUTextureFormat_RGBA8Sint";
+    map[WGPUTextureFormat_BGRA8Unorm] = "WGPUTextureFormat_BGRA8Unorm";
+    map[WGPUTextureFormat_BGRA8UnormSrgb] = "WGPUTextureFormat_BGRA8UnormSrgb";
+    map[WGPUTextureFormat_RGB10A2Uint] = "WGPUTextureFormat_RGB10A2Uint";
+    map[WGPUTextureFormat_RGB10A2Unorm] = "WGPUTextureFormat_RGB10A2Unorm";
+    map[WGPUTextureFormat_RG11B10Ufloat] = "WGPUTextureFormat_RG11B10Ufloat";
+    map[WGPUTextureFormat_RGB9E5Ufloat] = "WGPUTextureFormat_RGB9E5Ufloat";
+    map[WGPUTextureFormat_RG32Float] = "WGPUTextureFormat_RG32Float";
+    map[WGPUTextureFormat_RG32Uint] = "WGPUTextureFormat_RG32Uint";
+    map[WGPUTextureFormat_RG32Sint] = "WGPUTextureFormat_RG32Sint";
+    map[WGPUTextureFormat_RGBA16Uint] = "WGPUTextureFormat_RGBA16Uint";
+    map[WGPUTextureFormat_RGBA16Sint] = "WGPUTextureFormat_RGBA16Sint";
+    map[WGPUTextureFormat_RGBA16Float] = "WGPUTextureFormat_RGBA16Float";
+    map[WGPUTextureFormat_RGBA32Float] = "WGPUTextureFormat_RGBA32Float";
+    map[WGPUTextureFormat_RGBA32Uint] = "WGPUTextureFormat_RGBA32Uint";
+    map[WGPUTextureFormat_RGBA32Sint] = "WGPUTextureFormat_RGBA32Sint";
+    map[WGPUTextureFormat_Stencil8] = "WGPUTextureFormat_Stencil8";
+    map[WGPUTextureFormat_Depth16Unorm] = "WGPUTextureFormat_Depth16Unorm";
+    map[WGPUTextureFormat_Depth24Plus] = "WGPUTextureFormat_Depth24Plus";
+    map[WGPUTextureFormat_Depth24PlusStencil8] = "WGPUTextureFormat_Depth24PlusStencil8";
+    map[WGPUTextureFormat_Depth32Float] = "WGPUTextureFormat_Depth32Float";
+    map[WGPUTextureFormat_Depth32FloatStencil8] = "WGPUTextureFormat_Depth32FloatStencil8";
+    map[WGPUTextureFormat_BC1RGBAUnorm] = "WGPUTextureFormat_BC1RGBAUnorm";
+    map[WGPUTextureFormat_BC1RGBAUnormSrgb] = "WGPUTextureFormat_BC1RGBAUnormSrgb";
+    map[WGPUTextureFormat_BC2RGBAUnorm] = "WGPUTextureFormat_BC2RGBAUnorm";
+    map[WGPUTextureFormat_BC2RGBAUnormSrgb] = "WGPUTextureFormat_BC2RGBAUnormSrgb";
+    map[WGPUTextureFormat_BC3RGBAUnorm] = "WGPUTextureFormat_BC3RGBAUnorm";
+    map[WGPUTextureFormat_BC3RGBAUnormSrgb] = "WGPUTextureFormat_BC3RGBAUnormSrgb";
+    map[WGPUTextureFormat_BC4RUnorm] = "WGPUTextureFormat_BC4RUnorm";
+    map[WGPUTextureFormat_BC4RSnorm] = "WGPUTextureFormat_BC4RSnorm";
+    map[WGPUTextureFormat_BC5RGUnorm] = "WGPUTextureFormat_BC5RGUnorm";
+    map[WGPUTextureFormat_BC5RGSnorm] = "WGPUTextureFormat_BC5RGSnorm";
+    map[WGPUTextureFormat_BC6HRGBUfloat] = "WGPUTextureFormat_BC6HRGBUfloat";
+    map[WGPUTextureFormat_BC6HRGBFloat] = "WGPUTextureFormat_BC6HRGBFloat";
+    map[WGPUTextureFormat_BC7RGBAUnorm] = "WGPUTextureFormat_BC7RGBAUnorm";
+    map[WGPUTextureFormat_BC7RGBAUnormSrgb] = "WGPUTextureFormat_BC7RGBAUnormSrgb";
+    map[WGPUTextureFormat_ETC2RGB8Unorm] = "WGPUTextureFormat_ETC2RGB8Unorm";
+    map[WGPUTextureFormat_ETC2RGB8UnormSrgb] = "WGPUTextureFormat_ETC2RGB8UnormSrgb";
+    map[WGPUTextureFormat_ETC2RGB8A1Unorm] = "WGPUTextureFormat_ETC2RGB8A1Unorm";
+    map[WGPUTextureFormat_ETC2RGB8A1UnormSrgb] = "WGPUTextureFormat_ETC2RGB8A1UnormSrgb";
+    map[WGPUTextureFormat_ETC2RGBA8Unorm] = "WGPUTextureFormat_ETC2RGBA8Unorm";
+    map[WGPUTextureFormat_ETC2RGBA8UnormSrgb] = "WGPUTextureFormat_ETC2RGBA8UnormSrgb";
+    map[WGPUTextureFormat_EACR11Unorm] = "WGPUTextureFormat_EACR11Unorm";
+    map[WGPUTextureFormat_EACR11Snorm] = "WGPUTextureFormat_EACR11Snorm";
+    map[WGPUTextureFormat_EACRG11Unorm] = "WGPUTextureFormat_EACRG11Unorm";
+    map[WGPUTextureFormat_EACRG11Snorm] = "WGPUTextureFormat_EACRG11Snorm";
+    map[WGPUTextureFormat_ASTC4x4Unorm] = "WGPUTextureFormat_ASTC4x4Unorm";
+    map[WGPUTextureFormat_ASTC4x4UnormSrgb] = "WGPUTextureFormat_ASTC4x4UnormSrgb";
+    map[WGPUTextureFormat_ASTC5x4Unorm] = "WGPUTextureFormat_ASTC5x4Unorm";
+    map[WGPUTextureFormat_ASTC5x4UnormSrgb] = "WGPUTextureFormat_ASTC5x4UnormSrgb";
+    map[WGPUTextureFormat_ASTC5x5Unorm] = "WGPUTextureFormat_ASTC5x5Unorm";
+    map[WGPUTextureFormat_ASTC5x5UnormSrgb] = "WGPUTextureFormat_ASTC5x5UnormSrgb";
+    map[WGPUTextureFormat_ASTC6x5Unorm] = "WGPUTextureFormat_ASTC6x5Unorm";
+    map[WGPUTextureFormat_ASTC6x5UnormSrgb] = "WGPUTextureFormat_ASTC6x5UnormSrgb";
+    map[WGPUTextureFormat_ASTC6x6Unorm] = "WGPUTextureFormat_ASTC6x6Unorm";
+    map[WGPUTextureFormat_ASTC6x6UnormSrgb] = "WGPUTextureFormat_ASTC6x6UnormSrgb";
+    map[WGPUTextureFormat_ASTC8x5Unorm] = "WGPUTextureFormat_ASTC8x5Unorm";
+    map[WGPUTextureFormat_ASTC8x5UnormSrgb] = "WGPUTextureFormat_ASTC8x5UnormSrgb";
+    map[WGPUTextureFormat_ASTC8x6Unorm] = "WGPUTextureFormat_ASTC8x6Unorm";
+    map[WGPUTextureFormat_ASTC8x6UnormSrgb] = "WGPUTextureFormat_ASTC8x6UnormSrgb";
+    map[WGPUTextureFormat_ASTC8x8Unorm] = "WGPUTextureFormat_ASTC8x8Unorm";
+    map[WGPUTextureFormat_ASTC8x8UnormSrgb] = "WGPUTextureFormat_ASTC8x8UnormSrgb";
+    map[WGPUTextureFormat_ASTC10x5Unorm] = "WGPUTextureFormat_ASTC10x5Unorm";
+    map[WGPUTextureFormat_ASTC10x5UnormSrgb] = "WGPUTextureFormat_ASTC10x5UnormSrgb";
+    map[WGPUTextureFormat_ASTC10x6Unorm] = "WGPUTextureFormat_ASTC10x6Unorm";
+    map[WGPUTextureFormat_ASTC10x6UnormSrgb] = "WGPUTextureFormat_ASTC10x6UnormSrgb";
+    map[WGPUTextureFormat_ASTC10x8Unorm] = "WGPUTextureFormat_ASTC10x8Unorm";
+    map[WGPUTextureFormat_ASTC10x8UnormSrgb] = "WGPUTextureFormat_ASTC10x8UnormSrgb";
+    map[WGPUTextureFormat_ASTC10x10Unorm] = "WGPUTextureFormat_ASTC10x10Unorm";
+    map[WGPUTextureFormat_ASTC10x10UnormSrgb] = "WGPUTextureFormat_ASTC10x10UnormSrgb";
+    map[WGPUTextureFormat_ASTC12x10Unorm] = "WGPUTextureFormat_ASTC12x10Unorm";
+    map[WGPUTextureFormat_ASTC12x10UnormSrgb] = "WGPUTextureFormat_ASTC12x10UnormSrgb";
+    map[WGPUTextureFormat_ASTC12x12Unorm] = "WGPUTextureFormat_ASTC12x12Unorm";
+    map[WGPUTextureFormat_ASTC12x12UnormSrgb] = "WGPUTextureFormat_ASTC12x12UnormSrgb";
+    map[WGPUTextureFormat_R16Unorm] = "WGPUTextureFormat_R16Unorm";
+    map[WGPUTextureFormat_RG16Unorm] = "WGPUTextureFormat_RG16Unorm";
+    map[WGPUTextureFormat_RGBA16Unorm] = "WGPUTextureFormat_RGBA16Unorm";
+    map[WGPUTextureFormat_R16Snorm] = "WGPUTextureFormat_R16Snorm";
+    map[WGPUTextureFormat_RG16Snorm] = "WGPUTextureFormat_RG16Snorm";
+    map[WGPUTextureFormat_RGBA16Snorm] = "WGPUTextureFormat_RGBA16Snorm";
+    map[WGPUTextureFormat_R8BG8Biplanar420Unorm] = "WGPUTextureFormat_R8BG8Biplanar420Unorm";
+    map[WGPUTextureFormat_R10X6BG10X6Biplanar420Unorm] = "WGPUTextureFormat_R10X6BG10X6Biplanar420Unorm";
+    map[WGPUTextureFormat_R8BG8A8Triplanar420Unorm] = "WGPUTextureFormat_R8BG8A8Triplanar420Unorm";
+    map[WGPUTextureFormat_R8BG8Biplanar422Unorm] = "WGPUTextureFormat_R8BG8Biplanar422Unorm";
+    map[WGPUTextureFormat_R8BG8Biplanar444Unorm] = "WGPUTextureFormat_R8BG8Biplanar444Unorm";
+    map[WGPUTextureFormat_R10X6BG10X6Biplanar422Unorm] = "WGPUTextureFormat_R10X6BG10X6Biplanar422Unorm";
+    map[WGPUTextureFormat_R10X6BG10X6Biplanar444Unorm] = "WGPUTextureFormat_R10X6BG10X6Biplanar444Unorm";
+    map[WGPUTextureFormat_External] = "WGPUTextureFormat_External";
+    map[WGPUTextureFormat_Force32] = "WGPUTextureFormat_Force32";
+    return map;
+}();

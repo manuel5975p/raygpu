@@ -5,6 +5,9 @@
 #include "macros_and_constants.h"
 #include "mathutils.h"
 #include "pipeline.h"
+#ifdef __cplusplus
+#include <unordered_map>
+#endif
 #define RL_FREE free
 
 typedef struct vertex{
@@ -43,7 +46,7 @@ typedef struct Texture{
     WGPUTexture id;
     WGPUTextureView view;
 }Texture;
-
+typedef Texture Texture2D;
 typedef struct Rectangle {
     float x, y, width, height;
 } Rectangle;
@@ -78,6 +81,7 @@ typedef struct StagingBuffer{
     DescribedBuffer mappable;
     void* map; //Nullable
 }StagingBuffer;
+typedef struct VertexArray VertexArray;
 // GlyphInfo, font characters glyphs info
 typedef struct GlyphInfo {
     int value;              // Character value (Unicode)
@@ -92,7 +96,7 @@ typedef struct Font {
     int baseSize;           // Base size (default chars height)
     int glyphCount;         // Number of glyph characters
     int glyphPadding;       // Padding around the glyph characters
-    Texture texture;      // Texture atlas containing the glyphs
+    Texture texture;        // Texture atlas containing the glyphs
     Rectangle *recs;        // Rectangles in texture for the glyphs
     GlyphInfo *glyphs;      // Glyphs info data
 } Font;
@@ -104,25 +108,49 @@ typedef struct Mesh {
     // Vertex attributes data
     float *vertices;            // Vertex position (XYZ - 3 components per vertex) (shader-location = 0)
     float *texcoords;           // Vertex texture coordinates (UV - 2 components per vertex) (shader-location = 1)
-    float *texcoords2;          // Vertex texture second coordinates (UV - 2 components per vertex) (shader-location = 5)
+    //float *texcoords2;        // Vertex texture second coordinates (UV - 2 components per vertex) (shader-location = 5)
     float *normals;             // Vertex normals (XYZ - 3 components per vertex) (shader-location = 2)
-    float *tangents;            // Vertex tangents (XYZW - 4 components per vertex) (shader-location = 4)
-    unsigned char *colors;      // Vertex colors (RGBA - 4 components per vertex) (shader-location = 3)
-    unsigned short *indices;    // Vertex indices (in case vertex data comes indexed)
+    //float *tangents;          // Vertex tangents (XYZW - 4 components per vertex) (shader-location = 4)
+    float *colors;      // Vertex colors (RGBA - 4 components per vertex) (shader-location = 3)
+    uint32_t *indices;    // Vertex indices (in case vertex data comes indexed)
 
-    // Animation vertex data
-    float *animVertices;        // Animated vertex positions (after bones transformations)
-    float *animNormals;         // Animated normals (after bones transformations)
-    unsigned char *boneIds;     // Vertex bone ids, max 255 bone ids, up to 4 bones influence by vertex (skinning) (shader-location = 6)
-    float *boneWeights;         // Vertex bone weight, up to 4 bones influence by vertex (skinning) (shader-location = 7)
-    Matrix *boneMatrices;       // Bones animated transformation matrices
-    int boneCount;              // Number of bones
+    // Animation vertex data (not supported yet)
+    // float *animVertices;        // Animated vertex positions (after bones transformations)
+    // float *animNormals;         // Animated normals (after bones transformations)
+    // unsigned char *boneIds;     // Vertex bone ids, max 255 bone ids, up to 4 bones influence by vertex (skinning) (shader-location = 6)
+    // float *boneWeights;         // Vertex bone weight, up to 4 bones influence by vertex (skinning) (shader-location = 7)
+    // Matrix *boneMatrices;       // Bones animated transformation matrices
+    // int boneCount;              // Number of bones
 
-    // OpenGL identifiers
-    unsigned int vaoId;         // OpenGL Vertex Array Object id
-    unsigned int *vboId;        // OpenGL Vertex Buffer Objects id (default vertex data)
+    // WebGPU identifiers
+    VertexArray* vao;
+    DescribedBuffer *vbos;
+    DescribedBuffer ibo; //Index buffer object, optional
 } Mesh;
 
+typedef struct Material{
+    int id;
+}Material;
+
+typedef struct Model {
+    Matrix transform;       // Local transform matrix
+
+    int meshCount;          // Number of meshes
+    int materialCount;      // Number of materials
+    Mesh *meshes;           // Meshes array
+    //Material *materials;    // Materials array
+    int *meshMaterial;      // Mesh material number
+
+    // Animation data
+    int boneCount;          // Number of bones
+    //BoneInfo *bones;        // Bones information (skeleton)
+    //Transform *bindPose;    // Bones base transformation (pose)
+} Model;
+
+typedef struct BoundingBox {
+    Vector3 min;            // Minimum vertex box-corner
+    Vector3 max;            // Maximum vertex box-corner
+} BoundingBox;
 extern Vector2 nextuv;
 extern Vector4 nextcol;
 extern StagingBuffer vboStaging;
@@ -190,7 +218,8 @@ constexpr Color RAYWHITE{ 245, 245, 245, 255 };
 
 typedef enum WindowFlag{
     FLAG_VSYNC_HINT         = 0x00000040,   // Set to try enabling V-Sync on GPU
-    FLAG_MSAA_4X_HINT       = 0x00000004,   // Set to run program in fullscreen
+    FLAG_MSAA_4X_HINT       = 0x00000020,   // Forcefully Hint (actually force) 4x multisampling for the default color buffer and pipeline
+    FLAG_WINDOW_RESIZABLE   = 0x00000004,
     FLAG_FULLSCREEN_MODE    = 0x00000002,   // Set to run program in fullscreen
 } WindowFlag;
 typedef enum draw_mode{
@@ -355,7 +384,7 @@ typedef struct AttributeAndResidence{
 /**
  */
 typedef struct full_renderstate full_renderstate;
-typedef struct VertexArray VertexArray;
+
 typedef struct GLFWwindow GLFWwindow;
 
 
@@ -537,6 +566,7 @@ EXTERN_C_BEGIN
     WGPUShaderModule LoadShader(const char* path);
 
     DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
+    DescribedPipeline* DefaultPipeline(cwoid);
     void UnloadPipeline(DescribedPipeline* pl);
 
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
@@ -554,6 +584,7 @@ EXTERN_C_BEGIN
     
     DescribedBuffer GenUniformBuffer(const void* data, size_t size);
     DescribedBuffer GenStorageBuffer(const void* data, size_t size);
+    DescribedBuffer GenIndexBuffer(const void* data, size_t size);
     DescribedBuffer GenBuffer(const void* data, size_t size);
     DescribedBuffer GenBufferEx(const void* data, size_t size, WGPUBufferUsage usage);
     void BufferData(DescribedBuffer* buffer, const void* data, size_t size);
@@ -578,8 +609,38 @@ EXTERN_C_BEGIN
     
     void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va);
     void BindVertexArray(DescribedPipeline* pipeline, VertexArray* va);
-    
     void DrawArrays(uint32_t vertexCount);
+
+
+    Model LoadModel(const char *fileName);                                                // Load model from files (meshes and materials)
+    Model LoadModelFromMesh(Mesh mesh);                                                   // Load model from generated mesh (default material)
+    bool IsModelValid(Model model);                                                       // Check if a model is valid (loaded in GPU, VAO/VBOs)
+    void UnloadModel(Model model);                                                        // Unload model (including meshes) from memory (RAM and/or VRAM)
+    BoundingBox GetModelBoundingBox(Model model);                                         // Compute model bounding box limits (considers all meshes)
+
+    // Model drawing functions
+    void DrawModel(Model model, Vector3 position, float scale, Color tint);                            // Draw a model (with texture if set)
+    void DrawModelEx(Model model, Vector3 position, Vector3 rotationAxis, float rotationAngle, Vector3 scale, Color tint); // Draw a model with extended parameters
+    void DrawModelWires(Model model, Vector3 position, float scale, Color tint);                       // Draw a model wires (with texture if set)
+    void DrawModelWiresEx(Model model, Vector3 position, Vector3 rotationAxis, float rotationAngle, Vector3 scale, Color tint); // Draw a model wires (with texture if set) with extended parameters
+    void DrawModelPoints(Model model, Vector3 position, float scale, Color tint);                      // Draw a model as points
+    void DrawModelPointsEx(Model model, Vector3 position, Vector3 rotationAxis, float rotationAngle, Vector3 scale, Color tint); // Draw a model as points with extended parameters
+    void DrawBoundingBox(BoundingBox box, Color color);                                                // Draw bounding box (wires)
+    void DrawBillboard(Camera camera, Texture2D texture, Vector3 position, float scale, Color tint);   // Draw a billboard texture
+    void DrawBillboardRec(Camera camera, Texture2D texture, Rectangle source, Vector3 position, Vector2 size, Color tint); // Draw a billboard texture defined by source
+    void DrawBillboardPro(Camera camera, Texture2D texture, Rectangle source, Vector3 position, Vector3 up, Vector2 size, Vector2 origin, float rotation, Color tint); // Draw a billboard texture defined by source and rotation
+
+    // Mesh management functions
+    void UploadMesh(Mesh *mesh, bool dynamic);                                            // Upload mesh vertex data in GPU and provide VAO/VBO ids
+    void UpdateMeshBuffer(Mesh mesh, int index, const void *data, int dataSize, int offset); // Update mesh vertex data in GPU for a specific buffer index
+    void UnloadMesh(Mesh mesh);                                                           // Unload mesh data from CPU and GPU
+    void DrawMesh(Mesh mesh, Material material, Matrix transform);                        // Draw a 3d mesh with material and transform
+    void DrawMeshInstanced(Mesh mesh, Material material, const Matrix *transforms, int instances); // Draw multiple mesh instances with material and different transforms
+    BoundingBox GetMeshBoundingBox(Mesh mesh);                                            // Compute mesh bounding box limits
+    void GenMeshTangents(Mesh *mesh);                                                     // Compute mesh tangents
+    Mesh GenMeshCube(float width, float height, float length);
+    //bool ExportMesh(Mesh mesh, const char *fileName);                                     // Export mesh data to file, returns true on success
+    //bool ExportMeshAsCode(Mesh mesh, const char *fileName);                               // Export mesh as code file (.h) defining multiple arrays of vertex attributes
 
 
     bool CheckCollisionPointRec(Vector2 point, Rectangle rec);
@@ -633,6 +694,7 @@ EXTERN_C_BEGIN
     
     inline uint32_t attributeSize(WGPUVertexFormat fmt){
         switch(fmt){
+            case WGPUVertexFormat_Uint8x4:
             case WGPUVertexFormat_Float32:
             case WGPUVertexFormat_Uint32:
             case WGPUVertexFormat_Sint32:
@@ -683,5 +745,7 @@ typedef struct full_renderstate{
 }full_renderstate;
 typedef struct wgpustate wgpustate;
 extern wgpustate g_wgpustate;
-
+#ifdef __cplusplus
+extern const std::unordered_map<WGPUTextureFormat, std::string> textureFormatSpellingTable;
+#endif
 #endif
