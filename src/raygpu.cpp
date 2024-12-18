@@ -59,9 +59,19 @@ typedef struct VertexArray{
                     // Reuse existing buffer slot
                     it->bufferSlot = std::distance(buffers.begin(), bufferIt);
                 } else {
+                    uint32_t pufferIndex = bufferIt - buffers.begin();
+                    auto attribIt = std::find_if(attributes.begin(), attributes.end(), [&](const AttributeAndResidence& attr){
+                        return attr.bufferSlot == it->bufferSlot && attr.attr.shaderLocation != it->attr.shaderLocation;
+                    });
+                    //This buffer slot is unused otherwise, so reuse
+                    if(attribIt == attributes.end()){
+                        buffers[it->bufferSlot] = {buffer, stepmode};
+                    }
                     // Add new buffer
-                    it->bufferSlot = buffers.size();
-                    buffers.emplace_back(buffer, stepmode);
+                    else{
+                        it->bufferSlot = buffers.size();
+                        buffers.emplace_back(buffer, stepmode);
+                    }
                 }
             }
 
@@ -254,9 +264,13 @@ extern "C" void BindVertexArray(DescribedPipeline* pipeline, VertexArray* va){
 
         // Check if any enabled attribute uses this buffer
         for(const auto& attr : va->attributes){
-            if(attr.bufferSlot == i && attr.enabled){
-                shouldBind = true;
-                break;
+            if(attr.bufferSlot == i){
+                if(attr.enabled){
+                    shouldBind = true;
+                    break;
+                }
+                else{
+                }
             }
         }
 

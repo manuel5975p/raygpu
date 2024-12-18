@@ -10,7 +10,7 @@ int main(cwoid){
         .fovy = 1.0f
     };
 
-    std::string resourceDirectoryPath = FindDirectory("resources", 3);
+    std::string resourceDirectoryPath = std::string("../resources");// + FindDirectory("resources", 3);
     Model churchModel = LoadModel((resourceDirectoryPath + "/church.obj").c_str());
     std::cout << churchModel.meshCount << std::endl;
     Mesh churchMesh = churchModel.meshes[0];

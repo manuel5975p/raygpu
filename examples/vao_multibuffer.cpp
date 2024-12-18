@@ -38,6 +38,11 @@ int main(){
         1,0,
         0,1
     };
+    float positions2[6] = {
+        0,0,
+        1,0.2,
+        -0.4,0.5
+    };
     float uvs[6] = {
         0,0,
         1,0,
@@ -63,7 +68,7 @@ int main(){
     DescribedBuffer posu = GenBuffer(uvs, sizeof(uvs));
     DescribedBuffer posn = GenBuffer(normals, sizeof(normals));
     DescribedBuffer posc = GenBuffer(colors, sizeof(colors));
-    DescribedBuffer posb2 = GenBuffer(positions, sizeof(positions));
+    DescribedBuffer posb2 = GenBuffer(positions2, sizeof(positions2));
     DescribedBuffer posu2 = GenBuffer(uvs, sizeof(uvs));
     DescribedBuffer posn2 = GenBuffer(normals, sizeof(normals));
     DescribedBuffer posc2 = GenBuffer(colors, sizeof(colors));
@@ -74,9 +79,9 @@ int main(){
     VertexAttribPointer(vao, &posn, 2, WGPUVertexFormat_Float32x3, 0, WGPUVertexStepMode_Vertex);
     VertexAttribPointer(vao, &posc, 3, WGPUVertexFormat_Float32x4, 0, WGPUVertexStepMode_Vertex);
     VertexAttribPointer(vao, &posb2, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
-    //VertexAttribPointer(vao, &posu2, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
-    //VertexAttribPointer(vao, &posn, 2, WGPUVertexFormat_Float32x3, 0, WGPUVertexStepMode_Vertex);
-    //VertexAttribPointer(vao, &posc2, 3, WGPUVertexFormat_Float32x4, 0, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, &posu2, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, &posn, 2, WGPUVertexFormat_Float32x3, 0, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, &posc2, 3, WGPUVertexFormat_Float32x4, 0, WGPUVertexStepMode_Vertex);
 
     RenderSettings settings zeroinit;
 

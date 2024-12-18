@@ -270,7 +270,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         //abort();
     }
     GLFWwindow* window = glfwCreateWindow(width, height, title, mon, nullptr);
-    glfwSetWindowPos(window, 200, 1200);
+    //glfwSetWindowPos(window, 200, 1200);
     if (!window) {
         abort();
     }
