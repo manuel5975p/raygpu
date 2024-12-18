@@ -205,6 +205,7 @@ typedef struct VertexArray{
     std::vector<AttributeAndResidence> attributes;
     std::vector<std::pair<DescribedBuffer, WGPUVertexStepMode>> buffers;
 }VertexArray;
+
 extern "C" void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va){
     pipeline->vbLayouts = (WGPUVertexBufferLayout*) malloc(va->buffers.size() * sizeof(WGPUVertexBufferLayout));
     
@@ -234,6 +235,7 @@ extern "C" void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va){
         pipeline->vbLayouts[i].arrayStride = strides[i];
         pipeline->vbLayouts[i].stepMode = va->buffers[i].second;
     }
+    
     pipeline->descriptor.vertex.buffers = pipeline->vbLayouts;
     if(pipeline->pipeline)
         wgpuRenderPipelineRelease(pipeline->pipeline);
@@ -280,6 +282,7 @@ DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
     memcpy(pipeline->fragmentState, _pipeline->fragmentState, sizeof(WGPUFragmentState));
     memcpy(pipeline->colorTarget, _pipeline->colorTarget, sizeof(WGPUColorTargetState));
     memcpy(pipeline->depthStencilState, _pipeline->depthStencilState, sizeof(WGPUDepthStencilState));
+    pipeline->descriptor.vertex.module = pipeline->sh;
     pipeline->fragmentState->module = pipeline->sh;
     pipeline->colorTarget->blend = pipeline->blendState;
     pipeline->fragmentState->targets = pipeline->colorTarget;

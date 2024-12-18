@@ -77,10 +77,16 @@ extern "C" void EnableVertexAttribArray(VertexArray* array, uint32_t attribLocat
 }
 extern "C" void DrawArrays(uint32_t vertexCount){
     auto& rp = g_wgpustate.rstate->renderpass.rpEncoder;
+    if(g_wgpustate.rstate->currentPipeline->bindGroup.needsUpdate){
+        wgpuRenderPassEncoderSetBindGroup(g_wgpustate.rstate->activeRenderPass->rpEncoder, 0, GetWGPUBindGroup(&g_wgpustate.rstate->currentPipeline->bindGroup), 0, nullptr);
+    }
     wgpuRenderPassEncoderDraw(rp, vertexCount, 1, 0, 0);
 }
 extern "C" void DrawArraysIndexed(DescribedBuffer indexBuffer, uint32_t vertexCount){
     auto& rp = g_wgpustate.rstate->renderpass.rpEncoder;
+    if(g_wgpustate.rstate->currentPipeline->bindGroup.needsUpdate){
+        wgpuRenderPassEncoderSetBindGroup(g_wgpustate.rstate->activeRenderPass->rpEncoder, 0, GetWGPUBindGroup(&g_wgpustate.rstate->currentPipeline->bindGroup), 0, nullptr);
+    }
     wgpuRenderPassEncoderSetIndexBuffer(rp, indexBuffer.buffer, WGPUIndexFormat_Uint32, 0, indexBuffer.descriptor.size);
     wgpuRenderPassEncoderDrawIndexed(rp, vertexCount, 1, 0, 0, 0);
 }

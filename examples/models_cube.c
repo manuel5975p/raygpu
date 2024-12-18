@@ -46,9 +46,15 @@ int main(cwoid){
     Mesh cube = GenMeshCube(3.f,3.f,3.f);
     //UploadMesh(&cube, true);
 
-    DescribedPipeline* plorig = ClonePipeline(DefaultPipeline());
-    DescribedPipeline* pl = DefaultPipeline();
+    DescribedPipeline* pl = ClonePipeline(DefaultPipeline());
+    DescribedPipeline* plorig = DefaultPipeline();
     PreparePipeline(pl, cube.vao);
+    WGPUBindGroupEntry camentry zeroinit;
+    camentry.binding = 0;
+    Matrix mat = GetCameraMatrix3D(cam, 1.5);
+    camentry.buffer = GenUniformBuffer(&mat, sizeof(Matrix)).buffer;
+    camentry.size = sizeof(Matrix);
+    UpdateBindGroupEntry(&pl->bindGroup, 0, camentry);
     Texture checkers = LoadTextureFromImage(GenImageChecker(RED, DARKBLUE, 100, 100, 4));
     float angle = 0.0f;
     while(!WindowShouldClose()){
@@ -56,16 +62,21 @@ int main(cwoid){
         angle += GetFrameTime();
         cam.position = (Vector3){sinf(angle) * 10.f, 5.0f, cosf(angle) * 10.f};
         ClearBackground(BLACK);
-        UseTexture(checkers);
-        //TODO: Swapping those causes a problem since the BindGroup is lazily updated only at BindPipeline
-        BeginMode3D(cam);
+        
+        
+        //TODO: Swapping the next two causes a problem since the BindGroup is lazily updated only at BindPipeline
+        //BeginMode3D(cam);
         BeginPipelineMode(pl, WGPUPrimitiveTopology_TriangleList);
+        UseTexture(checkers);
+        BeginMode3D(cam);
         BindVertexArray(pl, cube.vao);
         DrawArraysIndexed(cube.ibo, 36);
         EndMode3D();
         EndPipelineMode();
         BeginPipelineMode(plorig, WGPUPrimitiveTopology_TriangleList);
+        DrawRectangle(0,0,200,100,RED);
         DrawFPS(0, 0);
+
         EndPipelineMode();
         EndDrawing();
     }
