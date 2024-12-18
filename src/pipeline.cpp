@@ -357,6 +357,11 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, WGPUB
     
     //bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
 }
+DescribedPipeline* Relayout(DescribedPipeline* pl, VertexArray* vao){
+    DescribedPipeline* klon = ClonePipeline(pl);
+    PreparePipeline(klon, vao);
+    return klon;
+}
 
 extern "C" void UpdateBindGroup(DescribedBindGroup* bg){
     bg->desc.nextInChain = nullptr;

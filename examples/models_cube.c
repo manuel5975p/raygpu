@@ -46,9 +46,9 @@ int main(cwoid){
     Mesh cube = GenMeshCube(3.f,3.f,3.f);
     //UploadMesh(&cube, true);
 
-    DescribedPipeline* pl = ClonePipeline(DefaultPipeline());
+    DescribedPipeline* pl = Relayout(DefaultPipeline(), cube.vao);
     DescribedPipeline* plorig = DefaultPipeline();
-    PreparePipeline(pl, cube.vao);
+    //PreparePipeline(pl, cube.vao);
     WGPUBindGroupEntry camentry zeroinit;
     camentry.binding = 0;
     Matrix mat = GetCameraMatrix3D(cam, 1.5);
@@ -65,7 +65,7 @@ int main(cwoid){
         
         
         //TODO: Swapping the next two causes a problem since the BindGroup is lazily updated only at BindPipeline
-        //BeginMode3D(cam);
+        //EDIT: It's not due to lazy update; DrawArrays and DrawArraysFixed did not check for a pending Bindgroup Update
         BeginPipelineMode(pl, WGPUPrimitiveTopology_TriangleList);
         UseTexture(checkers);
         BeginMode3D(cam);

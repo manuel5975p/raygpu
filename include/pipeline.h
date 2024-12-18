@@ -70,7 +70,7 @@ typedef struct DescribedPipeline{
 
 
 }DescribedPipeline;
-
+typedef struct VertexArray VertexArray;
 EXTERN_C_BEGIN
     inline void UsePipeline(WGPURenderPassEncoder rpEncoder, DescribedPipeline pl){
         wgpuRenderPassEncoderSetPipeline(rpEncoder, pl.pipeline);
@@ -88,6 +88,7 @@ EXTERN_C_BEGIN
     void UpdateBindGroup(DescribedBindGroup* bg);
     void UnloadBindGroup(DescribedBindGroup* bg);
     
+    DescribedPipeline* Relayout(DescribedPipeline* pl, VertexArray* vao);
 
 EXTERN_C_END
 #endif// PIPELINE_H

@@ -90,6 +90,21 @@ extern "C" void DrawArraysIndexed(DescribedBuffer indexBuffer, uint32_t vertexCo
     wgpuRenderPassEncoderSetIndexBuffer(rp, indexBuffer.buffer, WGPUIndexFormat_Uint32, 0, indexBuffer.descriptor.size);
     wgpuRenderPassEncoderDrawIndexed(rp, vertexCount, 1, 0, 0, 0);
 }
+extern "C" void DrawArraysIndexedInstanced(DescribedBuffer indexBuffer, uint32_t vertexCount, uint32_t instanceCount){
+    auto& rp = g_wgpustate.rstate->renderpass.rpEncoder;
+    if(g_wgpustate.rstate->currentPipeline->bindGroup.needsUpdate){
+        wgpuRenderPassEncoderSetBindGroup(g_wgpustate.rstate->activeRenderPass->rpEncoder, 0, GetWGPUBindGroup(&g_wgpustate.rstate->currentPipeline->bindGroup), 0, nullptr);
+    }
+    wgpuRenderPassEncoderSetIndexBuffer(rp, indexBuffer.buffer, WGPUIndexFormat_Uint32, 0, indexBuffer.descriptor.size);
+    wgpuRenderPassEncoderDrawIndexed(rp, vertexCount, instanceCount, 0, 0, 0);
+}
+extern "C" void DrawArraysInstanced(uint32_t vertexCount, uint32_t instanceCount){
+    auto& rp = g_wgpustate.rstate->renderpass.rpEncoder;
+    if(g_wgpustate.rstate->currentPipeline->bindGroup.needsUpdate){
+        wgpuRenderPassEncoderSetBindGroup(g_wgpustate.rstate->activeRenderPass->rpEncoder, 0, GetWGPUBindGroup(&g_wgpustate.rstate->currentPipeline->bindGroup), 0, nullptr);
+    }
+    wgpuRenderPassEncoderDraw(rp, vertexCount, instanceCount, 0, 0);
+}
 Texture depthTexture; //TODO: uhhh move somewhere
 WGPUDevice GetDevice(){
     return g_wgpustate.device;
@@ -736,9 +751,11 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     state->renderpass.renderPassDesc.label = STRVIEW("g_wgpustate::render_pass");
     state->clearPass = LoadRenderpassEx(c, d, settings);
     state->clearPass.renderPassDesc.label = STRVIEW("g_wgpustate::clear_pass");
-    state->clearPass.dsa->depthClearValue = 1.0;
-    state->clearPass.dsa->depthLoadOp = WGPULoadOp_Clear;
-    state->clearPass.dsa->depthStoreOp = WGPUStoreOp_Store;
+    if(state->clearPass.dsa){
+        state->clearPass.dsa->depthClearValue = 1.0;
+        state->clearPass.dsa->depthLoadOp = WGPULoadOp_Clear;
+        state->clearPass.dsa->depthStoreOp = WGPUStoreOp_Store;
+    }
 
     state->clearPass.rca->clearValue = WGPUColor{1.0, 0.4, 0.2, 1.0};
     state->clearPass.rca->loadOp = WGPULoadOp_Clear;

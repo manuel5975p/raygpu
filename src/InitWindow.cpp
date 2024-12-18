@@ -172,7 +172,12 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     }
     wgpu::AdapterInfo info;
     sample->adapter.GetInfo(&info);
-    //std::cout << "Using adapter \"" << info.device << "\"\n";
+    std::vector<char> deviceNameCstr(info.device.length + 1, '\0');
+    std::vector<char> deviceDescCstr(info.description.length + 1, '\0');
+    memcpy(deviceNameCstr.data(), info.device.data, info.device.length);
+    memcpy(deviceDescCstr.data(), info.description.data, info.description.length);
+    TRACELOG(LOG_INFO, "Using adapter %s", deviceNameCstr.data());
+    TRACELOG(LOG_INFO, "Description %s", deviceDescCstr.data());
 
     // Create device descriptor with callbacks and toggles
     wgpu::DeviceDescriptor deviceDesc = {};
@@ -238,7 +243,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         std::cerr << "Device is null\n";
         abort();
     }
-
+    
     #ifndef __EMSCRIPTEN__
     glfwSetErrorCallback([](int code, const char* message) {
         std::cerr << "GLFW error: " << code << " - " << message;
