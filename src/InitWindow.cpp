@@ -250,8 +250,6 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         std::cerr << "Device is null\n";
         abort();
     }
-    
-    #ifndef __EMSCRIPTEN__
     glfwSetErrorCallback([](int code, const char* message) {
         std::cerr << "GLFW error: " << code << " - " << message;
     });
@@ -259,23 +257,28 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     if (!glfwInit()) {
         abort();
     }
+    GLFWmonitor* mon = nullptr;
+#ifndef __EMSCRIPTEN__
+    
 
     // Create the test window with no client API.
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, (g_wgpustate.windowFlags & FLAG_WINDOW_RESIZABLE ) ? GLFW_TRUE : GLFW_FALSE);
     //glfwWindowHint(GLFW_REFRESH_RATE, 144);
-    GLFWmonitor* mon = nullptr;
+    
     if(g_wgpustate.windowFlags & FLAG_FULLSCREEN_MODE){
         mon = glfwGetPrimaryMonitor();
         //std::cout <<glfwGetVideoMode(mon)->refreshRate << std::endl;
         //abort();
     }
+#endif
     GLFWwindow* window = glfwCreateWindow(width, height, title, mon, nullptr);
     //glfwSetWindowPos(window, 200, 1200);
     if (!window) {
         abort();
     }
     g_wgpustate.window = window;
+#ifndef __EMSCRIPTEN__
     // Create the surface.
     sample->surface = wgpu::glfw::CreateSurfaceForWindow(sample->instance, window);
 #else
@@ -285,7 +288,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
 
     wgpu::SurfaceDescriptor surfaceDesc = {};
     surfaceDesc.nextInChain = &canvasDesc;
-    surface = instance.CreateSurface(&surfaceDesc);
+    sample->surface = sample->instance.CreateSurface(&surfaceDesc);
 #endif
     glfwSetWindowSizeCallback(window, [](GLFWwindow* window, int width, int height){
         //wgpuSurfaceRelease(g_wgpustate.surface);
@@ -602,6 +605,7 @@ const std::unordered_map<WGPUTextureFormat, std::string> textureFormatSpellingTa
     map[WGPUTextureFormat_ASTC12x10UnormSrgb] = "WGPUTextureFormat_ASTC12x10UnormSrgb";
     map[WGPUTextureFormat_ASTC12x12Unorm] = "WGPUTextureFormat_ASTC12x12Unorm";
     map[WGPUTextureFormat_ASTC12x12UnormSrgb] = "WGPUTextureFormat_ASTC12x12UnormSrgb";
+    #ifndef __EMSCRIPTEN__ //why??
     map[WGPUTextureFormat_R16Unorm] = "WGPUTextureFormat_R16Unorm";
     map[WGPUTextureFormat_RG16Unorm] = "WGPUTextureFormat_RG16Unorm";
     map[WGPUTextureFormat_RGBA16Unorm] = "WGPUTextureFormat_RGBA16Unorm";
@@ -617,5 +621,6 @@ const std::unordered_map<WGPUTextureFormat, std::string> textureFormatSpellingTa
     map[WGPUTextureFormat_R10X6BG10X6Biplanar444Unorm] = "WGPUTextureFormat_R10X6BG10X6Biplanar444Unorm";
     map[WGPUTextureFormat_External] = "WGPUTextureFormat_External";
     map[WGPUTextureFormat_Force32] = "WGPUTextureFormat_Force32";
+    #endif
     return map;
 }();

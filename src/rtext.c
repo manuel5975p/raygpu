@@ -280,9 +280,9 @@ extern void LoadFontDefault(void)
     // Re-construct image from defaultFontData and generate OpenGL texture
     //----------------------------------------------------------------------
     Image imFont = {
-        .data = calloc(128*128, 4),  // 2 bytes per pixel (gray + alpha)
         .width = 128,
         .height = 128,
+        .data = calloc(128*128, 4),  // 2 bytes per pixel (gray + alpha)
         .format = RGBA8
     };
 

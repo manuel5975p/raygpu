@@ -705,7 +705,7 @@ Image LoadImageFromTexture(Texture tex){
     return ret;
     #else
     std::cerr << "LoadImageFromTexture not supported on web\n";
-    return Image{tex.format, 0, 0, nullptr};
+    return Image{};
     #endif
 }
 Texture LoadTextureFromImage(Image img){
@@ -819,7 +819,9 @@ void EnableCursor(cwoid){
     glfwSetInputMode(g_wgpustate.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 }
 void DisableCursor(cwoid){
+    #ifndef __EMSCRIPTEN__
     glfwSetInputMode(g_wgpustate.window, GLFW_CURSOR, GLFW_CURSOR_CAPTURED);
+    #endif
 }
 bool IsCursorOnScreen(cwoid){
     return g_wgpustate.cursorInWindow;
@@ -1133,7 +1135,7 @@ void ResizeBuffer(DescribedBuffer* buffer, size_t newSize){
 void ResizeBufferAndConserve(DescribedBuffer* buffer, size_t newSize){
     if(newSize == buffer->descriptor.size)return;
 
-    size_t smaller = std::min(newSize, buffer->descriptor.size);
+    size_t smaller = std::min<uint32_t>(newSize, buffer->descriptor.size);
     DescribedBuffer newbuffer{};
     newbuffer.descriptor = buffer->descriptor;
     newbuffer.descriptor.size = newSize;
@@ -1183,7 +1185,7 @@ extern "C" DescribedRenderpass LoadRenderpassEx(WGPUTextureView color, WGPUTextu
     ret.rca->view = color;
     ret.rca->depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
     #ifdef __EMSCRIPTEN__
-    ret.rca.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+    ret.rca->depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
     #endif
     //std::cout << rca.depthSlice << "\n";
     ret.rca->resolveTarget = nullptr;

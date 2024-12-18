@@ -9,7 +9,7 @@
 #include <unordered_map>
 #endif
 #define RL_FREE free
-#define ROT_BYTES(V, C) (((V) << (C)) | ((V) >> (64 - (C))))
+#define ROT_BYTES(V, C) (((V) << (C)) | ((V) >> ((sizeof(V) * CHAR_BIT) - (C))))
 typedef struct vertex{
     Vector3 pos;
     Vector2 uv ;
