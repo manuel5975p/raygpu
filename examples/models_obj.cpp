@@ -1,7 +1,10 @@
 #include <raygpu.h>
 #include <string>
 int main(cwoid){
-    InitWindow(400, 300, "VAO");
+    //SetConfigFlags(FLAG_FULLSCREEN_MODE);
+    SetConfigFlags(FLAG_VSYNC_HINT);
+    //SetConfigFlags(FLAG_MSAA_4X_HINT);
+    InitWindow(1920, 1080, "VAO");
     SetTargetFPS(0);
     Camera3D cam = CLITERAL(Camera3D){
         .position = CLITERAL(Vector3){0,0,10},
@@ -12,44 +15,35 @@ int main(cwoid){
 
     std::string resourceDirectoryPath = std::string("../resources");// + FindDirectory("resources", 3);
     Model churchModel = LoadModel((resourceDirectoryPath + "/church.obj").c_str());
+    Texture cdif = LoadTextureFromImage(LoadImage("../resources/church_diffuse.png"));
     std::cout << churchModel.meshCount << std::endl;
     Mesh churchMesh = churchModel.meshes[0];
     //UploadMesh(&cube, true);
 
     DescribedPipeline* pl = Relayout(DefaultPipeline(), churchMesh.vao);
-    DescribedPipeline* plorig = DefaultPipeline();
-    //PreparePipeline(pl, cube.vao);
-    WGPUBindGroupEntry camentry zeroinit;
-    camentry.binding = 0;
-    Matrix mat = GetCameraMatrix3D(cam, 1.5);
-    camentry.buffer = GenUniformBuffer(&mat, sizeof(Matrix)).buffer;
-    camentry.size = sizeof(Matrix);
-    //UpdateBindGroupEntry(&pl->bindGroup, 0, camentry);
     Texture checkers = LoadTextureFromImage(GenImageChecker(RED, DARKBLUE, 100, 100, 4));
     float angle = 0.0f;
+    constexpr size_t instanceCount = 10000;
+    Matrix trfs[instanceCount];
+    for(int i = 0;i < 100;i++){
+        for(int j = 0;j < 100;j++){
+            trfs[i * 100 + j] = MatrixTranslate(10.0f * i, 0, 10.0f * j) * MatrixScale(0.5,0.5,0.5);
+        }
+    }
     while(!WindowShouldClose()){
         BeginDrawing();
         angle += GetFrameTime();
-        cam.position = Vector3{std::sin(angle) * 35.f, 20.0f, std::cos(angle) * 35.f};
+        cam.position = Vector3{std::sin(angle) * 45.f, 30.0f, std::cos(angle) * 45.f};
         cam.target = Vector3{0, 10.0f, 0};
         ClearBackground(BLANK);
-        
-        
-        //TODO: Swapping the next two causes a problem since the BindGroup is lazily updated only at BindPipeline
-        //EDIT: It's not due to lazy update; DrawArrays and DrawArraysFixed did not check for a pending Bindgroup Update
         BeginPipelineMode(pl, WGPUPrimitiveTopology_TriangleList);
-        UseNoTexture();
+        UseTexture(cdif);
         BeginMode3D(cam);
-        for(float x = -20;x <= 20;x += 4){
-            DrawMesh(churchMesh, Material{}, MatrixTranslate(0,0,x) * MatrixScale(0.2f,0.2f,0.2f));
-        }
+        DrawMeshInstanced(churchMesh, Material{}, trfs, instanceCount);
         EndMode3D();
         EndPipelineMode();
-        //BeginPipelineMode(plorig, WGPUPrimitiveTopology_TriangleList);
         DrawFPS(0, 0);
-
-        //EndPipelineMode();
+        DrawText(TextFormat("Drawing %llu triangles", (unsigned long long)(instanceCount * churchMesh.triangleCount)), 0, 100, 40, WHITE);
         EndDrawing();
-        char x = '\33';
     }
 }
