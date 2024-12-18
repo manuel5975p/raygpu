@@ -1,4 +1,5 @@
 #include <raygpu.h>
+#include <stdio.h>
 int main(cwoid){
     InitWindow(1200, 800, "VAO");
     AttributeAndResidence attributes[4] = {
@@ -45,19 +46,17 @@ int main(cwoid){
     Mesh cube = GenMeshCube(3.f,3.f,3.f);
     //UploadMesh(&cube, true);
 
+    DescribedPipeline* plorig = ClonePipeline(DefaultPipeline());
     DescribedPipeline* pl = DefaultPipeline();
     PreparePipeline(pl, cube.vao);
     Texture checkers = LoadTextureFromImage(GenImageChecker(RED, DARKBLUE, 100, 100, 4));
     float angle = 0.0f;
-    while(!WindowShouldClose()){        
+    while(!WindowShouldClose()){
         BeginDrawing();
-        
         angle += GetFrameTime();
         cam.position = (Vector3){sinf(angle) * 10.f, 5.0f, cosf(angle) * 10.f};
-
         ClearBackground(BLACK);
         UseTexture(checkers);
-
         //TODO: Swapping those causes a problem since the BindGroup is lazily updated only at BindPipeline
         BeginMode3D(cam);
         BeginPipelineMode(pl, WGPUPrimitiveTopology_TriangleList);
@@ -65,7 +64,9 @@ int main(cwoid){
         DrawArraysIndexed(cube.ibo, 36);
         EndMode3D();
         EndPipelineMode();
-        //DrawFPS(0, 0);
+        BeginPipelineMode(plorig, WGPUPrimitiveTopology_TriangleList);
+        DrawFPS(0, 0);
+        EndPipelineMode();
         EndDrawing();
     }
 }

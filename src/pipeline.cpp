@@ -84,6 +84,7 @@ DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, 
 extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
 
     DescribedPipeline* retp = callocnew(DescribedPipeline);
+    retp->settings = settings;
     DescribedPipeline& ret = *retp;
     ret.sh = LoadShaderFromMemory(shaderSource);
 
@@ -233,9 +234,13 @@ extern "C" void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va){
         pipeline->vbLayouts[i].arrayStride = strides[i];
         pipeline->vbLayouts[i].stepMode = va->buffers[i].second;
     }
-    wgpuRenderPipelineRelease(pipeline->pipeline);
-    wgpuRenderPipelineRelease(pipeline->pipeline_TriangleStrip);
-    wgpuRenderPipelineRelease(pipeline->pipeline_LineList);
+    pipeline->descriptor.vertex.buffers = pipeline->vbLayouts;
+    if(pipeline->pipeline)
+        wgpuRenderPipelineRelease(pipeline->pipeline);
+    if(pipeline->pipeline_TriangleStrip)
+        wgpuRenderPipelineRelease(pipeline->pipeline_TriangleStrip);
+    if(pipeline->pipeline_LineList)
+        wgpuRenderPipelineRelease(pipeline->pipeline_LineList);
     pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
     pipeline->pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipeline->descriptor);
     pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_LineList;
@@ -249,9 +254,46 @@ extern "C" void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va){
 DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
     DescribedPipeline* pipeline = callocnew(DescribedPipeline);
     pipeline->descriptor = _pipeline->descriptor;
+    pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
+    pipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
+    pipeline->settings = _pipeline->settings;
+    pipeline->bglayout.descriptor = _pipeline->bglayout.descriptor;
+    pipeline->lastUsedAs = _pipeline->lastUsedAs;
+    pipeline->bglayout.entries = (WGPUBindGroupLayoutEntry*)calloc(_pipeline->bglayout.descriptor.entryCount, sizeof(WGPUBindGroupLayoutEntry));
+    memcpy(pipeline->bglayout.entries, _pipeline->bglayout.descriptor.entries, _pipeline->bglayout.descriptor.entryCount * sizeof(WGPUBindGroupLayoutEntry));
+    pipeline->bglayout.descriptor.entries = pipeline->bglayout.entries;
+    pipeline->descriptor.vertex = _pipeline->descriptor.vertex;
+    pipeline->vbLayouts = (WGPUVertexBufferLayout*)calloc(_pipeline->descriptor.vertex.bufferCount, sizeof(WGPUVertexBufferLayout));
+    memcpy(pipeline->vbLayouts, _pipeline->vbLayouts, _pipeline->descriptor.vertex.bufferCount * sizeof(WGPUVertexBufferLayout));
     
-    pipeline->bglayout.descriptor = pipeline->bglayout.descriptor;
-    pipeline->bglayout.entries = (WGPUBindGroupLayoutEntry*)calloc(pipeline->bglayout.descriptor.entryCount, sizeof(WGPUBindGroupLayoutEntry));
+    pipeline->descriptor.vertex.buffers  = pipeline->vbLayouts;
+    pipeline->bindGroup.desc = _pipeline->bindGroup.desc;
+    pipeline->bindGroup.entries = (WGPUBindGroupEntry*)calloc(_pipeline->bindGroup.desc.entryCount, sizeof(WGPUBindGroupEntry));
+    memcpy(pipeline->bindGroup.entries, _pipeline->bindGroup.entries, _pipeline->bindGroup.desc.entryCount * sizeof(WGPUBindGroupEntry));
+
+    pipeline->blendState        = callocnew(WGPUBlendState);
+    pipeline->fragmentState     = callocnew(WGPUFragmentState);
+    pipeline->colorTarget       = callocnew(WGPUColorTargetState);
+    pipeline->depthStencilState = callocnew(WGPUDepthStencilState);
+    pipeline->sh = _pipeline->sh;
+    memcpy(pipeline->blendState, _pipeline->blendState, sizeof(WGPUBlendState));
+    memcpy(pipeline->fragmentState, _pipeline->fragmentState, sizeof(WGPUFragmentState));
+    memcpy(pipeline->colorTarget, _pipeline->colorTarget, sizeof(WGPUColorTargetState));
+    memcpy(pipeline->depthStencilState, _pipeline->depthStencilState, sizeof(WGPUDepthStencilState));
+    pipeline->fragmentState->module = pipeline->sh;
+    pipeline->colorTarget->blend = pipeline->blendState;
+    pipeline->fragmentState->targets = pipeline->colorTarget;
+    pipeline->bglayout.layout = wgpuDeviceCreateBindGroupLayout(GetDevice(), &pipeline->bglayout.descriptor);
+    pipeline->layout.descriptor = _pipeline->layout.descriptor;
+    pipeline->layout.descriptor.bindGroupLayouts = &pipeline->bglayout.layout;
+    pipeline->layout.layout = wgpuDeviceCreatePipelineLayout(GetDevice(), &pipeline->layout.descriptor);
+    pipeline->bindGroup.desc.entries = pipeline->bindGroup.entries;
+    pipeline->bindGroup.bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &pipeline->bindGroup.desc);
+    pipeline->descriptor.depthStencil = pipeline->settings.depthTest ? pipeline->depthStencilState : nullptr;
+    pipeline->descriptor.fragment = pipeline->fragmentState;
+    pipeline->descriptor.layout = pipeline->layout.layout;
+    pipeline->pipeline = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipeline->descriptor);
+    return pipeline;
 }
 DescribedPipeline* DefaultPipeline(){
     return g_wgpustate.rstate->defaultPipeline;
