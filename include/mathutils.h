@@ -110,6 +110,19 @@ MAPI Vector4 Vector4Normalize(Vector4 vec){
 
 typedef struct Matrix{
     float data[16];
+    #ifdef __cplusplus
+    Matrix operator*(const Matrix& o)const noexcept{
+        Matrix ret = {0};
+        for(int i = 0;i < 4;i++){
+            for(int j = 0;j < 4;j++){
+                for(int k = 0;k < 4;k++){
+                    ret.data[i + j * 4] += data[i + k * 4] * o.data[k + j * 4];
+                }
+            }
+        }
+        return ret;
+    }
+    #endif// __cplusplus
 } Matrix;
 
 MAPI Matrix MatrixIdentity(void){

@@ -1,10 +1,14 @@
 #include <raygpu.h>
-
+#include <stdio.h>
 
 int main(void){
     InitWindow(800, 600, "The Render Pipeline");
-
-    char* shaderSource = LoadFileText("../resources/simple_shader.wgsl");
+    const char* resourceDirectoryPath = FindDirectory("resources", 3);
+    puts(resourceDirectoryPath); 
+    char dirpath[1024] = {0};
+    strcpy(dirpath, resourceDirectoryPath);
+    strcat(dirpath, "/simple_shader.wgsl");
+    char* shaderSource = LoadFileText(dirpath);
     AttributeAndResidence attributes[1] = {
         (AttributeAndResidence){
             .attr = (WGPUVertexAttribute){.format = WGPUVertexFormat_Float32x2, 

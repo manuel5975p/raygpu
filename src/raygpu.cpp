@@ -1,6 +1,7 @@
 #include "raygpu.h"
 #include <GLFW/glfw3.h>
 #include <cassert>
+#include <filesystem>
 #include <vector>
 #include <cstdlib>
 #include <chrono>
@@ -737,7 +738,9 @@ inline WGPUVertexFormat f32format(uint32_t s){
     }
     __builtin_unreachable();
 }
-
+DescribedPipeline* GetActivePipeline(){
+    return g_wgpustate.rstate->currentPipeline;
+}
 void init_full_renderstate(full_renderstate* state, const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniform_count, WGPUTextureView c, WGPUTextureView d){
     //state->shader = sh;
     state->color = c;
@@ -1452,6 +1455,29 @@ static const char *strprbrk(const char *s, const char *charset)
     for (; s = strpbrk(s, charset), s != NULL; latestMatch = s++) { }
 
     return latestMatch;
+}
+const char* FindDirectory(const char* directoryName, int maxOutwardSearch){
+    static char dirPaff[2048] = {0};
+    namespace fs = std::filesystem;
+    fs::path searchPath(".");
+    for(int i = 0;i < maxOutwardSearch;i++, searchPath /= ".."){
+        fs::recursive_directory_iterator iter(searchPath);
+        for(auto& entry : iter){
+            if(entry.path().filename().string() == directoryName){
+                if(entry.is_directory()){
+                    strcpy(dirPaff, entry.path().c_str());
+                    goto end;
+                }else{
+                    TRACELOG(LOG_WARNING, "Found file %s, but it's not a directory", entry.path().c_str());
+                }
+            }
+        }
+    }
+    abort();
+    TRACELOG(LOG_WARNING, "Directory %s not found", directoryName);
+    return nullptr;
+    end:
+    return dirPaff;
 }
 const char *GetDirectoryPath(const char *filePath)
 {

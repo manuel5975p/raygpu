@@ -138,7 +138,7 @@ typedef struct Model {
     int meshCount;          // Number of meshes
     int materialCount;      // Number of materials
     Mesh *meshes;           // Meshes array
-    //Material *materials;    // Materials array
+    Material *materials;    // Materials array
     int *meshMaterial;      // Mesh material number
 
     // Animation data
@@ -468,6 +468,8 @@ EXTERN_C_BEGIN
     void* LoadFileData(const char* fileName, size_t* dataSize);
     void UnloadFileData(void* content);
     const char* GetDirectoryPath(const char* arg);
+    const char* FindDirectory(const char* directoryName, int maxOutwardSearch);
+    bool IsFileExtension(const char *fileName, const char *ext);
     Texture LoadTextureFromImage(Image img);
     Image LoadImageFromTexture(Texture tex);
     Image LoadImage(const char* filename);
@@ -567,6 +569,7 @@ EXTERN_C_BEGIN
 
     DescribedPipeline* ClonePipeline(const DescribedPipeline* pl);
     DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
+    DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
     DescribedPipeline* DefaultPipeline(cwoid);
     void UnloadPipeline(DescribedPipeline* pl);
 
@@ -593,6 +596,7 @@ EXTERN_C_BEGIN
     void ResizeBufferAndConserve(DescribedBuffer* buffer, size_t newSize);
     void BindVertexBuffer(const DescribedBuffer* buffer);
 
+    DescribedPipeline* GetActivePipeline(cwoid);
     void SetTexture       (uint32_t index, Texture tex);
     void SetSampler       (uint32_t index, WGPUSampler sampler);
     void SetUniformBuffer (uint32_t index, DescribedBuffer* buffer);

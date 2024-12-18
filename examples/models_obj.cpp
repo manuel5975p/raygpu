@@ -1,7 +1,7 @@
 #include <raygpu.h>
-#include <stdio.h>
+#include <string>
 int main(cwoid){
-    InitWindow(1200, 800, "VAO");
+    InitWindow(400, 300, "VAO");
     
     Camera3D cam = CLITERAL(Camera3D){
         .position = CLITERAL(Vector3){0,0,10},
@@ -9,9 +9,14 @@ int main(cwoid){
         .up = CLITERAL(Vector3){0,1,0},
         .fovy = 1.0f
     };
-    Mesh cube = GenMeshCube(3.f,3.f,3.f);
 
-    DescribedPipeline* pl = Relayout(DefaultPipeline(), cube.vao);
+    std::string resourceDirectoryPath = FindDirectory("resources", 3);
+    Model churchModel = LoadModel((resourceDirectoryPath + "/church.obj").c_str());
+    std::cout << churchModel.meshCount << std::endl;
+    Mesh churchMesh = churchModel.meshes[0];
+    //UploadMesh(&cube, true);
+
+    DescribedPipeline* pl = Relayout(DefaultPipeline(), churchMesh.vao);
     DescribedPipeline* plorig = DefaultPipeline();
     //PreparePipeline(pl, cube.vao);
     WGPUBindGroupEntry camentry zeroinit;
@@ -25,21 +30,22 @@ int main(cwoid){
     while(!WindowShouldClose()){
         BeginDrawing();
         angle += GetFrameTime();
-        cam.position = (Vector3){sinf(angle) * 10.f, 5.0f, cosf(angle) * 10.f};
-        ClearBackground(BLACK);
+        cam.position = Vector3{std::sin(angle) * 35.f, 20.0f, std::cos(angle) * 35.f};
+        cam.target = Vector3{0, 10.0f, 0};
+        ClearBackground(BLANK);
         
         
         //TODO: Swapping the next two causes a problem since the BindGroup is lazily updated only at BindPipeline
         //EDIT: It's not due to lazy update; DrawArrays and DrawArraysFixed did not check for a pending Bindgroup Update
         BeginPipelineMode(pl, WGPUPrimitiveTopology_TriangleList);
-        UseTexture(checkers);
+        UseNoTexture();
         BeginMode3D(cam);
-        BindVertexArray(pl, cube.vao);
-        DrawArraysIndexed(cube.ibo, 36);
+        for(float x = -20;x <= 20;x += 4){
+            DrawMesh(churchMesh, Material{}, MatrixTranslate(0,0,x) * MatrixScale(0.2f,0.2f,0.2f));
+        }
         EndMode3D();
         EndPipelineMode();
         //BeginPipelineMode(plorig, WGPUPrimitiveTopology_TriangleList);
-        DrawRectangle(0,0,200,100,RED);
         DrawFPS(0, 0);
 
         //EndPipelineMode();

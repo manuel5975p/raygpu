@@ -80,6 +80,11 @@ DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, 
 }
 
 
+DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
+    DescribedPipeline* pl = LoadPipelineEx(shaderSource, nullptr, 0, uniforms, uniformCount, settings);
+    PreparePipeline(pl, vao);
+    return pl;
+}
 
 extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
 
@@ -188,17 +193,18 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     pipelineDesc.depthStencil = settings.depthTest ? ret.depthStencilState : nullptr;
     ret.descriptor.primitive.frontFace = settings.frontFace;
     ret.descriptor.primitive.cullMode = settings.faceCull ? WGPUCullMode_Back : WGPUCullMode_None;
-    
-    ret.descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
-    ret.pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &ret.descriptor);
-    ret.descriptor.primitive.topology = WGPUPrimitiveTopology_LineList;
-    ret.pipeline_LineList = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &ret.descriptor);
-    ret.descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleStrip;
-    ret.descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
-    ret.pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &ret.descriptor);
-    ret.descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
-    ret.descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
-    TRACELOG(LOG_INFO, "Pipeline with %d attributes and %d uniforms was loaded", attribCount, uniformCount);
+    if(attribCount != 0){
+        ret.descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
+        ret.pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &ret.descriptor);
+        ret.descriptor.primitive.topology = WGPUPrimitiveTopology_LineList;
+        ret.pipeline_LineList = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &ret.descriptor);
+        ret.descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleStrip;
+        ret.descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
+        ret.pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &ret.descriptor);
+        ret.descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
+        ret.descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
+    }
+    //TRACELOG(LOG_INFO, "Pipeline with %d attributes and %d uniforms was loaded", attribCount, uniformCount);
     return retp;
 }
 typedef struct VertexArray{

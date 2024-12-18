@@ -40,6 +40,7 @@ struct MyUniforms {
 @group(0) @binding(0) var<uniform> uMyUniforms: MyUniforms;
 @group(0) @binding(1) var gradientTexture: texture_2d<f32>;
 @group(0) @binding(2) var grsampler: sampler;
+@group(0) @binding(3) var<uniform> modelMatrix: mat4x4f;
 
 //Can be omitted
 //@group(0) @binding(3) var<storage> storig: array<vec4f>;
@@ -49,6 +50,7 @@ struct MyUniforms {
 fn vs_main(@builtin(instance_index) instanceIdx : u32, in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
     out.position = uMyUniforms.trf * 
+                   modelMatrix *
     vec4f(in.position.xyz /*+ storig[0].xyz * 0.3f*/, 1.0f);
     out.color = in.color;
     out.uv = in.uv;
@@ -227,6 +229,10 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         });
 
     // Synchronously create the device
+    wgpu::RequiredLimits reqLimits;
+    reqLimits.limits.maxBufferSize = 1ull << 32;
+    
+    deviceDesc.requiredLimits = &reqLimits;
     sample->instance.WaitAny(
         sample->adapter.RequestDevice(
             &deviceDesc, wgpu::CallbackMode::WaitAnyOnly,
@@ -264,6 +270,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         //abort();
     }
     GLFWwindow* window = glfwCreateWindow(width, height, title, mon, nullptr);
+    glfwSetWindowPos(window, 200, 1200);
     if (!window) {
         abort();
     }
@@ -416,7 +423,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         UniformDescriptor{uniform_buffer, 64},
         UniformDescriptor{texture2d, 0},
         UniformDescriptor{sampler, 0},
-        UniformDescriptor{storage_buffer, 0}
+        UniformDescriptor{uniform_buffer, 64}
     };
     AttributeAndResidence attrs[4] = {
         AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 0, 0}, 0, WGPUVertexStepMode_Vertex},
@@ -461,7 +468,8 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     g_wgpustate.defaultScreenMatrix = GenUniformBuffer(&m, sizeof(Matrix));
     SetUniformBuffer(0, &g_wgpustate.defaultScreenMatrix);
     SetTexture(1, g_wgpustate.whitePixel);
-    SetStorageBufferData(3, data, 64);
+    Matrix iden = MatrixIdentity();
+    SetUniformBufferData(3, &iden, 64);
 
     WGPUSamplerDescriptor samplerDesc{};
     samplerDesc.addressModeU = WGPUAddressMode_Repeat;
