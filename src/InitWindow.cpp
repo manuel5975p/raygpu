@@ -40,7 +40,7 @@ struct MyUniforms {
 @group(0) @binding(0) var<uniform> uMyUniforms: MyUniforms;
 @group(0) @binding(1) var gradientTexture: texture_2d<f32>;
 @group(0) @binding(2) var grsampler: sampler;
-@group(0) @binding(3) var<uniform> modelMatrix: mat4x4f;
+@group(0) @binding(3) var<storage> modelMatrix: mat4x4f;
 
 //Can be omitted
 //@group(0) @binding(3) var<storage> storig: array<vec4f>;
@@ -469,7 +469,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     SetUniformBuffer(0, &g_wgpustate.defaultScreenMatrix);
     SetTexture(1, g_wgpustate.whitePixel);
     Matrix iden = MatrixIdentity();
-    SetUniformBufferData(3, &iden, 64);
+    SetStorageBufferData(3, &iden, 64);
 
     WGPUSamplerDescriptor samplerDesc{};
     samplerDesc.addressModeU = WGPUAddressMode_Repeat;

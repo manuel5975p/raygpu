@@ -140,8 +140,19 @@ void UploadMesh(Mesh *mesh, bool dynamic){
         }
     }
 }
-void DrawMesh(Mesh mesh, Material material, Matrix transform){
-    SetUniformBufferData(3, &transform, sizeof(Matrix));
+extern "C" void DrawMeshInstanced(Mesh mesh, Material material, const Matrix *transforms, int instances){
+    DescribedBuffer trfBuffer = GenStorageBuffer(transforms, instances * sizeof(Matrix));
+    SetStorageBuffer(3, &trfBuffer);
+    BindVertexArray(GetActivePipeline(), mesh.vao);
+    if(mesh.ibo.buffer){
+        DrawArraysIndexed(mesh.ibo, mesh.triangleCount * 3);
+    }else{
+        DrawArrays(mesh.vertexCount);
+    }
+    wgpuBufferRelease(trfBuffer.buffer);
+}
+extern "C" void DrawMesh(Mesh mesh, Material material, Matrix transform){
+    SetStorageBufferData(3, &transform, sizeof(Matrix));
     BindVertexArray(GetActivePipeline(), mesh.vao);
     if(mesh.ibo.buffer){
         DrawArraysIndexed(mesh.ibo, mesh.triangleCount * 3);

@@ -24,7 +24,7 @@ int main(cwoid){
     Matrix mat = GetCameraMatrix3D(cam, 1.5);
     camentry.buffer = GenUniformBuffer(&mat, sizeof(Matrix)).buffer;
     camentry.size = sizeof(Matrix);
-    UpdateBindGroupEntry(&pl->bindGroup, 0, camentry);
+    //UpdateBindGroupEntry(&pl->bindGroup, 0, camentry);
     Texture checkers = LoadTextureFromImage(GenImageChecker(RED, DARKBLUE, 100, 100, 4));
     float angle = 0.0f;
     while(!WindowShouldClose()){
