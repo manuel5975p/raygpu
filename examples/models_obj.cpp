@@ -2,7 +2,7 @@
 #include <string>
 int main(cwoid){
     InitWindow(400, 300, "VAO");
-    
+    SetTargetFPS(0);
     Camera3D cam = CLITERAL(Camera3D){
         .position = CLITERAL(Vector3){0,0,10},
         .target = CLITERAL(Vector3){0,0,0},
@@ -50,5 +50,6 @@ int main(cwoid){
 
         //EndPipelineMode();
         EndDrawing();
+        char x = '\33';
     }
 }

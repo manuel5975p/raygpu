@@ -9,7 +9,7 @@
 #include <unordered_map>
 #endif
 #define RL_FREE free
-
+#define ROT_BYTES(V, C) (((V) << (C)) | ((V) >> (64 - (C))))
 typedef struct vertex{
     Vector3 pos;
     Vector2 uv ;
@@ -379,6 +379,7 @@ typedef struct AttributeAndResidence{
     WGPUVertexAttribute attr;
     uint32_t bufferSlot; //Describes the actual buffer it will reside in
     WGPUVertexStepMode stepMode;
+    bool enabled;
 }AttributeAndResidence;
 
 /**

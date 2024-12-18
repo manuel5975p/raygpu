@@ -10,6 +10,7 @@
 #include <cstring>
 #include <cstdarg>
 #include <thread>
+#include <unordered_map>
 #include "wgpustate.inc"
 #include <webgpu/webgpu_cpp.h>
 #ifdef __EMSCRIPTEN__
@@ -30,12 +31,91 @@ vertex* vboptr_base;
 
 typedef struct VertexArray{
     std::vector<AttributeAndResidence> attributes;
-    std::vector<std::pair<DescribedBuffer, WGPUVertexStepMode>> buffers;
-    void add(DescribedBuffer buffer, uint32_t shaderLocation, WGPUVertexFormat fmt, uint32_t offset, WGPUVertexStepMode stepmode){
+    std::vector<std::pair<DescribedBuffer*, WGPUVertexStepMode>> buffers;
+    void add(DescribedBuffer* buffer, uint32_t shaderLocation, 
+                              WGPUVertexFormat fmt, uint32_t offset, 
+                              WGPUVertexStepMode stepmode) {
+        // Search for existing attribute by shaderLocation
+        auto it = std::find_if(attributes.begin(), attributes.end(),
+                               [shaderLocation](const AttributeAndResidence& ar) {
+                                   return ar.attr.shaderLocation == shaderLocation;
+                               });
+
+        if (it != attributes.end()) {
+            // Attribute exists, update it
+            size_t existingBufferSlot = it->bufferSlot;
+            auto& existingBufferPair = buffers[existingBufferSlot];
+
+            // Check if the buffer is the same
+            if (existingBufferPair.first->buffer != buffer->buffer) {
+                // Attempting to update to a new buffer
+                // Check if the new buffer is already in buffers
+                auto bufferIt = std::find_if(buffers.begin(), buffers.end(),
+                                            [buffer, stepmode](const std::pair<DescribedBuffer*, WGPUVertexStepMode>& b) {
+                                                return b.first->buffer == buffer->buffer && b.second == stepmode;
+                                            });
+
+                if (bufferIt != buffers.end()) {
+                    // Reuse existing buffer slot
+                    it->bufferSlot = std::distance(buffers.begin(), bufferIt);
+                } else {
+                    // Add new buffer
+                    it->bufferSlot = buffers.size();
+                    buffers.emplace_back(buffer, stepmode);
+                }
+            }
+
+            // Update the rest of the attribute properties
+            it->stepMode = stepmode;
+            it->attr.format = fmt;
+            it->attr.offset = offset;
+            it->enabled = true;
+
+            std::cout << "Attribute at shader location " << shaderLocation << " updated.\n";
+        } else {
+            // Attribute does not exist, add as new
+            AttributeAndResidence insert{};
+            insert.enabled = true;
+            bool bufferFound = false;
+
+            for (size_t i = 0; i < buffers.size(); ++i) {
+                auto& existingBufferPair = buffers[i];
+                if (existingBufferPair.first->buffer == buffer->buffer) {
+                    if (existingBufferPair.second == stepmode) {
+                        // Reuse existing buffer slot
+                        insert.bufferSlot = i;
+                        bufferFound = true;
+                        break;
+                    } else {
+                        TRACELOG(LOG_FATAL, "Mixed step modes for the same buffer are not implemented");
+                        // Handle mixed step modes as per your application's requirements
+                        // For now, we'll exit to indicate the limitation
+                        exit(EXIT_FAILURE);
+                    }
+                }
+            }
+
+            if (!bufferFound) {
+                // Add new buffer
+                insert.bufferSlot = buffers.size();
+                buffers.emplace_back(buffer, stepmode);
+            }
+
+            // Set the attribute properties
+            insert.stepMode = stepmode;
+            insert.attr.format = fmt;
+            insert.attr.offset = offset;
+            insert.attr.shaderLocation = shaderLocation;
+            attributes.emplace_back(insert);
+
+            TRACELOG(LOG_DEBUG,  "New attribute added at shader location %u", shaderLocation);
+        }
+    }
+    void add_old(DescribedBuffer* buffer, uint32_t shaderLocation, WGPUVertexFormat fmt, uint32_t offset, WGPUVertexStepMode stepmode){
         AttributeAndResidence insert{};
         for(size_t i = 0;i < buffers.size();i++){
             auto& _buffer = buffers[i];
-            if(_buffer.first.buffer == buffer.buffer){
+            if(_buffer.first->buffer == buffer->buffer){
                 if(_buffer.second == stepmode){
                     insert.bufferSlot = i;
                     insert.stepMode = stepmode;
@@ -59,18 +139,138 @@ typedef struct VertexArray{
         insert.attr.shaderLocation = shaderLocation;
         attributes.push_back(insert);
     }
+
+    /**
+     * Enables an attribute based on shaderLocation.
+     *
+     * @param shaderLocation The shader location identifier to enable.
+     * @return true if the attribute was found and enabled, false otherwise.
+     */
+    bool enableAttribute(uint32_t shaderLocation) {
+        auto it = std::find_if(attributes.begin(), attributes.end(),
+                               [shaderLocation](const AttributeAndResidence& ar) {
+                                   return ar.attr.shaderLocation == shaderLocation;
+                               });
+
+        if (it != attributes.end()) {
+            if (!it->enabled) {
+                it->enabled = true;
+            }
+            return true;
+        }
+
+        TRACELOG(LOG_WARNING, "Attribute with shader location %u not found.", shaderLocation);
+        return false;
+    }
+
+    /**
+     * Disables an attribute based on shaderLocation.
+     *
+     * @param shaderLocation The shader location identifier to disable.
+     * @return true if the attribute was found and disabled, false otherwise.
+     */
+    bool disableAttribute(uint32_t shaderLocation) {
+        auto it = std::find_if(attributes.begin(), attributes.end(),
+                               [shaderLocation](const AttributeAndResidence& ar) {
+                                   return ar.attr.shaderLocation == shaderLocation;
+                               });
+
+        if (it != attributes.end()) {
+            if (it->enabled) {
+                it->enabled = false;
+                std::cout << "Attribute at shader location " << shaderLocation << " disabled.\n";
+            } else {
+                std::cout << "Attribute at shader location " << shaderLocation << " is already disabled.\n";
+            }
+            return true;
+        }
+
+        std::cerr << "Attribute with shader location " << shaderLocation << " not found.\n";
+        return false;
+    }
 }VertexArray;
+namespace std{
+    template<>
+    struct hash<VertexArray>{
+        inline size_t operator()(const VertexArray& va)const noexcept{
+            size_t hashValue = 0;
+
+            // Hash the attributes
+            for (const auto& attrRes : va.attributes) {
+                // Hash bufferSlot
+                size_t bufferSlotHash = std::hash<size_t>()(attrRes.bufferSlot);
+                hashValue ^= bufferSlotHash;
+                hashValue = ROT_BYTES(hashValue, 5);
+
+                // Hash stepMode
+                size_t stepModeHash = std::hash<int>()(static_cast<int>(attrRes.stepMode));
+                hashValue ^= stepModeHash;
+                hashValue = ROT_BYTES(hashValue, 5);
+
+                // Hash shaderLocation
+                size_t shaderLocationHash = std::hash<uint32_t>()(attrRes.attr.shaderLocation);
+                hashValue ^= shaderLocationHash;
+                hashValue = ROT_BYTES(hashValue, 5);
+
+                // Hash format
+                size_t formatHash = std::hash<int>()(static_cast<int>(attrRes.attr.format));
+                hashValue ^= formatHash;
+                hashValue = ROT_BYTES(hashValue, 5);
+
+                // Hash offset
+                size_t offsetHash = std::hash<uint32_t>()(attrRes.attr.offset);
+                hashValue ^= offsetHash;
+                hashValue = ROT_BYTES(hashValue, 5);
+
+                // Hash enabled flag
+                size_t enabledHash = std::hash<bool>()(attrRes.enabled);
+                hashValue ^= enabledHash;
+                hashValue = ROT_BYTES(hashValue, 5);
+            }
+
+            // Hash the buffers (excluding DescribedBuffer* pointers)
+            for (const auto& bufferPair : va.buffers) {
+                // Only hash the WGPUVertexStepMode, not the buffer pointer
+                size_t stepModeHash = std::hash<uint64_t>()(static_cast<uint64_t>(bufferPair.second));
+                hashValue ^= stepModeHash;
+                hashValue = ROT_BYTES(hashValue, 5);
+            }
+
+            return hashValue;
+        }
+    };
+}
 extern "C" VertexArray* LoadVertexArray(){
-    return new VertexArray;
+    return callocnew(VertexArray);
 }
 extern "C" void VertexAttribPointer(VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, WGPUVertexFormat format, uint32_t offset, WGPUVertexStepMode stepmode){
-    array->add(*buffer, attribLocation, format, offset, stepmode);
+    array->add(buffer, attribLocation, format, offset, stepmode);
 }
 
 extern "C" void BindVertexArray(DescribedPipeline* pipeline, VertexArray* va){
-    for(size_t i = 0;i < va->buffers.size();i++){
-        auto& firstbuffer = va->buffers[i].first.buffer;
-        wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, i, va->buffers[i].first.buffer, 0, va->buffers[i].first.descriptor.size);
+    // Iterate over each buffer
+    for(unsigned i = 0; i < va->buffers.size(); i++){
+        bool shouldBind = false;
+
+        // Check if any enabled attribute uses this buffer
+        for(const auto& attr : va->attributes){
+            if(attr.bufferSlot == i && attr.enabled){
+                shouldBind = true;
+                break;
+            }
+        }
+
+        if(shouldBind){
+            auto& bufferPair = va->buffers[i];
+            // Bind the buffer
+            wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 
+                                                i, 
+                                                bufferPair.first->buffer, 
+                                                0, 
+                                                bufferPair.first->descriptor.size);
+        } else {
+            TRACELOG(LOG_DEBUG, "Buffer slot %u not bound (no enabled attributes use it).", i);
+        }
     }
 }
 extern "C" void EnableVertexAttribArray(VertexArray* array, uint32_t attribLocation){
@@ -378,7 +578,7 @@ void EndDrawing(){
     //std::cout << nanosecondsPerFrame << "\n";
     uint64_t elapsed = NanoTime() - beginframe_stmp;
     if(elapsed & (1ull << 63))return;
-    if(!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) && nanosecondsPerFrame > elapsed)
+    if(!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) && nanosecondsPerFrame > elapsed && GetTargetFPS() > 0)
         NanoWait(nanosecondsPerFrame - elapsed);
     glfwPollEvents();
 

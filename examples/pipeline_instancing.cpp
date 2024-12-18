@@ -26,9 +26,9 @@ constexpr bool msaa = true;
 int main(){
     if(msaa)
         SetConfigFlags(FLAG_MSAA_4X_HINT);
-    SetConfigFlags(FLAG_VSYNC_HINT);
+    //SetConfigFlags(FLAG_VSYNC_HINT);
     InitWindow(1920 * 2, 1080 * 2, "VAO");
-    //SetTargetFPS(100000);
+    SetTargetFPS(0);
 
     float size = 1.0f / 1024;
     float qsize = size * 0.8f;
@@ -66,10 +66,10 @@ int main(){
     DescribedBuffer ibo = GenIndexBuffer(trifanIndices, sizeof(trifanIndices));
     DescribedPipeline* pl = LoadPipelineForVAO(source, vao, nullptr, 0, settings);
     while(!WindowShouldClose()){
-        for(size_t i = 0;i < offsets.size();i++){
-            offsets[i] += velocities[i] * 0.0001f;
-        }
-        BufferData(&poso, offsets.data(), offsets.size() * sizeof(Vector2));
+        //for(size_t i = 0;i < offsets.size();i++){
+        //    offsets[i] += velocities[i] * 0.0001f;
+        //}
+        //BufferData(&poso, offsets.data(), offsets.size() * sizeof(Vector2));
         BeginDrawing();
         ClearBackground(BLANK);
         BeginPipelineMode(pl, WGPUPrimitiveTopology_TriangleList);

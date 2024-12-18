@@ -27,41 +27,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 )";
 int main(){
     InitWindow(1200, 800, "VAO");
-    AttributeAndResidence attributes[4] = {
-        CLITERAL(AttributeAndResidence){
-            .attr = CLITERAL(WGPUVertexAttribute){.format = WGPUVertexFormat_Float32x2, 
-                                          .offset = 0, 
-                                          .shaderLocation = 0},
-            
-            .bufferSlot = 0, 
-            .stepMode = WGPUVertexStepMode_Vertex
-        },
-        CLITERAL(AttributeAndResidence){
-            .attr = CLITERAL(WGPUVertexAttribute){.format = WGPUVertexFormat_Float32x3, 
-                                          .offset = 0, 
-                                          .shaderLocation = 1},
-            
-            .bufferSlot = 1,
-            .stepMode = WGPUVertexStepMode_Vertex
-        },
-        CLITERAL(AttributeAndResidence){
-            .attr = CLITERAL(WGPUVertexAttribute){.format = WGPUVertexFormat_Float32x3, 
-                                          .offset = 0, 
-                                          .shaderLocation = 2},
-            
-            .bufferSlot = 2,
-            .stepMode = WGPUVertexStepMode_Vertex
-        },
-        CLITERAL(AttributeAndResidence){
-            .attr = CLITERAL(WGPUVertexAttribute){.format = WGPUVertexFormat_Float32x4, 
-                                          .offset = 0, 
-                                          .shaderLocation = 3},
-            
-            .bufferSlot = 3,
-            .stepMode = WGPUVertexStepMode_Vertex
-        }
-    };
-    
     //UniformDescriptor uniforms[1] = {
     //    (UniformDescriptor){
     //        .minBindingSize = 16,
@@ -98,20 +63,29 @@ int main(){
     DescribedBuffer posu = GenBuffer(uvs, sizeof(uvs));
     DescribedBuffer posn = GenBuffer(normals, sizeof(normals));
     DescribedBuffer posc = GenBuffer(colors, sizeof(colors));
+    DescribedBuffer posb2 = GenBuffer(positions, sizeof(positions));
+    DescribedBuffer posu2 = GenBuffer(uvs, sizeof(uvs));
+    DescribedBuffer posn2 = GenBuffer(normals, sizeof(normals));
+    DescribedBuffer posc2 = GenBuffer(colors, sizeof(colors));
     VertexArray* vao = LoadVertexArray();
 
     VertexAttribPointer(vao, &posb, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
     VertexAttribPointer(vao, &posu, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
     VertexAttribPointer(vao, &posn, 2, WGPUVertexFormat_Float32x3, 0, WGPUVertexStepMode_Vertex);
     VertexAttribPointer(vao, &posc, 3, WGPUVertexFormat_Float32x4, 0, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, &posb2, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
+    //VertexAttribPointer(vao, &posu2, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
+    //VertexAttribPointer(vao, &posn, 2, WGPUVertexFormat_Float32x3, 0, WGPUVertexStepMode_Vertex);
+    //VertexAttribPointer(vao, &posc2, 3, WGPUVertexFormat_Float32x4, 0, WGPUVertexStepMode_Vertex);
 
     RenderSettings settings zeroinit;
 
     settings.depthTest = 1;
     settings.depthCompare = WGPUCompareFunction_LessEqual;
 
-    DescribedPipeline* pl = LoadPipelineEx(source, attributes, 4, nullptr, 0, settings);
+    //DescribedPipeline* pl = LoadPipelineEx(source, nullptr, 0, nullptr, 0, settings);
     //DescribedPipeline* pl = DefaultPipeline();
+    DescribedPipeline* pl = LoadPipelineForVAO(source, vao, nullptr, 0, settings);
     PreparePipeline(pl, vao);
     while(!WindowShouldClose()){
         BeginDrawing();

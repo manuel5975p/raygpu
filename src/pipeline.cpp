@@ -3,7 +3,7 @@
 #include <cstring>
 #include <iostream>
 
-#define ROT_BYTES(V, C) (((V) << (C)) | ((V) >> (64 - (C))))
+
 
 WGPUBindGroupLayout bindGroupLayoutFromUniformTypes(const UniformDescriptor* uniforms, uint32_t uniformCount){
     std::vector<WGPUBindGroupLayoutEntry> blayouts(uniformCount);
@@ -209,11 +209,12 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
 }
 typedef struct VertexArray{
     std::vector<AttributeAndResidence> attributes;
-    std::vector<std::pair<DescribedBuffer, WGPUVertexStepMode>> buffers;
+    std::vector<std::pair<DescribedBuffer*, WGPUVertexStepMode>> buffers;
 }VertexArray;
 
 extern "C" void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va){
-    pipeline->vbLayouts = (WGPUVertexBufferLayout*) malloc(va->buffers.size() * sizeof(WGPUVertexBufferLayout));
+    size_t count = va->buffers.size();
+    pipeline->vbLayouts = (WGPUVertexBufferLayout*) calloc(count, sizeof(WGPUVertexBufferLayout));
     
     pipeline->descriptor.vertex.buffers = pipeline->vbLayouts;
     pipeline->descriptor.vertex.bufferCount = va->buffers.size();

@@ -426,10 +426,10 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         UniformDescriptor{uniform_buffer, 64}
     };
     AttributeAndResidence attrs[4] = {
-        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 0, 0}, 0, WGPUVertexStepMode_Vertex},
-        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x2, 3 * sizeof(float), 1}, 0, WGPUVertexStepMode_Vertex},
-        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 5 * sizeof(float), 2}, 0, WGPUVertexStepMode_Vertex},
-        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x4, 8 * sizeof(float), 3}, 0, WGPUVertexStepMode_Vertex},
+        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 0 * sizeof(float), 0}, 0, WGPUVertexStepMode_Vertex, true},
+        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x2, 3 * sizeof(float), 1}, 0, WGPUVertexStepMode_Vertex, true},
+        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 5 * sizeof(float), 2}, 0, WGPUVertexStepMode_Vertex, true},
+        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x4, 8 * sizeof(float), 3}, 0, WGPUVertexStepMode_Vertex, true},
     };
     //arraySetter(shaderInputs.per_vertex_sizes, {3,2,4});
     //arraySetter(shaderInputs.uniform_minsizes, {64, 0, 0, 0});
