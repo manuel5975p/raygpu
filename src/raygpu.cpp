@@ -27,7 +27,9 @@ Vector4 nextcol;
 vertex* vboptr;
 vertex* vboptr_base;
 //DescribedBuffer vbomap;
-
+#ifdef _WIN32
+#define __builtin_unreachable(...)
+#endif
 
 typedef struct VertexArray{
     std::vector<AttributeAndResidence> attributes;
@@ -942,7 +944,7 @@ inline WGPUVertexFormat f16format(uint32_t s){
         case 4:return WGPUVertexFormat_Float16x4;
         default: abort();
     }
-    //__builtin_unreachable();
+    __builtin_unreachable();
 }
 inline WGPUVertexFormat f32format(uint32_t s){
     switch(s){
@@ -952,7 +954,7 @@ inline WGPUVertexFormat f32format(uint32_t s){
         case 4:return WGPUVertexFormat_Float32x4;
         default: abort();
     }
-    //__builtin_unreachable();
+    __builtin_unreachable();
 }
 DescribedPipeline* GetActivePipeline(){
     return g_wgpustate.rstate->currentPipeline;
@@ -1672,26 +1674,52 @@ static const char *strprbrk(const char *s, const char *charset)
 
     return latestMatch;
 }
+template<typename callable>
+    requires(std::is_invocable_r_v<bool, callable, const std::filesystem::path&>)
+std::optional<std::filesystem::path> breadthFirstSearch(const std::filesystem::path& paf, callable lambda){
+    namespace fs = std::filesystem;
+    std::deque<fs::path> deq;
+    deq.push_back(paf);
+    while(deq.empty()){
+        fs::path elem = deq.front();
+        deq.pop_front();
+        if(lambda(elem)){
+            return elem;
+        }
+        if(fs::is_directory(elem)){
+            fs::directory_iterator dirit(elem);
+            for(auto& paf : dirit){
+                deq.push_front(paf);
+            }
+        }
+    }
+    return std::nullopt;
+}
 const char* FindDirectory(const char* directoryName, int maxOutwardSearch){
     static char dirPaff[2048] = {0};
     namespace fs = std::filesystem;
     fs::path searchPath(".");
-    for(int i = 0;i < maxOutwardSearch;i++, searchPath /= ".."){
-        fs::recursive_directory_iterator iter(searchPath);
-        for(auto& entry : iter){
-            if(entry.path().filename().string() == directoryName){
-                if(entry.is_directory()){
-                    strcpy(dirPaff, entry.path().string().c_str());
-                    goto end;
-                }else{
-                    TRACELOG(LOG_WARNING, "Found file %s, but it's not a directory", entry.path().c_str());
-                }
-            }
-        }
-    }
-    abort();
+    auto path = breadthFirstSearch(searchPath, [directoryName](const fs::path& p){
+        return p.filename().string() == directoryName;
+    });
+    //for(int i = 0;i < maxOutwardSearch;i++, searchPath /= ".."){
+    //    fs::recursive_directory_iterator iter(searchPath);
+    //    for(auto& entry : iter){
+    //        if(entry.path().filename().string() == directoryName){
+    //            if(entry.is_directory()){
+    //                strcpy(dirPaff, entry.path().string().c_str());
+    //                goto end;
+    //            }else{
+    //                TRACELOG(LOG_WARNING, "Found file %s, but it's not a directory", entry.path().c_str());
+    //            }
+    //        }
+    //    }
+    //}
+    //abort();
+    if(!dirPaff){
     TRACELOG(LOG_WARNING, "Directory %s not found", directoryName);
     return nullptr;
+    }
     end:
     return dirPaff;
 }
