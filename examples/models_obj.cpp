@@ -12,6 +12,7 @@ int main(cwoid){
         .up = CLITERAL(Vector3){0,1,0},
         .fovy = 1.0f
     };
+    
 
     std::string resourceDirectoryPath = std::string("../resources");// + FindDirectory("resources", 3);
     Model churchModel = LoadModel((resourceDirectoryPath + "/church.obj").c_str());
@@ -21,13 +22,15 @@ int main(cwoid){
     //UploadMesh(&cube, true);
 
     DescribedPipeline* pl = Relayout(DefaultPipeline(), churchMesh.vao);
+    
     Texture checkers = LoadTextureFromImage(GenImageChecker(RED, DARKBLUE, 100, 100, 4));
     float angle = 0.0f;
-    constexpr size_t instanceCount = 10000;
+    constexpr size_t instanceCount = 1600;
+    constexpr size_t rootInstanceCount = 40;
     Matrix trfs[instanceCount];
-    for(int i = 0;i < 100;i++){
-        for(int j = 0;j < 100;j++){
-            trfs[i * 100 + j] = MatrixTranslate(10.0f * i, 0, 10.0f * j) * MatrixScale(0.5,0.5,0.5);
+    for(int i = 0;i < 40;i++){
+        for(int j = 0;j < 40;j++){
+            trfs[i * 40 + j] = MatrixTranslate(10.0f * i - rootInstanceCount * 5.0f, 0, 10.0f * j - rootInstanceCount * 5.0f) * MatrixScale(0.5,0.5,0.5);
         }
     }
     while(!WindowShouldClose()){

@@ -30,18 +30,17 @@ struct VertexOutput {
     @location(1) color: vec4f,
 };
 
-/**
- * A structure holding the value of our uniforms
- */
-struct MyUniforms {
-    trf: mat4x4f
+struct LightBuffer {
+    count: u32,
+    positions: array<vec3f>
 };
 
 // Instead of the simple uTime variable, our uniform variable is a struct
-@group(0) @binding(0) var<uniform> uMyUniforms: MyUniforms;
+@group(0) @binding(0) var<uniform> Perspective_View: mat4x4f;
 @group(0) @binding(1) var gradientTexture: texture_2d<f32>;
 @group(0) @binding(2) var grsampler: sampler;
 @group(0) @binding(3) var<storage> modelMatrix: array<mat4x4f>;
+@group(0) @binding(4) var<storage> lights: LightBuffer;
 
 //Can be omitted
 //@group(0) @binding(3) var<storage> storig: array<vec4f>;
@@ -50,7 +49,7 @@ struct MyUniforms {
 @vertex
 fn vs_main(@builtin(instance_index) instanceIdx : u32, in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    out.position = uMyUniforms.trf * 
+    out.position = Perspective_View * 
                    modelMatrix[instanceIdx] *
     vec4f(in.position.xyz /*+ storig[0].xyz * 0.3f*/, 1.0f);
     out.color = in.color;
@@ -423,7 +422,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     //shaderInputs.per_instance_count = 0;
     
     //shaderInputs.uniform_count = 4;
-    UniformDescriptor desc[4] = {
+    UniformDescriptor uniforms[4] = {
         UniformDescriptor{uniform_buffer, 64},
         UniformDescriptor{texture2d, 0},
         UniformDescriptor{sampler, 0},
@@ -446,7 +445,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
                                   WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
                                   (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1
     );
-    init_full_renderstate(g_wgpustate.rstate, shaderSource, attrs, 4, desc, 4, colorTexture.view, depthTexture.view);
+    init_full_renderstate(g_wgpustate.rstate, shaderSource, attrs, 4, uniforms, sizeof(uniforms) / sizeof(UniformDescriptor), colorTexture.view, depthTexture.view);
     g_wgpustate.rstate->renderExtentX = width;
     g_wgpustate.rstate->renderExtentY = height;
     {
