@@ -10,7 +10,10 @@
 #else
 #include <emscripten/html5.h>
 #include <emscripten/emscripten.h>
-#endif  // __EMSCRIPTEN__
+#endif  // 
+#ifdef _WIN32
+#define __builtin_unreachable(...)
+#endif
 inline std::ostream& operator<<(std::ostream& ostr, const wgpu::StringView& st){
     ostr.write(st.data, st.length);
     return ostr;
@@ -230,7 +233,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
 
     // Synchronously create the device
     wgpu::RequiredLimits reqLimits;
-    reqLimits.limits.maxBufferSize = 1ull << 32;
+    reqLimits.limits.maxBufferSize = 1ull << 28;
     
     deviceDesc.requiredLimits = &reqLimits;
     sample->instance.WaitAny(
@@ -244,6 +247,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
                 sample->device = std::move(device);
                 sample->queue = sample->device.GetQueue();
             }),
+
         UINT64_MAX);
     if (sample->device == nullptr) {
         std::cerr << "Device is null\n";

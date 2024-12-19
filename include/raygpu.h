@@ -154,11 +154,16 @@ typedef struct BoundingBox {
     Vector3 min;            // Minimum vertex box-corner
     Vector3 max;            // Maximum vertex box-corner
 } BoundingBox;
-extern Vector2 nextuv;
-extern Vector4 nextcol;
-extern StagingBuffer vboStaging;
-extern vertex* vboptr;
-extern vertex* vboptr_base;
+#ifdef __cplusplus
+#define externcvar extern "C"
+#else 
+#define externcvar extern
+#endif
+externcvar Vector2 nextuv;
+externcvar Vector4 nextcol;
+externcvar StagingBuffer vboStaging;
+externcvar vertex* vboptr;
+externcvar vertex* vboptr_base;
 //extern DescribedBuffer vbomap;
 #ifdef __cplusplus
 constexpr Color LIGHTGRAY{ 200, 200, 200, 255 };

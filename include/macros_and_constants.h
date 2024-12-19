@@ -18,6 +18,9 @@ using std::realloc;
 using std::memcpy;
 using std::memset;
 using std::free;
+#ifndef M_PI
+#define M_PI 3.14159265358979323
+#endif
 constexpr float DEG2RAD = M_PI / 180.0;
 constexpr float RAD2DEG = 180.0 / M_PI;
 #else
@@ -34,14 +37,14 @@ constexpr float RAD2DEG = 180.0 / M_PI;
 #define RAD2DEG (180.0 / M_PI)
 #endif
 #if defined(_MSC_VER)
-#define RESET   ""
-#define RED     ""
-#define GREEN   ""
-#define YELLOW  ""
-#define BLUE    ""
-#define CYAN    ""
-#define MAGENTA ""
-#define WHITE   ""
+#define TERMCTL_RESET   ""
+#define TERMCTL_RED     ""
+#define TERMCTL_GREEN   ""
+#define TERMCTL_YELLOW  ""
+#define TERMCTL_BLUE    ""
+#define TERMCTL_CYAN    ""
+#define TERMCTL_MAGENTA ""
+#define TERMCTL_WHITE   ""
 #pragma message("Colors not supported in MSVC terminal")
 #else
 #define TERMCTL_RESET   "\033[0m"

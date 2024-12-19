@@ -31,6 +31,9 @@ using std::tan;
 #include <math.h>
 #endif
 #define MAPI static inline
+#ifndef M_PI
+#define M_PI 3.1415926
+#endif
 
 typedef struct Vector4{
     float x,y,z,w;
