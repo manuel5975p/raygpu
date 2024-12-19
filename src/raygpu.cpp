@@ -942,7 +942,7 @@ inline WGPUVertexFormat f16format(uint32_t s){
         case 4:return WGPUVertexFormat_Float16x4;
         default: abort();
     }
-    __builtin_unreachable();
+    //__builtin_unreachable();
 }
 inline WGPUVertexFormat f32format(uint32_t s){
     switch(s){
@@ -952,7 +952,7 @@ inline WGPUVertexFormat f32format(uint32_t s){
         case 4:return WGPUVertexFormat_Float32x4;
         default: abort();
     }
-    __builtin_unreachable();
+    //__builtin_unreachable();
 }
 DescribedPipeline* GetActivePipeline(){
     return g_wgpustate.rstate->currentPipeline;
@@ -1681,7 +1681,7 @@ const char* FindDirectory(const char* directoryName, int maxOutwardSearch){
         for(auto& entry : iter){
             if(entry.path().filename().string() == directoryName){
                 if(entry.is_directory()){
-                    strcpy(dirPaff, entry.path().c_str());
+                    strcpy(dirPaff, entry.path().string().c_str());
                     goto end;
                 }else{
                     TRACELOG(LOG_WARNING, "Found file %s, but it's not a directory", entry.path().c_str());
