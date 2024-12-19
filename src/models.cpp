@@ -2,6 +2,8 @@
 
 #define TINYOBJ_LOADER_C_IMPLEMENTATION
 #include <tinyobj_loader_c.h>
+#define CGLTF_IMPLEMENTATION
+#include <cgltf.h>
 Mesh GenMeshCube(float width, float height, float length){
     constexpr size_t vertexCount = 6 * 4;    //6 sides of 4 vertices
     const float vertices[] = {//3 components per vertex
@@ -86,10 +88,10 @@ Mesh GenMeshCube(float width, float height, float length){
     };
 
     Mesh cubeMesh zeroinit;
-    cubeMesh.vertices = (float*)calloc(vertexCount, sizeof(float) * 3);
-    cubeMesh.texcoords = (float*)calloc(vertexCount, sizeof(float) * 2);
-    cubeMesh.normals = (float*)calloc(vertexCount, sizeof(float) * 3);
-    cubeMesh.colors = (float*)calloc(vertexCount, sizeof(float) * 4);
+    cubeMesh.vertices = (float*)  calloc(vertexCount, sizeof(float) * 3);
+    cubeMesh.texcoords = (float*) calloc(vertexCount, sizeof(float) * 2);
+    cubeMesh.normals = (float*)   calloc(vertexCount, sizeof(float) * 3);
+    cubeMesh.colors = (float*)    calloc(vertexCount, sizeof(float) * 4);
     cubeMesh.indices = (uint32_t*)calloc(36, sizeof(uint32_t));
     uint32_t k = 0;
     for(int i = 0; i < 36; i += 6){
