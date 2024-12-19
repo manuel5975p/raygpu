@@ -160,6 +160,7 @@ typedef struct BoundingBox {
 #define externcvar extern
 #endif
 externcvar Vector2 nextuv;
+externcvar Vector3 nextnormal;
 externcvar Vector4 nextcol;
 externcvar StagingBuffer vboStaging;
 externcvar vertex* vboptr;
@@ -557,13 +558,15 @@ EXTERN_C_BEGIN
     }
 
     static void rlVertex2f(float x, float y){
-        *(vboptr++) = CLITERAL(vertex){{x, y, 0}, nextuv, CLITERAL(Vector3){0,0,0}, nextcol};
+        *(vboptr++) = CLITERAL(vertex){{x, y, 0}, nextuv, nextnormal, nextcol};
     }
     static void rlNormal3f(float x, float y, float z){
-        //Not supported
+        nextnormal.x = x;
+        nextnormal.y = y;
+        nextnormal.z = z;
     }
     static void rlVertex3f(float x, float y, float z){
-        *(vboptr++) = CLITERAL(vertex){{x, y, z}, nextuv, CLITERAL(Vector3){0,0,0}, nextcol};
+        *(vboptr++) = CLITERAL(vertex){{x, y, z}, nextuv, nextnormal, nextcol};
     }
     void rlBegin(enum draw_mode mode);
     void rlEnd(cwoid);

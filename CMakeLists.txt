@@ -68,7 +68,7 @@ set(RG_SOURCES
 add_library(raygpu ${RG_SOURCES})
 if(CMAKE_BUILD_TYPE MATCHES Debug)
     foreach(source_file IN LISTS RG_SOURCES)
-        set_source_files_properties(${source_file} PROPERTIES COMPILE_FLAGS "-g -fsanitize=address")
+        set_source_files_properties(${source_file} PROPERTIES COMPILE_FLAGS "-g -fsanitize=address -D_GLIBCXX_DEBUG")
     endforeach()
 endif()
 if(CMAKE_BUILD_TYPE MATCHES Release)
@@ -79,13 +79,18 @@ endif()
 SET_SOURCE_FILES_PROPERTIES("src/stb_impl.c" PROPERTIES COMPILE_FLAGS -w)
 SET_SOURCE_FILES_PROPERTIES("src/rtext.c" PROPERTIES COMPILE_FLAGS -w)
 target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/include" "${CMAKE_BINARY_DIR}/dl" "${CMAKE_CURRENT_LIST_DIR}/external")
+if(EMSCRIPTEN)
 target_link_libraries(raygpu PUBLIC
     emdawnwebgpu_c
     emdawnwebgpu_cpp
-    #webgpu_dawn
-    #webgpu_cpp
-    #dawn_internal_config
-    #dawn::dawn_glfw
+    glfw
+)
+else()
+target_link_libraries(raygpu PUBLIC
+    webgpu_dawn
+    webgpu_cpp
+    dawn_internal_config
+    dawn::dawn_glfw
     glfw
     #dawn::dawn_native
     #dawn::dawn_common
@@ -94,7 +99,8 @@ target_link_libraries(raygpu PUBLIC
     #dawn::dawn_test_utils
     #dawn::dawn_proc
 )
-target_include_directories(raygpu PUBLIC )
+endif()
+target_include_directories(raygpu PUBLIC)
 #add_executable(example "src/example.cpp")
 target_compile_features(raygpu PUBLIC cxx_std_20)
 #target_compile_features(example PUBLIC cxx_std_20)
