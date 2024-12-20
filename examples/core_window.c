@@ -2,7 +2,7 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
-void mainloop(){
+void mainloop(void){
     BeginDrawing();
     ClearBackground((Color){230, 230, 230,255});
     DrawText("Hello WebGPU enjoyer", 100, 300, 50, (Color){190, 190, 190,255});

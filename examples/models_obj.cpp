@@ -14,9 +14,9 @@ int main(cwoid){
     };
     
 
-    std::string resourceDirectoryPath = std::string("../resources");// + FindDirectory("resources", 3);
+    std::string resourceDirectoryPath = FindDirectory("resources", 3);
     Model churchModel = LoadModel((resourceDirectoryPath + "/church.obj").c_str());
-    Texture cdif = LoadTextureFromImage(LoadImage("../resources/church_diffuse.png"));
+    Texture cdif = LoadTextureFromImage(LoadImage((resourceDirectoryPath + "/church_diffuse.png").c_str()));
     std::cout << churchModel.meshCount << std::endl;
     Mesh churchMesh = churchModel.meshes[0];
     //UploadMesh(&cube, true);

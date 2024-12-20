@@ -1681,7 +1681,7 @@ std::optional<std::filesystem::path> breadthFirstSearch(const std::filesystem::p
     namespace fs = std::filesystem;
     std::deque<fs::path> deq;
     deq.push_back(paf);
-    while(deq.empty()){
+    while(!deq.empty()){
         fs::path elem = deq.front();
         deq.pop_front();
         if(lambda(elem)){
@@ -1699,10 +1699,20 @@ std::optional<std::filesystem::path> breadthFirstSearch(const std::filesystem::p
 const char* FindDirectory(const char* directoryName, int maxOutwardSearch){
     static char dirPaff[2048] = {0};
     namespace fs = std::filesystem;
+
     fs::path searchPath(".");
-    auto path = breadthFirstSearch(searchPath, [directoryName](const fs::path& p){
-        return p.filename().string() == directoryName;
-    });
+    std::optional<fs::path> path = std::nullopt;
+    for(int i = 0;i < maxOutwardSearch;i++){
+        auto pathopt = breadthFirstSearch(searchPath, [directoryName](const fs::path& p){
+            TRACELOG(LOG_WARNING, "%s", p.string().c_str());
+            return p.filename().string() == directoryName;
+        });
+        if(pathopt){
+            path = std::move(pathopt);
+            break;
+        }
+        searchPath /= fs::path("..");
+    }
     //for(int i = 0;i < maxOutwardSearch;i++, searchPath /= ".."){
     //    fs::recursive_directory_iterator iter(searchPath);
     //    for(auto& entry : iter){
