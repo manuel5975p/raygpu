@@ -3,8 +3,6 @@
 #include <random>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
-
-
 #endif
 
 const char source[] = 
@@ -50,9 +48,6 @@ VertexArray*     vao;
 int main(){
     SetConfigFlags(FLAG_VSYNC_HINT);
     InitWindow(1920, 1080, "VAO");
-    SetTargetFPS(0);
-
-    
     
     for(float i = -1;i <= 1;i += size){
         for(float j = -1;j <= 1;j += size){

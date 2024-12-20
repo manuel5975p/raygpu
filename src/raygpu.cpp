@@ -291,6 +291,11 @@ extern "C" void BindVertexArray(DescribedPipeline* pipeline, VertexArray* va){
     }
 }
 extern "C" void EnableVertexAttribArray(VertexArray* array, uint32_t attribLocation){
+    array->enableAttribute(attribLocation);
+    return;
+}
+extern "C" void DisableVertexAttribArray(VertexArray* array, uint32_t attribLocation){
+    array->disableAttribute(attribLocation);
     return;
 }
 extern "C" void DrawArrays(uint32_t vertexCount){
@@ -345,6 +350,7 @@ void drawCurrentBatch(){
     switch(g_wgpustate.current_drawmode){
         case RL_LINES:{
             DescribedBuffer vbo;
+            
             bool allocated_via_pool = false;
             if(vertexCount <= 8 && !g_wgpustate.smallBufferPool.empty()){
                 allocated_via_pool = true;
@@ -356,7 +362,11 @@ void drawCurrentBatch(){
                 vbo = GenBuffer(vboptr_base, vertexCount * sizeof(vertex));
             }
             vboptr = vboptr_base;
+            //TODO: Line texturing is currently disable in all DrawLine... functions
+            SetTexture(1, g_wgpustate.whitePixel);
             BindPipeline(g_wgpustate.rstate->currentPipeline, WGPUPrimitiveTopology_LineList);
+            
+            wgpuRenderPassEncoderSetBindGroup(g_wgpustate.rstate->renderpass.rpEncoder, 0, GetWGPUBindGroup(&g_wgpustate.rstate->currentPipeline->bindGroup), 0, 0);
             wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, wgpuBufferGetSize(vbo.buffer));
             wgpuRenderPassEncoderDraw(g_wgpustate.rstate->renderpass.rpEncoder, vertexCount, 1, 0, 0);
             if(!allocated_via_pool){
@@ -365,6 +375,7 @@ void drawCurrentBatch(){
             else{
                 g_wgpustate.smallBufferRecyclingBin.push_back(vbo);
             }
+            g_wgpustate.rstate->currentPipeline->bindGroup.needsUpdate = true;
         }break;
         case RL_TRIANGLES: [[fallthrough]];
         case RL_TRIANGLE_STRIP:{
@@ -602,6 +613,9 @@ void EndDrawing(){
     //std::this_thread::sleep_for(std::chrono::nanoseconds(nanosecondsPerFrame - elapsed));
 }
 void rlBegin(draw_mode mode){
+    if(mode == RL_LINES){ //TODO: Fix this, why is this required? Check core_msaa and comment this out to trigger a bug
+        SetTexture(1, g_wgpustate.whitePixel);
+    }
     if(g_wgpustate.current_drawmode != mode){
         drawCurrentBatch();
         //assert(g_wgpustate.rstate->activeRenderPass == &g_wgpustate.rstate->renderpass);
@@ -1348,9 +1362,11 @@ extern "C" void* LoadFileData(const char *fileName, size_t *dataSize) {
 }
 extern "C" Image LoadImage(const char* filename){
     size_t size;
+    std::string fn_cpp(filename);
+    const char* extbegin = fn_cpp.data() + fn_cpp.rfind("."); 
     void* data = LoadFileData(filename, &size);
     if(size != 0){
-        Image ld =  LoadImageFromMemory(data, size);
+        Image ld =  LoadImageFromMemory(extbegin, data, size);
         free(data);
         return ld;
     }
@@ -1366,11 +1382,15 @@ void UnloadTexture(Texture tex){
 void UnloadImage(Image img){
     free(img.data);
 }
-extern "C" Image LoadImageFromMemory(const void* data, size_t dataSize){
+extern "C" Image LoadImageFromMemory(const char* extension, const void* data, size_t dataSize){
     Image image;
     uint32_t comp;
     image.data = stbi_load_from_memory((stbi_uc*)data, dataSize, (int*)&image.width, (int*)&image.height, (int*)&comp, 0);
-    image.format = RGBA8;
+    if(comp == 4){
+        image.format = RGBA8;
+    }else if(comp == 3){
+        image.format = RGB8;
+    }
     return image;
 }
 extern "C" Image GenImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32_t checkerCount){
@@ -1431,10 +1451,11 @@ void UseNoTexture(){
     if(g_wgpustate.rstate->currentPipeline->bindGroup.entries[1].textureView == g_wgpustate.whitePixel.view)return;
 
     drawCurrentBatch();
-    WGPUBindGroupEntry entry{};
-    entry.binding = 1;
-    entry.textureView = g_wgpustate.whitePixel.view;
-    UpdateBindGroupEntry(&g_wgpustate.rstate->currentPipeline->bindGroup, 1, entry);
+    SetTexture(1, g_wgpustate.whitePixel);
+    //WGPUBindGroupEntry entry{};
+    //entry.binding = 1;
+    //entry.textureView = g_wgpustate.whitePixel.view;
+    //UpdateBindGroupEntry(&g_wgpustate.rstate->currentPipeline->bindGroup, 1, entry);
     //if(g_wgpustate.activeTexture.tex != g_wgpustate.whitePixel.tex){
     //    drawCurrentBatch();
     //    setStateTexture(g_wgpustate.rstate, 1, g_wgpustate.whitePixel);

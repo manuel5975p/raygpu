@@ -179,6 +179,7 @@ void DrawPixelV(Vector2 position, Color color)
 // Draw a line (using gl lines)
 void DrawLine(int startPosX, int startPosY, int endPosX, int endPosY, Color color)
 {
+    //UseNoTexture();
     rlBegin(RL_LINES);
         rlColor4ub(color.r, color.g, color.b, color.a);
         rlVertex2f((float)startPosX, (float)startPosY);
