@@ -9,9 +9,10 @@
 #define RL_REALLOC realloc
 #endif
 #ifndef RL_FREE
-#define RL_FREE free#ifndef RL_REALLOC
-#define RL_REALLOC realloc
+#define RL_FREE free
 #endif
+#ifndef RL_REALLOC
+#define RL_REALLOC realloc
 #endif
 #define TINYOBJ_LOADER_C_IMPLEMENTATION
 #include <tinyobj_loader_c.h>
@@ -407,6 +408,81 @@ Model LoadOBJ(const char *fileName)
 
     return model;
 }
+#ifdef sdhfalksjd
+static Image LoadImageFromCgltfImage(cgltf_image *cgltfImage, const char *texPath)
+{
+    Image image zeroinit;
+
+    if (cgltfImage == NULL) return image;
+
+    if (cgltfImage->uri != NULL)     // Check if image data is provided as an uri (base64 or path)
+    {
+        if ((strlen(cgltfImage->uri) > 5) &&
+            (cgltfImage->uri[0] == 'd') &&
+            (cgltfImage->uri[1] == 'a') &&
+            (cgltfImage->uri[2] == 't') &&
+            (cgltfImage->uri[3] == 'a') &&
+            (cgltfImage->uri[4] == ':'))     // Check if image is provided as base64 text data
+        {
+            // Data URI Format: data:<mediatype>;base64,<data>
+
+            // Find the comma
+            int i = 0;
+            while ((cgltfImage->uri[i] != ',') && (cgltfImage->uri[i] != 0)) i++;
+
+            if (cgltfImage->uri[i] == 0) TRACELOG(LOG_WARNING, "IMAGE: glTF data URI is not a valid image");
+            else
+            {
+                int base64Size = (int)strlen(cgltfImage->uri + i + 1);
+                while (cgltfImage->uri[i + base64Size] == '=') base64Size--;    // Ignore optional paddings
+                int numberOfEncodedBits = base64Size*6 - (base64Size*6) % 8 ;   // Encoded bits minus extra bits, so it becomes a multiple of 8 bits
+                int outSize = numberOfEncodedBits/8 ;                           // Actual encoded bytes
+                void *data = NULL;
+
+                cgltf_options options = zeroinit;
+                options.file.read = LoadFileGLTFCallback;
+                options.file.release = ReleaseFileGLTFCallback;
+                cgltf_result result = cgltf_load_buffer_base64(&options, outSize, cgltfImage->uri + i + 1, &data);
+
+                if (result == cgltf_result_success)
+                {
+                    image = LoadImageFromMemory(".png", (unsigned char *)data, outSize);
+                    RL_FREE(data);
+                }
+            }
+        }
+        else     // Check if image is provided as image path
+        {
+            image = LoadImage(TextFormat("%s/%s", texPath, cgltfImage->uri));
+        }
+    }
+    else if (cgltfImage->buffer_view != NULL && cgltfImage->buffer_view->buffer->data != NULL)    // Check if image is provided as data buffer
+    {
+        unsigned char *data = (unsigned char*) RL_MALLOC(cgltfImage->buffer_view->size);
+        int offset = (int)cgltfImage->buffer_view->offset;
+        int stride = (int)cgltfImage->buffer_view->stride? (int)cgltfImage->buffer_view->stride : 1;
+
+        // Copy buffer data to memory for loading
+        for (unsigned int i = 0; i < cgltfImage->buffer_view->size; i++)
+        {
+            data[i] = ((unsigned char *)cgltfImage->buffer_view->buffer->data)[offset];
+            offset += stride;
+        }
+
+        // Check mime_type for image: (cgltfImage->mime_type == "image/png")
+        // NOTE: Detected that some models define mime_type as "image\\/png"
+        if ((strcmp(cgltfImage->mime_type, "image\\/png") == 0) ||
+            (strcmp(cgltfImage->mime_type, "image/png") == 0)) image = LoadImageFromMemory(".png", data, (int)cgltfImage->buffer_view->size);
+        else if ((strcmp(cgltfImage->mime_type, "image\\/jpeg") == 0) ||
+                 (strcmp(cgltfImage->mime_type, "image/jpeg") == 0)) image = LoadImageFromMemory(".jpg", data, (int)cgltfImage->buffer_view->size);
+        else TRACELOG(LOG_WARNING, "MODEL: glTF image data MIME type not recognized", TextFormat("%s/%s", texPath, cgltfImage->uri));
+
+        RL_FREE(data);
+    }
+
+    return image;
+}
+
 Model LoadGLTFFromMemory(const void* fileData, size_t size){
     Model ret zeroinit;
     cgltf_options options zeroinit;
@@ -475,7 +551,7 @@ static Model LoadGLTF(const char *fileName)
     Model model = { 0 };
 
     // glTF file loading
-    size_t§ dataSize = 0;
+    size_t dataSize = 0;
     unsigned char *fileData = (unsigned char*)LoadFileData(fileName, &dataSize);
 
     if (fileData == NULL) return model;
@@ -1157,12 +1233,16 @@ static Model LoadGLTF(const char *fileName)
 
     return model;
 }
-
+#else
+Model LoadGLTF(...){
+    Model ret zeroinit;return ret;
+}
+#endif
 Model LoadModel(const char *fileName){
     
     Model model zeroinit;
 
     if (IsFileExtension(fileName, ".obj")) model = LoadOBJ(fileName);
-    if (IsFileExtension(fileName, ".glb")) model = LoadGLTF(fileName);
+    if (IsFileExtension(fileName, ".glb")){} model = LoadGLTF(fileName);
     return model;
 }

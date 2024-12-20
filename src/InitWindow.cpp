@@ -280,7 +280,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     GLFWwindow* window;
 #ifndef __EMSCRIPTEN__
     window = glfwCreateWindow(width, height, title, mon, nullptr);
-    //glfwSetWindowPos(window, 200, 1200);
+    glfwSetWindowPos(window, 200, 1200);
     if (!window) {
         abort();
     }
@@ -303,7 +303,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         //g_wgpustate.surface = wgpu::glfw::CreateSurfaceForWindow(g_wgpustate.instance, window).MoveToCHandle();
         //while(!g_wgpustate.drawmutex.try_lock());
         g_wgpustate.drawmutex.lock();
-        std::cout << "Size callbacked " << width << " " << height << "\n";
+        TraceLog(LOG_INFO, "Size callback called with %d x %d", width, height);
         WGPUSurfaceCapabilities capabilities;
         wgpuSurfaceGetCapabilities(g_wgpustate.surface, g_wgpustate.adapter, &capabilities);
         WGPUSurfaceConfiguration config = {};
@@ -404,9 +404,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     glfwSetCursorPosCallback(window, cpcallback);
     #else
     auto EmscriptenMouseCallback = [](int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
-        //(*((decltype(cpcallback)*)userData))(nullptr, mouseEvent->screenX, mouseEvent->screenY);
-        (*((decltype(cpcallback)*)userData))(nullptr, mouseEvent->clientX, mouseEvent->clientY);
-        TRACELOG(LOG_INFO, "clientX: %d", mouseEvent->canvasX);
+        (*((decltype(cpcallback)*)userData))(nullptr, mouseEvent->targetX, mouseEvent->targetY);
         return true;
     };
     //emscripten_set_click_callback("#canvas", NULL, 1, EmscriptenMouseCallback);

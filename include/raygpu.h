@@ -30,7 +30,8 @@ typedef struct BGRAColor{
 typedef enum PixelFormat{
     RGBA8 = WGPUTextureFormat_RGBA8Unorm,
     BGRA8 = WGPUTextureFormat_BGRA8Unorm,
-    GRAYSCALE = 0x100000 //No WGPU_ equivalent
+    GRAYSCALE = 0x100000, //No WGPU_ equivalent
+    RGB8 = 0x100000,
 }PixelFormat;
 
 typedef struct Image{
@@ -46,8 +47,8 @@ typedef struct Image{
 typedef struct Texture{
     uint32_t width, height;
     WGPUTextureFormat format;
-    WGPUTexture id;
     WGPUTextureView view;
+    WGPUTexture id;
 }Texture;
 typedef Texture Texture2D;
 typedef struct Rectangle {
@@ -114,8 +115,8 @@ typedef struct Mesh {
     //float *texcoords2;        // Vertex texture second coordinates (UV - 2 components per vertex) (shader-location = 5)
     float *normals;             // Vertex normals (XYZ - 3 components per vertex) (shader-location = 2)
     //float *tangents;          // Vertex tangents (XYZW - 4 components per vertex) (shader-location = 4)
-    float *colors;      // Vertex colors (RGBA - 4 components per vertex) (shader-location = 3)
-    uint32_t *indices;    // Vertex indices (in case vertex data comes indexed)
+    float *colors;              // Vertex colors (RGBA - 4 components per vertex) (shader-location = 3)
+    uint32_t *indices;          // Vertex indices (in case vertex data comes indexed)
 
     // Animation vertex data (not supported yet)
     // float *animVertices;        // Animated vertex positions (after bones transformations)
@@ -131,14 +132,17 @@ typedef struct Mesh {
     DescribedBuffer ibo; //Index buffer object, optional
 } Mesh;
 
-typedef struct Material{
-    int id;
-}Material;
 typedef struct MaterialMap{
     Texture tex;
     Color color;
     float value;
 }MaterialMap;
+
+typedef struct Material{
+    int id;
+    MaterialMap* maps;
+}Material;
+
 typedef struct Model {
     Matrix transform;       // Local transform matrix
 
@@ -490,7 +494,7 @@ EXTERN_C_BEGIN
     Image ImageFromImage(Image img, Rectangle rec);
     void UnloadImage(Image img);
     void UnloadTexture(Texture tex);
-    Image LoadImageFromMemory(const void* data, size_t dataSize);
+    Image LoadImageFromMemory(const char* extension, const void* data, size_t dataSize);
     Image GenImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32_t checkerCount);
     void SaveImage(Image img, const char* filepath);
 
@@ -624,10 +628,15 @@ EXTERN_C_BEGIN
     void updatePipeline        (full_renderstate* state, enum draw_mode drawmode);
     void setTargetTextures     (full_renderstate* state, WGPUTextureView c, WGPUTextureView d);
 
+    /**
+        The functions LoadVertexArray, VertexAttribPointer, EnableVertexAttribArray, DisableVertexAttribArray
+        aim to replicate the behaviour of OpenGL as closely as possible.
+     */
     VertexArray* LoadVertexArray(cwoid);
     void VertexAttribPointer(VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, WGPUVertexFormat format, uint32_t offset, WGPUVertexStepMode stepmode);
     void EnableVertexAttribArray(VertexArray* array, uint32_t attribLocation);
-    
+    void DisableVertexAttribArray(VertexArray* array, uint32_t attribLocation);
+
     void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va);
     void BindVertexArray(DescribedPipeline* pipeline, VertexArray* va);
     void DrawArrays(uint32_t vertexCount);
