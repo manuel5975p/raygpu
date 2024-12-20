@@ -1,6 +1,12 @@
 #include <raygpu.h>
 #include <vector>
 #include <random>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+
+
+#endif
+
 const char source[] = 
 R"(struct VertexInput {
     @location(0) position: vec2<f32>,
@@ -22,26 +28,32 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     return in.color;
 })";
-constexpr bool msaa = true;
+float size = 1.0f / 64;
+float qsize = size * 0.8f;
+float positions[8] = {
+    0,0,
+    qsize,0,
+    qsize,qsize,
+    0,qsize
+};
+std::vector<Vector2> offsets;
+std::vector<Vector2> velocities;
+std::vector<uint32_t> colors;
+std::mt19937_64 gen(42);
+DescribedPipeline* pl;
+DescribedBuffer ibo;
+DescribedBuffer posb;
+DescribedBuffer poso;
+DescribedBuffer posc;
+VertexArray*     vao;
+
 int main(){
-    if(msaa)
-        SetConfigFlags(FLAG_MSAA_4X_HINT);
-    //SetConfigFlags(FLAG_VSYNC_HINT);
-    InitWindow(1920 * 2, 1080 * 2, "VAO");
+    SetConfigFlags(FLAG_VSYNC_HINT);
+    InitWindow(1920, 1080, "VAO");
     SetTargetFPS(0);
 
-    float size = 1.0f / 1024;
-    float qsize = size * 0.8f;
-    float positions[8] = {
-        0,0,
-        qsize,0,
-        qsize,qsize,
-        0,qsize
-    };
-    std::vector<Vector2> offsets;
-    std::vector<Vector2> velocities;
-    std::vector<uint32_t> colors;
-    std::mt19937_64 gen(42);
+    
+    
     for(float i = -1;i <= 1;i += size){
         for(float j = -1;j <= 1;j += size){
             offsets.push_back(Vector2{i, j});
@@ -49,27 +61,28 @@ int main(){
             colors.push_back((uint32_t)gen());
         }
     }
-    DescribedBuffer posb = GenBuffer(positions, sizeof(positions));
-    DescribedBuffer poso = GenBuffer(offsets.data(), offsets.size() * sizeof(Vector2));
-    DescribedBuffer posc = GenBuffer(colors.data(), colors.size() * sizeof(uint32_t));
-    VertexArray* vao = LoadVertexArray();
+    posb = GenBuffer(positions, sizeof(positions));
+    poso = GenBuffer(offsets.data(), offsets.size() * sizeof(Vector2));
+    posc = GenBuffer(colors.data(), colors.size() * sizeof(uint32_t));
+    vao = LoadVertexArray();
 
     VertexAttribPointer(vao, &posb, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
     VertexAttribPointer(vao, &poso, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Instance);
     VertexAttribPointer(vao, &posc, 2, WGPUVertexFormat_Uint32, 0, WGPUVertexStepMode_Instance);
 
     RenderSettings settings zeroinit;
-    settings.depthTest = 1;
-    settings.sampleCount_onlyApplicableIfMoreThanOne = msaa ? 4 : 1;
-    settings.depthCompare = WGPUCompareFunction_LessEqual;
+    
     uint32_t trifanIndices[6] = {0,1,2,0,2,3};
-    DescribedBuffer ibo = GenIndexBuffer(trifanIndices, sizeof(trifanIndices));
-    DescribedPipeline* pl = LoadPipelineForVAO(source, vao, nullptr, 0, settings);
-    while(!WindowShouldClose()){
-        //for(size_t i = 0;i < offsets.size();i++){
-        //    offsets[i] += velocities[i] * 0.0001f;
-        //}
-        //BufferData(&poso, offsets.data(), offsets.size() * sizeof(Vector2));
+    ibo = GenIndexBuffer(trifanIndices, sizeof(trifanIndices));
+    settings.depthTest = 1;
+    settings.sampleCount_onlyApplicableIfMoreThanOne = 1;
+    settings.depthCompare = WGPUCompareFunction_LessEqual;
+    pl = LoadPipelineForVAO(source, vao, nullptr, 0, settings);
+    auto mainloop = [&]{
+        for(size_t i = 0;i < offsets.size();i++){
+            offsets[i] += velocities[i] * 0.0003f;
+        }
+        BufferData(&poso, offsets.data(), offsets.size() * sizeof(Vector2));
         BeginDrawing();
         ClearBackground(BLANK);
         BeginPipelineMode(pl, WGPUPrimitiveTopology_TriangleList);
@@ -78,5 +91,17 @@ int main(){
         EndPipelineMode();
         DrawFPS(0, 0);
         EndDrawing();
+    };
+    using mainloop_type = decltype(mainloop);
+    auto mainloopCaller = [](void* x){
+        (*((decltype(mainloop)*)x))();
+    };
+    #ifndef __EMSCRIPTEN__
+    while(!WindowShouldClose()){
+        mainloop();
     }
+    #else
+    
+    emscripten_set_main_loop_arg(mainloopCaller, (void*)&mainloop, 0, 0);
+    #endif
 }

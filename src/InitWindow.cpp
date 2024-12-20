@@ -4,6 +4,7 @@
 #include <chrono>
 #include "GLFW/glfw3.h"
 #ifndef __EMSCRIPTEN__
+#include <emscripten/html5.h>           // Emscripten HTML5 library
 #include "dawn/dawn_proc.h"
 #include "dawn/native/DawnNative.h"
 #include "webgpu/webgpu_glfw.h"
@@ -78,6 +79,9 @@ struct webgpu_cxx_state{
     full_renderstate* rstate = nullptr;
     Texture depthTexture{};
 };
+void mcb(GLFWwindow* window, double x, double y){
+    TraceLog(LOG_INFO, "Mousepos");
+}
 //webgpu_cxx_state* sample;
 GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     g_wgpustate.instance = nullptr;
@@ -275,13 +279,14 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         //abort();
     }
 #endif
-    GLFWwindow* window = glfwCreateWindow(width, height, title, mon, nullptr);
+    GLFWwindow* window;
+#ifndef __EMSCRIPTEN__
+    window = glfwCreateWindow(width, height, title, mon, nullptr);
     //glfwSetWindowPos(window, 200, 1200);
     if (!window) {
         abort();
     }
     g_wgpustate.window = window;
-#ifndef __EMSCRIPTEN__
     // Create the surface.
     sample->surface = wgpu::glfw::CreateSurfaceForWindow(sample->instance, window);
 #else
@@ -292,6 +297,8 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     wgpu::SurfaceDescriptor surfaceDesc = {};
     surfaceDesc.nextInChain = &canvasDesc;
     sample->surface = sample->instance.CreateSurface(&surfaceDesc);
+    window = glfwCreateWindow(width, height, title, mon, nullptr);
+    g_wgpustate.window = window;
 #endif
     glfwSetWindowSizeCallback(window, [](GLFWwindow* window, int width, int height){
         //wgpuSurfaceRelease(g_wgpustate.surface);
@@ -365,8 +372,9 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     g_wgpustate.frameBufferFormat = (WGPUTextureFormat)config.format;
     //std::cout << "Supported Framebuffer Format: 0x" << std::hex << (WGPUTextureFormat)config.format << std::dec << "\n";
     
-    
-    g_wgpustate.whitePixel = LoadTextureFromImage(GenImageChecker(Color{255,255,255,255}, Color{255,255,255,255}, 1, 1, 0));
+    TraceLog(LOG_INFO, "Loading whitepixel texture");
+    g_wgpustate.whitePixel = LoadTextureFromImage(GenImageChecker(Color{255,255,255,255}, Color{255,255,255,255}, 16, 16, 0));
+    TraceLog(LOG_INFO, "Loaded whitepixel texture");
 
     WGPUShaderModule tShader = LoadShaderFromMemory(shaderSource);
     //RenderTexture rtex = LoadRenderTexture(width, height);
@@ -391,9 +399,21 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         g_wgpustate.scrollThisFrame.x += xoffset;
         g_wgpustate.scrollThisFrame.y += yoffset;
     });
-    glfwSetCursorPosCallback(window, [](GLFWwindow* window, double x, double y){
+    auto cpcallback = [](GLFWwindow* window, double x, double y){
         g_wgpustate.mousePos = Vector2{float(x), float(y)};
-    });
+    };
+    #ifndef __EMSCRIPTEN__
+    glfwSetCursorPosCallback(window, cpcallback);
+    #else
+    auto EmscriptenMouseCallback = [](int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
+        //(*((decltype(cpcallback)*)userData))(nullptr, mouseEvent->screenX, mouseEvent->screenY);
+        (*((decltype(cpcallback)*)userData))(nullptr, mouseEvent->clientX, mouseEvent->clientY);
+        TRACELOG(LOG_INFO, "clientX: %d", mouseEvent->canvasX);
+        return true;
+    };
+    //emscripten_set_click_callback("#canvas", NULL, 1, EmscriptenMouseCallback);
+    emscripten_set_mousemove_callback("#canvas", &cpcallback, 1, EmscriptenMouseCallback);
+    #endif // __EMSCRIPTEN__
     glfwSetMouseButtonCallback(window, [](GLFWwindow* window, int button, int action, int mods){
         if(action == GLFW_PRESS){
             g_wgpustate.mouseButtonDown[button] = 1;
@@ -464,8 +484,8 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     }
 
     LoadFontDefault();
-    for(size_t i = 0;i < 1000;i++){
-        g_wgpustate.smallBufferPool.push_back(GenBuffer(nullptr, sizeof(vertex) * 30));
+    for(size_t i = 0;i < 100;i++){
+        g_wgpustate.smallBufferPool.push_back(GenBuffer(nullptr, sizeof(vertex) * 10));
     }
     WGPUCommandEncoderDescriptor cedesc{};
     cedesc.label = STRVIEW("Global Command Encoder");
@@ -494,17 +514,19 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     WGPUSampler sampler = wgpuDeviceCreateSampler(g_wgpustate.device, &samplerDesc);
     SetSampler(2, sampler);
     g_wgpustate.init_timestamp = NanoTime();
-
+    TraceLog(LOG_INFO, "oof");
+    #ifndef __EMSCRIPTEN__
     if(g_wgpustate.windowFlags & FLAG_VSYNC_HINT){
         auto rate = glfwGetVideoMode(glfwGetPrimaryMonitor())->refreshRate;
         SetTargetFPS(rate);
     }
     else
         SetTargetFPS(60);
+    #endif
     #ifndef __EMSCRIPTEN__
     return window;
     #else
-    return nullptr;
+    return window;
     #endif
 }
 void CloseWindow(cwoid){

@@ -36,7 +36,7 @@ constexpr float RAD2DEG = 180.0 / M_PI;
 #define DEG2RAD (M_PI / 180.0)
 #define RAD2DEG (180.0 / M_PI)
 #endif
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) || defined (__EMSCRIPTEN__)
 #define TERMCTL_RESET   ""
 #define TERMCTL_RED     ""
 #define TERMCTL_GREEN   ""
@@ -45,7 +45,6 @@ constexpr float RAD2DEG = 180.0 / M_PI;
 #define TERMCTL_CYAN    ""
 #define TERMCTL_MAGENTA ""
 #define TERMCTL_WHITE   ""
-#pragma message("Colors not supported in MSVC terminal")
 #else
 #define TERMCTL_RESET   "\033[0m"
 #define TERMCTL_RED     "\033[31m"

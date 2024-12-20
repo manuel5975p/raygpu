@@ -23,6 +23,7 @@ wgpustate g_wgpustate;
 #include <sinfl.h>
 
 Vector2 nextuv;
+Vector3 nextnormal;
 Vector4 nextcol;
 vertex* vboptr;
 vertex* vboptr_base;
@@ -737,12 +738,12 @@ Texture LoadTextureFromImage(Image img){
     vdesc.baseMipLevel = 0;
     vdesc.mipLevelCount = 1;
         
-    WGPUImageCopyTexture destination;
+    WGPUImageCopyTexture destination{};
     destination.texture = ret.id;
     destination.mipLevel = 0;
     destination.origin = { 0, 0, 0 }; // equivalent of the offset argument of Queue::writeBuffer
     destination.aspect = WGPUTextureAspect_All; // only relevant for depth/Stencil textures
-    WGPUTextureDataLayout source;
+    WGPUTextureDataLayout source{};
     source.offset = 0;
     source.bytesPerRow = 4 * img.width;
     source.rowsPerImage = img.height;
@@ -993,7 +994,7 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     //vbomap.descriptor = vbmdesc;
     vboptr_base = nullptr;
     //vboptr = (vertex*)wgpuBufferGetMappedRange(vbomap.buffer, 0, vbmdesc.size);
-    vboptr = (vertex*)calloc(1000000, sizeof(vertex));
+    vboptr = (vertex*)calloc(10000, sizeof(vertex));
     vboptr_base = vboptr;
     state->defaultPipeline->lastUsedAs = WGPUPrimitiveTopology_TriangleList;
     //std::cout << "VBO Punkter: " << vboptr << "\n";
@@ -1716,11 +1717,12 @@ const char* FindDirectory(const char* directoryName, int maxOutwardSearch){
     //    }
     //}
     //abort();
-    if(!dirPaff){
-    TRACELOG(LOG_WARNING, "Directory %s not found", directoryName);
-    return nullptr;
+    if(!path.has_value()){
+        TRACELOG(LOG_WARNING, "Directory %s not found", directoryName);
+        return nullptr;
     }
-    end:
+    std::string val = path.value().string();
+    *std::copy(val.begin(), val.end(), dirPaff) = '\0';
     return dirPaff;
 }
 const char *GetDirectoryPath(const char *filePath)
