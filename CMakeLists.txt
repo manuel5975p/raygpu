@@ -59,6 +59,7 @@ set(RG_SOURCES
     "src/shapes.cpp"
     "src/stb_impl.c"
     "src/sinfl_impl.c"
+    "src/cgltf_impl.c"
     "src/rtext.c"
     "src/rshapes.cpp"
     "src/pipeline.cpp"
@@ -78,6 +79,7 @@ if(CMAKE_BUILD_TYPE MATCHES Release)
 endif()
 SET_SOURCE_FILES_PROPERTIES("src/stb_impl.c" PROPERTIES COMPILE_FLAGS -w)
 SET_SOURCE_FILES_PROPERTIES("src/rtext.c" PROPERTIES COMPILE_FLAGS -w)
+SET_SOURCE_FILES_PROPERTIES("src/cgltf_impl.c" PROPERTIES COMPILE_FLAGS -w)
 target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include" "${CMAKE_BINARY_DIR}/dl" "${CMAKE_CURRENT_LIST_DIR}/external")
 if(EMSCRIPTEN)
 target_link_libraries(raygpu PUBLIC

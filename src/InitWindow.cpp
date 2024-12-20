@@ -4,7 +4,6 @@
 #include <chrono>
 #include "GLFW/glfw3.h"
 #ifndef __EMSCRIPTEN__
-#include <emscripten/html5.h>           // Emscripten HTML5 library
 #include "dawn/dawn_proc.h"
 #include "dawn/native/DawnNative.h"
 #include "webgpu/webgpu_glfw.h"
@@ -39,7 +38,6 @@ struct LightBuffer {
     positions: array<vec3f>
 };
 
-// Instead of the simple uTime variable, our uniform variable is a struct
 @group(0) @binding(0) var<uniform> Perspective_View: mat4x4f;
 @group(0) @binding(1) var gradientTexture: texture_2d<f32>;
 @group(0) @binding(2) var grsampler: sampler;

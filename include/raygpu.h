@@ -134,7 +134,11 @@ typedef struct Mesh {
 typedef struct Material{
     int id;
 }Material;
-
+typedef struct MaterialMap{
+    Texture tex;
+    Color color;
+    float value;
+}MaterialMap;
 typedef struct Model {
     Matrix transform;       // Local transform matrix
 
@@ -631,7 +635,7 @@ EXTERN_C_BEGIN
     void DrawArraysInstanced(uint32_t vertexCount, uint32_t instanceCount);
     void DrawArraysIndexedInstanced(DescribedBuffer indexBuffer, uint32_t vertexCount, uint32_t instanceCount);
 
-
+    Material LoadMaterialDefault(cwoid);
     Model LoadModel(const char *fileName);                                                // Load model from files (meshes and materials)
     Model LoadModelFromMesh(Mesh mesh);                                                   // Load model from generated mesh (default material)
     bool IsModelValid(Model model);                                                       // Check if a model is valid (loaded in GPU, VAO/VBOs)
