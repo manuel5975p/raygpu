@@ -370,8 +370,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     g_wgpustate.frameBufferFormat = (WGPUTextureFormat)config.format;
     //std::cout << "Supported Framebuffer Format: 0x" << std::hex << (WGPUTextureFormat)config.format << std::dec << "\n";
     
-    TraceLog(LOG_INFO, "Loading whitepixel texture");
-    g_wgpustate.whitePixel = LoadTextureFromImage(GenImageChecker(Color{255,255,255,255}, Color{255,255,255,255}, 16, 16, 0));
+    g_wgpustate.whitePixel = LoadTextureFromImage(GenImageChecker(Color{255,255,255,255}, Color{255,255,255,255}, 1, 1, 0));
     TraceLog(LOG_INFO, "Loaded whitepixel texture");
 
     WGPUShaderModule tShader = LoadShaderFromMemory(shaderSource);
@@ -510,7 +509,6 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     WGPUSampler sampler = wgpuDeviceCreateSampler(g_wgpustate.device, &samplerDesc);
     SetSampler(2, sampler);
     g_wgpustate.init_timestamp = NanoTime();
-    TraceLog(LOG_INFO, "oof");
     #ifndef __EMSCRIPTEN__
     if(g_wgpustate.windowFlags & FLAG_VSYNC_HINT){
         auto rate = glfwGetVideoMode(glfwGetPrimaryMonitor())->refreshRate;

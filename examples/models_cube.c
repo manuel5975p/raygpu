@@ -1,48 +1,50 @@
 #include <raygpu.h>
 #include <stdio.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
+Camera3D cam;
+Mesh cube;
+DescribedPipeline* pl;
+Texture checkers;
+float angle;
+void mainloop(void){
+    BeginDrawing();
+    angle += GetFrameTime();
+    cam.position = (Vector3){sinf(angle) * 10.f, 5.0f, cosf(angle) * 10.f};
+    ClearBackground(BLACK);
+    //TODO: Swapping the next two causes a problem since the BindGroup is lazily updated only at BindPipeline
+    //EDIT: It's not due to lazy update; DrawArrays and DrawArraysFixed did not check for a pending Bindgroup Update
+    BeginPipelineMode(pl, WGPUPrimitiveTopology_TriangleList);
+    UseTexture(checkers);
+    BeginMode3D(cam);
+    BindVertexArray(pl, cube.vao);
+    DrawArraysIndexed(cube.ibo, 36);
+    EndMode3D();
+    EndPipelineMode();
+    DrawFPS(0, 0);
+    EndDrawing();
+}
 int main(cwoid){
     InitWindow(1200, 800, "VAO");
     
-    Camera3D cam = CLITERAL(Camera3D){
+    cam = CLITERAL(Camera3D){
         .position = CLITERAL(Vector3){0,0,10},
         .target = CLITERAL(Vector3){0,0,0},
         .up = CLITERAL(Vector3){0,1,0},
         .fovy = 1.0f
     };
-    Mesh cube = GenMeshCube(3.f,3.f,3.f);
+    cube = GenMeshCube(3.f,3.f,3.f);
+    pl = Relayout(DefaultPipeline(), cube.vao);
+    checkers = LoadTextureFromImage(GenImageChecker(RED, DARKBLUE, 100, 100, 4));
+    angle = 0.0f;
 
-    DescribedPipeline* pl = Relayout(DefaultPipeline(), cube.vao);
-    DescribedPipeline* plorig = DefaultPipeline();
-    //PreparePipeline(pl, cube.vao);
-    WGPUBindGroupEntry camentry zeroinit;
-    camentry.binding = 0;
-    Matrix mat = GetCameraMatrix3D(cam, 1.5);
-    camentry.buffer = GenUniformBuffer(&mat, sizeof(Matrix)).buffer;
-    camentry.size = sizeof(Matrix);
-    UpdateBindGroupEntry(&pl->bindGroup, 0, camentry);
-    Texture checkers = LoadTextureFromImage(GenImageChecker(RED, DARKBLUE, 100, 100, 4));
-    float angle = 0.0f;
+    #ifndef __EMSCRIPTEN__
     while(!WindowShouldClose()){
-        BeginDrawing();
-        angle += GetFrameTime();
-        cam.position = (Vector3){sinf(angle) * 10.f, 5.0f, cosf(angle) * 10.f};
-        ClearBackground(BLACK);
-        
-        
-        //TODO: Swapping the next two causes a problem since the BindGroup is lazily updated only at BindPipeline
-        //EDIT: It's not due to lazy update; DrawArrays and DrawArraysFixed did not check for a pending Bindgroup Update
-        BeginPipelineMode(pl, WGPUPrimitiveTopology_TriangleList);
-        UseTexture(checkers);
-        BeginMode3D(cam);
-        BindVertexArray(pl, cube.vao);
-        DrawArraysIndexed(cube.ibo, 36);
-        EndMode3D();
-        EndPipelineMode();
-        //BeginPipelineMode(plorig, WGPUPrimitiveTopology_TriangleList);
-        DrawRectangle(0,0,200,100,RED);
-        DrawFPS(0, 0);
-
-        //EndPipelineMode();
-        EndDrawing();
+        mainloop();
     }
+    #else
+    emscripten_set_main_loop(mainloop, 0, 0);
+    #endif
 }
