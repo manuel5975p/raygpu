@@ -69,6 +69,12 @@ typedef struct DescribedRenderpass{
     WGPUCommandEncoder cmdEncoder;
     WGPURenderPassEncoder rpEncoder; //Only non-null when in renderpass
 }DescribedRenderpass;
+
+typedef struct DescribedComputePass{
+    WGPUCommandEncoder cmdEncoder;
+    WGPUComputePassEncoder cpEncoder;
+    WGPUComputePassDescriptor desc;
+}DescribedComputepass;
 EXTERN_C_BEGIN
     WGPUDevice GetDevice(cwoid);
     WGPUQueue GetQueue(cwoid);
@@ -476,6 +482,8 @@ EXTERN_C_BEGIN
     
     void BeginRenderpass(cwoid);
     void EndRenderpass(cwoid);
+    void BeginComputepassEx(DescribedComputepass* computePass);
+    void EndComputepassEx(DescribedComputepass* computePass);
     void BeginRenderpassEx(DescribedRenderpass* renderPass);
     void EndRenderpassEx(DescribedRenderpass* renderPass);
     void BeginPipelineMode(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode);
@@ -589,6 +597,7 @@ EXTERN_C_BEGIN
     void EndTextureMode(cwoid);
 
     void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode);
+    void BindComputePipeline(DescribedComputePipeline* pipeline);
 
     WGPUShaderModule LoadShaderFromMemory(const char* shaderSource);
     WGPUShaderModule LoadShader(const char* path);
@@ -777,6 +786,7 @@ typedef struct full_renderstate{
 
     DescribedRenderpass clearPass;
     DescribedRenderpass renderpass;
+    DescribedComputepass computepass;
     DescribedRenderpass* activeRenderPass;
 
     uint32_t renderExtentX; // Dimensions of the current viewport

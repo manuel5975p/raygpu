@@ -145,7 +145,7 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
         bge[i] = WGPUBindGroupEntry{};
         bge[i].binding = i;
     }
-    ret.bindGroup = LoadBindGroup(&ret, bge.data(), bge.size());
+    ret.bindGroup = LoadBindGroup(&ret.bglayout, bge.data(), bge.size());
     ret.layout.descriptor = WGPUPipelineLayoutDescriptor{};
     ret.layout.descriptor.bindGroupLayoutCount = 1;
     ret.layout.descriptor.bindGroupLayouts = &ret.bglayout.layout;
@@ -357,12 +357,12 @@ uint64_t bgEntryHash(const WGPUBindGroupEntry& bge){
     return value;
 }
 
-extern "C" DescribedBindGroup LoadBindGroup(const DescribedPipeline* pipeline, const WGPUBindGroupEntry* entries, size_t entryCount){
+extern "C" DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const WGPUBindGroupEntry* entries, size_t entryCount){
     DescribedBindGroup ret zeroinit;
     WGPUBindGroupEntry* rentries = (WGPUBindGroupEntry*) calloc(entryCount, sizeof(WGPUBindGroupEntry));
     memcpy(rentries, entries, entryCount * sizeof(WGPUBindGroupEntry));
     ret.entries = rentries;
-    ret.desc.layout = pipeline->bglayout.layout;
+    ret.desc.layout = bglayout->layout;
     ret.desc.entries = ret.entries;
     ret.desc.entryCount = entryCount;
     ret.needsUpdate = true;
