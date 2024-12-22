@@ -40,9 +40,17 @@ WGPUBindGroupLayout bindGroupLayoutFromUniformTypes(const UniformDescriptor* uni
     return wgpuDeviceCreateBindGroupLayout(g_wgpustate.device, &bglayoutdesc);
 }
 
-DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, uint32_t uniformCount){
+DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, uint32_t uniformCount, bool compute){
     DescribedBindGroupLayout ret{};
-    
+    WGPUShaderStage visible;
+    WGPUShaderStage vfragmentOnly = compute ? WGPUShaderStage_Compute : WGPUShaderStage_Fragment;
+    WGPUShaderStage vvertexOnly = compute ? WGPUShaderStage_Compute : WGPUShaderStage_Vertex;
+    if(compute){
+        visible = WGPUShaderStage_Compute;
+    }
+    else{
+        visible = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+    }
     WGPUBindGroupLayoutEntry* blayouts = (WGPUBindGroupLayoutEntry*)malloc(uniformCount * sizeof(WGPUBindGroupLayoutEntry));
     WGPUBindGroupLayoutDescriptor& bglayoutdesc = ret.descriptor;
     std::memset(blayouts, 0, uniformCount * sizeof(WGPUBindGroupLayoutEntry));
@@ -50,23 +58,29 @@ DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, 
         blayouts[i].binding = i;
         switch(uniforms[i].type){
             case uniform_buffer:
-                blayouts[i].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+                blayouts[i].visibility = visible;
                 blayouts[i].buffer.type = WGPUBufferBindingType_Uniform;
                 blayouts[i].buffer.minBindingSize = uniforms[i].minBindingSize;
             break;
             case storage_buffer:{
-                blayouts[i].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+                blayouts[i].visibility = visible;
                 blayouts[i].buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
                 blayouts[i].buffer.minBindingSize = 0;
             }
             break;
+            case storage_write_buffer:{
+                blayouts[i].visibility = vvertexOnly;
+                blayouts[i].buffer.type = WGPUBufferBindingType_Storage;
+                blayouts[i].buffer.minBindingSize = 0;
+            }
+            break;
             case texture2d:
-                blayouts[i].visibility = WGPUShaderStage_Fragment;
+                blayouts[i].visibility = vfragmentOnly;
                 blayouts[i].texture.sampleType = WGPUTextureSampleType_Float;
                 blayouts[i].texture.viewDimension = WGPUTextureViewDimension_2D;
             break;
             case sampler:
-                blayouts[i].visibility = WGPUShaderStage_Fragment;
+                blayouts[i].visibility = vfragmentOnly;
                 blayouts[i].sampler.type = WGPUSamplerBindingType_Filtering;
             break;
             default:break;
@@ -125,7 +139,7 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
         ret.vbLayouts[i].stepMode = WGPUVertexStepMode_Vertex;
     }
 
-    ret.bglayout = LoadBindGroupLayout(uniforms, uniformCount);
+    ret.bglayout = LoadBindGroupLayout(uniforms, uniformCount, false);
     std::vector<WGPUBindGroupEntry> bge(uniformCount);
     for(uint32_t i = 0;i < bge.size();i++){
         bge[i] = WGPUBindGroupEntry{};
@@ -305,6 +319,23 @@ DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
     pipeline->pipeline = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipeline->descriptor);
     return pipeline;
 }
+
+DescribedComputePipeline* LoadComputePipeline(const char* shaderCode, const UniformDescriptor* uniforms, uint32_t uniformCount){
+    DescribedComputePipeline* ret = callocnew(DescribedComputePipeline);
+    WGPUComputePipelineDescriptor& desc = ret->desc;
+    WGPUPipelineLayoutDescriptor pldesc{};
+    pldesc.bindGroupLayoutCount = 1;
+    ret->bglayout = LoadBindGroupLayout(uniforms, uniformCount, true);
+    pldesc.bindGroupLayoutCount = 1;
+    pldesc.bindGroupLayouts = &ret->bglayout.layout;
+    WGPUPipelineLayout playout = wgpuDeviceCreatePipelineLayout(GetDevice(), &pldesc);
+    desc.compute.module = LoadShaderFromMemory(shaderCode);
+    desc.compute.entryPoint = STRVIEW("compute_main");
+    desc.layout = playout;
+    ret->pipeline = wgpuDeviceCreateComputePipeline(GetDevice(), &ret->desc);
+    return ret;
+}
+
 DescribedPipeline* DefaultPipeline(){
     return g_wgpustate.rstate->defaultPipeline;
 }

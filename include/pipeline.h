@@ -5,7 +5,7 @@
 #include "macros_and_constants.h"
 
 enum uniform_type{
-    uniform_buffer, storage_buffer, texture2d, sampler
+    uniform_buffer, storage_buffer, texture2d, sampler, storage_write_buffer
 };
 
 typedef struct UniformDescriptor{
@@ -67,9 +67,13 @@ typedef struct DescribedPipeline{
     WGPUFragmentState* fragmentState;
     WGPUColorTargetState* colorTarget;
     WGPUDepthStencilState* depthStencilState;
-
-
 }DescribedPipeline;
+typedef struct DescribedComputePipeline{
+    WGPUComputePipelineDescriptor desc;
+    WGPUComputePipeline pipeline;
+    DescribedBindGroupLayout bglayout;
+}DescribedComputePipeline;
+
 typedef struct VertexArray VertexArray;
 EXTERN_C_BEGIN
     inline void UsePipeline(WGPURenderPassEncoder rpEncoder, DescribedPipeline pl){
@@ -77,7 +81,7 @@ EXTERN_C_BEGIN
     }
     WGPUDevice GetDevice(cwoid);
 
-    DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, uint32_t uniformCount);
+    //DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, uint32_t uniformCount);
     void UnloadBindGroupLayout(DescribedBindGroupLayout* bglayout);
     
 
@@ -89,6 +93,6 @@ EXTERN_C_BEGIN
     void UnloadBindGroup(DescribedBindGroup* bg);
     
     DescribedPipeline* Relayout(DescribedPipeline* pl, VertexArray* vao);
-
+    DescribedComputePipeline* LoadComputePipeline(const char* shaderCode, const UniformDescriptor* uniforms, uint32_t uniformCount);
 EXTERN_C_END
 #endif// PIPELINE_H
