@@ -72,6 +72,7 @@ typedef struct DescribedComputePipeline{
     WGPUComputePipelineDescriptor desc;
     WGPUComputePipeline pipeline;
     DescribedBindGroupLayout bglayout;
+    DescribedBindGroup bindGroup;
 }DescribedComputePipeline;
 
 typedef struct VertexArray VertexArray;
@@ -85,7 +86,7 @@ EXTERN_C_BEGIN
     void UnloadBindGroupLayout(DescribedBindGroupLayout* bglayout);
     
 
-    DescribedBindGroup LoadBindGroup(const DescribedPipeline* pipeline, const WGPUBindGroupEntry* entries, size_t entryCount);
+    DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const WGPUBindGroupEntry* entries, size_t entryCount);
     WGPUBindGroup GetWGPUBindGroup(DescribedBindGroup* bg);
     
     void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, WGPUBindGroupEntry entry);

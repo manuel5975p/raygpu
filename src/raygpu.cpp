@@ -499,7 +499,10 @@ extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology 
     wgpuRenderPassEncoderSetBindGroup (g_wgpustate.rstate->renderpass.rpEncoder, 0, GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
 
 }
-
+extern "C" void BindComputePipeline(DescribedComputePipeline* pipeline){
+    wgpuComputePassEncoderSetPipeline(g_wgpustate.rstate->computepass.cpEncoder, pipeline->pipeline);
+    wgpuComputePassEncoderSetBindGroup (g_wgpustate.rstate->computepass.cpEncoder, 0, GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
+}
 
 uint32_t GetScreenWidth (cwoid){
     return g_wgpustate.width;
@@ -561,6 +564,25 @@ extern "C" void ClearBackground(Color clearColor){
         BeginRenderpassEx(backup);
     }
 
+}
+
+void BeginComputepassEx(DescribedComputepass* computePass){
+    g_wgpustate.rstate->computepass.cpEncoder = wgpuCommandEncoderBeginComputePass(g_wgpustate.rstate->computepass.cmdEncoder, &g_wgpustate.rstate->computepass.desc);
+
+}
+void EndComputepassEx(DescribedComputepass* computePass){
+    wgpuComputePassEncoderEnd(computePass->cpEncoder);
+    
+    //TODO
+    //g_wgpustate.rstate->activeComputePass = nullptr;
+
+    computePass->cpEncoder = 0;
+    WGPUCommandBufferDescriptor cmdBufferDescriptor{};
+    cmdBufferDescriptor.label = STRVIEW("CB");
+    WGPUCommandBuffer command = wgpuCommandEncoderFinish(computePass->cmdEncoder, &cmdBufferDescriptor);
+    wgpuQueueSubmit(GetQueue(), 1, &command);
+    wgpuCommandBufferRelease(command);
+    wgpuCommandEncoderRelease(computePass->cmdEncoder);
 }
 void BeginDrawing(){
     g_wgpustate.last_timestamps[g_wgpustate.total_frames % 64] = NanoTime();
@@ -1699,7 +1721,7 @@ unsigned char *DecompressData(const unsigned char *compData, int compDataSize, i
 
     // WARNING: RL_REALLOC can make (and leave) data copies in memory, be careful with sensitive compressed data!
     // TODO: Use a different approach, create another buffer, copy data manually to it and wipe original buffer memory
-    
+
     unsigned char *temp = (unsigned char *)realloc(data, length);
 
     if (temp != NULL) data = temp;

@@ -1,5 +1,9 @@
 #include <raygpu.h>
 #include <iostream>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+#include <wgpustate.inc>
 const char wgsl[] = R"(
 struct VertexInput {
     @location(0) position: vec2f
@@ -24,12 +28,15 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 DescribedPipeline *rpl;
 DescribedComputePipeline* cpl;
 VertexArray* vao;
-WGPUBindGroup bg;
+DescribedBindGroup bg;
+DescribedBuffer buf1;
+DescribedBuffer buf2;
 void mainloop(void){
     WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder(GetDevice(), nullptr);
     WGPUComputePassEncoder cpenc = wgpuCommandEncoderBeginComputePass(enc, nullptr);
+
     wgpuComputePassEncoderSetPipeline(cpenc, cpl->pipeline);
-    wgpuComputePassEncoderSetBindGroup(cpenc, 0, bg, 0, nullptr);
+    wgpuComputePassEncoderSetBindGroup(cpenc, 0, bg.bindGroup, 0, nullptr);
     wgpuComputePassEncoderDispatchWorkgroups(cpenc, 8, 8, 1);
     wgpuComputePassEncoderEnd(cpenc);
     WGPUCommandBuffer buf = wgpuCommandEncoderFinish(enc, nullptr);
@@ -41,6 +48,7 @@ void mainloop(void){
     ClearBackground(BLACK);
     BeginPipelineMode(rpl, WGPUPrimitiveTopology_TriangleList);
     BindVertexArray(rpl, vao);
+    //wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->activeRenderPass->rpEncoder, 0, buf2.buffer, 0, 256);
     DrawArrays(3);
     EndPipelineMode();
     DrawFPS(10, 10);
@@ -65,8 +73,8 @@ fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
 
     float data[64] = {0.1f, 0.1f, 0.3f, 0.1f, 0.3f, 0.3f};
 
-    DescribedBuffer buf1 = GenBufferEx(data, 256, WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
-    DescribedBuffer buf2 = GenBufferEx(data, 256, WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst);
+    buf1 = GenBufferEx(data, 256, WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
+    buf2 = GenBufferEx(data, 256, WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst);
     WGPUBindGroupEntry bge[2] = {
         WGPUBindGroupEntry{},
         WGPUBindGroupEntry{}
@@ -82,12 +90,13 @@ fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
     bgd.entries = bge;
     bgd.entryCount = 2;
     bgd.layout = cpl->bglayout.layout;
-    bg = wgpuDeviceCreateBindGroup(GetDevice(), &bgd);
+    bg = LoadBindGroup(&cpl->bglayout, bge, 2);
+    
 
     WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder(GetDevice(), nullptr);
     WGPUComputePassEncoder cpenc = wgpuCommandEncoderBeginComputePass(enc, nullptr);
     wgpuComputePassEncoderSetPipeline(cpenc, cpl->pipeline);
-    wgpuComputePassEncoderSetBindGroup(cpenc, 0, bg, 0, nullptr);
+    wgpuComputePassEncoderSetBindGroup(cpenc, 0, GetWGPUBindGroup(&bg), 0, nullptr);
     wgpuComputePassEncoderDispatchWorkgroups(cpenc, 8, 8, 1);
     wgpuComputePassEncoderEnd(cpenc);
     WGPUCommandBuffer buf = wgpuCommandEncoderFinish(enc, nullptr);
