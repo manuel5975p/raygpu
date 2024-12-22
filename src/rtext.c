@@ -210,6 +210,13 @@ bool IsFileExtension(const char *fileName, const char *ext)
 // Load raylib default font
 extern void LoadFontDefault(void)
 {
+    int dsize = 0;
+    int deflsize = 0;
+
+    unsigned char* tgrd = DecodeDataBase64((uint8_t*)telegrama_render, &dsize);
+    unsigned char* decomp = DecompressData(tgrd, dsize, &deflsize);
+    defaultFont = LoadFontFromMemory(".ttf", decomp, deflsize, 50, 0, 1000);
+    return;
     #define BIT_CHECK(a,b) ((a) & (1u << (b)))
 
     // NOTE: Using UTF-8 encoding table for Unicode U+0000..U+00FF Basic Latin + Latin-1 Supplement
@@ -626,6 +633,7 @@ Font LoadFontFromMemory(const char *fileType, const unsigned char *fileData, int
         font.glyphPadding = FONT_TTF_DEFAULT_CHARS_PADDING;
 
         Image atlas = GenImageFontAtlas(font.glyphs, &font.recs, font.glyphCount, font.baseSize, font.glyphPadding, 0);
+        SaveImage(atlas, "atlas.png");
         if (isGpuReady) font.texture = LoadTextureFromImage(atlas);
 
         // Update glyphs[i].image to use alpha, required to be used on ImageDrawText()
@@ -743,7 +751,7 @@ GlyphInfo *LoadFontData(const unsigned char *fileData, int dataSize, int fontSiz
                         stbtt_GetCodepointHMetrics(&fontInfo, ch, &chars[i].advanceX, NULL);
                         chars[i].advanceX = (int)((float)chars[i].advanceX*scaleFactor);
 
-                        if (chh > fontSize) TRACELOG(LOG_WARNING, "FONT: Character [0x%08x] size is bigger than expected font size", ch);
+                        //if (chh > fontSize) TRACELOG(LOG_WARNING, "FONT: Character [0x%08x] size is bigger than expected font size", ch);
 
                         // Load characters images
                         chars[i].image.width = chw;

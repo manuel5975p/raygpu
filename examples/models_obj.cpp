@@ -1,8 +1,10 @@
 #include <raygpu.h>
 #include <string>
+
 int main(cwoid){
     //SetConfigFlags(FLAG_FULLSCREEN_MODE);
     SetConfigFlags(FLAG_VSYNC_HINT);
+    
     //SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(1920, 1080, "VAO");
     SetTargetFPS(0);

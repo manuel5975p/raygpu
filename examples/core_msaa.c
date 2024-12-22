@@ -6,6 +6,7 @@
 int textWidth;
 Texture tex;
 void mainloop(void){
+
     BeginDrawing();
     ClearBackground((Color){130, 130, 130, 255});
     //UseNoTexture();
@@ -25,6 +26,7 @@ void mainloop(void){
     EndDrawing();
 }
 int main(void){
+
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(800, 600, "WebGPU window");
     textWidth = MeasureText("Hello MSAA Enjoyer", 50);

@@ -1,9 +1,9 @@
 #include <raygpu.h>
 #ifndef RL_CALLOC
-#define RL_CALLOC calloc
+//#define RL_CALLOC calloc
 #endif
 #ifndef RL_MALLOC
-#define RL_MALLOC malloc
+//#define RL_MALLOC malloc
 #endif
 #ifndef RL_REALLOC
 #define RL_REALLOC realloc

@@ -173,6 +173,9 @@ externcvar Vector4 nextcol;
 externcvar StagingBuffer vboStaging;
 externcvar vertex* vboptr;
 externcvar vertex* vboptr_base;
+externcvar char telegrama_render[];
+externcvar size_t telegrama_render_size;
+
 //extern DescribedBuffer vbomap;
 #ifdef __cplusplus
 constexpr Color LIGHTGRAY{ 200, 200, 200, 255 };
@@ -498,9 +501,12 @@ EXTERN_C_BEGIN
     Image GenImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32_t checkerCount);
     void SaveImage(Image img, const char* filepath);
 
+    unsigned char *DecodeDataBase64(const unsigned char *data, int *outputSize);
+    char *EncodeDataBase64(const unsigned char *data, int dataSize, int *outputSize);    
     float TextToFloat(const char *text);
     const char *TextToLower(const char *text);
     const char **TextSplit(const char *text, char delimiter, int *count);
+    unsigned char *CompressData(const unsigned char *data, int dataSize, int *compDataSize);
     unsigned char *DecompressData(const unsigned char *compData, int compDataSize, int *dataSize);
     const char *CodepointToUTF8(int codepoint, int *utf8Size);
     int TextToInteger(const char *text);
