@@ -537,6 +537,7 @@ void BeginRenderpassEx(DescribedRenderpass* renderPass){
 }
 
 void EndRenderpassEx(DescribedRenderpass* renderPass){
+    drawCurrentBatch();
     wgpuRenderPassEncoderEnd(renderPass->rpEncoder);
     g_wgpustate.rstate->activeRenderpass = nullptr;
     renderPass->rpEncoder = 0;
@@ -621,8 +622,10 @@ void BeginDrawing(){
     //updateBindGroup(g_wgpustate.rstate);
 }
 void EndDrawing(){
-    drawCurrentBatch();
-    EndRenderpassEx(&g_wgpustate.rstate->renderpass);
+    if(g_wgpustate.rstate->activeRenderpass){
+        drawCurrentBatch();
+        EndRenderpassEx(g_wgpustate.rstate->activeRenderpass);
+    }
     #ifndef __EMSCRIPTEN__
     wgpuSurfacePresent(g_wgpustate.surface);
     #endif // __EMSCRIPTEN__
@@ -681,12 +684,12 @@ Image LoadImageFromTextureEx(WGPUTexture tex){
     WGPUCommandEncoderDescriptor commandEncoderDesc{};
     commandEncoderDesc.label = STRVIEW("Command Encoder");
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(GetDevice(), &commandEncoderDesc);
-    WGPUImageCopyTexture tbsource;
+    WGPUImageCopyTexture tbsource{};
     tbsource.texture = tex;
     tbsource.mipLevel = 0;
     tbsource.origin = { 0, 0, 0 }; // equivalent of the offset argument of Queue::writeBuffer
     tbsource.aspect = WGPUTextureAspect_All; // only relevant for depth/Stencil textures
-    WGPUImageCopyBuffer tbdest;
+    WGPUImageCopyBuffer tbdest{};
     tbdest.buffer = readtex.Get();
     tbdest.layout.offset = 0;
     tbdest.layout.bytesPerRow = std::ceil(4.0 * wgpuTextureGetWidth(tex) / 256.0) * 256;
@@ -701,14 +704,15 @@ Image LoadImageFromTextureEx(WGPUTexture tex){
     wgpuCommandEncoderRelease(encoder);
     wgpuQueueSubmit(g_wgpustate.queue, 1, &command);
     wgpuCommandBufferRelease(command);
-    #ifdef WEBGPU_BACKEND_DAWN
-    wgpuDeviceTick(device);
-    #endif
+    //#ifdef WEBGPU_BACKEND_DAWN
+    //wgpuDeviceTick(GetDevice());
+    //#else
+    //#endif
     std::pair<Image*, wgpu::Buffer*> ibpair{&ret, &readtex};
     auto onBuffer2Mapped = [&ibpair](wgpu::MapAsyncStatus status, const char* userdata){
         //std::cout << "Backcalled: " << status << std::endl;
         if(status != wgpu::MapAsyncStatus::Success){
-            std::cout << userdata << std::endl;
+            TRACELOG(LOG_ERROR, "onBuffer2Mapped called back with error!");
         }
         assert(status == wgpu::MapAsyncStatus::Success);
         //std::pair<Image*, wgpu::Buffer*>* rei = (std::pair<Image*, wgpu::Buffer*>*)userdata;
@@ -736,8 +740,9 @@ Image LoadImageFromTextureEx(WGPUTexture tex){
     winfo.future = fut;
     wgpuInstanceWaitAny(g_wgpustate.instance, 1, &winfo, 1000000000);
     #else 
-    readtex.MapAsync(wgpu::MapMode::Read, 0, size_t(std::ceil(4.0 * tex.width / 256.0) * 256) * tex.height, onBuffer2Mapped, &ibpair);
-    emscripten_sleep(20);
+    //readtex.MapAsync(wgpu::MapMode::Read, 0, size_t(std::ceil(4.0 * width / 256.0) * 256) * height, onBuffer2Mapped, &ibpair);
+    readtex.MapAsync(wgpu::MapMode::Read, 0, size_t(std::ceil(4.0 * wgpuTextureGetWidth(tex) / 256.0) * 256) * height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped);
+    //emscripten_sleep(20);
     #endif
     //wgpuBufferMapAsyncF(readtex, WGPUMapMode_Read, 0, 4 * tex.width * tex.height, onBuffer2Mapped);
     /*while(ibpair.first->data == nullptr){
@@ -1317,8 +1322,8 @@ extern "C" DescribedRenderpass LoadRenderpass(WGPUTextureView color, WGPUTexture
     });    
 }
 
-WGPUTextureView GetActiveColorTarget(){
-    return g_wgpustate.rstate->color;
+WGPUTexture GetActiveColorTarget(){
+    return g_wgpustate.currentSurfaceTexture.texture;
 }
 WGPUTexture cres = 0;
 WGPUTextureView cresv = 0;

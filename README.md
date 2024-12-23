@@ -4,6 +4,9 @@ A fast and simple [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebG
 [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API) is a new (still in development) graphics API meant to give portable access to most GPU features, able to run on DirectX, Vulkan, OpenGL, Metal platforms and most importantly in [several modern browsers](https://caniuse.com/webgpu). Web support is done by [Emscripten](https://emscripten.org/).
 # Getting Started
 ### The first window
+Opening a window and drawing on it is equivalent to raylib. However
+- `BeginDrawing()` **must** be called before drawing the frame.
+
 ```c
 #include <raygpu.h>
 int main(){

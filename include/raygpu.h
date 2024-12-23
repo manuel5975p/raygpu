@@ -506,7 +506,7 @@ EXTERN_C_BEGIN
     const char* FindDirectory(const char* directoryName, int maxOutwardSearch);
     bool IsFileExtension(const char *fileName, const char *ext);
     
-    WGPUTextureView GetActiveColorTarget(cwoid);
+    WGPUTexture GetActiveColorTarget(cwoid);
     Texture LoadTextureFromImage(Image img);
     Image LoadImageFromTexture(Texture tex);
     Image LoadImageFromTextureEx(WGPUTexture tex);
