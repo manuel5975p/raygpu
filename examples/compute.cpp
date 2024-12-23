@@ -66,12 +66,12 @@ void mainloop(void){
     DrawArraysIndexedInstanced(ibo, 6, parts);
     EndPipelineMode();
     DrawFPS(10, 10);
-    DrawRectangle(10, 400, 50, 50, BLUE);
+    //DrawRectangle(10, 400, 50, 50, BLUE);
     
     EndRenderpass();
-    Image img = LoadImageFromTextureEx(GetActiveColorTarget());
-    UnloadImage(img);
-    SaveImage(img, "out.png");
+    //Image img = LoadImageFromTextureEx(GetActiveColorTarget());
+    //SaveImage(img, "out.png");
+    //UnloadImage(img);
     //TakeScreenshot("out.png");
     //BeginRenderpass();
     EndDrawing();
