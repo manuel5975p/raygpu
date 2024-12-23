@@ -505,8 +505,12 @@ EXTERN_C_BEGIN
     const char* GetDirectoryPath(const char* arg);
     const char* FindDirectory(const char* directoryName, int maxOutwardSearch);
     bool IsFileExtension(const char *fileName, const char *ext);
+    
+    WGPUTextureView GetActiveColorTarget(cwoid);
     Texture LoadTextureFromImage(Image img);
     Image LoadImageFromTexture(Texture tex);
+    Image LoadImageFromTextureEx(WGPUTexture tex);
+    void TakeScreenshot(const char* filename);
     Image LoadImage(const char* filename);
     Image ImageFromImage(Image img, Rectangle rec);
     void UnloadImage(Image img);
@@ -788,12 +792,13 @@ typedef struct full_renderstate{
     WGPUTextureView depth;
 
     DescribedPipeline* defaultPipeline;
-    DescribedPipeline* currentPipeline;
+    DescribedPipeline* activePipeline;
 
     DescribedRenderpass clearPass;
     DescribedRenderpass renderpass;
     DescribedComputepass computepass;
-    DescribedRenderpass* activeRenderPass;
+    DescribedRenderpass* activeRenderpass;
+    DescribedComputepass* activeComputepass;
 
     uint32_t renderExtentX; // Dimensions of the current viewport
     uint32_t renderExtentY; // Required for camera function
