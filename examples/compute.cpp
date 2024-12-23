@@ -1,12 +1,16 @@
+#include <algorithm>
 #include <raygpu.h>
 #include <iostream>
+#include <vector>
+#include <random>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
 #include <wgpustate.inc>
 const char wgsl[] = R"(
 struct VertexInput {
-    @location(0) position: vec2f
+    @location(0) position: vec2f,
+    @location(1) offset: vec2f
 };
 
 struct VertexOutput {
@@ -16,7 +20,7 @@ struct VertexOutput {
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    out.position = vec4f(in.position.xy, 0.0f, 1.0f);
+    out.position = vec4f(in.position.xy + in.offset.xy, 0.0f, 1.0f);
     return out;
 }
 
@@ -25,87 +29,97 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     return vec4f(in.position.xy / 400.0f,1,1);
 }
 )";
+
+const char computeSource[] = R"(
+@group(0) @binding(0) var<storage,read> posBuffer: array<vec2<f32>>;
+@group(0) @binding(1) var<storage,read> velBuffer: array<vec2<f32>>;
+@group(0) @binding(2) var<storage,read_write> outputPosBuffer: array<vec2<f32>>;
+@compute
+@workgroup_size(64, 1, 1)
+fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
+    //outputPosBuffer[id] = posBuffer[id] + velBuffer[id];
+    //outputPosBuffer[id.x * 16 + id.y] = posBuffer[id.x * 16 + id.y] + velBuffer[id.x * 16 + id.y];
+    outputPosBuffer[id.x] = posBuffer[id.x] + velBuffer[id.x];
+})";
 DescribedPipeline *rpl;
 DescribedComputePipeline* cpl;
 VertexArray* vao;
-DescribedBindGroup bg;
-DescribedBuffer buf1;
-DescribedBuffer buf2;
+DescribedBuffer triangle;
+DescribedBuffer positions;
+DescribedBuffer velocities;
+DescribedBuffer positionsnew;
+constexpr size_t parts = (1 << 21);
 void mainloop(void){
-    WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder(GetDevice(), nullptr);
-    WGPUComputePassEncoder cpenc = wgpuCommandEncoderBeginComputePass(enc, nullptr);
 
-    wgpuComputePassEncoderSetPipeline(cpenc, cpl->pipeline);
-    wgpuComputePassEncoderSetBindGroup(cpenc, 0, bg.bindGroup, 0, nullptr);
-    wgpuComputePassEncoderDispatchWorkgroups(cpenc, 8, 8, 1);
-    wgpuComputePassEncoderEnd(cpenc);
-    WGPUCommandBuffer buf = wgpuCommandEncoderFinish(enc, nullptr);
-    wgpuQueueSubmit(GetQueue(), 1, &buf);
-    wgpuComputePassEncoderRelease(cpenc);
-    wgpuCommandBufferRelease(buf);
-    wgpuCommandEncoderRelease(enc);
+    BeginComputepass();
+    BindComputePipeline(cpl);
+    DispatchCompute(parts / 64 / 1, 1, 1);
+    ComputepassEndOnlyComputing();
+    CopyBufferToBuffer(&positionsnew, &positions, positions.descriptor.size);
+    EndComputepass();
     BeginDrawing();
     ClearBackground(BLACK);
     BeginPipelineMode(rpl, WGPUPrimitiveTopology_TriangleList);
     BindVertexArray(rpl, vao);
     //wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->activeRenderPass->rpEncoder, 0, buf2.buffer, 0, 256);
-    DrawArrays(3);
+    DrawArraysInstanced(3, parts);
     EndPipelineMode();
     DrawFPS(10, 10);
     EndDrawing();
 }
 int main(){
-    InitWindow(1280, 720, "Compute Shader");
+    SetConfigFlags(FLAG_MSAA_4X_HINT);
+    InitWindow(2560, 1440, "Compute Shader");
+    SetTargetFPS(100000);
     UniformDescriptor computeUniforms[] = {
-        UniformDescriptor{.type = storage_buffer, .minBindingSize = 256},
-        UniformDescriptor{.type = storage_write_buffer, .minBindingSize = 256}
+        UniformDescriptor{.type = storage_buffer, .minBindingSize = 8},
+        UniformDescriptor{.type = storage_buffer, .minBindingSize = 8},
+        UniformDescriptor{.type = storage_write_buffer, .minBindingSize = 8}
     };
-    cpl = LoadComputePipeline(R"(
-@group(0) @binding(0) var<storage,read> inputBuffer: array<f32,64>;
-@group(0) @binding(1) var<storage,read_write> outputBuffer: array<f32,64>;
-@compute
-@workgroup_size(8, 8)
-fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
-    // Apply the function f to the buffer element at index id.x:
-    outputBuffer[id.x] = 3.0f * (inputBuffer[id.x]);
-}
-    )", computeUniforms, 2);
+    cpl = LoadComputePipeline(computeSource, computeUniforms, 3);
+    
+    std::mt19937_64 gen(53);
+    std::uniform_real_distribution<float> dis(-1,1);
+    std::vector<Vector2> pos(parts), vel(parts);
+    //std::generate(pos.begin(), pos.end(), [&]{
+    //    return Vector2{dis(gen)*0.01f, dis(gen) * 0.01f};
+    //});
+    for(size_t i = 0;i < parts;i++){
+        float arg = M_PI * (dis(gen) + 1);
+        float mag = std::sqrt(dis(gen)) * 0.001f;
 
-    float data[64] = {0.1f, 0.1f, 0.3f, 0.1f, 0.3f, 0.3f};
-
-    buf1 = GenBufferEx(data, 256, WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
-    buf2 = GenBufferEx(data, 256, WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst);
-    WGPUBindGroupEntry bge[2] = {
+        vel[i] = Vector2{std::cos(arg) * mag, std::sin(arg) * mag};
+    }
+    float tripos[6] = {0,0,0.004f,0,0,0.004f};
+    triangle = GenBuffer(tripos, sizeof(tripos));
+    positions = GenBufferEx(pos.data(), pos.size() * sizeof(Vector2), WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
+    velocities = GenBufferEx(vel.data(), vel.size() * sizeof(Vector2), WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst);
+    positionsnew = GenBufferEx(nullptr, vel.size() * sizeof(Vector2), WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc);
+    
+    WGPUBindGroupEntry bge[3] = {
         WGPUBindGroupEntry{},
         WGPUBindGroupEntry{}
     };
     bge[0].binding = 0;
-    bge[0].buffer = buf1.buffer;
-    bge[0].size = buf1.descriptor.size;
+    bge[0].buffer  = positions.buffer;
+    bge[0].size    = positions.descriptor.size;
 
     bge[1].binding = 1;
-    bge[1].buffer = buf2.buffer;
-    bge[1].size = buf2.descriptor.size;
+    bge[1].buffer  = velocities.buffer;
+    bge[1].size    = velocities.descriptor.size;
+
+    bge[2].binding = 2;
+    bge[2].buffer  = positionsnew.buffer;
+    bge[2].size    = positionsnew.descriptor.size;
     WGPUBindGroupDescriptor bgd{};
     bgd.entries = bge;
-    bgd.entryCount = 2;
+    bgd.entryCount = 3;
     bgd.layout = cpl->bglayout.layout;
-    bg = LoadBindGroup(&cpl->bglayout, bge, 2);
-    
+    cpl->bindGroup = LoadBindGroup(&cpl->bglayout, bge, 3);
 
-    WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder(GetDevice(), nullptr);
-    WGPUComputePassEncoder cpenc = wgpuCommandEncoderBeginComputePass(enc, nullptr);
-    wgpuComputePassEncoderSetPipeline(cpenc, cpl->pipeline);
-    wgpuComputePassEncoderSetBindGroup(cpenc, 0, GetWGPUBindGroup(&bg), 0, nullptr);
-    wgpuComputePassEncoderDispatchWorkgroups(cpenc, 8, 8, 1);
-    wgpuComputePassEncoderEnd(cpenc);
-    WGPUCommandBuffer buf = wgpuCommandEncoderFinish(enc, nullptr);
-    wgpuQueueSubmit(GetQueue(), 1, &buf);
-    wgpuComputePassEncoderRelease(cpenc);
-    wgpuCommandBufferRelease(buf);
-    wgpuCommandEncoderRelease(enc);
     vao = LoadVertexArray();
-    VertexAttribPointer(vao, &buf2, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, &triangle, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, &positions, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Instance);
     RenderSettings settings{};
     settings.depthTest = 1;
     settings.depthCompare = WGPUCompareFunction_LessEqual;

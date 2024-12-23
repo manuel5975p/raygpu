@@ -482,6 +482,12 @@ EXTERN_C_BEGIN
     
     void BeginRenderpass(cwoid);
     void EndRenderpass(cwoid);
+    void BeginComputepass(cwoid);
+    void BindComputePipeline(DescribedComputePipeline* cpl);
+    void DispatchCompute(uint32_t x, uint32_t y, uint32_t z);
+    void CopyBufferToBuffer(DescribedBuffer* source, DescribedBuffer* dest, size_t count/* in bytes*/);
+    void ComputepassEndOnlyComputing(cwoid);
+    void EndComputepass(cwoid);
     void BeginComputepassEx(DescribedComputepass* computePass);
     void EndComputepassEx(DescribedComputepass* computePass);
     void BeginRenderpassEx(DescribedRenderpass* renderPass);
