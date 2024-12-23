@@ -503,7 +503,9 @@ extern "C" void BindComputePipeline(DescribedComputePipeline* pipeline){
     wgpuComputePassEncoderSetPipeline(g_wgpustate.rstate->computepass.cpEncoder, pipeline->pipeline);
     wgpuComputePassEncoderSetBindGroup (g_wgpustate.rstate->computepass.cpEncoder, 0, GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
 }
-
+void CopyBufferToBuffer(DescribedBuffer* source, DescribedBuffer* dest, size_t count){
+    wgpuCommandEncoderCopyBufferToBuffer(g_wgpustate.rstate->computepass.cmdEncoder, source->buffer, 0, dest->buffer, 0, count);
+}
 uint32_t GetScreenWidth (cwoid){
     return g_wgpustate.width;
 }
@@ -565,18 +567,33 @@ extern "C" void ClearBackground(Color clearColor){
     }
 
 }
-
+void BeginComputepass(){
+    BeginComputepassEx(&g_wgpustate.rstate->computepass);
+}
+void DispatchCompute(uint32_t x, uint32_t y, uint32_t z){
+    wgpuComputePassEncoderDispatchWorkgroups(g_wgpustate.rstate->computepass.cpEncoder, x, y, z);
+}
+void ComputepassEndOnlyComputing(cwoid){
+    wgpuComputePassEncoderEnd(g_wgpustate.rstate->computepass.cpEncoder);
+    g_wgpustate.rstate->computepass.cpEncoder = nullptr;
+}
+void EndComputepass(){
+    EndComputepassEx(&g_wgpustate.rstate->computepass);
+}
 void BeginComputepassEx(DescribedComputepass* computePass){
+    computePass->cmdEncoder = wgpuDeviceCreateCommandEncoder(GetDevice(), nullptr);
     g_wgpustate.rstate->computepass.cpEncoder = wgpuCommandEncoderBeginComputePass(g_wgpustate.rstate->computepass.cmdEncoder, &g_wgpustate.rstate->computepass.desc);
 
 }
 void EndComputepassEx(DescribedComputepass* computePass){
-    wgpuComputePassEncoderEnd(computePass->cpEncoder);
+    if(computePass->cpEncoder){
+        wgpuComputePassEncoderEnd(computePass->cpEncoder);
+        computePass->cpEncoder = 0;
+    }
     
     //TODO
     //g_wgpustate.rstate->activeComputePass = nullptr;
 
-    computePass->cpEncoder = 0;
     WGPUCommandBufferDescriptor cmdBufferDescriptor{};
     cmdBufferDescriptor.label = STRVIEW("CB");
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(computePass->cmdEncoder, &cmdBufferDescriptor);
@@ -1015,6 +1032,7 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     settings.depthCompare = WGPUCompareFunction_LessEqual;
     settings.optionalDepthTexture = d;
     settings.sampleCount_onlyApplicableIfMoreThanOne = (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
+    state->computepass = DescribedComputepass{};
     state->renderpass = LoadRenderpassEx(c, d, settings);
     state->renderpass.renderPassDesc.label = STRVIEW("g_wgpustate::render_pass");
     state->clearPass = LoadRenderpassEx(c, d, settings);
