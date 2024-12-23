@@ -309,10 +309,14 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         wgpuSurfaceGetCapabilities(g_wgpustate.surface, g_wgpustate.adapter, &capabilities);
         WGPUSurfaceConfiguration config = {};
         config.alphaMode = WGPUCompositeAlphaMode_Opaque;
-        config.usage = WGPUTextureUsage_RenderAttachment;
+        config.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
         config.device = g_wgpustate.device;
         config.format = (WGPUTextureFormat)capabilities.formats[0];
+        #ifdef __EMSCRIPTEN__
+        config.presentMode = WGPUPresentMode_Fifo;
+        #else
         config.presentMode = !!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? WGPUPresentMode_Fifo : WGPUPresentMode_Immediate;
+        #endif
         config.width = width;
         config.height = height;
         g_wgpustate.width = width;
@@ -337,6 +341,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     sample->surface.GetCapabilities(sample->adapter, &capabilities);
     wgpu::SurfaceConfiguration config = {};
     config.device = sample->device;
+    config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
     //std::cout << "Supported format count: " << capabilities.formatCount << "\n";
     wgpu::TextureFormat selectedFormat = wgpu::TextureFormat::Undefined;
     int format_index = 0;
@@ -355,10 +360,14 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         config.format = selectedFormat;
     }
     TRACELOG(LOG_INFO, "Selected surface format %s", textureFormatSpellingTable.at((WGPUTextureFormat)config.format).c_str());
+    #ifdef __EMSCRIPTEN__
+    config.presentMode = wgpu::PresentMode::Fifo;
+    #else
     config.presentMode = !!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? wgpu::PresentMode::Fifo : wgpu::PresentMode::Immediate;
-
+    #endif
     config.width = width;
     config.height = height;
+    
     g_wgpustate.width = width;
     g_wgpustate.height = height;
     sample->surface.Configure(&config);

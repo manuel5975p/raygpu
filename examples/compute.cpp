@@ -38,8 +38,8 @@ const char computeSource[] = R"(
 @workgroup_size(64, 1, 1)
 fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
     //outputPosBuffer[id] = posBuffer[id] + velBuffer[id];
-    //outputPosBuffer[id.x * 16 + id.y] = posBuffer[id.x * 16 + id.y] + velBuffer[id.x * 16 + id.y];
-    posBuffer[id.x] = posBuffer[id.x] + velBuffer[id.x];
+    posBuffer[id.x * 16 + id.y] = posBuffer[id.x * 16 + id.y] + velBuffer[id.x * 16 + id.y];
+    //posBuffer[id.x] = posBuffer[id.x] + velBuffer[id.x];
 })";
 DescribedPipeline *rpl;
 DescribedComputePipeline* cpl;
@@ -49,12 +49,12 @@ DescribedBuffer positions;
 DescribedBuffer velocities;
 DescribedBuffer positionsnew;
 DescribedBuffer ibo;
-constexpr size_t parts = (1 << 20);
+constexpr size_t parts = (1 << 21);
 void mainloop(void){
 
     BeginComputepass();
     BindComputePipeline(cpl);
-    DispatchCompute(parts / 64 / 1, 1, 1);
+    DispatchCompute(parts / 64 / 16, 16, 1);
     ComputepassEndOnlyComputing();
     //CopyBufferToBuffer(&positionsnew, &positions, positions.descriptor.size);
     EndComputepass();
@@ -66,13 +66,20 @@ void mainloop(void){
     DrawArraysIndexedInstanced(ibo, 6, parts);
     EndPipelineMode();
     DrawFPS(10, 10);
-    TakeScreenshot("out.png");
+    DrawRectangle(10, 400, 50, 50, BLUE);
+    
+    EndRenderpass();
+    Image img = LoadImageFromTextureEx(GetActiveColorTarget());
+    UnloadImage(img);
+    SaveImage(img, "out.png");
+    //TakeScreenshot("out.png");
+    //BeginRenderpass();
     EndDrawing();
 }
 int main(){
-    //SetConfigFlags(FLAG_MSAA_4X_HINT);
+    SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(1600, 900, "Compute Shader");
-    SetTargetFPS(100000);
+    //SetTargetFPS(100000);
     UniformDescriptor computeUniforms[] = {
         UniformDescriptor{.type = storage_write_buffer, .minBindingSize = 8},
         UniformDescriptor{.type = storage_buffer, .minBindingSize = 8},
@@ -88,13 +95,13 @@ int main(){
     //});
     for(size_t i = 0;i < parts;i++){
         float arg = M_PI * (dis(gen) + 1);
-        float mag = std::sqrt(dis(gen)) * 0.001f;
+        float mag = std::sqrt(dis(gen)) * 0.003f;
 
         vel[i] = Vector2{std::cos(arg) * mag, std::sin(arg) * mag};
     }
     float quadpos[8] = {0,0,1,0,1,1,0,1};
     for(int i = 0;i < 8;i++){
-        quadpos[i] *= 0.005f;
+        quadpos[i] *= 0.003f;
     }
     quad = GenBuffer(quadpos, sizeof(quadpos));
     uint32_t indices[] = {0,1,2,0,2,3};
@@ -122,6 +129,7 @@ int main(){
     VertexAttribPointer(vao, &positions, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Instance);
     RenderSettings settings{};
     settings.depthTest = 1;
+    settings.sampleCount_onlyApplicableIfMoreThanOne = 4;
     settings.depthCompare = WGPUCompareFunction_Always;
     rpl = LoadPipelineForVAO(wgsl, vao, 0, 0, settings);
 
