@@ -31,52 +31,54 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 )";
 
 const char computeSource[] = R"(
-@group(0) @binding(0) var<storage,read> posBuffer: array<vec2<f32>>;
+@group(0) @binding(0) var<storage,read_write> posBuffer: array<vec2<f32>>;
 @group(0) @binding(1) var<storage,read> velBuffer: array<vec2<f32>>;
-@group(0) @binding(2) var<storage,read_write> outputPosBuffer: array<vec2<f32>>;
+//@group(0) @binding(2) var<storage,read_write> outputPosBuffer: array<vec2<f32>>;
 @compute
 @workgroup_size(64, 1, 1)
 fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
     //outputPosBuffer[id] = posBuffer[id] + velBuffer[id];
     //outputPosBuffer[id.x * 16 + id.y] = posBuffer[id.x * 16 + id.y] + velBuffer[id.x * 16 + id.y];
-    outputPosBuffer[id.x] = posBuffer[id.x] + velBuffer[id.x];
+    posBuffer[id.x] = posBuffer[id.x] + velBuffer[id.x];
 })";
 DescribedPipeline *rpl;
 DescribedComputePipeline* cpl;
 VertexArray* vao;
-DescribedBuffer triangle;
+DescribedBuffer quad;
 DescribedBuffer positions;
 DescribedBuffer velocities;
 DescribedBuffer positionsnew;
-constexpr size_t parts = (1 << 21);
+DescribedBuffer ibo;
+constexpr size_t parts = (1 << 20);
 void mainloop(void){
 
     BeginComputepass();
     BindComputePipeline(cpl);
     DispatchCompute(parts / 64 / 1, 1, 1);
     ComputepassEndOnlyComputing();
-    CopyBufferToBuffer(&positionsnew, &positions, positions.descriptor.size);
+    //CopyBufferToBuffer(&positionsnew, &positions, positions.descriptor.size);
     EndComputepass();
     BeginDrawing();
     ClearBackground(BLACK);
     BeginPipelineMode(rpl, WGPUPrimitiveTopology_TriangleList);
     BindVertexArray(rpl, vao);
     //wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->activeRenderPass->rpEncoder, 0, buf2.buffer, 0, 256);
-    DrawArraysInstanced(3, parts);
+    DrawArraysIndexedInstanced(ibo, 6, parts);
     EndPipelineMode();
     DrawFPS(10, 10);
+    TakeScreenshot("out.png");
     EndDrawing();
 }
 int main(){
-    SetConfigFlags(FLAG_MSAA_4X_HINT);
-    InitWindow(2560, 1440, "Compute Shader");
+    //SetConfigFlags(FLAG_MSAA_4X_HINT);
+    InitWindow(1600, 900, "Compute Shader");
     SetTargetFPS(100000);
     UniformDescriptor computeUniforms[] = {
-        UniformDescriptor{.type = storage_buffer, .minBindingSize = 8},
+        UniformDescriptor{.type = storage_write_buffer, .minBindingSize = 8},
         UniformDescriptor{.type = storage_buffer, .minBindingSize = 8},
         UniformDescriptor{.type = storage_write_buffer, .minBindingSize = 8}
     };
-    cpl = LoadComputePipeline(computeSource, computeUniforms, 3);
+    cpl = LoadComputePipeline(computeSource, computeUniforms, 2);
     
     std::mt19937_64 gen(53);
     std::uniform_real_distribution<float> dis(-1,1);
@@ -90,13 +92,18 @@ int main(){
 
         vel[i] = Vector2{std::cos(arg) * mag, std::sin(arg) * mag};
     }
-    float tripos[6] = {0,0,0.004f,0,0,0.004f};
-    triangle = GenBuffer(tripos, sizeof(tripos));
+    float quadpos[8] = {0,0,1,0,1,1,0,1};
+    for(int i = 0;i < 8;i++){
+        quadpos[i] *= 0.005f;
+    }
+    quad = GenBuffer(quadpos, sizeof(quadpos));
+    uint32_t indices[] = {0,1,2,0,2,3};
+    ibo = GenIndexBuffer(indices, sizeof(indices));
     positions = GenBufferEx(pos.data(), pos.size() * sizeof(Vector2), WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
     velocities = GenBufferEx(vel.data(), vel.size() * sizeof(Vector2), WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst);
     positionsnew = GenBufferEx(nullptr, vel.size() * sizeof(Vector2), WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc);
     
-    WGPUBindGroupEntry bge[3] = {
+    WGPUBindGroupEntry bge[2] = {
         WGPUBindGroupEntry{},
         WGPUBindGroupEntry{}
     };
@@ -108,21 +115,14 @@ int main(){
     bge[1].buffer  = velocities.buffer;
     bge[1].size    = velocities.descriptor.size;
 
-    bge[2].binding = 2;
-    bge[2].buffer  = positionsnew.buffer;
-    bge[2].size    = positionsnew.descriptor.size;
-    WGPUBindGroupDescriptor bgd{};
-    bgd.entries = bge;
-    bgd.entryCount = 3;
-    bgd.layout = cpl->bglayout.layout;
-    cpl->bindGroup = LoadBindGroup(&cpl->bglayout, bge, 3);
+    cpl->bindGroup = LoadBindGroup(&cpl->bglayout, bge, 2);
 
     vao = LoadVertexArray();
-    VertexAttribPointer(vao, &triangle, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, &quad, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
     VertexAttribPointer(vao, &positions, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Instance);
     RenderSettings settings{};
     settings.depthTest = 1;
-    settings.depthCompare = WGPUCompareFunction_LessEqual;
+    settings.depthCompare = WGPUCompareFunction_Always;
     rpl = LoadPipelineForVAO(wgsl, vao, 0, 0, settings);
 
 
