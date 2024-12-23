@@ -6,6 +6,7 @@
 #include "mathutils.h"
 #include "pipeline.h"
 #ifdef __cplusplus
+#include <vector>
 #include <unordered_map>
 #endif
 #define RL_FREE free
@@ -411,9 +412,11 @@ typedef struct AttributeAndResidence{
 /**
  */
 typedef struct full_renderstate full_renderstate;
-
 typedef struct GLFWwindow GLFWwindow;
 
+#ifdef __cplusplus
+std::vector<UniformDescriptor> getBindings(const char* shaderSource);
+#endif
 
 EXTERN_C_BEGIN
     GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title);
