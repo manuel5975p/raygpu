@@ -415,7 +415,8 @@ typedef struct full_renderstate full_renderstate;
 typedef struct GLFWwindow GLFWwindow;
 
 #ifdef __cplusplus
-std::vector<UniformDescriptor> getBindings(const char* shaderSource);
+std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shaderSource);
+std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> getAttributes(const char* shaderSource);
 #endif
 
 EXTERN_C_BEGIN

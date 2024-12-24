@@ -23,7 +23,7 @@ struct LightBuffer {
 @group(0) @binding(1) var gradientTexture: texture_2d<f32>;
 @group(0) @binding(2) var grsampler: sampler;
 @group(0) @binding(3) var<storage> modelMatrix: array<mat4x4f>;
-@group(0) @binding(4) var<storage> lights: LightBuffer;
+@group(0) @binding(4) var<storage, read> lights: LightBuffer;
 
 //Can be omitted
 //@group(0) @binding(3) var<storage> storig: array<vec4f>;
@@ -45,9 +45,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     return textureSample(gradientTexture, grsampler, in.uv).rgba * in.color;
 })";
 int main(){
-    std::vector<UniformDescriptor> ud = getBindings(shaderSource);
-    for(auto& x : ud){
-        std::cout << x.type << ", ";
+    std::unordered_map<std::string, UniformDescriptor> ud = getBindings(shaderSource);
+    for(auto& [x,y] : ud){
+        std::cout << y.type << ", ";
     }
     std::cout << std::endl;
+    //auto map = getAttributes(shaderSource);
+    //for(auto [a,b] : map){
+    //    std::cout << a << ": " << b.second << "\n";
+    //}
 }
