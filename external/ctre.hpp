@@ -5855,7 +5855,7 @@ template <ctll::fixed_string input> CTRE_FLATTEN constexpr CTRE_FORCE_INLINE aut
 		using re = decltype(front(typename tmp::output_type::stack_type()));
 		return ctre::regular_expression(re());
 	} else {
-		return ctre::regular_expression(reject());
+		return ctre::regular_expression<reject>(reject());
 	}
 }
 

@@ -88,7 +88,13 @@ target_link_libraries(raygpu PUBLIC
     emdawnwebgpu_c
     emdawnwebgpu_cpp
     glfw
+    tint_api
+    tint_api_common
+    tint_lang_core
+    tint_lang_wgsl
+    tint_lang_wgsl_reader
 )
+target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
 else()
 target_link_libraries(raygpu PUBLIC
     webgpu_dawn
