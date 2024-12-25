@@ -55,7 +55,7 @@ DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, 
     WGPUBindGroupLayoutDescriptor& bglayoutdesc = ret.descriptor;
     std::memset(blayouts, 0, uniformCount * sizeof(WGPUBindGroupLayoutEntry));
     for(size_t i = 0;i < uniformCount;i++){
-        blayouts[i].binding = i;
+        blayouts[i].binding = uniforms[i].location;
         switch(uniforms[i].type){
             case uniform_buffer:
                 blayouts[i].visibility = visible;
@@ -99,7 +99,15 @@ DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao
     PreparePipeline(pl, vao);
     return pl;
 }
-
+DescribedPipeline* LoadPipeline(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, RenderSettings settings){
+    std::unordered_map<std::string, UniformDescriptor> bindings = getBindings(shaderSource);
+    std::vector<UniformDescriptor> values;
+    values.reserve(bindings.size());
+    for(const auto& [x,y] : bindings){
+        values.push_back(y);
+    }
+    return LoadPipelineEx(shaderSource, attribs, attribCount, values.data(), values.size(), settings);
+}
 extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
 
     DescribedPipeline* retp = callocnew(DescribedPipeline);
@@ -143,7 +151,7 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     std::vector<WGPUBindGroupEntry> bge(uniformCount);
     for(uint32_t i = 0;i < bge.size();i++){
         bge[i] = WGPUBindGroupEntry{};
-        bge[i].binding = i;
+        bge[i].binding = uniforms[i].location;
     }
     ret.bindGroup = LoadBindGroup(&ret.bglayout, bge.data(), bge.size());
     ret.layout.descriptor = WGPUPipelineLayoutDescriptor{};

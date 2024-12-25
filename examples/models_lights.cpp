@@ -78,11 +78,11 @@ int main(){
     Mesh churchMesh = churchModel.meshes[0];
 
     UniformDescriptor uniforms[5] = {
-        UniformDescriptor{uniform_buffer, 64},
-        UniformDescriptor{texture2d, 0},
-        UniformDescriptor{sampler, 0},
-        UniformDescriptor{storage_buffer, 64},
-        UniformDescriptor{storage_buffer, 32}
+        CLITERAL(UniformDescriptor){uniform_buffer, 64, 0},
+        CLITERAL(UniformDescriptor){texture2d, 0, 1},
+        CLITERAL(UniformDescriptor){sampler, 0, 2},
+        CLITERAL(UniformDescriptor){storage_buffer, 64, 3},
+        CLITERAL(UniformDescriptor){storage_buffer, 32, 4}
     };
     RenderSettings settings zeroinit;
     settings.depthTest = 1;
@@ -95,26 +95,25 @@ int main(){
         .up = CLITERAL(Vector3){0,1,0},
         .fovy = 1.0f
     };
-    WGPUSamplerDescriptor samplerDesc{};
-    samplerDesc.addressModeU = WGPUAddressMode_Repeat;
-    samplerDesc.addressModeV = WGPUAddressMode_Repeat;
-    samplerDesc.addressModeW = WGPUAddressMode_Repeat;
-    samplerDesc.magFilter    = WGPUFilterMode_Nearest;
-    samplerDesc.minFilter    = WGPUFilterMode_Linear;
-    samplerDesc.mipmapFilter = WGPUMipmapFilterMode_Linear;
-    samplerDesc.compare      = WGPUCompareFunction_Undefined;
-    samplerDesc.lodMinClamp  = 0.0f;
-    samplerDesc.lodMaxClamp  = 1.0f;
-    samplerDesc.maxAnisotropy = 1;
+    //WGPUSamplerDescriptor samplerDesc{};
+    //samplerDesc.addressModeU = WGPUAddressMode_Repeat;
+    //samplerDesc.addressModeV = WGPUAddressMode_Repeat;
+    //samplerDesc.addressModeW = WGPUAddressMode_Repeat;
+    //samplerDesc.magFilter    = WGPUFilterMode_Nearest;
+    //samplerDesc.minFilter    = WGPUFilterMode_Linear;
+    //samplerDesc.mipmapFilter = WGPUMipmapFilterMode_Linear;
+    //samplerDesc.compare      = WGPUCompareFunction_Undefined;
+    //samplerDesc.lodMinClamp  = 0.0f;
+    //samplerDesc.lodMaxClamp  = 1.0f;
+    //samplerDesc.maxAnisotropy = 1;
+    //WGPUSampler sampler = wgpuDeviceCreateSampler(GetDevice(), &samplerDesc);
 
-
-    WGPUSampler sampler = wgpuDeviceCreateSampler(GetDevice(), &samplerDesc);
-    
+    DescribedSampler sampler = LoadSampler(repeat, linear);
     while(!WindowShouldClose()){
         BeginDrawing();
         ClearBackground(BLANK);
         BeginPipelineMode(pl, WGPUPrimitiveTopology_TriangleList);
-        SetSampler(2, sampler);
+        SetSampler(2, sampler.sampler);
         SetStorageBuffer(3, &idenbuffer);
         SetStorageBuffer(4, &libufs);
         UseTexture(cdif);

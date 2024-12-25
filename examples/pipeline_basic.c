@@ -22,7 +22,8 @@ int main(void){
     UniformDescriptor uniforms[1] = {
         (UniformDescriptor){
             .minBindingSize = 16,
-            .type = uniform_buffer
+            .type = uniform_buffer,
+            .location = 0
         }
     };
     RenderSettings settings = {0};

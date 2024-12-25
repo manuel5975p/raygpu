@@ -11,6 +11,7 @@ enum uniform_type{
 typedef struct UniformDescriptor{
     enum uniform_type type;
     uint32_t minBindingSize;
+    uint32_t location; //only for @binding attribute in bindgroup 0
 }UniformDescriptor;
 
 
