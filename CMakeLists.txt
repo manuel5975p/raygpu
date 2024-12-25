@@ -71,7 +71,7 @@ set(RG_SOURCES
 add_library(raygpu ${RG_SOURCES})
 if(CMAKE_BUILD_TYPE MATCHES Debug)
     foreach(source_file IN LISTS RG_SOURCES)
-        set_source_files_properties(${source_file} PROPERTIES COMPILE_FLAGS "-g -fsanitize=address -D_GLIBCXX_DEBUG")
+        set_source_files_properties(${source_file} PROPERTIES COMPILE_FLAGS "-g -fsanitize=address")
     endforeach()
 endif()
 if(CMAKE_BUILD_TYPE MATCHES Release)

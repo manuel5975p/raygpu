@@ -81,9 +81,9 @@ int main(){
     InitWindow(1600, 900, "Compute Shader");
     //SetTargetFPS(100000);
     UniformDescriptor computeUniforms[] = {
-        UniformDescriptor{.type = storage_write_buffer, .minBindingSize = 8},
-        UniformDescriptor{.type = storage_buffer, .minBindingSize = 8},
-        UniformDescriptor{.type = storage_write_buffer, .minBindingSize = 8}
+        UniformDescriptor{.type = storage_write_buffer, .minBindingSize = 8, .location = 0},
+        UniformDescriptor{.type = storage_buffer, .minBindingSize = 8      , .location = 1},
+        UniformDescriptor{.type = storage_write_buffer, .minBindingSize = 8, .location = 2}
     };
     cpl = LoadComputePipeline(computeSource, computeUniforms, 2);
     

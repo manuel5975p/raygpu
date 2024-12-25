@@ -451,10 +451,10 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     
     //shaderInputs.uniform_count = 4;
     UniformDescriptor uniforms[4] = {
-        UniformDescriptor{uniform_buffer, 64},
-        UniformDescriptor{texture2d, 0},
-        UniformDescriptor{sampler, 0},
-        UniformDescriptor{storage_buffer, 64}
+        UniformDescriptor{uniform_buffer, 64, 0},
+        UniformDescriptor{texture2d, 0, 1},
+        UniformDescriptor{sampler, 0, 2},
+        UniformDescriptor{storage_buffer, 64, 3}
     };
     AttributeAndResidence attrs[4] = {
         AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 0 * sizeof(float), 0}, 0, WGPUVertexStepMode_Vertex, true},

@@ -1321,6 +1321,24 @@ extern "C" DescribedRenderpass LoadRenderpass(WGPUTextureView color, WGPUTexture
         .optionalDepthTexture = depth,
     });    
 }
+DescribedSampler LoadSampler(addressMode amode, filterMode fmode){
+    DescribedSampler ret zeroinit;
+    ret.desc.magFilter    = (WGPUFilterMode)fmode;
+    ret.desc.minFilter    = (WGPUFilterMode)fmode;
+    ret.desc.mipmapFilter = WGPUMipmapFilterMode_Linear;
+    ret.desc.compare      = WGPUCompareFunction_Undefined;
+    ret.desc.lodMinClamp  = 0.0f;
+    ret.desc.lodMaxClamp  = 1.0f;
+    ret.desc.maxAnisotropy = 1;
+    ret.desc.addressModeU = (WGPUAddressMode)amode;
+    ret.desc.addressModeV = (WGPUAddressMode)amode;
+    ret.desc.addressModeW = (WGPUAddressMode)amode;
+    ret.sampler = wgpuDeviceCreateSampler(GetDevice(), &ret.desc);
+    return ret;
+}
+void UnloadSampler(DescribedSampler sampler){
+    wgpuSamplerRelease(sampler.sampler);
+}
 
 WGPUTexture GetActiveColorTarget(){
     return g_wgpustate.currentSurfaceTexture.texture;

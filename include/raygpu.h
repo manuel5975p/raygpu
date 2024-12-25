@@ -87,6 +87,11 @@ typedef struct DescribedBuffer{
     WGPUBuffer buffer;
 }DescribedBuffer;
 
+typedef struct DescribedSampler{
+    WGPUSampler sampler;
+    WGPUSamplerDescriptor desc;
+}DescribedSampler;
+
 typedef struct StagingBuffer{
     DescribedBuffer gpuUsable;
     DescribedBuffer mappable;
@@ -252,7 +257,13 @@ typedef enum WindowFlag{
 typedef enum draw_mode{
     RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS, RL_LINES
 }draw_mode;
-
+typedef enum filterMode{
+    nearest = WGPUFilterMode_Nearest,
+    linear = WGPUFilterMode_Linear,
+}filterMode;
+typedef enum adressMode{
+    repeat = WGPUAddressMode_Repeat, clampToEdge = WGPUAddressMode_ClampToEdge, mirrorRepeat = WGPUAddressMode_MirrorRepeat,
+}addressMode;
 typedef enum {
     KEY_NULL            = 0,        // Key: NULL, used for no key pressed
     // Alphanumeric keys
@@ -409,13 +420,24 @@ typedef struct AttributeAndResidence{
     bool enabled;
 }AttributeAndResidence;
 
-/**
- */
 typedef struct full_renderstate full_renderstate;
 typedef struct GLFWwindow GLFWwindow;
 
 #ifdef __cplusplus
+/**
+ * @brief Get the Bindings object, returning a map from 
+ * Uniform name -> UniformDescriptor (type and minimum size and binding location)
+ * 
+ * @param shaderSource 
+ * @return std::unordered_map<std::string, std::pair<uint32_t, UniformDescriptor>> 
+ */
 std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shaderSource);
+/**
+ * @brief returning a map from 
+ * Attribute name -> Attribute format (vec2f, vec3f, etc.) and binding location
+ * @param shaderSource 
+ * @return std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> 
+ */
 std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> getAttributes(const char* shaderSource);
 #endif
 
@@ -510,6 +532,9 @@ EXTERN_C_BEGIN
     const char* FindDirectory(const char* directoryName, int maxOutwardSearch);
     bool IsFileExtension(const char *fileName, const char *ext);
     
+    DescribedSampler LoadSampler(addressMode amode, filterMode fmode);
+    void UnloadSampler(DescribedSampler sampler);
+
     WGPUTexture GetActiveColorTarget(cwoid);
     Texture LoadTextureFromImage(Image img);
     Image LoadImageFromTexture(Texture tex);
@@ -617,6 +642,7 @@ EXTERN_C_BEGIN
     WGPUShaderModule LoadShader(const char* path);
 
     DescribedPipeline* ClonePipeline(const DescribedPipeline* pl);
+    DescribedPipeline* LoadPipeline(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, RenderSettings settings);
     DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
     DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
     DescribedPipeline* DefaultPipeline(cwoid);
