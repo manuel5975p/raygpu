@@ -90,7 +90,7 @@ int main(){
 
     //DescribedPipeline* pl = LoadPipelineEx(source, nullptr, 0, nullptr, 0, settings);
     //DescribedPipeline* pl = DefaultPipeline();
-    DescribedPipeline* pl = LoadPipelineForVAO(source, vao, nullptr, 0, settings);
+    DescribedPipeline* pl = LoadPipelineForVAOEx(source, vao, nullptr, 0, settings);
     PreparePipeline(pl, vao);
     while(!WindowShouldClose()){
         BeginDrawing();

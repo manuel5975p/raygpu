@@ -19,11 +19,8 @@ struct LightBuffer {
 };
 
 @group(0) @binding(0) var<uniform> Perspective_View: mat4x4f;
-@group(0) @binding(1) var gradientTexture: texture_2d<f32>;
-@group(0) @binding(2) var grsampler: sampler;
-@group(0) @binding(3) var<storage> modelMatrix: array<mat4x4f>;
-@group(0) @binding(4) var<storage> lights: LightBuffer;
-
+@group(0) @binding(1) var colDiffuse: texture_2d<f32>;
+@group(0) @binding(2) var texSampler: sampler;
 //Can be omitted
 //@group(0) @binding(3) var<storage> storig: array<vec4f>;
 
@@ -32,8 +29,8 @@ struct LightBuffer {
 fn vs_main(@builtin(instance_index) instanceIdx : u32, in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
     out.position = Perspective_View * 
-                   modelMatrix[instanceIdx] *
-    vec4f(in.position.xyz /*+ storig[0].xyz * 0.3f*/, 1.0f);
+                   //modelMatrix[instanceIdx] *
+    vec4f(in.position.xyz, 1.0f);
     out.color = in.color;
     out.uv = in.uv;
     return out;
@@ -41,22 +38,44 @@ fn vs_main(@builtin(instance_index) instanceIdx : u32, in: VertexInput) -> Verte
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    return textureSample(gradientTexture, grsampler, in.uv).rgba * in.color;
+    return /*textureSample(gradientTexture, grsampler, in.uv).rgba */ in.color;
 })";
 int main(){
     InitWindow(800, 600, "Shader Loading");
-    AttributeAndResidence attrs[4] = {
-        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 0 * sizeof(float), 0}, 0, WGPUVertexStepMode_Vertex, true},
-        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x2, 3 * sizeof(float), 1}, 0, WGPUVertexStepMode_Vertex, true},
-        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 5 * sizeof(float), 2}, 0, WGPUVertexStepMode_Vertex, true},
-        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x4, 8 * sizeof(float), 3}, 0, WGPUVertexStepMode_Vertex, true},
-    };
+    
     RenderSettings settings zeroinit;
     settings.depthTest = 1;
-    DescribedPipeline* pl = LoadPipeline(shaderSource, attrs, 4, settings);
+    settings.depthCompare = WGPUCompareFunction_LessEqual;
+    vertex vaodata[3] = {
+        vertex{.pos = Vector3{0,0,0}, .uv = Vector2{0,0}, .normal = Vector3{0,0,1}, .col = Vector4{1,1,1,1}},
+        vertex{.pos = Vector3{100,0,0}, .uv = Vector2{1,0}, .normal = Vector3{0,0,1}, .col = Vector4{1,1,1,1}},
+        vertex{.pos = Vector3{0,100,0}, .uv = Vector2{0,1}, .normal = Vector3{0,0,1}, .col = Vector4{1,1,1,1}},
+    };
+    DescribedBuffer buf = GenBuffer(vaodata, sizeof(vaodata));
+    VertexArray* vao = LoadVertexArray();
+    VertexAttribPointer(vao, &buf, 0, WGPUVertexFormat_Float32x3, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, &buf, 1, WGPUVertexFormat_Float32x2, sizeof(float) * 2, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, &buf, 2, WGPUVertexFormat_Float32x3, sizeof(float) * 5, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, &buf, 3, WGPUVertexFormat_Float32x4, sizeof(float) * 8, WGPUVertexStepMode_Vertex);
+
+    DescribedPipeline* pl = LoadPipelineForVAO(shaderSource, vao, settings);
+    DescribedSampler smp = LoadSampler(repeat, nearest);
+    Texture tex = LoadTextureFromImage(GenImageColor(RED, 10, 10));
+    Matrix scr = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
+    SetPipelineUniformBufferData(pl, GetUniformLocation(pl, "Perspective_View"), &scr, sizeof(Matrix));
+    SetPipelineTexture          (pl, GetUniformLocation(pl, "colDiffuse"), tex);
+    SetPipelineSampler          (pl, GetUniformLocation(pl, "texSampler"), smp.sampler);
+    
     while(!WindowShouldClose()){
+        
         BeginDrawing();
         DrawFPS(0, 0);
+        BeginPipelineMode(pl, WGPUPrimitiveTopology_TriangleList);
+        
+        
+        BindVertexArray(pl, vao);
+        DrawArrays(3);
+        EndPipelineMode();
         EndDrawing();
     }
 }

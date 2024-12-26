@@ -1147,22 +1147,44 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     //state->currentBindGroup.desc.layout = state->pipeline.bglayout.layout;
     
 }
-void SetUniformBuffer (uint32_t index, DescribedBuffer* buffer){
-    WGPUBindGroupEntry entry{};
-    entry.binding = index;
-    entry.buffer = buffer->buffer;
-    entry.size = buffer->descriptor.size;
-    UpdateBindGroupEntry(&g_wgpustate.rstate->activePipeline->bindGroup, index, entry);
+
+void SetTexture                   (uint32_t index, Texture tex){
+    SetPipelineTexture(GetActivePipeline(), index, tex);
 }
-void SetStorageBuffer (uint32_t index, DescribedBuffer* buffer){
-    WGPUBindGroupEntry entry{};
-    entry.binding = index;
-    entry.buffer = buffer->buffer;
-    entry.size = buffer->descriptor.size;
-    UpdateBindGroupEntry(&g_wgpustate.rstate->activePipeline->bindGroup, index, entry);
+void SetSampler                   (uint32_t index, WGPUSampler sampler){
+    SetPipelineSampler (GetActivePipeline(), index, sampler);
+}
+void SetUniformBuffer             (uint32_t index, DescribedBuffer* buffer){
+    SetPipelineUniformBuffer (GetActivePipeline(), index, buffer);
+}
+void SetStorageBuffer             (uint32_t index, DescribedBuffer* buffer){
+    SetPipelineStorageBuffer(GetActivePipeline(), index, buffer);
+}
+void SetUniformBufferData         (uint32_t index, const void* data, size_t size){
+    SetPipelineUniformBufferData(GetActivePipeline(), index, data, size);
+}
+void SetStorageBufferData         (uint32_t index, const void* data, size_t size){
+    SetPipelineStorageBufferData(GetActivePipeline(), index, data, size);
 }
 
-void SetUniformBufferData (uint32_t index, const void* data, size_t size){
+
+
+void SetPipelineUniformBuffer (DescribedPipeline* pl, uint32_t index, DescribedBuffer* buffer){
+    WGPUBindGroupEntry entry{};
+    entry.binding = index;
+    entry.buffer = buffer->buffer;
+    entry.size = buffer->descriptor.size;
+    UpdateBindGroupEntry(&pl->bindGroup, index, entry);
+}
+void SetPipelineStorageBuffer (DescribedPipeline* pl, uint32_t index, DescribedBuffer* buffer){
+    WGPUBindGroupEntry entry{};
+    entry.binding = index;
+    entry.buffer = buffer->buffer;
+    entry.size = buffer->descriptor.size;
+    UpdateBindGroupEntry(&pl->bindGroup, index, entry);
+}
+
+void SetPipelineUniformBufferData (DescribedPipeline* pl, uint32_t index, const void* data, size_t size){
     drawCurrentBatch();
     WGPUBindGroupEntry entry{};
     WGPUBufferDescriptor bufferDesc{};
@@ -1175,9 +1197,9 @@ void SetUniformBufferData (uint32_t index, const void* data, size_t size){
     entry.binding = index;
     entry.buffer = uniformBuffer;
     entry.size = size;
-    UpdateBindGroupEntry(&g_wgpustate.rstate->activePipeline->bindGroup, index, entry);
+    UpdateBindGroupEntry(&pl->bindGroup, index, entry);
 }
-void SetStorageBufferData (uint32_t index, const void* data, size_t size){
+void SetPipelineStorageBufferData (DescribedPipeline* pl, uint32_t index, const void* data, size_t size){
     WGPUBindGroupEntry entry{};
     WGPUBufferDescriptor bufferDesc{};
 
@@ -1189,20 +1211,22 @@ void SetStorageBufferData (uint32_t index, const void* data, size_t size){
     entry.binding = index;
     entry.buffer = uniformBuffer;
     entry.size = size;
-    UpdateBindGroupEntry(&g_wgpustate.rstate->activePipeline->bindGroup, index, entry);
+    UpdateBindGroupEntry(&pl->bindGroup, index, entry);
 }
-extern "C" void SetTexture(uint32_t index, Texture tex){
+extern "C" void SetPipelineTexture(DescribedPipeline* pl, uint32_t index, Texture tex){
     WGPUBindGroupEntry entry{};
     entry.binding = index;
     entry.textureView = tex.view;
-    UpdateBindGroupEntry(&g_wgpustate.rstate->activePipeline->bindGroup, index, entry);
+    
+    UpdateBindGroupEntry(&pl->bindGroup, index, entry);
 }
-extern "C" void SetSampler(uint32_t index, WGPUSampler sampler){
+extern "C" void SetPipelineSampler(DescribedPipeline* pl, uint32_t index, WGPUSampler sampler){
     WGPUBindGroupEntry entry{};
     entry.binding = index;
     entry.sampler = sampler;
-    UpdateBindGroupEntry(&g_wgpustate.rstate->activePipeline->bindGroup, index, entry);
+    UpdateBindGroupEntry(&pl->bindGroup, index, entry);
 }
+
 void ResizeBuffer(DescribedBuffer* buffer, size_t newSize){
     if(newSize == buffer->descriptor.size)return;
 
@@ -1478,6 +1502,16 @@ extern "C" Image LoadImageFromMemory(const char* extension, const void* data, si
         image.format = RGB8;
     }
     return image;
+}
+extern "C" Image GenImageColor(Color a, uint32_t width, uint32_t height){
+    Image ret{RGBA8, width, height, width * 4, std::calloc(width * height, sizeof(Color)), 1};
+    for(uint32_t i = 0;i < height;i++){
+        for(uint32_t j = 0;j < width;j++){
+            const size_t index = size_t(i) * width + j;
+            static_cast<Color*>(ret.data)[index] = a;
+        }
+    }
+    return ret;
 }
 extern "C" Image GenImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32_t checkerCount){
     Image ret{RGBA8, width, height, width * 4, std::calloc(width * height, sizeof(Color)), 1};

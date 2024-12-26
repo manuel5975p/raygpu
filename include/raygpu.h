@@ -190,6 +190,7 @@ externcvar size_t telegrama_render_size;
 
 //extern DescribedBuffer vbomap;
 #ifdef __cplusplus
+constexpr uint32_t ATTRIB_NOT_FOUND = 0x0500;//GL_INVALID_ENUM;
 constexpr Color LIGHTGRAY{ 200, 200, 200, 255 };
 constexpr Color GRAY{ 130, 130, 130, 255 };
 constexpr Color DARKGRAY{ 80, 80, 80, 255 };   
@@ -545,6 +546,7 @@ EXTERN_C_BEGIN
     void UnloadImage(Image img);
     void UnloadTexture(Texture tex);
     Image LoadImageFromMemory(const char* extension, const void* data, size_t dataSize);
+    Image GenImageColor(Color a, uint32_t width, uint32_t height);
     Image GenImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32_t checkerCount);
     void SaveImage(Image img, const char* filepath);
 
@@ -644,7 +646,8 @@ EXTERN_C_BEGIN
     DescribedPipeline* ClonePipeline(const DescribedPipeline* pl);
     DescribedPipeline* LoadPipeline(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, RenderSettings settings);
     DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
-    DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
+    DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao, RenderSettings settings);
+    DescribedPipeline* LoadPipelineForVAOEx(const char* shaderSource, VertexArray* vao, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
     DescribedPipeline* DefaultPipeline(cwoid);
     void UnloadPipeline(DescribedPipeline* pl);
 
@@ -672,12 +675,21 @@ EXTERN_C_BEGIN
     void BindVertexBuffer(const DescribedBuffer* buffer);
 
     DescribedPipeline* GetActivePipeline(cwoid);
-    void SetTexture       (uint32_t index, Texture tex);
-    void SetSampler       (uint32_t index, WGPUSampler sampler);
-    void SetUniformBuffer (uint32_t index, DescribedBuffer* buffer);
-    void SetStorageBuffer (uint32_t index, DescribedBuffer* buffer);
-    void SetUniformBufferData (uint32_t index, const void* data, size_t size);
-    void SetStorageBufferData (uint32_t index, const void* data, size_t size);
+
+    uint32_t GetUniformLocation(DescribedPipeline* pl, const char* uniformName);
+    void SetPipelineTexture           (DescribedPipeline* pl, uint32_t index, Texture tex);
+    void SetPipelineSampler           (DescribedPipeline* pl, uint32_t index, WGPUSampler sampler);
+    void SetPipelineUniformBuffer     (DescribedPipeline* pl, uint32_t index, DescribedBuffer* buffer);
+    void SetPipelineStorageBuffer     (DescribedPipeline* pl, uint32_t index, DescribedBuffer* buffer);
+    void SetPipelineUniformBufferData (DescribedPipeline* pl, uint32_t index, const void* data, size_t size);
+    void SetPipelineStorageBufferData (DescribedPipeline* pl, uint32_t index, const void* data, size_t size);
+
+    void SetTexture                   (uint32_t index, Texture tex);
+    void SetSampler                   (uint32_t index, WGPUSampler sampler);
+    void SetUniformBuffer             (uint32_t index, DescribedBuffer* buffer);
+    void SetStorageBuffer             (uint32_t index, DescribedBuffer* buffer);
+    void SetUniformBufferData         (uint32_t index, const void* data, size_t size);
+    void SetStorageBufferData         (uint32_t index, const void* data, size_t size);
     
     void init_full_renderstate (full_renderstate* state, const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniform_count, WGPUTextureView c, WGPUTextureView d);
     void updatePipeline        (full_renderstate* state, enum draw_mode drawmode);
