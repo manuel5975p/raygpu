@@ -128,6 +128,16 @@ typedef struct Matrix{
     #endif// __cplusplus
 } Matrix;
 
+typedef struct Quaternion{
+    float x,y,z,w;
+}Quaternion;
+
+typedef struct Transform {
+    Vector3 translation;    // Translation
+    Quaternion rotation;    // Rotation
+    Vector3 scale;          // Scale
+} Transform;
+
 MAPI Matrix MatrixIdentity(void){
     Matrix ret = {0};
     ret.data[0] = 1;
@@ -136,6 +146,7 @@ MAPI Matrix MatrixIdentity(void){
     ret.data[15] = 1;
     return ret;
 }
+
 
 MAPI Matrix MatrixMultiply(Matrix A, Matrix B){
     Matrix ret = {0};
@@ -286,6 +297,187 @@ MAPI Matrix MatrixTranspose(Matrix mat){
     }
     return ret;
 }
+MAPI Vector4 Vector4Negate(Vector4 x){
+    return CLITERAL(Vector4){-x.x, -x.y, -x.z, x.w};
+}
+MAPI Vector3 Vector3Negate(Vector3 x){
+    return CLITERAL(Vector3){-x.x, -x.y, -x.z};
+}
+MAPI Vector2 Vector2Negate(Vector2 x){
+    return CLITERAL(Vector2){-x.x, -x.y};
+}
+MAPI int FloatEquals(float x, float y){
+    #if !defined(EPSILON)
+        #define EPSILON 0.000001f
+    #endif
+
+    int result = (fabsf(x - y)) <= (EPSILON*fmaxf(1.0f, fmaxf(fabsf(x), fabsf(y))));
+
+    return result;
+}// Get a quaternion for a given rotation matrix
+MAPI Quaternion QuaternionFromMatrix(Matrix mat)
+{
+    Quaternion result zeroinit;
+
+    float fourWSquaredMinus1 = mat.data[0 ] + mat.data[5] + mat.data[10];
+    float fourXSquaredMinus1 = mat.data[0 ] - mat.data[5] - mat.data[10];
+    float fourYSquaredMinus1 = mat.data[5 ] - mat.data[0] - mat.data[10];
+    float fourZSquaredMinus1 = mat.data[10] - mat.data[0] - mat.data[5 ];
+
+    int biggestIndex = 0;
+    float fourBiggestSquaredMinus1 = fourWSquaredMinus1;
+    if (fourXSquaredMinus1 > fourBiggestSquaredMinus1)
+    {
+        fourBiggestSquaredMinus1 = fourXSquaredMinus1;
+        biggestIndex = 1;
+    }
+
+    if (fourYSquaredMinus1 > fourBiggestSquaredMinus1)
+    {
+        fourBiggestSquaredMinus1 = fourYSquaredMinus1;
+        biggestIndex = 2;
+    }
+
+    if (fourZSquaredMinus1 > fourBiggestSquaredMinus1)
+    {
+        fourBiggestSquaredMinus1 = fourZSquaredMinus1;
+        biggestIndex = 3;
+    }
+
+    float biggestVal = sqrtf(fourBiggestSquaredMinus1 + 1.0f)*0.5f;
+    float mult = 0.25f/biggestVal;
+
+    switch (biggestIndex)
+    {
+        case 0:
+            result.w = biggestVal;
+            result.x = (mat.data[6] - mat.data[9])*mult;
+            result.y = (mat.data[8] - mat.data[2])*mult;
+            result.z = (mat.data[1] - mat.data[4])*mult;
+            break;
+        case 1:
+            result.x = biggestVal;
+            result.w = (mat.data[6] - mat.data[9])*mult;
+            result.y = (mat.data[1] + mat.data[4])*mult;
+            result.z = (mat.data[8] + mat.data[2])*mult;
+            break;
+        case 2:
+            result.y = biggestVal;
+            result.w = (mat.data[8] - mat.data[2])*mult;
+            result.x = (mat.data[1] + mat.data[4])*mult;
+            result.z = (mat.data[6] + mat.data[9])*mult;
+            break;
+        case 3:
+            result.z = biggestVal;
+            result.w = (mat.data[1] - mat.data[4])*mult;
+            result.x = (mat.data[8] + mat.data[2])*mult;
+            result.y = (mat.data[6] + mat.data[9])*mult;
+            break;
+    }
+
+    return result;
+}
+MAPI void MatrixDecompose(Matrix mat, Vector3 *translation, Quaternion *rotation, Vector3 *scale){
+    // Extract translation.
+    translation->x = mat.data[12];
+    translation->y = mat.data[13];
+    translation->z = mat.data[14];
+
+    // Extract upper-left for determinant computation
+    const float a = mat.data[0];
+    const float b = mat.data[4];
+    const float c = mat.data[8];
+    const float d = mat.data[1];
+    const float e = mat.data[5];
+    const float f = mat.data[9];
+    const float g = mat.data[2];
+    const float h = mat.data[6];
+    const float i = mat.data[10];
+    const float A = e*i - f*h;
+    const float B = f*g - d*i;
+    const float C = d*h - e*g;
+
+    // Extract scale
+    const float det = a*A + b*B + c*C;
+    Vector3 abc = { a, b, c };
+    Vector3 def = { d, e, f };
+    Vector3 ghi = { g, h, i };
+
+    float scalex = sqrtf(abc.x*abc.x + abc.y * abc.y + abc.z * abc.z);
+    float scaley = sqrtf(def.x*def.x + def.y * def.y + def.z * def.z);
+    float scalez = sqrtf(ghi.x*ghi.x + ghi.y * ghi.y + ghi.z * ghi.z);
+    Vector3 s = { scalex, scaley, scalez };
+
+    if (det < 0) s = Vector3Negate(s);
+
+    *scale = s;
+
+    // Remove scale from the matrix if it is not close to zero
+    Matrix clone = mat;
+    if (!FloatEquals(det, 0))
+    {
+        clone.data[0 ] /= s.x;
+        clone.data[4 ] /= s.x;
+        clone.data[8 ] /= s.x;
+        clone.data[1 ] /= s.y;
+        clone.data[5 ] /= s.y;
+        clone.data[9 ] /= s.y;
+        clone.data[2 ] /= s.z;
+        clone.data[6 ] /= s.z;
+        clone.data[10] /= s.z;
+
+        // Extract rotation
+        *rotation = QuaternionFromMatrix(clone);
+    }
+    else
+    {
+        // Set to identity if close to zero
+        *rotation = CLITERAL(Quaternion){0.0f, 0.0f, 0.0f, 1.0f };
+    }
+}
+
+MAPI Matrix MatrixInvert(Matrix mat){
+    Matrix result zeroinit;
+
+    float a00 = mat.data[0 ], a01 = mat.data[1 ], a02 = mat.data[2 ], a03 = mat.data[3 ];
+    float a10 = mat.data[4 ], a11 = mat.data[5 ], a12 = mat.data[6 ], a13 = mat.data[7 ];
+    float a20 = mat.data[8 ], a21 = mat.data[9 ], a22 = mat.data[10], a23 = mat.data[11];
+    float a30 = mat.data[12], a31 = mat.data[13], a32 = mat.data[14], a33 = mat.data[15];
+
+    float b00 = a00*a11 - a01*a10;
+    float b01 = a00*a12 - a02*a10;
+    float b02 = a00*a13 - a03*a10;
+    float b03 = a01*a12 - a02*a11;
+    float b04 = a01*a13 - a03*a11;
+    float b05 = a02*a13 - a03*a12;
+    float b06 = a20*a31 - a21*a30;
+    float b07 = a20*a32 - a22*a30;
+    float b08 = a20*a33 - a23*a30;
+    float b09 = a21*a32 - a22*a31;
+    float b10 = a21*a33 - a23*a31;
+    float b11 = a22*a33 - a23*a32;
+
+    float invDet = 1.0f/(b00*b11 - b01*b10 + b02*b09 + b03*b08 - b04*b07 + b05*b06);
+
+    result.data[0 ] = (a11*b11 - a12*b10 + a13*b09)*invDet;
+    result.data[1 ] = (-a01*b11 + a02*b10 - a03*b09)*invDet;
+    result.data[2 ] = (a31*b05 - a32*b04 + a33*b03)*invDet;
+    result.data[3 ] = (-a21*b05 + a22*b04 - a23*b03)*invDet;
+    result.data[4 ] = (-a10*b11 + a12*b08 - a13*b07)*invDet;
+    result.data[5 ] = (a00*b11 - a02*b08 + a03*b07)*invDet;
+    result.data[6 ] = (-a30*b05 + a32*b02 - a33*b01)*invDet;
+    result.data[7 ] = (a20*b05 - a22*b02 + a23*b01)*invDet;
+    result.data[8 ] = (a10*b10 - a11*b08 + a13*b06)*invDet;
+    result.data[9 ] = (-a00*b10 + a01*b08 - a03*b06)*invDet;
+    result.data[10] = (a30*b04 - a31*b02 + a33*b00)*invDet;
+    result.data[11] = (-a20*b04 + a21*b02 - a23*b00)*invDet;
+    result.data[12] = (-a10*b09 + a11*b07 - a12*b06)*invDet;
+    result.data[13] = (a00*b09 - a01*b07 + a02*b06)*invDet;
+    result.data[14] = (-a30*b03 + a31*b01 - a32*b00)*invDet;
+    result.data[15] = (a20*b03 - a21*b01 + a22*b00)*invDet;
+
+    return result;
+}
 MAPI Matrix MatrixTranslate(float x, float y, float z){    
     return CLITERAL(Matrix){
         1,0,0,0,// First !! column !!
@@ -372,6 +564,25 @@ MAPI Matrix GetCameraMatrix2D(Camera2D camera){
 }
 
 #ifdef __cplusplus
+MAPI Vector3 operator*(const Matrix& m, const Vector3 v){
+    Vector3 ret zeroinit;
+    ret.x += v.x * m.data[0]; //First column 
+    ret.y += v.x * m.data[1]; //First column 
+    ret.z += v.x * m.data[2]; //First column
+
+    ret.x += v.y * m.data[4];
+    ret.y += v.y * m.data[5];
+    ret.z += v.y * m.data[6];
+
+    ret.x += v.z * m.data[8];
+    ret.y += v.z * m.data[9];
+    ret.z += v.z * m.data[10];
+
+    ret.x += m.data[12];
+    ret.y += m.data[13];
+    ret.z += m.data[14];
+    return ret;
+}
 MAPI std::ostream& operator<<(std::ostream& str, const Vector3& r){
     str << "["; 
     str << r.x << ", ";

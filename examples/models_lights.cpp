@@ -21,7 +21,7 @@ struct LightBuffer {
     positions: array<vec4f>
 };
 
-// Instead of the simple uTime variable, our uniform variable is a struct
+
 @group(0) @binding(0) var<uniform> Perspective_View: mat4x4f;
 @group(0) @binding(1) var gradientTexture: texture_2d<f32>;
 @group(0) @binding(2) var grsampler: sampler;

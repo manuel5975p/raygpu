@@ -9,13 +9,20 @@ typedef struct StringToUniformMap{
         return uniforms.find(v)->second;
     }
     uint32_t GetLocation(const std::string& v)const noexcept{
-        return uniforms.find(v)->second.location;
+        auto it = uniforms.find(v);
+        if(it == uniforms.end())
+            return LOCATION_NOT_FOUND;
+        return it->second.location;
     }
     UniformDescriptor operator[](const char* v)const noexcept{
         return uniforms.find(v)->second;
     }
     uint32_t GetLocation(const char* v)const noexcept{
-        return uniforms.find(v)->second.location;
+        auto it = uniforms.find(v);
+        if(it == uniforms.end())
+            return LOCATION_NOT_FOUND;
+        return it->second.location;
+        
     }
 }StringToUniformMap;
 

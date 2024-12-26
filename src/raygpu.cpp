@@ -1879,7 +1879,7 @@ const char* FindDirectory(const char* directoryName, int maxOutwardSearch){
     std::optional<fs::path> path = std::nullopt;
     for(int i = 0;i < maxOutwardSearch;i++){
         auto pathopt = breadthFirstSearch(searchPath, 2, [directoryName](const fs::path& p){
-            TRACELOG(LOG_WARNING, "%s", p.string().c_str());
+            //TRACELOG(LOG_WARNING, "%s", p.string().c_str());
             return p.filename().string() == directoryName;
         });
         if(pathopt){
