@@ -97,6 +97,7 @@ typedef struct StagingBuffer{
     DescribedBuffer mappable;
     void* map; //Nullable
 }StagingBuffer;
+
 typedef struct VertexArray VertexArray;
 // GlyphInfo, font characters glyphs info
 typedef struct GlyphInfo {
@@ -124,19 +125,19 @@ typedef struct Mesh {
     // Vertex attributes data
     float *vertices;            // Vertex position (XYZ - 3 components per vertex) (shader-location = 0)
     float *texcoords;           // Vertex texture coordinates (UV - 2 components per vertex) (shader-location = 1)
-    //float *texcoords2;        // Vertex texture second coordinates (UV - 2 components per vertex) (shader-location = 5)
+    float *texcoords2;        // Vertex texture second coordinates (UV - 2 components per vertex) (shader-location = 5)
     float *normals;             // Vertex normals (XYZ - 3 components per vertex) (shader-location = 2)
-    //float *tangents;          // Vertex tangents (XYZW - 4 components per vertex) (shader-location = 4)
+    float *tangents;          // Vertex tangents (XYZW - 4 components per vertex) (shader-location = 4)
     float *colors;              // Vertex colors (RGBA - 4 components per vertex) (shader-location = 3)
     uint32_t *indices;          // Vertex indices (in case vertex data comes indexed)
 
     // Animation vertex data (not supported yet)
-    // float *animVertices;        // Animated vertex positions (after bones transformations)
-    // float *animNormals;         // Animated normals (after bones transformations)
-    // unsigned char *boneIds;     // Vertex bone ids, max 255 bone ids, up to 4 bones influence by vertex (skinning) (shader-location = 6)
-    // float *boneWeights;         // Vertex bone weight, up to 4 bones influence by vertex (skinning) (shader-location = 7)
-    // Matrix *boneMatrices;       // Bones animated transformation matrices
-    // int boneCount;              // Number of bones
+    float *animVertices;        // Animated vertex positions (after bones transformations)
+    float *animNormals;         // Animated normals (after bones transformations)
+    unsigned char *boneIds;     // Vertex bone ids, max 255 bone ids, up to 4 bones influence by vertex (skinning) (shader-location = 6)
+    float *boneWeights;         // Vertex bone weight, up to 4 bones influence by vertex (skinning) (shader-location = 7)
+    Matrix *boneMatrices;       // Bones animated transformation matrices
+    int boneCount;              // Number of bones
 
     // WebGPU identifiers
     VertexArray* vao;
@@ -144,8 +145,12 @@ typedef struct Mesh {
     DescribedBuffer ibo; //Index buffer object, optional
 } Mesh;
 
+typedef struct BoneInfo {
+    char name[32];          // Bone name
+    int parent;             // Bone parent
+} BoneInfo;
 typedef struct MaterialMap{
-    Texture tex;
+    Texture texture;
     Color color;
     float value;
 }MaterialMap;
@@ -166,8 +171,8 @@ typedef struct Model {
 
     // Animation data
     int boneCount;          // Number of bones
-    //BoneInfo *bones;        // Bones information (skeleton)
-    //Transform *bindPose;    // Bones base transformation (pose)
+    BoneInfo *bones;        // Bones information (skeleton)
+    Transform *bindPose;    // Bones base transformation (pose)
 } Model;
 
 typedef struct BoundingBox {
@@ -190,7 +195,7 @@ externcvar size_t telegrama_render_size;
 
 //extern DescribedBuffer vbomap;
 #ifdef __cplusplus
-constexpr uint32_t ATTRIB_NOT_FOUND = 0x0500;//GL_INVALID_ENUM;
+constexpr uint32_t LOCATION_NOT_FOUND = 0x0500;//GL_INVALID_ENUM;
 constexpr Color LIGHTGRAY{ 200, 200, 200, 255 };
 constexpr Color GRAY{ 130, 130, 130, 255 };
 constexpr Color DARKGRAY{ 80, 80, 80, 255 };   
@@ -218,6 +223,7 @@ constexpr Color BLANK{ 0, 0, 0, 0 };
 constexpr Color MAGENTA{ 255, 0, 255, 255 };  
 constexpr Color RAYWHITE{ 245, 245, 245, 255 };
 #else // No C++
+#define LOCATION_NOT_FOUND 0x0500
 #define LIGHTGRAY  CLITERAL(Color){ 200, 200, 200, 255 }   // Light Gray
 #define GRAY       CLITERAL(Color){ 130, 130, 130, 255 }   // Gray
 #define DARKGRAY   CLITERAL(Color){ 80, 80, 80, 255 }      // Dark Gray
@@ -392,6 +398,24 @@ typedef enum {
     LOG_FATAL,          // Fatal logging, used to abort program: exit(EXIT_FAILURE)
     LOG_NONE            // Disable logging
 } TraceLogLevel;
+
+typedef enum {
+    MATERIAL_MAP_ALBEDO = 0,        // Albedo material (same as: MATERIAL_MAP_DIFFUSE)
+    MATERIAL_MAP_METALNESS,         // Metalness material (same as: MATERIAL_MAP_SPECULAR)
+    MATERIAL_MAP_NORMAL,            // Normal material
+    MATERIAL_MAP_ROUGHNESS,         // Roughness material
+    MATERIAL_MAP_OCCLUSION,         // Ambient occlusion material
+    MATERIAL_MAP_EMISSION,          // Emission material
+    MATERIAL_MAP_HEIGHT,            // Heightmap material
+    MATERIAL_MAP_CUBEMAP,           // Cubemap material (NOTE: Uses GL_TEXTURE_CUBE_MAP)
+    MATERIAL_MAP_IRRADIANCE,        // Irradiance material (NOTE: Uses GL_TEXTURE_CUBE_MAP)
+    MATERIAL_MAP_PREFILTER,         // Prefilter material (NOTE: Uses GL_TEXTURE_CUBE_MAP)
+    MATERIAL_MAP_BRDF               // Brdf material
+} MaterialMapIndex;
+
+#define MATERIAL_MAP_DIFFUSE      MATERIAL_MAP_ALBEDO
+#define MATERIAL_MAP_SPECULAR     MATERIAL_MAP_METALNESS
+
 typedef enum {
     FONT_DEFAULT = 0,   // Default font generation, anti-aliased
     FONT_BITMAP,        // Bitmap font generation, no anti-aliasing

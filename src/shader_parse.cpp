@@ -85,7 +85,7 @@ std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shade
         //std::cout << sgvar->Type()->As<tint::core::type::Reference>()->UnwrapRef()->Size() << "\n";
     }
     return ret;
-    std::unordered_map<std::string, std::unordered_map<uint32_t, WGPUVertexFormat>> declaredTypesAndLocations;
+    /*std::unordered_map<std::string, std::unordered_map<uint32_t, WGPUVertexFormat>> declaredTypesAndLocations;
     if(result.IsValid()){
 
         for(auto& str : result.AST().TypeDecls()){
@@ -196,7 +196,7 @@ std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shade
         std::cout << result.Diagnostics() << std::endl;
     }
     //tint::Source source();
-    return ret;
+    return ret;*/
 }
 /*std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shaderSource){
     std::istringstream istr(shaderSource);
