@@ -3,9 +3,23 @@
 #include <cstring>
 #include <iostream>
 
+typedef struct StringToUniformMap{
+    std::unordered_map<std::string, UniformDescriptor> uniforms;
+    UniformDescriptor operator[](const std::string& v)const noexcept{
+        return uniforms.find(v)->second;
+    }
+    uint32_t GetLocation(const std::string& v)const noexcept{
+        return uniforms.find(v)->second.location;
+    }
+    UniformDescriptor operator[](const char* v)const noexcept{
+        return uniforms.find(v)->second;
+    }
+    uint32_t GetLocation(const char* v)const noexcept{
+        return uniforms.find(v)->second.location;
+    }
+}StringToUniformMap;
 
-
-WGPUBindGroupLayout bindGroupLayoutFromUniformTypes(const UniformDescriptor* uniforms, uint32_t uniformCount){
+/*WGPUBindGroupLayout bindGroupLayoutFromUniformTypes(const UniformDescriptor* uniforms, uint32_t uniformCount){
     std::vector<WGPUBindGroupLayoutEntry> blayouts(uniformCount);
     WGPUBindGroupLayoutDescriptor bglayoutdesc{};
     std::memset(blayouts.data(), 0, blayouts.size() * sizeof(WGPUBindGroupLayoutEntry));
@@ -38,7 +52,7 @@ WGPUBindGroupLayout bindGroupLayoutFromUniformTypes(const UniformDescriptor* uni
     bglayoutdesc.entryCount = uniformCount;
     bglayoutdesc.entries = blayouts.data();
     return wgpuDeviceCreateBindGroupLayout(g_wgpustate.device, &bglayoutdesc);
-}
+}*/
 
 DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, uint32_t uniformCount, bool compute){
     DescribedBindGroupLayout ret{};
@@ -92,9 +106,25 @@ DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, 
     ret.layout = wgpuDeviceCreateBindGroupLayout(g_wgpustate.device, &bglayoutdesc);
     return ret;
 }
-
-
-DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
+DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao, RenderSettings settings){
+    std::unordered_map<std::string, UniformDescriptor> bindings = getBindings(shaderSource);
+    std::vector<UniformDescriptor> values;
+    values.reserve(bindings.size());
+    for(const auto& [x,y] : bindings){
+        values.push_back(y);
+    }
+    DescribedPipeline* pl = LoadPipelineForVAOEx(shaderSource, vao, values.data(), values.size(), settings);
+    pl->uniformLocations = callocnew(StringToUniformMap);
+    new (pl->uniformLocations) StringToUniformMap{};
+    for(const auto& [x,y] : bindings){
+        (*pl->uniformLocations).uniforms[x] = y;
+    }
+    return pl;
+}
+uint32_t GetUniformLocation(DescribedPipeline* pl, const char* uniformName){
+    return pl->uniformLocations->GetLocation(uniformName);
+}
+DescribedPipeline* LoadPipelineForVAOEx(const char* shaderSource, VertexArray* vao, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
     DescribedPipeline* pl = LoadPipelineEx(shaderSource, nullptr, 0, uniforms, uniformCount, settings);
     PreparePipeline(pl, vao);
     return pl;
@@ -106,7 +136,13 @@ DescribedPipeline* LoadPipeline(const char* shaderSource, const AttributeAndResi
     for(const auto& [x,y] : bindings){
         values.push_back(y);
     }
-    return LoadPipelineEx(shaderSource, attribs, attribCount, values.data(), values.size(), settings);
+    DescribedPipeline* pl = LoadPipelineEx(shaderSource, attribs, attribCount, values.data(), values.size(), settings);
+    pl->uniformLocations = callocnew(StringToUniformMap);
+    new (pl->uniformLocations) StringToUniformMap{};
+    for(const auto& [x,y] : bindings){
+        (*pl->uniformLocations).uniforms[x] = y;
+    }
+    return pl;
 }
 extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
 
@@ -348,12 +384,18 @@ DescribedPipeline* DefaultPipeline(){
     return g_wgpustate.rstate->defaultPipeline;
 }
 extern "C" void UnloadPipeline(DescribedPipeline* pl){
+    
     wgpuPipelineLayoutRelease(pl->layout.layout);
     UnloadBindGroup(&pl->bindGroup);
     UnloadBindGroupLayout(&pl->bglayout);
     wgpuRenderPipelineRelease(pl->pipeline);
     wgpuRenderPipelineRelease(pl->pipeline_LineList);
     wgpuRenderPipelineRelease(pl->pipeline_TriangleStrip);
+    free(pl->attributePool);
+    free(pl->uniformLocations);
+    free(pl->blendState);
+    free(pl->colorTarget);
+    free(pl->depthStencilState);
 }
 uint64_t bgEntryHash(const WGPUBindGroupEntry& bge){
     const uint32_t rotation = (bge.binding) & 63;
@@ -382,6 +424,10 @@ extern "C" DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bgla
     return ret;
 }
 extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, WGPUBindGroupEntry entry){
+    if(index >= bg->desc.entryCount){
+        TRACELOG(LOG_WARNING, "Tried to set entry %d on a BindGroup with only %d entries", (int)index, (int)bg->desc.entryCount);
+        return;
+    }
     auto& newpuffer = entry.buffer;
     auto& newtexture = entry.textureView;
     if(newtexture && bg->entries[index].textureView == newtexture){

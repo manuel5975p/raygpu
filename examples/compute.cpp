@@ -131,7 +131,7 @@ int main(){
     settings.depthTest = 1;
     settings.sampleCount_onlyApplicableIfMoreThanOne = 4;
     settings.depthCompare = WGPUCompareFunction_Always;
-    rpl = LoadPipelineForVAO(wgsl, vao, 0, 0, settings);
+    rpl = LoadPipelineForVAOEx(wgsl, vao, 0, 0, settings);
 
 
 

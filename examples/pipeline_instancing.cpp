@@ -72,7 +72,7 @@ int main(){
     settings.depthTest = 1;
     settings.sampleCount_onlyApplicableIfMoreThanOne = 1;
     settings.depthCompare = WGPUCompareFunction_LessEqual;
-    pl = LoadPipelineForVAO(source, vao, nullptr, 0, settings);
+    pl = LoadPipelineForVAOEx(source, vao, nullptr, 0, settings);
     auto mainloop = [&]{
         for(size_t i = 0;i < offsets.size();i++){
             offsets[i] += velocities[i] * 0.0003f;

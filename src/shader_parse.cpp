@@ -7,6 +7,7 @@
 //#include <tint/api/tint.h>
 #include <tint/lang/wgsl/reader/parser/parser.h>
 #include <tint/lang/wgsl/reader/reader.h>
+#include <tint/lang/core/type/reference.h>
 const std::unordered_map<std::string, WGPUVertexFormat> builtins = [](){
     std::unordered_map<std::string, WGPUVertexFormat> map;
     map["vec2u"] = WGPUVertexFormat_Uint32x2;
@@ -32,7 +33,58 @@ std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shade
     std::unordered_map<std::string, UniformDescriptor> ret;
     tint::Source::File f("path", shaderSource);
     tint::wgsl::reader::Options options{};
-    auto result = tint::wgsl::reader::Parse(&f, options);
+    tint::Program result = tint::wgsl::reader::Parse(&f, options);
+    if(!result.IsValid()){
+        TRACELOG(LOG_ERROR, "Could not parse shader:");
+        std::cout << result.Diagnostics() << "\n";
+        return {};
+    }
+    const tint::sem::Info& psem = result.Sem();
+    for(size_t i = 0;i < result.AST().GlobalVariables().Length();i++){
+        auto sgvar = psem.Get(result.AST().GlobalVariables()[i])->As<tint::sem::GlobalVariable>();
+        UniformDescriptor desc{};
+        std::stringstream sstr;
+        std::string varname = sgvar->Declaration()->name->symbol.Name();
+        sstr << sgvar->Type()->FriendlyName();
+        TRACELOG(LOG_DEBUG, "Parsing uniform %s of type %s", varname.c_str(), sstr.str().c_str());
+        desc.minBindingSize = sgvar->Type()->As<tint::core::type::Reference>()->UnwrapRef()->Size();
+        desc.location = sgvar->Attributes().binding_point->binding;
+        auto iden = result.AST().GlobalVariables()[i]->type->As<tint::ast::IdentifierExpression>()->identifier;
+        auto& glob = result.AST().GlobalVariables()[i];
+        if(iden->symbol.Name().starts_with("texture_2d")){
+            desc.type = texture2d;
+        }
+        else if(iden->symbol.Name().starts_with("sampler")){
+            desc.type = sampler;
+        }
+        else{
+            if(auto addrspace = glob->As<tint::ast::Var>()->declared_address_space->As<tint::ast::IdentifierExpression>()){
+                if(addrspace->identifier->symbol.Name() == "uniform"){
+                    desc.type = uniform_buffer;
+                }
+                else if(addrspace->identifier->symbol.Name() == "storage"){
+                    
+                    if(auto accex = glob->As<tint::ast::Var>()->declared_access->As<tint::ast::IdentifierExpression>()){
+                        std::string access_modifier = accex->As<tint::ast::IdentifierExpression>()->identifier->symbol.Name();
+                        if(access_modifier == "read"){
+                            desc.type = storage_buffer;
+                        }
+                        else if (access_modifier == "read_write"){
+                            desc.type = storage_write_buffer;
+                        }
+                    }
+                    else{
+                        desc.type = storage_buffer;
+                    }
+                }
+            }
+        }
+        
+        ret[sgvar->Declaration()->name->symbol.Name()] = desc;
+        //std::cout << sgvar->Attributes().binding_point.value() << " ";
+        //std::cout << sgvar->Type()->As<tint::core::type::Reference>()->UnwrapRef()->Size() << "\n";
+    }
+    return ret;
     std::unordered_map<std::string, std::unordered_map<uint32_t, WGPUVertexFormat>> declaredTypesAndLocations;
     if(result.IsValid()){
 
@@ -96,6 +148,8 @@ std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shade
                 desc.type = sampler;
             }
             else{
+                
+                
                 if(auto addrspace = glob->As<tint::ast::Var>()->declared_address_space->As<tint::ast::IdentifierExpression>()){
                     if(addrspace->identifier->symbol.Name() == "uniform"){
                         desc.type = uniform_buffer;
@@ -115,7 +169,6 @@ std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shade
                             desc.type = storage_buffer;
                         }
                     }
-                    //std::cout << "<" << addrspace->identifier->symbol.Name() << ">\n";
                 }
                 
                 

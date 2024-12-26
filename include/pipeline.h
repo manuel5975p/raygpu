@@ -46,6 +46,10 @@ typedef struct DescribedPipelineLayout{
     WGPUPipelineLayoutDescriptor descriptor;
     WGPUPipelineLayout layout;
 }DescribedPipelineLayout;
+/**
+ * @brief Hashmap: std::string -> UniformDescriptor, only visible for C++
+ */
+typedef struct StringToUniformMap StringToUniformMap;
 
 typedef struct DescribedPipeline{
     RenderSettings settings;
@@ -68,6 +72,8 @@ typedef struct DescribedPipeline{
     WGPUFragmentState* fragmentState;
     WGPUColorTargetState* colorTarget;
     WGPUDepthStencilState* depthStencilState;
+
+    StringToUniformMap* uniformLocations;
 }DescribedPipeline;
 typedef struct DescribedComputePipeline{
     WGPUComputePipelineDescriptor desc;
