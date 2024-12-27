@@ -476,6 +476,7 @@ EXTERN_C_BEGIN
     uint32_t GetMonitorWidth (cwoid);                            //Monitor height
     uint32_t GetMonitorHeight(cwoid);                            //Monitor height
     void ToggleFullscreen(cwoid);
+    int GetCurrentMonitor(void);
 
     bool IsKeyDown(int key);
     bool IsKeyPressed(int key);
@@ -497,7 +498,7 @@ EXTERN_C_BEGIN
     void EnableCursor(cwoid);                                    // Enables cursor (unlock cursor)
     void DisableCursor(cwoid);                                   // Disables cursor (lock cursor)
     bool IsCursorOnScreen(cwoid);                                // Check if cursor is on the screen
-
+    void PollEvents(cwoid);
 
     /**
      * @brief Get the time elapsed since InitWindow() in seconds since 

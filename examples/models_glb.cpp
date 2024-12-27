@@ -3,6 +3,7 @@
 #include <iostream>
 
 Model mod;
+float angle = 0;
 int main(){
     InitWindow(1200, 800, "glTF Model Loading");
     std::string resourceDirectoryPath = FindDirectory("resources", 3);
@@ -25,14 +26,18 @@ int main(){
     DescribedPipeline* pl = Relayout(DefaultPipeline(), carmesh.vao);
     SetPipelineTexture(pl, 1, card);
     while(!WindowShouldClose()){
+        angle += 1.0f;
         BeginDrawing();
         ClearBackground(BLACK);
         BeginMode3D(cam);
         BeginPipelineMode(pl, WGPUPrimitiveTopology_TriangleList);
-        DrawMesh(carmesh, Material{}, MatrixScale(1, 1, 1));
+        DrawMesh(carmesh, Material{}, MatrixRotate(Vector3{0, 1, 0}, angle));
         EndPipelineMode();
         EndMode3D();
         DrawFPS(5, 5);
+        if(IsKeyPressed(KEY_U)){
+            ToggleFullscreen();
+        }
         EndDrawing();
     }
 }

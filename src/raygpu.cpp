@@ -1,5 +1,5 @@
 #include "raygpu.h"
-#include <GLFW/glfw3.h>
+
 #include <cassert>
 #include <filesystem>
 #include <vector>
@@ -517,22 +517,7 @@ uint32_t GetScreenWidth (cwoid){
 uint32_t GetScreenHeight(cwoid){
     return g_wgpustate.height;
 }
-uint32_t GetMonitorWidth (cwoid){
-    const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-    if(mode == nullptr){
-        glfwInit();
-        return GetMonitorWidth();
-    }
-    return mode->width;
-}
-uint32_t GetMonitorHeight(cwoid){
-    const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-    if(mode == nullptr){
-        glfwInit();
-        return GetMonitorWidth();
-    }
-    return mode->height;
-}
+
 void BeginRenderpassEx(DescribedRenderpass* renderPass){
     WGPUCommandEncoderDescriptor desc{};
     desc.label = STRVIEW("another cmdencoder");
@@ -656,7 +641,7 @@ void EndDrawing(){
     if(elapsed & (1ull << 63))return;
     if(!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) && nanosecondsPerFrame > elapsed && GetTargetFPS() > 0)
         NanoWait(nanosecondsPerFrame - elapsed);
-    glfwPollEvents();
+    PollEvents();
 
     //std::this_thread::sleep_for(std::chrono::nanoseconds(nanosecondsPerFrame - elapsed));
 }
@@ -837,13 +822,7 @@ Texture LoadTextureFromImage(Image img){
     if(altdata)free(altdata);
     return ret;
 }
-void ToggleFullscreen(){
-    //wgpuTextureViewRelease(depthTexture.view);
-    //wgpuTextureRelease(depthTexture.tex);
-    auto vm = glfwGetVideoMode(glfwGetPrimaryMonitor());
-    glfwSetWindowMonitor(g_wgpustate.window, glfwGetPrimaryMonitor(), 0, 0, vm->width, vm->height, vm->refreshRate);
-    //depthTexture = LoadDepthTexture(1920, 1200);
-}
+
 extern "C" bool IsKeyDown(int key){
     return g_wgpustate.keydown[key];
 }
@@ -891,29 +870,10 @@ bool IsMouseButtonReleased(int button){
 }
 
 
-void ShowCursor(cwoid){
-    glfwSetInputMode(g_wgpustate.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-}
-void HideCursor(cwoid){
-    glfwSetInputMode(g_wgpustate.window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
-}
-bool IsCursorHidden(cwoid){
-    return glfwGetInputMode(g_wgpustate.window, GLFW_CURSOR) == GLFW_CURSOR_HIDDEN;
-}
-void EnableCursor(cwoid){
-    glfwSetInputMode(g_wgpustate.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-}
-void DisableCursor(cwoid){
-    #ifndef __EMSCRIPTEN__
-    glfwSetInputMode(g_wgpustate.window, GLFW_CURSOR, GLFW_CURSOR_CAPTURED);
-    #endif
-}
+
+
 bool IsCursorOnScreen(cwoid){
     return g_wgpustate.cursorInWindow;
-}
-
-bool WindowShouldClose(cwoid){
-    return glfwWindowShouldClose(g_wgpustate.window);
 }
 
 uint64_t NanoTime(cwoid){
