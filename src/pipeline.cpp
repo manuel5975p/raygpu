@@ -386,7 +386,9 @@ DescribedComputePipeline* LoadComputePipeline(const char* shaderCode, const Unif
     ret->pipeline = wgpuDeviceCreateComputePipeline(GetDevice(), &ret->desc);
     return ret;
 }
-
+Texture GetDefaultTexture(cwoid){
+    return g_wgpustate.whitePixel;
+}
 DescribedPipeline* DefaultPipeline(){
     return g_wgpustate.rstate->defaultPipeline;
 }

@@ -24,6 +24,7 @@ struct wgpustate{
     std::unordered_map<uint64_t, WGPUBindGroup> bindGroupRecyclingBin;
 
     DescribedBuffer defaultScreenMatrix;
+    Matrix activeScreenMatrix;
     
     DescribedBuffer quadindicesCache{};
 

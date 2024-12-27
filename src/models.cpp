@@ -134,6 +134,12 @@ Mesh GenMeshCube(float width, float height, float length){
     return cubeMesh;
 }
 void UploadMesh(Mesh *mesh, bool dynamic){
+    if(mesh->colors == nullptr){
+        mesh->colors = (float*)RL_CALLOC(mesh->vertexCount, sizeof(Vector4));
+        for(size_t i = 0;i < mesh->vertexCount * 4;i++){
+            mesh->colors[i] = 1;
+        }
+    }
     if(mesh->vbos == nullptr){
         mesh->vbos = (DescribedBuffer*)calloc(4, sizeof(DescribedBuffer));
         mesh->vbos[0] = GenBuffer(mesh->vertices , mesh->vertexCount * sizeof(float  ) * 3);
@@ -536,6 +542,27 @@ static BoneInfo *LoadBoneInfoGLTF(cgltf_skin skin, int *boneCount)
 
     return bones;
 }
+
+Material LoadMaterialDefault(void)
+{
+    Material material zeroinit;
+    material.maps = (MaterialMap *)RL_CALLOC(MAX_MATERIAL_MAPS, sizeof(MaterialMap));
+
+    // Using rlgl default shader
+    material.pipeline = DefaultPipeline();
+
+    // Using rlgl default texture (1x1 pixel, UNCOMPRESSED_R8G8B8A8, 1 mipmap)
+    material.maps[MATERIAL_MAP_DIFFUSE].texture = GetDefaultTexture();
+    //material.maps[MATERIAL_MAP_NORMAL].texture;         // NOTE: By default, not set
+    //material.maps[MATERIAL_MAP_SPECULAR].texture;       // NOTE: By default, not set
+
+    material.maps[MATERIAL_MAP_DIFFUSE].color = WHITE;    // Diffuse color
+    material.maps[MATERIAL_MAP_SPECULAR].color = WHITE;   // Specular color
+
+    return material;
+}
+
+
 static Model LoadGLTF(const char *fileName)
 {
     /*********************************************************************************************
@@ -586,7 +613,7 @@ static Model LoadGLTF(const char *fileName)
         }\
     }
 
-    Model model = { 0 };
+    Model model zeroinit;
 
     // glTF file loading
     size_t dataSize = 0;
@@ -879,7 +906,7 @@ static Model LoadGLTF(const char *fileName)
 
                                 // Load data into a temp buffer to be converted to raylib data type
                                 unsigned char *temp = (unsigned char *)RL_MALLOC(attribute->count*2*sizeof(unsigned char));
-                                LOAD_ATTRIBUTE(attribute, 2, unsigned char, temp);
+                                LOAD_ATTRIBUTE(attribute, 2, unsigned char, temp)
 
                                 // Convert data to raylib texcoord data type (float)
                                 for (unsigned int t = 0; t < attribute->count*2; t++) texcoordPtr[t] = (float)temp[t]/255.0f;
@@ -893,7 +920,7 @@ static Model LoadGLTF(const char *fileName)
 
                                 // Load data into a temp buffer to be converted to raylib data type
                                 unsigned short *temp = (unsigned short *)RL_MALLOC(attribute->count*2*sizeof(unsigned short));
-                                LOAD_ATTRIBUTE(attribute, 2, unsigned short, temp);
+                                LOAD_ATTRIBUTE(attribute, 2, unsigned short, temp)
 
                                 // Convert data to raylib texcoord data type (float)
                                 for (unsigned int t = 0; t < attribute->count*2; t++) texcoordPtr[t] = (float)temp[t]/65535.0f;
@@ -948,8 +975,8 @@ static Model LoadGLTF(const char *fileName)
                                 model.meshes[meshIndex].colors = (float*)RL_MALLOC(attribute->count * 4 * sizeof(float));
 
                                 // Load data into a temp buffer to be converted to raylib data type
-                                unsigned short *temp = RL_MALLOC(attribute->count*3*sizeof(unsigned short));
-                                LOAD_ATTRIBUTE(attribute, 3, unsigned short, temp);
+                                unsigned short *temp = (unsigned short *)RL_MALLOC(attribute->count*3*sizeof(unsigned short));
+                                LOAD_ATTRIBUTE(attribute, 3, unsigned short, temp)
 
                                 // Convert data to raylib color data type (4 bytes)
                                 for (unsigned int c = 0, k = 0; c < (attribute->count*4 - 3); c += 4, k += 3)
@@ -1043,7 +1070,7 @@ static Model LoadGLTF(const char *fileName)
                     if (attribute->component_type == cgltf_component_type_r_16u)
                     {
                         // Init raylib mesh indices to copy glTF attribute data
-                        model.meshes[meshIndex].indices = (uint32_t*)RL_MALLOC(attribute->count*sizeof(unsigned short));
+                        model.meshes[meshIndex].indices = (uint32_t*)RL_MALLOC(attribute->count*sizeof(uint32_t));
 
                         // Load unsigned short data type into mesh.indices
                         LOAD_ATTRIBUTE(attribute, 1, unsigned short, model.meshes[meshIndex].indices)
@@ -1051,15 +1078,15 @@ static Model LoadGLTF(const char *fileName)
                     else if (attribute->component_type == cgltf_component_type_r_8u)
                     {
                         // Init raylib mesh indices to copy glTF attribute data
-                        model.meshes[meshIndex].indices = (uint32_t*)RL_MALLOC(attribute->count*sizeof(unsigned short));
-                        LOAD_ATTRIBUTE_CAST(attribute, 1, unsigned char, model.meshes[meshIndex].indices, unsigned short)
+                        model.meshes[meshIndex].indices = (uint32_t*)RL_MALLOC(attribute->count*sizeof(uint32_t));
+                        LOAD_ATTRIBUTE_CAST(attribute, 1, unsigned char, model.meshes[meshIndex].indices, uint32_t)
 
                     }
                     else if (attribute->component_type == cgltf_component_type_r_32u)
                     {
                         // Init raylib mesh indices to copy glTF attribute data
-                        model.meshes[meshIndex].indices = (uint32_t*)RL_MALLOC(attribute->count*sizeof(unsigned short));
-                        LOAD_ATTRIBUTE_CAST(attribute, 1, unsigned int, model.meshes[meshIndex].indices, unsigned short);
+                        model.meshes[meshIndex].indices = (uint32_t*)RL_MALLOC(attribute->count*sizeof(uint32_t));
+                        LOAD_ATTRIBUTE_CAST(attribute, 1, unsigned int, model.meshes[meshIndex].indices, uint32_t)
 
                         TRACELOG(LOG_WARNING, "MODEL: [%s] Indices data converted from u32 to u16, possible loss of data", fileName);
                     }
@@ -1157,7 +1184,7 @@ static Model LoadGLTF(const char *fileName)
                             if (attribute->component_type == cgltf_component_type_r_8u)
                             {
                                 // Init raylib mesh boneIds to copy glTF attribute data
-                                model.meshes[meshIndex].boneIds = RL_CALLOC(model.meshes[meshIndex].vertexCount*4, sizeof(unsigned char));
+                                model.meshes[meshIndex].boneIds = (unsigned char*)RL_CALLOC(model.meshes[meshIndex].vertexCount*4, sizeof(unsigned char));
 
                                 // Load attribute: vec4, u8 (unsigned char)
                                 LOAD_ATTRIBUTE(attribute, 4, unsigned char, model.meshes[meshIndex].boneIds)
@@ -1165,11 +1192,11 @@ static Model LoadGLTF(const char *fileName)
                             else if (attribute->component_type == cgltf_component_type_r_16u)
                             {
                                 // Init raylib mesh boneIds to copy glTF attribute data
-                                model.meshes[meshIndex].boneIds = RL_CALLOC(model.meshes[meshIndex].vertexCount*4, sizeof(unsigned char));
+                                model.meshes[meshIndex].boneIds = (unsigned char*)RL_CALLOC(model.meshes[meshIndex].vertexCount*4, sizeof(unsigned char));
 
                                 // Load data into a temp buffer to be converted to raylib data type
-                                unsigned short *temp = RL_CALLOC(model.meshes[meshIndex].vertexCount*4, sizeof(unsigned short));
-                                LOAD_ATTRIBUTE(attribute, 4, unsigned short, temp);
+                                unsigned short *temp = (unsigned short*)RL_CALLOC(model.meshes[meshIndex].vertexCount*4, sizeof(unsigned short));
+                                LOAD_ATTRIBUTE(attribute, 4, unsigned short, temp)
 
                                 // Convert data to raylib color data type (4 bytes)
                                 bool boneIdOverflowWarning = false;
@@ -1201,11 +1228,11 @@ static Model LoadGLTF(const char *fileName)
                             if (attribute->component_type == cgltf_component_type_r_8u)
                             {
                                 // Init raylib mesh bone weight to copy glTF attribute data
-                                model.meshes[meshIndex].boneWeights = RL_CALLOC(model.meshes[meshIndex].vertexCount*4, sizeof(float));
+                                model.meshes[meshIndex].boneWeights = (float*)RL_CALLOC(model.meshes[meshIndex].vertexCount*4, sizeof(float));
 
                                 // Load data into a temp buffer to be converted to raylib data type
-                                unsigned char *temp = RL_MALLOC(attribute->count*4*sizeof(unsigned char));
-                                LOAD_ATTRIBUTE(attribute, 4, unsigned char, temp);
+                                unsigned char *temp = (unsigned char*)RL_MALLOC(attribute->count*4*sizeof(unsigned char));
+                                LOAD_ATTRIBUTE(attribute, 4, unsigned char, temp)
 
                                 // Convert data to raylib bone weight data type (4 bytes)
                                 for (unsigned int b = 0; b < attribute->count*4; b++) model.meshes[meshIndex].boneWeights[b] = (float)temp[b]/255.0f;
@@ -1215,11 +1242,11 @@ static Model LoadGLTF(const char *fileName)
                             else if (attribute->component_type == cgltf_component_type_r_16u)
                             {
                                 // Init raylib mesh bone weight to copy glTF attribute data
-                                model.meshes[meshIndex].boneWeights = RL_CALLOC(model.meshes[meshIndex].vertexCount*4, sizeof(float));
+                                model.meshes[meshIndex].boneWeights = (float*)RL_CALLOC(model.meshes[meshIndex].vertexCount*4, sizeof(float));
 
                                 // Load data into a temp buffer to be converted to raylib data type
-                                unsigned short *temp = RL_MALLOC(attribute->count*4*sizeof(unsigned short));
-                                LOAD_ATTRIBUTE(attribute, 4, unsigned short, temp);
+                                unsigned short *temp = (unsigned short*)RL_MALLOC(attribute->count*4*sizeof(unsigned short));
+                                LOAD_ATTRIBUTE(attribute, 4, unsigned short, temp)
 
                                 // Convert data to raylib bone weight data type
                                 for (unsigned int b = 0; b < attribute->count*4; b++) model.meshes[meshIndex].boneWeights[b] = (float)temp[b]/65535.0f;
@@ -1229,7 +1256,7 @@ static Model LoadGLTF(const char *fileName)
                             else if (attribute->component_type == cgltf_component_type_r_32f)
                             {
                                 // Init raylib mesh bone weight to copy glTF attribute data
-                                model.meshes[meshIndex].boneWeights = RL_CALLOC(model.meshes[meshIndex].vertexCount*4, sizeof(float));
+                                model.meshes[meshIndex].boneWeights = (float*)RL_CALLOC(model.meshes[meshIndex].vertexCount*4, sizeof(float));
 
                                 // Load 4 components of float data type into mesh.boneWeights
                                 // for cgltf_attribute_type_weights we have:
@@ -1244,9 +1271,9 @@ static Model LoadGLTF(const char *fileName)
                 }
 
                 // Animated vertex data
-                model.meshes[meshIndex].animVertices = RL_CALLOC(model.meshes[meshIndex].vertexCount*3, sizeof(float));
+                model.meshes[meshIndex].animVertices = (float*)RL_CALLOC(model.meshes[meshIndex].vertexCount*3, sizeof(float));
                 memcpy(model.meshes[meshIndex].animVertices, model.meshes[meshIndex].vertices, model.meshes[meshIndex].vertexCount*3*sizeof(float));
-                model.meshes[meshIndex].animNormals = RL_CALLOC(model.meshes[meshIndex].vertexCount*3, sizeof(float));
+                model.meshes[meshIndex].animNormals = (float*)RL_CALLOC(model.meshes[meshIndex].vertexCount*3, sizeof(float));
                 if (model.meshes[meshIndex].normals != NULL)
                 {
                     memcpy(model.meshes[meshIndex].animNormals, model.meshes[meshIndex].normals, model.meshes[meshIndex].vertexCount*3*sizeof(float));
@@ -1254,7 +1281,7 @@ static Model LoadGLTF(const char *fileName)
 
                 // Bone Transform Matrices
                 model.meshes[meshIndex].boneCount = model.boneCount;
-                model.meshes[meshIndex].boneMatrices = RL_CALLOC(model.meshes[meshIndex].boneCount, sizeof(Matrix));
+                model.meshes[meshIndex].boneMatrices = (Matrix*)RL_CALLOC(model.meshes[meshIndex].boneCount, sizeof(Matrix));
 
                 for (int j = 0; j < model.meshes[meshIndex].boneCount; j++)
                 {
@@ -1282,6 +1309,6 @@ Model LoadModel(const char *fileName){
     Model model zeroinit;
 
     if (IsFileExtension(fileName, ".obj")) model = LoadOBJ(fileName);
-    if (IsFileExtension(fileName, ".glb")) model = LoadGLTF(fileName);
+    else if (IsFileExtension(fileName, ".glb")) model = LoadGLTF(fileName);
     return model;
 }
