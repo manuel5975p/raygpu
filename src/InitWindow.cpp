@@ -433,19 +433,34 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
             g_wgpustate.mouseButtonDown[button] = 0;
         }
     });
+    auto keycallback = [](GLFWwindow* window, int key, int scancode, int action, int mods){
+        
+        if(action == GLFW_PRESS){
+            g_wgpustate.keydown[key] = 1;
+        }else if(action == GLFW_RELEASE){
+            g_wgpustate.keydown[key] = 0;
+        }
+        if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
+            glfwSetWindowShouldClose(window, true);
+        }
+    };
+    #ifndef __EMSCRIPTEN__
     glfwSetKeyCallback(
         window, 
-        [](GLFWwindow* window, int key, int scancode, int action, int mods){
-            if(action == GLFW_PRESS){
-                g_wgpustate.keydown[key] = 1;
-            }else if(action == GLFW_RELEASE){
-                g_wgpustate.keydown[key] = 0;
-            }
-            if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
-                glfwSetWindowShouldClose(window, true);
-            }
-        }
+        keycallback
     );
+    std::cerr << "Keypresscallback registered\n";
+    #else
+    auto EmscriptenKeyCallback = [](int eventType, const EmscriptenKeyboardEvent *keyEvent, void *userData){
+        //std::cerr << keyEvent->code << "\n";
+        //__builtin_dump_struct(keyEvent, printf);
+        (*((decltype(keycallback)*)userData))(nullptr, keyEvent->keyCode, /*TODO: work this out correctly*/keyEvent->keyCode, GLFW_PRESS, 0);
+        return true;
+    };
+    //
+    ////emscripten_set_click_callback("#canvas", NULL, 1, EmscriptenMouseCallback);
+    emscripten_set_keypress_callback("#canvas", &keycallback, 1, EmscriptenKeyCallback);
+    #endif
     glfwSetCharCallback(window, [](GLFWwindow* window, unsigned int codePoint){
         g_wgpustate.charQueue.push_back((int)codePoint);
     });
@@ -539,8 +554,202 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     return window;
     #endif
 }
+uint32_t GetMonitorWidth (cwoid){
+    const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    if(mode == nullptr){
+        glfwInit();
+        return GetMonitorWidth();
+    }
+    return mode->width;
+}
+uint32_t GetMonitorHeight(cwoid){
+    const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    if(mode == nullptr){
+        glfwInit();
+        return GetMonitorWidth();
+    }
+    return mode->height;
+}
+void ShowCursor(cwoid){
+    glfwSetInputMode(g_wgpustate.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+}
+void HideCursor(cwoid){
+    glfwSetInputMode(g_wgpustate.window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+}
+bool IsCursorHidden(cwoid){
+    return glfwGetInputMode(g_wgpustate.window, GLFW_CURSOR) == GLFW_CURSOR_HIDDEN;
+}
+void EnableCursor(cwoid){
+    glfwSetInputMode(g_wgpustate.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+}
+void DisableCursor(cwoid){
+    #ifndef __EMSCRIPTEN__
+    glfwSetInputMode(g_wgpustate.window, GLFW_CURSOR, GLFW_CURSOR_CAPTURED);
+    #endif
+}
+void PollEvents(){
+    glfwPollEvents();
+}
+bool WindowShouldClose(cwoid){
+    return glfwWindowShouldClose(g_wgpustate.window);
+}
+void ToggleFullscreen(){
+    #ifdef __EMSCRIPTEN__
+    //platform.ourFullscreen = true;
+
+    bool enterFullscreen = false;
+
+    const bool wasFullscreen = EM_ASM_INT( { if (document.fullscreenElement) return 1; }, 0);
+    if (wasFullscreen)
+    {
+        if (g_wgpustate.windowFlags & FLAG_FULLSCREEN_MODE) enterFullscreen = false;
+        //else if (CORE.Window.flags & FLAG_BORDERLESS_WINDOWED_MODE) enterFullscreen = true;
+        else
+        {
+            const int canvasWidth = EM_ASM_INT( { return document.getElementById('canvas').width; }, 0);
+            const int canvasStyleWidth = EM_ASM_INT( { return parseInt(document.getElementById('canvas').style.width); }, 0);
+            if (canvasStyleWidth > canvasWidth) enterFullscreen = false;
+            else enterFullscreen = true;
+        }
+
+        EM_ASM(document.exitFullscreen(););
+
+        //CORE.Window.fullscreen = false;
+        g_wgpustate.windowFlags &= ~FLAG_FULLSCREEN_MODE;
+        //CORE.Window.flags &= ~FLAG_BORDERLESS_WINDOWED_MODE;
+    }
+    else enterFullscreen = true;
+
+    if (enterFullscreen){
+        EM_ASM(
+            setTimeout(function()
+            {
+                Module.requestFullscreen(false, false);
+            }, 100);
+        );
+        g_wgpustate.windowFlags |= FLAG_FULLSCREEN_MODE;
+    }
+    TRACELOG(LOG_DEBUG, "Tagu fullscreen");
+    #else //Other than emscripten
+    GLFWmonitor* monitor = glfwGetWindowMonitor(g_wgpustate.window);
+    if(monitor){
+        //We need to exit fullscreen
+        g_wgpustate.windowFlags &= ~FLAG_FULLSCREEN_MODE;
+        glfwSetWindowMonitor(g_wgpustate.window, NULL, g_wgpustate.windowPosition.x, g_wgpustate.windowPosition.y, g_wgpustate.windowPosition.width, g_wgpustate.windowPosition.height, GLFW_DONT_CARE);
+    }
+    else{
+        //We need to enter fullscreen
+        int xpos, ypos;
+        int xs, ys;
+        glfwGetWindowPos(g_wgpustate.window, &xpos, &ypos);
+        glfwGetWindowSize(g_wgpustate.window, &xs, &ys);
+        g_wgpustate.windowPosition = Rectangle{float(xpos), float(ypos), float(xs), float(ys)};
+        int monitorCount = 0;
+        int monitorIndex = GetCurrentMonitor();
+        GLFWmonitor **monitors = glfwGetMonitors(&monitorCount);
+
+        // Use current monitor, so we correctly get the display the window is on
+        GLFWmonitor *monitor = (monitorIndex < monitorCount)? monitors[monitorIndex] : NULL;
+        auto vm = glfwGetVideoMode(monitor);
+        glfwSetWindowMonitor(g_wgpustate.window, glfwGetPrimaryMonitor(), 0, 0, vm->width, vm->height, vm->refreshRate);
+    }
+    
+    
+    #endif
+    //wgpuTextureViewRelease(depthTexture.view);
+    //wgpuTextureRelease(depthTexture.tex);
+    //auto vm = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    //glfwSetWindowMonitor(g_wgpustate.window, glfwGetPrimaryMonitor(), 0, 0, vm->width, vm->height, vm->refreshRate);
+    //depthTexture = LoadDepthTexture(1920, 1200);
+}
 void CloseWindow(cwoid){
     glfwSetWindowShouldClose(g_wgpustate.window, GLFW_TRUE);
+}
+int GetCurrentMonitor(){
+    int index = 0;
+    int monitorCount = 0;
+    GLFWmonitor **monitors = glfwGetMonitors(&monitorCount);
+    GLFWmonitor *monitor = NULL;
+
+    if (monitorCount >= 1)
+    {
+        if (glfwGetWindowMonitor(g_wgpustate.window) != nullptr){
+            // Get the handle of the monitor that the specified window is in full screen on
+            monitor = glfwGetWindowMonitor(g_wgpustate.window);
+
+            for (int i = 0; i < monitorCount; i++)
+            {
+                if (monitors[i] == monitor)
+                {
+                    index = i;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            // In case the window is between two monitors, we use below logic
+            // to try to detect the "current monitor" for that window, note that
+            // this is probably an overengineered solution for a very side case
+            // trying to match SDL behaviour
+
+            int closestDist = 0x7FFFFFFF;
+
+            // Window center position
+            int wcx = 0;
+            int wcy = 0;
+
+            glfwGetWindowPos(g_wgpustate.window, &wcx, &wcy);
+            wcx += (int)GetScreenWidth()/2;
+            wcy += (int)GetScreenHeight()/2;
+
+            for (int i = 0; i < monitorCount; i++)
+            {
+                // Monitor top-left position
+                int mx = 0;
+                int my = 0;
+
+                monitor = monitors[i];
+                glfwGetMonitorPos(monitor, &mx, &my);
+                const GLFWvidmode *mode = glfwGetVideoMode(monitor);
+
+                if (mode)
+                {
+                    const int right = mx + mode->width - 1;
+                    const int bottom = my + mode->height - 1;
+
+                    if ((wcx >= mx) &&
+                        (wcx <= right) &&
+                        (wcy >= my) &&
+                        (wcy <= bottom))
+                    {
+                        index = i;
+                        break;
+                    }
+
+                    int xclosest = wcx;
+                    if (wcx < mx) xclosest = mx;
+                    else if (wcx > right) xclosest = right;
+
+                    int yclosest = wcy;
+                    if (wcy < my) yclosest = my;
+                    else if (wcy > bottom) yclosest = bottom;
+
+                    int dx = wcx - xclosest;
+                    int dy = wcy - yclosest;
+                    int dist = (dx*dx) + (dy*dy);
+                    if (dist < closestDist)
+                    {
+                        index = i;
+                        closestDist = dist;
+                    }
+                }
+                else TRACELOG(LOG_WARNING, "GLFW: Failed to find video mode for selected monitor");
+            }
+        }
+    }
+
+    return index;
 }
 const std::unordered_map<WGPUTextureFormat, std::string> textureFormatSpellingTable = [](){
     std::unordered_map<WGPUTextureFormat, std::string> map;

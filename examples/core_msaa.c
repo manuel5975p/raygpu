@@ -16,6 +16,7 @@ void mainloop(void){
     int wh = GetScreenWidth() / 2;
     int hh = GetScreenHeight() / 2;
     DrawText("Hello MSAA Enjoyer", wh - textWidth / 2, hh / 2, 50, WHITE);
+    DrawText("Press U to toggle fullscreen", wh - textWidth / 2, hh / 2 + 50, 30, WHITE);
     //DrawTexturePro(tex,(Rectangle){0,0,100,100}, (Rectangle){0,0,100,100},(Vector2){0,0},0, (Color){210, 210, 210,255});
     //for(int i = 0;i < 32;i++){
     //    DrawLine(0, i * 50, i * 50, 0, BLACK);
@@ -23,6 +24,9 @@ void mainloop(void){
     //DrawTexturePro(tex,(Rectangle){0,0,100,100}, (Rectangle){100,0,100,100},(Vector2){0,0},0, (Color){210, 210, 210,255});
     DrawCircleSector(GetMousePosition(), 100.0f, 0.0f, 360.0f, 128, WHITE);
     DrawFPS(10, 10);
+    if(IsKeyPressed(KEY_U)){
+        ToggleFullscreen();
+    }
     EndDrawing();
 }
 int main(void){
