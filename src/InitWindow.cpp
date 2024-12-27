@@ -317,7 +317,23 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         config.alphaMode = WGPUCompositeAlphaMode_Opaque;
         config.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
         config.device = g_wgpustate.device;
-        config.format = (WGPUTextureFormat)capabilities.formats[0];
+        //WGPUTextureFormat selectedFormat = WGPUTextureFormat_Undefined;
+        //int format_index = 0;
+        //for(format_index = 0;format_index < capabilities.formatCount;format_index++){
+        //    if(capabilities.formats[format_index] == WGPUTextureFormat_BGRA8Unorm ||
+        //       capabilities.formats[format_index] == WGPUTextureFormat_RGBA8Unorm){
+        //        selectedFormat = (capabilities.formats[format_index]);
+        //        break;
+        //    }
+        //}
+        //if(format_index == capabilities.formatCount){
+        //    config.format = capabilities.formats[0];
+        //}
+        //else{
+        //    config.format = selectedFormat;
+        //}
+        //config.format = (WGPUTextureFormat)capabilities.formats[0];
+        config.format = g_wgpustate.frameBufferFormat;
         #ifdef __EMSCRIPTEN__
         config.presentMode = WGPUPresentMode_Fifo;
         #else
