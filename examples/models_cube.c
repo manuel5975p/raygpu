@@ -1,5 +1,6 @@
 #include <raygpu.h>
 #include <stdio.h>
+#include <assert.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -36,6 +37,7 @@ int main(cwoid){
         .fovy = 1.0f
     };
     cube = GenMeshCube(3.f,3.f,3.f);
+    //assert(cube.ibo.buffer == 0);
     pl = Relayout(DefaultPipeline(), cube.vao);
     checkers = LoadTextureFromImage(GenImageChecker(RED, DARKBLUE, 100, 100, 4));
     angle = 0.0f;

@@ -1,4 +1,5 @@
 //#include <ctre.hpp>
+#include "tint/lang/wgsl/reader/lower/lower.h"
 #include <raygpu.h>
 #include <vector>
 #include <sstream>
@@ -7,6 +8,7 @@
 //#include <tint/api/tint.h>
 #include <tint/lang/wgsl/reader/parser/parser.h>
 #include <tint/lang/wgsl/reader/reader.h>
+#include <tint/lang/glsl/writer/writer.h>
 #include <tint/lang/core/type/reference.h>
 const std::unordered_map<std::string, WGPUVertexFormat> builtins = [](){
     std::unordered_map<std::string, WGPUVertexFormat> map;
@@ -41,6 +43,10 @@ std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shade
     }
     const tint::sem::Info& psem = result.Sem();
     for(size_t i = 0;i < result.AST().GlobalVariables().Length();i++){
+        auto ast_equivalent = result.AST().GlobalVariables()[i];
+        if(ast_equivalent->As<tint::ast::Const>() || ast_equivalent->As<tint::ast::Override>()){
+            continue; // Skip constants, only process uniforms
+        }
         auto sgvar = psem.Get(result.AST().GlobalVariables()[i])->As<tint::sem::GlobalVariable>();
         UniformDescriptor desc{};
         std::stringstream sstr;
@@ -79,11 +85,18 @@ std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shade
                 }
             }
         }
+        tint::core::ir::Module mod;
+        
         
         ret[sgvar->Declaration()->name->symbol.Name()] = desc;
         //std::cout << sgvar->Attributes().binding_point.value() << " ";
         //std::cout << sgvar->Type()->As<tint::core::type::Reference>()->UnwrapRef()->Size() << "\n";
     }
+    //auto mod = tint::wgsl::reader::ProgramToLoweredIR(result);
+    //std::cout << mod << std::endl;
+    //auto glslresult = tint::glsl::writer::Generate(mod.Get(), tint::glsl::writer::Options{}, std::string("vs_main"));
+    //std::cout << glslresult << std::endl;
+    //std::cout << glslresult.Get().glsl << "\n";
     return ret;
     /*std::unordered_map<std::string, std::unordered_map<uint32_t, WGPUVertexFormat>> declaredTypesAndLocations;
     if(result.IsValid()){

@@ -606,6 +606,7 @@ void BeginDrawing(){
     setTargetTextures(g_wgpustate.rstate, nextTexture, g_wgpustate.rstate->depth);
     BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
     SetUniformBuffer(0,&g_wgpustate.defaultScreenMatrix);
+    g_wgpustate.activeScreenMatrix = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
     //EndRenderPass(&g_wgpustate.rstate->clearPass);
     //BeginRenderPass(&g_wgpustate.rstate->renderpass);
     //UseNoTexture();
@@ -1116,7 +1117,7 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
 void SetTexture                   (uint32_t index, Texture tex){
     SetPipelineTexture(GetActivePipeline(), index, tex);
 }
-void SetSampler                   (uint32_t index, WGPUSampler sampler){
+void SetSampler                   (uint32_t index, DescribedSampler sampler){
     SetPipelineSampler (GetActivePipeline(), index, sampler);
 }
 void SetUniformBuffer             (uint32_t index, DescribedBuffer* buffer){
@@ -1185,10 +1186,10 @@ extern "C" void SetPipelineTexture(DescribedPipeline* pl, uint32_t index, Textur
     
     UpdateBindGroupEntry(&pl->bindGroup, index, entry);
 }
-extern "C" void SetPipelineSampler(DescribedPipeline* pl, uint32_t index, WGPUSampler sampler){
+extern "C" void SetPipelineSampler(DescribedPipeline* pl, uint32_t index, DescribedSampler sampler){
     WGPUBindGroupEntry entry{};
     entry.binding = index;
-    entry.sampler = sampler;
+    entry.sampler = sampler.sampler;
     UpdateBindGroupEntry(&pl->bindGroup, index, entry);
 }
 
