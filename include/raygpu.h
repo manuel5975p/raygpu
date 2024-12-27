@@ -158,6 +158,7 @@ typedef struct MaterialMap{
 typedef struct Material{
     int id;
     MaterialMap* maps;
+    DescribedPipeline* pipeline;
 }Material;
 
 typedef struct Model {
@@ -673,6 +674,7 @@ EXTERN_C_BEGIN
     DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao, RenderSettings settings);
     DescribedPipeline* LoadPipelineForVAOEx(const char* shaderSource, VertexArray* vao, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
     DescribedPipeline* DefaultPipeline(cwoid);
+    Texture GetDefaultTexture(cwoid);
     void UnloadPipeline(DescribedPipeline* pl);
 
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);

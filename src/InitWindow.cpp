@@ -38,7 +38,7 @@ struct LightBuffer {
 };
 
 @group(0) @binding(0) var<uniform> Perspective_View: mat4x4f;
-@group(0) @binding(1) var gradientTexture: texture_2d<f32>;
+@group(0) @binding(1) var colDiffuse: texture_2d<f32>;
 @group(0) @binding(2) var grsampler: sampler;
 @group(0) @binding(3) var<storage> modelMatrix: array<mat4x4f>;
 @group(0) @binding(4) var<storage> lights: LightBuffer;
@@ -60,7 +60,7 @@ fn vs_main(@builtin(instance_index) instanceIdx : u32, in: VertexInput) -> Verte
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    return textureSample(gradientTexture, grsampler, in.uv).rgba * in.color;
+    return textureSample(colDiffuse, grsampler, in.uv).rgba * in.color;
 }
 )";
 extern Texture depthTexture;
@@ -255,6 +255,13 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         std::cerr << "Device is null\n";
         abort();
     }
+    wgpu::SupportedLimits slimits;
+    
+    sample->device.GetLimits(&slimits);
+    TraceLog(LOG_INFO, "Supports %u bindings per bindgroup", (unsigned)slimits.limits.maxBindingsPerBindGroup);
+    TraceLog(LOG_INFO, "Supports %u bindgroups", (unsigned)slimits.limits.maxBindGroups);
+    TraceLog(LOG_INFO, "Supports buffers up to %llu megabytes", (unsigned long long)slimits.limits.maxBufferSize / (1000000ull));
+    TraceLog(LOG_INFO, "Supports textures up to %u x %u", (unsigned)slimits.limits.maxTextureDimension2D, (unsigned)slimits.limits.maxTextureDimension2D);
     glfwSetErrorCallback([](int code, const char* message) {
         std::cerr << "GLFW error: " << code << " - " << message;
     });

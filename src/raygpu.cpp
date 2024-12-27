@@ -454,6 +454,7 @@ void drawCurrentBatch(){
 extern "C" void BeginPipelineMode(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode){
     drawCurrentBatch();
     g_wgpustate.rstate->activePipeline = pipeline;
+    SetUniformBufferData(0, &g_wgpustate.activeScreenMatrix, sizeof(Matrix));
     BindPipeline(pipeline, drawMode);
 }
 extern "C" void EndPipelineMode(){
@@ -465,19 +466,23 @@ extern "C" void BeginMode2D(Camera2D camera){
     drawCurrentBatch();
     Matrix mat = GetCameraMatrix2D(camera);
     mat = MatrixMultiply(ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY), mat);
+    g_wgpustate.activeScreenMatrix = mat;
     SetUniformBufferData(0, &mat, sizeof(Matrix));
 }
 extern "C" void EndMode2D(){
     drawCurrentBatch();
+    g_wgpustate.activeScreenMatrix = ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
     SetUniformBuffer(0, &g_wgpustate.defaultScreenMatrix);
 }
 void BeginMode3D(Camera3D camera){
     drawCurrentBatch();
     Matrix mat = GetCameraMatrix3D(camera, float(g_wgpustate.rstate->renderExtentX) / g_wgpustate.rstate->renderExtentY);
+    g_wgpustate.activeScreenMatrix = mat;
     SetUniformBufferData(0, &mat, sizeof(Matrix));
 }
 void EndMode3D(){
     drawCurrentBatch();
+    g_wgpustate.activeScreenMatrix = ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
     SetUniformBuffer(0, &g_wgpustate.defaultScreenMatrix);
 }
 extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode){
