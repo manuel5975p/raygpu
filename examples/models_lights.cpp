@@ -113,7 +113,7 @@ int main(){
         BeginDrawing();
         ClearBackground(BLANK);
         BeginPipelineMode(pl, WGPUPrimitiveTopology_TriangleList);
-        SetSampler(2, sampler.sampler);
+        SetSampler(2, sampler);
         SetStorageBuffer(3, &idenbuffer);
         SetStorageBuffer(4, &libufs);
         UseTexture(cdif);

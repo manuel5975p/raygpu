@@ -42,6 +42,7 @@ struct LightBuffer {
 @group(0) @binding(2) var grsampler: sampler;
 @group(0) @binding(3) var<storage> modelMatrix: array<mat4x4f>;
 @group(0) @binding(4) var<storage> lights: LightBuffer;
+@group(0) @binding(5) var<storage> lights2: LightBuffer;
 
 //Can be omitted
 //@group(0) @binding(3) var<storage> storig: array<vec4f>;
@@ -52,7 +53,7 @@ fn vs_main(@builtin(instance_index) instanceIdx : u32, in: VertexInput) -> Verte
     var out: VertexOutput;
     out.position = Perspective_View * 
                    modelMatrix[instanceIdx] *
-    vec4f(in.position.xyz /*+ storig[0].xyz * 0.3f*/, 1.0f);
+    vec4f(in.position.xyz, 1.0f);
     out.color = in.color;
     out.uv = in.uv;
     return out;
@@ -262,6 +263,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     TraceLog(LOG_INFO, "Supports %u bindgroups", (unsigned)slimits.limits.maxBindGroups);
     TraceLog(LOG_INFO, "Supports buffers up to %llu megabytes", (unsigned long long)slimits.limits.maxBufferSize / (1000000ull));
     TraceLog(LOG_INFO, "Supports textures up to %u x %u", (unsigned)slimits.limits.maxTextureDimension2D, (unsigned)slimits.limits.maxTextureDimension2D);
+    TraceLog(LOG_INFO, "Supports %u VBO slots", (unsigned)slimits.limits.maxVertexBuffers);
     glfwSetErrorCallback([](int code, const char* message) {
         std::cerr << "GLFW error: " << code << " - " << message;
     });
@@ -450,7 +452,6 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         }
     });
     auto keycallback = [](GLFWwindow* window, int key, int scancode, int action, int mods){
-        
         if(action == GLFW_PRESS){
             g_wgpustate.keydown[key] = 1;
         }else if(action == GLFW_RELEASE){
@@ -462,19 +463,26 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     };
     #ifndef __EMSCRIPTEN__
     glfwSetKeyCallback(
-        window, 
+        g_wgpustate.window, 
         keycallback
     );
     std::cerr << "Keypresscallback registered\n";
     #else
     auto EmscriptenKeyCallback = [](int eventType, const EmscriptenKeyboardEvent *keyEvent, void *userData){
         //std::cerr << keyEvent->code << "\n";
-        //__builtin_dump_struct(keyEvent, printf);
-        (*((decltype(keycallback)*)userData))(nullptr, keyEvent->keyCode, /*TODO: work this out correctly*/keyEvent->keyCode, GLFW_PRESS, 0);
+        __builtin_dump_struct(keyEvent, printf);
+        printf("%s\n", keyEvent->key);
+        printf("%s\n", keyEvent->code);
+        //std::string kc(keyEvent->code);
+        //if(kc.starts_with("Key"))
+        int keyCode = keyEvent->keyCode;
+        if(keyCode >= 'a' && keyCode <= 'z'){
+            keyCode -= ((int)'a' - (int)'A');
+        }
+        (*((decltype(keycallback)*)userData))(nullptr, keyCode, /*TODO: work this out correctly*/keyCode, GLFW_PRESS, 0);
         return true;
     };
-    //
-    ////emscripten_set_click_callback("#canvas", NULL, 1, EmscriptenMouseCallback);
+    std::cerr << "Keypresscallback registered\n";
     emscripten_set_keypress_callback("#canvas", &keycallback, 1, EmscriptenKeyCallback);
     #endif
     glfwSetCharCallback(window, [](GLFWwindow* window, unsigned int codePoint){
@@ -553,7 +561,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     samplerDesc.maxAnisotropy = 1;
 
 
-    WGPUSampler sampler = wgpuDeviceCreateSampler(g_wgpustate.device, &samplerDesc);
+    DescribedSampler sampler = LoadSampler(repeat, linear);
     SetSampler(2, sampler);
     g_wgpustate.init_timestamp = NanoTime();
     #ifndef __EMSCRIPTEN__

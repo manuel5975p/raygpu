@@ -32,7 +32,8 @@ fn vs_main(@builtin(instance_index) instanceIdx : u32, in: VertexInput) -> Verte
                    //modelMatrix[instanceIdx] *
     vec4f(in.position.xyz, 1.0f);
     out.color = in.color;
-    out.uv = in.uv;
+    out.uv.x = pow(in.uv.x, in.uv.y);
+    out.uv.y = pow(in.uv.y, in.uv.x);
     return out;
 }
 
@@ -239,7 +240,7 @@ int main(){
     Matrix scr = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
     SetPipelineUniformBufferData(pl, GetUniformLocation(pl, "Perspective_View"), &scr, sizeof(Matrix));
     SetPipelineTexture          (pl, GetUniformLocation(pl, "colDiffuse"), tex);
-    SetPipelineSampler          (pl, GetUniformLocation(pl, "texSampler"), smp.sampler);
+    SetPipelineSampler          (pl, GetUniformLocation(pl, "texSampler"), smp);
     
     while(!WindowShouldClose()){
         

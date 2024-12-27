@@ -705,14 +705,14 @@ EXTERN_C_BEGIN
 
     uint32_t GetUniformLocation(DescribedPipeline* pl, const char* uniformName);
     void SetPipelineTexture           (DescribedPipeline* pl, uint32_t index, Texture tex);
-    void SetPipelineSampler           (DescribedPipeline* pl, uint32_t index, WGPUSampler sampler);
+    void SetPipelineSampler           (DescribedPipeline* pl, uint32_t index, DescribedSampler sampler);
     void SetPipelineUniformBuffer     (DescribedPipeline* pl, uint32_t index, DescribedBuffer* buffer);
     void SetPipelineStorageBuffer     (DescribedPipeline* pl, uint32_t index, DescribedBuffer* buffer);
     void SetPipelineUniformBufferData (DescribedPipeline* pl, uint32_t index, const void* data, size_t size);
     void SetPipelineStorageBufferData (DescribedPipeline* pl, uint32_t index, const void* data, size_t size);
 
     void SetTexture                   (uint32_t index, Texture tex);
-    void SetSampler                   (uint32_t index, WGPUSampler sampler);
+    void SetSampler                   (uint32_t index, DescribedSampler sampler);
     void SetUniformBuffer             (uint32_t index, DescribedBuffer* buffer);
     void SetStorageBuffer             (uint32_t index, DescribedBuffer* buffer);
     void SetUniformBufferData         (uint32_t index, const void* data, size_t size);
