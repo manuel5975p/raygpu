@@ -25,6 +25,9 @@ void mainloop(void){
     EndMode3D();
     EndPipelineMode();
     DrawFPS(0, 0);
+    if(IsKeyPressed(KEY_U)){
+        ToggleFullscreen();
+    }
     EndDrawing();
 }
 int main(cwoid){
