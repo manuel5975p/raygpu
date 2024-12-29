@@ -17,11 +17,11 @@ void mainloop(void){
     ClearBackground(BLACK);
     //TODO: Swapping the next two causes a problem since the BindGroup is lazily updated only at BindPipeline
     //EDIT: It's not due to lazy update; DrawArrays and DrawArraysFixed did not check for a pending Bindgroup Update
-    BeginPipelineMode(pl, WGPUPrimitiveTopology_TriangleList);
+    BeginPipelineMode(pl);
     UseTexture(checkers);
     BeginMode3D(cam);
     BindVertexArray(pl, cube.vao);
-    DrawArraysIndexed(cube.ibo, 36);
+    DrawArraysIndexed(WGPUPrimitiveTopology_TriangleList, cube.ibo, 36);
     EndMode3D();
     EndPipelineMode();
     DrawFPS(0, 0);
