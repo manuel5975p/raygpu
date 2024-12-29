@@ -124,6 +124,9 @@ typedef struct VertexArray{
 
             TRACELOG(LOG_DEBUG,  "New attribute added at shader location %u", shaderLocation);
         }
+        std::sort(attributes.begin(), attributes.end(), [](const AttributeAndResidence& a, const AttributeAndResidence& b){
+            return a.attr.shaderLocation < b.attr.shaderLocation;
+        });
     }
     void add_old(DescribedBuffer* buffer, uint32_t shaderLocation, WGPUVertexFormat fmt, uint32_t offset, WGPUVertexStepMode stepmode){
         AttributeAndResidence insert{};
@@ -152,6 +155,9 @@ typedef struct VertexArray{
         insert.attr.offset = offset;
         insert.attr.shaderLocation = shaderLocation;
         attributes.push_back(insert);
+        std::sort(attributes.begin(), attributes.end(), [](const AttributeAndResidence& a, const AttributeAndResidence& b){
+            return a.attr.shaderLocation < b.attr.shaderLocation;
+        });
     }
 
     /**
@@ -299,14 +305,16 @@ extern "C" void DisableVertexAttribArray(VertexArray* array, uint32_t attribLoca
     array->disableAttribute(attribLocation);
     return;
 }
-extern "C" void DrawArrays(uint32_t vertexCount){
+extern "C" void DrawArrays(WGPUPrimitiveTopology drawMode, uint32_t vertexCount){
+    BindPipeline(GetActivePipeline(), drawMode);
     auto& rp = g_wgpustate.rstate->renderpass.rpEncoder;
     if(g_wgpustate.rstate->activePipeline->bindGroup.needsUpdate){
         wgpuRenderPassEncoderSetBindGroup(g_wgpustate.rstate->activeRenderpass->rpEncoder, 0, GetWGPUBindGroup(&g_wgpustate.rstate->activePipeline->bindGroup), 0, nullptr);
     }
     wgpuRenderPassEncoderDraw(rp, vertexCount, 1, 0, 0);
 }
-extern "C" void DrawArraysIndexed(DescribedBuffer indexBuffer, uint32_t vertexCount){
+extern "C" void DrawArraysIndexed(WGPUPrimitiveTopology drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount){
+    BindPipeline(GetActivePipeline(), drawMode);
     auto& rp = g_wgpustate.rstate->renderpass.rpEncoder;
     if(g_wgpustate.rstate->activePipeline->bindGroup.needsUpdate){
         wgpuRenderPassEncoderSetBindGroup(g_wgpustate.rstate->activeRenderpass->rpEncoder, 0, GetWGPUBindGroup(&g_wgpustate.rstate->activePipeline->bindGroup), 0, nullptr);
@@ -314,7 +322,8 @@ extern "C" void DrawArraysIndexed(DescribedBuffer indexBuffer, uint32_t vertexCo
     wgpuRenderPassEncoderSetIndexBuffer(rp, indexBuffer.buffer, WGPUIndexFormat_Uint32, 0, indexBuffer.descriptor.size);
     wgpuRenderPassEncoderDrawIndexed(rp, vertexCount, 1, 0, 0, 0);
 }
-extern "C" void DrawArraysIndexedInstanced(DescribedBuffer indexBuffer, uint32_t vertexCount, uint32_t instanceCount){
+extern "C" void DrawArraysIndexedInstanced(WGPUPrimitiveTopology drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount, uint32_t instanceCount){
+    BindPipeline(GetActivePipeline(), drawMode);
     auto& rp = g_wgpustate.rstate->renderpass.rpEncoder;
     if(g_wgpustate.rstate->activePipeline->bindGroup.needsUpdate){
         wgpuRenderPassEncoderSetBindGroup(g_wgpustate.rstate->activeRenderpass->rpEncoder, 0, GetWGPUBindGroup(&g_wgpustate.rstate->activePipeline->bindGroup), 0, nullptr);
@@ -322,7 +331,8 @@ extern "C" void DrawArraysIndexedInstanced(DescribedBuffer indexBuffer, uint32_t
     wgpuRenderPassEncoderSetIndexBuffer(rp, indexBuffer.buffer, WGPUIndexFormat_Uint32, 0, indexBuffer.descriptor.size);
     wgpuRenderPassEncoderDrawIndexed(rp, vertexCount, instanceCount, 0, 0, 0);
 }
-extern "C" void DrawArraysInstanced(uint32_t vertexCount, uint32_t instanceCount){
+extern "C" void DrawArraysInstanced(WGPUPrimitiveTopology drawMode, uint32_t vertexCount, uint32_t instanceCount){
+    BindPipeline(GetActivePipeline(), drawMode);
     auto& rp = g_wgpustate.rstate->renderpass.rpEncoder;
     if(g_wgpustate.rstate->activePipeline->bindGroup.needsUpdate){
         wgpuRenderPassEncoderSetBindGroup(g_wgpustate.rstate->activeRenderpass->rpEncoder, 0, GetWGPUBindGroup(&g_wgpustate.rstate->activePipeline->bindGroup), 0, nullptr);
@@ -451,11 +461,11 @@ void drawCurrentBatch(){
     vboptr = vboptr_base;
 }
 
-extern "C" void BeginPipelineMode(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode){
+extern "C" void BeginPipelineMode(DescribedPipeline* pipeline){
     drawCurrentBatch();
     g_wgpustate.rstate->activePipeline = pipeline;
     SetUniformBufferData(0, &g_wgpustate.activeScreenMatrix, sizeof(Matrix));
-    BindPipeline(pipeline, drawMode);
+    //BindPipeline(pipeline, drawMode);
 }
 extern "C" void EndPipelineMode(){
     drawCurrentBatch();

@@ -179,9 +179,9 @@ extern "C" void DrawMeshInstanced(Mesh mesh, Material material, const Matrix* tr
     SetStorageBuffer(3, &trfBuffer);
     BindVertexArray(GetActivePipeline(), mesh.vao);
     if(mesh.ibo.buffer){
-        DrawArraysIndexed(mesh.ibo, mesh.triangleCount * 3);
+        DrawArraysIndexed(WGPUPrimitiveTopology_TriangleList, mesh.ibo, mesh.triangleCount * 3);
     }else{
-        DrawArraysInstanced(mesh.vertexCount, instances);
+        DrawArraysInstanced(WGPUPrimitiveTopology_TriangleList, mesh.vertexCount, instances);
     }
     //wgpuBufferRelease(trfBuffer.buffer);
 }
@@ -189,9 +189,9 @@ extern "C" void DrawMesh(Mesh mesh, Material material, Matrix transform){
     SetStorageBufferData(3, &transform, sizeof(Matrix));
     BindVertexArray(GetActivePipeline(), mesh.vao);
     if(mesh.ibo.buffer){
-        DrawArraysIndexed(mesh.ibo, mesh.triangleCount * 3);
+        DrawArraysIndexed(WGPUPrimitiveTopology_TriangleList, mesh.ibo, mesh.triangleCount * 3);
     }else{
-        DrawArrays(mesh.vertexCount);
+        DrawArrays(WGPUPrimitiveTopology_TriangleList, mesh.vertexCount);
     }
 }
 Model LoadOBJ(const char *fileName)

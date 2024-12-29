@@ -80,9 +80,9 @@ int main(){
         BufferData(&poso, offsets.data(), offsets.size() * sizeof(Vector2));
         BeginDrawing();
         ClearBackground(BLANK);
-        BeginPipelineMode(pl, WGPUPrimitiveTopology_TriangleList);
+        BeginPipelineMode(pl);
         BindVertexArray(pl, vao);
-        DrawArraysIndexedInstanced(ibo, 6, offsets.size());
+        DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, ibo, 6, offsets.size());
         EndPipelineMode();
         DrawFPS(0, 0);
         EndDrawing();

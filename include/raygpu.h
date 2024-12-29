@@ -545,7 +545,7 @@ EXTERN_C_BEGIN
     void EndComputepassEx(DescribedComputepass* computePass);
     void BeginRenderpassEx(DescribedRenderpass* renderPass);
     void EndRenderpassEx(DescribedRenderpass* renderPass);
-    void BeginPipelineMode(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode);
+    void BeginPipelineMode(DescribedPipeline* pipeline);
     void EndPipelineMode(cwoid);
     void BeginMode2D(Camera2D camera);
     void EndMode2D(cwoid);
@@ -733,10 +733,11 @@ EXTERN_C_BEGIN
 
     void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va);
     void BindVertexArray(DescribedPipeline* pipeline, VertexArray* va);
-    void DrawArrays(uint32_t vertexCount);
-    void DrawArraysIndexed(DescribedBuffer indexBuffer, uint32_t vertexCount);
-    void DrawArraysInstanced(uint32_t vertexCount, uint32_t instanceCount);
-    void DrawArraysIndexedInstanced(DescribedBuffer indexBuffer, uint32_t vertexCount, uint32_t instanceCount);
+
+    void DrawArrays                (WGPUPrimitiveTopology drawMode, uint32_t vertexCount);
+    void DrawArraysInstanced       (WGPUPrimitiveTopology drawMode, uint32_t vertexCount, uint32_t instanceCount);
+    void DrawArraysIndexed         (WGPUPrimitiveTopology drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount);
+    void DrawArraysIndexedInstanced(WGPUPrimitiveTopology drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount, uint32_t instanceCount);
 
     Material LoadMaterialDefault(cwoid);
     Model LoadModel(const char *fileName);                                                // Load model from files (meshes and materials)

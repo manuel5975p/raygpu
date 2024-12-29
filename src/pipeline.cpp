@@ -293,7 +293,6 @@ extern "C" void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va){
     }
     const uint32_t number_of_buffers = maxslot + 1;
     std::vector<std::vector<WGPUVertexAttribute>> buffer_to_attributes(number_of_buffers);
-    //WGPUVertexBufferLayout* vbLayouts = new WGPUVertexBufferLayout[number_of_buffers];
     std::vector<uint32_t> strides  (number_of_buffers, 0);
     std::vector<uint32_t> attrIndex(number_of_buffers, 0);
     for(size_t i = 0;i < attribCount;i++){
