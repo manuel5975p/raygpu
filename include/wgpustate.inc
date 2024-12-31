@@ -23,6 +23,7 @@ struct wgpustate{
     std::unordered_map<uint64_t, WGPUBindGroup> bindGroupPool;
     std::unordered_map<uint64_t, WGPUBindGroup> bindGroupRecyclingBin;
 
+    DescribedBuffer identityMatrix;
     DescribedBuffer defaultScreenMatrix;
     Matrix activeScreenMatrix;
     

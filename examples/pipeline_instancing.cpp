@@ -15,6 +15,7 @@ struct VertexOutput {
     @builtin(position) position: vec4f,
     @location(0) color: vec4f
 };
+@group(0) @binding(0) var<uniform> Perspective_View: mat4x4<f32>;
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
@@ -26,7 +27,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     return in.color;
 })";
-float size = 1.0f / 64;
+float size = 1.0f / 128;
 float qsize = size * 0.8f;
 float positions[8] = {
     0,0,
@@ -47,6 +48,7 @@ VertexArray*     vao;
 
 int main(){
     SetConfigFlags(FLAG_VSYNC_HINT);
+    //SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(1920, 1080, "VAO");
     
     for(float i = -1;i <= 1;i += size){
@@ -70,9 +72,9 @@ int main(){
     uint32_t trifanIndices[6] = {0,1,2,0,2,3};
     ibo = GenIndexBuffer(trifanIndices, sizeof(trifanIndices));
     settings.depthTest = 1;
-    settings.sampleCount_onlyApplicableIfMoreThanOne = 1;
+    //settings.sampleCount_onlyApplicableIfMoreThanOne = 4;
     settings.depthCompare = WGPUCompareFunction_LessEqual;
-    pl = LoadPipelineForVAOEx(source, vao, nullptr, 0, settings);
+    pl = LoadPipelineForVAO(source, vao, settings);
     auto mainloop = [&]{
         for(size_t i = 0;i < offsets.size();i++){
             offsets[i] += velocities[i] * 0.0003f;

@@ -28,6 +28,8 @@ Vector3 nextnormal;
 Vector4 nextcol;
 vertex* vboptr;
 vertex* vboptr_base;
+VertexArray* renderBatchVAO;
+DescribedBuffer* renderBatchVBO;
 //DescribedBuffer vbomap;
 #ifdef _WIN32
 #define __builtin_unreachable(...)
@@ -268,6 +270,7 @@ extern "C" void VertexAttribPointer(VertexArray* array, DescribedBuffer* buffer,
 }
 
 extern "C" void BindVertexArray(DescribedPipeline* pipeline, VertexArray* va){
+    PreparePipeline(pipeline, va);
     // Iterate over each buffer
     for(unsigned i = 0; i < va->buffers.size(); i++){
         bool shouldBind = false;
@@ -296,6 +299,7 @@ extern "C" void BindVertexArray(DescribedPipeline* pipeline, VertexArray* va){
             TRACELOG(LOG_DEBUG, "Buffer slot %u not bound (no enabled attributes use it).", i);
         }
     }
+    
 }
 extern "C" void EnableVertexAttribArray(VertexArray* array, uint32_t attribLocation){
     array->enableAttribute(attribLocation);
@@ -315,6 +319,8 @@ extern "C" void DrawArrays(WGPUPrimitiveTopology drawMode, uint32_t vertexCount)
 }
 extern "C" void DrawArraysIndexed(WGPUPrimitiveTopology drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount){
     BindPipeline(GetActivePipeline(), drawMode);
+    //PreparePipeline(GetActivePipeline(), VertexArray *va)
+    //TRACELOG(LOG_INFO, "a oooo");
     auto& rp = g_wgpustate.rstate->renderpass.rpEncoder;
     if(g_wgpustate.rstate->activePipeline->bindGroup.needsUpdate){
         wgpuRenderPassEncoderSetBindGroup(g_wgpustate.rstate->activeRenderpass->rpEncoder, 0, GetWGPUBindGroup(&g_wgpustate.rstate->activePipeline->bindGroup), 0, nullptr);
@@ -355,75 +361,60 @@ void drawCurrentBatch(){
     size_t vertexCount = vboptr - vboptr_base;
     //std::cout << "vcoun = " << vertexCount << "\n";
     if(vertexCount == 0)return;
-    //std::cout << "vboptr reset" << std::endl;
     
+    DescribedBuffer vbo;
+    bool allocated_via_pool = false;
+    if(vertexCount < 32 && !g_wgpustate.smallBufferPool.empty()){
+        allocated_via_pool = true;
+        vbo = g_wgpustate.smallBufferPool.back();
+        g_wgpustate.smallBufferPool.pop_back();
+        wgpuQueueWriteBuffer(GetQueue(), vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
+    }
+    else{
+        vbo = GenBuffer(vboptr_base, vertexCount * sizeof(vertex));
+    }
+
+    BufferData(&vbo, vboptr_base, vertexCount * sizeof(vertex));
+    renderBatchVAO->buffers.front().first = &vbo;
+    SetStorageBuffer(3, &g_wgpustate.identityMatrix);
     UpdateBindGroup(&g_wgpustate.rstate->activePipeline->bindGroup);
     switch(g_wgpustate.current_drawmode){
         case RL_LINES:{
-            DescribedBuffer vbo;
-            
-            bool allocated_via_pool = false;
-            if(vertexCount <= 8 && !g_wgpustate.smallBufferPool.empty()){
-                allocated_via_pool = true;
-                vbo = g_wgpustate.smallBufferPool.back();
-                g_wgpustate.smallBufferPool.pop_back();
-                wgpuQueueWriteBuffer(GetQueue(), vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
-            }
-            else{
-                vbo = GenBuffer(vboptr_base, vertexCount * sizeof(vertex));
-            }
             vboptr = vboptr_base;
             //TODO: Line texturing is currently disable in all DrawLine... functions
             SetTexture(1, g_wgpustate.whitePixel);
             BindPipeline(g_wgpustate.rstate->activePipeline, WGPUPrimitiveTopology_LineList);
+            BindVertexArray(g_wgpustate.rstate->activePipeline, renderBatchVAO);
+            DrawArrays(WGPUPrimitiveTopology_LineList, vertexCount);
+            //wgpuRenderPassEncoderSetBindGroup(g_wgpustate.rstate->renderpass.rpEncoder, 0, GetWGPUBindGroup(&g_wgpustate.rstate->activePipeline->bindGroup), 0, 0);
+            //wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, wgpuBufferGetSize(vbo.buffer));
+            //wgpuRenderPassEncoderDraw(g_wgpustate.rstate->renderpass.rpEncoder, vertexCount, 1, 0, 0);
             
-            wgpuRenderPassEncoderSetBindGroup(g_wgpustate.rstate->renderpass.rpEncoder, 0, GetWGPUBindGroup(&g_wgpustate.rstate->activePipeline->bindGroup), 0, 0);
-            wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, wgpuBufferGetSize(vbo.buffer));
-            wgpuRenderPassEncoderDraw(g_wgpustate.rstate->renderpass.rpEncoder, vertexCount, 1, 0, 0);
-            if(!allocated_via_pool){
-                wgpuBufferRelease(vbo.buffer);
-            }
-            else{
-                g_wgpustate.smallBufferRecyclingBin.push_back(vbo);
-            }
             g_wgpustate.rstate->activePipeline->bindGroup.needsUpdate = true;
         }break;
-        case RL_TRIANGLES: [[fallthrough]];
         case RL_TRIANGLE_STRIP:{
-            DescribedBuffer vbo;
-            bool allocated_via_pool = false;
-            if(vertexCount <= 8 && !g_wgpustate.smallBufferPool.empty()){
-                allocated_via_pool = true;
-                vbo = g_wgpustate.smallBufferPool.back();
-                g_wgpustate.smallBufferPool.pop_back();
-                wgpuQueueWriteBuffer(GetQueue(), vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
-            }
-            else{
-                vbo = GenBuffer(vboptr_base, vertexCount * sizeof(vertex));
-            }
-            vboptr = vboptr_base;
+            TRACELOG(LOG_FATAL, "oof"); 
+            break;
+        }
+        
+        case RL_TRIANGLES:{
+            SetTexture(1, g_wgpustate.whitePixel);
             BindPipeline(g_wgpustate.rstate->activePipeline, WGPUPrimitiveTopology_TriangleList);
-            wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, wgpuBufferGetSize(vbo.buffer));
-            wgpuRenderPassEncoderDraw(g_wgpustate.rstate->renderpass.rpEncoder, vertexCount, 1, 0, 0);
-            if(!allocated_via_pool){
-                wgpuBufferRelease(vbo.buffer);
-            }
-            else{
-                g_wgpustate.smallBufferRecyclingBin.push_back(vbo);
-            }
+            BindVertexArray(g_wgpustate.rstate->activePipeline, renderBatchVAO);
+            DrawArrays(WGPUPrimitiveTopology_TriangleList, vertexCount);
+            //abort();
+            //vboptr = vboptr_base;
+            //BindPipeline(g_wgpustate.rstate->activePipeline, WGPUPrimitiveTopology_TriangleList);
+            //wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, wgpuBufferGetSize(vbo.buffer));
+            //wgpuRenderPassEncoderDraw(g_wgpustate.rstate->renderpass.rpEncoder, vertexCount, 1, 0, 0);
+            //if(!allocated_via_pool){
+            //    wgpuBufferRelease(vbo.buffer);
+            //}
+            //else{
+            //    g_wgpustate.smallBufferRecyclingBin.push_back(vbo);
+            //}
         } break;
         case RL_QUADS:{
-            DescribedBuffer vbo;
-            bool allocated_via_pool = false;
-            if(vertexCount < 8 && !g_wgpustate.smallBufferPool.empty()){
-                allocated_via_pool = true;
-                vbo = g_wgpustate.smallBufferPool.back();
-                g_wgpustate.smallBufferPool.pop_back();
-                wgpuQueueWriteBuffer(GetQueue(), vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
-            }
-            else{
-                vbo = GenBuffer(vboptr_base, vertexCount * sizeof(vertex));
-            }
             const size_t quadCount = vertexCount / 4;
             
             if(g_wgpustate.quadindicesCache.descriptor.size < 6 * quadCount * sizeof(uint32_t)){
@@ -440,23 +431,32 @@ void drawCurrentBatch(){
                 g_wgpustate.quadindicesCache = GenBufferEx(indices.data(), 6 * quadCount * sizeof(uint32_t), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index);
             }
             const DescribedBuffer& ibuf = g_wgpustate.quadindicesCache;
-            BindPipeline(g_wgpustate.rstate->activePipeline, WGPUPrimitiveTopology_TriangleList);
+            //BindPipeline(g_wgpustate.rstate->activePipeline, WGPUPrimitiveTopology_TriangleList);
+            //g_wgpustate.rstate->activePipeline
+            BindVertexArray(g_wgpustate.rstate->activePipeline, renderBatchVAO);
+            DrawArraysIndexed(WGPUPrimitiveTopology_TriangleList, ibuf, quadCount * 6);
+
             //wgpuQueueWriteBuffer(GetQueue(), vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
             
-            wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, vertexCount * sizeof(vertex));
-            wgpuRenderPassEncoderSetIndexBuffer (g_wgpustate.rstate->renderpass.rpEncoder, ibuf.buffer, WGPUIndexFormat_Uint32, 0, quadCount * 6 * sizeof(uint32_t));
-            wgpuRenderPassEncoderDrawIndexed    (g_wgpustate.rstate->renderpass.rpEncoder, quadCount * 6, 1, 0, 0, 0);
+            //wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, vertexCount * sizeof(vertex));
+            //wgpuRenderPassEncoderSetIndexBuffer (g_wgpustate.rstate->renderpass.rpEncoder, ibuf.buffer, WGPUIndexFormat_Uint32, 0, quadCount * 6 * sizeof(uint32_t));
+            //wgpuRenderPassEncoderDrawIndexed    (g_wgpustate.rstate->renderpass.rpEncoder, quadCount * 6, 1, 0, 0, 0);
             
-            if(!allocated_via_pool){
-                wgpuBufferRelease(vbo.buffer);
-            }
-            else{
-                g_wgpustate.smallBufferRecyclingBin.push_back(vbo);
-            }
-            vboptr = vboptr_base;
+            //if(!allocated_via_pool){
+            //    wgpuBufferRelease(vbo.buffer);
+            //}
+            //else{
+            //    g_wgpustate.smallBufferRecyclingBin.push_back(vbo);
+            //}
             
         } break;
         default:break;
+    }
+    if(!allocated_via_pool){
+        wgpuBufferRelease(vbo.buffer);
+    }
+    else{
+        g_wgpustate.smallBufferRecyclingBin.push_back(vbo);
     }
     vboptr = vboptr_base;
 }
@@ -498,6 +498,7 @@ void EndMode3D(){
 extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode){
     switch(drawMode){
         case WGPUPrimitiveTopology_TriangleList:
+        //std::cout << "Binding: " <<  pipeline->pipeline << "\n";
         wgpuRenderPassEncoderSetPipeline (g_wgpustate.rstate->renderpass.rpEncoder, pipeline->pipeline);
         break;
         case WGPUPrimitiveTopology_TriangleStrip:
@@ -1039,8 +1040,10 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     state->clearPass.rca->storeOp = WGPUStoreOp_Store;
     state->activeRenderpass = nullptr;
 
-    state->activePipeline = LoadPipelineEx(shaderSource, attribs, attribCount, uniforms, uniform_count, settings);
-    state->defaultPipeline = state->activePipeline;
+    state->defaultPipeline = LoadPipelineEx(shaderSource, attribs, attribCount, uniforms, uniform_count, settings);
+    
+    state->activePipeline = state->defaultPipeline;
+    
     //WGPUBufferDescriptor vbmdesc{};
     //vbmdesc.mappedAtCreation = true;
     //vbmdesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_MapWrite;
@@ -1050,6 +1053,14 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     vboptr_base = nullptr;
     //vboptr = (vertex*)wgpuBufferGetMappedRange(vbomap.buffer, 0, vbmdesc.size);
     vboptr = (vertex*)calloc(10000, sizeof(vertex));
+    renderBatchVBO = callocnew(DescribedBuffer);
+    *renderBatchVBO = GenBuffer(nullptr, 10000 * sizeof(vertex));
+    
+    renderBatchVAO = LoadVertexArray();
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 0, WGPUVertexFormat_Float32x3, 0 * sizeof(float), WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 1, WGPUVertexFormat_Float32x2, 3 * sizeof(float), WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 2, WGPUVertexFormat_Float32x3, 5 * sizeof(float), WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 3, WGPUVertexFormat_Float32x4, 8 * sizeof(float), WGPUVertexStepMode_Vertex);
     vboptr_base = vboptr;
     state->defaultPipeline->lastUsedAs = WGPUPrimitiveTopology_TriangleList;
     //std::cout << "VBO Punkter: " << vboptr << "\n";
@@ -1161,7 +1172,7 @@ void SetPipelineStorageBuffer (DescribedPipeline* pl, uint32_t index, DescribedB
 }
 
 void SetPipelineUniformBufferData (DescribedPipeline* pl, uint32_t index, const void* data, size_t size){
-    drawCurrentBatch();
+    //drawCurrentBatch();
     WGPUBindGroupEntry entry{};
     WGPUBufferDescriptor bufferDesc{};
 

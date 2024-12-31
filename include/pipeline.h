@@ -46,10 +46,23 @@ typedef struct DescribedPipelineLayout{
     WGPUPipelineLayoutDescriptor descriptor;
     WGPUPipelineLayout layout;
 }DescribedPipelineLayout;
+
+typedef struct PipelineTriplet{
+    WGPURenderPipeline pipeline; //TriangleList
+    WGPURenderPipeline pipeline_TriangleStrip;
+    WGPURenderPipeline pipeline_LineList;
+}PipelineTriplet;
+
 /**
  * @brief Hashmap: std::string -> UniformDescriptor, only visible for C++
  */
 typedef struct StringToUniformMap StringToUniformMap;
+/**
+ * @brief Hashmap: std::pair<std::vector<AttributeAndResidence>, WGPUPrimitiveTopology> -> WGPURenderPipeline, only visible for C++
+ */
+typedef struct VertexStateToPipelineMap VertexStateToPipelineMap;
+
+
 
 typedef struct DescribedPipeline{
     RenderSettings settings;
@@ -74,6 +87,7 @@ typedef struct DescribedPipeline{
     WGPUDepthStencilState* depthStencilState;
 
     StringToUniformMap* uniformLocations;
+    VertexStateToPipelineMap* createdPipelines;
 }DescribedPipeline;
 typedef struct DescribedComputePipeline{
     WGPUComputePipelineDescriptor desc;

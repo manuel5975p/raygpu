@@ -14,19 +14,34 @@ Model carmodel;
 Camera3D cam;
 DescribedPipeline* pl;
 void mainloop(){
-    angle += 1.0f;
+    
     BeginDrawing();
-    ClearBackground(BLACK);
+    ClearBackground(DARKBROWN);
+    //DrawCircle(GetMouseX(), GetMouseY(), 100.0f, WHITE);
     BeginMode3D(cam);
-    BeginPipelineMode(pl, WGPUPrimitiveTopology_TriangleList);
+    //UseNoTexture();
+    //BeginPipelineMode(pl);
+    UseTexture(card);
+    //if(angle > -0.1)
     DrawMesh(carmesh, Material{}, MatrixRotate(Vector3{0, 1, 0}, angle));
-    EndPipelineMode();
+    //EndPipelineMode();
     EndMode3D();
+    Matrix mat = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
+    //SetUniformBufferData(0, &mat, 64);
+    //UseNoTexture();
+    //UpdateBindGroup(&GetActivePipeline()->bindGroup);
+    //std::cout << vboptr - vboptr_base << "\n";
+    //DrawCircle(GetMouseX() + 100, GetMouseY(), 50.0f, WHITE);
+    //DrawCircle(GetMouseX() + 200, GetMouseY(), 50.0f, WHITE);
+    EndRenderpass();
+    BeginRenderpass();
+    DrawCircle(GetMouseX(), GetMouseY(), 50.0f, WHITE);
     DrawFPS(5, 5);
     if(IsKeyPressed(KEY_U)){
         ToggleFullscreen();
     }
     EndDrawing();
+    angle -= 1.f;
 }
 int main(){
     TRACELOG(LOG_INFO, "Hello");
@@ -35,6 +50,7 @@ int main(){
     TRACELOG(LOG_INFO, "Directory path: %s", resourceDirectoryPath.c_str());
 
     InitWindow(1200, 800, "glTF Model Loading");
+    SetTargetFPS(0);
     
     //return 0;
     carmodel = LoadModel((resourceDirectoryPath + "/old_car_new.glb").c_str());
@@ -50,8 +66,9 @@ int main(){
     checker = LoadTextureFromImage(GenImageChecker(WHITE, BLACK, 100, 100, 10));
     card    = LoadTextureFromImage(LoadImage((resourceDirectoryPath + "/old_car_d.png").c_str()));
 
-    pl = Relayout(DefaultPipeline(), carmesh.vao);
-    SetPipelineTexture(pl, 1, card);
+    //pl = Relayout(DefaultPipeline(), carmesh.vao);
+    //SetPipelineTexture(pl, 1, card);
+    ClearBackground(BLUE);
     #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainloop, 0, 0);
     #else

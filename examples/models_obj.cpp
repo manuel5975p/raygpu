@@ -27,12 +27,12 @@ int main(cwoid){
     
     Texture checkers = LoadTextureFromImage(GenImageChecker(RED, DARKBLUE, 100, 100, 4));
     float angle = 0.0f;
-    constexpr size_t instanceCount = 1600;
-    constexpr size_t rootInstanceCount = 40;
+    constexpr size_t instanceCount = 2500;
+    constexpr size_t rootInstanceCount = 50;
     Matrix trfs[instanceCount];
-    for(int i = 0;i < 40;i++){
-        for(int j = 0;j < 40;j++){
-            trfs[i * 40 + j] = MatrixTranslate(10.0f * i - rootInstanceCount * 5.0f, 0, 10.0f * j - rootInstanceCount * 5.0f) * MatrixScale(0.5,0.5,0.5);
+    for(int i = 0;i < rootInstanceCount;i++){
+        for(int j = 0;j < rootInstanceCount;j++){
+            trfs[i * rootInstanceCount + j] = MatrixTranslate(10.0f * i - rootInstanceCount * 5.0f, 0, 10.0f * j - rootInstanceCount * 5.0f) * MatrixScale(0.5,0.5,0.5);
         }
     }
     while(!WindowShouldClose()){
@@ -41,12 +41,12 @@ int main(cwoid){
         cam.position = Vector3{std::sin(angle) * 45.f, 30.0f, std::cos(angle) * 45.f};
         cam.target = Vector3{0, 10.0f, 0};
         ClearBackground(BLANK);
-        BeginPipelineMode(pl, WGPUPrimitiveTopology_TriangleList);
+        //BeginPipelineMode(pl);
         UseTexture(cdif);
         BeginMode3D(cam);
         DrawMeshInstanced(churchMesh, Material{}, trfs, instanceCount);
         EndMode3D();
-        EndPipelineMode();
+        //EndPipelineMode();
         DrawFPS(0, 0);
         DrawText(TextFormat("Drawing %llu triangles", (unsigned long long)(instanceCount * churchMesh.triangleCount)), 0, 100, 40, WHITE);
         EndDrawing();

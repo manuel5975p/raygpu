@@ -1,6 +1,7 @@
 #include <raygpu.h>
 #include <wgpustate.inc>
 #include <cstring>
+#include <cassert>
 #include <iostream>
 
 typedef struct StringToUniformMap{
@@ -25,6 +26,10 @@ typedef struct StringToUniformMap{
         
     }
 }StringToUniformMap;
+
+
+
+
 
 /*WGPUBindGroupLayout bindGroupLayoutFromUniformTypes(const UniformDescriptor* uniforms, uint32_t uniformCount){
     std::vector<WGPUBindGroupLayoutEntry> blayouts(uniformCount);
@@ -154,6 +159,8 @@ DescribedPipeline* LoadPipeline(const char* shaderSource, const AttributeAndResi
 extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
 
     DescribedPipeline* retp = callocnew(DescribedPipeline);
+    retp->createdPipelines = callocnew(VertexStateToPipelineMap);
+    new (retp->createdPipelines) VertexStateToPipelineMap;
     retp->settings = settings;
     DescribedPipeline& ret = *retp;
     ret.sh = LoadShaderFromMemory(shaderSource);
@@ -277,21 +284,37 @@ typedef struct VertexArray{
     std::vector<std::pair<DescribedBuffer*, WGPUVertexStepMode>> buffers;
 }VertexArray;
 
-extern "C" void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va){
-    size_t count = va->buffers.size();
-    pipeline->vbLayouts = (WGPUVertexBufferLayout*) calloc(count, sizeof(WGPUVertexBufferLayout));
-    
-    pipeline->descriptor.vertex.buffers = pipeline->vbLayouts;
-    pipeline->descriptor.vertex.bufferCount = va->buffers.size();
-
-    //LoadPipelineEx
-    uint32_t attribCount = va->attributes.size();
-    auto& attribs = va->attributes;
+std::vector<AttributeAndResidence> GetAttributesAndResidences(const VertexArray* va){
+    return va->attributes;
+}
+PipelineTriplet GetPipelinesForLayout(DescribedPipeline* pipeline, const std::vector<AttributeAndResidence>& attribs){
+    uint32_t attribCount = attribs.size();
+    auto it = pipeline->createdPipelines->pipelines.find(attribs);
+    if(it != pipeline->createdPipelines->pipelines.end()){
+        //TRACELOG(LOG_INFO, "Reusing cached pipeline triplet");
+        return it->second;
+    }
+    TRACELOG(LOG_INFO, "Creating new pipeline triplet");
     uint32_t maxslot = 0;
     for(size_t i = 0;i < attribCount;i++){
         maxslot = std::max(maxslot, attribs[i].bufferSlot);
     }
     const uint32_t number_of_buffers = maxslot + 1;
+    pipeline->vbLayouts = (WGPUVertexBufferLayout*) calloc(number_of_buffers, sizeof(WGPUVertexBufferLayout)); 
+    pipeline->descriptor.vertex.buffers = pipeline->vbLayouts;
+    std::vector<WGPUVertexStepMode> stepmodes(number_of_buffers, WGPUVertexStepMode_Undefined);
+
+    for(size_t i = 0;i < attribs.size();i++){
+        if(stepmodes[attribs[i].bufferSlot] == WGPUVertexStepMode_Undefined){
+            stepmodes[attribs[i].bufferSlot] = attribs[i].stepMode;
+        }
+        else if(stepmodes[attribs[i].bufferSlot] != attribs[i].stepMode){
+            TRACELOG(LOG_ERROR, "Mixed stepmodes");
+            return PipelineTriplet{};
+        }
+    }
+    pipeline->descriptor.vertex.bufferCount = number_of_buffers;
+    //auto& attribs = va->attributes;
     std::vector<std::vector<WGPUVertexAttribute>> buffer_to_attributes(number_of_buffers);
     std::vector<uint32_t> strides  (number_of_buffers, 0);
     std::vector<uint32_t> attrIndex(number_of_buffers, 0);
@@ -304,28 +327,51 @@ extern "C" void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va){
         pipeline->vbLayouts[i].attributes = buffer_to_attributes[i].data();
         pipeline->vbLayouts[i].attributeCount = buffer_to_attributes[i].size();
         pipeline->vbLayouts[i].arrayStride = strides[i];
-        pipeline->vbLayouts[i].stepMode = va->buffers[i].second;
+        pipeline->vbLayouts[i].stepMode = attribs[i].stepMode;
     }
-    
-    pipeline->descriptor.vertex.buffers = pipeline->vbLayouts;
-    if(pipeline->pipeline)
-        wgpuRenderPipelineRelease(pipeline->pipeline);
-    if(pipeline->pipeline_TriangleStrip)
-        wgpuRenderPipelineRelease(pipeline->pipeline_TriangleStrip);
-    if(pipeline->pipeline_LineList)
-        wgpuRenderPipelineRelease(pipeline->pipeline_LineList);
+
+    PipelineTriplet ret{};
     pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
-    pipeline->pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipeline->descriptor);
+    ret.pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipeline->descriptor);
     pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_LineList;
-    pipeline->pipeline_LineList = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipeline->descriptor);
+    ret.pipeline_LineList = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipeline->descriptor);
     pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleStrip;
     pipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
-    pipeline->pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipeline->descriptor);
+    ret.pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipeline->descriptor);
     pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
     pipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
+    pipeline->createdPipelines->pipelines[attribs] = ret;
+    return ret;
+}
+extern "C" void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va){
+    
+    auto pltriptle = GetPipelinesForLayout(pipeline, va->attributes);
+    //pipeline->descriptor.vertex.buffers = pipeline->vbLayouts;
+
+    //if(pipeline->pipeline)
+    //    wgpuRenderPipelineRelease(pipeline->pipeline);
+    //if(pipeline->pipeline_TriangleStrip)
+    //    wgpuRenderPipelineRelease(pipeline->pipeline_TriangleStrip);
+    //if(pipeline->pipeline_LineList)
+    //    wgpuRenderPipelineRelease(pipeline->pipeline_LineList);
+
+    pipeline->pipeline = pltriptle.pipeline;
+    pipeline->pipeline_LineList = pltriptle.pipeline_LineList;
+    pipeline->pipeline_TriangleStrip = pltriptle.pipeline_TriangleStrip;
+    //pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
+    //pipeline->pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipeline->descriptor);
+    //pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_LineList;
+    //pipeline->pipeline_LineList = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipeline->descriptor);
+    //pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleStrip;
+    //pipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
+    //pipeline->pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipeline->descriptor);
+    //pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
+    //pipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
 }
 DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
     DescribedPipeline* pipeline = callocnew(DescribedPipeline);
+    pipeline->createdPipelines = callocnew(VertexStateToPipelineMap);
+    new (pipeline->createdPipelines) VertexStateToPipelineMap;
     pipeline->descriptor = _pipeline->descriptor;
     pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
     pipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
@@ -468,13 +514,13 @@ extern "C" void UpdateBindGroup(DescribedBindGroup* bg){
     //std::cout << "Updating bindgroup with " << bg->desc.entryCount << " entries" << std::endl;
     //std::cout << "Updating bindgroup with " << bg->desc.entries[1].binding << " entries" << std::endl;
     if(bg->needsUpdate){
-        auto it = g_wgpustate.bindGroupPool.find(bg->descriptorHash);
-        if(it != g_wgpustate.bindGroupPool.end()){
-            bg->bindGroup = it->second;
-        }
-        else{
+        //auto it = g_wgpustate.bindGroupPool.find(bg->descriptorHash);
+        //if(it != g_wgpustate.bindGroupPool.end()){
+        //    bg->bindGroup = it->second;
+        //}
+        //else{
             bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
-        }
+        //}
         bg->needsUpdate = false;
     }
 }
