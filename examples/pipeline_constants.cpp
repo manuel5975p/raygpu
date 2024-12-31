@@ -52,10 +52,7 @@ int main(void){
         AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 5 * sizeof(float), 2}, 0, WGPUVertexStepMode_Vertex, true},
         AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x4, 8 * sizeof(float), 3}, 0, WGPUVertexStepMode_Vertex, true},
     };
-    RenderSettings settings zeroinit;
-    settings.depthTest = 1;
-    settings.depthCompare = WGPUCompareFunction_LessEqual;
-    pl = LoadPipeline(shaderSource, attrs, 4, settings);
+    pl = LoadPipeline(shaderSource, attrs, 4);
     DescribedSampler smp = LoadSampler(repeat, nearest);
     SetPipelineTexture(pl, 1, GetDefaultTexture());
     SetPipelineSampler(pl, 2, smp);
