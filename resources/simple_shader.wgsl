@@ -1,5 +1,3 @@
-@group(0) @binding(0) var texter: texture_2d<f32>;
-
 struct VertexInput {
     @location(0) position: vec2f
 };

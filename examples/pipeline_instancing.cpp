@@ -67,14 +67,10 @@ int main(){
     VertexAttribPointer(vao, &poso, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Instance);
     VertexAttribPointer(vao, &posc, 2, WGPUVertexFormat_Uint32, 0, WGPUVertexStepMode_Instance);
 
-    RenderSettings settings zeroinit;
     
     uint32_t trifanIndices[6] = {0,1,2,0,2,3};
     ibo = GenIndexBuffer(trifanIndices, sizeof(trifanIndices));
-    settings.depthTest = 1;
-    //settings.sampleCount_onlyApplicableIfMoreThanOne = 4;
-    settings.depthCompare = WGPUCompareFunction_LessEqual;
-    pl = LoadPipelineForVAO(source, vao, settings);
+    pl = LoadPipelineForVAO(source, vao);
     auto mainloop = [&]{
         for(size_t i = 0;i < offsets.size();i++){
             offsets[i] += velocities[i] * 0.0003f;
