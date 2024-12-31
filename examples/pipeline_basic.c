@@ -30,7 +30,7 @@ int main(void){
     settings.depthTest = 1;
     settings.depthCompare = WGPUCompareFunction_LessEqual;
     //settings.optionalDepthTexture = GetDepthTexture().view;
-    DescribedPipeline* pipeline = LoadPipelineEx(shaderSource, attributes, 1,  uniforms, 1, settings);
+    //DescribedPipeline* pipeline = LoadPipelineEx(shaderSource, attributes, 1,  uniforms, 1, settings);
     
     float vertices[6] = {
         0,0,
@@ -42,14 +42,16 @@ int main(void){
     VertexArray* vao = LoadVertexArray();
     VertexAttribPointer(vao, &vbo, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
     EnableVertexAttribArray(vao, 0);
+    DescribedPipeline* pipeline = LoadPipelineForVAO(shaderSource, vao, settings);
     float uniformData[4] = {0,0,0,0};
     SetTargetFPS(3000);
     while(!WindowShouldClose()){
         BeginDrawing();
-        BeginPipelineMode(pipeline, WGPUPrimitiveTopology_TriangleList);
-        SetUniformBufferData(0, uniformData, 16);
+        SetPipelineTexture(pipeline, 0, GetDefaultTexture());
+        BeginPipelineMode(pipeline);
+        //SetUniformBufferData(0, uniformData, 16);
         BindVertexArray(pipeline, vao);
-        DrawArrays(3);
+        DrawArrays(WGPUPrimitiveTopology_TriangleList, 3);
         EndPipelineMode();
         DrawFPS(0,0);
         EndDrawing();

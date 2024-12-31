@@ -2,7 +2,7 @@
 DescribedPipeline* pl;
 constexpr char shaderSource[] = R"(
 const red = 0.5f;
-override green = 0.5f;
+override green = 0.8f;
 const blue = 0.5f;
 struct VertexInput {
     @location(0) position: vec3f,
@@ -25,6 +25,7 @@ struct LightBuffer {
 @group(0) @binding(0) var<uniform> Perspective_View: mat4x4f;
 @group(0) @binding(1) var colDiffuse: texture_2d<f32>;
 @group(0) @binding(2) var grsampler: sampler;
+@group(0) @binding(3) var<storage> modelMatrices: array<mat4x4f>;
 
 @vertex fn vs_main(@builtin(instance_index) instanceIdx : u32, in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
@@ -61,7 +62,7 @@ int main(void){
     while(!WindowShouldClose()){
         BeginDrawing();
         ClearBackground(DARKBLUE);
-        BeginPipelineMode(pl, WGPUPrimitiveTopology_TriangleList);
+        BeginPipelineMode(pl);
         DrawRectangle(100, 100, 100, 100, WHITE);
         //DrawRectangle(100, 100, 100, 100, WHITE);
         EndPipelineMode();

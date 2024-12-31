@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <raygpu.h>
 #include <wgpustate.inc>
 #include <cstring>
@@ -118,14 +119,21 @@ DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, 
     ret.layout = wgpuDeviceCreateBindGroupLayout(g_wgpustate.device, &bglayoutdesc);
     return ret;
 }
-DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao, RenderSettings settings){
+extern "C" DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao){
     std::unordered_map<std::string, UniformDescriptor> bindings = getBindings(shaderSource);
     std::vector<UniformDescriptor> values;
     values.reserve(bindings.size());
     for(const auto& [x,y] : bindings){
         values.push_back(y);
     }
-    DescribedPipeline* pl = LoadPipelineForVAOEx(shaderSource, vao, values.data(), values.size(), settings);
+    std::sort(values.begin(), values.end(),[](const UniformDescriptor& x, const UniformDescriptor& y){
+        return x.location < y.location;
+    });
+    for(auto& desc: values){
+        std::cout << desc.location << ", ";
+    }
+    std::cout << std::endl;
+    DescribedPipeline* pl = LoadPipelineForVAOEx(shaderSource, vao, values.data(), values.size(), GetDefaultSettings());
     pl->uniformLocations = callocnew(StringToUniformMap);
     new (pl->uniformLocations) StringToUniformMap{};
     for(const auto& [x,y] : bindings){
@@ -141,14 +149,20 @@ DescribedPipeline* LoadPipelineForVAOEx(const char* shaderSource, VertexArray* v
     PreparePipeline(pl, vao);
     return pl;
 }
-DescribedPipeline* LoadPipeline(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, RenderSettings settings){
+extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount){
     std::unordered_map<std::string, UniformDescriptor> bindings = getBindings(shaderSource);
+    
     std::vector<UniformDescriptor> values;
     values.reserve(bindings.size());
     for(const auto& [x,y] : bindings){
         values.push_back(y);
     }
-    DescribedPipeline* pl = LoadPipelineEx(shaderSource, attribs, attribCount, values.data(), values.size(), settings);
+
+    std::sort(values.begin(), values.end(),[](const UniformDescriptor& x, const UniformDescriptor& y){
+        return x.location < y.location;
+    });
+
+    DescribedPipeline* pl = LoadPipelineEx(shaderSource, attribs, attribCount, values.data(), values.size(), GetDefaultSettings());
     pl->uniformLocations = callocnew(StringToUniformMap);
     new (pl->uniformLocations) StringToUniformMap{};
     for(const auto& [x,y] : bindings){
@@ -433,6 +447,13 @@ DescribedComputePipeline* LoadComputePipeline(const char* shaderCode, const Unif
 }
 Texture GetDefaultTexture(cwoid){
     return g_wgpustate.whitePixel;
+}
+RenderSettings GetDefaultSettings(){
+    RenderSettings ret zeroinit;
+    ret.depthTest = 1;
+    ret.depthCompare = WGPUCompareFunction_LessEqual;
+    ret.sampleCount_onlyApplicableIfMoreThanOne = (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
+    return ret;
 }
 DescribedPipeline* DefaultPipeline(){
     return g_wgpustate.rstate->defaultPipeline;
