@@ -411,7 +411,8 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     //RenderTexture rtex = LoadRenderTexture(width, height);
     g_wgpustate.rstate = new full_renderstate;
     
-
+    Matrix identity = MatrixIdentity();
+    g_wgpustate.identityMatrix = GenStorageBuffer(&identity, sizeof(Matrix));
     float data[16] = {0};
     //std::fill(data, data + 16, 1.0f);
     
@@ -508,6 +509,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 5 * sizeof(float), 2}, 0, WGPUVertexStepMode_Vertex, true},
         AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x4, 8 * sizeof(float), 3}, 0, WGPUVertexStepMode_Vertex, true},
     };
+    
     //arraySetter(shaderInputs.per_vertex_sizes, {3,2,4});
     //arraySetter(shaderInputs.uniform_minsizes, {64, 0, 0, 0});
     //uarraySetter(shaderInputs.uniform_types, {uniform_buffer, texture2d, sampler, storage_buffer});
@@ -534,8 +536,8 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     }
 
     LoadFontDefault();
-    for(size_t i = 0;i < 100;i++){
-        g_wgpustate.smallBufferPool.push_back(GenBuffer(nullptr, sizeof(vertex) * 10));
+    for(size_t i = 0;i < 512;i++){
+        g_wgpustate.smallBufferPool.push_back(GenBuffer(nullptr, sizeof(vertex) * 32));
     }
     WGPUCommandEncoderDescriptor cedesc{};
     cedesc.label = STRVIEW("Global Command Encoder");

@@ -2,18 +2,23 @@
 #define RAYGPU_H
 #include <webgpu/webgpu.h>
 #include <stdbool.h>
+#include <stdbool.h>
+#include <assert.h>
 #include "macros_and_constants.h"
 #include "mathutils.h"
 #include "pipeline.h"
 #ifdef __cplusplus
 #include <vector>
+#include <cassert>
 #include <unordered_map>
 #endif
 #define RL_FREE free
 #ifndef CHAR_BIT
 #define CHAR_BIT 8
 #endif
-#define ROT_BYTES(V, C) (((V) << (C)) | ((V) >> ((sizeof(V) * CHAR_BIT) - (C))))
+static inline uint64_t ROT_BYTES(uint64_t V, uint8_t C) {
+    return ((V << C) | ((V) >> (64 - C)));
+}
 typedef struct vertex{
     Vector3 pos;
     Vector2 uv ;
@@ -188,9 +193,11 @@ typedef struct BoundingBox {
 externcvar Vector2 nextuv;
 externcvar Vector3 nextnormal;
 externcvar Vector4 nextcol;
-externcvar StagingBuffer vboStaging;
+externcvar StagingBuffer vboStaging; //unused
 externcvar vertex* vboptr;
 externcvar vertex* vboptr_base;
+externcvar VertexArray* renderBatchVAO;
+externcvar DescribedBuffer* renderBatchVBO;
 externcvar char telegrama_render[];
 externcvar size_t telegrama_render_size;
 
@@ -448,6 +455,70 @@ typedef struct AttributeAndResidence{
 
 typedef struct full_renderstate full_renderstate;
 typedef struct GLFWwindow GLFWwindow;
+#ifdef __cplusplus
+namespace std{
+    template<>
+    struct hash<AttributeAndResidence>{
+        size_t operator()(const AttributeAndResidence& res)const noexcept{
+            uint64_t attrh = ROT_BYTES(res.attr.shaderLocation * uint64_t(41), 31) ^ ROT_BYTES(res.attr.offset, 11);
+            attrh *= 111;
+            attrh ^= ROT_BYTES(res.attr.format, 48) * uint64_t(44497);
+            uint64_t v = ROT_BYTES(res.bufferSlot * uint64_t(756839), 13) ^ ROT_BYTES(attrh * uint64_t(1171), 47);
+            v ^= ROT_BYTES(res.enabled * uint64_t(2976221), 23);
+            return v;
+        }
+    };
+    template<>
+    struct hash<std::vector<AttributeAndResidence>>{
+        size_t operator()(const std::vector<AttributeAndResidence>& res)const noexcept{
+            uint64_t hv = 0;
+            for(const auto& aar: res){
+                hv ^= hash<AttributeAndResidence>{}(aar);
+                hv = ROT_BYTES(hv, 7);
+            }
+            return hv;
+        }
+    };
+}
+struct attributeVectorCompare{
+    inline bool operator()(const std::vector<AttributeAndResidence>& a, const std::vector<AttributeAndResidence>& b)const noexcept{
+        #ifndef NDEBUG
+        int prevloc = -1;
+
+        for(size_t i = 0;i < a.size();i++){
+            assert((int)a[i].attr.shaderLocation > prevloc && "std::vector<AttributeAndResidence> not sorted");
+            prevloc = a[i].attr.shaderLocation;
+        }
+        prevloc = -1;
+        for(size_t i = 0;i < b.size();i++){
+            assert((int)b[i].attr.shaderLocation > prevloc && "std::vector<AttributeAndResidence> not sorted");
+            prevloc = b[i].attr.shaderLocation;
+        }
+        #endif
+        if(a.size() != b.size()){
+            return false;
+        }
+        for(size_t i = 0;i < a.size();i++){
+            if(
+                   a[i].bufferSlot != b[i].bufferSlot 
+                || a[i].enabled != b[i].enabled
+                || a[i].stepMode != b[i].stepMode 
+                || a[i].attr.format != b[i].attr.format 
+                || a[i].attr.offset != b[i].attr.offset 
+                || a[i].attr.shaderLocation != b[i].attr.shaderLocation
+            ){
+                return false;
+            }
+
+        }
+        return true;
+    }
+};
+typedef struct VertexStateToPipelineMap{
+    std::unordered_map<std::vector<AttributeAndResidence>, PipelineTriplet, std::hash<std::vector<AttributeAndResidence>>, attributeVectorCompare> pipelines;
+
+}VertexStateToPipelineMap;
+#endif
 
 #ifdef __cplusplus
 /**

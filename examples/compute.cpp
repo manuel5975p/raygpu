@@ -49,7 +49,7 @@ DescribedBuffer positions;
 DescribedBuffer velocities;
 DescribedBuffer positionsnew;
 DescribedBuffer ibo;
-constexpr size_t parts = (1 << 21);
+constexpr size_t parts = (1 << 23);
 void mainloop(void){
 
     BeginComputepass();
@@ -60,10 +60,10 @@ void mainloop(void){
     EndComputepass();
     BeginDrawing();
     ClearBackground(BLACK);
-    BeginPipelineMode(rpl, WGPUPrimitiveTopology_TriangleList);
+    BeginPipelineMode(rpl);
     BindVertexArray(rpl, vao);
     //wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->activeRenderPass->rpEncoder, 0, buf2.buffer, 0, 256);
-    DrawArraysIndexedInstanced(ibo, 6, parts);
+    DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, ibo, 6, parts);
     EndPipelineMode();
     DrawFPS(10, 10);
     //DrawRectangle(10, 400, 50, 50, BLUE);
