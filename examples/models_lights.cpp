@@ -112,7 +112,7 @@ int main(){
     while(!WindowShouldClose()){
         BeginDrawing();
         ClearBackground(BLANK);
-        BeginPipelineMode(pl, WGPUPrimitiveTopology_TriangleList);
+        BeginPipelineMode(pl);
         SetSampler(2, sampler);
         SetStorageBuffer(3, &idenbuffer);
         SetStorageBuffer(4, &libufs);

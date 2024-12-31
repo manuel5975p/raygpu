@@ -246,11 +246,11 @@ int main(){
         
         BeginDrawing();
         DrawFPS(0, 0);
-        BeginPipelineMode(pl, WGPUPrimitiveTopology_TriangleList);
+        BeginPipelineMode(pl);
         
         
         BindVertexArray(pl, vao);
-        DrawArrays(3);
+        DrawArrays(WGPUPrimitiveTopology_TriangleList, 3);
         EndPipelineMode();
         EndDrawing();
     }

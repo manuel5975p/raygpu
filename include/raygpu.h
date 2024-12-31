@@ -741,11 +741,12 @@ EXTERN_C_BEGIN
     WGPUShaderModule LoadShader(const char* path);
 
     DescribedPipeline* ClonePipeline(const DescribedPipeline* pl);
-    DescribedPipeline* LoadPipeline(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, RenderSettings settings);
+    DescribedPipeline* LoadPipeline(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount);
     DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
-    DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao, RenderSettings settings);
+    DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao);
     DescribedPipeline* LoadPipelineForVAOEx(const char* shaderSource, VertexArray* vao, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
     DescribedPipeline* DefaultPipeline(cwoid);
+    RenderSettings GetDefaultSettings(cwoid);
     Texture GetDefaultTexture(cwoid);
     void UnloadPipeline(DescribedPipeline* pl);
 

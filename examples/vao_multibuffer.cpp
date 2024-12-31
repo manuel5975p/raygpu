@@ -97,9 +97,9 @@ int main(){
         ClearBackground(BLANK);
         UseNoTexture();
         BeginMode3D(cam);
-        BeginPipelineMode(pl, WGPUPrimitiveTopology_TriangleList);
+        BeginPipelineMode(pl);
         BindVertexArray(pl, vao);
-        DrawArrays(3);
+        DrawArrays(WGPUPrimitiveTopology_TriangleList, 3);
         EndPipelineMode();
         EndMode3D();
         DrawFPS(0, 0);

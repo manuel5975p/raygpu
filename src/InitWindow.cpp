@@ -39,7 +39,7 @@ struct LightBuffer {
 
 @group(0) @binding(0) var<uniform> Perspective_View: mat4x4f;
 @group(0) @binding(1) var colDiffuse: texture_2d<f32>;
-@group(0) @binding(2) var grsampler: sampler;
+@group(0) @binding(2) var texSampler: sampler;
 @group(0) @binding(3) var<storage> modelMatrix: array<mat4x4f>;
 @group(0) @binding(4) var<storage> lights: LightBuffer;
 @group(0) @binding(5) var<storage> lights2: LightBuffer;
@@ -61,7 +61,7 @@ fn vs_main(@builtin(instance_index) instanceIdx : u32, in: VertexInput) -> Verte
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    return textureSample(colDiffuse, grsampler, in.uv).rgba * in.color;
+    return textureSample(colDiffuse, texSampler, in.uv).rgba * in.color;
 }
 )";
 extern Texture depthTexture;
@@ -564,6 +564,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
 
 
     DescribedSampler sampler = LoadSampler(repeat, linear);
+    g_wgpustate.defaultSampler = sampler;
     SetSampler(2, sampler);
     g_wgpustate.init_timestamp = NanoTime();
     #ifndef __EMSCRIPTEN__

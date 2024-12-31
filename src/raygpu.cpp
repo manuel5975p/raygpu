@@ -464,7 +464,10 @@ void drawCurrentBatch(){
 extern "C" void BeginPipelineMode(DescribedPipeline* pipeline){
     drawCurrentBatch();
     g_wgpustate.rstate->activePipeline = pipeline;
-    SetUniformBufferData(0, &g_wgpustate.activeScreenMatrix, sizeof(Matrix));
+    uint32_t location = GetUniformLocation(pipeline, "Perspective_View");
+    if(location != LOCATION_NOT_FOUND){
+        SetUniformBufferData(location, &g_wgpustate.activeScreenMatrix, sizeof(Matrix));
+    }
     //BindPipeline(pipeline, drawMode);
 }
 extern "C" void EndPipelineMode(){
@@ -1568,10 +1571,15 @@ void UseTexture(Texture tex){
     
 }
 void UseNoTexture(){
-    if(g_wgpustate.rstate->activePipeline->bindGroup.entries[1].textureView == g_wgpustate.whitePixel.view)return;
-
-    drawCurrentBatch();
-    SetTexture(1, g_wgpustate.whitePixel);
+    uint32_t colDiffuseLocation = GetUniformLocation(GetActivePipeline(), "colDiffuse");
+    if(colDiffuseLocation != LOCATION_NOT_FOUND){
+        if(g_wgpustate.rstate->activePipeline->bindGroup.entries[colDiffuseLocation].textureView == g_wgpustate.whitePixel.view)return;
+        drawCurrentBatch();
+        SetTexture(colDiffuseLocation, g_wgpustate.whitePixel);
+        //uint32_t samplerLocation = GetUniformLocation(GetActivePipeline(), "texSampler");
+        //if(samplerLocation != LOCATION_NOT_FOUND)
+        //    SetSampler(samplerLocation, g_wgpustate.defaultSampler);
+    }
     //WGPUBindGroupEntry entry{};
     //entry.binding = 1;
     //entry.textureView = g_wgpustate.whitePixel.view;

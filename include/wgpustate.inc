@@ -25,6 +25,7 @@ struct wgpustate{
 
     DescribedBuffer identityMatrix;
     DescribedBuffer defaultScreenMatrix;
+    DescribedSampler defaultSampler;
     Matrix activeScreenMatrix;
     
     DescribedBuffer quadindicesCache{};
