@@ -94,7 +94,6 @@ int main(){
         mainloop();
     }
     #else
-    
     emscripten_set_main_loop_arg(mainloopCaller, (void*)&mainloop, 0, 0);
     #endif
 }

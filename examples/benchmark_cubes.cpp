@@ -28,7 +28,7 @@ struct VertexOutput {
     return out;
 }
 @fragment fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    return in.color * dot(in.normal, vec3f(0.2,0.8,0.45));
+    return vec4f((in.color * dot(in.normal, vec3f(0.2,0.8,0.45))).xyz, 1.0f);
     
 })";
 DescribedPipeline* pl;
@@ -37,8 +37,7 @@ Camera3D cam;
 int main(){
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(1920, 1080, "Cube Benchmark");
-    SetTargetFPS(10000);
-    float scale = 0.02f;
+    float scale = 0.04f;
     cubeMesh = GenMeshCube(scale, scale, scale);
     cam = Camera3D{
         .position = Vector3{1,2,12},
@@ -54,18 +53,24 @@ int main(){
         return MatrixTranslate((drand48() - 0.5) * 10, (drand48() - 0.5) * 10, (drand48() - 0.5) * 10);
     });
     DescribedBuffer persistent = GenStorageBuffer(instancetransforms.data(), instancetransforms.size() * sizeof(Matrix));
+    SetPipelineStorageBuffer(pl, 3, &persistent);
+    //TRACELOG(LOG_WARNING, "OOO: %llu", (unsigned long long)persistent.buffer);
     auto mainloop = [&]{
         BeginDrawing();
         ClearBackground(BLANK);
-        SetPipelineStorageBuffer(pl, 3, &persistent);
+        //TRACELOG(LOG_WARNING, "Setting storig buffer");
+        //TRACELOG(LOG_WARNING, "pl %ull", pl);
+        //TRACELOG(LOG_WARNING, "GetActivePipeline %ull", GetActivePipeline());
+        //TRACELOG(LOG_WARNING, "Setting storig buffer");
+        
         BeginPipelineMode(pl);
         UseNoTexture();
         BeginMode3D(cam);
 
-        //BindVertexArray(GetActivePipeline(), cubeMesh.vao);
-        //DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, cubeMesh.ibo, 36, 1000000);
+        BindVertexArray(pl, cubeMesh.vao);
+        DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, cubeMesh.ibo, 36, 1000000);
 
-        DrawMeshInstanced(cubeMesh, Material{}, instancetransforms.data(), instancetransforms.size());
+        //DrawMeshInstanced(cubeMesh, Material{}, instancetransforms.data(), instancetransforms.size());
         EndMode3D();
         EndPipelineMode();
         DrawFPS(0, 10);

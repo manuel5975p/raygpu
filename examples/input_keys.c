@@ -1,50 +1,16 @@
 #include <raygpu.h>
-
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 #define MAX_BUILDINGS   100
-
-//------------------------------------------------------------------------------------
-// Program main entry point
-//------------------------------------------------------------------------------------
-int main(void)
-{
-    // Initialization
-    //--------------------------------------------------------------------------------------
-    const int screenWidth = 800;
-    const int screenHeight = 450;
-
-    InitWindow(screenWidth, screenHeight, "Key Input Example");
-
-    Rectangle player = { 400, 280, 40, 40 };
-    Rectangle buildings[MAX_BUILDINGS] = { 0 };
-    Color buildColors[MAX_BUILDINGS] = { 0 };
-
-    int spacing = 0;
-
-    for (int i = 0; i < MAX_BUILDINGS; i++)
-    {
-        buildings[i].width = (float)GetRandomValue(50, 200);
-        buildings[i].height = (float)GetRandomValue(100, 800);
-        buildings[i].y = screenHeight - 130.0f - buildings[i].height;
-        buildings[i].x = -6000.0f + spacing;
-
-        spacing += (int)buildings[i].width;
-
-        buildColors[i] = (Color){ GetRandomValue(200, 240), GetRandomValue(200, 240), GetRandomValue(200, 250), 255 };
-    }
-
-    Camera2D camera = { 0 };
-    camera.target = (Vector2){ player.x + 20.0f, player.y + 20.0f };
-    camera.offset = (Vector2){ screenWidth/2.0f, screenHeight/2.0f };
-    camera.rotation = 0.0f;
-    camera.zoom = 1.0f;
-
-    SetTargetFPS(60);                   // Set our game to run at 60 frames-per-second
-    //--------------------------------------------------------------------------------------
-
-    // Main game loop
-    while (!WindowShouldClose())        // Detect window close button or ESC key
-    {
-        // Update
+Rectangle player = { 400, 280, 40, 40 };
+Rectangle buildings[MAX_BUILDINGS] = { 0 };
+Color buildColors[MAX_BUILDINGS] = { 0 };
+Camera2D camera;
+const int screenWidth = 800;
+const int screenHeight = 450;
+void mainloop(void){
+// Update
         //----------------------------------------------------------------------------------
         // Player movement
         if (IsKeyDown(KEY_RIGHT)) player.x += 2;
@@ -111,11 +77,54 @@ int main(void)
 
         EndDrawing();
         //----------------------------------------------------------------------------------
+}
+//------------------------------------------------------------------------------------
+// Program main entry point
+//------------------------------------------------------------------------------------
+int main(void)
+{
+    // Initialization
+    //--------------------------------------------------------------------------------------
+    
+
+    InitWindow(screenWidth, screenHeight, "Key Input Example");
+
+    
+
+    int spacing = 0;
+
+    for (int i = 0; i < MAX_BUILDINGS; i++)
+    {
+        buildings[i].width = (float)GetRandomValue(50, 200);
+        buildings[i].height = (float)GetRandomValue(100, 800);
+        buildings[i].y = screenHeight - 130.0f - buildings[i].height;
+        buildings[i].x = -6000.0f + spacing;
+
+        spacing += (int)buildings[i].width;
+
+        buildColors[i] = (Color){ GetRandomValue(200, 240), GetRandomValue(200, 240), GetRandomValue(200, 250), 255 };
     }
+
+    camera.target = (Vector2){ player.x + 20.0f, player.y + 20.0f };
+    camera.offset = (Vector2){ screenWidth/2.0f, screenHeight/2.0f };
+    camera.rotation = 0.0f;
+    camera.zoom = 1.0f;
+
+    SetTargetFPS(60);                   // Set our game to run at 60 frames-per-second
+    //--------------------------------------------------------------------------------------
+
+    // Main game loop
+    #ifndef __EMSCRIPTEN__
+    while(!WindowShouldClose()){
+        mainloop();
+    }
+    #else
+    emscripten_set_main_loop(mainloop, 0, 0);
+    #endif
 
     // De-Initialization
     //--------------------------------------------------------------------------------------
-    CloseWindow();        // Close window and OpenGL context
+    //CloseWindow();        // Close window and OpenGL context
     //--------------------------------------------------------------------------------------
 
     return 0;

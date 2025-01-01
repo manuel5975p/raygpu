@@ -751,12 +751,14 @@ EXTERN_C_BEGIN
     void UnloadPipeline(DescribedPipeline* pl);
 
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
+    size_t GetPixelSizeInBytes(WGPUTextureFormat format);
     Texture LoadTexture(uint32_t width, uint32_t height);
     Texture LoadDepthTexture(uint32_t width, uint32_t height);
     Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format, bool to_be_used_as_rendertarget);
     Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage, uint32_t sampleCount);
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
-    
+    void UpdateTexture(Texture tex, void* data);
+
     StagingBuffer GenStagingBuffer(size_t size, WGPUBufferUsage usage);
     void UpdateStagingBuffer(StagingBuffer* buffer);
     void RecreateStagingBuffer(StagingBuffer* buffer);

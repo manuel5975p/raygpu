@@ -1,6 +1,8 @@
 #include <raygpu.h>
 #include <string>
-
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 int main(cwoid){
     //SetConfigFlags(FLAG_FULLSCREEN_MODE);
     SetConfigFlags(FLAG_VSYNC_HINT);
@@ -35,7 +37,7 @@ int main(cwoid){
             trfs[i * rootInstanceCount + j] = MatrixTranslate(10.0f * i - rootInstanceCount * 5.0f, 0, 10.0f * j - rootInstanceCount * 5.0f) * MatrixScale(0.5,0.5,0.5);
         }
     }
-    while(!WindowShouldClose()){
+    auto mainloop = [&]{
         BeginDrawing();
         angle += GetFrameTime();
         cam.position = Vector3{std::sin(angle) * 45.f, 30.0f, std::cos(angle) * 45.f};
@@ -50,5 +52,16 @@ int main(cwoid){
         DrawFPS(0, 0);
         DrawText(TextFormat("Drawing %llu triangles", (unsigned long long)(instanceCount * churchMesh.triangleCount)), 0, 100, 40, WHITE);
         EndDrawing();
+    };
+    using mainloop_type = decltype(mainloop);
+    auto mainloopCaller = [](void* x){
+        (*((decltype(mainloop)*)x))();
+    };
+    #ifndef __EMSCRIPTEN__
+    while(!WindowShouldClose()){
+        mainloop();
     }
+    #else
+    emscripten_set_main_loop_arg(mainloopCaller, (void*)&mainloop, 0, 0);
+    #endif
 }
