@@ -484,9 +484,8 @@ uint64_t bgEntryHash(const WGPUBindGroupEntry& bge){
 
 extern "C" DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const WGPUBindGroupEntry* entries, size_t entryCount){
     DescribedBindGroup ret zeroinit;
-    WGPUBindGroupEntry* rentries = (WGPUBindGroupEntry*) calloc(entryCount, sizeof(WGPUBindGroupEntry));
-    memcpy(rentries, entries, entryCount * sizeof(WGPUBindGroupEntry));
-    ret.entries = rentries;
+    ret.entries = (WGPUBindGroupEntry*) calloc(entryCount, sizeof(WGPUBindGroupEntry));
+    memcpy(ret.entries, entries, entryCount * sizeof(WGPUBindGroupEntry));
     ret.desc.layout = bglayout->layout;
     ret.desc.entries = ret.entries;
     ret.desc.entryCount = entryCount;
@@ -500,8 +499,8 @@ extern "C" DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bgla
 }
 extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, WGPUBindGroupEntry entry){
     if(index >= bg->desc.entryCount){
-        TRACELOG(LOG_WARNING, "Tried to set entry %d on a BindGroup with only %d entries", (int)index, (int)bg->desc.entryCount);
-        return;
+        TRACELOG(LOG_WARNING, "Trying to set entry %d on a BindGroup with only %d entries", (int)index, (int)bg->desc.entryCount);
+        //return;
     }
     auto& newpuffer = entry.buffer;
     auto& newtexture = entry.textureView;
@@ -516,9 +515,9 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, WGPUB
     //TODO don't release and recreate here or find something better lol
     
     if(!bg->needsUpdate && bg->bindGroup){
-        //wgpuBindGroupRelease(bg->bindGroup);
-        g_wgpustate.bindGroupPool[oldHash] = bg->bindGroup;
-        bg->bindGroup = nullptr;
+        wgpuBindGroupRelease(bg->bindGroup);
+        //g_wgpustate.bindGroupPool[oldHash] = bg->bindGroup;
+        //bg->bindGroup = nullptr;
     }
     bg->needsUpdate = true;
     
@@ -540,7 +539,11 @@ extern "C" void UpdateBindGroup(DescribedBindGroup* bg){
         //    bg->bindGroup = it->second;
         //}
         //else{
-            bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
+        //TRACELOG(LOG_WARNING, "a ooo, create bind grupp");
+        //__builtin_dump_struct(&(bg->desc), printf);
+        //for(size_t i = 0;i < bg->desc.entryCount;i++)
+        //    __builtin_dump_struct(&(bg->desc.entries[i]), printf);
+        bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
         //}
         bg->needsUpdate = false;
     }

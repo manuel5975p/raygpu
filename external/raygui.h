@@ -1373,7 +1373,7 @@ typedef enum { BORDER = 0, BASE, TEXT, OTHER } GuiPropertyElement;
 //----------------------------------------------------------------------------------
 static GuiState guiState = STATE_NORMAL;        // Gui global state, if !STATE_NORMAL, forces defined state
 
-static Font guiFont = { 0 };                    // Gui current font (WARNING: highly coupled to raylib)
+static Font guiFont zeroinit;                    // Gui current font (WARNING: highly coupled to raylib)
 static bool guiLocked = false;                  // Gui lock state (no inputs processed)
 static float guiAlpha = 1.0f;                   // Gui controls transparency
 
@@ -1383,7 +1383,7 @@ static bool guiTooltip = false;                 // Tooltip enabled/disabled
 static const char *guiTooltipPtr = NULL;        // Tooltip string pointer (string provided by user)
 
 static bool guiControlExclusiveMode = false;    // Gui control exclusive mode (no inputs processed except current control)
-static Rectangle guiControlExclusiveRec = { 0 }; // Gui control exclusive bounds rectangle, used as an unique identifier
+static Rectangle guiControlExclusiveRec zeroinit; // Gui control exclusive bounds rectangle, used as an unique identifier
 
 static int textBoxCursorIndex = 0;              // Cursor index, shared by all GuiTextBox*()
 //static int blinkCursorFrameCounter = 0;       // Frame counter for cursor blinking
@@ -1402,7 +1402,7 @@ static int autoCursorDelayCounter = 0;          // Delay frame counter for autom
 //
 // guiStyle size is by default: 16*(16 + 8) = 384*4 = 1536 bytes = 1.5 KB
 //----------------------------------------------------------------------------------
-static unsigned int guiStyle[RAYGUI_MAX_CONTROLS*(RAYGUI_MAX_PROPS_BASE + RAYGUI_MAX_PROPS_EXTENDED)] = { 0 };
+static unsigned int guiStyle[RAYGUI_MAX_CONTROLS*(RAYGUI_MAX_PROPS_BASE + RAYGUI_MAX_PROPS_EXTENDED)] zeroinit;
 
 static bool guiStyleLoaded = false;         // Style loaded flag for lazy style initialization
 
@@ -1539,7 +1539,7 @@ int GuiGetState(void) { return guiState; }
 // NOTE: Font loading/unloading is external to raygui
 void GuiSetFont(Font font)
 {
-    if (font.texture.id > 0)
+    if (font.texture.id != 0)
     {
         // NOTE: If we try to setup a font but default style has not been
         // lazily loaded before, it will be overwritten, so we need to force
@@ -1670,7 +1670,7 @@ int GuiLine(Rectangle bounds, const char *text)
     if (text == NULL) GuiDrawRectangle(RAYGUI_CLITERAL(Rectangle){ bounds.x, bounds.y + bounds.height/2, bounds.width, 1 }, 0, BLANK, color);
     else
     {
-        Rectangle textBounds = { 0 };
+        Rectangle textBounds zeroinit;
         textBounds.width = (float)GetTextWidth(text) + 2;
         textBounds.height = bounds.height;
         textBounds.x = bounds.x + RAYGUI_LINE_MARGIN_TEXT;
@@ -1803,7 +1803,7 @@ int GuiScrollPanel(Rectangle bounds, const char *text, Rectangle content, Vector
     int result = 0;
     GuiState state = guiState;
 
-    Rectangle temp = { 0 };
+    Rectangle temp zeroinit;
     if (view == NULL) view = &temp;
 
     Vector2 scrollPos = { 0.0f, 0.0f };
@@ -2103,7 +2103,7 @@ int GuiToggleGroup(Rectangle bounds, const char *text, int *active)
     bool toggle = false;    // Required for individual toggles
 
     // Get substrings items from text (items pointers)
-    int rows[RAYGUI_TOGGLEGROUP_MAX_ITEMS] = { 0 };
+    int rows[RAYGUI_TOGGLEGROUP_MAX_ITEMS] zeroinit;
     int itemCount = 0;
     const char **items = GuiTextSplit(text, ';', &itemCount, rows);
 
@@ -2197,7 +2197,7 @@ int GuiToggleSlider(Rectangle bounds, const char *text, int *active)
     // Draw text in slider
     if (text != NULL)
     {
-        Rectangle textBounds = { 0 };
+        Rectangle textBounds zeroinit;
         textBounds.width = (float)GetTextWidth(text);
         textBounds.height = (float)GuiGetStyle(DEFAULT, TEXT_SIZE);
         textBounds.x = slider.x + slider.width/2 - textBounds.width/2;
@@ -2219,7 +2219,7 @@ int GuiCheckBox(Rectangle bounds, const char *text, bool *checked)
     bool temp = false;
     if (checked == NULL) checked = &temp;
 
-    Rectangle textBounds = { 0 };
+    Rectangle textBounds zeroinit;
 
     if (text != NULL)
     {
@@ -2832,7 +2832,7 @@ int GuiSpinner(Rectangle bounds, const char *text, int *value, int minValue, int
     Rectangle leftButtonBound = { (float)bounds.x, (float)bounds.y, (float)GuiGetStyle(SPINNER, SPIN_BUTTON_WIDTH), (float)bounds.height };
     Rectangle rightButtonBound = { (float)bounds.x + bounds.width - GuiGetStyle(SPINNER, SPIN_BUTTON_WIDTH), (float)bounds.y, (float)GuiGetStyle(SPINNER, SPIN_BUTTON_WIDTH), (float)bounds.height };
 
-    Rectangle textBounds = { 0 };
+    Rectangle textBounds zeroinit;
     if (text != NULL)
     {
         textBounds.width = (float)GetTextWidth(text) + 2;
@@ -2907,7 +2907,7 @@ int GuiValueBox(Rectangle bounds, const char *text, int *value, int minValue, in
     char textValue[RAYGUI_VALUEBOX_MAX_CHARS + 1] = "\0";
     sprintf(textValue, "%i", *value);
 
-    Rectangle textBounds = { 0 };
+    Rectangle textBounds zeroinit;
     if (text != NULL)
     {
         textBounds.width = (float)GetTextWidth(text) + 2;
@@ -3023,7 +3023,7 @@ int GuiValueBoxFloat(Rectangle bounds, const char *text, char *textValue, float 
     //char textValue[RAYGUI_VALUEBOX_MAX_CHARS + 1] = "\0";
     //sprintf(textValue, "%2.2f", *value);
 
-    Rectangle textBounds = {0};
+    Rectangle textBounds zeroinit;
     if (text != NULL)
     {
         textBounds.width = (float)GetTextWidth(text) + 2;
@@ -3211,7 +3211,7 @@ int GuiSliderPro(Rectangle bounds, const char *textLeft, const char *textRight, 
     // Draw left/right text if provided
     if (textLeft != NULL)
     {
-        Rectangle textBounds = { 0 };
+        Rectangle textBounds zeroinit;
         textBounds.width = (float)GetTextWidth(textLeft);
         textBounds.height = (float)GuiGetStyle(DEFAULT, TEXT_SIZE);
         textBounds.x = bounds.x - textBounds.width - GuiGetStyle(SLIDER, TEXT_PADDING);
@@ -3222,7 +3222,7 @@ int GuiSliderPro(Rectangle bounds, const char *textLeft, const char *textRight, 
 
     if (textRight != NULL)
     {
-        Rectangle textBounds = { 0 };
+        Rectangle textBounds zeroinit;
         textBounds.width = (float)GetTextWidth(textRight);
         textBounds.height = (float)GuiGetStyle(DEFAULT, TEXT_SIZE);
         textBounds.x = bounds.x + bounds.width + GuiGetStyle(SLIDER, TEXT_PADDING);
@@ -3302,7 +3302,7 @@ int GuiProgressBar(Rectangle bounds, const char *textLeft, const char *textRight
     // Draw left/right text if provided
     if (textLeft != NULL)
     {
-        Rectangle textBounds = { 0 };
+        Rectangle textBounds zeroinit;
         textBounds.width = (float)GetTextWidth(textLeft);
         textBounds.height = (float)GuiGetStyle(DEFAULT, TEXT_SIZE);
         textBounds.x = bounds.x - textBounds.width - GuiGetStyle(PROGRESSBAR, TEXT_PADDING);
@@ -3313,7 +3313,7 @@ int GuiProgressBar(Rectangle bounds, const char *textLeft, const char *textRight
 
     if (textRight != NULL)
     {
-        Rectangle textBounds = { 0 };
+        Rectangle textBounds zeroinit;
         textBounds.width = (float)GetTextWidth(textRight);
         textBounds.height = (float)GuiGetStyle(DEFAULT, TEXT_SIZE);
         textBounds.x = bounds.x + bounds.width + GuiGetStyle(PROGRESSBAR, TEXT_PADDING);
@@ -3399,7 +3399,7 @@ int GuiListViewEx(Rectangle bounds, const char **text, int count, int *scrollInd
     if ((GuiGetStyle(LISTVIEW, LIST_ITEMS_HEIGHT) + GuiGetStyle(LISTVIEW, LIST_ITEMS_SPACING))*count > bounds.height) useScrollBar = true;
 
     // Define base item rectangle [0]
-    Rectangle itemBounds = { 0 };
+    Rectangle itemBounds zeroinit;
     itemBounds.x = bounds.x + GuiGetStyle(LISTVIEW, LIST_ITEMS_SPACING);
     itemBounds.y = bounds.y + GuiGetStyle(LISTVIEW, LIST_ITEMS_SPACING) + GuiGetStyle(DEFAULT, BORDER_WIDTH);
     itemBounds.width = bounds.width - 2*GuiGetStyle(LISTVIEW, LIST_ITEMS_SPACING) - GuiGetStyle(DEFAULT, BORDER_WIDTH);
@@ -3781,7 +3781,7 @@ int GuiColorPickerHSV(Rectangle bounds, const char *text, Vector3 *colorHsv)
 {
     int result = 0;
 
-    Vector3 tempHsv = { 0 };
+    Vector3 tempHsv zeroinit;
 
     if (colorHsv == NULL)
     {
@@ -3804,7 +3804,7 @@ int GuiColorPanelHSV(Rectangle bounds, const char *text, Vector3 *colorHsv)
 {
     int result = 0;
     GuiState state = guiState;
-    Vector2 pickerSelector = { 0 };
+    Vector2 pickerSelector zeroinit;
 
     const Color colWhite = { 255, 255, 255, 255 };
     const Color colBlack = { 0, 0, 0, 255 };
@@ -3913,7 +3913,7 @@ int GuiMessageBox(Rectangle bounds, const char *title, const char *message, cons
 
     int buttonCount = 0;
     const char **buttonsText = GuiTextSplit(buttons, ';', &buttonCount, NULL);
-    Rectangle buttonBounds = { 0 };
+    Rectangle buttonBounds zeroinit;
     buttonBounds.x = bounds.x + RAYGUI_MESSAGEBOX_BUTTON_PADDING;
     buttonBounds.y = bounds.y + bounds.height - RAYGUI_MESSAGEBOX_BUTTON_HEIGHT - RAYGUI_MESSAGEBOX_BUTTON_PADDING;
     buttonBounds.width = (bounds.width - RAYGUI_MESSAGEBOX_BUTTON_PADDING*(buttonCount + 1))/buttonCount;
@@ -3921,7 +3921,7 @@ int GuiMessageBox(Rectangle bounds, const char *title, const char *message, cons
 
     //int textWidth = GetTextWidth(message) + 2;
 
-    Rectangle textBounds = { 0 };
+    Rectangle textBounds zeroinit;
     textBounds.x = bounds.x + RAYGUI_MESSAGEBOX_BUTTON_PADDING;
     textBounds.y = bounds.y + RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT + RAYGUI_MESSAGEBOX_BUTTON_PADDING;
     textBounds.width = bounds.width - RAYGUI_MESSAGEBOX_BUTTON_PADDING*2;
@@ -3972,7 +3972,7 @@ int GuiTextInputBox(Rectangle bounds, const char *title, const char *message, co
 
     int buttonCount = 0;
     const char **buttonsText = GuiTextSplit(buttons, ';', &buttonCount, NULL);
-    Rectangle buttonBounds = { 0 };
+    Rectangle buttonBounds zeroinit;
     buttonBounds.x = bounds.x + RAYGUI_TEXTINPUTBOX_BUTTON_PADDING;
     buttonBounds.y = bounds.y + bounds.height - RAYGUI_TEXTINPUTBOX_BUTTON_HEIGHT - RAYGUI_TEXTINPUTBOX_BUTTON_PADDING;
     buttonBounds.width = (bounds.width - RAYGUI_TEXTINPUTBOX_BUTTON_PADDING*(buttonCount + 1))/buttonCount;
@@ -3980,7 +3980,7 @@ int GuiTextInputBox(Rectangle bounds, const char *title, const char *message, co
 
     int messageInputHeight = (int)bounds.height - RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT - GuiGetStyle(STATUSBAR, BORDER_WIDTH) - RAYGUI_TEXTINPUTBOX_BUTTON_HEIGHT - 2*RAYGUI_TEXTINPUTBOX_BUTTON_PADDING;
 
-    Rectangle textBounds = { 0 };
+    Rectangle textBounds zeroinit;
     if (message != NULL)
     {
         int textSize = GetTextWidth(message) + 2;
@@ -3991,7 +3991,7 @@ int GuiTextInputBox(Rectangle bounds, const char *title, const char *message, co
         textBounds.height = (float)GuiGetStyle(DEFAULT, TEXT_SIZE);
     }
 
-    Rectangle textBoxBounds = { 0 };
+    Rectangle textBoxBounds zeroinit;
     textBoxBounds.x = bounds.x + RAYGUI_TEXTINPUTBOX_BUTTON_PADDING;
     textBoxBounds.y = bounds.y + RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT - RAYGUI_TEXTINPUTBOX_HEIGHT/2;
     if (message == NULL) textBoxBounds.y = bounds.y + 24 + RAYGUI_TEXTINPUTBOX_BUTTON_PADDING;
@@ -4135,7 +4135,7 @@ void GuiLoadStyle(const char *fileName)
 
     if (rgsFile != NULL)
     {
-        char buffer[MAX_LINE_BUFFER_SIZE] = { 0 };
+        char buffer[MAX_LINE_BUFFER_SIZE] zeroinit;
         fgets(buffer, MAX_LINE_BUFFER_SIZE, rgsFile);
 
         if (buffer[0] == '#')
@@ -4161,11 +4161,11 @@ void GuiLoadStyle(const char *fileName)
                         // Style font: f <gen_font_size> <charmap_file> <font_file>
 
                         int fontSize = 0;
-                        char charmapFileName[256] = { 0 };
-                        char fontFileName[256] = { 0 };
+                        char charmapFileName[256] zeroinit;
+                        char fontFileName[256] zeroinit;
                         sscanf(buffer, "f %d %s %[^\r\n]s", &fontSize, charmapFileName, fontFileName);
 
-                        Font font = { 0 };
+                        Font font zeroinit;
                         int *codepoints = NULL;
                         int codepointCount = 0;
 
@@ -4197,7 +4197,7 @@ void GuiLoadStyle(const char *fileName)
 
                         UnloadCodepoints(codepoints);
 
-                        if ((font.texture.id > 0) && (font.glyphCount > 0)) GuiSetFont(font);
+                        if ((font.texture.id != 0) && (font.glyphCount > 0)) GuiSetFont(font);
 
                     } break;
                     default: break;
@@ -4348,8 +4348,8 @@ const char *GuiIconText(int iconId, const char *text)
 #if defined(RAYGUI_NO_ICONS)
     return NULL;
 #else
-    static char buffer[1024] = { 0 };
-    static char iconBuffer[16] = { 0 };
+    static char buffer[1024] zeroinit;
+    static char iconBuffer[16] zeroinit;
 
     if (text != NULL)
     {
@@ -4413,7 +4413,7 @@ char **GuiLoadIcons(const char *fileName, bool loadIconsName)
 
     if (rgiFile != NULL)
     {
-        char signature[5] = { 0 };
+        char signature[5] zeroinit;
         short version = 0;
         short reserved = 0;
         short iconCount = 0;
@@ -4490,7 +4490,7 @@ static void GuiLoadStyleFromMemory(const unsigned char *fileData, int dataSize)
 {
     unsigned char *fileDataPtr = (unsigned char *)fileData;
 
-    char signature[5] = { 0 };
+    char signature[5] zeroinit;
     short version = 0;
     short reserved = 0;
     int propertyCount = 0;
@@ -4538,7 +4538,7 @@ static void GuiLoadStyleFromMemory(const unsigned char *fileData, int dataSize)
 
         if (fontDataSize > 0)
         {
-            Font font = { 0 };
+            Font font zeroinit;
             int fontType = 0;   // 0-Normal, 1-SDF
 
             memcpy(&font.baseSize, fileDataPtr, sizeof(int));
@@ -4547,7 +4547,7 @@ static void GuiLoadStyleFromMemory(const unsigned char *fileData, int dataSize)
             fileDataPtr += 12;
 
             // Load font white rectangle
-            Rectangle fontWhiteRec = { 0 };
+            Rectangle fontWhiteRec zeroinit;
             memcpy(&fontWhiteRec, fileDataPtr, sizeof(Rectangle));
             fileDataPtr += 16;
 
@@ -4558,7 +4558,7 @@ static void GuiLoadStyleFromMemory(const unsigned char *fileData, int dataSize)
             memcpy(&fontImageCompSize, fileDataPtr + 4, sizeof(int));
             fileDataPtr += 8;
 
-            Image imFont = { 0 };
+            Image imFont zeroinit;
             imFont.mipmaps = 1;
             memcpy(&imFont.width, fileDataPtr, sizeof(int));
             memcpy(&imFont.height, fileDataPtr + 4, sizeof(int));
@@ -4713,7 +4713,7 @@ static int GetTextWidth(const char *text)
         #define ICON_TEXT_PADDING   4
     #endif
 
-    Vector2 textSize = { 0 };
+    Vector2 textSize zeroinit;
     int textIconOffset = 0;
 
     if ((text != NULL) && (text[0] != '\0'))
@@ -4736,7 +4736,7 @@ static int GetTextWidth(const char *text)
         float fontSize = (float)GuiGetStyle(DEFAULT, TEXT_SIZE);
 
         // Custom MeasureText() implementation
-        if ((guiFont.texture.id > 0) && (text != NULL))
+        if ((guiFont.texture.id != 0) && (text != NULL))
         {
             // Get size in bytes of text, considering end of line and line break
             int size = 0;
@@ -4810,7 +4810,7 @@ static const char *GetTextIcon(const char *text, int *iconId)
     *iconId = -1;
     if (text[0] == '#')     // Maybe we have an icon!
     {
-        char iconValue[4] = { 0 };  // Maximum length for icon value: 3 digits + '\0'
+        char iconValue[4] zeroinit;  // Maximum length for icon value: 3 digits + '\0'
 
         int pos = 1;
         while ((pos < 4) && (text[pos] >= '0') && (text[pos] <= '9'))
@@ -4838,13 +4838,13 @@ const char **GetTextLines(const char *text, int *count)
 {
     #define RAYGUI_MAX_TEXT_LINES   128
 
-    static const char *lines[RAYGUI_MAX_TEXT_LINES] = { 0 };
+    static const char *lines[RAYGUI_MAX_TEXT_LINES] zeroinit;
     for (int i = 0; i < RAYGUI_MAX_TEXT_LINES; i++) lines[i] = NULL;    // Init NULL pointers to substrings
 
     int textSize = (int)strlen(text);
 
     lines[0] = text;
-    int len = 0;
+    //int len = 0;
     *count = 1;
     //int lineSize = 0;   // Stores current line size, not returned
 
@@ -4855,10 +4855,10 @@ const char **GetTextLines(const char *text, int *count)
             //lineSize = len;
             k++;
             lines[k] = &text[i + 1];     // WARNING: next value is valid?
-            len = 0;
+            //len = 0;
             *count += 1;
         }
-        else len++;
+        else {}//len++;
     }
 
     //lines[*count - 1].size = len;
@@ -5180,7 +5180,7 @@ static const char **GuiTextSplit(const char *text, char delimiter, int *count, i
     #endif
 
     static const char *result[RAYGUI_TEXTSPLIT_MAX_ITEMS] = { NULL };   // String pointers array (points to buffer data)
-    static char buffer[RAYGUI_TEXTSPLIT_MAX_TEXT_SIZE] = { 0 };         // Buffer data (text input copy with '\0' added)
+    static char buffer[RAYGUI_TEXTSPLIT_MAX_TEXT_SIZE] zeroinit;         // Buffer data (text input copy with '\0' added)
     memset(buffer, 0, RAYGUI_TEXTSPLIT_MAX_TEXT_SIZE);
 
     result[0] = buffer;
@@ -5219,7 +5219,7 @@ static const char **GuiTextSplit(const char *text, char delimiter, int *count, i
 // NOTE: Color data should be passed normalized
 static Vector3 ConvertRGBtoHSV(Vector3 rgb)
 {
-    Vector3 hsv = { 0 };
+    Vector3 hsv zeroinit;
     float min = 0.0f;
     float max = 0.0f;
     float delta = 0.0f;
@@ -5272,7 +5272,7 @@ static Vector3 ConvertRGBtoHSV(Vector3 rgb)
 // NOTE: Color data should be passed normalized
 static Vector3 ConvertHSVtoRGB(Vector3 hsv)
 {
-    Vector3 rgb = { 0 };
+    Vector3 rgb zeroinit;
     float hh = 0.0f, p = 0.0f, q = 0.0f, t = 0.0f, ff = 0.0f;
     long i = 0;
 
@@ -5353,14 +5353,14 @@ static int GuiScrollBar(Rectangle bounds, int value, int minValue, int maxValue)
         (int)bounds.height - 2*GuiGetStyle(SCROLLBAR, BORDER_WIDTH)) : 0;
 
     // Arrow buttons [<] [>] [∧] [∨]
-    Rectangle arrowUpLeft = { 0 };
-    Rectangle arrowDownRight = { 0 };
+    Rectangle arrowUpLeft zeroinit;
+    Rectangle arrowDownRight zeroinit;
 
     // Actual area of the scrollbar excluding the arrow buttons
-    Rectangle scrollbar = { 0 };
+    Rectangle scrollbar zeroinit;
 
     // Slider bar that moves     --[///]-----
-    Rectangle slider = { 0 };
+    Rectangle slider zeroinit;
 
     // Normalize value
     if (value > maxValue) value = maxValue;
@@ -5595,7 +5595,7 @@ const char **TextSplit(const char *text, char delimiter, int *count)
     #endif
 
     static const char *result[RAYGUI_TEXTSPLIT_MAX_ITEMS] = { NULL };
-    static char buffer[RAYGUI_TEXTSPLIT_MAX_TEXT_SIZE] = { 0 };
+    static char buffer[RAYGUI_TEXTSPLIT_MAX_TEXT_SIZE] zeroinit;
     memset(buffer, 0, RAYGUI_TEXTSPLIT_MAX_TEXT_SIZE);
 
     result[0] = buffer;
@@ -5677,7 +5677,7 @@ static float TextToFloat(const char *text)
 // Encode codepoint into UTF-8 text (char array size returned as parameter)
 static const char *CodepointToUTF8(int codepoint, int *byteSize)
 {
-    static char utf8[6] = { 0 };
+    static char utf8[6] zeroinit;
     int size = 0;
 
     if (codepoint <= 0x7f)

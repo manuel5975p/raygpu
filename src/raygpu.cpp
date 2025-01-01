@@ -949,7 +949,7 @@ WGPUShaderModule LoadShader(const char* path) {
     return wgpuDeviceCreateShaderModule(g_wgpustate.device, &shaderDesc);
 }
 Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage, uint32_t sampleCount){
-     WGPUTextureDescriptor tDesc{};
+    WGPUTextureDescriptor tDesc{};
     tDesc.dimension = WGPUTextureDimension_2D;
     tDesc.size = {width, height, 1u};
     tDesc.mipLevelCount = 1;
@@ -994,6 +994,23 @@ Texture LoadDepthTexture(uint32_t width, uint32_t height){
 }
 RenderTexture LoadRenderTexture(uint32_t width, uint32_t height){
     return RenderTexture{.color = LoadTextureEx(width, height, g_wgpustate.frameBufferFormat, true), .depth = LoadDepthTexture(width, height)};
+}
+void UpdateTexture(Texture tex, void* data){
+    WGPUImageCopyTexture destination{};
+    destination.texture = tex.id;
+    destination.aspect = WGPUTextureAspect_All;
+    destination.mipLevel = 0;
+    destination.origin = WGPUOrigin3D{0,0,0};
+
+    WGPUTextureDataLayout source{};
+    source.offset = 0;
+    source.bytesPerRow = 4 * tex.width;
+    source.rowsPerImage = tex.height;
+    WGPUExtent3D writeSize{};
+    writeSize.depthOrArrayLayers = 1;
+    writeSize.width = tex.width;
+    writeSize.height = tex.height;
+    wgpuQueueWriteTexture(GetQueue(), &destination, data, tex.width * tex.height * 4, &source, &writeSize);
 }
 inline WGPUVertexFormat f16format(uint32_t s){
     switch(s){
