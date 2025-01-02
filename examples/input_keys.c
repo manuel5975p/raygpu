@@ -3,12 +3,12 @@
 #include <emscripten.h>
 #endif
 #define MAX_BUILDINGS   100
-Rectangle player = { 400, 280, 40, 40 };
+Rectangle player = { 400, 550, 40, 40 };
 Rectangle buildings[MAX_BUILDINGS] = { 0 };
 Color buildColors[MAX_BUILDINGS] = { 0 };
 Camera2D camera;
-const int screenWidth = 800;
-const int screenHeight = 450;
+const int screenWidth = 1200;
+const int screenHeight = 720;
 void mainloop(void){
 // Update
         //----------------------------------------------------------------------------------
@@ -60,20 +60,20 @@ void mainloop(void){
 
             EndMode2D();
 
-            DrawText("SCREEN AREA", 640, 10, 20, RED);
+            DrawText("SCREEN AREA", 940, 10, 30, RED);
 
             DrawRectangle(0, 0, screenWidth, 5, RED);
             DrawRectangle(0, 5, 5, screenHeight - 10, RED);
             DrawRectangle(screenWidth - 5, 5, 5, screenHeight - 10, RED);
             DrawRectangle(0, screenHeight - 5, screenWidth, 5, RED);
-            DrawRectangle( 10, 10, 250, 113, Fade(SKYBLUE, 0.5f));
-            DrawRectangleLines( 10, 10, 250, 113, BLUE);
+            DrawRectangle( 10, 10, 850, 210, Fade(SKYBLUE, 0.5f));
+            DrawRectangleLines( 10, 10, 850, 210, BLUE);
 
-            DrawText("Free 2d camera controls:", 20, 20, 10, BLACK);
-            DrawText("- Right/Left to move Offset", 40, 40, 10, DARKGRAY);
-            DrawText("- Mouse Wheel to Zoom in-out", 40, 60, 10, DARKGRAY);
-            DrawText("- A / S to Rotate", 40, 80, 10, DARKGRAY);
-            DrawText("- R to reset Zoom and Rotation", 40, 100, 10, DARKGRAY);
+            DrawText("Free 2d camera controls:", 20, 20, 30, BLACK);
+            DrawText("- Right/Left to move Offset", 40, 60, 30, DARKGRAY);
+            DrawText("- Mouse Wheel to Zoom in-out", 40, 100, 30, DARKGRAY);
+            DrawText("- A / S to Rotate", 40, 140, 30, DARKGRAY);
+            DrawText("- R to reset Zoom and Rotation", 40, 180, 30, DARKGRAY);
 
         EndDrawing();
         //----------------------------------------------------------------------------------
