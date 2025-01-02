@@ -633,6 +633,7 @@ void EndDrawing(){
     }
     #ifndef __EMSCRIPTEN__
     wgpuSurfacePresent(g_wgpustate.surface);
+    //glfwSwapBuffers(g_wgpustate.window);
     #endif // __EMSCRIPTEN__
     //WGPUSurfaceTexture surfaceTexture;
     //wgpuSurfaceGetCurrentTexture(g_wgpustate.surface, &surfaceTexture);
@@ -675,13 +676,17 @@ void rlBegin(draw_mode mode){
 void rlEnd(){
     
 }
+uint32_t RoundUpToNextMultipleOf256(uint32_t x) {
+    return (x + 255) & ~0xFF;
+}
 Image LoadImageFromTextureEx(WGPUTexture tex){
     Image ret {(PixelFormat)wgpuTextureGetFormat(tex), wgpuTextureGetWidth(tex), wgpuTextureGetHeight(tex), size_t(std::ceil(4.0 * wgpuTextureGetWidth(tex) / 256.0) * 256), nullptr, 1};
     WGPUBufferDescriptor b{};
     b.mappedAtCreation = false;
     uint32_t width = wgpuTextureGetWidth(tex);
     uint32_t height = wgpuTextureGetHeight(tex);
-    b.size = size_t(std::ceil(4.0 * width / 256.0) * 256) * height;
+    size_t formatSize = GetPixelSizeInBytes(wgpuTextureGetFormat(tex));
+    b.size = RoundUpToNextMultipleOf256(formatSize * width) * height;
     b.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
     
     wgpu::Buffer readtex = wgpuDeviceCreateBuffer(GetDevice(), &b);
@@ -697,7 +702,7 @@ Image LoadImageFromTextureEx(WGPUTexture tex){
     WGPUImageCopyBuffer tbdest{};
     tbdest.buffer = readtex.Get();
     tbdest.layout.offset = 0;
-    tbdest.layout.bytesPerRow = std::ceil(4.0 * wgpuTextureGetWidth(tex) / 256.0) * 256;
+    tbdest.layout.bytesPerRow = RoundUpToNextMultipleOf256(formatSize * width);
     tbdest.layout.rowsPerImage = height;
 
     WGPUExtent3D copysize{width, height, 1};
@@ -741,12 +746,13 @@ Image LoadImageFromTextureEx(WGPUTexture tex){
     //cbinfo.callback = onBuffer2Mapped;
     //cbinfo.userdata = &ibpair;
     //cbinfo.mode = wgpu::CallbackMode::WaitAnyOnly;
-    wgpu::Future fut = readtex.MapAsync(wgpu::MapMode::Read, 0, size_t(std::ceil(4.0 * wgpuTextureGetWidth(tex) / 256.0) * 256) * height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped);
+
+    wgpu::Future fut = readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped);
     winfo.future = fut;
     wgpuInstanceWaitAny(g_wgpustate.instance, 1, &winfo, 1000000000);
     #else 
     //readtex.MapAsync(wgpu::MapMode::Read, 0, size_t(std::ceil(4.0 * width / 256.0) * 256) * height, onBuffer2Mapped, &ibpair);
-    readtex.MapAsync(wgpu::MapMode::Read, 0, size_t(std::ceil(4.0 * wgpuTextureGetWidth(tex) / 256.0) * 256) * height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped);
+    readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped);
     //emscripten_sleep(20);
     #endif
     //wgpuBufferMapAsyncF(readtex, WGPUMapMode_Read, 0, 4 * tex.width * tex.height, onBuffer2Mapped);

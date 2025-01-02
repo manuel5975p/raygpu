@@ -77,15 +77,56 @@ struct webgpu_cxx_state{
     full_renderstate* rstate = nullptr;
     Texture depthTexture{};
 };
+extern const std::unordered_map<std::string, int> emscriptenToGLFWKeyMap;
+void glfwKeyCallback (GLFWwindow* window, int key, int scancode, int action, int mods){
+    if(action == GLFW_PRESS){
+        g_wgpustate.keydown[key] = 1;
+    }else if(action == GLFW_RELEASE){
+        g_wgpustate.keydown[key] = 0;
+    }
+    if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
+        glfwSetWindowShouldClose(window, true);
+    }
+}
 #ifdef __EMSCRIPTEN__
-EM_BOOL EmscriptenKeyCallback(int eventType, const EmscriptenKeyboardEvent *keyEvent, void *userData){
-    printf("%s\n", keyEvent->key);
-    printf("%s\n", keyEvent->code);
+EM_BOOL EmscriptenKeydownCallback(int eventType, const EmscriptenKeyboardEvent *keyEvent, void *userData){
+    printf("Code: %s\n", keyEvent->code);
+    if(keyEvent->repeat)return 0;
+    uint32_t modifier = 0;
+    if(keyEvent->ctrlKey)
+        modifier |= GLFW_MOD_CONTROL;
+    if(keyEvent->shiftKey)
+        modifier |= GLFW_MOD_SHIFT;
+    if(keyEvent->altKey)
+        modifier |= GLFW_MOD_ALT;
+    glfwKeyCallback(g_wgpustate.window, emscriptenToGLFWKeyMap.at(keyEvent->code), emscriptenToGLFWKeyMap.at(keyEvent->code), GLFW_PRESS, modifier);
+    //__builtin_dump_struct(keyEvent, printf);
+    //printf("Pressed %u\n", keyEvent->which);
     return 0;
+}
+EM_BOOL EmscriptenKeyupCallback(int eventType, const EmscriptenKeyboardEvent *keyEvent, void *userData){
+    if(keyEvent->repeat)return 1;
+    uint32_t modifier = 0;
+    if(keyEvent->ctrlKey)
+        modifier |= GLFW_MOD_CONTROL;
+    if(keyEvent->shiftKey)
+        modifier |= GLFW_MOD_SHIFT;
+    if(keyEvent->altKey)
+        modifier |= GLFW_MOD_ALT;
+    glfwKeyCallback(g_wgpustate.window, emscriptenToGLFWKeyMap.at(keyEvent->code), emscriptenToGLFWKeyMap.at(keyEvent->code), GLFW_RELEASE, modifier);
+    //printf("Released %u\n", keyEvent->which);
+    return 1;
 }
 #endif// __EMSCRIPTEN__
 //webgpu_cxx_state* sample;
 GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
+    #ifdef __EMSCRIPTEN__
+    //EMSCRIPTEN_RESULT ret = emscripten_set_keypress_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, 1, EmscriptenKeyCallback);
+    emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, 1, EmscriptenKeydownCallback);
+    emscripten_set_keyup_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, 1, EmscriptenKeyupCallback);
+    //if(ret == EMSCRIPTEN_RESULT_SUCCESS)
+    //    TRACELOG(LOG_INFO, "Keypress successfully registered");
+    #endif
     if (!glfwInit()) {
         abort();
     }
@@ -175,7 +216,9 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
             &adapterOptions, wgpu::CallbackMode::WaitAnyOnly,
             [sample](wgpu::RequestAdapterStatus status, wgpu::Adapter adapter, wgpu::StringView message) {
                 if (status != wgpu::RequestAdapterStatus::Success) {
-                    std::cerr << "Failed to get an adapter:" << message;
+                    char tmp[2048] = {};
+                    std::memcpy(tmp, message.data, std::min(message.length, (size_t)2047));
+                    TRACELOG(LOG_FATAL, "Failed to get an adapter: %s\n", tmp);
                     return;
                 }
                 sample->adapter = std::move(adapter);
@@ -243,8 +286,10 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
 
     // Synchronously create the device
     wgpu::RequiredLimits reqLimits;
-    reqLimits.limits.maxBufferSize = 1ull << 30;
-    reqLimits.limits.maxStorageBufferBindingSize = 1ull << 30;
+    reqLimits.limits.maxBufferSize = 1ull << 28;
+    reqLimits.limits.maxStorageBufferBindingSize = 1ull << 28;
+    reqLimits.limits.maxStorageBuffersInVertexStage = 8;
+    reqLimits.limits.maxStorageBuffersInFragmentStage = 8;
     
     deviceDesc.requiredLimits = &reqLimits;
     sample->instance.WaitAny(
@@ -473,26 +518,14 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     glfwSetMouseButtonCallback(window, clickcallback);
     #endif
 
-    auto keycallback = [](GLFWwindow* window, int key, int scancode, int action, int mods){
-        std::cerr << "keycallback\n";
-        if(action == GLFW_PRESS){
-            g_wgpustate.keydown[key] = 1;
-        }else if(action == GLFW_RELEASE){
-            g_wgpustate.keydown[key] = 0;
-        }
-        if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
-            glfwSetWindowShouldClose(window, true);
-        }
-    };
+    
     #ifndef __EMSCRIPTEN__
     glfwSetKeyCallback(
         g_wgpustate.window, 
-        keycallback
+        glfwKeyCallback
     );
     #else
-    EMSCRIPTEN_RESULT ret = emscripten_set_keypress_callback("#canvas", nullptr, 1, EmscriptenKeyCallback);
-    if(ret == EMSCRIPTEN_RESULT_SUCCESS)
-        TRACELOG(LOG_INFO, "Keypress successfully registered");
+    
     #endif
     #ifndef __EMSCRIPTEN__
     glfwSetCharCallback(window, [](GLFWwindow* window, unsigned int codePoint){
@@ -1112,3 +1145,124 @@ extern "C" size_t GetPixelSizeInBytes(WGPUTextureFormat format) {
             return 0;
     }
 }
+const std::unordered_map<std::string, int> emscriptenToGLFWKeyMap = {
+    // Alphabet Keys
+    {"KeyA", GLFW_KEY_A},
+    {"KeyB", GLFW_KEY_B},
+    {"KeyC", GLFW_KEY_C},
+    {"KeyD", GLFW_KEY_D},
+    {"KeyE", GLFW_KEY_E},
+    {"KeyF", GLFW_KEY_F},
+    {"KeyG", GLFW_KEY_G},
+    {"KeyH", GLFW_KEY_H},
+    {"KeyI", GLFW_KEY_I},
+    {"KeyJ", GLFW_KEY_J},
+    {"KeyK", GLFW_KEY_K},
+    {"KeyL", GLFW_KEY_L},
+    {"KeyM", GLFW_KEY_M},
+    {"KeyN", GLFW_KEY_N},
+    {"KeyO", GLFW_KEY_O},
+    {"KeyP", GLFW_KEY_P},
+    {"KeyQ", GLFW_KEY_Q},
+    {"KeyR", GLFW_KEY_R},
+    {"KeyS", GLFW_KEY_S},
+    {"KeyT", GLFW_KEY_T},
+    {"KeyU", GLFW_KEY_U},
+    {"KeyV", GLFW_KEY_V},
+    {"KeyW", GLFW_KEY_W},
+    {"KeyX", GLFW_KEY_X},
+    {"KeyY", GLFW_KEY_Y},
+    {"KeyZ", GLFW_KEY_Z},
+
+    // Number Keys
+    {"Digit0", GLFW_KEY_0},
+    {"Digit1", GLFW_KEY_1},
+    {"Digit2", GLFW_KEY_2},
+    {"Digit3", GLFW_KEY_3},
+    {"Digit4", GLFW_KEY_4},
+    {"Digit5", GLFW_KEY_5},
+    {"Digit6", GLFW_KEY_6},
+    {"Digit7", GLFW_KEY_7},
+    {"Digit8", GLFW_KEY_8},
+    {"Digit9", GLFW_KEY_9},
+
+    // Function Keys
+    {"F1", GLFW_KEY_F1},
+    {"F2", GLFW_KEY_F2},
+    {"F3", GLFW_KEY_F3},
+    {"F4", GLFW_KEY_F4},
+    {"F5", GLFW_KEY_F5},
+    {"F6", GLFW_KEY_F6},
+    {"F7", GLFW_KEY_F7},
+    {"F8", GLFW_KEY_F8},
+    {"F9", GLFW_KEY_F9},
+    {"F10", GLFW_KEY_F10},
+    {"F11", GLFW_KEY_F11},
+    {"F12", GLFW_KEY_F12},
+
+    // Arrow Keys
+    {"ArrowUp", GLFW_KEY_UP},
+    {"ArrowDown", GLFW_KEY_DOWN},
+    {"ArrowLeft", GLFW_KEY_LEFT},
+    {"ArrowRight", GLFW_KEY_RIGHT},
+
+    // Control Keys
+    {"Enter", GLFW_KEY_ENTER},
+    {"Escape", GLFW_KEY_ESCAPE},
+    {"Space", GLFW_KEY_SPACE},
+    {"Tab", GLFW_KEY_TAB},
+    {"ShiftLeft", GLFW_KEY_LEFT_SHIFT},
+    {"ShiftRight", GLFW_KEY_RIGHT_SHIFT},
+    {"ControlLeft", GLFW_KEY_LEFT_CONTROL},
+    {"ControlRight", GLFW_KEY_RIGHT_CONTROL},
+    {"AltLeft", GLFW_KEY_LEFT_ALT},
+    {"AltRight", GLFW_KEY_RIGHT_ALT},
+    {"CapsLock", GLFW_KEY_CAPS_LOCK},
+    {"Backspace", GLFW_KEY_BACKSPACE},
+    {"Delete", GLFW_KEY_DELETE},
+    {"Insert", GLFW_KEY_INSERT},
+    {"Home", GLFW_KEY_HOME},
+    {"End", GLFW_KEY_END},
+    {"PageUp", GLFW_KEY_PAGE_UP},
+    {"PageDown", GLFW_KEY_PAGE_DOWN},
+
+    // Numpad Keys
+    {"Numpad0", GLFW_KEY_KP_0},
+    {"Numpad1", GLFW_KEY_KP_1},
+    {"Numpad2", GLFW_KEY_KP_2},
+    {"Numpad3", GLFW_KEY_KP_3},
+    {"Numpad4", GLFW_KEY_KP_4},
+    {"Numpad5", GLFW_KEY_KP_5},
+    {"Numpad6", GLFW_KEY_KP_6},
+    {"Numpad7", GLFW_KEY_KP_7},
+    {"Numpad8", GLFW_KEY_KP_8},
+    {"Numpad9", GLFW_KEY_KP_9},
+    {"NumpadDecimal", GLFW_KEY_KP_DECIMAL},
+    {"NumpadDivide", GLFW_KEY_KP_DIVIDE},
+    {"NumpadMultiply", GLFW_KEY_KP_MULTIPLY},
+    {"NumpadSubtract", GLFW_KEY_KP_SUBTRACT},
+    {"NumpadAdd", GLFW_KEY_KP_ADD},
+    {"NumpadEnter", GLFW_KEY_KP_ENTER},
+    {"NumpadEqual", GLFW_KEY_KP_EQUAL},
+
+    // Punctuation and Symbols
+    {"Backquote", GLFW_KEY_GRAVE_ACCENT},
+    {"Minus", GLFW_KEY_MINUS},
+    {"Equal", GLFW_KEY_EQUAL},
+    {"BracketLeft", GLFW_KEY_LEFT_BRACKET},
+    {"BracketRight", GLFW_KEY_RIGHT_BRACKET},
+    {"Backslash", GLFW_KEY_BACKSLASH},
+    {"Semicolon", GLFW_KEY_SEMICOLON},
+    {"Quote", GLFW_KEY_APOSTROPHE},
+    {"Comma", GLFW_KEY_COMMA},
+    {"Period", GLFW_KEY_PERIOD},
+    {"Slash", GLFW_KEY_SLASH},
+
+    // Additional Keys (Add more as needed)
+    {"PrintScreen", GLFW_KEY_PRINT_SCREEN},
+    {"ScrollLock", GLFW_KEY_SCROLL_LOCK},
+    {"Pause", GLFW_KEY_PAUSE},
+    {"ContextMenu", GLFW_KEY_MENU},
+    {"IntlBackslash", GLFW_KEY_UNKNOWN}, // Example of an unmapped key
+    // ... add other keys as necessary
+};
