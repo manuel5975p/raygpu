@@ -141,15 +141,33 @@ DescribedPipeline* LoadPipelineForVAOEx(const char* shaderSource, VertexArray* v
     PreparePipeline(pl, vao);
     return pl;
 }
-extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount){
+extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
     std::unordered_map<std::string, UniformDescriptor> bindings = getBindings(shaderSource);
+
+    std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> attribs = getAttributes(shaderSource);
     
+    std::vector<AttributeAndResidence> allAttribsInOneBuffer;
+    allAttribsInOneBuffer.reserve(attribs.size());
+    uint32_t offset = 0;
+    for(const auto& [name, attr] : attribs){
+        const auto& [format, location] = attr;
+        allAttribsInOneBuffer.push_back(AttributeAndResidence{
+            .attr = WGPUVertexAttribute{
+                .format = format,
+                .offset = offset,
+                .shaderLocation = location},
+            .bufferSlot = 0, 
+            .stepMode = WGPUVertexStepMode_Vertex,
+            .enabled = true}
+        );
+        offset += attributeSize(format);
+    }
     std::vector<UniformDescriptor> values;
     values.reserve(bindings.size());
     for(const auto& [x,y] : bindings){
         values.push_back(y);
     }
-    DescribedPipeline* pl = LoadPipelineEx(shaderSource, attribs, attribCount, values.data(), values.size(), GetDefaultSettings());
+    DescribedPipeline* pl = LoadPipelineEx(shaderSource, allAttribsInOneBuffer.data(), allAttribsInOneBuffer.size(), values.data(), values.size(), GetDefaultSettings());
     
     return pl;
 }
@@ -344,7 +362,6 @@ PipelineTriplet GetPipelinesForLayout(DescribedPipeline* pipeline, const std::ve
         pipeline->vbLayouts[i].arrayStride = strides[i];
         pipeline->vbLayouts[i].stepMode = attribs[i].stepMode;
     }
-    std::cerr << pipeline->descriptor.fragment->targetCount << "\n";
     PipelineTriplet ret{};
     pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
     ret.pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipeline->descriptor);

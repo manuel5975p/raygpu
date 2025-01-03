@@ -52,7 +52,7 @@ int main(void){
         AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 5 * sizeof(float), 2}, 0, WGPUVertexStepMode_Vertex, true},
         AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x4, 8 * sizeof(float), 3}, 0, WGPUVertexStepMode_Vertex, true},
     };
-    pl = LoadPipeline(shaderSource, attrs, 4);
+    pl = LoadPipeline(shaderSource);
     DescribedSampler smp = LoadSampler(repeat, nearest);
     SetPipelineTexture(pl, 1, GetDefaultTexture());
     SetPipelineSampler(pl, 2, smp);

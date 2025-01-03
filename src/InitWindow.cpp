@@ -287,10 +287,10 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
 
     // Synchronously create the device
     wgpu::RequiredLimits reqLimits;
-    reqLimits.limits.maxBufferSize = 1ull << 28;
-    reqLimits.limits.maxStorageBufferBindingSize = 1ull << 28;
-    //reqLimits.limits.maxStorageBuffersInVertexStage = 8;
-    //reqLimits.limits.maxStorageBuffersInFragmentStage = 8;
+    reqLimits.limits.maxBufferSize = 1ull << 30;
+    reqLimits.limits.maxStorageBufferBindingSize = 1ull << 30;
+    reqLimits.limits.maxStorageBuffersInVertexStage = 8;
+    reqLimits.limits.maxStorageBuffersInFragmentStage = 8;
     
     deviceDesc.requiredLimits = &reqLimits;
     sample->instance.WaitAny(
