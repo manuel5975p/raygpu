@@ -134,8 +134,10 @@ extern "C" DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, Verte
     }
     std::cout << std::endl;
     DescribedPipeline* pl = LoadPipelineForVAOEx(shaderSource, vao, values.data(), values.size(), GetDefaultSettings());
-    pl->uniformLocations = callocnew(StringToUniformMap);
-    new (pl->uniformLocations) StringToUniformMap{};
+    if(pl->uniformLocations == nullptr){
+        pl->uniformLocations = callocnew(StringToUniformMap);
+        new (pl->uniformLocations) StringToUniformMap{};
+    }
     for(const auto& [x,y] : bindings){
         (*pl->uniformLocations).uniforms[x] = y;
     }
@@ -163,8 +165,10 @@ extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource, const Attri
     });
 
     DescribedPipeline* pl = LoadPipelineEx(shaderSource, attribs, attribCount, values.data(), values.size(), GetDefaultSettings());
-    pl->uniformLocations = callocnew(StringToUniformMap);
-    new (pl->uniformLocations) StringToUniformMap{};
+    if(pl->uniformLocations == nullptr){
+        pl->uniformLocations = callocnew(StringToUniformMap);
+        new (pl->uniformLocations) StringToUniformMap{};
+    }
     for(const auto& [x,y] : bindings){
         (*pl->uniformLocations).uniforms[x] = y;
     }
@@ -175,6 +179,10 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     DescribedPipeline* retp = callocnew(DescribedPipeline);
     retp->createdPipelines = callocnew(VertexStateToPipelineMap);
     new (retp->createdPipelines) VertexStateToPipelineMap;
+    if(retp->uniformLocations == nullptr){
+        retp->uniformLocations = callocnew(StringToUniformMap);
+        new (retp->uniformLocations) StringToUniformMap{};
+    }
     retp->settings = settings;
     DescribedPipeline& ret = *retp;
     ret.sh = LoadShaderFromMemory(shaderSource);

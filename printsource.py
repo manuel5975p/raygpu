@@ -2,7 +2,8 @@
 import os
 
 # Define the directories to search
-directories = ['include', 'src']
+#directories = ['include', 'src']
+directories = ['examples']
 
 # Define the file extensions to include
 extensions = {'.c', '.cpp', '.h', '.hpp'}

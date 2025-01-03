@@ -1,8 +1,9 @@
 #include <raygpu.h>
 
 int main(void){
+    SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(800, 600, "WebGPU window");
-    SetTargetFPS(60);
+    //SetTargetFPS(60);
     bool flag = 0;
     RenderTexture tex = LoadRenderTexture(300, 300);
     uint32_t framecount = 0;
