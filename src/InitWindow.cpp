@@ -525,7 +525,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     glfwSetMouseButtonCallback(window, clickcallback);
     #endif
 
-    
+    g_wgpustate.grst = malloc(152);
     #ifndef __EMSCRIPTEN__
     glfwSetKeyCallback(
         g_wgpustate.window, 

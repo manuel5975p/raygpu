@@ -109,6 +109,7 @@ typedef struct StagingBuffer{
 }StagingBuffer;
 
 typedef struct VertexArray VertexArray;
+typedef struct GIFRecordState GIFRecordState;
 // GlyphInfo, font characters glyphs info
 typedef struct GlyphInfo {
     int value;              // Character value (Unicode)
@@ -759,7 +760,8 @@ EXTERN_C_BEGIN
 
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
     size_t GetPixelSizeInBytes(WGPUTextureFormat format);
-    Texture LoadTexture(uint32_t width, uint32_t height);
+    Texture LoadBlankTexture(uint32_t width, uint32_t height);
+    Texture LoadTexture(const char* filename);
     Texture LoadDepthTexture(uint32_t width, uint32_t height);
     Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format, bool to_be_used_as_rendertarget);
     Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage, uint32_t sampleCount);

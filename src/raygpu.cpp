@@ -999,8 +999,13 @@ Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format
 Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format, bool to_be_used_as_rendertarget){
     return LoadTexturePro(width, height, format, (WGPUTextureUsage_RenderAttachment * to_be_used_as_rendertarget) | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 1);
 }
-
-Texture LoadTexture(uint32_t width, uint32_t height){
+Texture LoadTexture(const char* filename){
+    Image img = LoadImage(filename);
+    Texture tex = LoadTextureFromImage(img);
+    UnloadImage(img);
+    return tex;
+}
+Texture LoadBlankTexture(uint32_t width, uint32_t height){
     return LoadTextureEx(width, height, WGPUTextureFormat_RGBA8Unorm, true);
 }
 
