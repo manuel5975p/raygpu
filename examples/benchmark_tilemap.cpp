@@ -49,15 +49,11 @@ int main(){
     tilemap = LoadTextureFromImage(img);
     cam = Camera2D{
         .offset = Vector2{GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f}, 
-        .target = Vector2{0,0}, 
+        .target = Vector2{0,0},
         .rotation = 0.0f, 
         .zoom = 1.0f
     };
-    AttributeAndResidence attrs[2] = {
-        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x2, 0, 0}, 0, WGPUVertexStepMode_Vertex, true},
-        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x2, 8, 1}, 0, WGPUVertexStepMode_Vertex, true},
-    };
-    pl = LoadPipeline(wgsl, attrs, 2);
+    pl = LoadPipeline(wgsl);
     SetPipelineSampler(pl, 2, LoadSampler(repeat, nearest));
     #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainloop, 0, 0);
