@@ -1609,6 +1609,9 @@ void SaveImage(Image img, const char* filepath){
     }
 }
 void UseTexture(Texture tex){
+    if(GetUniformLocation(GetActivePipeline(), "colDiffuse") == LOCATION_NOT_FOUND){
+        return;
+    }
     if(g_wgpustate.rstate->activePipeline->bindGroup.entries[1].textureView == tex.view)return;
     drawCurrentBatch();
     SetTexture(1, tex);

@@ -129,18 +129,8 @@ extern "C" DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, Verte
     std::sort(values.begin(), values.end(),[](const UniformDescriptor& x, const UniformDescriptor& y){
         return x.location < y.location;
     });
-    for(auto& desc: values){
-        std::cout << desc.location << ", ";
-    }
-    std::cout << std::endl;
     DescribedPipeline* pl = LoadPipelineForVAOEx(shaderSource, vao, values.data(), values.size(), GetDefaultSettings());
-    if(pl->uniformLocations == nullptr){
-        pl->uniformLocations = callocnew(StringToUniformMap);
-        new (pl->uniformLocations) StringToUniformMap{};
-    }
-    for(const auto& [x,y] : bindings){
-        (*pl->uniformLocations).uniforms[x] = y;
-    }
+
     return pl;
 }
 uint32_t GetUniformLocation(DescribedPipeline* pl, const char* uniformName){
@@ -159,19 +149,8 @@ extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource, const Attri
     for(const auto& [x,y] : bindings){
         values.push_back(y);
     }
-
-    std::sort(values.begin(), values.end(),[](const UniformDescriptor& x, const UniformDescriptor& y){
-        return x.location < y.location;
-    });
-
     DescribedPipeline* pl = LoadPipelineEx(shaderSource, attribs, attribCount, values.data(), values.size(), GetDefaultSettings());
-    if(pl->uniformLocations == nullptr){
-        pl->uniformLocations = callocnew(StringToUniformMap);
-        new (pl->uniformLocations) StringToUniformMap{};
-    }
-    for(const auto& [x,y] : bindings){
-        (*pl->uniformLocations).uniforms[x] = y;
-    }
+    
     return pl;
 }
 extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
@@ -182,6 +161,20 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     if(retp->uniformLocations == nullptr){
         retp->uniformLocations = callocnew(StringToUniformMap);
         new (retp->uniformLocations) StringToUniformMap{};
+    }
+    std::unordered_map<std::string, UniformDescriptor> bindings = getBindings(shaderSource);
+    
+    std::vector<UniformDescriptor> values;
+    values.reserve(bindings.size());
+    for(const auto& [x,y] : bindings){
+        values.push_back(y);
+    }
+
+    std::sort(values.begin(), values.end(),[](const UniformDescriptor& x, const UniformDescriptor& y){
+        return x.location < y.location;
+    });
+    for(const auto& [x,y] : bindings){
+        (*retp->uniformLocations).uniforms[x] = y;
     }
     retp->settings = settings;
     DescribedPipeline& ret = *retp;
