@@ -1485,6 +1485,7 @@ extern "C" void* LoadFileData(const char *fileName, size_t *dataSize) {
     std::ifstream file(fileName, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
         *dataSize = 0;
+        TRACELOG(LOG_ERROR, "Failed to open file %s", fileName);
         return nullptr;
     }
 
@@ -1494,12 +1495,14 @@ extern "C" void* LoadFileData(const char *fileName, size_t *dataSize) {
     void* buffer = malloc(size);
     if (!buffer) {
         *dataSize = 0;
+        TRACELOG(LOG_ERROR, "Failed to load file %s", fileName);
         return nullptr;
     }
 
     if (!file.read(static_cast<char*>(buffer), size)) {
         free(buffer);
         *dataSize = 0;
+        TRACELOG(LOG_ERROR, "Failed to load file %s", fileName);
         return nullptr;
     }
 
@@ -1511,10 +1514,14 @@ extern "C" Image LoadImage(const char* filename){
     std::string fn_cpp(filename);
     const char* extbegin = fn_cpp.data() + fn_cpp.rfind("."); 
     void* data = LoadFileData(filename, &size);
+
     if(size != 0){
         Image ld =  LoadImageFromMemory(extbegin, data, size);
         free(data);
         return ld;
+    }
+    else{
+        
     }
     return Image{};
 }
