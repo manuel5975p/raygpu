@@ -65,6 +65,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 }
 )";
 extern Texture depthTexture;
+extern Texture colorMultisample;
 struct full_renderstate;
 #include "wgpustate.inc"
 struct webgpu_cxx_state{
@@ -395,14 +396,20 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         config.height = height;
         g_wgpustate.width = width;
         g_wgpustate.height = height;
-        wgpuTextureViewRelease(depthTexture.view);
-        wgpuTextureRelease(depthTexture.id);
-        depthTexture = LoadDepthTexture(width, height);
+        UnloadTexture(colorMultisample);
+        colorMultisample = LoadTexturePro(width, height, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4);
+        UnloadTexture(depthTexture);
+        depthTexture = LoadTexturePro(width,
+                                  height, 
+                                  WGPUTextureFormat_Depth24Plus, 
+                                  WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
+                                  (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1
+        );
         wgpuSurfaceConfigure(g_wgpustate.surface, &config);
         Matrix newcamera = ScreenMatrix(width, height);
         BufferData(&g_wgpustate.defaultScreenMatrix, &newcamera, sizeof(Matrix));
 
-        setTargetTextures(g_wgpustate.rstate, g_wgpustate.rstate->color, depthTexture.view);
+        setTargetTextures(g_wgpustate.rstate, g_wgpustate.rstate->color, colorMultisample.view, depthTexture.view);
         //updateRenderPassDesc(g_wgpustate.rstate);
 
         //TODO wtf is this?
@@ -557,6 +564,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     //uarraySetter(shaderInputs.uniform_types, {uniform_buffer, texture2d, sampler, storage_buffer});
     
     auto colorTexture = LoadTextureEx(width, height, g_wgpustate.frameBufferFormat, true);
+    colorMultisample = LoadTexturePro(width, height, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4);
     depthTexture = LoadTexturePro(width,
                                   height, 
                                   WGPUTextureFormat_Depth24Plus, 

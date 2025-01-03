@@ -83,7 +83,6 @@ int main(){
     UniformDescriptor computeUniforms[] = {
         UniformDescriptor{.type = storage_write_buffer, .minBindingSize = 8, .location = 0},
         UniformDescriptor{.type = storage_buffer, .minBindingSize = 8      , .location = 1},
-        UniformDescriptor{.type = storage_write_buffer, .minBindingSize = 8, .location = 2}
     };
     cpl = LoadComputePipeline(computeSource, computeUniforms, 2);
     
@@ -123,7 +122,7 @@ int main(){
     bge[1].size    = velocities.descriptor.size;
 
     cpl->bindGroup = LoadBindGroup(&cpl->bglayout, bge, 2);
-
+    
     vao = LoadVertexArray();
     VertexAttribPointer(vao, &quad, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
     VertexAttribPointer(vao, &positions, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Instance);

@@ -51,17 +51,22 @@ typedef struct Image{
 }Image;
 
 typedef struct Texture{
+    WGPUTexture id;
+    WGPUTextureView view;
     uint32_t width, height;
     WGPUTextureFormat format;
-    WGPUTextureView view;
-    WGPUTexture id;
+    uint32_t sampleCount;
 }Texture;
+
 typedef Texture Texture2D;
+
 typedef struct Rectangle {
     float x, y, width, height;
 } Rectangle;
+
 typedef struct RenderTexture{
     Texture color;
+    Texture colorMultisample;
     Texture depth;
 }RenderTexture;
 
@@ -597,6 +602,7 @@ EXTERN_C_BEGIN
     void BeginDrawing(cwoid);
     void EndDrawing(cwoid);
     Texture GetDepthTexture(cwoid);
+    Texture GetIntermediaryColorTarget(cwoid);
 
 
     DescribedRenderpass LoadRenderpass(WGPUTextureView color, WGPUTextureView depth);
@@ -795,7 +801,7 @@ EXTERN_C_BEGIN
     
     void init_full_renderstate (full_renderstate* state, const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniform_count, WGPUTextureView c, WGPUTextureView d);
     void updatePipeline        (full_renderstate* state, enum draw_mode drawmode);
-    void setTargetTextures     (full_renderstate* state, WGPUTextureView c, WGPUTextureView d);
+    void setTargetTextures     (full_renderstate* state, WGPUTextureView c, WGPUTextureView colorMultisample, WGPUTextureView d);
 
     /**
         The functions LoadVertexArray, VertexAttribPointer, EnableVertexAttribArray, DisableVertexAttribArray
