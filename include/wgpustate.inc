@@ -56,4 +56,5 @@ struct wgpustate{
     int64_t last_timestamps[64] = {0};
 
     std::mutex drawmutex;
+    GIFRecordState* grst;
 };
