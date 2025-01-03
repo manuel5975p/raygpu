@@ -31,6 +31,112 @@ const std::unordered_map<std::string, std::unordered_map<std::string, WGPUVertex
 }();
 std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> getAttributes(const char* shaderSource){
     std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> ret;
+    tint::Source::File f("path", shaderSource);
+    tint::wgsl::reader::Options options{};
+    tint::Program result = tint::wgsl::reader::Parse(&f, options);
+    if(!result.IsValid()){
+        TRACELOG(LOG_ERROR, "Could not parse shader:");
+        std::cout << result.Diagnostics() << "\n";
+        return {};
+    }
+    tint::inspector::Inspector insp(result);
+    namespace ti = tint::inspector;
+    const tint::sem::Info& psem = result.Sem();
+    for(size_t i = 0;i < insp.GetEntryPoints().size();i++){
+        if(insp.GetEntryPoints()[i].stage == tint::inspector::PipelineStage::kVertex){
+            for(size_t j = 0;j < insp.GetEntryPoints()[i].input_variables.size();j++){
+                //std::string name = insp.GetEntryPoints()[i].input_variables[j].name;
+                std::string varname = insp.GetEntryPoints()[i].input_variables[j].variable_name;
+                if(!insp.GetEntryPoints()[i].input_variables[j].attributes.location.has_value())
+                    continue;
+                uint32_t location = insp.GetEntryPoints()[i].input_variables[j].attributes.location.value();
+                //std::cout << name << " and " << varname << "\n";
+                //std::cout << insp.GetEntryPoints()[i].input_variables[j].attributes.location.value() << ": ";
+                //std::cout << (int)insp.GetEntryPoints()[i].input_variables[j]. << ", ";
+                if(insp.GetEntryPoints()[i].input_variables[j].component_type == ti::ComponentType::kF32){
+                    switch(insp.GetEntryPoints()[i].input_variables[j].composition_type){
+                        case ti::CompositionType::kScalar:{
+                            ret[varname] = {WGPUVertexFormat_Float32, location};
+                        }break;
+                        case ti::CompositionType::kVec2:{
+                            ret[varname] = {WGPUVertexFormat_Float32x2, location};
+                        }break;
+                        case ti::CompositionType::kVec3:{
+                            ret[varname] = {WGPUVertexFormat_Float32x3, location};
+                        }break;
+                        case ti::CompositionType::kVec4:{
+                            ret[varname] = {WGPUVertexFormat_Float32x4, location};
+                        }break;
+                        case ti::CompositionType::kUnknown:{
+                            TRACELOG(LOG_ERROR, "Unknown composition type");
+                        }break;
+                    }
+                }else if(insp.GetEntryPoints()[i].input_variables[j].component_type == ti::ComponentType::kU32){
+                    switch(insp.GetEntryPoints()[i].input_variables[j].composition_type){
+                        case ti::CompositionType::kScalar:{
+                            ret[varname] = {WGPUVertexFormat_Uint32, location};
+                        }break;
+                        case ti::CompositionType::kVec2:{
+                            ret[varname] = {WGPUVertexFormat_Uint32x2, location};
+                        }break;
+                        case ti::CompositionType::kVec3:{
+                            ret[varname] = {WGPUVertexFormat_Uint32x3, location};
+                        }break;
+                        case ti::CompositionType::kVec4:{
+                            ret[varname] = {WGPUVertexFormat_Uint32x4, location};
+                        }break;
+                        case ti::CompositionType::kUnknown:{
+                            TRACELOG(LOG_ERROR, "Unknown composition type");
+                        }break;
+                    }
+                }
+                else if(insp.GetEntryPoints()[i].input_variables[j].component_type == ti::ComponentType::kI32){
+                    switch(insp.GetEntryPoints()[i].input_variables[j].composition_type){
+                        case ti::CompositionType::kScalar:{
+                            ret[varname] = {WGPUVertexFormat_Sint32, location};
+                        }break;
+                        case ti::CompositionType::kVec2:{
+                            ret[varname] = {WGPUVertexFormat_Sint32x2, location};
+                        }break;
+                        case ti::CompositionType::kVec3:{
+                            ret[varname] = {WGPUVertexFormat_Sint32x3, location};
+                        }break;
+                        case ti::CompositionType::kVec4:{
+                            ret[varname] = {WGPUVertexFormat_Sint32x4, location};
+                        }break;
+                        case ti::CompositionType::kUnknown:{
+                            TRACELOG(LOG_ERROR, "Unknown composition type");
+                        }break;
+                    }
+                }else if(insp.GetEntryPoints()[i].input_variables[j].component_type == ti::ComponentType::kF16){
+                    switch(insp.GetEntryPoints()[i].input_variables[j].composition_type){
+                        case ti::CompositionType::kScalar:{
+                            ret[varname] = {WGPUVertexFormat_Float16, location};
+                        }break;
+                        case ti::CompositionType::kVec2:{
+                            ret[varname] = {WGPUVertexFormat_Float16x2, location};
+                        }break;
+                        case ti::CompositionType::kVec3:{
+                            TRACELOG(LOG_ERROR, "That should not be possible: vec3<f16>");
+                        }break;
+                        case ti::CompositionType::kVec4:{
+                            ret[varname] = {WGPUVertexFormat_Float16x4, location};
+                        }break;
+                        case ti::CompositionType::kUnknown:{
+                            TRACELOG(LOG_ERROR, "Unknown composition type");
+                        }break;
+                    }
+                }
+                else{
+                    TRACELOG(LOG_ERROR, "Unknown component type");
+                }
+                
+                //std::cout << (int)insp.GetEntryPoints()[i].input_variables[j].composition_type << ", ";
+            }
+            //std::cout << "\n";
+        }
+    }
+    return ret;
 }
 std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shaderSource){
     //tint::Initialize();
