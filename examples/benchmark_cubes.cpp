@@ -34,10 +34,40 @@ struct VertexOutput {
 DescribedPipeline* pl;
 Mesh cubeMesh;
 Camera3D cam;
+std::vector<Vector4> instancetransforms;
+void mainloop(){
+    BeginDrawing();
+    ClearBackground(BLANK);
+    //TRACELOG(LOG_WARNING, "Setting storig buffer");
+    //TRACELOG(LOG_WARNING, "pl %ull", pl);
+    //TRACELOG(LOG_WARNING, "GetActivePipeline %ull", GetActivePipeline());
+    //TRACELOG(LOG_WARNING, "Setting storig buffer");
+
+    BeginPipelineMode(pl);
+    UseNoTexture();
+    BeginMode3D(cam);
+    BindVertexArray(pl, cubeMesh.vao);
+    DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, cubeMesh.ibo, 36, instancetransforms.size());
+    //DrawMeshInstanced(cubeMesh, Material{}, instancetransforms.data(), instancetransforms.size());
+    EndMode3D();
+    EndPipelineMode();
+    DrawFPS(0, 10);
+    if(IsKeyPressed(KEY_P)){
+        TakeScreenshot("screenshot.png");
+    }
+    if(IsKeyDown(KEY_W)){
+        cam.position.y += GetFrameTime() * 0.1f;
+    }
+    if(IsKeyDown(KEY_S)){
+        cam.position.y -= GetFrameTime() * 0.1f;
+    }
+    EndDrawing();
+}
+
 int main(){
     SetConfigFlags(FLAG_MSAA_4X_HINT);
-    SetConfigFlags(FLAG_FULLSCREEN_MODE);
-    InitWindow(GetMonitorWidth(), GetMonitorHeight(), "Cube Benchmark");
+    //SetConfigFlags(FLAG_FULLSCREEN_MODE);
+    InitWindow(1200, 800, "Cube Benchmark");
     SetTargetFPS(0);
     float scale = 1.0f;
     cubeMesh = GenMeshCube(scale, scale, scale);
@@ -50,7 +80,6 @@ int main(){
     pl = LoadPipelineForVAO(shaderSource, cubeMesh.vao);
     auto smp = LoadSampler(repeat, nearest);
     SetPipelineSampler(pl, 2, smp);
-    std::vector<Vector4> instancetransforms;
     for(int i = -0;i < 2000;i++){
         for(int j = 0;j < 2000;j++){
             instancetransforms.push_back(Vector4(i, std::sin(2 * M_PI * i / 10.0f) + 15.0f * -std::cos(2 * M_PI * j / 90.0f), j));
@@ -59,46 +88,11 @@ int main(){
     DescribedBuffer persistent = GenStorageBuffer(instancetransforms.data(), instancetransforms.size() * sizeof(Vector4));
     SetPipelineStorageBuffer(pl, 3, &persistent);
     //TRACELOG(LOG_WARNING, "OOO: %llu", (unsigned long long)persistent.buffer);
-    auto mainloop = [&]{
-        BeginDrawing();
-        ClearBackground(BLANK);
-        //TRACELOG(LOG_WARNING, "Setting storig buffer");
-        //TRACELOG(LOG_WARNING, "pl %ull", pl);
-        //TRACELOG(LOG_WARNING, "GetActivePipeline %ull", GetActivePipeline());
-        //TRACELOG(LOG_WARNING, "Setting storig buffer");
-        
-        BeginPipelineMode(pl);
-        UseNoTexture();
-        BeginMode3D(cam);
-
-        BindVertexArray(pl, cubeMesh.vao);
-        DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, cubeMesh.ibo, 36, instancetransforms.size());
-
-        //DrawMeshInstanced(cubeMesh, Material{}, instancetransforms.data(), instancetransforms.size());
-        EndMode3D();
-        EndPipelineMode();
-        DrawFPS(0, 10);
-        if(IsKeyPressed(KEY_P)){
-            TakeScreenshot("screenshot.png");
-        }
-        if(IsKeyDown(KEY_W)){
-            cam.position.y += GetFrameTime() * 0.1f;
-        }
-        if(IsKeyDown(KEY_S)){
-            cam.position.y -= GetFrameTime() * 0.1f;
-        }
-        EndDrawing();
-    };
-
-    using mainloop_type = decltype(mainloop);
-    auto mainloopCaller = [](void* x){
-        (*((decltype(mainloop)*)x))();
-    };
     #ifndef __EMSCRIPTEN__
     while(!WindowShouldClose()){
         mainloop();
     }
     #else
-    emscripten_set_main_loop_arg(mainloopCaller, (void*)&mainloop, 0, 0);
+    emscripten_set_main_loop(mainloop, 0, 0);
     #endif
 }
