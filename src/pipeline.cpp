@@ -167,6 +167,9 @@ extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
     for(const auto& [x,y] : bindings){
         values.push_back(y);
     }
+    std::sort(values.begin(), values.end(),[](const UniformDescriptor& x, const UniformDescriptor& y){
+        return x.location < y.location;
+    });
     DescribedPipeline* pl = LoadPipelineEx(shaderSource, allAttribsInOneBuffer.data(), allAttribsInOneBuffer.size(), values.data(), values.size(), GetDefaultSettings());
     
     return pl;
