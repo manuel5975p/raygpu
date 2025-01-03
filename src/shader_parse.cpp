@@ -1,5 +1,4 @@
 //#include <ctre.hpp>
-#include "tint/lang/wgsl/reader/lower/lower.h"
 #include <raygpu.h>
 #include <vector>
 #include <sstream>
@@ -30,6 +29,9 @@ const std::unordered_map<std::string, std::unordered_map<std::string, WGPUVertex
     map["vec4"]["u32"] = WGPUVertexFormat_Uint32x4;
     return map;
 }();
+std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> getAttributes(const char* shaderSource){
+    std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> ret;
+}
 std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shaderSource){
     //tint::Initialize();
     std::unordered_map<std::string, UniformDescriptor> ret;
@@ -84,9 +86,7 @@ std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shade
                     }
                 }
             }
-        }
-        tint::core::ir::Module mod;
-        
+        }       
         
         ret[sgvar->Declaration()->name->symbol.Name()] = desc;
         //std::cout << sgvar->Attributes().binding_point.value() << " ";
