@@ -351,7 +351,7 @@ PipelineTriplet GetPipelinesForLayout(DescribedPipeline* pipeline, const std::ve
         pipeline->vbLayouts[i].arrayStride = strides[i];
         pipeline->vbLayouts[i].stepMode = attribs[i].stepMode;
     }
-
+    std::cerr << pipeline->descriptor.fragment->targetCount << "\n";
     PipelineTriplet ret{};
     pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
     ret.pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipeline->descriptor);
