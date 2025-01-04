@@ -101,7 +101,7 @@ EXTERN_C_BEGIN
     inline void UsePipeline(WGPURenderPassEncoder rpEncoder, DescribedPipeline pl){
         wgpuRenderPassEncoderSetPipeline(rpEncoder, pl.pipeline);
     }
-    WGPUDevice GetDevice(cwoid);
+    
 
     //DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, uint32_t uniformCount);
     void UnloadBindGroupLayout(DescribedBindGroupLayout* bglayout);
