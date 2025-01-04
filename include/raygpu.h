@@ -401,6 +401,48 @@ typedef enum {
     KEY_VOLUME_UP       = 24,       // Key: Android volume up button
     KEY_VOLUME_DOWN     = 25        // Key: Android volume down button
 } KeyboardKey;
+/**
+ * @brief Limit enum to describe WebGPU requested device limits
+ * 
+ */
+typedef enum LimitType{
+    maxTextureDimension1D,
+    maxTextureDimension2D,
+    maxTextureDimension3D,
+    maxTextureArrayLayers,
+    maxBindGroups,
+    maxBindGroupsPlusVertexBuffers,
+    maxBindingsPerBindGroup,
+    maxDynamicUniformBuffersPerPipelineLayout,
+    maxDynamicStorageBuffersPerPipelineLayout,
+    maxSampledTexturesPerShaderStage,
+    maxSamplersPerShaderStage,
+    maxStorageBuffersPerShaderStage,
+    maxStorageTexturesPerShaderStage,
+    maxUniformBuffersPerShaderStage,
+    maxUniformBufferBindingSize,
+    maxStorageBufferBindingSize,
+    minUniformBufferOffsetAlignment,
+    minStorageBufferOffsetAlignment,
+    maxVertexBuffers,
+    maxBufferSize,
+    maxVertexAttributes,
+    maxVertexBufferArrayStride,
+    maxInterStageShaderComponents,
+    maxInterStageShaderVariables,
+    maxColorAttachments,
+    maxColorAttachmentBytesPerSample,
+    maxComputeWorkgroupStorageSize,
+    maxComputeInvocationsPerWorkgroup,
+    maxComputeWorkgroupSizeX,
+    maxComputeWorkgroupSizeY,
+    maxComputeWorkgroupSizeZ,
+    maxComputeWorkgroupsPerDimension,
+    maxStorageBuffersInVertexStage,
+    maxStorageTexturesInVertexStage,
+    maxStorageBuffersInFragmentStage,
+    maxStorageTexturesInFragmentStage
+}LimitType;
 
 typedef enum {
     LOG_ALL = 0,        // Display all logs
@@ -592,6 +634,7 @@ EXTERN_C_BEGIN
      * @return uint64_t 
      */
     uint64_t NanoTime(cwoid);
+    void RequestLimit(LimitType limit, uint64_t value);
     void SetConfigFlags(WindowFlag flag);
     void SetTargetFPS(int fps);                                 // Set target FPS (maximum)
     int GetTargetFPS(cwoid);
@@ -803,7 +846,15 @@ EXTERN_C_BEGIN
     void SetStorageBuffer             (uint32_t index, DescribedBuffer* buffer);
     void SetUniformBufferData         (uint32_t index, const void* data, size_t size);
     void SetStorageBufferData         (uint32_t index, const void* data, size_t size);
-    
+    void SetBindgroupUniformBuffer (DescribedBindGroup* bg, uint32_t index, DescribedBuffer* buffer);
+    void SetBindgroupStorageBuffer (DescribedBindGroup* bg, uint32_t index, DescribedBuffer* buffer);
+    void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size);
+    void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size);
+    void SetBindgroupTexture(DescribedBindGroup* bg, uint32_t index, Texture tex);
+    void SetBindgroupSampler(DescribedBindGroup* bg, uint32_t index, DescribedSampler sampler);
+
+
+
     void init_full_renderstate (full_renderstate* state, const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniform_count, WGPUTextureView c, WGPUTextureView d);
     void updatePipeline        (full_renderstate* state, enum draw_mode drawmode);
     void setTargetTextures     (full_renderstate* state, WGPUTextureView c, WGPUTextureView colorMultisample, WGPUTextureView d);

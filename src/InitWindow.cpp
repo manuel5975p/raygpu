@@ -18,44 +18,7 @@ inline std::ostream& operator<<(std::ostream& ostr, const wgpu::StringView& st){
     ostr.write(st.data, st.length);
     return ostr;
 }
-enum wgpulimit{
-    maxTextureDimension1D,
-    maxTextureDimension2D,
-    maxTextureDimension3D,
-    maxTextureArrayLayers,
-    maxBindGroups,
-    maxBindGroupsPlusVertexBuffers,
-    maxBindingsPerBindGroup,
-    maxDynamicUniformBuffersPerPipelineLayout,
-    maxDynamicStorageBuffersPerPipelineLayout,
-    maxSampledTexturesPerShaderStage,
-    maxSamplersPerShaderStage,
-    maxStorageBuffersPerShaderStage,
-    maxStorageTexturesPerShaderStage,
-    maxUniformBuffersPerShaderStage,
-    maxUniformBufferBindingSize,
-    maxStorageBufferBindingSize,
-    minUniformBufferOffsetAlignment,
-    minStorageBufferOffsetAlignment,
-    maxVertexBuffers,
-    maxBufferSize,
-    maxVertexAttributes,
-    maxVertexBufferArrayStride,
-    maxInterStageShaderComponents,
-    maxInterStageShaderVariables,
-    maxColorAttachments,
-    maxColorAttachmentBytesPerSample,
-    maxComputeWorkgroupStorageSize,
-    maxComputeInvocationsPerWorkgroup,
-    maxComputeWorkgroupSizeX,
-    maxComputeWorkgroupSizeY,
-    maxComputeWorkgroupSizeZ,
-    maxComputeWorkgroupsPerDimension,
-    maxStorageBuffersInVertexStage,
-    maxStorageTexturesInVertexStage,
-    maxStorageBuffersInFragmentStage,
-    maxStorageTexturesInFragmentStage
-};
+
 constexpr char shaderSource[] = R"(
 struct VertexInput {
     @location(0) position: vec3f,
@@ -102,6 +65,54 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     return textureSample(colDiffuse, texSampler, in.uv).rgba * in.color;
 }
 )";
+wgpu::Limits* limitsToBeRequested = nullptr;
+
+void setlimit(wgpu::Limits& limits, LimitType limit, uint64_t value){
+    switch(limit){
+        case maxTextureDimension1D:limits.maxTextureDimension1D = value;break;
+        case maxTextureDimension2D:limits.maxTextureDimension2D = value;break;
+        case maxTextureDimension3D:limits.maxTextureDimension3D = value;break;
+        case maxTextureArrayLayers:limits.maxTextureArrayLayers = value;break;
+        case maxBindGroups:limits.maxBindGroups = value;break;
+        case maxBindGroupsPlusVertexBuffers:limits.maxBindGroupsPlusVertexBuffers = value;break;
+        case maxBindingsPerBindGroup:limits.maxBindingsPerBindGroup = value;break;
+        case maxDynamicUniformBuffersPerPipelineLayout:limits.maxDynamicUniformBuffersPerPipelineLayout = value;break;
+        case maxDynamicStorageBuffersPerPipelineLayout:limits.maxDynamicStorageBuffersPerPipelineLayout = value;break;
+        case maxSampledTexturesPerShaderStage:limits.maxSampledTexturesPerShaderStage = value;break;
+        case maxSamplersPerShaderStage:limits.maxSamplersPerShaderStage = value;break;
+        case maxStorageBuffersPerShaderStage:limits.maxStorageBuffersPerShaderStage = value;break;
+        case maxStorageTexturesPerShaderStage:limits.maxStorageTexturesPerShaderStage = value;break;
+        case maxUniformBuffersPerShaderStage:limits.maxUniformBuffersPerShaderStage = value;break;
+        case maxUniformBufferBindingSize:limits.maxUniformBufferBindingSize = value;break;
+        case maxStorageBufferBindingSize:limits.maxStorageBufferBindingSize = value;break;
+        case minUniformBufferOffsetAlignment:limits.minUniformBufferOffsetAlignment = value;break;
+        case minStorageBufferOffsetAlignment:limits.minStorageBufferOffsetAlignment = value;break;
+        case maxVertexBuffers:limits.maxVertexBuffers = value;break;
+        case maxBufferSize:limits.maxBufferSize = value;break;
+        case maxVertexAttributes:limits.maxVertexAttributes = value;break;
+        case maxVertexBufferArrayStride:limits.maxVertexBufferArrayStride = value;break;
+        case maxInterStageShaderComponents:limits.maxInterStageShaderComponents = value;break;
+        case maxInterStageShaderVariables:limits.maxInterStageShaderVariables = value;break;
+        case maxColorAttachments:limits.maxColorAttachments = value;break;
+        case maxColorAttachmentBytesPerSample:limits.maxColorAttachmentBytesPerSample = value;break;
+        case maxComputeWorkgroupStorageSize:limits.maxComputeWorkgroupStorageSize = value;break;
+        case maxComputeInvocationsPerWorkgroup:limits.maxComputeInvocationsPerWorkgroup = value;break;
+        case maxComputeWorkgroupSizeX:limits.maxComputeWorkgroupSizeX = value;break;
+        case maxComputeWorkgroupSizeY:limits.maxComputeWorkgroupSizeY = value;break;
+        case maxComputeWorkgroupSizeZ:limits.maxComputeWorkgroupSizeZ = value;break;
+        case maxComputeWorkgroupsPerDimension:limits.maxComputeWorkgroupsPerDimension = value;break;
+        case maxStorageBuffersInVertexStage:limits.maxStorageBuffersInVertexStage = value;break;
+        case maxStorageTexturesInVertexStage:limits.maxStorageTexturesInVertexStage = value;break;
+        case maxStorageBuffersInFragmentStage:limits.maxStorageBuffersInFragmentStage = value;break;
+        case maxStorageTexturesInFragmentStage:limits.maxStorageTexturesInFragmentStage = value;break;
+    }
+}
+extern "C" void RequestLimit(LimitType limit, uint64_t value){
+    if(limitsToBeRequested == nullptr){
+        limitsToBeRequested = new wgpu::Limits;
+    }
+    setlimit(*limitsToBeRequested, limit, value);
+}
 extern Texture depthTexture;
 extern Texture colorMultisample;
 struct full_renderstate;
@@ -326,12 +337,13 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
 
     // Synchronously create the device
     wgpu::RequiredLimits reqLimits;
-    reqLimits.limits.maxBufferSize = 1ull << 30;
-    reqLimits.limits.maxStorageBufferBindingSize = 1ull << 30;
-    reqLimits.limits.maxStorageBuffersInVertexStage = 8;
-    reqLimits.limits.maxStorageBuffersInFragmentStage = 8;
-    
-    deviceDesc.requiredLimits = &reqLimits;
+    if(limitsToBeRequested){
+        reqLimits.limits = *limitsToBeRequested;
+        deviceDesc.requiredLimits = &reqLimits;
+    }
+    else{
+        deviceDesc.requiredLimits = nullptr;
+    }
     sample->instance.WaitAny(
         sample->adapter.RequestDevice(
             &deviceDesc, wgpu::CallbackMode::WaitAnyOnly,

@@ -49,41 +49,33 @@ DescribedBuffer quad;
 DescribedBuffer positions;
 DescribedBuffer velocities;
 DescribedBuffer positionsnew;
-DescribedBuffer ibo;
 constexpr size_t parts = (1 << 23);
 void mainloop(void){
 
+    
+    BeginDrawing();
     BeginComputepass();
     BindComputePipeline(cpl);
     DispatchCompute(parts / 64 / 16, 16, 1);
-    ComputepassEndOnlyComputing();
-    //CopyBufferToBuffer(&positionsnew, &positions, positions.descriptor.size);
     EndComputepass();
-    BeginDrawing();
     ClearBackground(BLACK);
+
     BeginPipelineMode(rpl);
     BindVertexArray(rpl, vao);
-    //wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->activeRenderPass->rpEncoder, 0, buf2.buffer, 0, 256);
     DrawArraysInstanced(WGPUPrimitiveTopology_TriangleStrip, 4, parts);
     EndPipelineMode();
+
     DrawFPS(10, 10);
-    //DrawRectangle(10, 400, 50, 50, BLUE);
-    
-    EndRenderpass();
-    //Image img = LoadImageFromTextureEx(GetActiveColorTarget());
-    //SaveImage(img, "out.png");
-    //UnloadImage(img);
-    //TakeScreenshot("out.png");
-    //BeginRenderpass();
     EndDrawing();
 }
 int main(){
     SetConfigFlags(FLAG_MSAA_4X_HINT);
+    RequestLimit(maxBufferSize, 1ull << 30);
     InitWindow(1600, 900, "Compute Shader");
     //SetTargetFPS(100000);
     UniformDescriptor computeUniforms[] = {
         UniformDescriptor{.type = storage_write_buffer, .minBindingSize = 8, .location = 0},
-        UniformDescriptor{.type = storage_buffer, .minBindingSize = 8      , .location = 1},
+        UniformDescriptor{.type = storage_buffer,       .minBindingSize = 8      , .location = 1},
     };
     cpl = LoadComputePipeline(computeSource, computeUniforms, 2);
     
@@ -104,25 +96,26 @@ int main(){
         quadpos[i] *= 0.003f;
     }
     quad = GenBuffer(quadpos, sizeof(quadpos));
-    uint32_t indices[] = {0,1,2,0,2,3};
-    ibo = GenIndexBuffer(indices, sizeof(indices));
+
+    // GenBufferEx is required for Vertex and Storage Buffer Usage
     positions = GenBufferEx(pos.data(), pos.size() * sizeof(Vector2), WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
     velocities = GenBufferEx(vel.data(), vel.size() * sizeof(Vector2), WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst);
-    positionsnew = GenBufferEx(nullptr, vel.size() * sizeof(Vector2), WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc);
+    
     
     WGPUBindGroupEntry bge[2] = {
         WGPUBindGroupEntry{},
         WGPUBindGroupEntry{}
     };
-    bge[0].binding = 0;
-    bge[0].buffer  = positions.buffer;
-    bge[0].size    = positions.descriptor.size;
 
-    bge[1].binding = 1;
-    bge[1].buffer  = velocities.buffer;
-    bge[1].size    = velocities.descriptor.size;
-
-    cpl->bindGroup = LoadBindGroup(&cpl->bglayout, bge, 2);
+    SetBindgroupStorageBuffer(&cpl->bindGroup, 0, &positions);
+    SetBindgroupStorageBuffer(&cpl->bindGroup, 1, &velocities);
+    //bge[0].binding = 0;
+    //bge[0].buffer  = positions.buffer;
+    //bge[0].size    = positions.descriptor.size;
+    //bge[1].binding = 1;
+    //bge[1].buffer  = velocities.buffer;
+    //bge[1].size    = velocities.descriptor.size;
+    //cpl->bindGroup = LoadBindGroup(&cpl->bglayout, bge, 2);
     
     vao = LoadVertexArray();
     VertexAttribPointer(vao, &quad, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
