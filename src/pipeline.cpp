@@ -465,6 +465,12 @@ DescribedComputePipeline* LoadComputePipeline(const char* shaderCode, const Unif
     desc.compute.entryPoint = STRVIEW("compute_main");
     desc.layout = playout;
     ret->pipeline = wgpuDeviceCreateComputePipeline(GetDevice(), &ret->desc);
+    std::vector<WGPUBindGroupEntry> bge(uniformCount);
+    for(uint32_t i = 0;i < bge.size();i++){
+        bge[i] = WGPUBindGroupEntry{};
+        bge[i].binding = uniforms[i].location;
+    }
+    ret->bindGroup = LoadBindGroup(&ret->bglayout, bge.data(), bge.size());
     return ret;
 }
 Texture GetDefaultTexture(cwoid){
