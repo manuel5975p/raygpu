@@ -122,10 +122,9 @@ struct webgpu_cxx_state{
     wgpu::Adapter adapter{};
     wgpu::Device device{};
     wgpu::Queue queue{};
-    wgpu::Surface surface{};
-
-    full_renderstate* rstate = nullptr;
-    Texture depthTexture{};
+    //wgpu::Surface surface{};
+    //full_renderstate* rstate = nullptr;
+    //Texture depthTexture{};
 };
 extern const std::unordered_map<std::string, int> emscriptenToGLFWKeyMap;
 void glfwKeyCallback (GLFWwindow* window, int key, int scancode, int action, int mods){
@@ -169,25 +168,10 @@ EM_BOOL EmscriptenKeyupCallback(int eventType, const EmscriptenKeyboardEvent *ke
     return 1;
 }
 #endif// __EMSCRIPTEN__
-//webgpu_cxx_state* sample;
-GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
-    #ifdef __EMSCRIPTEN__
-    //EMSCRIPTEN_RESULT ret = emscripten_set_keypress_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, 1, EmscriptenKeyCallback);
-    emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, 1, EmscriptenKeydownCallback);
-    emscripten_set_keyup_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, 1, EmscriptenKeyupCallback);
-    //if(ret == EMSCRIPTEN_RESULT_SUCCESS)
-    //    TRACELOG(LOG_INFO, "Keypress successfully registered");
-    #endif
-    if (!glfwInit()) {
-        abort();
-    }
-    GLFWmonitor* mon = nullptr;
-    g_wgpustate.instance = nullptr;
-    g_wgpustate.adapter = nullptr;
-    g_wgpustate.device = nullptr;
-    g_wgpustate.queue = nullptr;
-    webgpu_cxx_state samplev;
-    webgpu_cxx_state* sample = &samplev;
+
+
+
+void InitWGPU(webgpu_cxx_state* sample){
     
     // Create the toggles descriptor if not using emscripten.
     wgpu::ChainedStruct* togglesChain = nullptr;
@@ -358,8 +342,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
 
         UINT64_MAX);
     if (sample->device == nullptr) {
-        std::cerr << "Device is null\n";
-        abort();
+        TRACELOG(LOG_FATAL, "Device is null");
     }
     wgpu::SupportedLimits slimits;
     
@@ -369,234 +352,235 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     TraceLog(LOG_INFO, "Supports buffers up to %llu megabytes", (unsigned long long)slimits.limits.maxBufferSize / (1000000ull));
     TraceLog(LOG_INFO, "Supports textures up to %u x %u", (unsigned)slimits.limits.maxTextureDimension2D, (unsigned)slimits.limits.maxTextureDimension2D);
     TraceLog(LOG_INFO, "Supports %u VBO slots", (unsigned)slimits.limits.maxVertexBuffers);
-    glfwSetErrorCallback([](int code, const char* message) {
-        std::cerr << "GLFW error: " << code << " - " << message;
-    });
 
-    
-#ifndef __EMSCRIPTEN__
-    
+}
 
-    // Create the test window with no client API.
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, (g_wgpustate.windowFlags & FLAG_WINDOW_RESIZABLE ) ? GLFW_TRUE : GLFW_FALSE);
-    //glfwWindowHint(GLFW_REFRESH_RATE, 144);
-    
-    if(g_wgpustate.windowFlags & FLAG_FULLSCREEN_MODE){
-        mon = glfwGetPrimaryMonitor();
-        //std::cout <<glfwGetVideoMode(mon)->refreshRate << std::endl;
-        //abort();
-    }
-#endif
-    GLFWwindow* window;
-#ifndef __EMSCRIPTEN__
-    window = glfwCreateWindow(width, height, title, mon, nullptr);
-    //glfwSetWindowPos(window, 200, 1200);
-    if (!window) {
-        abort();
-    }
-    g_wgpustate.window = window;
-    // Create the surface.
-    sample->surface = wgpu::glfw::CreateSurfaceForWindow(sample->instance, window);
-#else
-    // Create the surface.
-    wgpu::SurfaceDescriptorFromCanvasHTMLSelector canvasDesc{};
-    canvasDesc.selector = "#canvas";
 
-    wgpu::SurfaceDescriptor surfaceDesc = {};
-    surfaceDesc.nextInChain = &canvasDesc;
-    sample->surface = sample->instance.CreateSurface(&surfaceDesc);
-    window = glfwCreateWindow(width, height, title, mon, nullptr);
-    g_wgpustate.window = window;
-#endif
-    glfwSetWindowSizeCallback(window, [](GLFWwindow* window, int width, int height){
-        //wgpuSurfaceRelease(g_wgpustate.surface);
-        //g_wgpustate.surface = wgpu::glfw::CreateSurfaceForWindow(g_wgpustate.instance, window).MoveToCHandle();
-        //while(!g_wgpustate.drawmutex.try_lock());
-        g_wgpustate.drawmutex.lock();
-        TraceLog(LOG_INFO, "Size callback called with %d x %d", width, height);
-        wgpu::SurfaceCapabilities capabilities;
-        g_wgpustate.surface.GetCapabilities(g_wgpustate.adapter, &capabilities);
-        wgpu::SurfaceConfiguration config = {};
-        config.alphaMode = wgpu::CompositeAlphaMode::Opaque;
-        config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
-        config.device = g_wgpustate.device;
-        //WGPUTextureFormat selectedFormat = WGPUTextureFormat_Undefined;
-        //int format_index = 0;
-        //for(format_index = 0;format_index < capabilities.formatCount;format_index++){
-        //    if(capabilities.formats[format_index] == WGPUTextureFormat_BGRA8Unorm ||
-        //       capabilities.formats[format_index] == WGPUTextureFormat_RGBA8Unorm){
-        //        selectedFormat = (capabilities.formats[format_index]);
-        //        break;
-        //    }
-        //}
-        //if(format_index == capabilities.formatCount){
-        //    config.format = capabilities.formats[0];
-        //}
-        //else{
-        //    config.format = selectedFormat;
-        //}
-        //config.format = (WGPUTextureFormat)capabilities.formats[0];
-        config.format = (wgpu::TextureFormat)g_wgpustate.frameBufferFormat;
-        #ifdef __EMSCRIPTEN__
-        config.presentMode = (wgpu::PresentMode)WGPUPresentMode_Fifo;
-        #else
-        config.presentMode = (wgpu::PresentMode)(!!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? WGPUPresentMode_Fifo : WGPUPresentMode_Immediate);
-        #endif
-        config.width = width;
-        config.height = height;
-        g_wgpustate.width = width;
-        g_wgpustate.height = height;
-        UnloadTexture(colorMultisample);
-        colorMultisample = LoadTexturePro(width, height, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4);
-        UnloadTexture(depthTexture);
-        depthTexture = LoadTexturePro(width,
-                                  height, 
-                                  WGPUTextureFormat_Depth24Plus, 
-                                  WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
-                                  (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1
-        );
-        g_wgpustate.surface.Configure(&config);
-        Matrix newcamera = ScreenMatrix(width, height);
-        BufferData(&g_wgpustate.defaultScreenMatrix, &newcamera, sizeof(Matrix));
 
-        setTargetTextures(g_wgpustate.rstate, g_wgpustate.rstate->color, colorMultisample.view, depthTexture.view);
-        //updateRenderPassDesc(g_wgpustate.rstate);
 
-        //TODO wtf is this?
-        g_wgpustate.rstate->renderpass.dsa->view = depthTexture.view;
-        g_wgpustate.drawmutex.unlock();
-    });
-    
-    //#ifndef __EMSCRIPTEN__
-    wgpu::SurfaceCapabilities capabilities;
-    sample->surface.GetCapabilities(sample->adapter, &capabilities);
-    wgpu::SurfaceConfiguration config = {};
-    config.device = sample->device;
-    config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
-    //std::cout << "Supported format count: " << capabilities.formatCount << "\n";
-    wgpu::TextureFormat selectedFormat = wgpu::TextureFormat::Undefined;
-    int format_index = 0;
-    for(format_index = 0;format_index < capabilities.formatCount;format_index++){
-        if(capabilities.formats[format_index] == wgpu::TextureFormat::BGRA8Unorm ||
-           capabilities.formats[format_index] == wgpu::TextureFormat::RGBA8Unorm){
-            selectedFormat = (capabilities.formats[format_index]);
-            break;
-        }
-    }
-    if(format_index == capabilities.formatCount){
-        TRACELOG(LOG_WARNING, "No RGBA8 / BGRA8 Unorm framebuffer format found, colors might be off"); 
-        config.format = capabilities.formats[0];
-    }
-    else{
-        config.format = selectedFormat;
-    }
-    TRACELOG(LOG_INFO, "Selected surface format %s", textureFormatSpellingTable.at((WGPUTextureFormat)config.format).c_str());
-    #ifdef __EMSCRIPTEN__
-    config.presentMode = wgpu::PresentMode::Fifo;
-    #else
-    config.presentMode = !!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? wgpu::PresentMode::Fifo : wgpu::PresentMode::Immediate;
-    #endif
-    config.width = width;
-    config.height = height;
-    
+//webgpu_cxx_state* sample;
+GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
+    webgpu_cxx_state wg_init;
+    InitWGPU(&wg_init);
+    g_wgpustate.instance = std::move(wg_init.instance);
+    g_wgpustate.adapter  = std::move(wg_init.adapter );
+    g_wgpustate.device   = std::move(wg_init.device  );
+    g_wgpustate.queue    = std::move(wg_init.queue   );
     g_wgpustate.width = width;
     g_wgpustate.height = height;
-    sample->surface.Configure(&config);
-    //#endif
-    g_wgpustate.adapter  = std::move(sample->adapter);
-    g_wgpustate.device   = std::move(sample->device);
-    g_wgpustate.queue    = std::move(sample->queue);
-    g_wgpustate.instance = std::move(sample->instance);
-    g_wgpustate.surface  = std::move(sample->surface);
-    g_wgpustate.frameBufferFormat = (WGPUTextureFormat)config.format;
-    //std::cout << "Supported Framebuffer Format: 0x" << std::hex << (WGPUTextureFormat)config.format << std::dec << "\n";
-    
+
     g_wgpustate.whitePixel = LoadTextureFromImage(GenImageChecker(Color{255,255,255,255}, Color{255,255,255,255}, 1, 1, 0));
     TraceLog(LOG_INFO, "Loaded whitepixel texture");
 
     WGPUShaderModule tShader = LoadShaderFromMemory(shaderSource);
-    //RenderTexture rtex = LoadRenderTexture(width, height);
     g_wgpustate.rstate = new full_renderstate;
     
     Matrix identity = MatrixIdentity();
     g_wgpustate.identityMatrix = GenStorageBuffer(&identity, sizeof(Matrix));
-    float data[16] = {0};
-    //std::fill(data, data + 16, 1.0f);
-    
-    /*ShaderInputs shaderInputs{};
-    auto arraySetter = [](uint32_t (&dat)[8], std::initializer_list<uint32_t> arg){
-        for(auto it = arg.begin();it != arg.end();it++){
-            dat[it - arg.begin()] = *it;
-        }
-    };
-    auto uarraySetter = [](uniform_type (&dat)[8], std::initializer_list<uniform_type> arg){
-        for(auto it = arg.begin();it != arg.end();it++){
-            dat[it - arg.begin()] = *it;
-        }
-    };*/
-    glfwSetScrollCallback(window, [](GLFWwindow* window, double xoffset, double yoffset){
-        g_wgpustate.scrollThisFrame.x += xoffset;
-        g_wgpustate.scrollThisFrame.y += yoffset;
-    });
-    auto cpcallback = [](GLFWwindow* window, double x, double y){
-        g_wgpustate.mousePos = Vector2{float(x), float(y)};
-    };
-    #ifndef __EMSCRIPTEN__
-    glfwSetCursorPosCallback(window, cpcallback);
-    #else
-    auto EmscriptenMouseCallback = [](int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
-        (*((decltype(cpcallback)*)userData))(nullptr, mouseEvent->targetX, mouseEvent->targetY);
-        return true;
-    };
-    
-    
-    emscripten_set_mousemove_callback("#canvas", &cpcallback, 1, EmscriptenMouseCallback);
-    #endif // __EMSCRIPTEN__
-    auto clickcallback = [](GLFWwindow* window, int button, int action, int mods){
-        if(action == GLFW_PRESS){
-            g_wgpustate.mouseButtonDown[button] = 1;
-        }
-        else if(action == GLFW_RELEASE){
-            g_wgpustate.mouseButtonDown[button] = 0;
-        }
-    };
-    #ifdef __EMSCRIPTEN__
-    auto EmscriptenMousedownClickCallback = [](int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
-        (*((decltype(clickcallback)*)userData))(nullptr, mouseEvent->button, GLFW_PRESS, 0);
-        return true;
-    };
-    auto EmscriptenMouseupClickCallback = [](int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
-        (*((decltype(clickcallback)*)userData))(nullptr, mouseEvent->button, GLFW_RELEASE, 0);
-        return true;
-    };
-    emscripten_set_mousedown_callback("#canvas", &clickcallback, 1, EmscriptenMousedownClickCallback);
-    emscripten_set_mouseup_callback("#canvas", &clickcallback, 1, EmscriptenMouseupClickCallback);
-    #else
-    glfwSetMouseButtonCallback(window, clickcallback);
-    #endif
 
     g_wgpustate.grst = (GIFRecordState*)calloc(1, 160);
+
+
+
+    #ifdef __EMSCRIPTEN__
+    //EMSCRIPTEN_RESULT ret = emscripten_set_keypress_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, 1, EmscriptenKeyCallback);
+    emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, 1, EmscriptenKeydownCallback);
+    emscripten_set_keyup_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, 1, EmscriptenKeyupCallback);
+    //if(ret == EMSCRIPTEN_RESULT_SUCCESS)
+    //    TRACELOG(LOG_INFO, "Keypress successfully registered");
+    #endif
+
+    GLFWwindow* window = nullptr;
+    if(!(g_wgpustate.windowFlags & FLAG_HEADLESS)){
+        if (!glfwInit()) {
+            abort();
+        }
+        GLFWmonitor* mon = nullptr;
+
+        glfwSetErrorCallback([](int code, const char* message) {
+            std::cerr << "GLFW error: " << code << " - " << message;
+        });
+
+
     #ifndef __EMSCRIPTEN__
-    glfwSetKeyCallback(
-        g_wgpustate.window, 
-        glfwKeyCallback
-    );
+
+
+        // Create the test window with no client API.
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+        glfwWindowHint(GLFW_RESIZABLE, (g_wgpustate.windowFlags & FLAG_WINDOW_RESIZABLE ) ? GLFW_TRUE : GLFW_FALSE);
+        //glfwWindowHint(GLFW_REFRESH_RATE, 144);
+
+        if(g_wgpustate.windowFlags & FLAG_FULLSCREEN_MODE){
+            mon = glfwGetPrimaryMonitor();
+            //std::cout <<glfwGetVideoMode(mon)->refreshRate << std::endl;
+            //abort();
+        }
+    #endif
+        
+    #ifndef __EMSCRIPTEN__
+        window = glfwCreateWindow(width, height, title, mon, nullptr);
+        //glfwSetWindowPos(window, 200, 1200);
+        if (!window) {
+            abort();
+        }
+        g_wgpustate.window = window;
+
+        // Create the surface.
+        g_wgpustate.surface = wgpu::glfw::CreateSurfaceForWindow(GetInstance(), window);
     #else
-    
+        // Create the surface.
+        wgpu::SurfaceDescriptorFromCanvasHTMLSelector canvasDesc{};
+        canvasDesc.selector = "#canvas";
+
+        wgpu::SurfaceDescriptor surfaceDesc = {};
+        surfaceDesc.nextInChain = &canvasDesc;
+        g_wgpustate.surface = g_wgpustate.instance.CreateSurface(&surfaceDesc);
+        window = glfwCreateWindow(width, height, title, mon, nullptr);
+        g_wgpustate.window = window;
     #endif
-    #ifndef __EMSCRIPTEN__
-    glfwSetCharCallback(window, [](GLFWwindow* window, unsigned int codePoint){
-        g_wgpustate.charQueue.push_back((int)codePoint);
-    });
-    glfwSetCursorEnterCallback(window, [](GLFWwindow* window, int entered){
-        g_wgpustate.cursorInWindow = entered;
-    });
-    #endif
-    //shaderInputs.per_vertex_count = 3;
-    //shaderInputs.per_instance_count = 0;
-    
-    //shaderInputs.uniform_count = 4;
+        glfwSetWindowSizeCallback(window, [](GLFWwindow* window, int width, int height){
+            //wgpuSurfaceRelease(g_wgpustate.surface);
+            //g_wgpustate.surface = wgpu::glfw::CreateSurfaceForWindow(g_wgpustate.instance, window).MoveToCHandle();
+            //while(!g_wgpustate.drawmutex.try_lock());
+            g_wgpustate.drawmutex.lock();
+            TraceLog(LOG_DEBUG, "glfwSizeCallback called with %d x %d", width, height);
+            wgpu::SurfaceCapabilities capabilities;
+            g_wgpustate.surface.GetCapabilities(g_wgpustate.adapter, &capabilities);
+            wgpu::SurfaceConfiguration config = {};
+            config.alphaMode = wgpu::CompositeAlphaMode::Opaque;
+            config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
+            config.device = g_wgpustate.device;
+            config.format = (wgpu::TextureFormat)g_wgpustate.frameBufferFormat;
+            #ifdef __EMSCRIPTEN__
+            config.presentMode = (wgpu::PresentMode)WGPUPresentMode_Fifo;
+            #else
+            config.presentMode = (wgpu::PresentMode)(!!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? WGPUPresentMode_Fifo : WGPUPresentMode_Immediate);
+            #endif
+            config.width = width;
+            config.height = height;
+            g_wgpustate.width = width;
+            g_wgpustate.height = height;
+            UnloadTexture(colorMultisample);
+            colorMultisample = LoadTexturePro(width, height, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4);
+            UnloadTexture(depthTexture);
+            depthTexture = LoadTexturePro(width,
+                                      height, 
+                                      WGPUTextureFormat_Depth24Plus, 
+                                      WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
+                                      (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1
+            );
+            g_wgpustate.surface.Configure(&config);
+            Matrix newcamera = ScreenMatrix(width, height);
+            BufferData(&g_wgpustate.defaultScreenMatrix, &newcamera, sizeof(Matrix));
+
+            setTargetTextures(g_wgpustate.rstate, g_wgpustate.rstate->color, colorMultisample.view, depthTexture.view);
+            //updateRenderPassDesc(g_wgpustate.rstate);
+
+            //TODO wtf is this?
+            g_wgpustate.rstate->renderpass.dsa->view = depthTexture.view;
+            g_wgpustate.drawmutex.unlock();
+        });
+
+        //#ifndef __EMSCRIPTEN__
+        wgpu::SurfaceCapabilities capabilities;
+        GetCXXSurface().GetCapabilities(GetCXXAdapter(), &capabilities);
+        wgpu::SurfaceConfiguration config = {};
+        config.device = GetCXXDevice();
+        config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
+        //std::cout << "Supported format count: " << capabilities.formatCount << "\n";
+        wgpu::TextureFormat selectedFormat = wgpu::TextureFormat::Undefined;
+        int format_index = 0;
+        for(format_index = 0;format_index < capabilities.formatCount;format_index++){
+            if(capabilities.formats[format_index] == wgpu::TextureFormat::BGRA8Unorm ||
+               capabilities.formats[format_index] == wgpu::TextureFormat::RGBA8Unorm){
+                selectedFormat = (capabilities.formats[format_index]);
+                break;
+            }
+        }
+        if(format_index == capabilities.formatCount){
+            TRACELOG(LOG_WARNING, "No RGBA8 / BGRA8 Unorm framebuffer format found, colors might be off"); 
+            config.format = capabilities.formats[0];
+        }
+        else{
+            config.format = selectedFormat;
+        }
+        TRACELOG(LOG_INFO, "Selected surface format %s", textureFormatSpellingTable.at((WGPUTextureFormat)config.format).c_str());
+        #ifdef __EMSCRIPTEN__
+        config.presentMode = wgpu::PresentMode::Fifo;
+        #else
+        config.presentMode = !!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? wgpu::PresentMode::Fifo : wgpu::PresentMode::Immediate;
+        #endif
+        config.width = width;
+        config.height = height;
+        GetCXXSurface().Configure(&config);
+        g_wgpustate.frameBufferFormat = (WGPUTextureFormat)config.format;
+        //std::cout << "Supported Framebuffer Format: 0x" << std::hex << (WGPUTextureFormat)config.format << std::dec << "\n";
+
+
+
+
+
+        glfwSetScrollCallback(window, [](GLFWwindow* window, double xoffset, double yoffset){
+            g_wgpustate.scrollThisFrame.x += xoffset;
+            g_wgpustate.scrollThisFrame.y += yoffset;
+        });
+        auto cpcallback = [](GLFWwindow* window, double x, double y){
+            g_wgpustate.mousePos = Vector2{float(x), float(y)};
+        };
+        #ifndef __EMSCRIPTEN__
+        glfwSetCursorPosCallback(window, cpcallback);
+        #else
+        auto EmscriptenMouseCallback = [](int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
+            (*((decltype(cpcallback)*)userData))(nullptr, mouseEvent->targetX, mouseEvent->targetY);
+            return true;
+        };
+
+
+        emscripten_set_mousemove_callback("#canvas", &cpcallback, 1, EmscriptenMouseCallback);
+        #endif // __EMSCRIPTEN__
+        auto clickcallback = [](GLFWwindow* window, int button, int action, int mods){
+            if(action == GLFW_PRESS){
+                g_wgpustate.mouseButtonDown[button] = 1;
+            }
+            else if(action == GLFW_RELEASE){
+                g_wgpustate.mouseButtonDown[button] = 0;
+            }
+        };
+        #ifdef __EMSCRIPTEN__
+        auto EmscriptenMousedownClickCallback = [](int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
+            (*((decltype(clickcallback)*)userData))(nullptr, mouseEvent->button, GLFW_PRESS, 0);
+            return true;
+        };
+        auto EmscriptenMouseupClickCallback = [](int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
+            (*((decltype(clickcallback)*)userData))(nullptr, mouseEvent->button, GLFW_RELEASE, 0);
+            return true;
+        };
+        emscripten_set_mousedown_callback("#canvas", &clickcallback, 1, EmscriptenMousedownClickCallback);
+        emscripten_set_mouseup_callback("#canvas", &clickcallback, 1, EmscriptenMouseupClickCallback);
+        #else
+        glfwSetMouseButtonCallback(window, clickcallback);
+        #endif
+
+        
+        #ifndef __EMSCRIPTEN__
+        glfwSetKeyCallback(
+            g_wgpustate.window, 
+            glfwKeyCallback
+        );
+        #else
+
+        #endif
+        #ifndef __EMSCRIPTEN__
+        glfwSetCharCallback(window, [](GLFWwindow* window, unsigned int codePoint){
+            g_wgpustate.charQueue.push_back((int)codePoint);
+        });
+        glfwSetCursorEnterCallback(window, [](GLFWwindow* window, int entered){
+            g_wgpustate.cursorInWindow = entered;
+        });
+        #endif
+    }else{
+        g_wgpustate.frameBufferFormat = WGPUTextureFormat_BGRA8Unorm;
+    }
     UniformDescriptor uniforms[4] = {
         UniformDescriptor{uniform_buffer, 64, 0},
         UniformDescriptor{texture2d, 0, 1},
@@ -625,7 +609,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     init_full_renderstate(g_wgpustate.rstate, shaderSource, attrs, 4, uniforms, sizeof(uniforms) / sizeof(UniformDescriptor), colorTexture.view, depthTexture.view);
     g_wgpustate.rstate->renderExtentX = width;
     g_wgpustate.rstate->renderExtentY = height;
-    {
+    if(!(g_wgpustate.windowFlags & FLAG_HEADLESS)){
         int wposx, wposy;
         glfwGetWindowPos(g_wgpustate.window, &wposx, &wposy);
         g_wgpustate.windowPosition = Rectangle{
@@ -669,7 +653,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     SetSampler(2, sampler);
     g_wgpustate.init_timestamp = NanoTime();
     #ifndef __EMSCRIPTEN__
-    if(g_wgpustate.windowFlags & FLAG_VSYNC_HINT){
+    if(!(g_wgpustate.windowFlags & FLAG_HEADLESS) && (g_wgpustate.windowFlags & FLAG_VSYNC_HINT)){
         auto rate = glfwGetVideoMode(glfwGetPrimaryMonitor())->refreshRate;
         SetTargetFPS(rate);
     }

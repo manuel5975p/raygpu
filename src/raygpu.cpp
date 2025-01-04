@@ -449,7 +449,9 @@ extern "C" void DrawArraysInstanced(WGPUPrimitiveTopology drawMode, uint32_t ver
     }
     wgpuRenderPassEncoderDraw(rp, vertexCount, instanceCount, 0, 0);
 }
-
+WGPUInstance GetInstance(){
+    return g_wgpustate.instance.Get();
+}
 WGPUDevice GetDevice(){
     return g_wgpustate.device.Get();
 }
@@ -461,6 +463,27 @@ Texture GetIntermediaryColorTarget(){
 }
 WGPUQueue GetQueue(){
     return g_wgpustate.queue.Get();
+}
+WGPUAdapter GetAdapter(){
+    return g_wgpustate.adapter.Get();
+}
+WGPUSurface GetSurface(){
+    return g_wgpustate.surface.Get();
+}
+wgpu::Instance& GetCXXInstance(){
+    return g_wgpustate.instance;
+}
+wgpu::Adapter&  GetCXXAdapter (){
+    return g_wgpustate.adapter;
+}
+wgpu::Device&   GetCXXDevice  (){
+    return g_wgpustate.device;
+}
+wgpu::Queue&    GetCXXQueue   (){
+    return g_wgpustate.queue;
+}
+wgpu::Surface&  GetCXXSurface (){
+    return g_wgpustate.surface;
 }
 
 
@@ -715,20 +738,23 @@ void EndComputepassEx(DescribedComputepass* computePass){
     wgpuCommandBufferRelease(command);
     wgpuCommandEncoderRelease(computePass->cmdEncoder);
 }
-
+RenderTexture headless_rtex;
 void BeginDrawing(){
     g_wgpustate.last_timestamps[g_wgpustate.total_frames % 64] = NanoTime();
-    
-    g_wgpustate.drawmutex.lock();
-    g_wgpustate.rstate->renderExtentX = GetScreenWidth();
-    g_wgpustate.rstate->renderExtentY = GetScreenHeight();
-    WGPUSurfaceTexture surfaceTexture;
-    wgpuSurfaceGetCurrentTexture(g_wgpustate.surface.Get(), &surfaceTexture);
-    g_wgpustate.currentSurfaceTexture = surfaceTexture;
-    WGPUTextureView nextTexture = wgpuTextureCreateView(surfaceTexture.texture, nullptr);
-    g_wgpustate.currentSurfaceTextureView = nextTexture;
-
-    setTargetTextures(g_wgpustate.rstate, nextTexture, colorMultisample.view, g_wgpustate.rstate->depth);
+    if(g_wgpustate.windowFlags & FLAG_HEADLESS){
+        headless_rtex = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
+        setTargetTextures(g_wgpustate.rstate, headless_rtex.color.view, headless_rtex.colorMultisample.view, headless_rtex.depth.view);
+    }else{
+        g_wgpustate.drawmutex.lock();
+        g_wgpustate.rstate->renderExtentX = GetScreenWidth();
+        g_wgpustate.rstate->renderExtentY = GetScreenHeight();
+        WGPUSurfaceTexture surfaceTexture;
+        wgpuSurfaceGetCurrentTexture(g_wgpustate.surface.Get(), &surfaceTexture);
+        g_wgpustate.currentScreenTexture = surfaceTexture.texture;
+        WGPUTextureView nextTexture = wgpuTextureCreateView(g_wgpustate.currentScreenTexture, nullptr);
+        g_wgpustate.currentScreenTextureView = nextTexture;
+        setTargetTextures(g_wgpustate.rstate, nextTexture, colorMultisample.view, g_wgpustate.rstate->depth);
+    }
     BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
     SetUniformBuffer(0,&g_wgpustate.defaultScreenMatrix);
     g_wgpustate.activeScreenMatrix = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
@@ -750,6 +776,13 @@ void EndDrawing(){
         drawCurrentBatch();
         EndRenderpassEx(g_wgpustate.rstate->activeRenderpass);
     }
+    if(g_wgpustate.windowFlags & FLAG_HEADLESS){
+        char b[32];
+        snprintf(b, 32, "frame%04d.png", (int)g_wgpustate.total_frames);
+        Image scrimage = LoadImageFromTexture(headless_rtex.color);
+        SaveImage(scrimage, b);
+        UnloadImage(scrimage);
+    }
     if(g_wgpustate.grst->recording){
         uint64_t stmp = NanoTime();
         if(stmp - g_wgpustate.grst->lastFrameTimestamp > g_wgpustate.grst->delayInCentiseconds * 10000000ull){
@@ -761,15 +794,26 @@ void EndDrawing(){
         DrawText("Recording", recordingTextX, 5, 30, Color{255,40,40,255});
         EndRenderpass();
     }
-    #ifndef __EMSCRIPTEN__
-    g_wgpustate.surface.Present();
-    #endif
+    
     //WGPUSurfaceTexture surfaceTexture;
     //wgpuSurfaceGetCurrentTexture(g_wgpustate.surface, &surfaceTexture);
     
-    
-    wgpuTextureRelease(g_wgpustate.currentSurfaceTexture.texture);
-    wgpuTextureViewRelease(g_wgpustate.currentSurfaceTextureView);
+    if(g_wgpustate.windowFlags & FLAG_HEADLESS){
+        
+        UnloadTexture(headless_rtex.color);
+        if(headless_rtex.colorMultisample.id){
+            UnloadTexture(headless_rtex.colorMultisample);
+        }
+        UnloadTexture(headless_rtex.depth);
+    }
+    else{
+        #ifndef __EMSCRIPTEN__
+        g_wgpustate.surface.Present();
+        #endif
+        wgpuTextureViewRelease(g_wgpustate.currentScreenTextureView);
+        wgpuTextureRelease(g_wgpustate.currentScreenTexture);
+        
+    }
     uint64_t beginframe_stmp = g_wgpustate.last_timestamps[g_wgpustate.total_frames % 64];
     ++g_wgpustate.total_frames;
     std::copy(g_wgpustate.smallBufferRecyclingBin.begin(), g_wgpustate.smallBufferRecyclingBin.end(), std::back_inserter(g_wgpustate.smallBufferPool));
@@ -941,7 +985,7 @@ Image LoadImageFromTexture(Texture tex){
     //#endif
 }
 void TakeScreenshot(const char* filename){
-    Image img = LoadImageFromTextureEx(g_wgpustate.currentSurfaceTexture.texture);
+    Image img = LoadImageFromTextureEx(g_wgpustate.currentScreenTexture);
     SaveImage(img, filename);
     UnloadImage(img);
 }
@@ -1573,7 +1617,7 @@ void UnloadSampler(DescribedSampler sampler){
 }
 
 WGPUTexture GetActiveColorTarget(){
-    return g_wgpustate.currentSurfaceTexture.texture;
+    return g_wgpustate.currentScreenTexture;
 }
 
 void setTargetTextures(full_renderstate* state, WGPUTextureView c, WGPUTextureView cms, WGPUTextureView d){
@@ -1829,7 +1873,7 @@ void EndTextureMode(){
     drawCurrentBatch();
     g_wgpustate.rstate->renderExtentX = GetScreenWidth();
     g_wgpustate.rstate->renderExtentY = GetScreenHeight();
-    setTargetTextures(g_wgpustate.rstate, g_wgpustate.currentSurfaceTextureView, colorMultisample.view, depthTexture.view);
+    setTargetTextures(g_wgpustate.rstate, g_wgpustate.currentScreenTextureView, colorMultisample.view, depthTexture.view);
     SetUniformBuffer(0, &g_wgpustate.defaultScreenMatrix);
 }
 

@@ -1,6 +1,9 @@
 #ifndef RAYGPU_H
 #define RAYGPU_H
 #include <webgpu/webgpu.h>
+#ifdef __cplusplus
+#include <webgpu/webgpu_cpp.h>
+#endif
 #include <stdbool.h>
 #include <stdbool.h>
 #include <assert.h>
@@ -87,9 +90,20 @@ typedef struct DescribedComputePass{
     WGPUComputePassDescriptor desc;
 }DescribedComputepass;
 EXTERN_C_BEGIN
-    WGPUDevice GetDevice(cwoid);
-    WGPUQueue GetQueue(cwoid);
+    WGPUInstance GetInstance(cwoid);
+    WGPUAdapter  GetAdapter (cwoid);
+    WGPUDevice   GetDevice  (cwoid);
+    WGPUQueue    GetQueue   (cwoid);
+    WGPUSurface  GetSurface (cwoid);
 EXTERN_C_END
+
+#ifdef __cplusplus
+    wgpu::Instance& GetCXXInstance();
+    wgpu::Adapter&  GetCXXAdapter ();
+    wgpu::Device&   GetCXXDevice  ();
+    wgpu::Queue&    GetCXXQueue   ();
+    wgpu::Surface&  GetCXXSurface ();
+#endif
 
 
 typedef struct DescribedBuffer{
@@ -270,6 +284,7 @@ constexpr Color RAYWHITE{ 245, 245, 245, 255 };
 
 
 typedef enum WindowFlag{
+    FLAG_HEADLESS           = 0x01000000,   // Disable ALL windowing stuff
     FLAG_VSYNC_HINT         = 0x00000040,   // Set to try enabling V-Sync on GPU
     FLAG_MSAA_4X_HINT       = 0x00000020,   // Forcefully Hint (actually force) 4x multisampling for the default color buffer and pipeline
     FLAG_WINDOW_RESIZABLE   = 0x00000004,
