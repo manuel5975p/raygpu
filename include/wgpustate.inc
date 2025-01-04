@@ -5,12 +5,12 @@
 #include <array>
 
 struct wgpustate{
-    WGPUInstance instance;
-    WGPUAdapter adapter;
-    WGPUDevice device;
-    WGPUQueue queue;
+    wgpu::Instance instance;
+    wgpu::Adapter adapter;
+    wgpu::Device device;
+    wgpu::Queue queue;
     GLFWwindow* window;
-    WGPUSurface surface;
+    wgpu::Surface surface;
     uint32_t width, height;
 
     WGPUTextureFormat frameBufferFormat;

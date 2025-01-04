@@ -602,6 +602,8 @@ EXTERN_C_BEGIN
     void ClearBackground(Color clearColor);
     void BeginDrawing(cwoid);
     void EndDrawing(cwoid);
+    void StartGIFRecording(cwoid);
+    void EndGIFRecording(cwoid);
     Texture GetDepthTexture(cwoid);
     Texture GetIntermediaryColorTarget(cwoid);
 
@@ -759,6 +761,7 @@ EXTERN_C_BEGIN
     void UnloadPipeline(DescribedPipeline* pl);
 
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
+    const char* TextureFormatName(WGPUTextureFormat fmt);
     size_t GetPixelSizeInBytes(WGPUTextureFormat format);
     Texture LoadBlankTexture(uint32_t width, uint32_t height);
     Texture LoadTexture(const char* filename);

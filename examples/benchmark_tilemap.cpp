@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <raygpu.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -59,8 +60,8 @@ void mainloop(){
     EndMode2D();
     EndPipelineMode();
     DrawFPS(10,10);
-    cam.zoom *= std::exp(GetMouseWheelMove() / 10.0f);
-    const float speed = 2000.0f;
+    cam.zoom *= std::exp(GetMouseWheelMove() / 30.0f);
+    const float speed = 200.0f;
     if(IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)){
         cam.target.y -= speed * GetFrameTime() / cam.zoom;
     }
@@ -77,7 +78,10 @@ void mainloop(){
 }
 int main(){
     //SetConfigFlags(FLAG_MSAA_4X_HINT);
-    InitWindow(1000, 1000, "Tilemap Benchmark");
+    //SetConfigFlags(FLAG_VSYNC_HINT);
+    std::filesystem::path p(".");
+    std::cout << std::filesystem::absolute(p) << "\n";
+    InitWindow(640, 480, "Tilemap Benchmark");
     SetTargetFPS(0);
     Image img = LoadImage("../resources/tileset.png");
     tilemap = LoadTextureFromImage(img);
@@ -105,7 +109,7 @@ int main(){
     tileVBO = GenBuffer(tileVertices, sizeof(tileVertices));
     std::vector<Vector2> offsets;
     std::vector<uint32_t> tt;
-    int w = 500;
+    int w = 1000;
     int wh = w / 2;
     tileCount = 0;
     for(int i = 0;i < w;i++){
