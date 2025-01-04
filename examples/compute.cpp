@@ -6,7 +6,8 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
-#include <wgpustate.inc>
+//#include <webgpu/webgpu_cpp.h>
+//#include <wgpustate.inc>
 const char wgsl[] = R"(
 struct VertexInput {
     @location(0) position: vec2f,
@@ -63,7 +64,7 @@ void mainloop(void){
     BeginPipelineMode(rpl);
     BindVertexArray(rpl, vao);
     //wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->activeRenderPass->rpEncoder, 0, buf2.buffer, 0, 256);
-    DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, ibo, 6, parts);
+    DrawArraysInstanced(WGPUPrimitiveTopology_TriangleStrip, 4, parts);
     EndPipelineMode();
     DrawFPS(10, 10);
     //DrawRectangle(10, 400, 50, 50, BLUE);

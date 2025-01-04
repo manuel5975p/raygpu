@@ -11,18 +11,120 @@
 #include <cstdarg>
 #include <thread>
 #include <unordered_map>
-#include "wgpustate.inc"
 #include <webgpu/webgpu_cpp.h>
+#include "wgpustate.inc"
+#include <stb_image_write.h>
+#include <stb_image.h>
+#include <sinfl.h>
+#include <sdefl.h>
+#include "msf_gif.h"
 #ifdef __EMSCRIPTEN__
 #include <emscripten/html5.h>
 #include <emscripten/emscripten.h>
 #endif  // __EMSCRIPTEN__
 wgpustate g_wgpustate;
-#include <stb_image_write.h>
-#include <stb_image.h>
-#include <sinfl.h>
-#include <sdefl.h>
 
+Image fbLoad zeroinit;
+wgpu::Buffer readtex zeroinit;
+volatile bool waitflag = false;
+
+typedef struct GIFRecordState{
+    uint64_t delayInCentiseconds;
+    uint64_t lastFrameTimestamp;
+    MsfGifState msf_state;
+    uint64_t numberOfFrames;
+    bool recording;
+}GIFRecordState;
+
+void startRecording(GIFRecordState* grst, uint64_t delay){
+    if(grst->recording){
+        TRACELOG(LOG_WARNING, "Already recording");
+        return;
+    }
+    else{
+        grst->numberOfFrames = 0;
+    }
+    msf_gif_bgra_flag = true;
+    grst->msf_state = MsfGifState{};
+    grst->delayInCentiseconds = delay;
+    msf_gif_begin(&grst->msf_state, GetScreenWidth(), GetScreenHeight());
+    grst->recording = true;
+}
+
+void addScreenshot(GIFRecordState* grst){
+    #ifdef __EMSCRIPTEN__
+    if(grst->numberOfFrames > 0)
+        msf_gif_frame(&grst->msf_state, (uint8_t*)fbLoad.data, grst->delayInCentiseconds, 8, fbLoad.rowStrideInBytes);
+    #endif
+    grst->lastFrameTimestamp = NanoTime();
+    Image fb = LoadImageFromTextureEx(GetActiveColorTarget());
+    #ifndef __EMSCRIPTEN__
+    msf_gif_frame(&grst->msf_state, (uint8_t*)fbLoad.data, grst->delayInCentiseconds, 8, fbLoad.rowStrideInBytes);
+    #endif
+    UnloadImage(fb);
+    ++grst->numberOfFrames;
+}
+
+void endRecording(GIFRecordState* grst, const char* filename){
+    MsfGifResult result = msf_gif_end(&grst->msf_state);
+    
+    if (result.data) {
+    #ifdef __EMSCRIPTEN__
+        // Use EM_ASM to execute JavaScript for downloading the GIF
+        // Allocate a buffer in the Emscripten heap and copy the GIF data
+        // Then create a Blob and trigger a download in the browser
+
+        // Ensure that the data is null-terminated if necessary
+        // You might need to allocate memory in the Emscripten heap
+        // and copy the data there, but for simplicity, we'll pass the pointer and size
+        EM_ASM({
+            var filename = UTF8ToString($0);
+            var dataPtr = $1;
+            var dataSize = $2;
+            
+            // Create a Uint8Array from the Emscripten heap
+            var bytes = new Uint8Array(Module.HEAPU8.buffer, dataPtr, dataSize);
+            
+            // Create a Blob from the byte array
+            var blob = new Blob([bytes], {type: 'image/gif'});
+            
+            // Create a temporary anchor element to trigger the download
+            var link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            
+            // Append the link to the body (required for Firefox)
+            document.body.appendChild(link);
+            
+            // Programmatically click the link to trigger the download
+            link.click();
+            
+            // Clean up by removing the link and revoking the object URL
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        }, filename, (uintptr_t)result.data, (int)result.dataSize);
+    #else
+        // Native file system approach
+        FILE * fp = fopen(filename, "wb");
+        if (fp) {
+            fwrite(result.data, 1, result.dataSize, fp);
+            fclose(fp);
+        } else {
+            // Handle file open error if necessary
+            fprintf(stderr, "Failed to open file: %s\n", filename);
+        }
+    #endif
+    }
+
+    //Free the GIF result resources
+    msf_gif_free(result);
+
+    // Update the recording state
+    grst->recording = false;
+
+    // Optionally clear the GIFRecordState structure
+    memset(grst, 0, sizeof(GIFRecordState));
+}
 Vector2 nextuv;
 Vector3 nextnormal;
 Vector4 nextcol;
@@ -349,7 +451,7 @@ extern "C" void DrawArraysInstanced(WGPUPrimitiveTopology drawMode, uint32_t ver
 }
 
 WGPUDevice GetDevice(){
-    return g_wgpustate.device;
+    return g_wgpustate.device.Get();
 }
 Texture GetDepthTexture(){
     return depthTexture;
@@ -358,7 +460,7 @@ Texture GetIntermediaryColorTarget(){
     return colorMultisample;
 }
 WGPUQueue GetQueue(){
-    return g_wgpustate.queue;
+    return g_wgpustate.queue.Get();
 }
 
 
@@ -385,7 +487,7 @@ void drawCurrentBatch(){
     UpdateBindGroup(&g_wgpustate.rstate->activePipeline->bindGroup);
     switch(g_wgpustate.current_drawmode){
         case RL_LINES:{
-            vboptr = vboptr_base;
+
             //TODO: Line texturing is currently disable in all DrawLine... functions
             SetTexture(1, g_wgpustate.whitePixel);
             BindPipeline(g_wgpustate.rstate->activePipeline, WGPUPrimitiveTopology_LineList);
@@ -398,12 +500,14 @@ void drawCurrentBatch(){
             g_wgpustate.rstate->activePipeline->bindGroup.needsUpdate = true;
         }break;
         case RL_TRIANGLE_STRIP:{
-            TRACELOG(LOG_FATAL, "oof"); 
+            BindPipeline(g_wgpustate.rstate->activePipeline, WGPUPrimitiveTopology_TriangleList);
+            BindVertexArray(g_wgpustate.rstate->activePipeline, renderBatchVAO);
+            DrawArrays(WGPUPrimitiveTopology_TriangleStrip, vertexCount);
             break;
         }
         
         case RL_TRIANGLES:{
-            SetTexture(1, g_wgpustate.whitePixel);
+            //SetTexture(1, g_wgpustate.whitePixel);
             BindPipeline(g_wgpustate.rstate->activePipeline, WGPUPrimitiveTopology_TriangleList);
             BindVertexArray(g_wgpustate.rstate->activePipeline, renderBatchVAO);
             DrawArrays(WGPUPrimitiveTopology_TriangleList, vertexCount);
@@ -619,7 +723,7 @@ void BeginDrawing(){
     g_wgpustate.rstate->renderExtentX = GetScreenWidth();
     g_wgpustate.rstate->renderExtentY = GetScreenHeight();
     WGPUSurfaceTexture surfaceTexture;
-    wgpuSurfaceGetCurrentTexture(g_wgpustate.surface, &surfaceTexture);
+    wgpuSurfaceGetCurrentTexture(g_wgpustate.surface.Get(), &surfaceTexture);
     g_wgpustate.currentSurfaceTexture = surfaceTexture;
     WGPUTextureView nextTexture = wgpuTextureCreateView(surfaceTexture.texture, nullptr);
     g_wgpustate.currentSurfaceTextureView = nextTexture;
@@ -628,6 +732,14 @@ void BeginDrawing(){
     BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
     SetUniformBuffer(0,&g_wgpustate.defaultScreenMatrix);
     g_wgpustate.activeScreenMatrix = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
+    if(IsKeyPressed(KEY_F2) && (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL) || true)){
+        if(g_wgpustate.grst->recording){
+            EndGIFRecording();
+        }
+        else{
+            StartGIFRecording();
+        }
+    }
     //EndRenderPass(&g_wgpustate.rstate->clearPass);
     //BeginRenderPass(&g_wgpustate.rstate->renderpass);
     //UseNoTexture();
@@ -638,13 +750,23 @@ void EndDrawing(){
         drawCurrentBatch();
         EndRenderpassEx(g_wgpustate.rstate->activeRenderpass);
     }
+    if(g_wgpustate.grst->recording){
+        uint64_t stmp = NanoTime();
+        if(stmp - g_wgpustate.grst->lastFrameTimestamp > g_wgpustate.grst->delayInCentiseconds * 10000000ull){
+            addScreenshot(g_wgpustate.grst);
+            g_wgpustate.grst->lastFrameTimestamp = stmp;
+        }
+        BeginRenderpass();
+        int recordingTextX = GetScreenWidth() - MeasureText("Recording", 30);
+        DrawText("Recording", recordingTextX, 5, 30, Color{255,40,40,255});
+        EndRenderpass();
+    }
     #ifndef __EMSCRIPTEN__
-    wgpuSurfacePresent(g_wgpustate.surface);
-    //glfwSwapBuffers(g_wgpustate.window);
-    #endif // __EMSCRIPTEN__
+    g_wgpustate.surface.Present();
+    #endif
     //WGPUSurfaceTexture surfaceTexture;
     //wgpuSurfaceGetCurrentTexture(g_wgpustate.surface, &surfaceTexture);
-
+    
     
     wgpuTextureRelease(g_wgpustate.currentSurfaceTexture.texture);
     wgpuTextureViewRelease(g_wgpustate.currentSurfaceTextureView);
@@ -668,6 +790,24 @@ void EndDrawing(){
 
     //std::this_thread::sleep_for(std::chrono::nanoseconds(nanosecondsPerFrame - elapsed));
 }
+void StartGIFRecording(){
+    startRecording(g_wgpustate.grst, 4);
+}
+void EndGIFRecording(){
+    #ifndef __EMSCRIPTEN__
+    if(!g_wgpustate.grst->recording)return;
+    char buf[128] = {0};
+    for(int i = 1;i < 1000;i++){
+        sprintf(buf, "recording%03d.gif", i);
+        std::filesystem::path p(buf);
+        if(!std::filesystem::exists(p))
+            break;
+    }
+    #else
+    constexpr char buf[] = "gifexport.gif";
+    #endif
+    endRecording(g_wgpustate.grst, buf);
+}
 void rlBegin(draw_mode mode){
     if(mode == RL_LINES){ //TODO: Fix this, why is this required? Check core_msaa and comment this out to trigger a bug
         SetTexture(1, g_wgpustate.whitePixel);
@@ -686,17 +826,20 @@ void rlEnd(){
 uint32_t RoundUpToNextMultipleOf256(uint32_t x) {
     return (x + 255) & ~0xFF;
 }
+
 Image LoadImageFromTextureEx(WGPUTexture tex){
-    Image ret {(PixelFormat)wgpuTextureGetFormat(tex), wgpuTextureGetWidth(tex), wgpuTextureGetHeight(tex), size_t(std::ceil(4.0 * wgpuTextureGetWidth(tex) / 256.0) * 256), nullptr, 1};
-    WGPUBufferDescriptor b{};
-    b.mappedAtCreation = false;
+    size_t formatSize = GetPixelSizeInBytes(wgpuTextureGetFormat(tex));
     uint32_t width = wgpuTextureGetWidth(tex);
     uint32_t height = wgpuTextureGetHeight(tex);
-    size_t formatSize = GetPixelSizeInBytes(wgpuTextureGetFormat(tex));
+    Image ret {(PixelFormat)wgpuTextureGetFormat(tex), wgpuTextureGetWidth(tex), wgpuTextureGetHeight(tex), RoundUpToNextMultipleOf256(formatSize * width), nullptr, 1};
+    fbLoad = ret;
+    WGPUBufferDescriptor b{};
+    b.mappedAtCreation = false;
+    
     b.size = RoundUpToNextMultipleOf256(formatSize * width) * height;
     b.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
     
-    wgpu::Buffer readtex = wgpuDeviceCreateBuffer(GetDevice(), &b);
+    readtex = wgpu::Buffer(wgpuDeviceCreateBuffer(GetDevice(), &b));
     
     WGPUCommandEncoderDescriptor commandEncoderDesc{};
     commandEncoderDesc.label = STRVIEW("Command Encoder");
@@ -719,47 +862,51 @@ Image LoadImageFromTextureEx(WGPUTexture tex){
     cmdBufferDescriptor.label = STRVIEW("Command buffer");
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &cmdBufferDescriptor);
     wgpuCommandEncoderRelease(encoder);
-    wgpuQueueSubmit(g_wgpustate.queue, 1, &command);
+    wgpuQueueSubmit(GetQueue(), 1, &command);
     wgpuCommandBufferRelease(command);
     //#ifdef WEBGPU_BACKEND_DAWN
     //wgpuDeviceTick(GetDevice());
     //#else
     //#endif
-    std::pair<Image*, wgpu::Buffer*> ibpair{&ret, &readtex};
-    auto onBuffer2Mapped = [&ibpair](wgpu::MapAsyncStatus status, const char* userdata){
-        //std::cout << "Backcalled: " << status << std::endl;
+    fbLoad.format = (PixelFormat)g_wgpustate.frameBufferFormat;
+    waitflag = true;
+    auto onBuffer2Mapped = [](wgpu::MapAsyncStatus status, const char* userdata){
+        //std::cout << "Backcalled: " << (int)status << std::endl;
+        waitflag = false;
         if(status != wgpu::MapAsyncStatus::Success){
             TRACELOG(LOG_ERROR, "onBuffer2Mapped called back with error!");
         }
         assert(status == wgpu::MapAsyncStatus::Success);
-        //std::pair<Image*, wgpu::Buffer*>* rei = (std::pair<Image*, wgpu::Buffer*>*)userdata;
-        std::pair<Image*, wgpu::Buffer*>* rei = &ibpair;
-        uint64_t bufferSize = wgpuBufferGetSize(rei->second->Get());
-        const void* map = wgpuBufferGetConstMappedRange(rei->second->Get(), 0, bufferSize);
-        //rei->first->data = std::realloc(rei->first->data, bufferSize);
-        rei->first->data = std::malloc(bufferSize);
-        std::memcpy(rei->first->data, map, bufferSize);
-        rei->second->Unmap();
-        wgpuBufferRelease(rei->second->Get());
-        rei->second = nullptr;
-        //wgpuBufferDestroy(*rei->second);
+
+        uint64_t bufferSize = readtex.GetSize();
+        const void* map = readtex.GetConstMappedRange(0, bufferSize);
+        fbLoad.data = std::realloc(fbLoad.data , bufferSize);
+        //fbLoad.data = std::malloc(bufferSize);
+        std::memcpy(fbLoad.data, map, bufferSize);
+        readtex.Unmap();
+        wgpuBufferRelease(readtex.MoveToCHandle());
     };
 
     
     
     #ifndef __EMSCRIPTEN__
-    WGPUFutureWaitInfo winfo{};
-    //wgpu::BufferMapCallbackInfo cbinfo{};
-    //cbinfo.callback = onBuffer2Mapped;
-    //cbinfo.userdata = &ibpair;
-    //cbinfo.mode = wgpu::CallbackMode::WaitAnyOnly;
-
-    wgpu::Future fut = readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped);
-    winfo.future = fut;
-    wgpuInstanceWaitAny(g_wgpustate.instance, 1, &winfo, 1000000000);
-    #else 
+    g_wgpustate.instance.WaitAny(readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped), 1000000000);
+    #else
+    readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::AllowSpontaneous, onBuffer2Mapped);
+    
+    //while(waitflag){
+    //    
+    //}
     //readtex.MapAsync(wgpu::MapMode::Read, 0, size_t(std::ceil(4.0 * width / 256.0) * 256) * height, onBuffer2Mapped, &ibpair);
-    readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped);
+    //wgpu::Future fut = readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped);
+    //WGPUFutureWaitInfo winfo{};
+    //winfo.future = fut;
+    //wgpuInstanceWaitAny(g_wgpustate.instance, 1, &winfo, 1000000000);
+
+    //while(!done){
+        //emscripten_sleep(20);
+    //}
+    //wgpuInstanceWaitAny(g_wgpustate.instance, 1, &winfo, 1000000000);
     //emscripten_sleep(20);
     #endif
     //wgpuBufferMapAsyncF(readtex, WGPUMapMode_Read, 0, 4 * tex.width * tex.height, onBuffer2Mapped);
@@ -782,7 +929,7 @@ Image LoadImageFromTextureEx(WGPUTexture tex){
     wgpuDeviceTick(device);
     #endif*/
     //readtex.Destroy();
-    return ret;
+    return fbLoad;
 }
 Image LoadImageFromTexture(Texture tex){
     //#ifndef __EMSCRIPTEN__
@@ -844,7 +991,7 @@ Texture LoadTextureFromImage(Image img){
     source.bytesPerRow = 4 * img.width;
     source.rowsPerImage = img.height;
     //wgpuQueueWriteTexture()
-    wgpuQueueWriteTexture(g_wgpustate.queue, &destination, altdata ? altdata : img.data, 4 * img.width * img.height, &source, &desc.size);
+    wgpuQueueWriteTexture(GetQueue(), &destination, altdata ? altdata : img.data, 4 * img.width * img.height, &source, &desc.size);
     ret.view = wgpuTextureCreateView(ret.id, &vdesc);
     ret.width = img.width;
     ret.height = img.height;
@@ -938,7 +1085,7 @@ WGPUShaderModule LoadShaderFromMemory(const char* shaderSource) {
     shaderDesc.hintCount = 0;
     shaderDesc.hints = nullptr;
     #endif
-    return wgpuDeviceCreateShaderModule(g_wgpustate.device, &shaderDesc);
+    return wgpuDeviceCreateShaderModule(GetDevice(), &shaderDesc);
 }
 WGPUShaderModule LoadShader(const char* path) {
     std::ifstream file(path);
@@ -960,7 +1107,7 @@ WGPUShaderModule LoadShader(const char* path) {
     shaderDesc.hintCount = 0;
     shaderDesc.hints = nullptr;
 #endif
-    return wgpuDeviceCreateShaderModule(g_wgpustate.device, &shaderDesc);
+    return wgpuDeviceCreateShaderModule(GetDevice(), &shaderDesc);
 }
 Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage, uint32_t sampleCount){
     WGPUTextureDescriptor tDesc{};
@@ -988,7 +1135,7 @@ Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format
     textureViewDesc.dimension = WGPUTextureViewDimension_2D;
     textureViewDesc.format = tDesc.format;
     Texture ret;
-    ret.id = wgpuDeviceCreateTexture(g_wgpustate.device, &tDesc);
+    ret.id = wgpuDeviceCreateTexture(GetDevice(), &tDesc);
     ret.view = wgpuTextureCreateView(ret.id, &textureViewDesc);
     ret.format = format;
     ret.width = width;
@@ -1226,8 +1373,8 @@ void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, cons
     bufferDesc.size = size;
     bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
     bufferDesc.mappedAtCreation = false;
-    WGPUBuffer uniformBuffer = wgpuDeviceCreateBuffer(g_wgpustate.device, &bufferDesc);
-    wgpuQueueWriteBuffer(g_wgpustate.queue, uniformBuffer, 0, data, size);
+    WGPUBuffer uniformBuffer = wgpuDeviceCreateBuffer(GetDevice(), &bufferDesc);
+    wgpuQueueWriteBuffer(GetQueue(), uniformBuffer, 0, data, size);
     entry.binding = index;
     entry.buffer = uniformBuffer;
     entry.size = size;
@@ -1240,8 +1387,8 @@ void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, cons
     bufferDesc.size = size;
     bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
     bufferDesc.mappedAtCreation = false;
-    WGPUBuffer uniformBuffer = wgpuDeviceCreateBuffer(g_wgpustate.device, &bufferDesc);
-    wgpuQueueWriteBuffer(g_wgpustate.queue, uniformBuffer, 0, data, size);
+    WGPUBuffer uniformBuffer = wgpuDeviceCreateBuffer(GetDevice(), &bufferDesc);
+    wgpuQueueWriteBuffer(GetQueue(), uniformBuffer, 0, data, size);
     entry.binding = index;
     entry.buffer = uniformBuffer;
     entry.size = size;
@@ -1539,6 +1686,7 @@ void UnloadTexture(Texture tex){
 }
 void UnloadImage(Image img){
     free(img.data);
+    img.data = nullptr;
 }
 extern "C" Image LoadImageFromMemory(const char* extension, const void* data, size_t dataSize){
     Image image;
@@ -1725,7 +1873,7 @@ void UpdateStagingBuffer(StagingBuffer* buffer){
     wgpuCommandEncoderRelease(enc);
     wgpuCommandBufferRelease(buf);
     WGPUFutureWaitInfo winfo{f, 0};
-    wgpuInstanceWaitAny(g_wgpustate.instance, 1, &winfo, UINT64_MAX);
+    wgpuInstanceWaitAny(g_wgpustate.instance.Get(), 1, &winfo, UINT64_MAX);
     buffer->mappable.buffer = b.MoveToCHandle();
     buffer->map = (vertex*)wgpuBufferGetMappedRange(buffer->mappable.buffer, 0, buffer->mappable.descriptor.size);
 }

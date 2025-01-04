@@ -23,6 +23,7 @@ void mainloop(void){
     //}
     //DrawTexturePro(tex,(Rectangle){0,0,100,100}, (Rectangle){100,0,100,100},(Vector2){0,0},0, (Color){210, 210, 210,255});
     DrawCircleSector(GetMousePosition(), 100.0f, 0.0f, 360.0f, 128, WHITE);
+    DrawCircleSectorLines(GetMousePosition(), 100.0f, 0.0f, 360.0f, 128, BLACK);
     DrawFPS(10, 10);
     if(IsKeyPressed(KEY_U)){
         ToggleFullscreen();

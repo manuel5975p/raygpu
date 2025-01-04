@@ -18,6 +18,44 @@ inline std::ostream& operator<<(std::ostream& ostr, const wgpu::StringView& st){
     ostr.write(st.data, st.length);
     return ostr;
 }
+enum wgpulimit{
+    maxTextureDimension1D,
+    maxTextureDimension2D,
+    maxTextureDimension3D,
+    maxTextureArrayLayers,
+    maxBindGroups,
+    maxBindGroupsPlusVertexBuffers,
+    maxBindingsPerBindGroup,
+    maxDynamicUniformBuffersPerPipelineLayout,
+    maxDynamicStorageBuffersPerPipelineLayout,
+    maxSampledTexturesPerShaderStage,
+    maxSamplersPerShaderStage,
+    maxStorageBuffersPerShaderStage,
+    maxStorageTexturesPerShaderStage,
+    maxUniformBuffersPerShaderStage,
+    maxUniformBufferBindingSize,
+    maxStorageBufferBindingSize,
+    minUniformBufferOffsetAlignment,
+    minStorageBufferOffsetAlignment,
+    maxVertexBuffers,
+    maxBufferSize,
+    maxVertexAttributes,
+    maxVertexBufferArrayStride,
+    maxInterStageShaderComponents,
+    maxInterStageShaderVariables,
+    maxColorAttachments,
+    maxColorAttachmentBytesPerSample,
+    maxComputeWorkgroupStorageSize,
+    maxComputeInvocationsPerWorkgroup,
+    maxComputeWorkgroupSizeX,
+    maxComputeWorkgroupSizeY,
+    maxComputeWorkgroupSizeZ,
+    maxComputeWorkgroupsPerDimension,
+    maxStorageBuffersInVertexStage,
+    maxStorageTexturesInVertexStage,
+    maxStorageBuffersInFragmentStage,
+    maxStorageTexturesInFragmentStage
+};
 constexpr char shaderSource[] = R"(
 struct VertexInput {
     @location(0) position: vec3f,
@@ -86,6 +124,7 @@ void glfwKeyCallback (GLFWwindow* window, int key, int scancode, int action, int
         g_wgpustate.keydown[key] = 0;
     }
     if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
+        EndGIFRecording();
         glfwSetWindowShouldClose(window, true);
     }
 }
@@ -261,7 +300,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
                 default:
                     __builtin_unreachable();
             }
-            std::cerr << "Device lost because of " << reasonName << ": " << std::string(message.data, message.length);
+            std::cerr << "Device lost because of " << reasonName << ": " << std::string(message.data, message.length) << std::endl;
         });
     deviceDesc.SetUncapturedErrorCallback(
         [](const wgpu::Device&, wgpu::ErrorType type, wgpu::StringView message) {
@@ -364,11 +403,11 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         //while(!g_wgpustate.drawmutex.try_lock());
         g_wgpustate.drawmutex.lock();
         TraceLog(LOG_INFO, "Size callback called with %d x %d", width, height);
-        WGPUSurfaceCapabilities capabilities;
-        wgpuSurfaceGetCapabilities(g_wgpustate.surface, g_wgpustate.adapter, &capabilities);
-        WGPUSurfaceConfiguration config = {};
-        config.alphaMode = WGPUCompositeAlphaMode_Opaque;
-        config.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
+        wgpu::SurfaceCapabilities capabilities;
+        g_wgpustate.surface.GetCapabilities(g_wgpustate.adapter, &capabilities);
+        wgpu::SurfaceConfiguration config = {};
+        config.alphaMode = wgpu::CompositeAlphaMode::Opaque;
+        config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
         config.device = g_wgpustate.device;
         //WGPUTextureFormat selectedFormat = WGPUTextureFormat_Undefined;
         //int format_index = 0;
@@ -386,11 +425,11 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         //    config.format = selectedFormat;
         //}
         //config.format = (WGPUTextureFormat)capabilities.formats[0];
-        config.format = g_wgpustate.frameBufferFormat;
+        config.format = (wgpu::TextureFormat)g_wgpustate.frameBufferFormat;
         #ifdef __EMSCRIPTEN__
-        config.presentMode = WGPUPresentMode_Fifo;
+        config.presentMode = (wgpu::PresentMode)WGPUPresentMode_Fifo;
         #else
-        config.presentMode = !!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? WGPUPresentMode_Fifo : WGPUPresentMode_Immediate;
+        config.presentMode = (wgpu::PresentMode)(!!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? WGPUPresentMode_Fifo : WGPUPresentMode_Immediate);
         #endif
         config.width = width;
         config.height = height;
@@ -405,7 +444,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
                                   WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
                                   (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1
         );
-        wgpuSurfaceConfigure(g_wgpustate.surface, &config);
+        g_wgpustate.surface.Configure(&config);
         Matrix newcamera = ScreenMatrix(width, height);
         BufferData(&g_wgpustate.defaultScreenMatrix, &newcamera, sizeof(Matrix));
 
@@ -453,11 +492,11 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     g_wgpustate.height = height;
     sample->surface.Configure(&config);
     //#endif
-    g_wgpustate.adapter = sample->adapter.MoveToCHandle();
-    g_wgpustate.device = sample->device.MoveToCHandle();
-    g_wgpustate.queue = sample->queue.MoveToCHandle();
-    g_wgpustate.instance = sample->instance.MoveToCHandle();
-    g_wgpustate.surface = sample->surface.MoveToCHandle();
+    g_wgpustate.adapter  = std::move(sample->adapter);
+    g_wgpustate.device   = std::move(sample->device);
+    g_wgpustate.queue    = std::move(sample->queue);
+    g_wgpustate.instance = std::move(sample->instance);
+    g_wgpustate.surface  = std::move(sample->surface);
     g_wgpustate.frameBufferFormat = (WGPUTextureFormat)config.format;
     //std::cout << "Supported Framebuffer Format: 0x" << std::hex << (WGPUTextureFormat)config.format << std::dec << "\n";
     
@@ -525,7 +564,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     glfwSetMouseButtonCallback(window, clickcallback);
     #endif
 
-    g_wgpustate.grst = malloc(152);
+    g_wgpustate.grst = (GIFRecordState*)calloc(1, 160);
     #ifndef __EMSCRIPTEN__
     glfwSetKeyCallback(
         g_wgpustate.window, 
@@ -591,7 +630,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     }
     WGPUCommandEncoderDescriptor cedesc{};
     cedesc.label = STRVIEW("Global Command Encoder");
-    g_wgpustate.rstate->renderpass.cmdEncoder = wgpuDeviceCreateCommandEncoder(g_wgpustate.device, &cedesc);
+    g_wgpustate.rstate->renderpass.cmdEncoder = wgpuDeviceCreateCommandEncoder(g_wgpustate.device.Get(), &cedesc);
     Matrix m = ScreenMatrix(width, height);
     static_assert(sizeof(Matrix) == 64, "non 4 byte floats? or what");
     g_wgpustate.defaultScreenMatrix = GenUniformBuffer(&m, sizeof(Matrix));
@@ -828,6 +867,7 @@ int GetCurrentMonitor(){
 
     return index;
 }
+
 const std::unordered_map<WGPUTextureFormat, std::string> textureFormatSpellingTable = [](){
     std::unordered_map<WGPUTextureFormat, std::string> map;
     map[WGPUTextureFormat_Undefined] = "WGPUTextureFormat_Undefined";
@@ -945,7 +985,13 @@ const std::unordered_map<WGPUTextureFormat, std::string> textureFormatSpellingTa
     #endif
     return map;
 }();
-
+const char* TextureFormatName(WGPUTextureFormat fmt){
+    auto it = textureFormatSpellingTable.find(fmt);
+    if(it == textureFormatSpellingTable.end()){
+        return "?? Unknown WGPUTextureFormat value ??";
+    }
+    return it->second.c_str();
+}
 extern "C" size_t GetPixelSizeInBytes(WGPUTextureFormat format) {
     switch (format) {
         case WGPUTextureFormat_Undefined:

@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <raygpu.h>
+#include <webgpu/webgpu_cpp.h>
 #include <wgpustate.inc>
 #include <cstring>
 #include <cassert>
@@ -64,7 +65,7 @@ typedef struct StringToUniformMap{
     }
     bglayoutdesc.entryCount = uniformCount;
     bglayoutdesc.entries = blayouts.data();
-    return wgpuDeviceCreateBindGroupLayout(g_wgpustate.device, &bglayoutdesc);
+    return wgpuDeviceCreateBindGroupLayout(GetDevice(), &bglayoutdesc);
 }*/
 
 DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, uint32_t uniformCount, bool compute){
@@ -116,7 +117,7 @@ DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, 
     bglayoutdesc.entryCount = uniformCount;
     bglayoutdesc.entries = blayouts;
     ret.entries = blayouts;
-    ret.layout = wgpuDeviceCreateBindGroupLayout(g_wgpustate.device, &bglayoutdesc);
+    ret.layout = wgpuDeviceCreateBindGroupLayout(GetDevice(), &bglayoutdesc);
     return ret;
 }
 extern "C" DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao){
@@ -243,7 +244,7 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     ret.layout.descriptor = WGPUPipelineLayoutDescriptor{};
     ret.layout.descriptor.bindGroupLayoutCount = 1;
     ret.layout.descriptor.bindGroupLayouts = &ret.bglayout.layout;
-    ret.layout.layout = wgpuDeviceCreatePipelineLayout(g_wgpustate.device, &ret.layout.descriptor);
+    ret.layout.layout = wgpuDeviceCreatePipelineLayout(GetDevice(), &ret.layout.descriptor);
     
     WGPURenderPipelineDescriptor& pipelineDesc = ret.descriptor;
     pipelineDesc.multisample.count = settings.sampleCount_onlyApplicableIfMoreThanOne ? settings.sampleCount_onlyApplicableIfMoreThanOne : 1;
@@ -303,12 +304,12 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     ret.descriptor.primitive.cullMode = settings.faceCull ? WGPUCullMode_Back : WGPUCullMode_None;
     if(attribCount != 0){
         ret.descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
-        ret.pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &ret.descriptor);
+        ret.pipeline = wgpuDeviceCreateRenderPipeline(GetDevice(), &ret.descriptor);
         ret.descriptor.primitive.topology = WGPUPrimitiveTopology_LineList;
-        ret.pipeline_LineList = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &ret.descriptor);
+        ret.pipeline_LineList = wgpuDeviceCreateRenderPipeline(GetDevice(), &ret.descriptor);
         ret.descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleStrip;
         ret.descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
-        ret.pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &ret.descriptor);
+        ret.pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline(GetDevice(), &ret.descriptor);
         ret.descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
         ret.descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
     }
@@ -367,12 +368,12 @@ PipelineTriplet GetPipelinesForLayout(DescribedPipeline* pipeline, const std::ve
     }
     PipelineTriplet ret{};
     pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
-    ret.pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipeline->descriptor);
+    ret.pipeline = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipeline->descriptor);
     pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_LineList;
-    ret.pipeline_LineList = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipeline->descriptor);
+    ret.pipeline_LineList = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipeline->descriptor);
     pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleStrip;
     pipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
-    ret.pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipeline->descriptor);
+    ret.pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipeline->descriptor);
     pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
     pipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
     pipeline->createdPipelines->pipelines[attribs] = ret;
@@ -394,12 +395,12 @@ extern "C" void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va){
     pipeline->pipeline_LineList = pltriptle.pipeline_LineList;
     pipeline->pipeline_TriangleStrip = pltriptle.pipeline_TriangleStrip;
     //pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
-    //pipeline->pipeline = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipeline->descriptor);
+    //pipeline->pipeline = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipeline->descriptor);
     //pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_LineList;
-    //pipeline->pipeline_LineList = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipeline->descriptor);
+    //pipeline->pipeline_LineList = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipeline->descriptor);
     //pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleStrip;
     //pipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
-    //pipeline->pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline(g_wgpustate.device, &pipeline->descriptor);
+    //pipeline->pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipeline->descriptor);
     //pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
     //pipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
 }

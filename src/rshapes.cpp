@@ -45,6 +45,7 @@
 **********************************************************************************************/
 
 #include "raygpu.h"     // Declares module functions
+#include <webgpu/webgpu_cpp.h>
 #include "wgpustate.inc"
 // Check if config flags have been externally provided on compilation line
 //#if !defined(EXTERNAL_CONFIG_FLAGS)
@@ -362,14 +363,14 @@ void DrawCircleSector(Vector2 center, float radius, float startAngle, float endA
 
     //rlSetTexture(0);
 #else
-    rlBegin(RL_TRIANGLES);
+    rlBegin(RL_TRIANGLE_STRIP);
         for (int i = 0; i < segments; i++)
         {
             rlColor4ub(color.r, color.g, color.b, color.a);
 
             rlVertex2f(center.x, center.y);
-            rlVertex2f(center.x +std::cos(DEG2RAD*(angle + stepLength))*radius, center.y + std::sin(DEG2RAD*(angle + stepLength))*radius);
-            rlVertex2f(center.x +std::cos(DEG2RAD*angle)*radius, center.y + std::sin(DEG2RAD*angle)*radius);
+            rlVertex2f(center.x + std::cos(DEG2RAD*(angle + stepLength))*radius, center.y + std::sin(DEG2RAD*(angle + stepLength))*radius);
+            rlVertex2f(center.x + std::cos(DEG2RAD*angle)*radius, center.y + std::sin(DEG2RAD*angle)*radius);
 
             angle += stepLength;
         }
@@ -404,14 +405,14 @@ void DrawCircleSectorLines(Vector2 center, float radius, float startAngle, float
 
     float stepLength = (endAngle - startAngle)/(float)segments;
     float angle = startAngle;
-    bool showCapLines = true;
+    bool showCapLines = false;
 
     rlBegin(RL_LINES);
         if (showCapLines)
         {
             rlColor4ub(color.r, color.g, color.b, color.a);
             rlVertex2f(center.x, center.y);
-            rlVertex2f(center.x +std::cos(DEG2RAD*angle)*radius, center.y + std::sin(DEG2RAD*angle)*radius);
+            rlVertex2f(center.x + std::cos(DEG2RAD*angle)*radius, center.y + std::sin(DEG2RAD*angle)*radius);
         }
 
         for (int i = 0; i < segments; i++)

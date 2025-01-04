@@ -85,32 +85,32 @@ SET_SOURCE_FILES_PROPERTIES("src/rtext.c" PROPERTIES COMPILE_FLAGS -w)
 SET_SOURCE_FILES_PROPERTIES("src/cgltf_impl.c" PROPERTIES COMPILE_FLAGS -w)
 target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include" "${CMAKE_BINARY_DIR}/dl" "${CMAKE_CURRENT_LIST_DIR}/external")
 if(EMSCRIPTEN)
-target_link_libraries(raygpu PUBLIC
-    emdawnwebgpu_c
-    emdawnwebgpu_cpp
-    glfw
-    tint_api
-    tint_api_common
-    tint_lang_core
-    tint_lang_wgsl
-    tint_lang_wgsl_reader
-)
-target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
+    target_link_libraries(raygpu PUBLIC
+        emdawnwebgpu_c
+        emdawnwebgpu_cpp
+        glfw
+        tint_api
+        tint_api_common
+        tint_lang_core
+        tint_lang_wgsl
+        tint_lang_wgsl_reader
+    )
+    target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
 else()
-target_link_libraries(raygpu PUBLIC
-    webgpu_dawn
-    webgpu_cpp
-    dawn_internal_config
-    dawn::dawn_glfw
-    glfw
-
-    #dawn::dawn_native
-    #dawn::dawn_common
-    #dawn::dawn_system_utils
-    #dawn::dawn_wgpu_utils
-    #dawn::dawn_test_utils
-    #dawn::dawn_proc
-)
+    target_link_libraries(raygpu PUBLIC
+        webgpu_dawn
+        webgpu_cpp
+        dawn_internal_config
+        dawn::dawn_glfw
+        glfw
+    
+        #dawn::dawn_native
+        #dawn::dawn_common
+        #dawn::dawn_system_utils
+        #dawn::dawn_wgpu_utils
+        #dawn::dawn_test_utils
+        #dawn::dawn_proc
+    )
 endif()
 target_include_directories(raygpu PUBLIC)
 #add_executable(example "src/example.cpp")
