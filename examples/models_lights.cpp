@@ -23,7 +23,7 @@ struct LightBuffer {
 
 
 @group(0) @binding(0) var<uniform> Perspective_View: mat4x4f;
-@group(0) @binding(1) var gradientTexture: texture_2d<f32>;
+@group(0) @binding(1) var colDiffuse: texture_2d<f32>;
 @group(0) @binding(2) var grsampler: sampler;
 @group(0) @binding(3) var<storage> modelMatrix: array<mat4x4f>;
 @group(0) @binding(4) var<storage> lights: LightBuffer;
@@ -55,7 +55,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         let prod = max(0.0f, dot(in.worldNormal, dist));
         illum += 100.0f * prod / dot(dist, dist);
     }
-    return textureSample(gradientTexture, grsampler, in.uv).rgba * in.color * (illum + 0.1f);
+    return textureSample(colDiffuse, grsampler, in.uv).rgba * in.color * (illum + 0.1f);
 }
 )";
 int main(){
@@ -71,9 +71,9 @@ int main(){
     Matrix iden = MatrixIdentity();
     DescribedBuffer idenbuffer = GenStorageBuffer(&iden, sizeof(Matrix));
     DescribedBuffer libufs = GenStorageBuffer(&libuf, sizeof(LightBuffer));
-    std::string resourceDirectoryPath = std::string("../resources");// + FindDirectory("resources", 3);
+    std::string resourceDirectoryPath = FindDirectory("resources", 3);
     Model churchModel = LoadModel((resourceDirectoryPath + "/church.obj").c_str());
-    Texture cdif = LoadTextureFromImage(LoadImage("../resources/church_diffuse.png"));
+    Texture cdif = LoadTextureFromImage(LoadImage((resourceDirectoryPath + "/church_diffuse.png").c_str()));
     std::cout << churchModel.meshCount << std::endl;
     Mesh churchMesh = churchModel.meshes[0];
 
@@ -88,7 +88,7 @@ int main(){
     settings.depthTest = 1;
     settings.sampleCount_onlyApplicableIfMoreThanOne = msaa ? 4 : 1;
     settings.depthCompare = WGPUCompareFunction_LessEqual;
-    DescribedPipeline* pl = LoadPipelineForVAOEx(shaderSource, churchMesh.vao, uniforms, 5, settings);
+    DescribedPipeline* pl = LoadPipelineForVAO(shaderSource, churchMesh.vao);
     Camera3D cam = CLITERAL(Camera3D){
         .position = CLITERAL(Vector3){20,20,30},
         .target = CLITERAL(Vector3){0,0,0},
