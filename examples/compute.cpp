@@ -1,19 +1,15 @@
 #include <algorithm>
 #include <raygpu.h>
-#include <iostream>
 #include <vector>
 #include <random>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
-//#include <webgpu/webgpu_cpp.h>
-//#include <wgpustate.inc>
 const char wgsl[] = R"(
 struct VertexInput {
     @location(0) position: vec2f,
     @location(1) offset: vec2f
 };
-
 struct VertexOutput {
     @builtin(position) position: vec4f
 };
@@ -34,7 +30,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 const char computeSource[] = R"(
 @group(0) @binding(0) var<storage,read_write> posBuffer: array<vec2<f32>>;
 @group(0) @binding(1) var<storage,read> velBuffer: array<vec2<f32>>;
-//@group(0) @binding(2) var<storage,read_write> outputPosBuffer: array<vec2<f32>>;
+
 @compute
 @workgroup_size(64, 1, 1)
 fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
@@ -54,8 +50,6 @@ constexpr bool headless = false;
 
 constexpr size_t parts = (1 << 18);
 void mainloop(void){
-
-    
     BeginDrawing();
     BeginComputepass();
     BindComputePipeline(cpl);
@@ -84,7 +78,8 @@ int main(){
         SetConfigFlags(FLAG_HEADLESS);
     RequestLimit(maxBufferSize, 1ull << 30);
     InitWindow(2560, 1440, "Compute Shader");
-    //SetTargetFPS(100000);
+
+
     UniformDescriptor computeUniforms[] = {
         UniformDescriptor{.type = storage_write_buffer, .minBindingSize = 8, .location = 0},
         UniformDescriptor{.type = storage_buffer,       .minBindingSize = 8      , .location = 1},
@@ -103,6 +98,7 @@ int main(){
 
         vel[i] = Vector2{std::cos(arg) * mag, std::sin(arg) * mag};
     }
+    //Vertex Coordinates for a square
     float quadpos[8] = {
         0,0,
         1,0,
@@ -117,29 +113,14 @@ int main(){
     // GenBufferEx is required for Vertex and Storage Buffer Usage
     positions = GenBufferEx(pos.data(), pos.size() * sizeof(Vector2), WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
     velocities = GenBufferEx(vel.data(), vel.size() * sizeof(Vector2), WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst);
-    
-    
-    WGPUBindGroupEntry bge[2] = {
-        WGPUBindGroupEntry{},
-        WGPUBindGroupEntry{}
-    };
 
     SetBindgroupStorageBuffer(&cpl->bindGroup, 0, &positions);
     SetBindgroupStorageBuffer(&cpl->bindGroup, 1, &velocities);
-    //bge[0].binding = 0;
-    //bge[0].buffer  = positions.buffer;
-    //bge[0].size    = positions.descriptor.size;
-    //bge[1].binding = 1;
-    //bge[1].buffer  = velocities.buffer;
-    //bge[1].size    = velocities.descriptor.size;
-    //cpl->bindGroup = LoadBindGroup(&cpl->bglayout, bge, 2);
-    
+
     vao = LoadVertexArray();
     VertexAttribPointer(vao, &quad, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
     VertexAttribPointer(vao, &positions, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Instance);
-    rpl = LoadPipelineForVAOEx(wgsl, vao, 0, 0, GetDefaultSettings());
-
-
+    rpl = LoadPipeline(wgsl);
 
     #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainloop, 0, 0);
