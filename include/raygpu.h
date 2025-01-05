@@ -167,7 +167,9 @@ typedef struct Mesh {
     // WebGPU identifiers
     VertexArray* vao;
     DescribedBuffer *vbos;
-    DescribedBuffer ibo; //Index buffer object, optional
+    DescribedBuffer ibo;              //Index buffer object, optional
+    DescribedBuffer boneMatrixBuffer; //Storage buffer
+    WGPUVertexFormat boneIDFormat;    //Either WGPUVertexFormat_Uint8 or -16;
 } Mesh;
 
 typedef struct BoneInfo {
@@ -902,6 +904,9 @@ EXTERN_C_BEGIN
     void DrawArraysIndexedInstanced(WGPUPrimitiveTopology drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount, uint32_t instanceCount);
 
     Material LoadMaterialDefault(cwoid);
+    ModelAnimation *LoadModelAnimations(const char *fileName, int *animCount);
+    void UpdateModelAnimationBones(Model model, ModelAnimation anim, int frame);
+    void UpdateModelAnimation(Model model, ModelAnimation anim, int frame);
     Model LoadModel(const char *fileName);                                                // Load model from files (meshes and materials)
     Model LoadModelFromMesh(Mesh mesh);                                                   // Load model from generated mesh (default material)
     bool IsModelValid(Model model);                                                       // Check if a model is valid (loaded in GPU, VAO/VBOs)
@@ -1007,10 +1012,12 @@ EXTERN_C_BEGIN
             case WGPUVertexFormat_Uint32x4:
             case WGPUVertexFormat_Sint32x4:
             return 16;
-            //case WGPUVertexFormat_Float16:
-            //case WGPUVertexFormat_Uint16:
-            //case WGPUVertexFormat_Sint16:
-            //return 2;
+            case WGPUVertexFormat_Float16:
+            case WGPUVertexFormat_Uint16:
+            case WGPUVertexFormat_Sint16:
+            return 2;
+            case WGPUVertexFormat_Uint8:
+            return 1;
             default:
             break;
         }

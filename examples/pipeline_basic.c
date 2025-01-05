@@ -17,10 +17,7 @@ void mainloop(cwoid){
 int main(void){
     InitWindow(800, 600, "The Render Pipeline");
     const char* resourceDirectoryPath = FindDirectory("resources", 3);
-    char dirpath[1024] = {0};
-    strcpy(dirpath, resourceDirectoryPath);
-    strcat(dirpath, "/simple_shader.wgsl");
-    char* shaderSource = LoadFileText(dirpath);
+    char* shaderSource = LoadFileText(TextFormat("%s/simple_shader.wgsl", resourceDirectoryPath));
     
     float vertices[6] = {
         0,0,

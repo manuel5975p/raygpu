@@ -84,6 +84,7 @@ int main(){
         CLITERAL(UniformDescriptor){storage_buffer, 64, 3},
         CLITERAL(UniformDescriptor){storage_buffer, 32, 4}
     };
+    
     RenderSettings settings zeroinit;
     settings.depthTest = 1;
     settings.sampleCount_onlyApplicableIfMoreThanOne = msaa ? 4 : 1;

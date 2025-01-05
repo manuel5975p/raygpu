@@ -821,7 +821,8 @@ void EndDrawing(){
     g_wgpustate.scrollPreviousFrame = g_wgpustate.scrollThisFrame;
     g_wgpustate.scrollThisFrame = Vector2{0, 0};
     std::copy(g_wgpustate.mouseButtonDown.begin(), g_wgpustate.mouseButtonDown.end(), g_wgpustate.mouseButtonDownPrevious.begin());
-    g_wgpustate.drawmutex.unlock();
+    if(!(g_wgpustate.windowFlags & FLAG_HEADLESS))
+        g_wgpustate.drawmutex.unlock();
     uint64_t nanosecondsPerFrame = std::floor(1e9 / GetTargetFPS());
     //std::cout << nanosecondsPerFrame << "\n";
     uint64_t elapsed = NanoTime() - beginframe_stmp;

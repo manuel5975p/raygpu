@@ -639,7 +639,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     samplerDesc.addressModeU = WGPUAddressMode_Repeat;
     samplerDesc.addressModeV = WGPUAddressMode_Repeat;
     samplerDesc.addressModeW = WGPUAddressMode_Repeat;
-    samplerDesc.magFilter    = WGPUFilterMode_Nearest;
+    samplerDesc.magFilter    = WGPUFilterMode_Linear;
     samplerDesc.minFilter    = WGPUFilterMode_Linear;
     samplerDesc.mipmapFilter = WGPUMipmapFilterMode_Linear;
     samplerDesc.compare      = WGPUCompareFunction_Undefined;
