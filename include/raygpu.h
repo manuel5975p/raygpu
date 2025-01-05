@@ -527,6 +527,12 @@ typedef struct AttributeAndResidence{
     bool enabled;
 }AttributeAndResidence;
 
+typedef struct SubWindow{
+    void* handle;
+    WGPUSurface surface;
+    RenderTexture frameBuffer;
+}SubWindow;
+
 typedef struct full_renderstate full_renderstate;
 typedef struct GLFWwindow GLFWwindow;
 #ifdef __cplusplus
@@ -614,8 +620,11 @@ std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> getAttrib
 
 EXTERN_C_BEGIN
     GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title);
-    void CloseWindow(cwoid);
+    void SetWindowShouldClose(cwoid);
     bool WindowShouldClose(cwoid);
+    SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* title);
+    void CloseSubWindow(SubWindow subWindow);
+
     uint32_t GetScreenWidth (cwoid);                             //Window width
     uint32_t GetScreenHeight(cwoid);                             //Window height
     uint32_t GetMonitorWidth (cwoid);                            //Monitor height
@@ -791,6 +800,9 @@ EXTERN_C_BEGIN
         nextcol.z = ((int)b) / 255.0f;
         nextcol.w = ((int)a) / 255.0f;
     }
+    static void rlColor3f(float r, float g, float b){
+        rlColor4f(r, g, b, 1.0f);
+    }
 
     static void rlTexCoord2f(float u, float v){
         nextuv.x = u;
@@ -813,6 +825,8 @@ EXTERN_C_BEGIN
 
     void BeginTextureMode(RenderTexture rtex);
     void EndTextureMode(cwoid);
+    void BeginWindowMode(SubWindow sw);
+    void EndWindowMode(cwoid);
 
     void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode);
     void BindComputePipeline(DescribedComputePipeline* pipeline);
@@ -949,6 +963,7 @@ EXTERN_C_BEGIN
     //void DrawTextureNPatch(Texture2D texture, NPatchInfo nPatchInfo, Rectangle dest, Vector2 origin, float rotation, Color tint); // Draws a texture (or part of it) that stretches or shrinks nicely
     void DrawPixel(int posX, int posY, Color color);
     void DrawPixelV(Vector2 position, Color color);
+    void DrawGrid(int slices, float spacing);
     void DrawLine(int startPosX, int startPosY, int endPosX, int endPosY, Color color);
     void DrawLineV(Vector2 startPos, Vector2 endPos, Color color);
     void DrawLineStrip(const Vector2 *points, int pointCount, Color color);

@@ -88,8 +88,8 @@ int main(void){
     //--------------------------------------------------------------------------------------
     const int screenWidth = 800;
     const int screenHeight = 600;
-    //SetConfigFlags(FLAG_HEADLESS);
-    InitWindow(screenWidth, screenHeight, "raylib [models] example - GPU skinning");
+    //SetConfigFlags(FLAG_MSAA_4X_HINT);
+    InitWindow(screenWidth, screenHeight, "Models example - GPU skinning");
 
     // Define the camera to look into our 3d world
     Camera camera zeroinit;
@@ -147,8 +147,8 @@ int main(void){
         BeginDrawing();
 
             ClearBackground(DARKBROWN);
-            BeginPipelineMode(skinningShader);
             BeginMode3D(camera);
+            BeginPipelineMode(skinningShader);
                 
                 // Draw character mesh, pose calculation is done in shader (GPU skinning)
                 BufferData(&characterModel.meshes[0].boneMatrixBuffer, characterModel.meshes[0].boneMatrices, sizeof(Matrix) * characterModel.meshes[0].boneCount);
@@ -158,11 +158,11 @@ int main(void){
                 DrawMesh(characterModel.meshes[0], characterModel.materials[1], MatrixIdentity());
                 //std::cout << characterModel.transform << "\n";
 
-                //DrawGrid(10, 1.0f);
                 
-            EndMode3D();
+                
             EndPipelineMode();
-
+            DrawGrid(10, 1.0f);
+            EndMode3D();
             DrawText("Use the T/G to switch animation", 10, 10, 30, LIGHTGRAY);
 
         EndDrawing();

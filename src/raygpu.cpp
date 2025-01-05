@@ -1875,6 +1875,57 @@ void EndTextureMode(){
     setTargetTextures(g_wgpustate.rstate, g_wgpustate.currentScreenTextureView, colorMultisample.view, depthTexture.view);
     SetUniformBuffer(0, &g_wgpustate.defaultScreenMatrix);
 }
+extern "C" void BeginWindowMode(SubWindow sw){
+    g_wgpustate.activeSubWindow = sw;
+    WGPUSurfaceTexture surfaceTexture;
+    wgpuSurfaceGetCurrentTexture(sw.surface, &surfaceTexture);
+
+
+    WGPUTextureView nextTexture = wgpuTextureCreateView(surfaceTexture.texture,nullptr);
+    //wgpuTextureViewRelease(g_wgpustate.activeSubWindow.frameBuffer.color.view);
+    //wgpuTextureRelease(g_wgpustate.activeSubWindow.frameBuffer.color.id);
+    sw.frameBuffer.color.view = nextTexture;
+    sw.frameBuffer.color.id = surfaceTexture.texture;
+    BeginTextureMode(sw.frameBuffer);
+    BeginRenderpass();
+}
+extern "C" void EndWindowMode(){
+    EndRenderpass();
+    EndTextureMode();
+    wgpuSurfacePresent(g_wgpustate.activeSubWindow.surface);
+    return;
+
+    //Bad implementation:
+    /*drawCurrentBatch();
+    g_wgpustate.rstate->renderExtentX = GetScreenWidth();
+    g_wgpustate.rstate->renderExtentY = GetScreenHeight();
+    auto state = g_wgpustate.rstate;
+    auto& c = g_wgpustate.currentScreenTextureView;
+    auto& cms = colorMultisample.view; 
+    auto d = depthTexture.view;
+    state->color = c;
+    state->depth = d;
+    //LoadTexture
+    
+    WGPUTextureDescriptor desc{};
+    const bool multisample = g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT;
+    //if(colorMultisample.id == nullptr && multisample){
+    //    colorMultisample = LoadTexturePro(GetScreenWidth(), GetScreenHeight(), g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4);
+    //}
+    state->renderpass.rca->resolveTarget = multisample ? c : nullptr;
+    state->renderpass.rca->view = multisample ? cms : c;
+    if(state->renderpass.settings.depthTest){
+        state->renderpass.dsa->view = d;
+    }
+
+    //TODO: Not hardcode every renderpass here
+    state->clearPass.rca->view = multisample ? cms : c;
+    if(state->clearPass.settings.depthTest){
+        state->clearPass.dsa->view = d;
+    }
+    wgpuSurfacePresent(g_wgpustate.activeSubWindow.surface);*/
+    
+}
 
 extern "C" StagingBuffer GenStagingBuffer(size_t size, WGPUBufferUsage usage){
     StagingBuffer ret{};

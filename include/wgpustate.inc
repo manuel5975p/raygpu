@@ -57,4 +57,5 @@ struct wgpustate{
 
     std::mutex drawmutex;
     GIFRecordState* grst;
+    SubWindow activeSubWindow{};
 };
