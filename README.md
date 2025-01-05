@@ -147,7 +147,7 @@ BindVertexArray(pipeline, vao);
 DrawArrays(WGPUPrimitiveTopology_TriangleList, 3);
 ```
 
-See the example [pipeline_basic.c](https://github.com/manuel5975p/raygpu/tree/oofbranch/examples/pipeline_basic.c) for a complete example.
+See the example [pipeline_basic.c](https://github.com/manuel5975p/raygpu/examples/pipeline_basic.c) for a complete example.
 # More Advanced Examples
 ## Headless Window
 ```c
@@ -186,4 +186,4 @@ int main(void){
 }
 ```
 ___
-More examples can be found in [here](https://github.com/manuel5975p/raygpu/tree/oofbranch/examples).
+More examples can be found in [here](https://github.com/manuel5975p/raygpu/examples).
