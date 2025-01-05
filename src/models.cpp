@@ -141,11 +141,18 @@ void UploadMesh(Mesh *mesh, bool dynamic){
         }
     }
     if(mesh->vbos == nullptr){
-        mesh->vbos = (DescribedBuffer*)calloc(4, sizeof(DescribedBuffer));
+        mesh->vbos = (DescribedBuffer*)calloc(4 + 2 * int(mesh->boneWeights || mesh->boneIds), sizeof(DescribedBuffer));
         mesh->vbos[0] = GenBuffer(mesh->vertices , mesh->vertexCount * sizeof(float  ) * 3);
         mesh->vbos[1] = GenBuffer(mesh->texcoords, mesh->vertexCount * sizeof(float  ) * 2);
         mesh->vbos[2] = GenBuffer(mesh->normals  , mesh->vertexCount * sizeof(float  ) * 3);
         mesh->vbos[3] = GenBuffer(mesh->colors   , mesh->vertexCount * sizeof(float  ) * 4);
+        if(mesh->boneWeights){
+            mesh->vbos[4] = GenBuffer(mesh->boneWeights, mesh->vertexCount * sizeof(float) * 4);
+        }
+        if(mesh->boneIds){ //TODO: Maybe change this to uint32_t
+            mesh->vbos[5] = GenBuffer(mesh->boneIds, mesh->vertexCount * sizeof(float) * 4);
+        }
+
         if(mesh->indices){
             mesh->ibo = GenIndexBuffer(mesh->indices, mesh->triangleCount * 3 * sizeof(uint32_t));
         }
@@ -158,6 +165,17 @@ void UploadMesh(Mesh *mesh, bool dynamic){
         EnableVertexAttribArray(mesh->vao, 2);
         VertexAttribPointer(mesh->vao, &mesh->vbos[3], 3, WGPUVertexFormat_Float32x4, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
         EnableVertexAttribArray(mesh->vao, 3);
+        if(mesh->boneWeights){
+            VertexAttribPointer(mesh->vao, &mesh->vbos[4], 4, WGPUVertexFormat_Float32x4, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
+            EnableVertexAttribArray(mesh->vao, 4);
+        }
+        if(mesh->boneIds){
+            VertexAttribPointer(mesh->vao, &mesh->vbos[5], 5, mesh->boneIDFormat, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
+            EnableVertexAttribArray(mesh->vao, 5);
+        }
+        if(mesh->boneMatrices){
+            mesh->boneMatrixBuffer = GenStorageBuffer(mesh->boneMatrices, sizeof(Matrix) * mesh->boneCount);
+        }
     }
     else{
         BufferData(&mesh->vbos[0], mesh->vertices , mesh->vertexCount * sizeof(float  ) * 3);
@@ -1479,6 +1497,7 @@ Model LoadGLTF(const char *fileName)
                     worldTransform[2], worldTransform[6], worldTransform[10], worldTransform[14],
                     worldTransform[3], worldTransform[7], worldTransform[11], worldTransform[15]
                 };
+                worldMatrix = MatrixTranspose(worldMatrix);
                 MatrixDecompose(worldMatrix, &(model.bindPose[i].translation), &(model.bindPose[i].rotation), &(model.bindPose[i].scale));
             }
         }
@@ -1525,31 +1544,19 @@ Model LoadGLTF(const char *fileName)
 
                                 // Load attribute: vec4, u8 (unsigned char)
                                 LOAD_ATTRIBUTE(attribute, 4, unsigned char, model.meshes[meshIndex].boneIds)
+                                model.meshes[meshIndex].boneIDFormat = WGPUVertexFormat_Uint8x4;
                             }
                             else if (attribute->component_type == cgltf_component_type_r_16u)
                             {
                                 // Init raylib mesh boneIds to copy glTF attribute data
-                                model.meshes[meshIndex].boneIds = (unsigned char*)RL_CALLOC(model.meshes[meshIndex].vertexCount*4, sizeof(unsigned char));
+                                //model.meshes[meshIndex].boneIds = (unsigned char*)RL_CALLOC(model.meshes[meshIndex].vertexCount*4, sizeof(unsigned char));
 
                                 // Load data into a temp buffer to be converted to raylib data type
-                                unsigned short *temp = (unsigned short*)RL_CALLOC(model.meshes[meshIndex].vertexCount*4, sizeof(unsigned short));
-                                LOAD_ATTRIBUTE(attribute, 4, unsigned short, temp)
+                                model.meshes[meshIndex].boneIds = (unsigned char*)RL_CALLOC(model.meshes[meshIndex].vertexCount*4, sizeof(unsigned short));
+                                
+                                LOAD_ATTRIBUTE(attribute, 4, unsigned short, model.meshes[meshIndex].boneIds)
 
-                                // Convert data to raylib color data type (4 bytes)
-                                bool boneIdOverflowWarning = false;
-                                for (int b = 0; b < model.meshes[meshIndex].vertexCount*4; b++)
-                                {
-                                    if ((temp[b] > 255) && !boneIdOverflowWarning)
-                                    {
-                                        TRACELOG(LOG_WARNING, "MODEL: [%s] Joint attribute data format (u16) overflow", fileName);
-                                        boneIdOverflowWarning = true;
-                                    }
-
-                                    // Despite the possible overflow, we convert data to unsigned char
-                                    model.meshes[meshIndex].boneIds[b] = (unsigned char)temp[b];
-                                }
-
-                                RL_FREE(temp);
+                                model.meshes[meshIndex].boneIDFormat = WGPUVertexFormat_Uint16x4;
                             }
                             else TRACELOG(LOG_WARNING, "MODEL: [%s] Joint attribute data format not supported", fileName);
                         }
@@ -1639,6 +1646,160 @@ Model LoadGLTF(const char *fileName)
     UnloadFileData(fileData);
 
     return model;
+}
+
+// Update model animated bones transform matrices for a given frame
+// NOTE: Updated data is not uploaded to GPU but kept at model.meshes[i].boneMatrices[boneId],
+// to be uploaded to shader at drawing, in case GPU skinning is enabled
+void UpdateModelAnimationBones(Model model, ModelAnimation anim, int frame)
+{
+    if ((anim.frameCount > 0) && (anim.bones != NULL) && (anim.framePoses != NULL))
+    {
+        if (frame >= anim.frameCount) frame = frame%anim.frameCount;
+
+        // Get first mesh which have bones
+        int firstMeshWithBones = -1;
+
+        for (int i = 0; i < model.meshCount; i++)
+        {
+            if (model.meshes[i].boneMatrices)
+            {
+                if (firstMeshWithBones == -1)
+                {
+                    firstMeshWithBones = i;
+                    break;
+                }
+            }
+        }
+
+        // Update all bones and boneMatrices of first mesh with bones.
+        for (int boneId = 0; boneId < anim.boneCount; boneId++)
+        {
+            Vector3 inTranslation = model.bindPose[boneId].translation;
+            Quaternion inRotation = model.bindPose[boneId].rotation;
+            Vector3 inScale = model.bindPose[boneId].scale;
+
+            Vector3 outTranslation = anim.framePoses[frame][boneId].translation;
+            Quaternion outRotation = anim.framePoses[frame][boneId].rotation;
+            Vector3 outScale = anim.framePoses[frame][boneId].scale;
+
+            Quaternion invRotation = QuaternionInvert(inRotation);
+            Vector3 invTranslation = Vector3RotateByQuaternion(Vector3Negate(inTranslation), invRotation);
+            Vector3 invScale = Vector3Divide(CLITERAL(Vector3){ 1.0f, 1.0f, 1.0f }, inScale);
+
+            Vector3 boneTranslation = Vector3Add(Vector3RotateByQuaternion(
+                Vector3Multiply(outScale, invTranslation), outRotation), outTranslation);
+            Quaternion boneRotation = QuaternionMultiply(outRotation, invRotation);
+            Vector3 boneScale = Vector3Multiply(outScale, invScale);
+
+            Matrix boneMatrix = (MatrixMultiplySwap(MatrixMultiplySwap(
+                QuaternionToMatrix(boneRotation),
+                MatrixTranslate(boneTranslation.x, boneTranslation.y, boneTranslation.z)),
+                MatrixScale(boneScale.x, boneScale.y, boneScale.z)));
+
+            model.meshes[firstMeshWithBones].boneMatrices[boneId] = boneMatrix;
+        }
+
+        // Update remaining meshes with bones
+        // NOTE: Using deep copy because shallow copy results in double free with 'UnloadModel()'
+        if (firstMeshWithBones != -1)
+        {
+            for (int i = firstMeshWithBones + 1; i < model.meshCount; i++)
+            {
+                if (model.meshes[i].boneMatrices)
+                {
+                    memcpy(model.meshes[i].boneMatrices,
+                        model.meshes[firstMeshWithBones].boneMatrices,
+                        model.meshes[i].boneCount*sizeof(model.meshes[i].boneMatrices[0]));
+                }
+            }
+        }
+    }
+}
+
+// at least 2x speed up vs the old method
+// Update model animated vertex data (positions and normals) for a given frame
+// NOTE: Updated data is uploaded to GPU
+void UpdateModelAnimation(Model model, ModelAnimation anim, int frame)
+{
+    UpdateModelAnimationBones(model,anim,frame);
+
+    for (int m = 0; m < model.meshCount; m++)
+    {
+        Mesh mesh = model.meshes[m];
+        Vector3 animVertex zeroinit;
+        Vector3 animNormal zeroinit;
+        int boneId = 0;
+        int boneCounter = 0;
+        float boneWeight = 0.0;
+        bool updated = false; // Flag to check when anim vertex information is updated
+        const int vValues = mesh.vertexCount*3;
+
+        // Skip if missing bone data, causes segfault without on some models
+        if ((mesh.boneWeights == NULL) || (mesh.boneIds == NULL)) continue;
+
+        for (int vCounter = 0; vCounter < vValues; vCounter += 3)
+        {
+            mesh.animVertices[vCounter] = 0;
+            mesh.animVertices[vCounter + 1] = 0;
+            mesh.animVertices[vCounter + 2] = 0;
+            if (mesh.animNormals != NULL)
+            {
+                mesh.animNormals[vCounter] = 0;
+                mesh.animNormals[vCounter + 1] = 0;
+                mesh.animNormals[vCounter + 2] = 0;
+            }
+
+            // Iterates over 4 bones per vertex
+            for (int j = 0; j < 4; j++, boneCounter++)
+            {
+                boneWeight = mesh.boneWeights[boneCounter];
+                boneId = mesh.boneIds[boneCounter];
+
+                // Early stop when no transformation will be applied
+                if (boneWeight == 0.0f) continue;
+                animVertex = CLITERAL(Vector3){ mesh.vertices[vCounter], mesh.vertices[vCounter + 1], mesh.vertices[vCounter + 2] };
+                animVertex = Vector3Transform(animVertex,model.meshes[m].boneMatrices[boneId]);
+                mesh.animVertices[vCounter] += animVertex.x*boneWeight;
+                mesh.animVertices[vCounter+1] += animVertex.y*boneWeight;
+                mesh.animVertices[vCounter+2] += animVertex.z*boneWeight;
+                updated = true;
+
+                // Normals processing
+                // NOTE: We use meshes.baseNormals (default normal) to calculate meshes.normals (animated normals)
+                if ((mesh.normals != NULL) && (mesh.animNormals != NULL ))
+                {
+                    animNormal = CLITERAL(Vector3){ mesh.normals[vCounter], mesh.normals[vCounter + 1], mesh.normals[vCounter + 2] };
+                    animNormal = Vector3Transform(animNormal, MatrixTranspose(MatrixInvert(model.meshes[m].boneMatrices[boneId])));
+                    mesh.animNormals[vCounter] += animNormal.x*boneWeight;
+                    mesh.animNormals[vCounter + 1] += animNormal.y*boneWeight;
+                    mesh.animNormals[vCounter + 2] += animNormal.z*boneWeight;
+                }
+            }
+        }
+
+        if (updated)
+        {
+            BufferData(&(mesh.vbos[0]), mesh.animVertices, mesh.vertexCount * 3 * sizeof(float)); // Update vertex position
+            if (mesh.normals != NULL) BufferData(&(mesh.vbos[2]), mesh.animNormals, mesh.vertexCount * 3 * sizeof(float)); // Update vertex normals
+        }
+    }
+}
+// Load model animations from file
+ModelAnimation *LoadModelAnimations(const char *fileName, int *animCount){
+    ModelAnimation *animations = NULL;
+
+#if defined(SUPPORT_FILEFORMAT_IQM)
+    if (IsFileExtension(fileName, ".iqm")) animations = LoadModelAnimationsIQM(fileName, animCount);
+#endif
+#if defined(SUPPORT_FILEFORMAT_M3D)
+    if (IsFileExtension(fileName, ".m3d")) animations = LoadModelAnimationsM3D(fileName, animCount);
+#endif
+#if defined(SUPPORT_FILEFORMAT_GLTF)
+#endif
+    if (IsFileExtension(fileName, ".gltf;.glb")) animations = LoadModelAnimationsGLTF(fileName, animCount);
+
+    return animations;
 }
 
 Model LoadModel(const char *fileName){

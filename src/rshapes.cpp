@@ -363,7 +363,7 @@ void DrawCircleSector(Vector2 center, float radius, float startAngle, float endA
 
     //rlSetTexture(0);
 #else
-    rlBegin(RL_TRIANGLE_STRIP);
+    rlBegin(RL_TRIANGLES);
         for (int i = 0; i < segments; i++)
         {
             rlColor4ub(color.r, color.g, color.b, color.a);

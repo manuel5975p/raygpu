@@ -50,7 +50,7 @@ DescribedBuffer positions;
 DescribedBuffer velocities;
 DescribedBuffer positionsnew;
 
-constexpr bool headless = true;
+constexpr bool headless = false;
 
 constexpr size_t parts = (1 << 18);
 void mainloop(void){

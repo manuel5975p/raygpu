@@ -325,11 +325,42 @@ MAPI int FloatEquals(float x, float y){
 
     return result;
 }
+
+MAPI Matrix QuaternionToMatrix(Quaternion q)
+{
+    Matrix result = { 1.0f, 0.0f, 0.0f, 0.0f,
+                      0.0f, 1.0f, 0.0f, 0.0f,
+                      0.0f, 0.0f, 1.0f, 0.0f,
+                      0.0f, 0.0f, 0.0f, 1.0f }; // MatrixIdentity()
+
+    float a2 = q.x * q.x;
+    float b2 = q.y * q.y;
+    float c2 = q.z * q.z;
+    float ac = q.x * q.z;
+    float ab = q.x * q.y;
+    float bc = q.y * q.z;
+    float ad = q.w * q.x;
+    float bd = q.w * q.y;
+    float cd = q.w * q.z;
+
+    result.data[0] = 1 - 2*(b2 + c2);
+    result.data[1] = 2*(ab + cd);
+    result.data[2] = 2*(ac - bd);
+
+    result.data[4] = 2*(ab - cd);
+    result.data[5] = 1 - 2*(a2 + c2);
+    result.data[6] = 2*(bc + ad);
+
+    result.data[8] = 2*(ac + bd);
+    result.data[9] = 2*(bc - ad);
+    result.data[10] = 1 - 2*(a2 + b2);
+
+    return result;
+}
+
+
+
 // Get a quaternion for a given rotation matrix
-
-
-
-
 MAPI Quaternion QuaternionFromMatrix(Matrix mat)
 {
     Quaternion result zeroinit;
@@ -779,7 +810,12 @@ MAPI Vector3 Vector3Multiply(Vector3 v1, Vector3 v2)
     Vector3 result = { v1.x*v2.x, v1.y*v2.y, v1.z*v2.z };
     return result;
 }
+MAPI Vector3 Vector3Divide(Vector3 v1, Vector3 v2)
+{
+    Vector3 result = { v1.x/v2.x, v1.y/v2.y, v1.z/v2.z };
 
+    return result;
+}
 // Calculate cubic hermite interpolation between two vectors and their tangents
 // as described in the GLTF 2.0 specification: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#interpolation-cubic
 MAPI Vector3 Vector3CubicHermite(Vector3 v1, Vector3 tangent1, Vector3 v2, Vector3 tangent2, float amount)
@@ -869,7 +905,7 @@ MAPI Vector3 Vector3Unproject(Vector3 source, Matrix projection, Matrix view)
     Vector3 result zeroinit;
 
     // Calculate unprojected matrix (multiply view matrix by projection matrix) and invert it
-    Matrix matViewProj = MatrixMultiply(view, projection);
+    Matrix matViewProj = MatrixMultiplySwap(view, projection);
 
     // Calculate inverted matrix -> MatrixInvert(matViewProj);
     // Cache the matrix values (speed optimization)
@@ -1449,11 +1485,25 @@ MAPI Vector3 operator*(const Matrix& m, const Vector3 v){
     ret.z += m.data[14];
     return ret;
 }
+MAPI std::ostream& operator<<(std::ostream& str, const Vector2& r){
+    str << "["; 
+    str << r.x << ", ";
+    str << r.y << ", ";
+    return str << "]"; 
+}
 MAPI std::ostream& operator<<(std::ostream& str, const Vector3& r){
     str << "["; 
     str << r.x << ", ";
     str << r.y << ", ";
     str << r.z << ", ";
+    return str << "]"; 
+}
+MAPI std::ostream& operator<<(std::ostream& str, const Vector4& r){
+    str << "["; 
+    str << r.x << ", ";
+    str << r.y << ", ";
+    str << r.z << ", ";
+    str << r.w << ", ";
     return str << "]"; 
 }
 MAPI std::ostream& operator<<(std::ostream& str, const Matrix& m){
