@@ -22,7 +22,7 @@
 #include <emscripten/html5.h>
 #include <emscripten/emscripten.h>
 #endif  // __EMSCRIPTEN__
-wgpustate g_wgpustate;
+wgpustate g_wgpustate{};
 
 Image fbLoad zeroinit;
 wgpu::Buffer readtex zeroinit;
@@ -742,9 +742,23 @@ RenderTexture headless_rtex;
 void BeginDrawing(){
     g_wgpustate.last_timestamps[g_wgpustate.total_frames % 64] = NanoTime();
     if(g_wgpustate.windowFlags & FLAG_HEADLESS){
+        UnloadTexture(headless_rtex.color);
+        if(headless_rtex.colorMultisample.id){
+            UnloadTexture(headless_rtex.colorMultisample);
+        }
+        UnloadTexture(headless_rtex.depth);
+
         headless_rtex = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
         setTargetTextures(g_wgpustate.rstate, headless_rtex.color.view, headless_rtex.colorMultisample.view, headless_rtex.depth.view);
-    }else{
+        g_wgpustate.currentScreenTexture = headless_rtex.color.id;
+        g_wgpustate.currentScreenTextureView = headless_rtex.color.view;
+    }
+    else{
+        if(g_wgpustate.currentScreenTextureView)
+            wgpuTextureViewRelease(g_wgpustate.currentScreenTextureView);
+        if(g_wgpustate.currentScreenTexture)
+            wgpuTextureRelease(g_wgpustate.currentScreenTexture);
+
         g_wgpustate.drawmutex.lock();
         g_wgpustate.rstate->renderExtentX = GetScreenWidth();
         g_wgpustate.rstate->renderExtentY = GetScreenHeight();
@@ -776,13 +790,7 @@ void EndDrawing(){
         drawCurrentBatch();
         EndRenderpassEx(g_wgpustate.rstate->activeRenderpass);
     }
-    if(g_wgpustate.windowFlags & FLAG_HEADLESS){
-        char b[32];
-        snprintf(b, 32, "frame%04d.png", (int)g_wgpustate.total_frames);
-        Image scrimage = LoadImageFromTexture(headless_rtex.color);
-        SaveImage(scrimage, b);
-        UnloadImage(scrimage);
-    }
+    
     if(g_wgpustate.grst->recording){
         uint64_t stmp = NanoTime();
         if(stmp - g_wgpustate.grst->lastFrameTimestamp > g_wgpustate.grst->delayInCentiseconds * 10000000ull){
@@ -798,21 +806,11 @@ void EndDrawing(){
     //WGPUSurfaceTexture surfaceTexture;
     //wgpuSurfaceGetCurrentTexture(g_wgpustate.surface, &surfaceTexture);
     
-    if(g_wgpustate.windowFlags & FLAG_HEADLESS){
-        
-        UnloadTexture(headless_rtex.color);
-        if(headless_rtex.colorMultisample.id){
-            UnloadTexture(headless_rtex.colorMultisample);
-        }
-        UnloadTexture(headless_rtex.depth);
-    }
-    else{
+    
+    if(!(g_wgpustate.windowFlags & FLAG_HEADLESS)){
         #ifndef __EMSCRIPTEN__
         g_wgpustate.surface.Present();
         #endif
-        wgpuTextureViewRelease(g_wgpustate.currentScreenTextureView);
-        wgpuTextureRelease(g_wgpustate.currentScreenTexture);
-        
     }
     uint64_t beginframe_stmp = g_wgpustate.last_timestamps[g_wgpustate.total_frames % 64];
     ++g_wgpustate.total_frames;
@@ -1791,10 +1789,10 @@ void SaveImage(Image img, const char* filepath){
         ocols[i].a = 255;
     }
     if(fp.ends_with(".png")){
-        stbi_write_png(filepath, img.width, img.height, 4, ocols, img.width * sizeof(Color));
+        stbi_write_png(filepath, img.width, img.height, 4, ocols, stride);
     }
     else if(fp.ends_with(".jpg")){
-        stbi_write_jpg(filepath, img.width, img.height, 4, ocols, stride);
+        stbi_write_jpg(filepath, img.width, img.height, 4, ocols, 100);
     }
     else if(fp.ends_with(".bmp")){
         //if(row)
@@ -1802,7 +1800,7 @@ void SaveImage(Image img, const char* filepath){
         stbi_write_bmp(filepath, img.width, img.height, 4, ocols);
     }
     else{
-        std::cerr << "Unrecognized image format in filename " << filepath << "\n";
+        TRACELOG(LOG_ERROR, "Unrecognized image format in filename %s", filepath);
     }
 }
 void UseTexture(Texture tex){
@@ -1972,6 +1970,9 @@ extern "C" void SetTargetFPS(int fps){
 }
 extern "C" int GetTargetFPS(){
     return g_wgpustate.targetFPS;
+}
+extern "C" uint64_t GetFrameCount(){
+    return g_wgpustate.total_frames;
 }
 //TODO: this is bad
 extern "C" float GetFrameTime(){

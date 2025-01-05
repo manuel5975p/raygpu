@@ -49,7 +49,10 @@ DescribedBuffer quad;
 DescribedBuffer positions;
 DescribedBuffer velocities;
 DescribedBuffer positionsnew;
-constexpr size_t parts = (1 << 23);
+
+constexpr bool headless = true;
+
+constexpr size_t parts = (1 << 18);
 void mainloop(void){
 
     
@@ -67,11 +70,20 @@ void mainloop(void){
 
     DrawFPS(10, 10);
     EndDrawing();
+    if(headless){
+        char b[64] = {0};
+
+        snprintf(b, 64, "frame%04d.bmp", (int)GetFrameCount());
+        TRACELOG(LOG_INFO, "Saving screenshot %s", b);
+        TakeScreenshot(b);
+    }
 }
 int main(){
     SetConfigFlags(FLAG_MSAA_4X_HINT);
+    if(headless)
+        SetConfigFlags(FLAG_HEADLESS);
     RequestLimit(maxBufferSize, 1ull << 30);
-    InitWindow(1600, 900, "Compute Shader");
+    InitWindow(2560, 1440, "Compute Shader");
     //SetTargetFPS(100000);
     UniformDescriptor computeUniforms[] = {
         UniformDescriptor{.type = storage_write_buffer, .minBindingSize = 8, .location = 0},
@@ -87,11 +99,16 @@ int main(){
     //});
     for(size_t i = 0;i < parts;i++){
         float arg = M_PI * (dis(gen) + 1);
-        float mag = std::sqrt(dis(gen)) * 0.003f;
+        float mag = std::sqrt(dis(gen)) * 0.03f;
 
         vel[i] = Vector2{std::cos(arg) * mag, std::sin(arg) * mag};
     }
-    float quadpos[8] = {0,0,1,0,1,1,0,1};
+    float quadpos[8] = {
+        0,0,
+        1,0,
+        0,1,
+        1,1
+    };
     for(int i = 0;i < 8;i++){
         quadpos[i] *= 0.003f;
     }
@@ -120,11 +137,7 @@ int main(){
     vao = LoadVertexArray();
     VertexAttribPointer(vao, &quad, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
     VertexAttribPointer(vao, &positions, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Instance);
-    RenderSettings settings{};
-    settings.depthTest = 1;
-    settings.sampleCount_onlyApplicableIfMoreThanOne = 4;
-    settings.depthCompare = WGPUCompareFunction_Always;
-    rpl = LoadPipelineForVAOEx(wgsl, vao, 0, 0, settings);
+    rpl = LoadPipelineForVAOEx(wgsl, vao, 0, 0, GetDefaultSettings());
 
 
 

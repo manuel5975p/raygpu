@@ -200,6 +200,15 @@ typedef struct Model {
     BoneInfo *bones;        // Bones information (skeleton)
     Transform *bindPose;    // Bones base transformation (pose)
 } Model;
+// ModelAnimation
+
+typedef struct ModelAnimation {
+    int boneCount;          // Number of bones
+    int frameCount;         // Number of animation frames
+    BoneInfo *bones;        // Bones information (skeleton)
+    Transform **framePoses; // Poses array by frame
+    char name[32];          // Animation name
+} ModelAnimation;
 
 typedef struct BoundingBox {
     Vector3 min;            // Minimum vertex box-corner
@@ -653,6 +662,7 @@ EXTERN_C_BEGIN
     void SetConfigFlags(WindowFlag flag);
     void SetTargetFPS(int fps);                                 // Set target FPS (maximum)
     int GetTargetFPS(cwoid);
+    uint64_t GetFrameCount(cwoid);
     float GetFrameTime(cwoid);                                  // Get time in seconds for last frame drawn (delta time)
     void DrawFPS(int posX, int posY);                           // Draw current FPS
     void NanoWait(uint64_t time);
