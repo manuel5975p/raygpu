@@ -774,7 +774,7 @@ void ToggleFullscreen(){
     //glfwSetWindowMonitor(g_wgpustate.window, glfwGetPrimaryMonitor(), 0, 0, vm->width, vm->height, vm->refreshRate);
     //depthTexture = LoadDepthTexture(1920, 1200);
 }
-void CloseWindow(cwoid){
+void SetWindowShouldClose(cwoid){
     glfwSetWindowShouldClose(g_wgpustate.window, GLFW_TRUE);
 }
 int GetCurrentMonitor(){
@@ -863,6 +863,30 @@ int GetCurrentMonitor(){
 
     return index;
 }
+
+extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* title){
+    SubWindow ret{};
+    ret.handle = glfwCreateWindow(width, height, title, nullptr, nullptr);
+    wgpu::Surface secondSurface = wgpu::glfw::CreateSurfaceForWindow(GetInstance(), (GLFWwindow*)ret.handle);
+    wgpu::SurfaceCapabilities capabilities;
+    secondSurface.GetCapabilities(GetCXXAdapter(), &capabilities);
+    wgpu::SurfaceConfiguration config = {};
+    config.device = GetCXXDevice();
+    config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
+    config.format = (wgpu::TextureFormat)g_wgpustate.frameBufferFormat;
+    config.presentMode = wgpu::PresentMode::Immediate;
+    config.width = width;
+    config.height = height;
+    secondSurface.Configure(&config);
+    ret.surface = secondSurface.MoveToCHandle();
+    ret.frameBuffer = LoadRenderTexture(config.width, config.height);
+    return ret;
+}
+
+extern "C" void CloseSubWindow(SubWindow subWindow){
+    glfwWindowShouldClose((GLFWwindow*)subWindow.handle);
+}
+
 
 const std::unordered_map<WGPUTextureFormat, std::string> textureFormatSpellingTable = [](){
     std::unordered_map<WGPUTextureFormat, std::string> map;

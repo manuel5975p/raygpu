@@ -177,6 +177,31 @@ void DrawPixelV(Vector2 position, Color color)
 #endif
 }
 
+void DrawGrid(int slices, float spacing)
+{
+    int halfSlices = slices/2;
+
+    rlBegin(RL_LINES);
+        for (int i = -halfSlices; i <= halfSlices; i++)
+        {
+            if (i == 0)
+            {
+                rlColor3f(0.5f, 0.5f, 0.5f);
+            }
+            else
+            {
+                rlColor3f(0.75f, 0.75f, 0.75f);
+            }
+
+            rlVertex3f((float)i*spacing, 0.0f, (float)-halfSlices*spacing);
+            rlVertex3f((float)i*spacing, 0.0f, (float)halfSlices*spacing);
+
+            rlVertex3f((float)-halfSlices*spacing, 0.0f, (float)i*spacing);
+            rlVertex3f((float)halfSlices*spacing, 0.0f, (float)i*spacing);
+        }
+    rlEnd();
+}
+
 // Draw a line (using gl lines)
 void DrawLine(int startPosX, int startPosY, int endPosX, int endPosY, Color color)
 {
