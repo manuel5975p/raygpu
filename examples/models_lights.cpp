@@ -69,8 +69,8 @@ int main(){
                         0, 40, 0, 0};
     }libuf;
     Matrix iden = MatrixIdentity();
-    DescribedBuffer idenbuffer = GenStorageBuffer(&iden, sizeof(Matrix));
-    DescribedBuffer libufs = GenStorageBuffer(&libuf, sizeof(LightBuffer));
+    DescribedBuffer* idenbuffer = GenStorageBuffer(&iden, sizeof(Matrix));
+    DescribedBuffer* libufs = GenStorageBuffer(&libuf, sizeof(LightBuffer));
     std::string resourceDirectoryPath = FindDirectory("resources", 3);
     Model churchModel = LoadModel((resourceDirectoryPath + "/church.obj").c_str());
     Texture cdif = LoadTextureFromImage(LoadImage((resourceDirectoryPath + "/church_diffuse.png").c_str()));
@@ -115,8 +115,8 @@ int main(){
         ClearBackground(BLANK);
         BeginPipelineMode(pl);
         SetSampler(2, sampler);
-        SetStorageBuffer(3, &idenbuffer);
-        SetStorageBuffer(4, &libufs);
+        SetStorageBuffer(3, idenbuffer);
+        SetStorageBuffer(4, libufs);
         UseTexture(cdif);
         BeginMode3D(cam);
         DrawMesh(churchMesh, Material{}, MatrixIdentity());

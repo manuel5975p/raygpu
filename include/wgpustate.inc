@@ -17,18 +17,18 @@ struct wgpustate{
     draw_mode current_drawmode;
     full_renderstate* rstate;
     
-    std::vector<DescribedBuffer> smallBufferPool;
-    std::vector<DescribedBuffer> smallBufferRecyclingBin;
+    std::vector<DescribedBuffer*> smallBufferPool;
+    std::vector<DescribedBuffer*> smallBufferRecyclingBin;
 
     std::unordered_map<uint64_t, WGPUBindGroup> bindGroupPool;
     std::unordered_map<uint64_t, WGPUBindGroup> bindGroupRecyclingBin;
 
-    DescribedBuffer identityMatrix;
-    DescribedBuffer defaultScreenMatrix;
+    DescribedBuffer* identityMatrix;
+    DescribedBuffer* defaultScreenMatrix;
     DescribedSampler defaultSampler;
     Matrix activeScreenMatrix;
     
-    DescribedBuffer quadindicesCache{};
+    DescribedBuffer* quadindicesCache{};
 
     Texture whitePixel;
 

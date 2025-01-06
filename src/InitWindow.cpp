@@ -471,7 +471,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
             );
             g_wgpustate.surface.Configure(&config);
             Matrix newcamera = ScreenMatrix(width, height);
-            BufferData(&g_wgpustate.defaultScreenMatrix, &newcamera, sizeof(Matrix));
+            BufferData(g_wgpustate.defaultScreenMatrix, &newcamera, sizeof(Matrix));
 
             setTargetTextures(g_wgpustate.rstate, g_wgpustate.rstate->color, colorMultisample.view, depthTexture.view);
             //updateRenderPassDesc(g_wgpustate.rstate);
@@ -630,7 +630,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     Matrix m = ScreenMatrix(width, height);
     static_assert(sizeof(Matrix) == 64, "non 4 byte floats? or what");
     g_wgpustate.defaultScreenMatrix = GenUniformBuffer(&m, sizeof(Matrix));
-    SetUniformBuffer(0, &g_wgpustate.defaultScreenMatrix);
+    SetUniformBuffer(0, g_wgpustate.defaultScreenMatrix);
     SetTexture(1, g_wgpustate.whitePixel);
     Matrix iden = MatrixIdentity();
     SetStorageBufferData(3, &iden, 64);

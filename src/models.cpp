@@ -141,7 +141,7 @@ void UploadMesh(Mesh *mesh, bool dynamic){
         }
     }
     if(mesh->vbos == nullptr){
-        mesh->vbos = (DescribedBuffer*)calloc(4 + 2 * int(mesh->boneWeights || mesh->boneIds), sizeof(DescribedBuffer));
+        mesh->vbos = (DescribedBuffer**)calloc(4 + 2 * int(mesh->boneWeights || mesh->boneIds), sizeof(DescribedBuffer*));
         mesh->vbos[0] = GenBuffer(mesh->vertices , mesh->vertexCount * sizeof(float  ) * 3);
         mesh->vbos[1] = GenBuffer(mesh->texcoords, mesh->vertexCount * sizeof(float  ) * 2);
         mesh->vbos[2] = GenBuffer(mesh->normals  , mesh->vertexCount * sizeof(float  ) * 3);
@@ -157,20 +157,20 @@ void UploadMesh(Mesh *mesh, bool dynamic){
             mesh->ibo = GenIndexBuffer(mesh->indices, mesh->triangleCount * 3 * sizeof(uint32_t));
         }
         mesh->vao = LoadVertexArray();
-        VertexAttribPointer(mesh->vao, &mesh->vbos[0], 0, WGPUVertexFormat_Float32x3, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
+        VertexAttribPointer(mesh->vao, mesh->vbos[0], 0, WGPUVertexFormat_Float32x3, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
         EnableVertexAttribArray(mesh->vao, 0);
-        VertexAttribPointer(mesh->vao, &mesh->vbos[1], 1, WGPUVertexFormat_Float32x2, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
+        VertexAttribPointer(mesh->vao, mesh->vbos[1], 1, WGPUVertexFormat_Float32x2, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
         EnableVertexAttribArray(mesh->vao, 1);
-        VertexAttribPointer(mesh->vao, &mesh->vbos[2], 2, WGPUVertexFormat_Float32x3, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
+        VertexAttribPointer(mesh->vao, mesh->vbos[2], 2, WGPUVertexFormat_Float32x3, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
         EnableVertexAttribArray(mesh->vao, 2);
-        VertexAttribPointer(mesh->vao, &mesh->vbos[3], 3, WGPUVertexFormat_Float32x4, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
+        VertexAttribPointer(mesh->vao, mesh->vbos[3], 3, WGPUVertexFormat_Float32x4, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
         EnableVertexAttribArray(mesh->vao, 3);
         if(mesh->boneWeights){
-            VertexAttribPointer(mesh->vao, &mesh->vbos[4], 4, WGPUVertexFormat_Float32x4, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
+            VertexAttribPointer(mesh->vao, mesh->vbos[4], 4, WGPUVertexFormat_Float32x4, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
             EnableVertexAttribArray(mesh->vao, 4);
         }
         if(mesh->boneIds){
-            VertexAttribPointer(mesh->vao, &mesh->vbos[5], 5, mesh->boneIDFormat, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
+            VertexAttribPointer(mesh->vao, mesh->vbos[5], 5, mesh->boneIDFormat, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
             EnableVertexAttribArray(mesh->vao, 5);
         }
         if(mesh->boneMatrices){
@@ -178,26 +178,26 @@ void UploadMesh(Mesh *mesh, bool dynamic){
         }
     }
     else{
-        BufferData(&mesh->vbos[0], mesh->vertices , mesh->vertexCount * sizeof(float  ) * 3);
-        BufferData(&mesh->vbos[1], mesh->texcoords, mesh->vertexCount * sizeof(float  ) * 2);
-        BufferData(&mesh->vbos[2], mesh->normals  , mesh->vertexCount * sizeof(float  ) * 3);
-        BufferData(&mesh->vbos[3], mesh->colors   , mesh->vertexCount * sizeof(float  ) * 4);
+        BufferData(mesh->vbos[0], mesh->vertices , mesh->vertexCount * sizeof(float  ) * 3);
+        BufferData(mesh->vbos[1], mesh->texcoords, mesh->vertexCount * sizeof(float  ) * 2);
+        BufferData(mesh->vbos[2], mesh->normals  , mesh->vertexCount * sizeof(float  ) * 3);
+        BufferData(mesh->vbos[3], mesh->colors   , mesh->vertexCount * sizeof(float  ) * 4);
         if(mesh->indices){
-            BufferData(&mesh->ibo, mesh->indices, mesh->triangleCount * 3 * sizeof(uint32_t));
+            BufferData(mesh->ibo, mesh->indices, mesh->triangleCount * 3 * sizeof(uint32_t));
         }
     }
 }
-DescribedBuffer trfBuffer{};
+DescribedBuffer* trfBuffer = nullptr;
 extern "C" void DrawMeshInstanced(Mesh mesh, Material material, const Matrix* transforms, int instances){
-    if(trfBuffer.buffer){
-        BufferData(&trfBuffer, transforms, instances * sizeof(Matrix));
+    if(trfBuffer && trfBuffer->buffer){
+        BufferData(trfBuffer, transforms, instances * sizeof(Matrix));
     }else{
         trfBuffer = GenStorageBuffer(transforms, instances * sizeof(Matrix));
     }
-    SetPipelineStorageBuffer(GetActivePipeline(), 3, &trfBuffer);
+    SetPipelineStorageBuffer(GetActivePipeline(), 3, trfBuffer);
     BindVertexArray(GetActivePipeline(), mesh.vao);
-    if(mesh.ibo.buffer){
-        DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, mesh.ibo, mesh.triangleCount * 3, instances);
+    if(mesh.ibo->buffer){
+        DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, *mesh.ibo, mesh.triangleCount * 3, instances);
     }else{
         DrawArraysInstanced(WGPUPrimitiveTopology_TriangleList, mesh.vertexCount, instances);
     }
@@ -206,8 +206,8 @@ extern "C" void DrawMeshInstanced(Mesh mesh, Material material, const Matrix* tr
 extern "C" void DrawMesh(Mesh mesh, Material material, Matrix transform){
     SetStorageBufferData(3, &transform, sizeof(Matrix));
     BindVertexArray(GetActivePipeline(), mesh.vao);
-    if(mesh.ibo.buffer){
-        DrawArraysIndexed(WGPUPrimitiveTopology_TriangleList, mesh.ibo, mesh.triangleCount * 3);
+    if(mesh.ibo->buffer){
+        DrawArraysIndexed(WGPUPrimitiveTopology_TriangleList, *mesh.ibo, mesh.triangleCount * 3);
     }else{
         DrawArrays(WGPUPrimitiveTopology_TriangleList, mesh.vertexCount);
     }
@@ -1780,8 +1780,8 @@ void UpdateModelAnimation(Model model, ModelAnimation anim, int frame)
 
         if (updated)
         {
-            BufferData(&(mesh.vbos[0]), mesh.animVertices, mesh.vertexCount * 3 * sizeof(float)); // Update vertex position
-            if (mesh.normals != NULL) BufferData(&(mesh.vbos[2]), mesh.animNormals, mesh.vertexCount * 3 * sizeof(float)); // Update vertex normals
+            BufferData((mesh.vbos[0]), mesh.animVertices, mesh.vertexCount * 3 * sizeof(float)); // Update vertex position
+            if (mesh.normals != NULL) BufferData((mesh.vbos[2]), mesh.animNormals, mesh.vertexCount * 3 * sizeof(float)); // Update vertex normals
         }
     }
 }

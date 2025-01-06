@@ -43,10 +43,10 @@ Texture tilemap;
 Camera2D cam;
 DescribedPipeline* pl;
 VertexArray* tileVAO;
-DescribedBuffer tileVBO;
-DescribedBuffer tileIBO;
-DescribedBuffer tileOffsets;
-DescribedBuffer tileTypes;
+DescribedBuffer* tileVBO;
+DescribedBuffer* tileIBO;
+DescribedBuffer* tileOffsets;
+DescribedBuffer* tileTypes;
 int tileCount;
 
 void mainloop(){
@@ -55,7 +55,7 @@ void mainloop(){
     BeginPipelineMode(pl);
     BeginMode2D(cam);
     BindVertexArray(pl, tileVAO);
-    DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, tileIBO, 6, tileCount);
+    DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, *tileIBO, 6, tileCount);
     //DrawTexturePro(tilemap, Rectangle{0,0,(float)tilemap.width, (float)tilemap.height}, Rectangle{0,0,1000,1000}, Vector2{0,0}, 0.0f, WHITE);
     EndMode2D();
     EndPipelineMode();
@@ -121,9 +121,9 @@ int main(){
     }
     tileOffsets = GenBuffer(offsets.data(), offsets.size() * sizeof(Vector2));
     tileTypes = GenStorageBuffer(tt.data(), tt.size() * sizeof(uint32_t));
-    VertexAttribPointer(tileVAO, &tileVBO, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(tileVAO, &tileOffsets, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Instance);
-    SetPipelineStorageBuffer(pl, 3, &tileTypes);
+    VertexAttribPointer(tileVAO, tileVBO, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(tileVAO, tileOffsets, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Instance);
+    SetPipelineStorageBuffer(pl, 3, tileTypes);
     #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainloop, 0, 0);
     #else

@@ -41,10 +41,10 @@ fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
 DescribedPipeline *rpl;
 DescribedComputePipeline* cpl;
 VertexArray* vao;
-DescribedBuffer quad;
-DescribedBuffer positions;
-DescribedBuffer velocities;
-DescribedBuffer positionsnew;
+DescribedBuffer* quad;
+DescribedBuffer* positions;
+DescribedBuffer* velocities;
+DescribedBuffer* positionsnew;
 
 constexpr bool headless = false;
 
@@ -114,12 +114,12 @@ int main(){
     positions = GenBufferEx(pos.data(), pos.size() * sizeof(Vector2), WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
     velocities = GenBufferEx(vel.data(), vel.size() * sizeof(Vector2), WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst);
 
-    SetBindgroupStorageBuffer(&cpl->bindGroup, 0, &positions);
-    SetBindgroupStorageBuffer(&cpl->bindGroup, 1, &velocities);
+    SetBindgroupStorageBuffer(&cpl->bindGroup, 0, positions);
+    SetBindgroupStorageBuffer(&cpl->bindGroup, 1, velocities);
 
     vao = LoadVertexArray();
-    VertexAttribPointer(vao, &quad, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(vao, &positions, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Instance);
+    VertexAttribPointer(vao, quad, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, positions, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Instance);
     rpl = LoadPipeline(wgsl);
 
     #ifdef __EMSCRIPTEN__

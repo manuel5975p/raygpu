@@ -3,7 +3,7 @@
 #include <emscripten.h>
 #endif
 VertexArray* vao;
-DescribedBuffer vbo;
+DescribedBuffer* vbo;
 DescribedPipeline* pipeline;
 void mainloop(cwoid){
     BeginDrawing();
@@ -26,7 +26,7 @@ int main(void){
     };
     vbo = GenBuffer(vertices, sizeof(vertices)); 
     vao = LoadVertexArray();
-    VertexAttribPointer(vao, &vbo, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, vbo, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
     EnableVertexAttribArray(vao, 0);
     pipeline = LoadPipeline(shaderSource);
 

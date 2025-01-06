@@ -166,9 +166,9 @@ typedef struct Mesh {
 
     // WebGPU identifiers
     VertexArray* vao;
-    DescribedBuffer *vbos;
-    DescribedBuffer ibo;              //Index buffer object, optional
-    DescribedBuffer boneMatrixBuffer; //Storage buffer
+    DescribedBuffer** vbos;
+    DescribedBuffer* ibo;              //Index buffer object, optional
+    DescribedBuffer* boneMatrixBuffer; //Storage buffer
     WGPUVertexFormat boneIDFormat;    //Either WGPUVertexFormat_Uint8 or -16;
 } Mesh;
 
@@ -861,11 +861,12 @@ EXTERN_C_BEGIN
     //void MapStagingBuffer(size_t size, WGPUBufferUsage usage);
     void UnloadStagingBuffer(StagingBuffer* buf);
     
-    DescribedBuffer GenUniformBuffer(const void* data, size_t size);
-    DescribedBuffer GenStorageBuffer(const void* data, size_t size);
-    DescribedBuffer GenIndexBuffer(const void* data, size_t size);
-    DescribedBuffer GenBuffer(const void* data, size_t size);
-    DescribedBuffer GenBufferEx(const void* data, size_t size, WGPUBufferUsage usage);
+    DescribedBuffer* GenUniformBuffer(const void* data, size_t size);
+    DescribedBuffer* GenStorageBuffer(const void* data, size_t size);
+    DescribedBuffer* GenIndexBuffer(const void* data, size_t size);
+    DescribedBuffer* GenBuffer(const void* data, size_t size);
+    DescribedBuffer* GenBufferEx(const void* data, size_t size, WGPUBufferUsage usage);
+    void UnloadBuffer(DescribedBuffer* buffer);
     void BufferData(DescribedBuffer* buffer, const void* data, size_t size);
     void ResizeBuffer(DescribedBuffer* buffer, size_t newSize);
     void ResizeBufferAndConserve(DescribedBuffer* buffer, size_t newSize);
