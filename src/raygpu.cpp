@@ -132,8 +132,6 @@ vertex* vboptr;
 vertex* vboptr_base;
 VertexArray* renderBatchVAO;
 DescribedBuffer* renderBatchVBO;
-Texture depthTexture; //TODO: uhhh move somewhere
-Texture colorMultisample{};
 //DescribedBuffer vbomap;
 #ifdef _WIN32
 #define __builtin_unreachable(...)
@@ -456,10 +454,10 @@ WGPUDevice GetDevice(){
     return g_wgpustate.device.Get();
 }
 Texture GetDepthTexture(){
-    return depthTexture;
+    return g_wgpustate.currentDefaultRenderTarget.depth;
 }
 Texture GetIntermediaryColorTarget(){
-    return colorMultisample;
+    return g_wgpustate.currentDefaultRenderTarget.colorMultisample;
 }
 WGPUQueue GetQueue(){
     return g_wgpustate.queue.Get();
@@ -753,24 +751,24 @@ void BeginDrawing(){
 
         headless_rtex = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
         setTargetTextures(g_wgpustate.rstate, headless_rtex.color.view, headless_rtex.colorMultisample.view, headless_rtex.depth.view);
-        g_wgpustate.currentScreenTexture = headless_rtex.color.id;
-        g_wgpustate.currentScreenTextureView = headless_rtex.color.view;
+
+        g_wgpustate.currentDefaultRenderTarget = headless_rtex;
     }
     else{
-        if(g_wgpustate.currentScreenTextureView)
-            wgpuTextureViewRelease(g_wgpustate.currentScreenTextureView);
-        if(g_wgpustate.currentScreenTexture)
-            wgpuTextureRelease(g_wgpustate.currentScreenTexture);
+        g_wgpustate.currentDefaultRenderTarget = g_wgpustate.mainWindowRenderTarget;
+        if(g_wgpustate.currentDefaultRenderTarget.color.id)
+            UnloadTexture(g_wgpustate.currentDefaultRenderTarget.color);
+        
 
         g_wgpustate.drawmutex.lock();
         g_wgpustate.rstate->renderExtentX = GetScreenWidth();
         g_wgpustate.rstate->renderExtentY = GetScreenHeight();
         WGPUSurfaceTexture surfaceTexture;
         wgpuSurfaceGetCurrentTexture(g_wgpustate.surface.Get(), &surfaceTexture);
-        g_wgpustate.currentScreenTexture = surfaceTexture.texture;
-        WGPUTextureView nextTexture = wgpuTextureCreateView(g_wgpustate.currentScreenTexture, nullptr);
-        g_wgpustate.currentScreenTextureView = nextTexture;
-        setTargetTextures(g_wgpustate.rstate, nextTexture, colorMultisample.view, g_wgpustate.rstate->depth);
+        g_wgpustate.currentDefaultRenderTarget.color.id = surfaceTexture.texture;
+        WGPUTextureView nextTexture = wgpuTextureCreateView(g_wgpustate.currentDefaultRenderTarget.color.id, nullptr);
+        g_wgpustate.currentDefaultRenderTarget.color.view = nextTexture;
+        setTargetTextures(g_wgpustate.rstate, g_wgpustate.currentDefaultRenderTarget.color.view, g_wgpustate.currentDefaultRenderTarget.colorMultisample.view, g_wgpustate.currentDefaultRenderTarget.depth.view);
     }
     BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
     SetUniformBuffer(0, g_wgpustate.defaultScreenMatrix);
@@ -794,7 +792,7 @@ void EndDrawing(){
         EndRenderpassEx(g_wgpustate.rstate->activeRenderpass);
     }
     if(g_wgpustate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
-        Image img = LoadImageFromTextureEx(g_wgpustate.currentScreenTexture);
+        Image img = LoadImageFromTextureEx(GetActiveColorTarget());
         if (img.format != BGRA8 && img.format != RGBA8) {
             // Handle unsupported formats or convert as necessary
             fprintf(stderr, "Unsupported pixel format for FFmpeg export.\n");
@@ -1011,7 +1009,7 @@ Image LoadImageFromTexture(Texture tex){
     //#endif
 }
 void TakeScreenshot(const char* filename){
-    Image img = LoadImageFromTextureEx(g_wgpustate.currentScreenTexture);
+    Image img = LoadImageFromTextureEx(GetActiveColorTarget());
     SaveImage(img, filename);
     UnloadImage(img);
 }
@@ -1642,7 +1640,7 @@ void UnloadSampler(DescribedSampler sampler){
 }
 
 WGPUTexture GetActiveColorTarget(){
-    return g_wgpustate.currentScreenTexture;
+    return g_wgpustate.currentDefaultRenderTarget.color.id;
 }
 
 void setTargetTextures(full_renderstate* state, WGPUTextureView c, WGPUTextureView cms, WGPUTextureView d){
@@ -1890,16 +1888,22 @@ void executeRenderpass(callable&& c){
 void BeginTextureMode(RenderTexture rtex){
     g_wgpustate.rstate->renderExtentX = rtex.color.width;
     g_wgpustate.rstate->renderExtentY = rtex.color.height;
+    //std::cout << std::format("{} x {}\n", g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
     setTargetTextures(g_wgpustate.rstate, rtex.color.view, rtex.colorMultisample.view, rtex.depth.view);
     Matrix mat = ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
     SetUniformBufferData(0, &mat, sizeof(Matrix));
 }
 void EndTextureMode(){
     drawCurrentBatch();
-    g_wgpustate.rstate->renderExtentX = GetScreenWidth();
-    g_wgpustate.rstate->renderExtentY = GetScreenHeight();
-    setTargetTextures(g_wgpustate.rstate, g_wgpustate.currentScreenTextureView, colorMultisample.view, depthTexture.view);
-    SetUniformBuffer(0, g_wgpustate.defaultScreenMatrix);
+    g_wgpustate.rstate->renderExtentX = g_wgpustate.currentDefaultRenderTarget.color.width;
+    g_wgpustate.rstate->renderExtentY = g_wgpustate.currentDefaultRenderTarget.color.height;
+    setTargetTextures(g_wgpustate.rstate, 
+                    g_wgpustate.currentDefaultRenderTarget.color.view, 
+                    g_wgpustate.currentDefaultRenderTarget.colorMultisample.view,
+                    g_wgpustate.currentDefaultRenderTarget.depth.view);
+    Matrix mat = ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
+    SetUniformBufferData(0, &mat, sizeof(Matrix));
+    //SetUniformBuffer(0, g_wgpustate.defaultScreenMatrix);
 }
 extern "C" void BeginWindowMode(SubWindow sw){
     g_wgpustate.activeSubWindow = sw;
@@ -1912,16 +1916,14 @@ extern "C" void BeginWindowMode(SubWindow sw){
     //wgpuTextureRelease(g_wgpustate.activeSubWindow.frameBuffer.color.id);
     sw.frameBuffer.color.view = nextTexture;
     sw.frameBuffer.color.id = surfaceTexture.texture;
-    g_wgpustate.currentScreenTextureView = sw.frameBuffer.color.view;
-    g_wgpustate.currentScreenTexture = sw.frameBuffer.color.id;
-    g_wgpustate.currentScreenDepthTexture = sw.frameBuffer.depth.id;
-    g_wgpustate.currentScreenMultisampleTexture = sw.frameBuffer.colorMultisample.id;
+    g_wgpustate.currentDefaultRenderTarget = sw.frameBuffer;
     BeginTextureMode(sw.frameBuffer);
     BeginRenderpass();
 }
 extern "C" void EndWindowMode(){
     EndRenderpass();
     EndTextureMode();
+    g_wgpustate.currentDefaultRenderTarget = g_wgpustate.mainWindowRenderTarget;
     wgpuSurfacePresent(g_wgpustate.activeSubWindow.surface);
     return;
 
