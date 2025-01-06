@@ -800,19 +800,22 @@ void EndDrawing(){
             // For simplicity, we'll skip exporting in this case
             return;
         }
-        
+        ImageFormat(&img, RGBA8);
 
         // Calculate the total size of the image data to write
         size_t totalSize = img.rowStrideInBytes * img.height;
 
         // Write the image data to stdout (FFmpeg should be reading from stdin)
         size_t fmtsize = GetPixelSizeInBytes((WGPUTextureFormat)img.format);
+        char offset[1];
+        //fwrite(offset, 1, 1, stdout);
         for(size_t i = 0;i < img.height;i++){
             unsigned char* dptr = static_cast<unsigned char*>(img.data) + i * img.rowStrideInBytes;
-            for(uint32_t r = 0;r < img.width;r++){
-                BGRAColor c = reinterpret_cast<BGRAColor*>(dptr)[r];
-                reinterpret_cast<BGRAColor*>(dptr)[r] = BGRAColor{c.a, c.r, c.g, c.b};
-            }
+            //for(uint32_t r = 0;r < img.width;r++){
+            //    RGBA8Color c = reinterpret_cast<RGBA8Color*>(dptr)[r];
+            //    std::cerr << (int)c.a << "\n";
+            //    reinterpret_cast<RGBA8Color*>(dptr)[r] = RGBA8Color{c.a, c.b, c.g, c.r};
+            //}
             size_t bytesWritten = fwrite(dptr, 1, img.width * fmtsize, stdout);
         }
 
@@ -1004,9 +1007,55 @@ Image LoadImageFromTextureEx(WGPUTexture tex){
     //readtex.Destroy();
     return fbLoad;
 }
+template<typename from, typename to>
+to convert4(const from& fr){
+    to ret;
+    ret.r = fr.r;
+    ret.g = fr.g;
+    ret.b = fr.b;
+    ret.a = fr.a;
+    return ret;
+}
+template<typename from, typename to>
+void FormatRange(const from* source, to* dest, size_t count){
+    const from* fr = reinterpret_cast<const from*>(source);
+    to* top = reinterpret_cast<to*>(dest);
 
+    for(size_t i = 0;i < count;i++){
+        top[i] = convert4<from, to>(fr[i]);
+    }
+}
+template<typename from, typename to>
+void FormatImage_Impl(const Image& source, Image& dest){
+    for(uint32_t i = 0;i < source.height;i++){
+        const from* dataptr = (const from*)(static_cast<const uint8_t*>(source.data) + source.rowStrideInBytes * i);
+        to* destptr = (to*)(static_cast<uint8_t*>(dest.data) + dest.rowStrideInBytes * i);
+        FormatRange<from, to>(dataptr, destptr, source.width);
+    }
+}
 void ImageFormat(Image* img, PixelFormat newFormat){
-
+    uint32_t psize = GetPixelSizeInBytes((WGPUTextureFormat)newFormat);
+    void* newdata = calloc(img->width * img->height, psize);
+    Image newimg zeroinit;
+    newimg.format = newFormat;
+    newimg.width = img->width;
+    newimg.height = img->height;
+    newimg.mipmaps = img->mipmaps;
+    newimg.rowStrideInBytes = newimg.width * psize;
+    newimg.data = newdata;
+    switch(img->format){
+        case PixelFormat::BGRA8:{
+            if(newFormat == RGBA8){
+                FormatImage_Impl<BGRA8Color, RGBA8Color>(*img, newimg);
+            }
+        }break;
+        default:
+        abort();
+        return;
+    }
+    free(img->data);
+    *img = newimg;
+    
 }
 
 Image LoadImageFromTexture(Texture tex){
@@ -1815,7 +1864,7 @@ void SaveImage(Image img, const char* filepath){
         stride = img.width * sizeof(Color);
     }
     
-    BGRAColor* cols = (BGRAColor*)img.data; 
+    BGRA8Color* cols = (BGRA8Color*)img.data; 
     Color* ocols = (Color*)calloc(stride * img.height, sizeof(Color));
     for(size_t i = 0;i < (stride / sizeof(Color)) * img.height;i++){
         ocols[i].r = cols[i].r;

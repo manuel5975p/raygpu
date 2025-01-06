@@ -16,7 +16,7 @@ DescribedPipeline* pl;
 void mainloop(){
     
     BeginDrawing();
-    ClearBackground(DARKBROWN);
+    ClearBackground(Color{255,0,0,255});
     //DrawCircle(GetMouseX(), GetMouseY(), 100.0f, WHITE);
     BeginMode3D(cam);
     //UseNoTexture();
@@ -48,12 +48,13 @@ void mainloop(){
     EndDrawing();
 }
 int main(){
+    SetConfigFlags(FLAG_STDOUT_TO_FFMPEG);
+    InitWindow(1024, 800, "glTF Model Loading");
+    
     TRACELOG(LOG_INFO, "Hello");
     const char* ptr = FindDirectory("resources", 3);
     std::string resourceDirectoryPath = ptr ? ptr : "";
     TRACELOG(LOG_INFO, "Directory path: %s", resourceDirectoryPath.c_str());
-    SetConfigFlags(FLAG_STDOUT_TO_FFMPEG);
-    InitWindow(1024, 800, "glTF Model Loading");
     SetTargetFPS(60);
     
     //return 0;
