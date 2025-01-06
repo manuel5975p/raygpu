@@ -28,13 +28,19 @@ typedef struct vertex{
     Vector3 normal ;
     Vector4 col;
 }vertex;
-typedef struct Color{
-    uint8_t r, g, b, a;
-} Color;
-typedef struct BGRAColor{
-    uint8_t b, g, r, a;
-} BGRAColor;
 
+typedef struct RGBA8Color{
+    uint8_t r, g, b, a;
+} RGBA8Color;
+typedef RGBA8Color Color;
+
+typedef struct BGRA8Color{
+    uint8_t b, g, r, a;
+} BGRA8Color;
+
+struct RGBA32FColor{
+    float r, g, b, a;
+};
 
 typedef enum PixelFormat{
     RGBA8 = WGPUTextureFormat_RGBA8Unorm,
