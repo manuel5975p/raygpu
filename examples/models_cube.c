@@ -21,7 +21,7 @@ void mainloop(void){
     UseTexture(checkers);
     BeginMode3D(cam);
     BindVertexArray(pl, cube.vao);
-    DrawArraysIndexed(WGPUPrimitiveTopology_TriangleList, cube.ibo, 36);
+    DrawArraysIndexed(WGPUPrimitiveTopology_TriangleList, *cube.ibo, 36);
     EndMode3D();
     EndPipelineMode();
     DrawFPS(0, 0);

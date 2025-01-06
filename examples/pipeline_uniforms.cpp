@@ -223,12 +223,12 @@ int main(){
         vertex{.pos = Vector3{100,0,0}, .uv = Vector2{1,0}, .normal = Vector3{0,0,1}, .col = Vector4{1,1,1,1}},
         vertex{.pos = Vector3{0,100,0}, .uv = Vector2{0,1}, .normal = Vector3{0,0,1}, .col = Vector4{1,1,1,1}},
     };
-    DescribedBuffer buf = GenBuffer(vaodata, sizeof(vaodata));
+    DescribedBuffer* buf = GenBuffer(vaodata, sizeof(vaodata));
     VertexArray* vao = LoadVertexArray();
-    VertexAttribPointer(vao, &buf, 0, WGPUVertexFormat_Float32x3, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(vao, &buf, 1, WGPUVertexFormat_Float32x2, sizeof(float) * 2, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(vao, &buf, 2, WGPUVertexFormat_Float32x3, sizeof(float) * 5, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(vao, &buf, 3, WGPUVertexFormat_Float32x4, sizeof(float) * 8, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, buf, 0, WGPUVertexFormat_Float32x3, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, buf, 1, WGPUVertexFormat_Float32x2, sizeof(float) * 2, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, buf, 2, WGPUVertexFormat_Float32x3, sizeof(float) * 5, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, buf, 3, WGPUVertexFormat_Float32x4, sizeof(float) * 8, WGPUVertexStepMode_Vertex);
 
     DescribedPipeline* pl = LoadPipelineForVAO(shaderSource1, vao);
     DescribedSampler smp = LoadSampler(repeat, nearest);

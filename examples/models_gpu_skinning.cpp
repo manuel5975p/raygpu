@@ -151,8 +151,8 @@ int main(void){
             BeginPipelineMode(skinningShader);
                 
                 // Draw character mesh, pose calculation is done in shader (GPU skinning)
-                BufferData(&characterModel.meshes[0].boneMatrixBuffer, characterModel.meshes[0].boneMatrices, sizeof(Matrix) * characterModel.meshes[0].boneCount);
-                SetStorageBuffer(4, &characterModel.meshes[0].boneMatrixBuffer);
+                BufferData(characterModel.meshes[0].boneMatrixBuffer, characterModel.meshes[0].boneMatrices, sizeof(Matrix) * characterModel.meshes[0].boneCount);
+                SetStorageBuffer(4, characterModel.meshes[0].boneMatrixBuffer);
                 SetTexture(1, GetDefaultTexture());
                 //DrawMesh(cb, Material{}, MatrixIdentity());
                 DrawMesh(characterModel.meshes[0], characterModel.materials[1], MatrixIdentity());

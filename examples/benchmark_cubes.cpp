@@ -47,7 +47,7 @@ void mainloop(){
     UseNoTexture();
     BeginMode3D(cam);
     BindVertexArray(pl, cubeMesh.vao);
-    DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, cubeMesh.ibo, 36, instancetransforms.size());
+    DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, *cubeMesh.ibo, 36, instancetransforms.size());
     //DrawMeshInstanced(cubeMesh, Material{}, instancetransforms.data(), instancetransforms.size());
     EndMode3D();
     EndPipelineMode();
@@ -85,8 +85,8 @@ int main(){
             instancetransforms.push_back(Vector4(i, std::sin(2 * M_PI * i / 10.0f) + 15.0f * -std::cos(2 * M_PI * j / 90.0f), j));
         }
     }
-    DescribedBuffer persistent = GenStorageBuffer(instancetransforms.data(), instancetransforms.size() * sizeof(Vector4));
-    SetPipelineStorageBuffer(pl, 3, &persistent);
+    DescribedBuffer* persistent = GenStorageBuffer(instancetransforms.data(), instancetransforms.size() * sizeof(Vector4));
+    SetPipelineStorageBuffer(pl, 3, persistent);
     //TRACELOG(LOG_WARNING, "OOO: %llu", (unsigned long long)persistent.buffer);
     #ifndef __EMSCRIPTEN__
     while(!WindowShouldClose()){

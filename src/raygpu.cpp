@@ -492,21 +492,21 @@ void drawCurrentBatch(){
     //std::cout << "vcoun = " << vertexCount << "\n";
     if(vertexCount == 0)return;
     
-    DescribedBuffer vbo;
+    DescribedBuffer* vbo;
     bool allocated_via_pool = false;
     if(vertexCount < 32 && !g_wgpustate.smallBufferPool.empty()){
         allocated_via_pool = true;
         vbo = g_wgpustate.smallBufferPool.back();
         g_wgpustate.smallBufferPool.pop_back();
-        wgpuQueueWriteBuffer(GetQueue(), vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
+        wgpuQueueWriteBuffer(GetQueue(), vbo->buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
     }
     else{
         vbo = GenBuffer(vboptr_base, vertexCount * sizeof(vertex));
     }
 
-    BufferData(&vbo, vboptr_base, vertexCount * sizeof(vertex));
-    renderBatchVAO->buffers.front().first = &vbo;
-    SetStorageBuffer(3, &g_wgpustate.identityMatrix);
+    BufferData(vbo, vboptr_base, vertexCount * sizeof(vertex));
+    renderBatchVAO->buffers.front().first = vbo;
+    SetStorageBuffer(3, g_wgpustate.identityMatrix);
     UpdateBindGroup(&g_wgpustate.rstate->activePipeline->bindGroup);
     switch(g_wgpustate.current_drawmode){
         case RL_LINES:{
@@ -549,7 +549,7 @@ void drawCurrentBatch(){
         case RL_QUADS:{
             const size_t quadCount = vertexCount / 4;
             
-            if(g_wgpustate.quadindicesCache.descriptor.size < 6 * quadCount * sizeof(uint32_t)){
+            if(g_wgpustate.quadindicesCache->descriptor.size < 6 * quadCount * sizeof(uint32_t)){
                 std::vector<uint32_t> indices(6 * quadCount);
                 for(size_t i = 0;i < quadCount;i++){
                     indices[i * 6 + 0] = (i * 4 + 0);
@@ -559,14 +559,17 @@ void drawCurrentBatch(){
                     indices[i * 6 + 4] = (i * 4 + 2);
                     indices[i * 6 + 5] = (i * 4 + 3);
                 }
-                if(g_wgpustate.quadindicesCache.buffer)wgpuBufferRelease(g_wgpustate.quadindicesCache.buffer);
-                g_wgpustate.quadindicesCache = GenBufferEx(indices.data(), 6 * quadCount * sizeof(uint32_t), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index);
+                BufferData(g_wgpustate.quadindicesCache, indices.data(), 6 * quadCount * sizeof(uint32_t));
+                //if(g_wgpustate.quadindicesCache->buffer){
+                //    wgpuBufferRelease(g_wgpustate.quadindicesCache->buffer);
+                //}
+                //g_wgpustate.quadindicesCache = GenBufferEx(indices.data(), 6 * quadCount * sizeof(uint32_t), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index);
             }
-            const DescribedBuffer& ibuf = g_wgpustate.quadindicesCache;
+            const DescribedBuffer* ibuf = g_wgpustate.quadindicesCache;
             //BindPipeline(g_wgpustate.rstate->activePipeline, WGPUPrimitiveTopology_TriangleList);
             //g_wgpustate.rstate->activePipeline
             BindVertexArray(g_wgpustate.rstate->activePipeline, renderBatchVAO);
-            DrawArraysIndexed(WGPUPrimitiveTopology_TriangleList, ibuf, quadCount * 6);
+            DrawArraysIndexed(WGPUPrimitiveTopology_TriangleList, *ibuf, quadCount * 6);
 
             //wgpuQueueWriteBuffer(GetQueue(), vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
             
@@ -585,7 +588,7 @@ void drawCurrentBatch(){
         default:break;
     }
     if(!allocated_via_pool){
-        wgpuBufferRelease(vbo.buffer);
+        UnloadBuffer(vbo);
     }
     else{
         g_wgpustate.smallBufferRecyclingBin.push_back(vbo);
@@ -617,7 +620,7 @@ extern "C" void BeginMode2D(Camera2D camera){
 extern "C" void EndMode2D(){
     drawCurrentBatch();
     g_wgpustate.activeScreenMatrix = ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
-    SetUniformBuffer(0, &g_wgpustate.defaultScreenMatrix);
+    SetUniformBuffer(0, g_wgpustate.defaultScreenMatrix);
 }
 void BeginMode3D(Camera3D camera){
     drawCurrentBatch();
@@ -628,7 +631,7 @@ void BeginMode3D(Camera3D camera){
 void EndMode3D(){
     drawCurrentBatch();
     g_wgpustate.activeScreenMatrix = ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
-    SetUniformBuffer(0, &g_wgpustate.defaultScreenMatrix);
+    SetUniformBuffer(0, g_wgpustate.defaultScreenMatrix);
 }
 extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode){
     switch(drawMode){
@@ -770,7 +773,7 @@ void BeginDrawing(){
         setTargetTextures(g_wgpustate.rstate, nextTexture, colorMultisample.view, g_wgpustate.rstate->depth);
     }
     BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
-    SetUniformBuffer(0,&g_wgpustate.defaultScreenMatrix);
+    SetUniformBuffer(0, g_wgpustate.defaultScreenMatrix);
     g_wgpustate.activeScreenMatrix = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
     if(IsKeyPressed(KEY_F2) && (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL) || true)){
         if(g_wgpustate.grst->recording){
@@ -1281,8 +1284,7 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     state->defaultPipeline = LoadPipelineEx(shaderSource, attribs, attribCount, uniforms, uniform_count, settings);
     
     state->activePipeline = state->defaultPipeline;
-    
-    //WGPUBufferDescriptor vbmdesc{};
+    g_wgpustate.quadindicesCache = callocnew(DescribedBuffer);    //WGPUBufferDescriptor vbmdesc{};
     //vbmdesc.mappedAtCreation = true;
     //vbmdesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_MapWrite;
     //vbmdesc.size = (1 << 22) * sizeof(vertex);
@@ -1291,8 +1293,7 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     vboptr_base = nullptr;
     //vboptr = (vertex*)wgpuBufferGetMappedRange(vbomap.buffer, 0, vbmdesc.size);
     vboptr = (vertex*)calloc(10000, sizeof(vertex));
-    renderBatchVBO = callocnew(DescribedBuffer);
-    *renderBatchVBO = GenBuffer(nullptr, 10000 * sizeof(vertex));
+    renderBatchVBO = GenBuffer(nullptr, 10000 * sizeof(vertex));
     
     renderBatchVAO = LoadVertexArray();
     VertexAttribPointer(renderBatchVAO, renderBatchVBO, 0, WGPUVertexFormat_Float32x3, 0 * sizeof(float), WGPUVertexStepMode_Vertex);
@@ -1873,7 +1874,7 @@ void EndTextureMode(){
     g_wgpustate.rstate->renderExtentX = GetScreenWidth();
     g_wgpustate.rstate->renderExtentY = GetScreenHeight();
     setTargetTextures(g_wgpustate.rstate, g_wgpustate.currentScreenTextureView, colorMultisample.view, depthTexture.view);
-    SetUniformBuffer(0, &g_wgpustate.defaultScreenMatrix);
+    SetUniformBuffer(0, g_wgpustate.defaultScreenMatrix);
 }
 extern "C" void BeginWindowMode(SubWindow sw){
     g_wgpustate.activeSubWindow = sw;
@@ -1984,28 +1985,32 @@ int GetRandomValue(int min, int max){
     int v = rand() & w;
     return v + min;
 }
-extern "C" DescribedBuffer GenBufferEx(const void* data, size_t size, WGPUBufferUsage usage){
-    DescribedBuffer ret{};
-    ret.descriptor.size = size;
-    ret.descriptor.mappedAtCreation = false;
-    ret.descriptor.usage = usage;
-    ret.buffer = wgpuDeviceCreateBuffer(GetDevice(), &ret.descriptor);
+extern "C" DescribedBuffer* GenBufferEx(const void* data, size_t size, WGPUBufferUsage usage){
+    DescribedBuffer* ret = callocnew(DescribedBuffer);
+    ret->descriptor.size = size;
+    ret->descriptor.mappedAtCreation = false;
+    ret->descriptor.usage = usage;
+    ret->buffer = wgpuDeviceCreateBuffer(GetDevice(), &ret->descriptor);
     if(data != nullptr){
-        wgpuQueueWriteBuffer(GetQueue(), ret.buffer, 0, data, size);
+        wgpuQueueWriteBuffer(GetQueue(), ret->buffer, 0, data, size);
     }
     return ret;
 }
-extern "C" DescribedBuffer GenBuffer(const void* data, size_t size){
+extern "C" DescribedBuffer* GenBuffer(const void* data, size_t size){
     return GenBufferEx(data, size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex);
 }
-DescribedBuffer GenIndexBuffer(const void* data, size_t size){
+DescribedBuffer* GenIndexBuffer(const void* data, size_t size){
     return GenBufferEx(data, size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index);
 }
-DescribedBuffer GenUniformBuffer(const void* data, size_t size){
+DescribedBuffer* GenUniformBuffer(const void* data, size_t size){
     return GenBufferEx(data, size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
 }
-DescribedBuffer GenStorageBuffer(const void* data, size_t size){
+DescribedBuffer* GenStorageBuffer(const void* data, size_t size){
     return GenBufferEx(data, size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage);
+}
+void UnloadBuffer(DescribedBuffer* buffer){
+    wgpuBufferRelease(buffer->buffer);
+    free(buffer);
 }
 
 extern "C" void BufferData(DescribedBuffer* buffer, const void* data, size_t size){
@@ -2013,8 +2018,11 @@ extern "C" void BufferData(DescribedBuffer* buffer, const void* data, size_t siz
         wgpuQueueWriteBuffer(GetQueue(), buffer->buffer, 0, data, size);
     }
     else{
-        wgpuBufferRelease(buffer->buffer);
-        *buffer = GenBuffer(data, size);
+        if(buffer->buffer)
+            wgpuBufferRelease(buffer->buffer);
+        buffer->descriptor.size = size;
+        buffer->buffer = wgpuDeviceCreateBuffer(GetDevice(), &(buffer->descriptor));
+        wgpuQueueWriteBuffer(GetQueue(), buffer->buffer, 0, data, size);
     }
 }
 extern "C" void SetTargetFPS(int fps){

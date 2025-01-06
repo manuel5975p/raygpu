@@ -40,10 +40,10 @@ std::vector<Vector2> velocities;
 std::vector<uint32_t> colors;
 std::mt19937_64 gen(42);
 DescribedPipeline* pl;
-DescribedBuffer ibo;
-DescribedBuffer posb;
-DescribedBuffer poso;
-DescribedBuffer posc;
+DescribedBuffer* ibo;
+DescribedBuffer* posb;
+DescribedBuffer* poso;
+DescribedBuffer* posc;
 VertexArray*     vao;
 
 int main(){
@@ -63,9 +63,9 @@ int main(){
     posc = GenBuffer(colors.data(), colors.size() * sizeof(uint32_t));
     vao = LoadVertexArray();
 
-    VertexAttribPointer(vao, &posb, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(vao, &poso, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Instance);
-    VertexAttribPointer(vao, &posc, 2, WGPUVertexFormat_Uint32, 0, WGPUVertexStepMode_Instance);
+    VertexAttribPointer(vao, posb, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, poso, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Instance);
+    VertexAttribPointer(vao, posc, 2, WGPUVertexFormat_Uint32, 0, WGPUVertexStepMode_Instance);
 
     
     uint32_t trifanIndices[6] = {0,1,2,0,2,3};
@@ -75,12 +75,12 @@ int main(){
         for(size_t i = 0;i < offsets.size();i++){
             offsets[i] += velocities[i] * 0.0003f;
         }
-        BufferData(&poso, offsets.data(), offsets.size() * sizeof(Vector2));
+        BufferData(poso, offsets.data(), offsets.size() * sizeof(Vector2));
         BeginDrawing();
         ClearBackground(BLANK);
         BeginPipelineMode(pl);
         BindVertexArray(pl, vao);
-        DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, ibo, 6, offsets.size());
+        DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, *ibo, 6, offsets.size());
         EndPipelineMode();
         DrawFPS(0, 0);
         EndDrawing();
