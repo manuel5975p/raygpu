@@ -35,6 +35,7 @@ typedef struct DescribedBindGroupLayout{
 typedef struct DescribedBindGroup{
     WGPUBindGroupDescriptor desc;
     WGPUBindGroupEntry* entries;
+    uint64_t releaseOnClear;
     WGPUBindGroup bindGroup;
     
     uint64_t descriptorHash;

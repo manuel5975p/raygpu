@@ -16,16 +16,7 @@ int main(void){
         //EndRenderpass();
         
 
-        BeginWindowMode(second);
-        BeginTextureMode(rtex);
-        ClearBackground(GREEN);
-        DrawCircle(GetMouseX(), GetMouseY(), 50.0f, WHITE);
-        EndTextureMode();
-        //DrawCircle(200, 200, 50.0f, YELLOW);
-        //ClearBackground(DARKBLUE);
-        //DrawCircle(GetMouseX(), GetMouseY(), 50.0f, WHITE);
-        DrawTexturePro(rtex.color, (Rectangle){0,0,800,800}, (Rectangle){300,300,100,100}, (Vector2){0,0}, 0.0f, WHITE);
-        EndWindowMode();
+        
         
         BeginWindowMode(third);
         ClearBackground(RED);
@@ -33,7 +24,13 @@ int main(void){
         EndWindowMode();
         
         BeginDrawing();
-        
+        BeginWindowMode(second);
+        BeginTextureMode(rtex);
+        ClearBackground(GREEN);
+        DrawCircle(GetMouseX(), GetMouseY(), 50.0f, WHITE);
+        EndTextureMode();
+        DrawTexturePro(rtex.color, (Rectangle){0,0,800,800}, (Rectangle){300,300,100,100}, (Vector2){0,0}, 0.0f, WHITE);
+        EndWindowMode();
         ClearBackground(DARKBLUE);
         DrawCircle(GetMouseX(), GetMouseY(), 50.0f, RED);
         EndDrawing();

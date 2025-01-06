@@ -196,7 +196,7 @@ extern "C" void DrawMeshInstanced(Mesh mesh, Material material, const Matrix* tr
     }
     SetPipelineStorageBuffer(GetActivePipeline(), 3, trfBuffer);
     BindVertexArray(GetActivePipeline(), mesh.vao);
-    if(mesh.ibo->buffer){
+    if(mesh.ibo){
         DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, *mesh.ibo, mesh.triangleCount * 3, instances);
     }else{
         DrawArraysInstanced(WGPUPrimitiveTopology_TriangleList, mesh.vertexCount, instances);
@@ -206,7 +206,7 @@ extern "C" void DrawMeshInstanced(Mesh mesh, Material material, const Matrix* tr
 extern "C" void DrawMesh(Mesh mesh, Material material, Matrix transform){
     SetStorageBufferData(3, &transform, sizeof(Matrix));
     BindVertexArray(GetActivePipeline(), mesh.vao);
-    if(mesh.ibo->buffer){
+    if(mesh.ibo){
         DrawArraysIndexed(WGPUPrimitiveTopology_TriangleList, *mesh.ibo, mesh.triangleCount * 3);
     }else{
         DrawArrays(WGPUPrimitiveTopology_TriangleList, mesh.vertexCount);
