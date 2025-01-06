@@ -89,11 +89,23 @@ typedef struct DescribedPipeline{
     StringToUniformMap* uniformLocations;
     VertexStateToPipelineMap* createdPipelines;
 }DescribedPipeline;
+typedef struct DescribedBuffer DescribedBuffer;
+#ifdef __cplusplus
+struct UniformAccessor{
+    uint32_t index;
+    DescribedBindGroup* bindgroup;
+    void operator=(DescribedBuffer* buf);
+};
+#endif
 typedef struct DescribedComputePipeline{
     WGPUComputePipelineDescriptor desc;
     WGPUComputePipeline pipeline;
     DescribedBindGroupLayout bglayout;
     DescribedBindGroup bindGroup;
+    StringToUniformMap* uniformLocations;
+    #ifdef __cplusplus
+    UniformAccessor operator[](const char* uniformName);
+    #endif
 }DescribedComputePipeline;
 
 typedef struct VertexArray VertexArray;
@@ -115,6 +127,7 @@ EXTERN_C_BEGIN
     void UnloadBindGroup(DescribedBindGroup* bg);
     
     DescribedPipeline* Relayout(DescribedPipeline* pl, VertexArray* vao);
-    DescribedComputePipeline* LoadComputePipeline(const char* shaderCode, const UniformDescriptor* uniforms, uint32_t uniformCount);
+    DescribedComputePipeline* LoadComputePipeline(const char* shaderCode);
+    DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const UniformDescriptor* uniforms, uint32_t uniformCount);
 EXTERN_C_END
 #endif// PIPELINE_H

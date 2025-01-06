@@ -1912,6 +1912,10 @@ extern "C" void BeginWindowMode(SubWindow sw){
     //wgpuTextureRelease(g_wgpustate.activeSubWindow.frameBuffer.color.id);
     sw.frameBuffer.color.view = nextTexture;
     sw.frameBuffer.color.id = surfaceTexture.texture;
+    g_wgpustate.currentScreenTextureView = sw.frameBuffer.color.view;
+    g_wgpustate.currentScreenTexture = sw.frameBuffer.color.id;
+    g_wgpustate.currentScreenDepthTexture = sw.frameBuffer.depth.id;
+    g_wgpustate.currentScreenMultisampleTexture = sw.frameBuffer.colorMultisample.id;
     BeginTextureMode(sw.frameBuffer);
     BeginRenderpass();
 }
