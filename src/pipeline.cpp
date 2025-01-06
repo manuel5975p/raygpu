@@ -518,7 +518,7 @@ extern "C" void UnloadPipeline(DescribedPipeline* pl){
     free(pl->depthStencilState);
 }
 uint64_t bgEntryHash(const WGPUBindGroupEntry& bge){
-    const uint32_t rotation = (bge.binding) & 63;
+    const uint32_t rotation = (bge.binding * 7) & 63;
     uint64_t value = ROT_BYTES((uint64_t)bge.buffer, rotation);
     value ^= ROT_BYTES((uint64_t)bge.textureView, rotation);
     value ^= ROT_BYTES((uint64_t)bge.sampler, rotation);
@@ -554,10 +554,22 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, WGPUB
     }
     uint64_t oldHash = bg->descriptorHash;
     bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
+    if(bg->releaseOnClear & (1 << index)){
+        if(bg->entries[index].buffer){
+            wgpuBufferRelease(bg->entries[index].buffer);
+        }
+        else if(bg->entries[index].textureView){
+            //Todo: currently not the case anyway, but this is nadinöf
+            wgpuTextureViewRelease(bg->entries[index].textureView);
+        }
+        else if(bg->entries[index].sampler){
+            wgpuSamplerRelease(bg->entries[index].sampler);
+        }
+    }
     bg->entries[index] = entry;
     bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
 
-    //TODO don't release and recreate here or find something better lol
+    //TODO don't release and recreate here or find something better
     
     if(!bg->needsUpdate && bg->bindGroup){
         wgpuBindGroupRelease(bg->bindGroup);

@@ -23,7 +23,11 @@ void mainloop(){
     //BeginPipelineMode(pl);
     UseTexture(card);
     //if(angle > -0.1)
-    DrawMesh(carmesh, Material{}, MatrixRotate(Vector3{0, 1, 0}, angle));
+    Matrix stacc[10];
+    for(int i = 0;i < 10;i++){
+        stacc[i] = MatrixTranslate(0, 5 * (i - 5),0) * MatrixRotate(Vector3{0, 1, 0}, angle * i);
+    } 
+    DrawMeshInstanced(carmesh, Material{}, stacc, 10);
     //EndPipelineMode();
     EndMode3D();
     Matrix mat = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
@@ -40,22 +44,22 @@ void mainloop(){
     if(IsKeyPressed(KEY_U)){
         ToggleFullscreen();
     }
+    angle -= GetFrameTime() * 10.0f;
     EndDrawing();
-    angle -= 1.f;
 }
 int main(){
     TRACELOG(LOG_INFO, "Hello");
     const char* ptr = FindDirectory("resources", 3);
     std::string resourceDirectoryPath = ptr ? ptr : "";
     TRACELOG(LOG_INFO, "Directory path: %s", resourceDirectoryPath.c_str());
-
-    InitWindow(1200, 800, "glTF Model Loading");
-    SetTargetFPS(0);
+    SetConfigFlags(FLAG_STDOUT_TO_FFMPEG);
+    InitWindow(1024, 800, "glTF Model Loading");
+    SetTargetFPS(60);
     
     //return 0;
     carmodel = LoadModel((resourceDirectoryPath + "/old_car_new.glb").c_str());
     cam = CLITERAL(Camera3D){
-        .position = CLITERAL(Vector3){10,20,25},
+        .position = CLITERAL(Vector3){20,30,45},
         .target = CLITERAL(Vector3){0,0,0},
         .up = CLITERAL(Vector3){0,1,0},
         .fovy = 1.0f
@@ -68,7 +72,6 @@ int main(){
 
     //pl = Relayout(DefaultPipeline(), carmesh.vao);
     //SetPipelineTexture(pl, 1, card);
-    ClearBackground(BLUE);
     #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainloop, 0, 0);
     #else

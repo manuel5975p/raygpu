@@ -359,7 +359,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     if(g_wgpustate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
         if(IsATerminal(stdout)){
             TRACELOG(LOG_ERROR, "Refusing to pipe video output to terminal");
-            TRACELOG(LOG_ERROR, "Try <program> | ffmpeg -y -f rawvideo -pix_fmt bgra -s 2560x1440 -r 60 -i - -vf format=yuv420p out.mp4");
+            TRACELOG(LOG_ERROR, "Try <program> | ffmpeg -y -f rawvideo -pix_fmt bgra -s %ux%u -r 60 -i - -vf format=yuv420p out.mp4", width, height);
             exit(1);
         }
         SetTraceLogFile(stderr);

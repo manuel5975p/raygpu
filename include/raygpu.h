@@ -728,11 +728,13 @@ EXTERN_C_BEGIN
 
     WGPUTexture GetActiveColorTarget(cwoid);
     Texture LoadTextureFromImage(Image img);
+    void ImageFormat(Image* img, PixelFormat newFormat);
     Image LoadImageFromTexture(Texture tex);
     Image LoadImageFromTextureEx(WGPUTexture tex);
     void TakeScreenshot(const char* filename);
     Image LoadImage(const char* filename);
     Image ImageFromImage(Image img, Rectangle rec);
+    
     uint32_t RoundUpToNextMultipleOf256(uint32_t x);
     void UnloadImage(Image img);
     void UnloadTexture(Texture tex);

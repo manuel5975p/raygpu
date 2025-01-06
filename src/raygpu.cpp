@@ -808,6 +808,10 @@ void EndDrawing(){
         size_t fmtsize = GetPixelSizeInBytes((WGPUTextureFormat)img.format);
         for(size_t i = 0;i < img.height;i++){
             unsigned char* dptr = static_cast<unsigned char*>(img.data) + i * img.rowStrideInBytes;
+            for(uint32_t r = 0;r < img.width;i++){
+                Color c = reinterpret_cast<Color*>(dptr)[r];
+                reinterpret_cast<Color*>(dptr)[r] = Color{c.a, c.b, c.g, c.r};
+            }
             size_t bytesWritten = fwrite(dptr, 1, img.width * fmtsize, stdout);
         }
 
@@ -999,6 +1003,11 @@ Image LoadImageFromTextureEx(WGPUTexture tex){
     //readtex.Destroy();
     return fbLoad;
 }
+
+void ImageFormat(Image* img, PixelFormat newFormat){
+
+}
+
 Image LoadImageFromTexture(Texture tex){
     //#ifndef __EMSCRIPTEN__
     //auto& device = g_wgpustate.device;
