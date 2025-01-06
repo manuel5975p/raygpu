@@ -800,6 +800,7 @@ void EndDrawing(){
             // For simplicity, we'll skip exporting in this case
             return;
         }
+        
 
         // Calculate the total size of the image data to write
         size_t totalSize = img.rowStrideInBytes * img.height;
@@ -808,9 +809,9 @@ void EndDrawing(){
         size_t fmtsize = GetPixelSizeInBytes((WGPUTextureFormat)img.format);
         for(size_t i = 0;i < img.height;i++){
             unsigned char* dptr = static_cast<unsigned char*>(img.data) + i * img.rowStrideInBytes;
-            for(uint32_t r = 0;r < img.width;i++){
-                Color c = reinterpret_cast<Color*>(dptr)[r];
-                reinterpret_cast<Color*>(dptr)[r] = Color{c.a, c.b, c.g, c.r};
+            for(uint32_t r = 0;r < img.width;r++){
+                BGRAColor c = reinterpret_cast<BGRAColor*>(dptr)[r];
+                reinterpret_cast<BGRAColor*>(dptr)[r] = BGRAColor{c.a, c.r, c.g, c.b};
             }
             size_t bytesWritten = fwrite(dptr, 1, img.width * fmtsize, stdout);
         }
