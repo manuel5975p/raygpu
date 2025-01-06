@@ -3,7 +3,7 @@
 int main(void){
     const int screenWidth = 800;
     const int screenHeight = 600;
-    //SetConfigFlags(FLAG_MSAA_4X_HINT);
+    SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(screenWidth, screenHeight, "Primary Window");
 
     int secondWidth = 400, secondHeight = 400;
@@ -18,12 +18,12 @@ int main(void){
 
         BeginWindowMode(second);
         BeginTextureMode(rtex);
-        ClearBackground(RED);
-        DrawCircle(200, 200, 50.0f, YELLOW);
-        EndTextureMode();
-
-        ClearBackground(DARKBLUE);
+        ClearBackground(GREEN);
         DrawCircle(GetMouseX(), GetMouseY(), 50.0f, WHITE);
+        EndTextureMode();
+        //DrawCircle(200, 200, 50.0f, YELLOW);
+        //ClearBackground(DARKBLUE);
+        //DrawCircle(GetMouseX(), GetMouseY(), 50.0f, WHITE);
         DrawTexturePro(rtex.color, (Rectangle){0,0,800,800}, (Rectangle){300,300,100,100}, (Vector2){0,0}, 0.0f, WHITE);
         EndWindowMode();
         

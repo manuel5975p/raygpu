@@ -33,10 +33,9 @@ struct wgpustate{
     Texture whitePixel;
 
     
-    WGPUTexture currentScreenTexture;
-    WGPUTexture currentScreenDepthTexture;
-    WGPUTexture currentScreenMultisampleTexture;
-    WGPUTextureView currentScreenTextureView;
+    RenderTexture mainWindowRenderTarget;
+    RenderTexture currentDefaultRenderTarget;
+    
     Rectangle windowPosition; // Recovery after fullscreen
     std::vector<uint8_t> keydownPrevious = std::vector<uint8_t>(512, 0);
     std::vector<uint8_t> keydown = std::vector<uint8_t>(512, 0);
