@@ -13,7 +13,7 @@ void mainloop(void){
     EndDrawing();
 }
 int main(void){
-    SetConfigFlags(FLAG_HEADLESS);
+    //SetConfigFlags(FLAG_STDOUT_TO_FFMPEG);
     InitWindow(1920, 1080, "WebGPU window");
     SetTargetFPS(0);
     #ifndef __EMSCRIPTEN__

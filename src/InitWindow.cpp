@@ -355,11 +355,17 @@ void InitWGPU(webgpu_cxx_state* sample){
 
 }
 
-
-
-
 //webgpu_cxx_state* sample;
 GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
+    if(g_wgpustate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
+        if(IsATerminal(stdout)){
+            TRACELOG(LOG_ERROR, "Refusing to pipe video output to terminal");
+            TRACELOG(LOG_ERROR, "Try <program> | ffmpeg -y -f rawvideo -pix_fmt bgra -s 2560x1440 -r 60 -i - -vf format=yuv420p out.mp4");
+            exit(1);
+        }
+        SetTraceLogFile(stderr);
+    }
+
     webgpu_cxx_state wg_init;
     InitWGPU(&wg_init);
     g_wgpustate.instance = std::move(wg_init.instance);
@@ -581,6 +587,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     }else{
         g_wgpustate.frameBufferFormat = WGPUTextureFormat_BGRA8Unorm;
     }
+    
     UniformDescriptor uniforms[4] = {
         UniformDescriptor{uniform_buffer, 64, 0},
         UniformDescriptor{texture2d, 0, 1},
