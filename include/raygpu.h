@@ -880,6 +880,7 @@ EXTERN_C_BEGIN
     DescribedPipeline* GetActivePipeline(cwoid);
 
     uint32_t GetUniformLocation(DescribedPipeline* pl, const char* uniformName);
+    uint32_t GetUniformLocationCompute(DescribedComputePipeline* pl, const char* uniformName);
     void SetPipelineTexture           (DescribedPipeline* pl, uint32_t index, Texture tex);
     void SetPipelineSampler           (DescribedPipeline* pl, uint32_t index, DescribedSampler sampler);
     void SetPipelineUniformBuffer     (DescribedPipeline* pl, uint32_t index, DescribedBuffer* buffer);

@@ -46,9 +46,9 @@ DescribedBuffer* positions;
 DescribedBuffer* velocities;
 DescribedBuffer* positionsnew;
 
-constexpr bool headless = true;
+constexpr bool headless = false;
 
-constexpr size_t parts = (1 << 18);
+constexpr size_t parts = (1 << 23);
 void mainloop(void){
     BeginDrawing();
     BeginComputepass();
@@ -74,18 +74,13 @@ void mainloop(void){
 }
 int main(){
     SetConfigFlags(FLAG_MSAA_4X_HINT);
-    SetConfigFlags(FLAG_STDOUT_TO_FFMPEG);
-    if(headless)
-        SetConfigFlags(FLAG_HEADLESS);
+    //SetConfigFlags(FLAG_STDOUT_TO_FFMPEG);
+    //if(headless)
+    //    SetConfigFlags(FLAG_HEADLESS);
     RequestLimit(maxBufferSize, 1ull << 30);
     InitWindow(2560, 1440, "Compute Shader");
-
-
-    UniformDescriptor computeUniforms[] = {
-        UniformDescriptor{.type = storage_write_buffer, .minBindingSize = 8, .location = 0},
-        UniformDescriptor{.type = storage_buffer,       .minBindingSize = 8      , .location = 1},
-    };
-    cpl = LoadComputePipeline(computeSource, computeUniforms, 2);
+    SetTargetFPS(0);
+    
     
     std::mt19937_64 gen(53);
     std::uniform_real_distribution<float> dis(-1,1);
@@ -95,7 +90,7 @@ int main(){
     //});
     for(size_t i = 0;i < parts;i++){
         float arg = M_PI * (dis(gen) + 1);
-        float mag = std::sqrt(dis(gen)) * 0.03f;
+        float mag = std::sqrt(dis(gen)) * 0.001f;
 
         vel[i] = Vector2{std::cos(arg) * mag, std::sin(arg) * mag};
     }
@@ -115,8 +110,12 @@ int main(){
     positions = GenBufferEx(pos.data(), pos.size() * sizeof(Vector2), WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
     velocities = GenBufferEx(vel.data(), vel.size() * sizeof(Vector2), WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst);
 
-    SetBindgroupStorageBuffer(&cpl->bindGroup, 0, positions);
-    SetBindgroupStorageBuffer(&cpl->bindGroup, 1, velocities);
+    cpl = LoadComputePipeline(computeSource);
+    (*cpl)["posBuffer"] = positions;
+    (*cpl)["velBuffer"] = velocities;
+
+    //SetBindgroupStorageBuffer(&cpl->bindGroup, GetUniformLocationCompute(cpl, "posBuffer"), positions);
+    //SetBindgroupStorageBuffer(&cpl->bindGroup, GetUniformLocationCompute(cpl, "velBuffer"), velocities);
 
     vao = LoadVertexArray();
     VertexAttribPointer(vao, quad, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
