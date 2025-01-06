@@ -144,6 +144,7 @@ std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shade
     tint::Source::File f("path", shaderSource);
     tint::wgsl::reader::Options options{};
     tint::Program result = tint::wgsl::reader::Parse(&f, options);
+    tint::inspector::Inspector insp(result);
     if(!result.IsValid()){
         TRACELOG(LOG_ERROR, "Could not parse shader:");
         std::cout << result.Diagnostics() << "\n";
@@ -177,14 +178,15 @@ std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shade
                     desc.type = uniform_buffer;
                 }
                 else if(addrspace->identifier->symbol.Name() == "storage"){
-                    
-                    if(auto accex = glob->As<tint::ast::Var>()->declared_access->As<tint::ast::IdentifierExpression>()){
-                        std::string access_modifier = accex->As<tint::ast::IdentifierExpression>()->identifier->symbol.Name();
-                        if(access_modifier == "read"){
-                            desc.type = storage_buffer;
-                        }
-                        else if (access_modifier == "read_write"){
-                            desc.type = storage_write_buffer;
+                    if(glob->As<tint::ast::Var>()->declared_access){
+                        if(auto accex = glob->As<tint::ast::Var>()->declared_access->As<tint::ast::IdentifierExpression>()){
+                            std::string access_modifier = accex->As<tint::ast::IdentifierExpression>()->identifier->symbol.Name();
+                            if(access_modifier == "read"){
+                                desc.type = storage_buffer;
+                            }
+                            else if (access_modifier == "read_write"){
+                                desc.type = storage_write_buffer;
+                            }
                         }
                     }
                     else{

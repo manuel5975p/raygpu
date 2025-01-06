@@ -866,6 +866,7 @@ int GetCurrentMonitor(){
 
 extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* title){
     SubWindow ret{};
+    #ifndef __EMSCRIPTEN__
     ret.handle = glfwCreateWindow(width, height, title, nullptr, nullptr);
     wgpu::Surface secondSurface = wgpu::glfw::CreateSurfaceForWindow(GetInstance(), (GLFWwindow*)ret.handle);
     wgpu::SurfaceCapabilities capabilities;
@@ -880,6 +881,7 @@ extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* 
     secondSurface.Configure(&config);
     ret.surface = secondSurface.MoveToCHandle();
     ret.frameBuffer = LoadRenderTexture(config.width, config.height);
+    #endif
     return ret;
 }
 
