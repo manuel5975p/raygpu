@@ -793,13 +793,37 @@ void EndDrawing(){
         drawCurrentBatch();
         EndRenderpassEx(g_wgpustate.rstate->activeRenderpass);
     }
-    
+    if(g_wgpustate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
+        Image img = LoadImageFromTextureEx(g_wgpustate.currentScreenTexture);
+        if (img.format != BGRA8 && img.format != RGBA8) {
+            // Handle unsupported formats or convert as necessary
+            fprintf(stderr, "Unsupported pixel format for FFmpeg export.\n");
+            // You might want to convert the image to a supported format here
+            // For simplicity, we'll skip exporting in this case
+            return;
+        }
+
+        // Calculate the total size of the image data to write
+        size_t totalSize = img.rowStrideInBytes * img.height;
+
+        // Write the image data to stdout (FFmpeg should be reading from stdin)
+        size_t fmtsize = GetPixelSizeInBytes((WGPUTextureFormat)img.format);
+        for(size_t i = 0;i < img.height;i++){
+            unsigned char* dptr = static_cast<unsigned char*>(img.data) + i * img.rowStrideInBytes;
+            size_t bytesWritten = fwrite(dptr, 1, img.width * fmtsize, stdout);
+        }
+
+        // Flush stdout to ensure all data is sent to FFmpeg promptly
+        fflush(stdout);
+        UnloadImage(img);
+    }
     if(g_wgpustate.grst->recording){
         uint64_t stmp = NanoTime();
         if(stmp - g_wgpustate.grst->lastFrameTimestamp > g_wgpustate.grst->delayInCentiseconds * 10000000ull){
             addScreenshot(g_wgpustate.grst);
             g_wgpustate.grst->lastFrameTimestamp = stmp;
         }
+        
         BeginRenderpass();
         int recordingTextX = GetScreenWidth() - MeasureText("Recording", 30);
         DrawText("Recording", recordingTextX, 5, 30, Color{255,40,40,255});
@@ -1285,6 +1309,7 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     
     state->activePipeline = state->defaultPipeline;
     g_wgpustate.quadindicesCache = callocnew(DescribedBuffer);    //WGPUBufferDescriptor vbmdesc{};
+    g_wgpustate.quadindicesCache->descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
     //vbmdesc.mappedAtCreation = true;
     //vbmdesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_MapWrite;
     //vbmdesc.size = (1 << 22) * sizeof(vertex);
@@ -2064,9 +2089,17 @@ extern "C" void NanoWait(uint64_t time){
     NanoWaitImpl(NanoTime() + time);
     return;
 }
+FILE* tracelogFile = stdout;
+int tracelogLevel = LOG_INFO;
+void SetTraceLogFile(FILE* file){
+    tracelogFile = file;
+}
+void SetTraceLogLevel(int logLevel){
+    logLevel = logLevel;
+}
 void TraceLog(int logType, const char *text, ...){
     // Message has level below current threshold, don't emit
-    //if (logType < logTypeLevel) return;
+    if(logType < tracelogLevel)return;
 
     va_list args;
     va_start(args, text);
@@ -2099,8 +2132,8 @@ void TraceLog(int logType, const char *text, ...){
     else{
         strcat(buffer, "\n");
     }
-    vprintf(buffer, args);
-    fflush(stdout);
+    vfprintf(tracelogFile, buffer, args);
+    fflush  (tracelogFile);
 
     va_end(args);
 

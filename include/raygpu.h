@@ -5,7 +5,7 @@
 #include <webgpu/webgpu_cpp.h>
 #endif
 #include <stdbool.h>
-#include <stdbool.h>
+#include <stdio.h>
 #include <assert.h>
 #include "macros_and_constants.h"
 #include "mathutils.h"
@@ -295,8 +295,10 @@ constexpr Color RAYWHITE{ 245, 245, 245, 255 };
 
 
 typedef enum WindowFlag{
-    FLAG_HEADLESS           = 0x01000000,   // Disable ALL windowing stuff
-    FLAG_VSYNC_HINT         = 0x00000040,   // Set to try enabling V-Sync on GPU
+    FLAG_STDOUT_TO_FFMPEG   = 0x02000000,   // Redirect tracelog to stderr and dump frames into stdout
+                                            // Made for <program> | ffmpeg -f rawvideo -pix_fmt bgra -s 1920x1080 -i - output.mp4
+    FLAG_HEADLESS           = 0x01000000,   // Disable ALL windowing stuff (Runnable without Desktop Server)
+    FLAG_VSYNC_HINT         = 0x00000040,   // Set to try enabling V-Sync on GPU (i.e. PresentMode::Fifo for the surface)
     FLAG_MSAA_4X_HINT       = 0x00000020,   // Forcefully Hint (actually force) 4x multisampling for the default color buffer and pipeline
     FLAG_WINDOW_RESIZABLE   = 0x00000004,
     FLAG_FULLSCREEN_MODE    = 0x00000002,   // Set to run program in fullscreen
@@ -661,6 +663,8 @@ EXTERN_C_BEGIN
      */
     double GetTime(cwoid);
     int GetRandomValue(int min, int max);
+    void SetTraceLogFile(FILE* file);
+    void SetTraceLogLevel(int logLevel);
     void TraceLog(int logType, const char *text, ...);
     /**
      * @brief Return the unix timestamp in nanosecond precision
@@ -671,6 +675,7 @@ EXTERN_C_BEGIN
     uint64_t NanoTime(cwoid);
     void RequestLimit(LimitType limit, uint64_t value);
     void SetConfigFlags(WindowFlag flag);
+    bool IsATerminal(FILE *stream);
     void SetTargetFPS(int fps);                                 // Set target FPS (maximum)
     int GetTargetFPS(cwoid);
     uint64_t GetFrameCount(cwoid);

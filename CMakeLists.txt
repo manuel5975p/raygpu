@@ -68,6 +68,7 @@ set(RG_SOURCES
     "src/rshapes.cpp"
     "src/pipeline.cpp"
     "src/models.cpp"
+    "src/windows_stuff.c"
 )
 
 add_library(raygpu ${RG_SOURCES})

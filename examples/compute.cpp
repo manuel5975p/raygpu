@@ -46,7 +46,7 @@ DescribedBuffer* positions;
 DescribedBuffer* velocities;
 DescribedBuffer* positionsnew;
 
-constexpr bool headless = false;
+constexpr bool headless = true;
 
 constexpr size_t parts = (1 << 18);
 void mainloop(void){
@@ -64,7 +64,7 @@ void mainloop(void){
 
     DrawFPS(10, 10);
     EndDrawing();
-    if(headless){
+    if(false && headless){
         char b[64] = {0};
 
         snprintf(b, 64, "frame%04d.bmp", (int)GetFrameCount());
@@ -74,6 +74,7 @@ void mainloop(void){
 }
 int main(){
     SetConfigFlags(FLAG_MSAA_4X_HINT);
+    SetConfigFlags(FLAG_STDOUT_TO_FFMPEG);
     if(headless)
         SetConfigFlags(FLAG_HEADLESS);
     RequestLimit(maxBufferSize, 1ull << 30);
