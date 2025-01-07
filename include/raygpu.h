@@ -852,6 +852,7 @@ EXTERN_C_BEGIN
     DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
     DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao);
     DescribedPipeline* LoadPipelineForVAOEx(const char* shaderSource, VertexArray* vao, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
+    DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs);
     DescribedPipeline* DefaultPipeline(cwoid);
     RenderSettings GetDefaultSettings(cwoid);
     Texture GetDefaultTexture(cwoid);
