@@ -1,0 +1,13 @@
+#ifndef CONFIG_H_INCLUDED
+#define CONFIG_H_INCLUDED
+
+#ifndef SUPPORT_WGSL_PARSER
+#define SUPPORT_WGSL_PARSER 1
+#endif
+
+#ifndef SUPPORT_GLSL_PARSER
+#define SUPPORT_GLSL_PARSER 0
+#endif
+
+
+#endif // CONFIG_H_INCLUDED
