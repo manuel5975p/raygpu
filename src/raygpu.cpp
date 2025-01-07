@@ -1010,10 +1010,15 @@ Image LoadImageFromTextureEx(WGPUTexture tex){
 template<typename from, typename to>
 to convert4(const from& fr){
     to ret;
-    ret.r = fr.r;
-    ret.g = fr.g;
-    ret.b = fr.b;
-    ret.a = fr.a;
+    if constexpr(std::is_floating_point_v<decltype(ret.r)>){
+
+    }
+    else{
+        ret.r = fr.r;
+        ret.g = fr.g;
+        ret.b = fr.b;
+        ret.a = fr.a;
+    }
     return ret;
 }
 template<typename from, typename to>
@@ -1047,6 +1052,9 @@ void ImageFormat(Image* img, PixelFormat newFormat){
         case PixelFormat::BGRA8:{
             if(newFormat == RGBA8){
                 FormatImage_Impl<BGRA8Color, RGBA8Color>(*img, newimg);
+            }
+            if(newFormat == RGBA32F){
+                FormatImage_Impl<BGRA8Color, RGBA32FColor>(*img, newimg);
             }
         }break;
         default:
@@ -1237,7 +1245,7 @@ WGPUShaderModule LoadShader(const char* path) {
     return wgpuDeviceCreateShaderModule(GetDevice(), &shaderDesc);
 }
 Texture3D LoadTexture3DEx(uint32_t width, uint32_t height, uint32_t depth, WGPUTextureFormat format){
-    return LoadTexture3DPro(width, height, depth, format, WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_StorageBinding);
+    return LoadTexture3DPro(width, height, depth, format, WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_StorageBinding, 1);
 }
 Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, WGPUTextureFormat format, WGPUTextureUsage usage, uint32_t sampleCount){
     Texture3D ret zeroinit;

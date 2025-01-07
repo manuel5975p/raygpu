@@ -2,13 +2,17 @@
 #include <raygpu.h>
 #include <vector>
 #include <sstream>
+#if defined(SUPPORT_WGSL_PARSER) && SUPPORT_WGSL_PARSER == 1
 #include <tint/tint.h>
-//#include <tint/lang/wgsl/reader/reader.h>
-//#include <tint/api/tint.h>
+#include <tint/api/tint.h>
 #include <tint/lang/wgsl/reader/parser/parser.h>
 #include <tint/lang/wgsl/reader/reader.h>
-#include <tint/lang/glsl/writer/writer.h>
 #include <tint/lang/core/type/reference.h>
+#endif
+
+//#include <tint/lang/glsl/writer/writer.h>
+//#include <tint/lang/wgsl/reader/reader.h>
+
 const std::unordered_map<std::string, WGPUVertexFormat> builtins = [](){
     std::unordered_map<std::string, WGPUVertexFormat> map;
     map["vec2u"] = WGPUVertexFormat_Uint32x2;
@@ -30,7 +34,9 @@ const std::unordered_map<std::string, std::unordered_map<std::string, WGPUVertex
     return map;
 }();
 std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> getAttributes(const char* shaderSource){
+    
     std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> ret;
+#if defined(SUPPORT_WGSL_PARSER) && SUPPORT_WGSL_PARSER == 1
     tint::Source::File f("path", shaderSource);
     tint::wgsl::reader::Options options{};
     tint::Program result = tint::wgsl::reader::Parse(&f, options);
@@ -136,11 +142,13 @@ std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> getAttrib
             //std::cout << "\n";
         }
     }
+#endif
     return ret;
 }
 std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shaderSource){
     //tint::Initialize();
     std::unordered_map<std::string, UniformDescriptor> ret;
+#if defined(SUPPORT_WGSL_PARSER) && SUPPORT_WGSL_PARSER == 1
     tint::Source::File f("path", shaderSource);
     tint::wgsl::reader::Options options{};
     tint::Program result = tint::wgsl::reader::Parse(&f, options);
@@ -205,6 +213,7 @@ std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shade
     //auto glslresult = tint::glsl::writer::Generate(mod.Get(), tint::glsl::writer::Options{}, std::string("vs_main"));
     //std::cout << glslresult << std::endl;
     //std::cout << glslresult.Get().glsl << "\n";
+#endif
     return ret;
     /*std::unordered_map<std::string, std::unordered_map<uint32_t, WGPUVertexFormat>> declaredTypesAndLocations;
     if(result.IsValid()){

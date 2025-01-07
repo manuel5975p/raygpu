@@ -19,13 +19,13 @@ int main(){
     //SetTargetFPS(1800);
     size_t dataSize;
     char* wgsldata = LoadFileText("../resources/base.wgsl");
-    char* data = (char*)LoadFileData("../resources/simple.spv", &dataSize);
+    char* data = (char*)LoadFileData("../../resources/simple.spv", &dataSize);
     char* rev =  (char*)malloc(dataSize);
     memcpy(rev, data, dataSize);
     for(uint32_t i = 0;i < dataSize/4;i++){
         //data[i] = rev[dataSize - i - 1];
     }
-    for(uint32_t i = 0;i < dataSize/4;i++){
+    for(uint32_t i = 0;i < dataSize / 4;i++){
         uint32_t* ptr = (uint32_t*)data;
         uint32_t val = ptr[i];
         val = byteswap_uint32(val);
