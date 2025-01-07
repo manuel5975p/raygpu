@@ -49,8 +49,15 @@ else()
 message(STATUS "File ${filename} already exists, skipping download.")
 endif()
 endfunction()
+if(NOT EMSCRIPTEN)
+FetchContent_Declare(
+    khrGlslang
+    URL      https://github.com/KhronosGroup/glslang/archive/refs/tags/15.1.0.tar.gz
+    DOWNLOAD_EXTRACT_TIMESTAMP True
+)
 
-
+FetchContent_MakeAvailable(khrGlslang)
+endif()
 #download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_rect_pack.h" "stb_rect_pack.h")
 #download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_truetype.h" "stb_truetype.h")
 #download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_image.h" "stb_image.h")
@@ -73,7 +80,9 @@ set(RG_SOURCES
     "src/models.cpp"
     "src/windows_stuff.c"
 )
-
+if (NOT EMSCRIPTEN)
+    list(APPEND RG_SOURCES "src/glsl_support.cpp")
+endif()
 add_library(raygpu ${RG_SOURCES})
 if(CMAKE_BUILD_TYPE MATCHES Debug)
     foreach(source_file IN LISTS RG_SOURCES)
@@ -99,7 +108,16 @@ if(EMSCRIPTEN)
         tint_lang_core
         tint_lang_wgsl
         tint_lang_wgsl_reader
+        #tint_lang_spirv
+        #tint_lang_spirv_reader
+        #tint_lang_spirv_reader_lower
+        #tint_lang_spirv_intrinsic
+        #tint_lang_spirv_ir
+        #tint_lang_spirv_type
+        #tint_lang_spirv_reader_parser
+        #glslang
     )
+    
     target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
 else()
     target_link_libraries(raygpu PUBLIC
@@ -108,6 +126,7 @@ else()
         dawn_internal_config
         dawn::dawn_glfw
         glfw
+        glslang
     
         #dawn::dawn_native
         #dawn::dawn_common

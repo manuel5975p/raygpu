@@ -1,5 +1,6 @@
 #ifndef RAYGPU_H
 #define RAYGPU_H
+#include <config.h>
 #include <webgpu/webgpu.h>
 #ifdef __cplusplus
 #include <webgpu/webgpu_cpp.h>
@@ -45,6 +46,8 @@ struct RGBA32FColor{
 typedef enum PixelFormat{
     RGBA8 = WGPUTextureFormat_RGBA8Unorm,
     BGRA8 = WGPUTextureFormat_BGRA8Unorm,
+    RGBA32F = WGPUTextureFormat_RGBA32Float,
+
     GRAYSCALE = 0x100000, //No WGPU_ equivalent
     RGB8 = 0x100000,
 }PixelFormat;
@@ -860,6 +863,7 @@ EXTERN_C_BEGIN
     DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
     DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao);
     DescribedPipeline* LoadPipelineForVAOEx(const char* shaderSource, VertexArray* vao, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
+    DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs);
     DescribedPipeline* DefaultPipeline(cwoid);
     RenderSettings GetDefaultSettings(cwoid);
     Texture GetDefaultTexture(cwoid);
