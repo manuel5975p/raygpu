@@ -1236,6 +1236,42 @@ WGPUShaderModule LoadShader(const char* path) {
 #endif
     return wgpuDeviceCreateShaderModule(GetDevice(), &shaderDesc);
 }
+Texture3D LoadTexture3DEx(uint32_t width, uint32_t height, uint32_t depth, WGPUTextureFormat format){
+    return LoadTexture3DPro(width, height, depth, format, WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_StorageBinding);
+}
+Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, WGPUTextureFormat format, WGPUTextureUsage usage, uint32_t sampleCount){
+    Texture3D ret zeroinit;
+    ret.width = width;
+    ret.height = height;
+    ret.depth = depth;
+    ret.sampleCount = sampleCount;
+    ret.format = format;
+
+    WGPUTextureDescriptor tDesc zeroinit;
+    tDesc.dimension = WGPUTextureDimension_3D;
+    tDesc.size = {width, height, depth};
+    tDesc.mipLevelCount = 1;
+    tDesc.sampleCount = sampleCount;
+    tDesc.format = format;
+    tDesc.usage  = usage;
+    tDesc.viewFormatCount = 1;
+    tDesc.viewFormats = &tDesc.format;
+    
+    WGPUTextureViewDescriptor textureViewDesc zeroinit;
+    textureViewDesc.aspect = ((format == WGPUTextureFormat_Depth24Plus) ? WGPUTextureAspect_DepthOnly : WGPUTextureAspect_All);
+    textureViewDesc.baseArrayLayer = 0;
+    textureViewDesc.arrayLayerCount = 1;
+    textureViewDesc.baseMipLevel = 0;
+    textureViewDesc.mipLevelCount = 1;
+    textureViewDesc.dimension = WGPUTextureViewDimension_3D;
+    textureViewDesc.format = tDesc.format;
+
+    ret.id = wgpuDeviceCreateTexture(GetDevice(), &tDesc);
+    ret.view = wgpuTextureCreateView(ret.id, &textureViewDesc);
+    
+    return ret;
+}
+
 Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage, uint32_t sampleCount){
     WGPUTextureDescriptor tDesc{};
     tDesc.dimension = WGPUTextureDimension_2D;

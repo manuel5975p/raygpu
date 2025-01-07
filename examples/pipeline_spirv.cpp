@@ -33,7 +33,7 @@ int main(){
     }
     //tint::spirv::File f("path", data);
 
-    tint::Slice<const uint32_t> sl((uint32_t*)data, dataSize);
+    tint::Slice<const uint32_t> sl((uint32_t*)data, dataSize / 4);
     tint::spirv::reader::Options options{};
     auto result = tint::spirv::reader::Parse(sl);
     std::cout << result << "\n";
@@ -50,7 +50,7 @@ int main(){
     wgpu::ShaderModuleDescriptor shaderDesc{};
     shaderDesc.nextInChain = &shaderCodeDesc;
     WGPUStringView strv = STRVIEW("wtf");
-    wgpu::ShaderModule sh = GetCXXDevice().CreateErrorShaderModule(&shaderDesc, strv);
+    wgpu::ShaderModule sh = GetCXXDevice().CreateShaderModule(&shaderDesc);
     while(!WindowShouldClose()){
         BeginDrawing();
         ClearBackground(BLACK);
