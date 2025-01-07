@@ -1,5 +1,6 @@
 #ifndef RAYGPU_H
 #define RAYGPU_H
+#include <config.h>
 #include <webgpu/webgpu.h>
 #ifdef __cplusplus
 #include <webgpu/webgpu_cpp.h>
@@ -45,6 +46,8 @@ struct RGBA32FColor{
 typedef enum PixelFormat{
     RGBA8 = WGPUTextureFormat_RGBA8Unorm,
     BGRA8 = WGPUTextureFormat_BGRA8Unorm,
+    RGBA32F = WGPUTextureFormat_RGBA32Float,
+
     GRAYSCALE = 0x100000, //No WGPU_ equivalent
     RGB8 = 0x100000,
 }PixelFormat;
