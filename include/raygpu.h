@@ -67,6 +67,14 @@ typedef struct Texture{
     uint32_t sampleCount;
 }Texture;
 
+typedef struct Texture3D{
+    WGPUTexture id;
+    WGPUTextureView view;
+    uint32_t width, height, depth;
+    WGPUTextureFormat format;
+    uint32_t sampleCount;
+}Texture3D;
+
 typedef Texture Texture2D;
 
 typedef struct Rectangle {
@@ -865,6 +873,9 @@ EXTERN_C_BEGIN
     Texture LoadDepthTexture(uint32_t width, uint32_t height);
     Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format, bool to_be_used_as_rendertarget);
     Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage, uint32_t sampleCount);
+    Texture3D LoadTexture3DEx(uint32_t width, uint32_t height, uint32_t depth, WGPUTextureFormat format);
+    Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, WGPUTextureFormat format, WGPUTextureUsage usage, uint32_t sampleCount);
+    
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
     void UpdateTexture(Texture tex, void* data);
 
