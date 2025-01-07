@@ -1,4 +1,3 @@
-constexpr char shaderSource[] = R"(
 struct VertexInput {
     @location(0) position: vec3f,
     @location(1) uv: vec2f,
@@ -42,4 +41,3 @@ fn vs_main(@builtin(instance_index) instanceIdx : u32, in: VertexInput) -> Verte
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     return textureSample(colDiffuse, grsampler, in.uv).rgba * in.color;
 }
-)";
