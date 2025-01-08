@@ -10,6 +10,23 @@
 #else
 #include <emscripten/html5.h>
 #include <emscripten/emscripten.h>
+// Configurable scaling factors
+constexpr float PIXEL_SCALE = 1.0f;
+constexpr float LINE_SCALE = 20.0f;  // Adjust based on typical line height
+constexpr float PAGE_SCALE = 800.0f; // Adjust based on typical page height
+// Function to calculate scaling based on deltaMode
+float calculateScrollScale(int deltaMode) {
+    switch(deltaMode) {
+        case DOM_DELTA_PIXEL:
+            return PIXEL_SCALE;
+        case DOM_DELTA_LINE:
+            return LINE_SCALE;
+        case DOM_DELTA_PAGE:
+            return PAGE_SCALE;
+        default:
+            return PIXEL_SCALE; // Fallback to pixel scale
+    }
+}
 #endif  // 
 #ifdef _WIN32
 #define __builtin_unreachable(...)
@@ -139,7 +156,6 @@ void glfwKeyCallback (GLFWwindow* window, int key, int scancode, int action, int
 }
 #ifdef __EMSCRIPTEN__
 EM_BOOL EmscriptenKeydownCallback(int eventType, const EmscriptenKeyboardEvent *keyEvent, void *userData){
-    printf("Code: %s\n", keyEvent->code);
     if(keyEvent->repeat)return 0;
     uint32_t modifier = 0;
     if(keyEvent->ctrlKey)
@@ -284,9 +300,11 @@ void InitWGPU(webgpu_cxx_state* sample){
         //TRACELOG(LOG_INFO, "Supports: %d", fn);
     }
     wgpu::DeviceDescriptor deviceDesc = {};
+    #ifndef __EMSCRIPTEN__ //y tho
     wgpu::FeatureName fname = wgpu::FeatureName::ClipDistances;
     deviceDesc.requiredFeatures = &fname;
     deviceDesc.requiredFeatureCount = 1;
+    #endif
     deviceDesc.nextInChain = togglesChain;
     deviceDesc.SetDeviceLostCallback(
         wgpu::CallbackMode::AllowSpontaneous,
@@ -537,12 +555,37 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
 
 
 
-
-
-        glfwSetScrollCallback(window, [](GLFWwindow* window, double xoffset, double yoffset){
+        auto scrollCallback = [](GLFWwindow* window, double xoffset, double yoffset){
             g_wgpustate.scrollThisFrame.x += xoffset;
             g_wgpustate.scrollThisFrame.y += yoffset;
-        });
+        };
+        #ifndef __EMSCRIPTEN__
+        glfwSetScrollCallback(window, scrollCallback);
+        #else
+        
+
+
+
+    auto EmscriptenWheelCallback = [](int eventType, const EmscriptenWheelEvent* wheelEvent, void *userData) -> EM_BOOL {
+        // Calculate scaling based on deltaMode
+        float scaleX = calculateScrollScale(wheelEvent->deltaMode);
+        float scaleY = calculateScrollScale(wheelEvent->deltaMode);
+        
+        // Optionally clamp the delta values to prevent excessive scrolling
+        double deltaX = std::clamp(wheelEvent->deltaX * scaleX, -100.0, 100.0) / 100.0f;
+        double deltaY = std::clamp(wheelEvent->deltaY * scaleY, -100.0, 100.0) / 100.0f;
+        
+        std::cout << "wheel: deltaX = " << deltaX << ", deltaY = " << deltaY << std::endl;
+        
+        // Invoke the original scroll callback with scaled deltas
+        auto originalCallback = reinterpret_cast<decltype(scrollCallback)*>(userData);
+        (*originalCallback)(nullptr, deltaX, deltaY);
+        
+        return EM_TRUE; // Indicate that the event was handled
+    };
+        emscripten_set_wheel_callback("#canvas", &scrollCallback, 1, EmscriptenWheelCallback);
+        #endif
+
         auto cpcallback = [](GLFWwindow* window, double x, double y){
             g_wgpustate.mousePos = Vector2{float(x), float(y)};
         };
