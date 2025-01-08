@@ -608,6 +608,7 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, WGPUB
         else if(bg->entries[index].sampler){
             wgpuSamplerRelease(bg->entries[index].sampler);
         }
+        bg->releaseOnClear &= ~(1 << index);
     }
     bg->entries[index] = entry;
     bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
