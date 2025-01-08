@@ -921,6 +921,7 @@ EXTERN_C_BEGIN
     void SetBindgroupStorageBuffer (DescribedBindGroup* bg, uint32_t index, DescribedBuffer* buffer);
     void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size);
     void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size);
+    void SetBindgroupTexture3D(DescribedBindGroup* bg, uint32_t index, Texture3D tex);
     void SetBindgroupTexture(DescribedBindGroup* bg, uint32_t index, Texture tex);
     void SetBindgroupSampler(DescribedBindGroup* bg, uint32_t index, DescribedSampler sampler);
 

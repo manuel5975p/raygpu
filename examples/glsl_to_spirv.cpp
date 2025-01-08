@@ -24,7 +24,7 @@ int main(int argc, char* argv[]) {
     //WGPUStringView strv = STRVIEW("wtf");
     //wgpu::ShaderModule sh = GetCXXDevice().CreateShaderModule(&shaderDesc);
     //std::cout << sh.Get() << "\n";
-    DescribedPipeline* pl = LoadPipelineGLSL(LoadFileText("../../resources/simple.vert"), LoadFileText("../../resources/simple.frag"));
+    DescribedPipeline* pl = LoadPipelineGLSL(LoadFileText("../resources/simple.vert"), LoadFileText("../resources/simple.frag"));
     while(!WindowShouldClose()){
         BeginDrawing();
         ClearBackground(RED);
