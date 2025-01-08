@@ -30,6 +30,7 @@ A fast and simple [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebG
 - [x] Compute Shaders / Pipelines with Storage textures [Compute Particles](https://github.com/manuel5975p/raygpu/tree/master/examples/compute.cpp), [Mandelbrot](https://github.com/manuel5975p/raygpu/tree/master/examples/textures_storage.cpp)
 - [x] Multisampling [Example](https://github.com/manuel5975p/raygpu/tree/master/examples/core_msaa.c)
 - [x] **Multiple Windows and Headless mode** [Headless Example](https://github.com/manuel5975p/raygpu/tree/master/examples/core_headless.c) [Multiwindow Example](https://github.com/manuel5975p/raygpu/tree/master/examples/core_multiwindow.c)
+- [ ] MIP Maps (WIP)
 - [ ] Proper animation support
 - [ ] IQM / VOX support
 - [ ] GLSL Support

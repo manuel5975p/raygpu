@@ -61,13 +61,19 @@ typedef struct Image{
     void* data;
     int mipmaps; // Unused
 }Image;
-
+#ifndef MAX_MIP_LEVELS
+#define MAX_MIP_LEVELS 4
+#endif
 typedef struct Texture{
     WGPUTexture id;
     WGPUTextureView view;
+    WGPUTextureView mipViews[MAX_MIP_LEVELS];
+    
     uint32_t width, height;
     WGPUTextureFormat format;
     uint32_t sampleCount;
+    uint32_t mipmaps;
+
 }Texture;
 
 typedef struct Texture3D{
@@ -749,7 +755,7 @@ EXTERN_C_BEGIN
     Texture LoadTextureFromImage(Image img);
     void ImageFormat(Image* img, PixelFormat newFormat);
     Image LoadImageFromTexture(Texture tex);
-    Image LoadImageFromTextureEx(WGPUTexture tex);
+    Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t mipLevel);
     void TakeScreenshot(const char* filename);
     Image LoadImage(const char* filename);
     Image ImageFromImage(Image img, Rectangle rec);
@@ -878,7 +884,8 @@ EXTERN_C_BEGIN
     Texture LoadTexture(const char* filename);
     Texture LoadDepthTexture(uint32_t width, uint32_t height);
     Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format, bool to_be_used_as_rendertarget);
-    Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage, uint32_t sampleCount);
+    Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage, uint32_t sampleCount, uint32_t mipmaps);
+    void GenTextureMipmaps(Texture2D* tex);
     Texture3D LoadTexture3DEx(uint32_t width, uint32_t height, uint32_t depth, WGPUTextureFormat format);
     Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, WGPUTextureFormat format, WGPUTextureUsage usage, uint32_t sampleCount);
     
@@ -924,6 +931,7 @@ EXTERN_C_BEGIN
     void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size);
     void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size);
     void SetBindgroupTexture3D(DescribedBindGroup* bg, uint32_t index, Texture3D tex);
+    void SetBindgroupTextureView(DescribedBindGroup* bg, uint32_t index, WGPUTextureView texView);
     void SetBindgroupTexture(DescribedBindGroup* bg, uint32_t index, Texture tex);
     void SetBindgroupSampler(DescribedBindGroup* bg, uint32_t index, DescribedSampler sampler);
 

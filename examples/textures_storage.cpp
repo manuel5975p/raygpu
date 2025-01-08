@@ -86,8 +86,8 @@ int main(){
     //SetConfigFlags();
     InitWindow(1280, 1280, "Storage Texture");
     SetTargetFPS(0);
-    storageTex = LoadTexturePro(1280, 1280, WGPUTextureFormat_R32Uint, WGPUTextureUsage_CopySrc | WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding, 1);
-    tex = LoadTexturePro(1280, 1280, WGPUTextureFormat_RGBA8Unorm, WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst, 1);
+    storageTex = LoadTexturePro(1280, 1280, WGPUTextureFormat_R32Uint, WGPUTextureUsage_CopySrc | WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding, 1, 1);
+    tex = LoadTexturePro(1280, 1280, WGPUTextureFormat_RGBA8Unorm, WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst, 1, 1);
     pl = LoadComputePipeline(shaderCode);
 
     SetBindgroupTexture(&pl->bindGroup, 0, storageTex);

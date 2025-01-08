@@ -499,13 +499,14 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
             g_wgpustate.height = height;
 
             UnloadTexture(g_wgpustate.currentDefaultRenderTarget.colorMultisample);
-            g_wgpustate.currentDefaultRenderTarget.colorMultisample = LoadTexturePro(width, height, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4);
+            g_wgpustate.currentDefaultRenderTarget.colorMultisample = LoadTexturePro(width, height, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4, 1);
             UnloadTexture(g_wgpustate.currentDefaultRenderTarget.depth);
             g_wgpustate.currentDefaultRenderTarget.depth = LoadTexturePro(width,
                                       height, 
                                       WGPUTextureFormat_Depth24Plus, 
                                       WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
-                                      (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1
+                                      (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
+                                      1
             );
             g_wgpustate.surface.Configure(&config);
             Matrix newcamera = ScreenMatrix(width, height);
@@ -666,12 +667,13 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     //uarraySetter(shaderInputs.uniform_types, {uniform_buffer, texture2d, sampler, storage_buffer});
     
     auto colorTexture = LoadTextureEx(width, height, g_wgpustate.frameBufferFormat, true);
-    g_wgpustate.mainWindowRenderTarget.colorMultisample = LoadTexturePro(width, height, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4);
+    g_wgpustate.mainWindowRenderTarget.colorMultisample = LoadTexturePro(width, height, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4, 1);
     g_wgpustate.mainWindowRenderTarget.depth = LoadTexturePro(width,
                                   height, 
                                   WGPUTextureFormat_Depth24Plus, 
                                   WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
-                                  (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1
+                                  (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
+                                  1
     );
     init_full_renderstate(g_wgpustate.rstate, shaderSource, attrs, 4, uniforms, sizeof(uniforms) / sizeof(UniformDescriptor), colorTexture.view, g_wgpustate.currentDefaultRenderTarget.depth.view);
     g_wgpustate.rstate->renderExtentX = width;

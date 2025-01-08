@@ -9,6 +9,7 @@ constexpr char computeCode[] = R"(
 @compute @workgroup_size(8, 8)
 fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
     let offset = vec2<u32>(0, 1);
+    
     let color = (
         textureLoad(previousMipLevel, 2 * id.xy + offset.xx, 0) +
         textureLoad(previousMipLevel, 2 * id.xy + offset.xy, 0) +
@@ -19,7 +20,15 @@ fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
 }
 )";
 DescribedComputePipeline* cpl;
-Texture loadMip(uint32_t width, uint32_t height, uint32_t sampleCount, WGPUTextureFormat format, WGPUTextureUsage usage){
+typedef struct MIPTexture{
+    WGPUTexture id;
+    WGPUTextureView view;
+    WGPUTextureView viewL1;
+    uint32_t width, height;
+    WGPUTextureFormat format;
+    uint32_t sampleCount;
+}MIPTexture;
+MIPTexture loadMip(uint32_t width, uint32_t height, uint32_t sampleCount, WGPUTextureFormat format, WGPUTextureUsage usage){
     WGPUTextureDescriptor tDesc{};
     tDesc.dimension = WGPUTextureDimension_2D;
     tDesc.size = {width, height, 1u};
@@ -31,7 +40,7 @@ Texture loadMip(uint32_t width, uint32_t height, uint32_t sampleCount, WGPUTextu
     tDesc.viewFormats = &tDesc.format;
 
     
-    Texture ret;
+    MIPTexture ret;
     ret.id = wgpuDeviceCreateTexture(GetDevice(), &tDesc);
     
     ret.format = format;
@@ -69,17 +78,19 @@ Texture loadMip(uint32_t width, uint32_t height, uint32_t sampleCount, WGPUTextu
 
 
     ret.view = wgpuTextureCreateView(ret.id, &textureViewDesc);
-    Texture dummy = ret;
-
     textureViewDesc.baseMipLevel = 1;
-    dummy.view = wgpuTextureCreateView(ret.id, &textureViewDesc);
+    ret.viewL1 = wgpuTextureCreateView(ret.id, &textureViewDesc);
+
     BeginComputepass();
 
-    SetBindgroupTexture(&cpl->bindGroup, 0, ret);
-    SetBindgroupTexture(&cpl->bindGroup, 1, dummy);
+    SetBindgroupTextureView(&cpl->bindGroup, 0, ret.view);
+    SetBindgroupTextureView(&cpl->bindGroup, 1, ret.viewL1);
     BindComputePipeline(cpl);
     DispatchCompute(width / 8, height / 8, 1);
     EndComputepass();
+    Image dmp = LoadImageFromTextureEx(ret.id, 1);
+    std::cout << dmp.format << "\n";
+    SaveImage(dmp, "mip.png");
     return ret;
 }
 void mainloop(){
