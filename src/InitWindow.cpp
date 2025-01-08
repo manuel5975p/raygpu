@@ -176,7 +176,7 @@ void InitWGPU(webgpu_cxx_state* sample){
     wgpu::ChainedStruct* togglesChain = nullptr;
     wgpu::SType type;
 #ifndef __EMSCRIPTEN__
-    std::vector<const char*> enableToggleNames{};
+    std::vector<const char*> enableToggleNames{"readonly_and_readwrite_storage_textures"};
     std::vector<const char*> disabledToggleNames{};
 
     wgpu::DawnTogglesDescriptor toggles = {};
@@ -238,12 +238,17 @@ void InitWGPU(webgpu_cxx_state* sample){
     wgpu::InstanceDescriptor instanceDescriptor = {};
     instanceDescriptor.nextInChain = togglesChain;
     instanceDescriptor.features.timedWaitAnyEnable = true;
+    
     sample->instance = wgpu::CreateInstance(&instanceDescriptor);
 #else
     // Create the instance
     sample->instance = wgpu::CreateInstance(nullptr);
 #endif  // __EMSCRIPTEN__
 
+    //wgpu::WGSLFeatureName wgslfeatures[8];
+    //sample->instance.EnumerateWGSLLanguageFeatures(wgslfeatures);
+    //std::cout << sample->instance.HasWGSLLanguageFeature(wgpu::WGSLFeatureName::ReadonlyAndReadwriteStorageTextures);
+    //exit(0);
     // Synchronously create the adapter
     sample->instance.WaitAny(
         sample->instance.RequestAdapter(
@@ -272,7 +277,16 @@ void InitWGPU(webgpu_cxx_state* sample){
     TRACELOG(LOG_INFO, "Description %s", deviceDescCstr.data());
 
     // Create device descriptor with callbacks and toggles
+    wgpu::SupportedFeatures features;
+    sample->adapter.GetFeatures(&features);
+    for(size_t i = 0;i < features.featureCount;i++){
+        const wgpu::FeatureName& fn = features.features[i];
+        //TRACELOG(LOG_INFO, "Supports: %d", fn);
+    }
     wgpu::DeviceDescriptor deviceDesc = {};
+    wgpu::FeatureName fname = wgpu::FeatureName::ClipDistances;
+    deviceDesc.requiredFeatures = &fname;
+    deviceDesc.requiredFeatureCount = 1;
     deviceDesc.nextInChain = togglesChain;
     deviceDesc.SetDeviceLostCallback(
         wgpu::CallbackMode::AllowSpontaneous,
@@ -354,7 +368,6 @@ void InitWGPU(webgpu_cxx_state* sample){
 
 }
 
-//webgpu_cxx_state* sample;
 GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     if(g_wgpustate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
         if(IsATerminal(stdout)){

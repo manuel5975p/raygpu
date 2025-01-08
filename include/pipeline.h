@@ -5,7 +5,7 @@
 #include "macros_and_constants.h"
 
 enum uniform_type{
-    uniform_buffer, storage_buffer, texture2d, sampler, storage_write_buffer
+    uniform_buffer, storage_buffer, texture2d, storage_texture2d, sampler, storage_write_buffer, texture3d, storage_texture3d
 };
 
 typedef struct UniformDescriptor{

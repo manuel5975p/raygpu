@@ -111,7 +111,23 @@ DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, 
                 blayouts[i].visibility = vfragmentOnly;
                 blayouts[i].sampler.type = WGPUSamplerBindingType_Filtering;
             break;
-            default:break;
+            case texture3d:
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].texture.sampleType = WGPUTextureSampleType_Float;
+                blayouts[i].texture.viewDimension = WGPUTextureViewDimension_3D;
+            break;
+            case storage_texture2d:
+                blayouts[i].storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].storageTexture.format = WGPUTextureFormat_R32Float;
+                blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+            break;
+            case storage_texture3d:
+                blayouts[i].storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].storageTexture.format = WGPUTextureFormat_R32Float;
+                blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_3D;
+            break;
         }
     }
     bglayoutdesc.entryCount = uniformCount;

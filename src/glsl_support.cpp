@@ -81,8 +81,8 @@ std::vector<uint32_t> glsl_to_spirv(const char *vs, const char *fs) {
 }
 extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     std::vector<uint32_t> spirv = glsl_to_spirv(vs, fs);
-    std::cout.write((char*)spirv.data(), spirv.size() * sizeof(uint32_t));
-    std::cout.flush();
+    //std::cout.write((char*)spirv.data(), spirv.size() * sizeof(uint32_t));
+    //std::cout.flush();
     //return nullptr;
     tint::Slice<uint32_t> sl(spirv.data(), spirv.size());
     tint::spirv::reader::Options options{};
@@ -100,7 +100,7 @@ extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     wgpu::ShaderModule sh = GetCXXDevice().CreateShaderModule(&shaderDesc);
     
     auto wgslres = tint::wgsl::writer::WgslFromIR(result.Get(), tint::wgsl::writer::ProgramOptions{});
-    std::cerr << wgslres.Failure() << "\n";
+    std::cerr << wgslres.Get().wgsl << "\n";
     //for(size_t i = 0;i < result->functions.Length();i++){
     //    std::cout << (int)result->functions[i]->IsEntryPoint() << "\n";
     //}
