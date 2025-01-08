@@ -54,18 +54,16 @@ void mainloop(){
 }
 
 int main(){
-    RequestLimit(maxTextureDimension2D, 16384);
-    RequestLimit(maxBufferSize, 1 << 30);
     //SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(1920, 1080, "Title");
     cpl = LoadComputePipeline(computeCode);
     mipmappedTexture = LoadTexturePro(
-        4000, 4000, 
+        1000, 1000, 
         WGPUTextureFormat_RGBA8Unorm, WGPUTextureUsage_StorageBinding | WGPUTextureUsage_CopySrc | WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding,
         1, 
-        12
+        8
     );
-    Image img = GenImageChecker(WHITE, BLACK, 4000, 4000, 50);
+    Image img = GenImageChecker(WHITE, BLACK, 1000, 1000, 50);
     UpdateTexture(mipmappedTexture, img.data);
     GenTextureMipmaps(&mipmappedTexture);
     WGPUSamplerDescriptor sd{};

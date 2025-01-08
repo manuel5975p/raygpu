@@ -1949,10 +1949,20 @@ extern "C" Image LoadImage(const char* filename){
     return Image{};
 }
 void UnloadTexture(Texture tex){
-    if(tex.view)
+    for(uint32_t i = 0;i < tex.mipmaps;i++){
+        if(tex.mipViews[i]){
+            wgpuTextureViewRelease(tex.mipViews[i]);
+            tex.mipViews[i] = nullptr;
+        }
+    }
+    if(tex.view){
         wgpuTextureViewRelease(tex.view);
-    if(tex.id)
+        tex.view = nullptr;
+    }
+    if(tex.id){
         wgpuTextureRelease(tex.id);
+        tex.id = nullptr;
+    }
     
 }
 void UnloadImage(Image img){
