@@ -46,7 +46,7 @@ void mainloop(){
     BeginPipelineMode(pl);
     UseNoTexture();
     BeginMode3D(cam);
-    BindVertexArray(pl, cubeMesh.vao);
+    BindPipelineVertexArray(pl, cubeMesh.vao);
     DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, *cubeMesh.ibo, 36, instancetransforms.size());
     //DrawMeshInstanced(cubeMesh, Material{}, instancetransforms.data(), instancetransforms.size());
     EndMode3D();

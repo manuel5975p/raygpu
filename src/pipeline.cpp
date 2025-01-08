@@ -450,6 +450,17 @@ extern "C" void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va){
     //pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
     //pipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
 }
+WGPUBuffer cloneBuffer(WGPUBuffer b, WGPUBufferUsage usage){
+    WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder(GetDevice(), nullptr);
+    WGPUBufferDescriptor retd{};
+    retd.usage = usage;
+    retd.size = wgpuBufferGetSize(b);
+    WGPUBuffer ret = wgpuDeviceCreateBuffer(GetDevice(), &retd);
+    wgpuCommandEncoderCopyBufferToBuffer(enc, b, 0, ret, 0, retd.size);
+    WGPUCommandBuffer buffer = wgpuCommandEncoderFinish(enc, nullptr);
+    wgpuQueueSubmit(GetQueue(), 1, &buffer);
+    return ret;
+}
 DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
     DescribedPipeline* pipeline = callocnew(DescribedPipeline);
     pipeline->createdPipelines = callocnew(VertexStateToPipelineMap);
@@ -471,6 +482,23 @@ DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
     pipeline->bindGroup.desc = _pipeline->bindGroup.desc;
     pipeline->bindGroup.entries = (WGPUBindGroupEntry*)calloc(_pipeline->bindGroup.desc.entryCount, sizeof(WGPUBindGroupEntry));
     memcpy(pipeline->bindGroup.entries, _pipeline->bindGroup.entries, _pipeline->bindGroup.desc.entryCount * sizeof(WGPUBindGroupEntry));
+
+    for(uint32_t i = 0;i < _pipeline->bindGroup.desc.entryCount;i++){
+        if(_pipeline->bindGroup.releaseOnClear & (1ull << i)){
+            if(_pipeline->bindGroup.entries[i].buffer){
+                if(_pipeline->bglayout.entries[i].buffer.type == WGPUBufferBindingType_Uniform){
+                    pipeline->bindGroup.entries[i].buffer = cloneBuffer(pipeline->bindGroup.entries[i].buffer, WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc | WGPUBufferUsage_Uniform);
+                }
+                else if(_pipeline->bglayout.entries[i].buffer.type == WGPUBufferBindingType_Storage){
+                    pipeline->bindGroup.entries[i].buffer = cloneBuffer(pipeline->bindGroup.entries[i].buffer, WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc | WGPUBufferUsage_Storage);
+                }
+                else if(_pipeline->bglayout.entries[i].buffer.type == WGPUBufferBindingType_ReadOnlyStorage){
+                    pipeline->bindGroup.entries[i].buffer = cloneBuffer(pipeline->bindGroup.entries[i].buffer, WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc | WGPUBufferUsage_Storage);
+                }
+            }
+        }
+    }
+    pipeline->bindGroup.desc.entries = pipeline->bindGroup.entries;
 
     pipeline->blendState        = callocnew(WGPUBlendState);
     pipeline->fragmentState     = callocnew(WGPUFragmentState);
@@ -495,6 +523,9 @@ DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
     pipeline->descriptor.fragment = pipeline->fragmentState;
     pipeline->descriptor.layout = pipeline->layout.layout;
     pipeline->pipeline = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipeline->descriptor);
+
+    pipeline->uniformLocations = callocnew(StringToUniformMap);
+    new(pipeline->uniformLocations) StringToUniformMap(*_pipeline->uniformLocations);
     return pipeline;
 }
 DescribedComputePipeline* LoadComputePipeline(const char* shaderCode){

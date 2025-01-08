@@ -745,6 +745,7 @@ EXTERN_C_BEGIN
     void UnloadSampler(DescribedSampler sampler);
 
     WGPUTexture GetActiveColorTarget(cwoid);
+    void* GetActiveWindowHandle(cwoid);
     Texture LoadTextureFromImage(Image img);
     void ImageFormat(Image* img, PixelFormat newFormat);
     Image LoadImageFromTexture(Texture tex);
@@ -942,7 +943,8 @@ EXTERN_C_BEGIN
     void DisableVertexAttribArray(VertexArray* array, uint32_t attribLocation);
 
     void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va);
-    void BindVertexArray(DescribedPipeline* pipeline, VertexArray* va);
+    void BindPipelineVertexArray(DescribedPipeline* pipeline, VertexArray* va);
+    void BindVertexArray(VertexArray* va);
 
     void DrawArrays                (WGPUPrimitiveTopology drawMode, uint32_t vertexCount);
     void DrawArraysInstanced       (WGPUPrimitiveTopology drawMode, uint32_t vertexCount, uint32_t instanceCount);

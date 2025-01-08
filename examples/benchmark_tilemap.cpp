@@ -54,7 +54,7 @@ void mainloop(){
     //ClearBackground(BLACK);
     BeginPipelineMode(pl);
     BeginMode2D(cam);
-    BindVertexArray(pl, tileVAO);
+    BindPipelineVertexArray(pl, tileVAO);
     DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, *tileIBO, 6, tileCount);
     //DrawTexturePro(tilemap, Rectangle{0,0,(float)tilemap.width, (float)tilemap.height}, Rectangle{0,0,1000,1000}, Vector2{0,0}, 0.0f, WHITE);
     EndMode2D();

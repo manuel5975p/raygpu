@@ -68,7 +68,6 @@ endif()
 set(RG_SOURCES
     "src/InitWindow.cpp"
     "src/raygpu.cpp"
-    "src/shapes.cpp"
     "src/shader_parse.cpp"
     "src/stb_impl.c"
     "src/sinfl_impl.c"

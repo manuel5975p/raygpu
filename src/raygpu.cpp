@@ -370,8 +370,10 @@ extern "C" VertexArray* LoadVertexArray(){
 extern "C" void VertexAttribPointer(VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, WGPUVertexFormat format, uint32_t offset, WGPUVertexStepMode stepmode){
     array->add(buffer, attribLocation, format, offset, stepmode);
 }
-
-extern "C" void BindVertexArray(DescribedPipeline* pipeline, VertexArray* va){
+void BindVertexArray(VertexArray* va){
+    BindPipelineVertexArray(GetActivePipeline(), va);
+}
+extern "C" void BindPipelineVertexArray(DescribedPipeline* pipeline, VertexArray* va){
     PreparePipeline(pipeline, va);
     // Iterate over each buffer
     for(unsigned i = 0; i < va->buffers.size(); i++){
@@ -512,7 +514,7 @@ void drawCurrentBatch(){
             //TODO: Line texturing is currently disable in all DrawLine... functions
             SetTexture(1, g_wgpustate.whitePixel);
             BindPipeline(g_wgpustate.rstate->activePipeline, WGPUPrimitiveTopology_LineList);
-            BindVertexArray(g_wgpustate.rstate->activePipeline, renderBatchVAO);
+            BindPipelineVertexArray(g_wgpustate.rstate->activePipeline, renderBatchVAO);
             DrawArrays(WGPUPrimitiveTopology_LineList, vertexCount);
             //wgpuRenderPassEncoderSetBindGroup(g_wgpustate.rstate->renderpass.rpEncoder, 0, GetWGPUBindGroup(&g_wgpustate.rstate->activePipeline->bindGroup), 0, 0);
             //wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, wgpuBufferGetSize(vbo.buffer));
@@ -522,7 +524,7 @@ void drawCurrentBatch(){
         }break;
         case RL_TRIANGLE_STRIP:{
             BindPipeline(g_wgpustate.rstate->activePipeline, WGPUPrimitiveTopology_TriangleList);
-            BindVertexArray(g_wgpustate.rstate->activePipeline, renderBatchVAO);
+            BindPipelineVertexArray(g_wgpustate.rstate->activePipeline, renderBatchVAO);
             DrawArrays(WGPUPrimitiveTopology_TriangleStrip, vertexCount);
             break;
         }
@@ -530,7 +532,7 @@ void drawCurrentBatch(){
         case RL_TRIANGLES:{
             //SetTexture(1, g_wgpustate.whitePixel);
             BindPipeline(g_wgpustate.rstate->activePipeline, WGPUPrimitiveTopology_TriangleList);
-            BindVertexArray(g_wgpustate.rstate->activePipeline, renderBatchVAO);
+            BindPipelineVertexArray(g_wgpustate.rstate->activePipeline, renderBatchVAO);
             DrawArrays(WGPUPrimitiveTopology_TriangleList, vertexCount);
             //abort();
             //vboptr = vboptr_base;
@@ -566,7 +568,7 @@ void drawCurrentBatch(){
             const DescribedBuffer* ibuf = g_wgpustate.quadindicesCache;
             //BindPipeline(g_wgpustate.rstate->activePipeline, WGPUPrimitiveTopology_TriangleList);
             //g_wgpustate.rstate->activePipeline
-            BindVertexArray(g_wgpustate.rstate->activePipeline, renderBatchVAO);
+            BindPipelineVertexArray(g_wgpustate.rstate->activePipeline, renderBatchVAO);
             DrawArraysIndexed(WGPUPrimitiveTopology_TriangleList, *ibuf, quadCount * 6);
 
             //wgpuQueueWriteBuffer(GetQueue(), vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
@@ -890,11 +892,12 @@ void EndDrawing(){
     ++g_wgpustate.total_frames;
     std::copy(g_wgpustate.smallBufferRecyclingBin.begin(), g_wgpustate.smallBufferRecyclingBin.end(), std::back_inserter(g_wgpustate.smallBufferPool));
     g_wgpustate.smallBufferRecyclingBin.clear();
-    std::copy(g_wgpustate.keydown.begin(), g_wgpustate.keydown.end(), g_wgpustate.keydownPrevious.begin());
-    g_wgpustate.mousePosPrevious = g_wgpustate.mousePos;
-    g_wgpustate.scrollPreviousFrame = g_wgpustate.scrollThisFrame;
-    g_wgpustate.scrollThisFrame = Vector2{0, 0};
-    std::copy(g_wgpustate.mouseButtonDown.begin(), g_wgpustate.mouseButtonDown.end(), g_wgpustate.mouseButtonDownPrevious.begin());
+    auto& ipstate = g_wgpustate.input_map[g_wgpustate.window];
+    std::copy(ipstate.keydown.begin(), ipstate.keydown.end(), ipstate.keydownPrevious.begin());
+    ipstate.mousePosPrevious = ipstate.mousePos;
+    ipstate.scrollPreviousFrame = ipstate.scrollThisFrame;
+    ipstate.scrollThisFrame = Vector2{0, 0};
+    std::copy(ipstate.mouseButtonDown.begin(), ipstate.mouseButtonDown.end(), ipstate.mouseButtonDownPrevious.begin());
     if(!(g_wgpustate.windowFlags & FLAG_HEADLESS))
         g_wgpustate.drawmutex.unlock();
     uint64_t nanosecondsPerFrame = std::floor(1e9 / GetTargetFPS());
@@ -1099,7 +1102,7 @@ void ImageFormat(Image* img, PixelFormat newFormat){
             }
         }break;
         default:
-        abort();
+        //abort();
         return;
     }
     free(img->data);
@@ -1176,10 +1179,10 @@ Texture LoadTextureFromImage(Image img){
 }
 
 extern "C" bool IsKeyDown(int key){
-    return g_wgpustate.keydown[key];
+    return g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].keydown[key];
 }
 extern "C" bool IsKeyPressed(int key){
-    return g_wgpustate.keydown[key] && !g_wgpustate.keydownPrevious[key];
+    return g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].keydown[key] && !g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].keydownPrevious[key];
 }
 extern "C" int GetCharPressed(){
     int fc = 0;
@@ -1196,36 +1199,32 @@ int GetMouseY(cwoid){
     return (int)GetMousePosition().y;
 }
 Vector2 GetMousePosition(cwoid){
-    return g_wgpustate.mousePos;
+    return g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mousePos;
 }
 Vector2 GetMouseDelta(cwoid){
-    return Vector2{g_wgpustate.mousePos.x - g_wgpustate.mousePos.x,
-                   g_wgpustate.mousePos.y - g_wgpustate.mousePos.y};
+    return Vector2{g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mousePos.x - g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mousePos.x,
+                   g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mousePos.y - g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mousePos.y};
 }
 float GetMouseWheelMove(void){
-    return g_wgpustate.scrollPreviousFrame.y;
+    return g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].scrollPreviousFrame.y;
 }
 Vector2 GetMouseWheelMoveV(void){
-    return g_wgpustate.scrollPreviousFrame;
+    return g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].scrollPreviousFrame;
     //return Vector2{
-    //    (float)(g_wgpustate.globalScrollX - g_wgpustate.globalScrollYPrevious),
-    //    (float)(g_wgpustate.globalScrollY - g_wgpustate.globalScrollYPrevious)};
+    //    (float)(g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].globalScrollX - g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].globalScrollYPrevious),
+    //    (float)(g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].globalScrollY - g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].globalScrollYPrevious)};
 }
 bool IsMouseButtonPressed(int button){
-    return g_wgpustate.mouseButtonDown[button] && !g_wgpustate.mouseButtonDownPrevious[button];
+    return g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mouseButtonDown[button] && !g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mouseButtonDownPrevious[button];
 }
 bool IsMouseButtonDown(int button){
-    return g_wgpustate.mouseButtonDown[button];
+    return g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mouseButtonDown[button];
 }
 bool IsMouseButtonReleased(int button){
-    return !g_wgpustate.mouseButtonDown[button] && g_wgpustate.mouseButtonDownPrevious[button];
+    return !g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mouseButtonDown[button] && g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mouseButtonDownPrevious[button];
 }
-
-
-
-
 bool IsCursorOnScreen(cwoid){
-    return g_wgpustate.cursorInWindow;
+    return g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].cursorInWindow;
 }
 
 uint64_t NanoTime(cwoid){
@@ -1582,7 +1581,7 @@ void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, cons
     WGPUBufferDescriptor bufferDesc{};
 
     bufferDesc.size = size;
-    bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
+    bufferDesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
     bufferDesc.mappedAtCreation = false;
     WGPUBuffer uniformBuffer = wgpuDeviceCreateBuffer(GetDevice(), &bufferDesc);
     wgpuQueueWriteBuffer(GetQueue(), uniformBuffer, 0, data, size);
@@ -1597,7 +1596,7 @@ void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, cons
     WGPUBufferDescriptor bufferDesc{};
 
     bufferDesc.size = size;
-    bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
+    bufferDesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
     bufferDesc.mappedAtCreation = false;
     WGPUBuffer uniformBuffer = wgpuDeviceCreateBuffer(GetDevice(), &bufferDesc);
     wgpuQueueWriteBuffer(GetQueue(), uniformBuffer, 0, data, size);
@@ -2079,6 +2078,7 @@ extern "C" void EndWindowMode(){
     EndTextureMode();
     g_wgpustate.currentDefaultRenderTarget = g_wgpustate.mainWindowRenderTarget;
     wgpuSurfacePresent(g_wgpustate.activeSubWindow.surface);
+    g_wgpustate.activeSubWindow = SubWindow zeroinit;
     return;
 
     //Bad implementation:
@@ -2188,10 +2188,10 @@ DescribedBuffer* GenIndexBuffer(const void* data, size_t size){
     return GenBufferEx(data, size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index);
 }
 DescribedBuffer* GenUniformBuffer(const void* data, size_t size){
-    return GenBufferEx(data, size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
+    return GenBufferEx(data, size, WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
 }
 DescribedBuffer* GenStorageBuffer(const void* data, size_t size){
-    return GenBufferEx(data, size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage);
+    return GenBufferEx(data, size, WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage);
 }
 void UnloadBuffer(DescribedBuffer* buffer){
     wgpuBufferRelease(buffer->buffer);
