@@ -26,7 +26,7 @@ fn mandelBailout(z: vec2f) -> i32{
     return i;
 }
 @compute
-@workgroup_size(32, 32, 1)
+@workgroup_size(16, 16, 1)
 fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
     //let ld: vec4<u32> = textureLoad(tex, id.xy);
     let mandelSample: vec2f = (vec2f(id.xy) - 640.0f) * scale + center;
@@ -49,28 +49,28 @@ Texture storageTex;
 Texture tex;
 DescribedComputePipeline* pl;
 float scale = 1.0f / 500.0f;
-constexpr float speed = 5.0f;
+constexpr float speed = 2000.0f;
 Vector2 center{0,0};
 
 void mainloop(){
     scale /= std::exp(GetMouseWheelMove() * 1e-1);
     if(IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)){
-        center.y += (scale) * speed;
+        center.y += scale * speed * GetFrameTime();
     }
     if(IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)){
-        center.y -= (scale) * speed;
+        center.y -= scale * speed * GetFrameTime();
     }
     if(IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)){
-        center.x -= (scale) * speed;
+        center.x -= scale * speed * GetFrameTime();
     }
     if(IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)){
-        center.x += (scale) * speed;
+        center.x += scale * speed * GetFrameTime();
     }
     SetBindgroupUniformBufferData(&pl->bindGroup, 1, &scale, sizeof(float));
     SetBindgroupUniformBufferData(&pl->bindGroup, 2, &center, sizeof(Vector2));
     BeginComputepass();
     BindComputePipeline(pl);
-    DispatchCompute(1280 / 32, 1280 / 32, 1);
+    DispatchCompute(1280 / 16, 1280 / 16, 1);
     ComputepassEndOnlyComputing();
     CopyTextureToTexture(storageTex, tex);
     EndComputepass();
@@ -84,7 +84,6 @@ void mainloop(){
 
 int main(){
     //SetConfigFlags();
-    RequestLimit(maxComputeInvocationsPerWorkgroup, 1024);
     InitWindow(1280, 1280, "Storage Texture");
     SetTargetFPS(0);
     storageTex = LoadTexturePro(1280, 1280, WGPUTextureFormat_R32Uint, WGPUTextureUsage_CopySrc | WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding, 1);
