@@ -19,17 +19,17 @@ A fast and simple [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebG
   - Still in development
   - No support for platforms older than OpenGLES 3
 
-# Roadmap
-- [x] Basic Windowing
-- [x] Basic Shapes
-- [x] Textures and Render Targets (RenderTexture)
-- [x] Screenshotting and Recording
-- [x] Text Rendering
-- [x] 2D and 3D Camera and Model Support 
-- [x] Shaders / Pipelines
-- [x] Compute Shaders / Pipelines with Storage textures
-- [x] Multisampling
-- [x] **Multiple Windows and Headless mode**
+# Roadmap and Demos
+- [x] Basic Windowing [Example](https://github.com/manuel5975p/raygpu/tree/master/examples/core_window.c)
+- [x] Basic Shapes [Example](https://github.com/manuel5975p/raygpu/tree/master/examples/core_shapes.c)
+- [x] Textures and Render Targets (RenderTexture) [Example](https://github.com/manuel5975p/raygpu/tree/master/examples/core_rendertexture.c)
+- [x] Screenshotting and Recording [Example](https://github.com/manuel5975p/raygpu/tree/master/examples/core_screenrecord.cpp)
+- [x] Text Rendering [Example](https://github.com/manuel5975p/raygpu/tree/master/examples/core_fonts.c)
+- [x] 2D and 3D Camera and Model Support [2D Example](https://github.com/manuel5975p/raygpu/tree/master/examples/core_camera2d.c), [3D Example](https://github.com/manuel5975p/raygpu/tree/master/examples/core_camera3d.c)
+- [x] Shaders / Pipelines / Instancing [Basic Example](https://github.com/manuel5975p/raygpu/tree/master/examples/pipeline_basic.c), [Instancing Example](https://github.com/manuel5975p/raygpu/tree/master/examples/pipeline_instancing.cpp)
+- [x] Compute Shaders / Pipelines with Storage textures [Compute Particles](https://github.com/manuel5975p/raygpu/tree/master/examples/compute.cpp), [Mandelbrot](https://github.com/manuel5975p/raygpu/tree/master/examples/textures_storage.cpp)
+- [x] Multisampling [Example](https://github.com/manuel5975p/raygpu/tree/master/examples/core_msaa.c)
+- [x] **Multiple Windows and Headless mode** [Headless Example](https://github.com/manuel5975p/raygpu/tree/master/examples/core_headless.c) [Multiwindow Example](https://github.com/manuel5975p/raygpu/tree/master/examples/core_multiwindow.c)
 - [ ] Proper animation support
 - [ ] IQM / VOX support
 - [ ] GLSL Support
@@ -187,7 +187,7 @@ In contrast to `glVertexAttribPointer`, `VertexAttribPointer` does not take a st
 Once `BindVertexArray(pipeline, vao);` is called, the stride is automatically set to the sum of the size of all the attributes in that buffer.
 
 
-See the example [pipeline_basic.c](https://github.com/manuel5975p/raygpu/examples/pipeline_basic.c) for a complete example.
+See the example [pipeline_basic.c](https://github.com/manuel5975p/raygpu/tree/master/examples/pipeline_basic.c) for a complete example.
 # More Advanced Examples
 ## Headless Window
 ```c
@@ -226,4 +226,4 @@ int main(void){
 }
 ```
 ___
-More examples can be found in [here](https://github.com/manuel5975p/raygpu/examples).
+More examples can be found in [here](https://github.com/manuel5975p/raygpu/tree/master/examples).
