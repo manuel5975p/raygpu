@@ -50,6 +50,7 @@ inline WGPUTextureFormat toStorageTextureFormat(format_or_sample_type fmt){
     switch(fmt){
         case format_or_sample_type::format_r32float: return WGPUTextureFormat_R32Float;
         case format_or_sample_type::format_r32uint: return WGPUTextureFormat_R32Uint;
+        case format_or_sample_type::format_rgba8unorm: return WGPUTextureFormat_RGBA8Unorm;
         default: TRACELOG(LOG_FATAL, "Invalid enum type");
     }
     return WGPUTextureFormat_Force32;
