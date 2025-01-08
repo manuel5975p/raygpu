@@ -78,11 +78,11 @@ int main(){
     Mesh churchMesh = churchModel.meshes[0];
 
     UniformDescriptor uniforms[5] = {
-        CLITERAL(UniformDescriptor){uniform_buffer, 64, 0},
-        CLITERAL(UniformDescriptor){texture2d, 0, 1},
-        CLITERAL(UniformDescriptor){sampler, 0, 2},
-        CLITERAL(UniformDescriptor){storage_buffer, 64, 3},
-        CLITERAL(UniformDescriptor){storage_buffer, 32, 4}
+        CLITERAL(UniformDescriptor){uniform_buffer, 64, 0, readonly, format_or_sample_type(0)},
+        CLITERAL(UniformDescriptor){texture2d, 0, 1,       readonly, format_or_sample_type(0)},
+        CLITERAL(UniformDescriptor){sampler, 0, 2,         readonly, format_or_sample_type(0)},
+        CLITERAL(UniformDescriptor){storage_buffer, 64, 3, readonly, format_or_sample_type(0)},
+        CLITERAL(UniformDescriptor){storage_buffer, 32, 4, readonly, format_or_sample_type(0)}
     };
     
     RenderSettings settings zeroinit;

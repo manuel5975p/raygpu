@@ -3,7 +3,17 @@
 #include <unordered_map>
 #include <deque>
 #include <array>
-
+struct window_input_state{
+    Rectangle windowPosition; // Recovery after fullscreen
+    std::vector<uint8_t> keydownPrevious = std::vector<uint8_t>(512, 0);
+    std::vector<uint8_t> keydown = std::vector<uint8_t>(512, 0);
+    Vector2 scrollThisFrame, scrollPreviousFrame;
+    Vector2 mousePosPrevious;
+    Vector2 mousePos;
+    int cursorInWindow;
+    std::array<uint8_t, 16> mouseButtonDownPrevious;
+    std::array<uint8_t, 16> mouseButtonDown;
+};
 struct wgpustate{
     wgpu::Instance instance;
     wgpu::Adapter adapter;
@@ -36,15 +46,8 @@ struct wgpustate{
     RenderTexture mainWindowRenderTarget;
     RenderTexture currentDefaultRenderTarget;
     
-    Rectangle windowPosition; // Recovery after fullscreen
-    std::vector<uint8_t> keydownPrevious = std::vector<uint8_t>(512, 0);
-    std::vector<uint8_t> keydown = std::vector<uint8_t>(512, 0);
-    Vector2 scrollThisFrame, scrollPreviousFrame;
-    Vector2 mousePosPrevious;
-    Vector2 mousePos;
-    int cursorInWindow;
-    std::array<uint8_t, 16> mouseButtonDownPrevious;
-    std::array<uint8_t, 16> mouseButtonDown;
+    std::unordered_map<GLFWwindow*, window_input_state> input_map;
+    
     
     std::deque<int> charQueue; 
     

@@ -8,7 +8,7 @@ DescribedPipeline* pipeline;
 void mainloop(cwoid){
     BeginDrawing();
     BeginPipelineMode(pipeline);
-    BindVertexArray(pipeline, vao);
+    BindPipelineVertexArray(pipeline, vao);
     DrawArrays(WGPUPrimitiveTopology_TriangleList, 3);
     EndPipelineMode();
     DrawFPS(0,0);

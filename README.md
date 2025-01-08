@@ -32,6 +32,7 @@ A fast and simple [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebG
 - [x] **Multiple Windows and Headless mode**
 - [ ] Proper animation support
 - [ ] IQM / VOX support
+- [ ] GLSL Support
 
 # Getting Started
 For building instructions, see [Building](#building) <br>

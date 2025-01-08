@@ -248,24 +248,26 @@ std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shade
             desc.type = sampler;
         }
         else{
-            if(auto addrspace = glob->As<tint::ast::Var>()->declared_address_space->As<tint::ast::IdentifierExpression>()){
-                if(addrspace->identifier->symbol.Name() == "uniform"){
-                    desc.type = uniform_buffer;
-                }
-                else if(addrspace->identifier->symbol.Name() == "storage"){
-                    if(glob->As<tint::ast::Var>()->declared_access){
-                        if(auto accex = glob->As<tint::ast::Var>()->declared_access->As<tint::ast::IdentifierExpression>()){
-                            std::string access_modifier = accex->As<tint::ast::IdentifierExpression>()->identifier->symbol.Name();
-                            if(access_modifier == "read"){
-                                desc.access = readonly;
-                            }
-                            else if (access_modifier == "read_write"){
-                                desc.access = readwrite;
+            if(glob->As<tint::ast::Var>()->declared_address_space){
+                if(auto addrspace = glob->As<tint::ast::Var>()->declared_address_space->As<tint::ast::IdentifierExpression>()){
+                    if(addrspace->identifier->symbol.Name() == "uniform"){
+                        desc.type = uniform_buffer;
+                    }
+                    else if(addrspace->identifier->symbol.Name() == "storage"){
+                        if(glob->As<tint::ast::Var>()->declared_access){
+                            if(auto accex = glob->As<tint::ast::Var>()->declared_access->As<tint::ast::IdentifierExpression>()){
+                                std::string access_modifier = accex->As<tint::ast::IdentifierExpression>()->identifier->symbol.Name();
+                                if(access_modifier == "read"){
+                                    desc.access = readonly;
+                                }
+                                else if (access_modifier == "read_write"){
+                                    desc.access = readwrite;
+                                }
                             }
                         }
-                    }
-                    else{
-                        desc.type = storage_buffer;
+                        else{
+                            desc.type = storage_buffer;
+                        }
                     }
                 }
             }

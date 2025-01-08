@@ -39,9 +39,8 @@ int main(){
     std::cout << result << "\n";
     return 0;
 
-    wgpu::ShaderModuleSPIRVDescriptor shaderCodeDesc{};
+    /*wgpu::ShaderModuleSPIRVDescriptor shaderCodeDesc{};
     wgpu::ShaderModuleWGSLDescriptor wgslshaderCodeDesc{};
-
     wgslshaderCodeDesc.code = wgpu::StringView{wgsldata, std::strlen(wgsldata)};
     shaderCodeDesc.nextInChain = nullptr;
     shaderCodeDesc.sType = wgpu::SType::ShaderSourceSPIRV;
@@ -56,5 +55,5 @@ int main(){
         ClearBackground(BLACK);
         DrawFPS(5, 5);
         EndDrawing();
-    }
+    }*/
 }

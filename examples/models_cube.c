@@ -20,7 +20,7 @@ void mainloop(void){
     BeginPipelineMode(pl);
     UseTexture(checkers);
     BeginMode3D(cam);
-    BindVertexArray(pl, cube.vao);
+    BindPipelineVertexArray(pl, cube.vao);
     DrawArraysIndexed(WGPUPrimitiveTopology_TriangleList, *cube.ibo, 36);
     EndMode3D();
     EndPipelineMode();

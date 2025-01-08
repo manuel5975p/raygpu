@@ -79,7 +79,7 @@ int main(){
         BeginDrawing();
         ClearBackground(BLANK);
         BeginPipelineMode(pl);
-        BindVertexArray(pl, vao);
+        BindPipelineVertexArray(pl, vao);
         DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, *ibo, 6, offsets.size());
         EndPipelineMode();
         DrawFPS(0, 0);

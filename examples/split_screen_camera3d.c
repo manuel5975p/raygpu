@@ -102,7 +102,7 @@ int main(void)
 
     // Setup player 1 camera and screen
     Camera cameraPlayer1 = { 0 };
-    cameraPlayer1.fovy = 45.0f;
+    cameraPlayer1.fovy = 1.0f;
     cameraPlayer1.up.y = 1.0f;
     cameraPlayer1.target.y = 1.0f;
     cameraPlayer1.position.z = -3.0f;
@@ -112,7 +112,7 @@ int main(void)
 
     // Setup player two camera and screen
     Camera cameraPlayer2 = { 0 };
-    cameraPlayer2.fovy = 45.0f;
+    cameraPlayer2.fovy = 1.0f;
     cameraPlayer2.up.y = 1.0f;
     cameraPlayer2.target.y = 3.0f;
     cameraPlayer2.position.x = -3.0f;

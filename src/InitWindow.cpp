@@ -145,9 +145,9 @@ struct webgpu_cxx_state{
 extern const std::unordered_map<std::string, int> emscriptenToGLFWKeyMap;
 void glfwKeyCallback (GLFWwindow* window, int key, int scancode, int action, int mods){
     if(action == GLFW_PRESS){
-        g_wgpustate.keydown[key] = 1;
+        g_wgpustate.input_map[window].keydown[key] = 1;
     }else if(action == GLFW_RELEASE){
-        g_wgpustate.keydown[key] = 0;
+        g_wgpustate.input_map[window].keydown[key] = 0;
     }
     if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
         EndGIFRecording();
@@ -474,6 +474,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         window = glfwCreateWindow(width, height, title, mon, nullptr);
         g_wgpustate.window = window;
     #endif
+        g_wgpustate.input_map[window] = window_input_state{};
         glfwSetWindowSizeCallback(window, [](GLFWwindow* window, int width, int height){
             //wgpuSurfaceRelease(g_wgpustate.surface);
             //g_wgpustate.surface = wgpu::glfw::CreateSurfaceForWindow(g_wgpustate.instance, window).MoveToCHandle();
@@ -556,8 +557,8 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
 
 
         auto scrollCallback = [](GLFWwindow* window, double xoffset, double yoffset){
-            g_wgpustate.scrollThisFrame.x += xoffset;
-            g_wgpustate.scrollThisFrame.y += yoffset;
+            g_wgpustate.input_map[window].scrollThisFrame.x += xoffset;
+            g_wgpustate.input_map[window].scrollThisFrame.y += yoffset;
         };
         #ifndef __EMSCRIPTEN__
         glfwSetScrollCallback(window, scrollCallback);
@@ -587,7 +588,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         #endif
 
         auto cpcallback = [](GLFWwindow* window, double x, double y){
-            g_wgpustate.mousePos = Vector2{float(x), float(y)};
+            g_wgpustate.input_map[window].mousePos = Vector2{float(x), float(y)};
         };
         #ifndef __EMSCRIPTEN__
         glfwSetCursorPosCallback(window, cpcallback);
@@ -602,10 +603,10 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         #endif // __EMSCRIPTEN__
         auto clickcallback = [](GLFWwindow* window, int button, int action, int mods){
             if(action == GLFW_PRESS){
-                g_wgpustate.mouseButtonDown[button] = 1;
+                g_wgpustate.input_map[window].mouseButtonDown[button] = 1;
             }
             else if(action == GLFW_RELEASE){
-                g_wgpustate.mouseButtonDown[button] = 0;
+                g_wgpustate.input_map[window].mouseButtonDown[button] = 0;
             }
         };
         #ifdef __EMSCRIPTEN__
@@ -637,19 +638,22 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
             g_wgpustate.charQueue.push_back((int)codePoint);
         });
         glfwSetCursorEnterCallback(window, [](GLFWwindow* window, int entered){
-            g_wgpustate.cursorInWindow = entered;
+            g_wgpustate.input_map[window].cursorInWindow = entered;
         });
         #endif
     }else{
         g_wgpustate.frameBufferFormat = WGPUTextureFormat_BGRA8Unorm;
     }
     
+
+
     UniformDescriptor uniforms[4] = {
-        UniformDescriptor{uniform_buffer, 64, 0},
-        UniformDescriptor{texture2d, 0, 1},
-        UniformDescriptor{sampler, 0, 2},
-        UniformDescriptor{storage_buffer, 64, 3}
+        UniformDescriptor{uniform_buffer, 64, 0, readonly, format_or_sample_type(0)},
+        UniformDescriptor{texture2d, 0, 1      , readonly, format_or_sample_type(0)},
+        UniformDescriptor{sampler, 0, 2        , readonly, format_or_sample_type(0)},
+        UniformDescriptor{storage_buffer, 64, 3, readonly, format_or_sample_type(0)}
     };
+
     AttributeAndResidence attrs[4] = {
         AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 0 * sizeof(float), 0}, 0, WGPUVertexStepMode_Vertex, true},
         AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x2, 3 * sizeof(float), 1}, 0, WGPUVertexStepMode_Vertex, true},
@@ -675,7 +679,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     if(!(g_wgpustate.windowFlags & FLAG_HEADLESS)){
         int wposx, wposy;
         glfwGetWindowPos(g_wgpustate.window, &wposx, &wposy);
-        g_wgpustate.windowPosition = Rectangle{
+        g_wgpustate.input_map[window].windowPosition = Rectangle{
             (float)wposx,
             (float)wposy,
             (float)GetScreenWidth(),
@@ -768,6 +772,10 @@ void PollEvents(){
 bool WindowShouldClose(cwoid){
     return glfwWindowShouldClose(g_wgpustate.window);
 }
+void* GetActiveWindowHandle(){
+    if(g_wgpustate.activeSubWindow.handle)return g_wgpustate.activeSubWindow.handle;
+    return g_wgpustate.window;
+}
 void ToggleFullscreen(){
     #ifdef __EMSCRIPTEN__
     //platform.ourFullscreen = true;
@@ -810,7 +818,7 @@ void ToggleFullscreen(){
     if(monitor){
         //We need to exit fullscreen
         g_wgpustate.windowFlags &= ~FLAG_FULLSCREEN_MODE;
-        glfwSetWindowMonitor(g_wgpustate.window, NULL, g_wgpustate.windowPosition.x, g_wgpustate.windowPosition.y, g_wgpustate.windowPosition.width, g_wgpustate.windowPosition.height, GLFW_DONT_CARE);
+        glfwSetWindowMonitor(g_wgpustate.window, NULL, g_wgpustate.input_map[g_wgpustate.window].windowPosition.x, g_wgpustate.input_map[g_wgpustate.window].windowPosition.y, g_wgpustate.input_map[g_wgpustate.window].windowPosition.width, g_wgpustate.input_map[g_wgpustate.window].windowPosition.height, GLFW_DONT_CARE);
     }
     else{
         //We need to enter fullscreen
@@ -818,7 +826,7 @@ void ToggleFullscreen(){
         int xs, ys;
         glfwGetWindowPos(g_wgpustate.window, &xpos, &ypos);
         glfwGetWindowSize(g_wgpustate.window, &xs, &ys);
-        g_wgpustate.windowPosition = Rectangle{float(xpos), float(ypos), float(xs), float(ys)};
+        g_wgpustate.input_map[g_wgpustate.window].windowPosition = Rectangle{float(xpos), float(ypos), float(xs), float(ys)};
         int monitorCount = 0;
         int monitorIndex = GetCurrentMonitor();
         GLFWmonitor **monitors = glfwGetMonitors(&monitorCount);
