@@ -2224,6 +2224,9 @@ extern "C" float GetFrameTime(){
     if(g_wgpustate.total_frames == 0){
         return 0.0f;
     }
+    if(g_wgpustate.last_timestamps[g_wgpustate.total_frames % 64] - g_wgpustate.last_timestamps[(g_wgpustate.total_frames - 1) % 64] < 0){
+        return 1.0e-9f * (g_wgpustate.last_timestamps[(g_wgpustate.total_frames - 1) % 64] - g_wgpustate.last_timestamps[(g_wgpustate.total_frames - 2) % 64]);
+    } 
     return 1.0e-9f * (g_wgpustate.last_timestamps[g_wgpustate.total_frames % 64] - g_wgpustate.last_timestamps[(g_wgpustate.total_frames - 1) % 64]);
 }
 extern "C" void SetConfigFlags(int /* enum WindowFlag */ flag){

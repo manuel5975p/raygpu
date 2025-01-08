@@ -1,15 +1,23 @@
 # RayGPU
-A fast and simple [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API) based graphics library for C and C++, inspired by and based on [raylib](https://github.com/raysan5/raylib/)
+A fast and simple [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API) based graphics library for C and C++, inspired by and based on [raylib](https://github.com/raysan5/raylib/).
+### Outline
+- [Getting Started](#getting-started)
+- [Building](#building)
+- [OpenGL compatibility](#opengl-compatibility-and-similarity)
+- [Examples and snippets](#more-advanced-examples)
+
 ### Why WebGPU
 [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API) is a new graphics API meant to give portable access to most GPU features, able to run on DirectX 11/12, Vulkan, OpenGL, Metal platforms and most importantly in [browsers](https://caniuse.com/webgpu). Web support is done by [Emscripten](https://emscripten.org/).
 - **Pros**
   - Direct but portable support for OpenGL(ES), Vulkan, DirectX 12 and Metal
   - Web support for compute shaders and storage buffers
-  - No global context Multi-windowing and multithreading support, 
+  - Multi-windowing and multithreading support
+  - True Headless Support
 
 - **Cons**
   - Not as lightweight and ubiquitous as OpenGL
   - Still in development
+  - No support for platforms older than OpenGLES 3
 
 # Roadmap
 - [x] Basic Windowing
@@ -19,7 +27,7 @@ A fast and simple [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebG
 - [x] Text Rendering
 - [x] 2D and 3D Camera and Model Support 
 - [x] Shaders / Pipelines
-- [x] Compute Shaders / Pipelines
+- [x] Compute Shaders / Pipelines with Storage textures
 - [x] Multisampling
 - [x] **Multiple Windows and Headless mode**
 - [ ] Proper animation support
@@ -39,7 +47,7 @@ int main(){
     while(!WindowShouldClose()){
         BeginDrawing();
         ClearBackground(GREEN);
-        DrawText("Hello there!",200, 200, 30, BLACK);
+        DrawText("Hello there!", 200, 200, 30, BLACK);
         EndDrawing();
     }
 }
@@ -93,11 +101,34 @@ mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release -G "Visual Studio 17 2022"
 ```
 See the complete [list of generators](https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html) for older Visual Studio versions.
+#### Building for Web
+Because the WebGPU spec and API is still in its final development phases, there is currently a mismatch between Emscripten's and Dawn's headers. Building with emscripten therefore involves some extra steps
+
+1. If you don't have the emscripten sdk (emsdk) installed already, follow [its installation steps](https://emscripten.org/docs/getting_started/downloads.html). It might be wise to update your current toolchain too.
+
+2. Now that you have emsdk installed, get an additional checkout of **emscripten, not emsdk** onto your system. This is available [here](https://github.com/emscripten-core/emscripten). 
+
+3. In the additional emscripten source tree, create a file named `.emscripten`, with the following contents:
+```
+LLVM_ROOT = '/path/to/emsdk/upstream/bin'
+BINARYEN_ROOT = '/path/to/emsdk/upstream'
+NODE_JS = '/path/to/emsdk/node/<your_node_version>/bin/node'
+```
+where `/path/to/emsdk/` is the path to your emsdk directory.
+
+4. Run `./bootstrap`
+
+5. Finally, when building this project, use the command
+```bash
+emcmake cmake -DDAWN_EMSCRIPTEN_TOOLCHAIN="path/to/emscripten" ..
+```
+
+
 # OpenGL Compatibility and Similarity
 ## Shaders and Buffers
 Shaders work a little bit different in WebGPU compared to OpenGL.
 
-Instead of an active shaders, WebGPU has an active pipeline. This Pipeline is an immutable object composed of:
+Instead of an active shader, WebGPU has an active pipeline. This Pipeline is an immutable object composed of:
 - Vertex Buffer Layouts (Where which attribute is)
 - Bindgroup Layouts (Where which uniforms are)
 - Blend Mode
@@ -109,7 +140,9 @@ The Vertex Buffer Layouts are especially tricky since in OpenGL "Vertex Array Ob
 
 Nevertheless, it's still possible to load a Pipeline with a single line
 ```c
+//This source contains both vertex and fragment shader code
 const char shaderSource[] = "...";
+
 DescribedPipeline* pl = LoadPipeline(shaderSource);
 ```
 ## Setting Uniforms
@@ -137,7 +170,7 @@ VertexAttribPointer(
     &vbo, 
     0,//<-- Attribute Location 
     WGPUVertexFormat_Float32x2, 
-    0,//<-- Offset
+    0,//<-- Offset in bytes
     WGPUVertexStepMode_Vertex //or WGPUVertexStepMode_Instance
 );
 EnableVertexAttribArray(vao, 0);
@@ -146,6 +179,12 @@ EnableVertexAttribArray(vao, 0);
 BindVertexArray(pipeline, vao);
 DrawArrays(WGPUPrimitiveTopology_TriangleList, 3);
 ```
+In contrast to `glVertexAttribPointer`, `VertexAttribPointer` does not take a stride argument. This is due to a difference in how Vertex Buffer Layouts work in WebGPU and Opengl:
+- In OpenGL, every vertex attribute sets its own stride, allowing attributes in the same buffer to have different strides
+- In WebGPU, the stride is shared per-buffer
+
+Once `BindVertexArray(pipeline, vao);` is called, the stride is automatically set to the sum of the size of all the attributes in that buffer.
+
 
 See the example [pipeline_basic.c](https://github.com/manuel5975p/raygpu/examples/pipeline_basic.c) for a complete example.
 # More Advanced Examples
