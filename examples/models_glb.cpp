@@ -48,7 +48,7 @@ void mainloop(){
     EndDrawing();
 }
 int main(){
-    SetConfigFlags(FLAG_STDOUT_TO_FFMPEG);
+    SetConfigFlags(FLAG_STDOUT_TO_FFMPEG | FLAG_HEADLESS);
     InitWindow(1024, 800, "glTF Model Loading");
     
     TRACELOG(LOG_INFO, "Hello");

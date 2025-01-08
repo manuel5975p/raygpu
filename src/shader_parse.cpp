@@ -33,6 +33,50 @@ const std::unordered_map<std::string, std::unordered_map<std::string, WGPUVertex
     map["vec4"]["u32"] = WGPUVertexFormat_Uint32x4;
     return map;
 }();
+format_or_sample_type extractFormat(const tint::ast::Identifier* iden){
+    if(auto templiden = iden->As<tint::ast::TemplatedIdentifier>()){
+        for(size_t i = 0;i < templiden->arguments.Length();i++){
+            if(templiden->arguments[i]->As<tint::ast::IdentifierExpression>() && templiden->arguments[i]->As<tint::ast::IdentifierExpression>()->identifier){
+                auto arg_iden = templiden->arguments[i]->As<tint::ast::IdentifierExpression>()->identifier;
+                if(arg_iden->symbol.Name() == "r32float"){
+                    return format_r32float;
+                }
+                else if(arg_iden->symbol.Name() == "r32uint"){
+                    return format_r32uint;
+                }
+                if(arg_iden->symbol.Name() == "f32"){
+                    return sample_f32;
+                }
+                else if(arg_iden->symbol.Name() == "u32"){
+                    return sample_u32;
+                }
+                //TODO: support all, there's not that many
+            }
+        }
+    }
+    TRACELOG(LOG_FATAL, "Shader parse failed");
+    return format_or_sample_type(12123);
+}
+access_type extractAccess(const tint::ast::Identifier* iden){
+    if(auto templiden = iden->As<tint::ast::TemplatedIdentifier>()){
+        for(size_t i = 0;i < templiden->arguments.Length();i++){
+            if(templiden->arguments[i]->As<tint::ast::IdentifierExpression>() && templiden->arguments[i]->As<tint::ast::IdentifierExpression>()->identifier){
+                auto arg_iden = templiden->arguments[i]->As<tint::ast::IdentifierExpression>()->identifier;
+                if(arg_iden->symbol.Name().starts_with("read_write")){
+                    return readwrite;
+                }
+                else if(arg_iden->symbol.Name().starts_with("write")){
+                    return writeonly;
+                }
+                else if(arg_iden->symbol.Name().starts_with("read")){
+                    return readonly;
+                }
+            }
+        }
+    }
+    TRACELOG(LOG_FATAL, "Shader parse failed");
+    return access_type(12123);
+}
 std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> getAttributes(const char* shaderSource){
     
     std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> ret;
@@ -184,19 +228,21 @@ std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shade
         auto& glob = result.AST().GlobalVariables()[i];
         if(iden->symbol.Name().starts_with("texture_2d")){
             desc.type = texture2d;
+            desc.fstype = extractFormat(iden);
         }
         if(iden->symbol.Name().starts_with("texture_3d")){
             desc.type = texture3d;
+            desc.fstype = extractFormat(iden);
         }
         if(iden->symbol.Name().starts_with("texture_storage_2d")){
             desc.type = storage_texture2d;
+            desc.access = extractAccess(iden);
+            desc.fstype = extractFormat(iden);
         }
         if(iden->symbol.Name().starts_with("texture_storage_3d")){
             desc.type = storage_texture3d;
-            //std::cout << glob->As<tint::ast::Var>()->TypeInfo().name << "\n";//->declared_address_space->As<tint::ast::IdentifierExpression>()->identifier->symbol.Name() << "\n";
-            
-            iden->As<tint::ast::TemplatedIdentifier>()->arguments.Back()->As<tint::ast::IdentifierExpression>()->identifier->symbol.Name();//->declared_address_space->As<tint::ast::IdentifierExpression>()->identifier->symbol.Name() << "\n";
-            
+            desc.access = extractAccess(iden);
+            desc.fstype = extractFormat(iden);
         }
         else if(iden->symbol.Name().starts_with("sampler")){
             desc.type = sampler;

@@ -13,7 +13,8 @@ int main(int argc, char* argv[]) {
     //std::cerr << spirv[0] << ", " << spirv[1] << std::endl;
     SetTraceLogFile(stderr);
     InitWindow(800, 800, "Window");
-    
+    const char* resDir = FindDirectory("resources", 3);
+    TRACELOG(LOG_INFO, resDir);
     //wgpu::ShaderModuleSPIRVDescriptor shaderCodeDesc{};
     //shaderCodeDesc.nextInChain = nullptr;
     //shaderCodeDesc.sType = wgpu::SType::ShaderSourceSPIRV;
@@ -24,7 +25,7 @@ int main(int argc, char* argv[]) {
     //WGPUStringView strv = STRVIEW("wtf");
     //wgpu::ShaderModule sh = GetCXXDevice().CreateShaderModule(&shaderDesc);
     //std::cout << sh.Get() << "\n";
-    DescribedPipeline* pl = LoadPipelineGLSL(LoadFileText("../resources/simple.vert"), LoadFileText("../resources/simple.frag"));
+    DescribedPipeline* pl = LoadPipelineGLSL(LoadFileText(TextFormat("%s/simple.vert", resDir)), LoadFileText(TextFormat("%s/simple.frag", resDir)));
     while(!WindowShouldClose()){
         BeginDrawing();
         ClearBackground(RED);

@@ -655,8 +655,49 @@ extern "C" void BindComputePipeline(DescribedComputePipeline* pipeline){
     wgpuComputePassEncoderSetPipeline(g_wgpustate.rstate->computepass.cpEncoder, pipeline->pipeline);
     wgpuComputePassEncoderSetBindGroup (g_wgpustate.rstate->computepass.cpEncoder, 0, GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
 }
-void CopyBufferToBuffer(DescribedBuffer* source, DescribedBuffer* dest, size_t count){
+extern "C" void CopyBufferToBuffer(DescribedBuffer* source, DescribedBuffer* dest, size_t count){
     wgpuCommandEncoderCopyBufferToBuffer(g_wgpustate.rstate->computepass.cmdEncoder, source->buffer, 0, dest->buffer, 0, count);
+}
+WGPUBuffer intermediary = 0;
+extern "C" void CopyTextureToTexture(Texture source, Texture dest){
+    size_t rowBytes = RoundUpToNextMultipleOf256(source.width * GetPixelSizeInBytes(source.format));
+    WGPUBufferDescriptor bdesc zeroinit;
+    bdesc.size = rowBytes * source.height;
+    bdesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc;
+    if(!intermediary)
+        intermediary = wgpuDeviceCreateBuffer(GetDevice(), &bdesc);
+    
+    
+    WGPUImageCopyTexture src zeroinit;
+    src.texture = source.id;
+    src.aspect = WGPUTextureAspect_All;
+    src.mipLevel = 0;
+    src.origin = WGPUOrigin3D{0, 0, 0};
+    
+    WGPUImageCopyBuffer bdst zeroinit;
+    bdst.buffer = intermediary;
+    bdst.layout.rowsPerImage = source.height;
+    bdst.layout.bytesPerRow = rowBytes;
+    bdst.layout.offset = 0;
+
+    WGPUImageCopyTexture tdst zeroinit;
+    tdst.texture = dest.id;
+    tdst.aspect = WGPUTextureAspect_All;
+    tdst.mipLevel = 0;
+    tdst.origin = WGPUOrigin3D{0, 0, 0};
+
+    WGPUExtent3D copySize zeroinit;
+    copySize.width = source.width;
+    copySize.height = source.height;
+    copySize.depthOrArrayLayers = 1;
+    
+    wgpuCommandEncoderCopyTextureToBuffer(g_wgpustate.rstate->computepass.cmdEncoder, &src, &bdst, &copySize);
+    wgpuCommandEncoderCopyBufferToTexture(g_wgpustate.rstate->computepass.cmdEncoder, &bdst, &tdst, &copySize);
+    
+    //Doesnt work unfortunately:
+    //wgpuCommandEncoderCopyTextureToTexture(g_wgpustate.rstate->computepass.cmdEncoder, &src, &dst, &copySize);
+    
+    //wgpuBufferRelease(intermediary);
 }
 uint32_t GetScreenWidth (cwoid){
     return g_wgpustate.width;
@@ -2183,7 +2224,7 @@ extern "C" float GetFrameTime(){
     }
     return 1.0e-9f * (g_wgpustate.last_timestamps[g_wgpustate.total_frames % 64] - g_wgpustate.last_timestamps[(g_wgpustate.total_frames - 1) % 64]);
 }
-extern "C" void SetConfigFlags(WindowFlag flag){
+extern "C" void SetConfigFlags(int /* enum WindowFlag */ flag){
     g_wgpustate.windowFlags |= flag;
 }
 void NanoWaitImpl(uint64_t stmp){
@@ -2236,7 +2277,7 @@ void TraceLog(int logType, const char *text, ...){
         case LOG_INFO: strcpy(buffer, TERMCTL_GREEN "INFO: "); needs_reset = 1;break;
         case LOG_WARNING: strcpy(buffer, TERMCTL_YELLOW "WARNING: ");needs_reset = 1; break;
         case LOG_ERROR: strcpy(buffer, TERMCTL_RED "ERROR: ");needs_reset = 1; break;
-        case LOG_FATAL: strcpy(buffer, "FATAL: "); break;
+        case LOG_FATAL: strcpy(buffer, TERMCTL_RED "FATAL: "); break;
         default: break;
     }
     size_t offset_now = strlen(buffer);
@@ -2253,8 +2294,11 @@ void TraceLog(int logType, const char *text, ...){
     fflush  (tracelogFile);
 
     va_end(args);
-
-    if (logType == LOG_FATAL) exit(EXIT_FAILURE);  // If fatal logging, exit program
+    // If fatal logging, exit program
+    if (logType == LOG_FATAL){
+        fputs(TERMCTL_RED "Exiting due to fatal error!\n" TERMCTL_RESET, tracelogFile);
+        exit(EXIT_FAILURE); 
+    }
 
 }
 

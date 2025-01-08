@@ -176,7 +176,7 @@ void InitWGPU(webgpu_cxx_state* sample){
     wgpu::ChainedStruct* togglesChain = nullptr;
     wgpu::SType type;
 #ifndef __EMSCRIPTEN__
-    std::vector<const char*> enableToggleNames{"readonly_and_readwrite_storage_textures"};
+    std::vector<const char*> enableToggleNames{};
     std::vector<const char*> disabledToggleNames{};
 
     wgpu::DawnTogglesDescriptor toggles = {};
