@@ -51,7 +51,7 @@ typedef struct DescribedBindGroup{
     WGPUBindGroup bindGroup;
     
     uint64_t descriptorHash;
-    bool needsUpdate;
+    int needsUpdate;
 
 }DescribedBindGroup;
 

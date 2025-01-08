@@ -1590,6 +1590,7 @@ void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, cons
     entry.buffer = uniformBuffer;
     entry.size = size;
     UpdateBindGroupEntry(bg, index, entry);
+    bg->releaseOnClear |= (1 << index);
 }
 void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size){
     WGPUBindGroupEntry entry{};
@@ -1604,6 +1605,7 @@ void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, cons
     entry.buffer = uniformBuffer;
     entry.size = size;
     UpdateBindGroupEntry(bg, index, entry);
+    bg->releaseOnClear |= (1 << index);
 }
 extern "C" void SetBindgroupTexture3D(DescribedBindGroup* bg, uint32_t index, Texture3D tex){
     WGPUBindGroupEntry entry{};
