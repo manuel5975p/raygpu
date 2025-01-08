@@ -4,14 +4,21 @@
 #include <webgpu/webgpu.h>
 #include "macros_and_constants.h"
 
-enum uniform_type{
-    uniform_buffer, storage_buffer, texture2d, storage_texture2d, sampler, storage_write_buffer, texture3d, storage_texture3d
-};
+typedef enum uniform_type{
+    uniform_buffer, storage_buffer, texture2d, storage_texture2d, sampler, texture3d, storage_texture3d
+}uniform_type;
+
+typedef enum access_type{
+    readonly, readwrite, writeonly
+}access_type;
 
 typedef struct UniformDescriptor{
-    enum uniform_type type;
+    uniform_type type;
     uint32_t minBindingSize;
     uint32_t location; //only for @binding attribute in bindgroup 0
+
+    //Applicable for storage buffers and textures
+    access_type access;
 }UniformDescriptor;
 
 

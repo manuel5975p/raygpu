@@ -28,7 +28,24 @@ typedef struct StringToUniformMap{
         
     }
 }StringToUniformMap;
-
+inline WGPUStorageTextureAccess toStorageTextureAccess(access_type acc){
+    switch(acc){
+        case access_type::readonly:return WGPUStorageTextureAccess_ReadOnly;
+        case access_type::readwrite:return WGPUStorageTextureAccess_ReadWrite;
+        case access_type::writeonly:return WGPUStorageTextureAccess_WriteOnly;
+        default: TRACELOG(LOG_FATAL, "Invalid enum type");
+    }
+    return WGPUStorageTextureAccess_Force32;
+}
+inline WGPUBufferBindingType toStorageBufferAccess(access_type acc){
+    switch(acc){
+        case access_type::readonly: return WGPUBufferBindingType_ReadOnlyStorage;
+        case access_type::readwrite:return WGPUBufferBindingType_Storage;
+        case access_type::writeonly:return WGPUBufferBindingType_Storage;
+        default: TRACELOG(LOG_FATAL, "Invalid enum type");
+    }
+    return WGPUBufferBindingType_Force32;
+}
 
 
 
@@ -92,16 +109,16 @@ DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, 
             break;
             case storage_buffer:{
                 blayouts[i].visibility = visible;
-                blayouts[i].buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+                blayouts[i].buffer.type = toStorageBufferAccess(uniforms[i].access);
                 blayouts[i].buffer.minBindingSize = 0;
             }
             break;
-            case storage_write_buffer:{
-                blayouts[i].visibility = vvertexOnly;
-                blayouts[i].buffer.type = WGPUBufferBindingType_Storage;
-                blayouts[i].buffer.minBindingSize = 0;
-            }
-            break;
+            //case storage_write_buffer:{
+            //    blayouts[i].visibility = vvertexOnly;
+            //    blayouts[i].buffer.type = WGPUBufferBindingType_Storage;
+            //    blayouts[i].buffer.minBindingSize = 0;
+            //}
+            //break;
             case texture2d:
                 blayouts[i].visibility = vfragmentOnly;
                 blayouts[i].texture.sampleType = WGPUTextureSampleType_Float;
@@ -117,13 +134,13 @@ DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, 
                 blayouts[i].texture.viewDimension = WGPUTextureViewDimension_3D;
             break;
             case storage_texture2d:
-                blayouts[i].storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+                blayouts[i].storageTexture.access = toStorageTextureAccess(uniforms[i].access);
                 blayouts[i].visibility = vfragmentOnly;
                 blayouts[i].storageTexture.format = WGPUTextureFormat_R32Float;
                 blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_2D;
             break;
             case storage_texture3d:
-                blayouts[i].storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+                blayouts[i].storageTexture.access = toStorageTextureAccess(uniforms[i].access);
                 blayouts[i].visibility = vfragmentOnly;
                 blayouts[i].storageTexture.format = WGPUTextureFormat_R32Float;
                 blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_3D;
@@ -503,7 +520,7 @@ DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const Un
     ret->bindGroup = LoadBindGroup(&ret->bglayout, bge.data(), bge.size());
     ret->uniformLocations = callocnew(StringToUniformMap);
     new (ret->uniformLocations) StringToUniformMap;
-    ret->uniformLocations->uniforms = std::move(bindmap);
+    //ret->uniformLocations->uniforms = std::move(bindmap);
     return ret;
 }
 Texture GetDefaultTexture(cwoid){

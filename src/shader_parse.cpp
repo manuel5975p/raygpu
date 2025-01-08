@@ -39,6 +39,10 @@ std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> getAttrib
 #if defined(SUPPORT_WGSL_PARSER) && SUPPORT_WGSL_PARSER == 1
     tint::Source::File f("path", shaderSource);
     tint::wgsl::reader::Options options{};
+    tint::wgsl::AllowedFeatures features;
+    features.features.emplace(tint::wgsl::LanguageFeature::kReadonlyAndReadwriteStorageTextures);
+    options.allowed_features = features;
+    
     tint::Program result = tint::wgsl::reader::Parse(&f, options);
     if(!result.IsValid()){
         TRACELOG(LOG_ERROR, "Could not parse shader:");
@@ -151,6 +155,10 @@ std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shade
 #if defined(SUPPORT_WGSL_PARSER) && SUPPORT_WGSL_PARSER == 1
     tint::Source::File f("path", shaderSource);
     tint::wgsl::reader::Options options{};
+    tint::wgsl::AllowedFeatures features;
+    features.features.emplace(tint::wgsl::LanguageFeature::kReadonlyAndReadwriteStorageTextures);
+    options.allowed_features = features;
+    
     tint::Program result = tint::wgsl::reader::Parse(&f, options);
     tint::inspector::Inspector insp(result);
     if(!result.IsValid()){
@@ -177,6 +185,19 @@ std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shade
         if(iden->symbol.Name().starts_with("texture_2d")){
             desc.type = texture2d;
         }
+        if(iden->symbol.Name().starts_with("texture_3d")){
+            desc.type = texture3d;
+        }
+        if(iden->symbol.Name().starts_with("texture_storage_2d")){
+            desc.type = storage_texture2d;
+        }
+        if(iden->symbol.Name().starts_with("texture_storage_3d")){
+            desc.type = storage_texture3d;
+            //std::cout << glob->As<tint::ast::Var>()->TypeInfo().name << "\n";//->declared_address_space->As<tint::ast::IdentifierExpression>()->identifier->symbol.Name() << "\n";
+            
+            iden->As<tint::ast::TemplatedIdentifier>()->arguments.Back()->As<tint::ast::IdentifierExpression>()->identifier->symbol.Name();//->declared_address_space->As<tint::ast::IdentifierExpression>()->identifier->symbol.Name() << "\n";
+            
+        }
         else if(iden->symbol.Name().starts_with("sampler")){
             desc.type = sampler;
         }
@@ -190,10 +211,10 @@ std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shade
                         if(auto accex = glob->As<tint::ast::Var>()->declared_access->As<tint::ast::IdentifierExpression>()){
                             std::string access_modifier = accex->As<tint::ast::IdentifierExpression>()->identifier->symbol.Name();
                             if(access_modifier == "read"){
-                                desc.type = storage_buffer;
+                                desc.access = readonly;
                             }
                             else if (access_modifier == "read_write"){
-                                desc.type = storage_write_buffer;
+                                desc.access = readwrite;
                             }
                         }
                     }

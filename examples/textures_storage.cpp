@@ -1,6 +1,6 @@
 #include <raygpu.h>
 constexpr char shaderCode[] = R"(
-@group(0) @binding(0) var tex: texture_storage_3d<r32float, write>;
+@group(0) @binding(0) var tex: texture_storage_3d<r32float, read_write>;
 
 @compute
 @workgroup_size(64, 1, 1)
