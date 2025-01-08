@@ -57,7 +57,7 @@ void addScreenshot(GIFRecordState* grst){
         msf_gif_frame(&grst->msf_state, (uint8_t*)fbLoad.data, grst->delayInCentiseconds, 8, fbLoad.rowStrideInBytes);
     #endif
     grst->lastFrameTimestamp = NanoTime();
-    Image fb = LoadImageFromTextureEx(GetActiveColorTarget());
+    Image fb = LoadImageFromTextureEx(GetActiveColorTarget(), 0);
     #ifndef __EMSCRIPTEN__
     msf_gif_frame(&grst->msf_state, (uint8_t*)fbLoad.data, grst->delayInCentiseconds, 8, fbLoad.rowStrideInBytes);
     #endif
@@ -835,7 +835,7 @@ void EndDrawing(){
         EndRenderpassEx(g_wgpustate.rstate->activeRenderpass);
     }
     if(g_wgpustate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
-        Image img = LoadImageFromTextureEx(GetActiveColorTarget());
+        Image img = LoadImageFromTextureEx(GetActiveColorTarget(), 0);
         if (img.format != BGRA8 && img.format != RGBA8) {
             // Handle unsupported formats or convert as necessary
             fprintf(stderr, "Unsupported pixel format for FFmpeg export.\n");
@@ -947,7 +947,7 @@ uint32_t RoundUpToNextMultipleOf256(uint32_t x) {
     return (x + 255) & ~0xFF;
 }
 
-Image LoadImageFromTextureEx(WGPUTexture tex){
+Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t miplevel){
     size_t formatSize = GetPixelSizeInBytes(wgpuTextureGetFormat(tex));
     uint32_t width = wgpuTextureGetWidth(tex);
     uint32_t height = wgpuTextureGetHeight(tex);
@@ -966,7 +966,7 @@ Image LoadImageFromTextureEx(WGPUTexture tex){
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(GetDevice(), &commandEncoderDesc);
     WGPUImageCopyTexture tbsource{};
     tbsource.texture = tex;
-    tbsource.mipLevel = 0;
+    tbsource.mipLevel = miplevel;
     tbsource.origin = { 0, 0, 0 }; // equivalent of the offset argument of Queue::writeBuffer
     tbsource.aspect = WGPUTextureAspect_All; // only relevant for depth/Stencil textures
     WGPUImageCopyBuffer tbdest{};
@@ -975,7 +975,7 @@ Image LoadImageFromTextureEx(WGPUTexture tex){
     tbdest.layout.bytesPerRow = RoundUpToNextMultipleOf256(formatSize * width);
     tbdest.layout.rowsPerImage = height;
 
-    WGPUExtent3D copysize{width, height, 1};
+    WGPUExtent3D copysize{width / (1 << miplevel), height / (1 << miplevel), 1};
     wgpuCommandEncoderCopyTextureToBuffer(encoder, &tbsource, &tbdest, &copysize);
     
     WGPUCommandBufferDescriptor cmdBufferDescriptor{};
@@ -988,7 +988,7 @@ Image LoadImageFromTextureEx(WGPUTexture tex){
     //wgpuDeviceTick(GetDevice());
     //#else
     //#endif
-    fbLoad.format = (PixelFormat)g_wgpustate.frameBufferFormat;
+    fbLoad.format = (PixelFormat)ret.format;
     waitflag = true;
     auto onBuffer2Mapped = [](wgpu::MapAsyncStatus status, const char* userdata){
         //std::cout << "Backcalled: " << (int)status << std::endl;
@@ -1113,14 +1113,14 @@ void ImageFormat(Image* img, PixelFormat newFormat){
 Image LoadImageFromTexture(Texture tex){
     //#ifndef __EMSCRIPTEN__
     //auto& device = g_wgpustate.device;
-    return LoadImageFromTextureEx(tex.id);
+    return LoadImageFromTextureEx(tex.id, 0);
     //#else
     //std::cerr << "LoadImageFromTexture not supported on web\n";
     //return Image{};
     //#endif
 }
 void TakeScreenshot(const char* filename){
-    Image img = LoadImageFromTextureEx(GetActiveColorTarget());
+    Image img = LoadImageFromTextureEx(GetActiveColorTarget(), 0);
     SaveImage(img, filename);
     UnloadImage(img);
 }
@@ -1319,8 +1319,28 @@ Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, WGPU
     
     return ret;
 }
+constexpr char mipmapComputerSource[] = R"(
+@group(0) @binding(0) var previousMipLevel: texture_2d<f32>;
+@group(0) @binding(1) var nextMipLevel: texture_storage_2d<rgba8unorm, write>;
 
-Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage, uint32_t sampleCount){
+@compute @workgroup_size(8, 8)
+fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
+    let offset = vec2<u32>(0, 1);
+    
+    let color = (
+        textureLoad(previousMipLevel, 2 * id.xy + offset.xx, 0) +
+        textureLoad(previousMipLevel, 2 * id.xy + offset.xy, 0) +
+        textureLoad(previousMipLevel, 2 * id.xy + offset.yx, 0) +
+        textureLoad(previousMipLevel, 2 * id.xy + offset.yy, 0)
+    ) * 0.25;
+    textureStore(nextMipLevel, id.xy, color);
+}
+)";
+void GenTextureMipmaps(Texture2D* tex){
+    static DescribedComputePipeline* cpl = LoadComputePipeline(mipmapComputerSource);
+    
+}
+Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage, uint32_t sampleCount, uint32_t mipmaps){
     WGPUTextureDescriptor tDesc{};
     tDesc.dimension = WGPUTextureDimension_2D;
     tDesc.size = {width, height, 1u};
@@ -1342,7 +1362,7 @@ Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format
     textureViewDesc.baseArrayLayer = 0;
     textureViewDesc.arrayLayerCount = 1;
     textureViewDesc.baseMipLevel = 0;
-    textureViewDesc.mipLevelCount = 1;
+    textureViewDesc.mipLevelCount = mipmaps;
     textureViewDesc.dimension = WGPUTextureViewDimension_2D;
     textureViewDesc.format = tDesc.format;
     Texture ret;
@@ -1352,10 +1372,16 @@ Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format
     ret.width = width;
     ret.height = height;
     ret.sampleCount = sampleCount;
+    ret.mipmaps = mipmaps;
+    for(uint32_t i = 0;i < mipmaps;i++){
+        textureViewDesc.baseMipLevel = i;
+        textureViewDesc.mipLevelCount = 1;
+        ret.mipViews[i] = wgpuTextureCreateView(ret.id, &textureViewDesc);
+    }
     return ret;
 }
 Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format, bool to_be_used_as_rendertarget){
-    return LoadTexturePro(width, height, format, (WGPUTextureUsage_RenderAttachment * to_be_used_as_rendertarget) | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 1);
+    return LoadTexturePro(width, height, format, (WGPUTextureUsage_RenderAttachment * to_be_used_as_rendertarget) | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 1, 1);
 }
 Texture LoadTexture(const char* filename){
     Image img = LoadImage(filename);
@@ -1374,10 +1400,10 @@ RenderTexture LoadRenderTexture(uint32_t width, uint32_t height){
     RenderTexture ret{
         .color = LoadTextureEx(width, height, g_wgpustate.frameBufferFormat, true),
         .colorMultisample = Texture{}, 
-        .depth = LoadTexturePro(width, height, WGPUTextureFormat_Depth24Plus, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1)
+        .depth = LoadTexturePro(width, height, WGPUTextureFormat_Depth24Plus, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1, 1)
     };
     if(g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT){
-        ret.colorMultisample = LoadTexturePro(width, height, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4);
+        ret.colorMultisample = LoadTexturePro(width, height, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4, 1);
     }
     return ret;
 }
@@ -1610,6 +1636,13 @@ extern "C" void SetBindgroupTexture3D(DescribedBindGroup* bg, uint32_t index, Te
     WGPUBindGroupEntry entry{};
     entry.binding = index;
     entry.textureView = tex.view;
+    
+    UpdateBindGroupEntry(bg, index, entry);
+}
+extern "C" void SetBindgroupTextureView(DescribedBindGroup* bg, uint32_t index, WGPUTextureView texView){
+    WGPUBindGroupEntry entry{};
+    entry.binding = index;
+    entry.textureView = texView;
     
     UpdateBindGroupEntry(bg, index, entry);
 }
@@ -1957,25 +1990,17 @@ void SaveImage(Image img, const char* filepath){
     if(stride == 0){
         stride = img.width * sizeof(Color);
     }
-    
-    BGRA8Color* cols = (BGRA8Color*)img.data; 
-    Color* ocols = (Color*)calloc(stride * img.height, sizeof(Color));
-    for(size_t i = 0;i < (stride / sizeof(Color)) * img.height;i++){
-        ocols[i].r = cols[i].r;
-        ocols[i].g = cols[i].g;
-        ocols[i].b = cols[i].b;
-        ocols[i].a = 255;
-    }
+    ImageFormat(&img, PixelFormat::RGBA8);
     if(fp.ends_with(".png")){
-        stbi_write_png(filepath, img.width, img.height, 4, ocols, stride);
+        stbi_write_png(filepath, img.width, img.height, 4, img.data, stride);
     }
     else if(fp.ends_with(".jpg")){
-        stbi_write_jpg(filepath, img.width, img.height, 4, ocols, 100);
+        stbi_write_jpg(filepath, img.width, img.height, 4, img.data, 100);
     }
     else if(fp.ends_with(".bmp")){
         //if(row)
         //std::cerr << "Careful with bmp!" << filepath << "\n";
-        stbi_write_bmp(filepath, img.width, img.height, 4, ocols);
+        stbi_write_bmp(filepath, img.width, img.height, 4, img.data);
     }
     else{
         TRACELOG(LOG_ERROR, "Unrecognized image format in filename %s", filepath);
