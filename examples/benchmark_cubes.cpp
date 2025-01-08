@@ -75,7 +75,7 @@ int main(){
         .position = Vector3{0,70,0},
         .target = Vector3{100,0,100},
         .up = Vector3{0,1,0},
-        .fovy = 1.0f
+        .fovy = 50.0f
     };
     pl = LoadPipelineForVAO(shaderSource, cubeMesh.vao);
     auto smp = LoadSampler(repeat, nearest);

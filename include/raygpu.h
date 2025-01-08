@@ -62,7 +62,7 @@ typedef struct Image{
     int mipmaps; // Unused
 }Image;
 #ifndef MAX_MIP_LEVELS
-#define MAX_MIP_LEVELS 4
+#define MAX_MIP_LEVELS 16
 #endif
 typedef struct Texture{
     WGPUTexture id;
@@ -748,6 +748,7 @@ EXTERN_C_BEGIN
     bool IsFileExtension(const char *fileName, const char *ext);
     
     DescribedSampler LoadSampler(addressMode amode, filterMode fmode);
+    DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode mipmapFilter, float maxAnisotropy);
     void UnloadSampler(DescribedSampler sampler);
 
     WGPUTexture GetActiveColorTarget(cwoid);

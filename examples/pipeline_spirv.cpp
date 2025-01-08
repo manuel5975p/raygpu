@@ -1,10 +1,12 @@
 #include <raygpu.h>
+#ifndef __EMSCRIPTEN__
 #include <tint/tint.h>
 #include <tint/lang/spirv/reader/parser/parser.h>
 #include <tint/lang/spirv/reader/reader.h>
 #include <tint/lang/glsl/writer/writer.h>
 #include <tint/lang/core/type/reference.h>
 #include <tint/lang/core/ir/module.h>
+#endif
 uint32_t byteswap_uint32(uint32_t x) {
     return ((x & 0x000000FFU) << 24) |  // Move byte 0 to byte 3
            ((x & 0x0000FF00U) << 8)  |  // Move byte 1 to byte 2
@@ -14,6 +16,7 @@ uint32_t byteswap_uint32(uint32_t x) {
 
 
 int main(){
+    #ifndef __EMSCRIPTEN__
     SetConfigFlags(FLAG_VSYNC_HINT);
     InitWindow(800, 800, "SPIR-V Shader");
     //SetTargetFPS(1800);
@@ -37,6 +40,7 @@ int main(){
     tint::spirv::reader::Options options{};
     auto result = tint::spirv::reader::Parse(sl);
     std::cout << result << "\n";
+    #endif
     return 0;
 
     /*wgpu::ShaderModuleSPIRVDescriptor shaderCodeDesc{};
