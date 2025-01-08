@@ -20,90 +20,66 @@ fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
 }
 )";
 DescribedComputePipeline* cpl;
-typedef struct MIPTexture{
-    WGPUTexture id;
-    WGPUTextureView view;
-    WGPUTextureView viewL1;
-    uint32_t width, height;
-    WGPUTextureFormat format;
-    uint32_t sampleCount;
-}MIPTexture;
-MIPTexture loadMip(uint32_t width, uint32_t height, uint32_t sampleCount, WGPUTextureFormat format, WGPUTextureUsage usage){
-    WGPUTextureDescriptor tDesc{};
-    tDesc.dimension = WGPUTextureDimension_2D;
-    tDesc.size = {width, height, 1u};
-    tDesc.mipLevelCount = 2;
-    tDesc.sampleCount = sampleCount;
-    tDesc.format = format;
-    tDesc.usage = usage | WGPUTextureUsage_CopyDst| WGPUTextureUsage_CopySrc | WGPUTextureUsage_StorageBinding  | WGPUTextureUsage_TextureBinding;
-    tDesc.viewFormatCount = 1;
-    tDesc.viewFormats = &tDesc.format;
-
-    
-    MIPTexture ret;
-    ret.id = wgpuDeviceCreateTexture(GetDevice(), &tDesc);
-    
-    ret.format = format;
-    ret.width = width;
-    ret.height = height;
-    ret.sampleCount = sampleCount;
-
-
-    WGPUImageCopyTexture destination;
-    destination.texture = ret.id;
-    destination.origin = { 0, 0, 0 };
-    destination.aspect = WGPUTextureAspect_All;
-    destination.mipLevel = 0;
-    WGPUTextureDataLayout source;
-    source.offset = 0;
-    source.bytesPerRow = 4 * ret.width;
-    source.rowsPerImage = ret.height;
-
-    Image img = GenImageChecker(RED, BLUE, width, height, 20);
-
-    wgpuQueueWriteTexture(GetQueue(), &destination, img.data, (size_t)(4 * width * height), &source, &tDesc.size);
-
-
-
-
-    WGPUTextureViewDescriptor textureViewDesc{};
-
-    textureViewDesc.aspect = WGPUTextureAspect_All;
-    textureViewDesc.baseArrayLayer = 0;
-    textureViewDesc.arrayLayerCount = 1;
-    textureViewDesc.baseMipLevel = 0;
-    textureViewDesc.mipLevelCount = 1;
-    textureViewDesc.dimension = WGPUTextureViewDimension_2D;
-    textureViewDesc.format = tDesc.format;
-
-
-    ret.view = wgpuTextureCreateView(ret.id, &textureViewDesc);
-    textureViewDesc.baseMipLevel = 1;
-    ret.viewL1 = wgpuTextureCreateView(ret.id, &textureViewDesc);
-
-    BeginComputepass();
-
-    SetBindgroupTextureView(&cpl->bindGroup, 0, ret.view);
-    SetBindgroupTextureView(&cpl->bindGroup, 1, ret.viewL1);
-    BindComputePipeline(cpl);
-    DispatchCompute(width / 8, height / 8, 1);
-    EndComputepass();
-    Image dmp = LoadImageFromTextureEx(ret.id, 1);
-    std::cout << dmp.format << "\n";
-    SaveImage(dmp, "mip.png");
-    return ret;
-}
+DescribedSampler smp;
+Texture mipmappedTexture;
+Camera3D cam;
+constexpr float size = 100;
 void mainloop(){
+    
     BeginDrawing();
-    ClearBackground(GREEN);
-    DrawText("Hello there!",200, 200, 30, BLACK);
+    ClearBackground(DARKGRAY);
+    
+    //DrawTexturePro(mipmappedTexture, Rectangle(0,0,1000,1000), Rectangle(10,200,980,100), Vector2{0,0}, 0.0, WHITE);
+    
+    BeginMode3D(cam);
+    UseTexture(mipmappedTexture);
+    rlBegin(RL_QUADS);
+    rlColor3f(1.0f, 1.0f, 1.0f);
+    rlTexCoord2f(0, 0);
+    rlVertex3f(0, 0, 0);
+
+    rlTexCoord2f(1, 0);
+    rlVertex3f(size, 0, 0);
+    
+    rlTexCoord2f(1, 1);
+    rlVertex3f(size, 0, size);
+    
+    rlTexCoord2f(0, 1);
+    rlVertex3f(0, 0, size);
+    
+    rlEnd();
+    EndMode3D();
+    DrawFPS(5, 5);
     EndDrawing();
 }
 
 int main(){
-    InitWindow(800, 600, "Title");
+    RequestLimit(maxTextureDimension2D, 16384);
+    RequestLimit(maxBufferSize, 1 << 30);
+    //SetConfigFlags(FLAG_MSAA_4X_HINT);
+    InitWindow(1920, 1080, "Title");
     cpl = LoadComputePipeline(computeCode);
-    auto what = loadMip(1000, 1000, 1, WGPUTextureFormat_RGBA8Unorm, WGPUTextureUsage_TextureBinding);
+    mipmappedTexture = LoadTexturePro(
+        4000, 4000, 
+        WGPUTextureFormat_RGBA8Unorm, WGPUTextureUsage_StorageBinding | WGPUTextureUsage_CopySrc | WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding,
+        1, 
+        12
+    );
+    Image img = GenImageChecker(WHITE, BLACK, 4000, 4000, 50);
+    UpdateTexture(mipmappedTexture, img.data);
+    GenTextureMipmaps(&mipmappedTexture);
+    WGPUSamplerDescriptor sd{};
+    cam = Camera3D{
+        .position = Vector3{-2,2,size / 2},
+        .target = Vector3{3,0, size / 2},
+        .up = Vector3{0,1,0},
+        .fovy = 60.0f
+    };
+
+    smp = LoadSamplerEx(clampToEdge, linear, linear, 4096.f);
+    SetSampler(2, smp);
+    //Image exp = LoadImageFromTextureEx(mipmappedTexture.id, 7);
+    //SaveImage(exp, "mip.png");
     #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainloop, 0, 0);
     #else 

@@ -229,7 +229,7 @@ void InitWGPU(webgpu_cxx_state* sample){
                     //return false;
             }
         };
-        adapterOptions.compatibilityMode = bcompat(backendType);
+        adapterOptions.featureLevel = wgpu::FeatureLevel::Undefined;
 
     }
 

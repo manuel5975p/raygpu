@@ -257,6 +257,7 @@ std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shade
                         desc.type = uniform_buffer;
                     }
                     else if(addrspace->identifier->symbol.Name() == "storage"){
+                        desc.type = storage_buffer;
                         if(glob->As<tint::ast::Var>()->declared_access){
                             if(auto accex = glob->As<tint::ast::Var>()->declared_access->As<tint::ast::IdentifierExpression>()){
                                 std::string access_modifier = accex->As<tint::ast::IdentifierExpression>()->identifier->symbol.Name();

@@ -539,6 +539,7 @@ DescribedComputePipeline* LoadComputePipeline(const char* shaderCode){
         return x.location < y.location;
     });
     return LoadComputePipelineEx(shaderCode, udesc.data(), udesc.size());
+    
 }
 DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const UniformDescriptor* uniforms, uint32_t uniformCount){
     auto bindmap = getBindings(shaderCode);
@@ -562,7 +563,7 @@ DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const Un
     ret->bindGroup = LoadBindGroup(&ret->bglayout, bge.data(), bge.size());
     ret->uniformLocations = callocnew(StringToUniformMap);
     new (ret->uniformLocations) StringToUniformMap;
-    //ret->uniformLocations->uniforms = std::move(bindmap);
+    ret->uniformLocations->uniforms = std::move(bindmap);
     return ret;
 }
 Texture GetDefaultTexture(cwoid){
@@ -629,7 +630,9 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, WGPUB
     }
     uint64_t oldHash = bg->descriptorHash;
     bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
+    bool donotcache = false;
     if(bg->releaseOnClear & (1 << index)){
+        donotcache = true;
         if(bg->entries[index].buffer){
             wgpuBufferRelease(bg->entries[index].buffer);
         }
@@ -646,11 +649,14 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, WGPUB
     bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
 
     //TODO don't release and recreate here or find something better
-    
-    if(!bg->needsUpdate && bg->bindGroup){
-        wgpuBindGroupRelease(bg->bindGroup);
-        //g_wgpustate.bindGroupPool[oldHash] = bg->bindGroup;
-        //bg->bindGroup = nullptr;
+    if(donotcache){
+        if(bg->bindGroup)
+            wgpuBindGroupRelease(bg->bindGroup);
+        bg->bindGroup = nullptr;
+    }
+    else if(!bg->needsUpdate && bg->bindGroup){
+        g_wgpustate.bindGroupPool[oldHash] = bg->bindGroup;
+        bg->bindGroup = nullptr;
     }
     bg->needsUpdate = true;
     
@@ -667,17 +673,17 @@ extern "C" void UpdateBindGroup(DescribedBindGroup* bg){
     //std::cout << "Updating bindgroup with " << bg->desc.entryCount << " entries" << std::endl;
     //std::cout << "Updating bindgroup with " << bg->desc.entries[1].binding << " entries" << std::endl;
     if(bg->needsUpdate){
-        //auto it = g_wgpustate.bindGroupPool.find(bg->descriptorHash);
-        //if(it != g_wgpustate.bindGroupPool.end()){
-        //    bg->bindGroup = it->second;
-        //}
-        //else{
-        //TRACELOG(LOG_WARNING, "a ooo, create bind grupp");
-        //__builtin_dump_struct(&(bg->desc), printf);
-        //for(size_t i = 0;i < bg->desc.entryCount;i++)
-        //    __builtin_dump_struct(&(bg->desc.entries[i]), printf);
-        bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
-        //}
+        auto it = g_wgpustate.bindGroupPool.find(bg->descriptorHash);
+        if(it != g_wgpustate.bindGroupPool.end()){
+            bg->bindGroup = it->second;
+        }
+        else{
+            //TRACELOG(LOG_WARNING, "a ooo, create bind grupp");
+            //__builtin_dump_struct(&(bg->desc), printf);
+            //for(size_t i = 0;i < bg->desc.entryCount;i++)
+            //    __builtin_dump_struct(&(bg->desc.entries[i]), printf);
+            bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
+        }
         bg->needsUpdate = false;
     }
 }

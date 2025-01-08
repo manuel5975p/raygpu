@@ -946,6 +946,9 @@ void rlEnd(){
 uint32_t RoundUpToNextMultipleOf256(uint32_t x) {
     return (x + 255) & ~0xFF;
 }
+uint32_t RoundUpToNextMultipleOf16(uint32_t x) {
+    return (x + 15) & ~0xF;
+}
 
 Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t miplevel){
     size_t formatSize = GetPixelSizeInBytes(wgpuTextureGetFormat(tex));
@@ -1338,13 +1341,25 @@ fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
 )";
 void GenTextureMipmaps(Texture2D* tex){
     static DescribedComputePipeline* cpl = LoadComputePipeline(mipmapComputerSource);
+    BeginComputepass();
     
+    for(int i = 0;i < tex->mipmaps - 1;i++){
+        SetBindgroupTextureView(&cpl->bindGroup, 0, tex->mipViews[i    ]);
+        SetBindgroupTextureView(&cpl->bindGroup, 1, tex->mipViews[i + 1]);
+        if(i == 0){
+            BindComputePipeline(cpl);
+        }
+        wgpuComputePassEncoderSetBindGroup (g_wgpustate.rstate->computepass.cpEncoder, 0, GetWGPUBindGroup(&cpl->bindGroup), 0, 0);
+        uint32_t divisor = (1 << i) * 8;
+        DispatchCompute((tex->width + divisor - 1) & -(divisor) / 8, (tex->height + divisor - 1) & -(divisor) / 8, 1);
+    }
+    EndComputepass();
 }
 Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage, uint32_t sampleCount, uint32_t mipmaps){
     WGPUTextureDescriptor tDesc{};
     tDesc.dimension = WGPUTextureDimension_2D;
     tDesc.size = {width, height, 1u};
-    tDesc.mipLevelCount = 1;
+    tDesc.mipLevelCount = mipmaps;
     tDesc.sampleCount = sampleCount;
     tDesc.format = format;
     tDesc.usage  = usage;
@@ -1365,7 +1380,7 @@ Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format
     textureViewDesc.mipLevelCount = mipmaps;
     textureViewDesc.dimension = WGPUTextureViewDimension_2D;
     textureViewDesc.format = tDesc.format;
-    Texture ret;
+    Texture ret zeroinit;
     ret.id = wgpuDeviceCreateTexture(GetDevice(), &tDesc);
     ret.view = wgpuTextureCreateView(ret.id, &textureViewDesc);
     ret.format = format;
@@ -1806,20 +1821,23 @@ extern "C" DescribedRenderpass LoadRenderpass(WGPUTextureView color, WGPUTexture
         .optionalDepthTexture = depth,
     });    
 }
-DescribedSampler LoadSampler(addressMode amode, filterMode fmode){
+DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode mipmapFilter, float maxAnisotropy){
     DescribedSampler ret zeroinit;
     ret.desc.magFilter    = (WGPUFilterMode)fmode;
     ret.desc.minFilter    = (WGPUFilterMode)fmode;
-    ret.desc.mipmapFilter = WGPUMipmapFilterMode_Linear;
+    ret.desc.mipmapFilter = (WGPUMipmapFilterMode)fmode;
     ret.desc.compare      = WGPUCompareFunction_Undefined;
     ret.desc.lodMinClamp  = 0.0f;
-    ret.desc.lodMaxClamp  = 1.0f;
-    ret.desc.maxAnisotropy = 1;
+    ret.desc.lodMaxClamp  = 100.0f;
+    ret.desc.maxAnisotropy = maxAnisotropy;
     ret.desc.addressModeU = (WGPUAddressMode)amode;
     ret.desc.addressModeV = (WGPUAddressMode)amode;
     ret.desc.addressModeW = (WGPUAddressMode)amode;
     ret.sampler = wgpuDeviceCreateSampler(GetDevice(), &ret.desc);
     return ret;
+}
+DescribedSampler LoadSampler(addressMode amode, filterMode fmode){
+    return LoadSamplerEx(amode, fmode, fmode, 1.0f);
 }
 void UnloadSampler(DescribedSampler sampler){
     wgpuSamplerRelease(sampler.sampler);

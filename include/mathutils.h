@@ -1436,7 +1436,7 @@ MAPI Matrix MatrixRotate(Vector3 axis, float angle){
 }
 
 MAPI Matrix GetCameraMatrix3D(Camera3D camera, float aspect){
-    return MatrixMultiply(MatrixPerspective(camera.fovy, aspect , 0.1f, 100000), MatrixLookAt(camera.position, camera.target, camera.up));
+    return MatrixMultiply(MatrixPerspective(camera.fovy * DEG2RAD, aspect , 0.1f, 100000), MatrixLookAt(camera.position, camera.target, camera.up));
 }
 
 MAPI Matrix GetCameraMatrix2D(Camera2D camera){
