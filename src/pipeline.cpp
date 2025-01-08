@@ -46,6 +46,22 @@ inline WGPUBufferBindingType toStorageBufferAccess(access_type acc){
     }
     return WGPUBufferBindingType_Force32;
 }
+inline WGPUTextureFormat toStorageTextureFormat(format_or_sample_type fmt){
+    switch(fmt){
+        case format_or_sample_type::format_r32float: return WGPUTextureFormat_R32Float;
+        case format_or_sample_type::format_r32uint: return WGPUTextureFormat_R32Uint;
+        default: TRACELOG(LOG_FATAL, "Invalid enum type");
+    }
+    return WGPUTextureFormat_Force32;
+}
+inline WGPUTextureSampleType toTextureSampleType(format_or_sample_type fmt){
+    switch(fmt){
+        case format_or_sample_type::sample_f32: return WGPUTextureSampleType_Float;
+        case format_or_sample_type::sample_u32: return WGPUTextureSampleType_Uint;
+        default: TRACELOG(LOG_FATAL, "Invalid enum type");
+    }
+    return WGPUTextureSampleType_Force32;
+}
 
 
 
@@ -113,15 +129,9 @@ DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, 
                 blayouts[i].buffer.minBindingSize = 0;
             }
             break;
-            //case storage_write_buffer:{
-            //    blayouts[i].visibility = vvertexOnly;
-            //    blayouts[i].buffer.type = WGPUBufferBindingType_Storage;
-            //    blayouts[i].buffer.minBindingSize = 0;
-            //}
-            //break;
             case texture2d:
                 blayouts[i].visibility = vfragmentOnly;
-                blayouts[i].texture.sampleType = WGPUTextureSampleType_Float;
+                blayouts[i].texture.sampleType = toTextureSampleType(uniforms[i].fstype);
                 blayouts[i].texture.viewDimension = WGPUTextureViewDimension_2D;
             break;
             case sampler:
@@ -130,19 +140,19 @@ DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, 
             break;
             case texture3d:
                 blayouts[i].visibility = vfragmentOnly;
-                blayouts[i].texture.sampleType = WGPUTextureSampleType_Float;
+                blayouts[i].texture.sampleType = toTextureSampleType(uniforms[i].fstype);
                 blayouts[i].texture.viewDimension = WGPUTextureViewDimension_3D;
             break;
             case storage_texture2d:
                 blayouts[i].storageTexture.access = toStorageTextureAccess(uniforms[i].access);
                 blayouts[i].visibility = vfragmentOnly;
-                blayouts[i].storageTexture.format = WGPUTextureFormat_R32Float;
+                blayouts[i].storageTexture.format = toStorageTextureFormat(uniforms[i].fstype);
                 blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_2D;
             break;
             case storage_texture3d:
                 blayouts[i].storageTexture.access = toStorageTextureAccess(uniforms[i].access);
                 blayouts[i].visibility = vfragmentOnly;
-                blayouts[i].storageTexture.format = WGPUTextureFormat_R32Float;
+                blayouts[i].storageTexture.format = toStorageTextureFormat(uniforms[i].fstype);
                 blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_3D;
             break;
         }

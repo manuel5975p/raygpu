@@ -691,7 +691,7 @@ EXTERN_C_BEGIN
      */
     uint64_t NanoTime(cwoid);
     void RequestLimit(LimitType limit, uint64_t value);
-    void SetConfigFlags(WindowFlag flag);
+    void SetConfigFlags(int /* enum WindowFlag */ flag);
     bool IsATerminal(FILE *stream);
     void SetTargetFPS(int fps);                                 // Set target FPS (maximum)
     int GetTargetFPS(cwoid);
@@ -720,6 +720,7 @@ EXTERN_C_BEGIN
     void BindComputePipeline(DescribedComputePipeline* cpl);
     void DispatchCompute(uint32_t x, uint32_t y, uint32_t z);
     void CopyBufferToBuffer(DescribedBuffer* source, DescribedBuffer* dest, size_t count/* in bytes*/);
+    void CopyTextureToTexture(Texture source, Texture dest);
     void ComputepassEndOnlyComputing(cwoid);
     void EndComputepass(cwoid);
     void BeginComputepassEx(DescribedComputepass* computePass);

@@ -12,6 +12,10 @@ typedef enum access_type{
     readonly, readwrite, writeonly
 }access_type;
 
+typedef enum format_or_sample_type{
+    sample_f32, sample_u32, format_r32float, format_r32uint
+}format_or_sample_type;
+
 typedef struct UniformDescriptor{
     uniform_type type;
     uint32_t minBindingSize;
@@ -19,6 +23,7 @@ typedef struct UniformDescriptor{
 
     //Applicable for storage buffers and textures
     access_type access;
+    format_or_sample_type fstype;
 }UniformDescriptor;
 
 
