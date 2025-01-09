@@ -365,7 +365,9 @@ namespace std{
     };
 }
 extern "C" VertexArray* LoadVertexArray(){
-    return callocnew(VertexArray);
+    VertexArray* ret = callocnew(VertexArray);
+    new (ret) VertexArray;
+    return ret;
 }
 extern "C" void VertexAttribPointer(VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, WGPUVertexFormat format, uint32_t offset, WGPUVertexStepMode stepmode){
     array->add(buffer, attribLocation, format, offset, stepmode);
@@ -720,13 +722,15 @@ void EndRenderpassEx(DescribedRenderpass* renderPass){
     drawCurrentBatch();
     wgpuRenderPassEncoderEnd(renderPass->rpEncoder);
     g_wgpustate.rstate->activeRenderpass = nullptr;
+    auto re = renderPass->rpEncoder;
     renderPass->rpEncoder = 0;
     WGPUCommandBufferDescriptor cmdBufferDescriptor{};
     cmdBufferDescriptor.label = STRVIEW("CB");
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(renderPass->cmdEncoder, &cmdBufferDescriptor);
     wgpuQueueSubmit(GetQueue(), 1, &command);
-    wgpuCommandBufferRelease(command);
+    wgpuRenderPassEncoderRelease(re);
     wgpuCommandEncoderRelease(renderPass->cmdEncoder);
+    wgpuCommandBufferRelease(command);
 }
 void BeginRenderpass(cwoid){
     BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
@@ -798,19 +802,24 @@ void BeginDrawing(){
         g_wgpustate.currentDefaultRenderTarget = headless_rtex;
     }
     else{
-        g_wgpustate.currentDefaultRenderTarget = g_wgpustate.mainWindowRenderTarget;
+        
         if(g_wgpustate.currentDefaultRenderTarget.color.id)
             UnloadTexture(g_wgpustate.currentDefaultRenderTarget.color);
         
 
-        g_wgpustate.drawmutex.lock();
+        //g_wgpustate.drawmutex.lock();
         g_wgpustate.rstate->renderExtentX = GetScreenWidth();
         g_wgpustate.rstate->renderExtentY = GetScreenHeight();
         WGPUSurfaceTexture surfaceTexture;
         wgpuSurfaceGetCurrentTexture(g_wgpustate.surface.Get(), &surfaceTexture);
-        g_wgpustate.currentDefaultRenderTarget.color.id = surfaceTexture.texture;
-        WGPUTextureView nextTexture = wgpuTextureCreateView(g_wgpustate.currentDefaultRenderTarget.color.id, nullptr);
-        g_wgpustate.currentDefaultRenderTarget.color.view = nextTexture;
+        WGPUTextureView nextTexture = wgpuTextureCreateView(surfaceTexture.texture, nullptr);
+
+        g_wgpustate.mainWindowRenderTarget.color.id = surfaceTexture.texture;
+        g_wgpustate.mainWindowRenderTarget.color.width = GetScreenWidth();
+        g_wgpustate.mainWindowRenderTarget.color.height = GetScreenHeight();
+        g_wgpustate.mainWindowRenderTarget.color.view = nextTexture;
+        
+        g_wgpustate.currentDefaultRenderTarget = g_wgpustate.mainWindowRenderTarget;
         setTargetTextures(g_wgpustate.rstate, g_wgpustate.currentDefaultRenderTarget.color.view, g_wgpustate.currentDefaultRenderTarget.colorMultisample.view, g_wgpustate.currentDefaultRenderTarget.depth.view);
     }
     BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
@@ -898,8 +907,8 @@ void EndDrawing(){
     ipstate.scrollPreviousFrame = ipstate.scrollThisFrame;
     ipstate.scrollThisFrame = Vector2{0, 0};
     std::copy(ipstate.mouseButtonDown.begin(), ipstate.mouseButtonDown.end(), ipstate.mouseButtonDownPrevious.begin());
-    if(!(g_wgpustate.windowFlags & FLAG_HEADLESS))
-        g_wgpustate.drawmutex.unlock();
+    //if(!(g_wgpustate.windowFlags & FLAG_HEADLESS))
+    //    g_wgpustate.drawmutex.unlock();
     uint64_t nanosecondsPerFrame = std::floor(1e9 / GetTargetFPS());
     //std::cout << nanosecondsPerFrame << "\n";
     uint64_t elapsed = NanoTime() - beginframe_stmp;
@@ -1015,6 +1024,7 @@ Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t miplevel){
     #ifndef __EMSCRIPTEN__
     g_wgpustate.instance.WaitAny(readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped), 1000000000);
     #else
+    //g_wgpustate.instance.WaitAny(readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped), 1000000000);
     readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::AllowSpontaneous, onBuffer2Mapped);
     
     //while(waitflag){
@@ -1189,9 +1199,9 @@ extern "C" bool IsKeyPressed(int key){
 }
 extern "C" int GetCharPressed(){
     int fc = 0;
-    if(!g_wgpustate.charQueue.empty()){
-        fc = g_wgpustate.charQueue.front();
-        g_wgpustate.charQueue.pop_front();
+    if(!g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].charQueue.empty()){
+        fc = g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].charQueue.front();
+        g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].charQueue.pop_front();
     }
     return fc;
 }

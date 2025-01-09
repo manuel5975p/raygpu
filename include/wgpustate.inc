@@ -13,6 +13,8 @@ struct window_input_state{
     int cursorInWindow;
     std::array<uint8_t, 16> mouseButtonDownPrevious;
     std::array<uint8_t, 16> mouseButtonDown;
+
+    std::deque<int> charQueue;
 };
 struct wgpustate{
     wgpu::Instance instance;
@@ -48,9 +50,6 @@ struct wgpustate{
     
     std::unordered_map<GLFWwindow*, window_input_state> input_map;
     
-    
-    std::deque<int> charQueue; 
-    
     int windowFlags = 0;
     // Frame timing / FPS
     int targetFPS;
@@ -61,5 +60,7 @@ struct wgpustate{
 
     std::mutex drawmutex;
     GIFRecordState* grst;
+
+    std::unordered_map<void*, SubWindow> createdSubwindows;
     SubWindow activeSubWindow{};
 };

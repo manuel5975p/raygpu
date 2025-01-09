@@ -630,9 +630,9 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, WGPUB
     }
     uint64_t oldHash = bg->descriptorHash;
     bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
-    bool donotcache = false;
+    //bool donotcache = false;
     if(bg->releaseOnClear & (1 << index)){
-        donotcache = true;
+        //donotcache = true;
         if(bg->entries[index].buffer){
             wgpuBufferRelease(bg->entries[index].buffer);
         }
@@ -649,15 +649,15 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, WGPUB
     bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
 
     //TODO don't release and recreate here or find something better
-    if(donotcache){
+    if(true /*|| donotcache*/){
         if(bg->bindGroup)
             wgpuBindGroupRelease(bg->bindGroup);
         bg->bindGroup = nullptr;
     }
-    else if(!bg->needsUpdate && bg->bindGroup){
-        g_wgpustate.bindGroupPool[oldHash] = bg->bindGroup;
-        bg->bindGroup = nullptr;
-    }
+    //else if(!bg->needsUpdate && bg->bindGroup){
+    //    g_wgpustate.bindGroupPool[oldHash] = bg->bindGroup;
+    //    bg->bindGroup = nullptr;
+    //}
     bg->needsUpdate = true;
     
     //bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
