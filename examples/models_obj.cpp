@@ -3,9 +3,10 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
+Material churchMat{};
 int main(cwoid){
     //SetConfigFlags(FLAG_FULLSCREEN_MODE);
-    SetConfigFlags(FLAG_VSYNC_HINT);
+    //SetConfigFlags(FLAG_VSYNC_HINT);
     
     //SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(1920, 1080, "VAO");
@@ -14,18 +15,22 @@ int main(cwoid){
         .position = CLITERAL(Vector3){0,0,10},
         .target = CLITERAL(Vector3){0,0,0},
         .up = CLITERAL(Vector3){0,1,0},
-        .fovy = 1.0f
+        .fovy = 40.0f
     };
     
 
     std::string resourceDirectoryPath = FindDirectory("resources", 3);
     Model churchModel = LoadModel((resourceDirectoryPath + "/church.obj").c_str());
-    Texture cdif = LoadTextureFromImage(LoadImage((resourceDirectoryPath + "/church_diffuse.png").c_str()));
-    std::cout << churchModel.meshCount << std::endl;
+
+    churchMat = LoadMaterialDefault();
+    
+    Texture cdiffuse = LoadTextureFromImage(LoadImage((resourceDirectoryPath + "/church_diffuse.png").c_str()));
+    churchMat.maps[MATERIAL_MAP_DIFFUSE].texture = cdiffuse;
+    
     Mesh churchMesh = churchModel.meshes[0];
     //UploadMesh(&cube, true);
 
-    DescribedPipeline* pl = Relayout(DefaultPipeline(), churchMesh.vao);
+    //DescribedPipeline* pl = Relayout(DefaultPipeline(), churchMesh.vao);
     
     Texture checkers = LoadTextureFromImage(GenImageChecker(RED, DARKBLUE, 100, 100, 4));
     float angle = 0.0f;
@@ -44,9 +49,8 @@ int main(cwoid){
         cam.target = Vector3{0, 10.0f, 0};
         ClearBackground(BLANK);
         //BeginPipelineMode(pl);
-        UseTexture(cdif);
         BeginMode3D(cam);
-        DrawMeshInstanced(churchMesh, Material{}, trfs, instanceCount);
+        DrawMeshInstanced(churchMesh, churchMat, trfs, instanceCount);
         EndMode3D();
         //EndPipelineMode();
         DrawFPS(0, 0);

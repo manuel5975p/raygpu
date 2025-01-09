@@ -202,7 +202,8 @@ extern "C" void DrawMeshInstanced(Mesh mesh, Material material, const Matrix* tr
     }else{
         trfBuffer = GenStorageBuffer(transforms, instances * sizeof(Matrix));
     }
-    SetPipelineStorageBuffer(GetActivePipeline(), 3, trfBuffer);
+
+    SetPipelineStorageBuffer(GetActivePipeline(), GetUniformLocation(GetActivePipeline(), RL_DEFAULT_SHADER_UNIFORM_NAME_INSTANCE_TX), trfBuffer);
     SetTexture(GetUniformLocation(GetActivePipeline(), RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE0), material.maps[MATERIAL_MAP_DIFFUSE].texture);
     BindPipelineVertexArray(GetActivePipeline(), mesh.vao);
     if(mesh.ibo){

@@ -79,7 +79,7 @@ constexpr float RAD2DEG = 180.0 / M_PI;
 #define RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE0          "texture0"          // texture0 (texture slot active 0)
 #define RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE1          "texture1"          // texture1 (texture slot active 1)
 #define RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE2          "texture2"          // texture2 (texture slot active 2)
-#define RL_DEFAULT_SHADER_UNIFORM_NAME_INSTANCE_TX         "instanceTransform" // Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_NAME_INSTANCE_TX
+#define RL_DEFAULT_SHADER_UNIFORM_NAME_INSTANCE_TX         "modelMatrix"       // Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_NAME_INSTANCE_TX
 
 
 
