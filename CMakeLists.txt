@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
 include(FetchContent)
 project(webgpu_standalone)
+set(SUPPORT_WGSL_PARSER ON)
+set(SUPPORT_GLSL_PARSER OFF)
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=leak")
 #FetchContent_Declare(
 #    dawn
@@ -102,11 +104,6 @@ if(EMSCRIPTEN)
         emdawnwebgpu_c
         emdawnwebgpu_cpp
         glfw
-        tint_api
-        tint_api_common
-        tint_lang_core
-        tint_lang_wgsl
-        tint_lang_wgsl_reader
         #tint_lang_spirv
         #tint_lang_spirv_reader
         #tint_lang_spirv_reader_lower
@@ -116,6 +113,15 @@ if(EMSCRIPTEN)
         #tint_lang_spirv_reader_parser
         #glslang
     )
+    if(SUPPORT_WGSL_PARSER)
+    target_link_libraries(raygpu PUBLIC
+        tint_api
+        tint_api_common
+        tint_lang_core
+        tint_lang_wgsl
+        tint_lang_wgsl_reader
+    )
+    endif()
     
     target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
 else()
