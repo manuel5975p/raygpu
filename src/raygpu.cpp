@@ -622,7 +622,7 @@ extern "C" void BeginMode2D(Camera2D camera){
 extern "C" void EndMode2D(){
     drawCurrentBatch();
     g_wgpustate.activeScreenMatrix = ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
-    SetUniformBuffer(0, g_wgpustate.defaultScreenMatrix);
+    SetUniformBufferData(0, &g_wgpustate.activeScreenMatrix, sizeof(Matrix));
 }
 void BeginMode3D(Camera3D camera){
     drawCurrentBatch();
@@ -633,7 +633,7 @@ void BeginMode3D(Camera3D camera){
 void EndMode3D(){
     drawCurrentBatch();
     g_wgpustate.activeScreenMatrix = ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
-    SetUniformBuffer(0, g_wgpustate.defaultScreenMatrix);
+    SetUniformBufferData(0, &g_wgpustate.activeScreenMatrix, sizeof(Matrix));
 }
 extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode){
     switch(drawMode){
@@ -790,21 +790,21 @@ RenderTexture headless_rtex;
 void BeginDrawing(){
     g_wgpustate.last_timestamps[g_wgpustate.total_frames % 64] = NanoTime();
     if(g_wgpustate.windowFlags & FLAG_HEADLESS){
-        UnloadTexture(headless_rtex.color);
+        UnloadTexture(headless_rtex.texture);
         if(headless_rtex.colorMultisample.id){
             UnloadTexture(headless_rtex.colorMultisample);
         }
         UnloadTexture(headless_rtex.depth);
 
         headless_rtex = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
-        setTargetTextures(g_wgpustate.rstate, headless_rtex.color.view, headless_rtex.colorMultisample.view, headless_rtex.depth.view);
+        setTargetTextures(g_wgpustate.rstate, headless_rtex.texture.view, headless_rtex.colorMultisample.view, headless_rtex.depth.view);
 
         g_wgpustate.currentDefaultRenderTarget = headless_rtex;
     }
     else{
         
-        if(g_wgpustate.currentDefaultRenderTarget.color.id)
-            UnloadTexture(g_wgpustate.currentDefaultRenderTarget.color);
+        if(g_wgpustate.currentDefaultRenderTarget.texture.id)
+            UnloadTexture(g_wgpustate.currentDefaultRenderTarget.texture);
         
 
         //g_wgpustate.drawmutex.lock();
@@ -814,13 +814,13 @@ void BeginDrawing(){
         wgpuSurfaceGetCurrentTexture(g_wgpustate.surface.Get(), &surfaceTexture);
         WGPUTextureView nextTexture = wgpuTextureCreateView(surfaceTexture.texture, nullptr);
 
-        g_wgpustate.mainWindowRenderTarget.color.id = surfaceTexture.texture;
-        g_wgpustate.mainWindowRenderTarget.color.width = GetScreenWidth();
-        g_wgpustate.mainWindowRenderTarget.color.height = GetScreenHeight();
-        g_wgpustate.mainWindowRenderTarget.color.view = nextTexture;
+        g_wgpustate.mainWindowRenderTarget.texture.id = surfaceTexture.texture;
+        g_wgpustate.mainWindowRenderTarget.texture.width = GetScreenWidth();
+        g_wgpustate.mainWindowRenderTarget.texture.height = GetScreenHeight();
+        g_wgpustate.mainWindowRenderTarget.texture.view = nextTexture;
         
         g_wgpustate.currentDefaultRenderTarget = g_wgpustate.mainWindowRenderTarget;
-        setTargetTextures(g_wgpustate.rstate, g_wgpustate.currentDefaultRenderTarget.color.view, g_wgpustate.currentDefaultRenderTarget.colorMultisample.view, g_wgpustate.currentDefaultRenderTarget.depth.view);
+        setTargetTextures(g_wgpustate.rstate, g_wgpustate.currentDefaultRenderTarget.texture.view, g_wgpustate.currentDefaultRenderTarget.colorMultisample.view, g_wgpustate.currentDefaultRenderTarget.depth.view);
     }
     BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
     SetUniformBuffer(0, g_wgpustate.defaultScreenMatrix);
@@ -1425,7 +1425,7 @@ Texture LoadDepthTexture(uint32_t width, uint32_t height){
 }
 RenderTexture LoadRenderTexture(uint32_t width, uint32_t height){
     RenderTexture ret{
-        .color = LoadTextureEx(width, height, g_wgpustate.frameBufferFormat, true),
+        .texture = LoadTextureEx(width, height, g_wgpustate.frameBufferFormat, true),
         .colorMultisample = Texture{}, 
         .depth = LoadTexturePro(width, height, WGPUTextureFormat_Depth24Plus, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1, 1)
     };
@@ -1856,7 +1856,7 @@ void UnloadSampler(DescribedSampler sampler){
 }
 
 WGPUTexture GetActiveColorTarget(){
-    return g_wgpustate.currentDefaultRenderTarget.color.id;
+    return g_wgpustate.currentDefaultRenderTarget.texture.id;
 }
 
 void setTargetTextures(full_renderstate* state, WGPUTextureView c, WGPUTextureView cms, WGPUTextureView d){
@@ -2104,19 +2104,19 @@ void executeRenderpass(callable&& c){
 
 
 void BeginTextureMode(RenderTexture rtex){
-    g_wgpustate.rstate->renderExtentX = rtex.color.width;
-    g_wgpustate.rstate->renderExtentY = rtex.color.height;
+    g_wgpustate.rstate->renderExtentX = rtex.texture.width;
+    g_wgpustate.rstate->renderExtentY = rtex.texture.height;
     //std::cout << std::format("{} x {}\n", g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
-    setTargetTextures(g_wgpustate.rstate, rtex.color.view, rtex.colorMultisample.view, rtex.depth.view);
+    setTargetTextures(g_wgpustate.rstate, rtex.texture.view, rtex.colorMultisample.view, rtex.depth.view);
     Matrix mat = ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
     SetUniformBufferData(0, &mat, sizeof(Matrix));
 }
 void EndTextureMode(){
     drawCurrentBatch();
-    g_wgpustate.rstate->renderExtentX = g_wgpustate.currentDefaultRenderTarget.color.width;
-    g_wgpustate.rstate->renderExtentY = g_wgpustate.currentDefaultRenderTarget.color.height;
+    g_wgpustate.rstate->renderExtentX = g_wgpustate.currentDefaultRenderTarget.texture.width;
+    g_wgpustate.rstate->renderExtentY = g_wgpustate.currentDefaultRenderTarget.texture.height;
     setTargetTextures(g_wgpustate.rstate, 
-                    g_wgpustate.currentDefaultRenderTarget.color.view, 
+                    g_wgpustate.currentDefaultRenderTarget.texture.view, 
                     g_wgpustate.currentDefaultRenderTarget.colorMultisample.view,
                     g_wgpustate.currentDefaultRenderTarget.depth.view);
     Matrix mat = ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
@@ -2132,8 +2132,8 @@ extern "C" void BeginWindowMode(SubWindow sw){
     WGPUTextureView nextTexture = wgpuTextureCreateView(surfaceTexture.texture,nullptr);
     //wgpuTextureViewRelease(g_wgpustate.activeSubWindow.frameBuffer.color.view);
     //wgpuTextureRelease(g_wgpustate.activeSubWindow.frameBuffer.color.id);
-    sw.frameBuffer.color.view = nextTexture;
-    sw.frameBuffer.color.id = surfaceTexture.texture;
+    sw.frameBuffer.texture.view = nextTexture;
+    sw.frameBuffer.texture.id = surfaceTexture.texture;
     g_wgpustate.currentDefaultRenderTarget = sw.frameBuffer;
     BeginTextureMode(sw.frameBuffer);
     BeginRenderpass();

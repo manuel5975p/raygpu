@@ -27,7 +27,7 @@ int main(void){
         ClearBackground(GREEN);
         DrawCircle(GetMouseX(), GetMouseY(), 50.0f, WHITE);
         EndTextureMode();
-        DrawTexturePro(rtex.color, (Rectangle){0,0,800,800}, (Rectangle){300,300,100,100}, (Vector2){0,0}, 0.0f, WHITE);
+        DrawTexturePro(rtex.texture, (Rectangle){0,0,800,800}, (Rectangle){300,300,100,100}, (Vector2){0,0}, 0.0f, WHITE);
         EndWindowMode();
         BeginDrawing();
         
