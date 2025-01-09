@@ -2124,6 +2124,7 @@ void EndTextureMode(){
     //SetUniformBuffer(0, g_wgpustate.defaultScreenMatrix);
 }
 extern "C" void BeginWindowMode(SubWindow sw){
+    sw = g_wgpustate.createdSubwindows.at(sw.handle);
     g_wgpustate.activeSubWindow = sw;
     WGPUSurfaceTexture surfaceTexture;
     wgpuSurfaceGetCurrentTexture(sw.surface, &surfaceTexture);

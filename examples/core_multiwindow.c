@@ -3,7 +3,7 @@
 int main(void){
     const int screenWidth = 800;
     const int screenHeight = 600;
-    SetConfigFlags(FLAG_MSAA_4X_HINT);
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(screenWidth, screenHeight, "Primary Window");
 
     int secondWidth = 400, secondHeight = 400;

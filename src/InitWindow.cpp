@@ -407,17 +407,20 @@ void ResizeCallback(GLFWwindow* window, int width, int height){
     config.height = height;
     g_wgpustate.width = width;
     g_wgpustate.height = height;
-    UnloadTexture(g_wgpustate.currentDefaultRenderTarget.colorMultisample);
-    g_wgpustate.currentDefaultRenderTarget.colorMultisample = LoadTexturePro(width, height, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4, 1);
-    UnloadTexture(g_wgpustate.currentDefaultRenderTarget.depth);
-    g_wgpustate.currentDefaultRenderTarget.depth = LoadTexturePro(width,
+    auto& toBeResizedRendertexture = g_wgpustate.createdSubwindows[window].frameBuffer;
+    UnloadTexture(toBeResizedRendertexture.colorMultisample);
+    toBeResizedRendertexture.colorMultisample = LoadTexturePro(width, height, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4, 1);
+    UnloadTexture(toBeResizedRendertexture.depth);
+    toBeResizedRendertexture.depth = LoadTexturePro(width,
                               height, 
                               WGPUTextureFormat_Depth24Plus, 
                               WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
                               (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
                               1
     );
-    g_wgpustate.surface.Configure(&config);
+    toBeResizedRendertexture.texture.width = width;
+    toBeResizedRendertexture.texture.height = height;
+    wgpuSurfaceConfigure(g_wgpustate.createdSubwindows[window].surface, (WGPUSurfaceConfiguration*)&config);
     Matrix newcamera = ScreenMatrix(width, height);
     BufferData(g_wgpustate.defaultScreenMatrix, &newcamera, sizeof(Matrix));
     setTargetTextures(g_wgpustate.rstate, g_wgpustate.rstate->color, g_wgpustate.currentDefaultRenderTarget.colorMultisample.view, g_wgpustate.currentDefaultRenderTarget.depth.view);
@@ -739,6 +742,9 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     }
     else
         SetTargetFPS(60);
+    g_wgpustate.createdSubwindows[window].handle = window;
+    g_wgpustate.createdSubwindows[window].surface = GetSurface();
+    g_wgpustate.createdSubwindows[window].frameBuffer = g_wgpustate.mainWindowRenderTarget;
     #endif
     #ifndef __EMSCRIPTEN__
     return window;
@@ -951,6 +957,7 @@ int GetCurrentMonitor(){
 extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* title){
     SubWindow ret{};
     #ifndef __EMSCRIPTEN__
+    glfwWindowHint(GLFW_RESIZABLE, (g_wgpustate.windowFlags & FLAG_WINDOW_RESIZABLE ) ? GLFW_TRUE : GLFW_FALSE);
     ret.handle = glfwCreateWindow(width, height, title, nullptr, nullptr);
     wgpu::Surface secondSurface = wgpu::glfw::CreateSurfaceForWindow(GetInstance(), (GLFWwindow*)ret.handle);
     wgpu::SurfaceCapabilities capabilities;
