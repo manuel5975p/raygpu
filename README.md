@@ -133,8 +133,11 @@ mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release -G "Visual Studio 17 2022"
 ```
 See the complete [list of generators](https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html) for older Visual Studio versions.
+#### Building for MacOS
+As I am unable to build this library on MacOS, all I can point to here are the instructions for Linux.
+
 #### Building for Web
-Because the WebGPU spec and API is still in its final development phases, there is currently a mismatch between Emscripten's and Dawn's headers. Building with emscripten therefore involves some extra steps
+Because the WebGPU spec and API is still in its final development phases, there is currently a mismatch between Emscripten's and Dawn's webgpu headers. Building with emscripten therefore involves some extra steps.
 
 1. If you don't have the emscripten sdk (emsdk) installed already, follow [its installation steps](https://emscripten.org/docs/getting_started/downloads.html). It might be wise to update your current toolchain too.
 
@@ -154,7 +157,6 @@ where `/path/to/emsdk/` is the path to your emsdk directory.
 ```bash
 emcmake cmake -DDAWN_EMSCRIPTEN_TOOLCHAIN="path/to/emscripten" ..
 ```
-
 
 # OpenGL Compatibility and Similarity
 ## Shaders and Buffers
@@ -188,6 +190,16 @@ Currently, RayGPU supports only one bindgroup, which is bindgroup 0.
 Matrix pv = MatrixIdentity();
 SetPipelineUniformBufferData(pl, &pv, sizeof(Matrix));
 ```
+## Uniform vs Storage Buffers
+OpenGL has a clear distinction of storage buffers and uniform buffers. The API calls made to bind them to shaders are different, and many platforms, including WebGL, support only the latter.
+
+For WebGPU and WGSL, the difference is merely an address space / storage specifier: <br>
+Global `var` declarations require it:
+```js
+@group(0) @binding(0) var<uniform> transform: mat4x4<f32>;
+@group(0) @binding(1) var<storage> colors: array<vec4<f32>>;
+```
+
 ## Drawing Vertex Arrays
 ```c
 float vertices[6] = {
