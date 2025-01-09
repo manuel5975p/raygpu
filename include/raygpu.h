@@ -91,7 +91,7 @@ typedef struct Rectangle {
 } Rectangle;
 
 typedef struct RenderTexture{
-    Texture color;
+    Texture texture;
     Texture colorMultisample;
     Texture depth;
 }RenderTexture;

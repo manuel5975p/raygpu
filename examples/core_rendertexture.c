@@ -16,7 +16,7 @@ int main(void){
     while(!WindowShouldClose()){
         BeginDrawing();
         ClearBackground(BLUE);
-        DrawTexturePro(tex.color, (Rectangle){0,0,300,300}, (Rectangle){100,100,400,400}, (Vector2){0,0}, 0.0f, WHITE);
+        DrawTexturePro(tex.texture, (Rectangle){0,0,300,300}, (Rectangle){100,100,400,400}, (Vector2){0,0}, 0.0f, WHITE);
         DrawFPS(0, 0);
         EndDrawing();
     }

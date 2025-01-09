@@ -20,12 +20,12 @@
 //------------------------------------------------------------------------------------
 void DrawCube(Vector3 position, float width, float height, float length, Color color)
 {
-    float x = 0.0f;
-    float y = 0.0f;
-    float z = 0.0f;
+    float x = position.x;
+    float y = position.y;
+    float z = position.z;
         //rlRotatef(45, 0, 1, 0);
         //rlScalef(1.0f, 1.0f, 1.0f);   // NOTE: Vertices are directly scaled on definition
-
+        UseNoTexture();
         rlBegin(RL_TRIANGLES);
             rlColor4ub(color.r, color.g, color.b, color.a);
 
@@ -102,17 +102,17 @@ int main(void)
 
     // Setup player 1 camera and screen
     Camera cameraPlayer1 = { 0 };
-    cameraPlayer1.fovy = 1.0f;
+    cameraPlayer1.fovy = 50.0f;
     cameraPlayer1.up.y = 1.0f;
     cameraPlayer1.target.y = 1.0f;
-    cameraPlayer1.position.z = -3.0f;
+    cameraPlayer1.position.z = -10.0f;
     cameraPlayer1.position.y = 1.0f;
 
-    RenderTexture screenPlayer1 = LoadRenderTexture(screenWidth/2, screenHeight);
+    RenderTexture screenPlayer1 = LoadRenderTexture(screenWidth / 2, screenHeight);
 
     // Setup player two camera and screen
     Camera cameraPlayer2 = { 0 };
-    cameraPlayer2.fovy = 1.0f;
+    cameraPlayer2.fovy = 50.0f;
     cameraPlayer2.up.y = 1.0f;
     cameraPlayer2.target.y = 3.0f;
     cameraPlayer2.position.x = -3.0f;
@@ -121,7 +121,7 @@ int main(void)
     RenderTexture screenPlayer2 = LoadRenderTexture(screenWidth / 2, screenHeight);
 
     // Build a flipped rectangle the size of the split view to use for drawing later
-    Rectangle splitScreenRect = { 0.0f, 0.0f, (float)screenPlayer1.color.width, (float)-screenPlayer1.color.height };
+    Rectangle splitScreenRect = { 0.0f, 0.0f, (float)screenPlayer1.texture.width, (float)screenPlayer1.texture.height };
     
     // Grid data
     int count = 5;
@@ -138,7 +138,9 @@ int main(void)
         // If anyone moves this frame, how far will they move based on the time since the last frame
         // this moves thigns at 10 world units per second, regardless of the actual FPS
         BeginDrawing();
-        float offsetThisFrame = 10.0f*GetFrameTime();
+        ClearBackground(SKYBLUE);
+
+        float offsetThisFrame = 10.0f * GetFrameTime();
 
         // Move Player1 forward and backwards (no turning)
         if (IsKeyDown(KEY_W))
@@ -186,13 +188,13 @@ int main(void)
                 }
 
                 // Draw a cube at each player's position
-                DrawCube(cameraPlayer1.position, 1, 1, 1, RED);
+                //DrawCube(cameraPlayer1.position, 1, 1, 1, RED);
                 DrawCube(cameraPlayer2.position, 1, 1, 1, BLUE);
                 
             EndMode3D();
             
             DrawRectangle(0, 0, GetScreenWidth()/2, 40, Fade(RAYWHITE, 0.8f));
-            DrawText("PLAYER1: W/S to move", 10, 10, 20, MAROON);
+            DrawText("PLAYER1: W/S to move", 10, 10, 15, MAROON);
             
         EndTextureMode();
 
@@ -216,20 +218,20 @@ int main(void)
 
                 // Draw a cube at each player's position
                 DrawCube(cameraPlayer1.position, 1, 1, 1, RED);
-                DrawCube(cameraPlayer2.position, 1, 1, 1, BLUE);
+                //DrawCube(cameraPlayer2.position, 1, 1, 1, BLUE);
                 
             EndMode3D();
-            
+            DrawText("PLAYER2: UP/DOWN to move", 10, 10, 15, DARKBLUE);
             DrawRectangle(0, 0, GetScreenWidth()/2, 40, Fade(RAYWHITE, 0.8f));
-            DrawText("PLAYER2: UP/DOWN to move", 10, 10, 20, DARKBLUE);
+            
             
         EndTextureMode();
 
         // Draw both views render textures to the screen side by side
         
             ClearBackground(BLACK);
-            DrawTextureRec(screenPlayer1.color, splitScreenRect, (Vector2){ 0, 0 }, WHITE);
-            DrawTextureRec(screenPlayer2.color, splitScreenRect, (Vector2){ screenWidth/2.0f, 0 }, WHITE);
+            DrawTextureRec(screenPlayer1.texture, splitScreenRect, (Vector2){ 0, 0 }, WHITE);
+            DrawTextureRec(screenPlayer2.texture, splitScreenRect, (Vector2){ screenWidth/2.0f, 0 }, WHITE);
             
             DrawRectangle(GetScreenWidth()/2 - 2, 0, 4, GetScreenHeight(), LIGHTGRAY);
         EndDrawing();
