@@ -229,7 +229,7 @@ void InitWGPU(webgpu_cxx_state* sample){
                     //return false;
             }
         };
-        adapterOptions.featureLevel = wgpu::FeatureLevel::Undefined;
+        adapterOptions.featureLevel = wgpu::FeatureLevel::Core;
 
     }
 
@@ -385,7 +385,145 @@ void InitWGPU(webgpu_cxx_state* sample){
     TraceLog(LOG_INFO, "Supports %u VBO slots", (unsigned)slimits.limits.maxVertexBuffers);
 
 }
+void ResizeCallback(GLFWwindow* window, int width, int height){
+    //wgpuSurfaceRelease(g_wgpustate.surface);
+    //g_wgpustate.surface = wgpu::glfw::CreateSurfaceForWindow(g_wgpustate.instance, window).MoveToCHandle();
+    //while(!g_wgpustate.drawmutex.try_lock());
+    //g_wgpustate.drawmutex.lock();
+    TraceLog(LOG_DEBUG, "glfwSizeCallback called with %d x %d", width, height);
+    wgpu::SurfaceCapabilities capabilities;
+    g_wgpustate.surface.GetCapabilities(g_wgpustate.adapter, &capabilities);
+    wgpu::SurfaceConfiguration config = {};
+    config.alphaMode = wgpu::CompositeAlphaMode::Opaque;
+    config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
+    config.device = g_wgpustate.device;
+    config.format = (wgpu::TextureFormat)g_wgpustate.frameBufferFormat;
+    #ifdef __EMSCRIPTEN__
+    config.presentMode = (wgpu::PresentMode)WGPUPresentMode_Fifo;
+    #else
+    config.presentMode = (wgpu::PresentMode)(!!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? WGPUPresentMode_Fifo : WGPUPresentMode_Immediate);
+    #endif
+    config.width = width;
+    config.height = height;
+    g_wgpustate.width = width;
+    g_wgpustate.height = height;
+    UnloadTexture(g_wgpustate.currentDefaultRenderTarget.colorMultisample);
+    g_wgpustate.currentDefaultRenderTarget.colorMultisample = LoadTexturePro(width, height, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4, 1);
+    UnloadTexture(g_wgpustate.currentDefaultRenderTarget.depth);
+    g_wgpustate.currentDefaultRenderTarget.depth = LoadTexturePro(width,
+                              height, 
+                              WGPUTextureFormat_Depth24Plus, 
+                              WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
+                              (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
+                              1
+    );
+    g_wgpustate.surface.Configure(&config);
+    Matrix newcamera = ScreenMatrix(width, height);
+    BufferData(g_wgpustate.defaultScreenMatrix, &newcamera, sizeof(Matrix));
+    setTargetTextures(g_wgpustate.rstate, g_wgpustate.rstate->color, g_wgpustate.currentDefaultRenderTarget.colorMultisample.view, g_wgpustate.currentDefaultRenderTarget.depth.view);
+    //updateRenderPassDesc(g_wgpustate.rstate);
+    //TODO wtf is this?
+    g_wgpustate.rstate->renderpass.dsa->view = g_wgpustate.currentDefaultRenderTarget.depth.view;
+    //g_wgpustate.drawmutex.unlock();
+}
+void scrollCallback(GLFWwindow* window, double xoffset, double yoffset){
+    g_wgpustate.input_map[window].scrollThisFrame.x += xoffset;
+    g_wgpustate.input_map[window].scrollThisFrame.y += yoffset;
+}
 
+
+#ifdef __EMSCRIPTEN__
+
+
+EM_BOOL EmscriptenWheelCallback(int eventType, const EmscriptenWheelEvent* wheelEvent, void *userData) {
+    // Calculate scaling based on deltaMode
+    float scaleX = calculateScrollScale(wheelEvent->deltaMode);
+    float scaleY = calculateScrollScale(wheelEvent->deltaMode);
+    
+    // Optionally clamp the delta values to prevent excessive scrolling
+    double deltaX = std::clamp(wheelEvent->deltaX * scaleX, -100.0, 100.0) / 100.0f;
+    double deltaY = std::clamp(wheelEvent->deltaY * scaleY, -100.0, 100.0) / 100.0f;
+    
+    std::cout << "wheel: deltaX = " << deltaX << ", deltaY = " << deltaY << std::endl;
+    
+    // Invoke the original scroll callback with scaled deltas
+    //auto originalCallback = reinterpret_cast<decltype(scrollCallback)*>(userData);
+    scrollCallback(nullptr, deltaX, deltaY);
+    
+    return EM_TRUE; // Indicate that the event was handled
+};
+
+#endif
+
+void cpcallback(GLFWwindow* window, double x, double y){
+    g_wgpustate.input_map[window].mousePos = Vector2{float(x), float(y)};
+}
+#ifndef __EMSCRIPTEN__
+
+
+
+#ifdef __EMSCRIPTEN__
+EM_BOOL EmscriptenMouseCallback(int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
+    cpcallback(nullptr, mouseEvent->targetX, mouseEvent->targetY);
+    return true;
+};
+#endif
+
+
+
+#endif // __EMSCRIPTEN__
+void clickcallback(GLFWwindow* window, int button, int action, int mods){
+    if(action == GLFW_PRESS){
+        g_wgpustate.input_map[window].mouseButtonDown[button] = 1;
+    }
+    else if(action == GLFW_RELEASE){
+        g_wgpustate.input_map[window].mouseButtonDown[button] = 0;
+    }
+}
+#ifdef __EMSCRIPTEN__
+void EmscriptenMousedownClickCallback(int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
+    clickcallback(nullptr, mouseEvent->button, GLFW_PRESS, 0);
+    return true;
+};
+void EmscriptenMouseupClickCallback(int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
+    clickcallback(nullptr, mouseEvent->button, GLFW_RELEASE, 0);
+    return true;
+};
+#endif
+
+#ifndef __EMSCRIPTEN__
+
+#else
+#endif
+
+
+#ifndef __EMSCRIPTEN__
+void CharCallback(GLFWwindow* window, unsigned int codePoint){
+    g_wgpustate.input_map[window].charQueue.push_back((int)codePoint);
+}
+void CursorEnterCallback(GLFWwindow* window, int entered){
+    g_wgpustate.input_map[window].cursorInWindow = entered;
+}
+#endif
+
+void setupCallbacks(GLFWwindow* window){
+    glfwSetWindowSizeCallback(window, ResizeCallback);
+    glfwSetKeyCallback(
+        g_wgpustate.window, 
+        glfwKeyCallback
+    );
+    glfwSetCursorPosCallback(window, cpcallback);
+    glfwSetCharCallback(window, CharCallback);
+    glfwSetCursorEnterCallback(window, CursorEnterCallback);
+    glfwSetScrollCallback(window, scrollCallback);
+    glfwSetMouseButtonCallback(window, clickcallback);
+    #ifdef __EMSCRIPTEN__
+    emscripten_set_mousedown_callback("#canvas", &clickcallback, 1, EmscriptenMousedownClickCallback);
+    emscripten_set_mouseup_callback("#canvas", &clickcallback, 1, EmscriptenMouseupClickCallback);
+    emscripten_set_mousemove_callback("#canvas", &cpcallback, 1, EmscriptenMouseCallback);
+    emscripten_set_wheel_callback("#canvas", &scrollCallback, 1, EmscriptenWheelCallback);
+    #endif
+}
 GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     if(g_wgpustate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
         if(IsATerminal(stdout)){
@@ -475,51 +613,8 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         g_wgpustate.window = window;
     #endif
         g_wgpustate.input_map[window] = window_input_state{};
-        glfwSetWindowSizeCallback(window, [](GLFWwindow* window, int width, int height){
-            //wgpuSurfaceRelease(g_wgpustate.surface);
-            //g_wgpustate.surface = wgpu::glfw::CreateSurfaceForWindow(g_wgpustate.instance, window).MoveToCHandle();
-            //while(!g_wgpustate.drawmutex.try_lock());
-            //g_wgpustate.drawmutex.lock();
-            TraceLog(LOG_DEBUG, "glfwSizeCallback called with %d x %d", width, height);
-            wgpu::SurfaceCapabilities capabilities;
-            g_wgpustate.surface.GetCapabilities(g_wgpustate.adapter, &capabilities);
-            wgpu::SurfaceConfiguration config = {};
-            config.alphaMode = wgpu::CompositeAlphaMode::Opaque;
-            config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
-            config.device = g_wgpustate.device;
-            config.format = (wgpu::TextureFormat)g_wgpustate.frameBufferFormat;
-            #ifdef __EMSCRIPTEN__
-            config.presentMode = (wgpu::PresentMode)WGPUPresentMode_Fifo;
-            #else
-            config.presentMode = (wgpu::PresentMode)(!!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? WGPUPresentMode_Fifo : WGPUPresentMode_Immediate);
-            #endif
-            config.width = width;
-            config.height = height;
-            g_wgpustate.width = width;
-            g_wgpustate.height = height;
-
-            UnloadTexture(g_wgpustate.currentDefaultRenderTarget.colorMultisample);
-            g_wgpustate.currentDefaultRenderTarget.colorMultisample = LoadTexturePro(width, height, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4, 1);
-            UnloadTexture(g_wgpustate.currentDefaultRenderTarget.depth);
-            g_wgpustate.currentDefaultRenderTarget.depth = LoadTexturePro(width,
-                                      height, 
-                                      WGPUTextureFormat_Depth24Plus, 
-                                      WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
-                                      (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
-                                      1
-            );
-            g_wgpustate.surface.Configure(&config);
-            Matrix newcamera = ScreenMatrix(width, height);
-            BufferData(g_wgpustate.defaultScreenMatrix, &newcamera, sizeof(Matrix));
-
-            setTargetTextures(g_wgpustate.rstate, g_wgpustate.rstate->color, g_wgpustate.currentDefaultRenderTarget.colorMultisample.view, g_wgpustate.currentDefaultRenderTarget.depth.view);
-            //updateRenderPassDesc(g_wgpustate.rstate);
-
-            //TODO wtf is this?
-            g_wgpustate.rstate->renderpass.dsa->view = g_wgpustate.currentDefaultRenderTarget.depth.view;
-            //g_wgpustate.drawmutex.unlock();
-        });
-
+        
+        setupCallbacks(window);
         //#ifndef __EMSCRIPTEN__
         wgpu::SurfaceCapabilities capabilities;
         GetCXXSurface().GetCapabilities(GetCXXAdapter(), &capabilities);
@@ -557,91 +652,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
 
 
 
-        auto scrollCallback = [](GLFWwindow* window, double xoffset, double yoffset){
-            g_wgpustate.input_map[window].scrollThisFrame.x += xoffset;
-            g_wgpustate.input_map[window].scrollThisFrame.y += yoffset;
-        };
-        #ifndef __EMSCRIPTEN__
-        glfwSetScrollCallback(window, scrollCallback);
-        #else
         
-
-
-
-    auto EmscriptenWheelCallback = [](int eventType, const EmscriptenWheelEvent* wheelEvent, void *userData) -> EM_BOOL {
-        // Calculate scaling based on deltaMode
-        float scaleX = calculateScrollScale(wheelEvent->deltaMode);
-        float scaleY = calculateScrollScale(wheelEvent->deltaMode);
-        
-        // Optionally clamp the delta values to prevent excessive scrolling
-        double deltaX = std::clamp(wheelEvent->deltaX * scaleX, -100.0, 100.0) / 100.0f;
-        double deltaY = std::clamp(wheelEvent->deltaY * scaleY, -100.0, 100.0) / 100.0f;
-        
-        std::cout << "wheel: deltaX = " << deltaX << ", deltaY = " << deltaY << std::endl;
-        
-        // Invoke the original scroll callback with scaled deltas
-        auto originalCallback = reinterpret_cast<decltype(scrollCallback)*>(userData);
-        (*originalCallback)(nullptr, deltaX, deltaY);
-        
-        return EM_TRUE; // Indicate that the event was handled
-    };
-        emscripten_set_wheel_callback("#canvas", &scrollCallback, 1, EmscriptenWheelCallback);
-        #endif
-
-        auto cpcallback = [](GLFWwindow* window, double x, double y){
-            g_wgpustate.input_map[window].mousePos = Vector2{float(x), float(y)};
-        };
-        #ifndef __EMSCRIPTEN__
-        glfwSetCursorPosCallback(window, cpcallback);
-        #else
-        auto EmscriptenMouseCallback = [](int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
-            (*((decltype(cpcallback)*)userData))(nullptr, mouseEvent->targetX, mouseEvent->targetY);
-            return true;
-        };
-
-
-        emscripten_set_mousemove_callback("#canvas", &cpcallback, 1, EmscriptenMouseCallback);
-        #endif // __EMSCRIPTEN__
-        auto clickcallback = [](GLFWwindow* window, int button, int action, int mods){
-            if(action == GLFW_PRESS){
-                g_wgpustate.input_map[window].mouseButtonDown[button] = 1;
-            }
-            else if(action == GLFW_RELEASE){
-                g_wgpustate.input_map[window].mouseButtonDown[button] = 0;
-            }
-        };
-        #ifdef __EMSCRIPTEN__
-        auto EmscriptenMousedownClickCallback = [](int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
-            (*((decltype(clickcallback)*)userData))(nullptr, mouseEvent->button, GLFW_PRESS, 0);
-            return true;
-        };
-        auto EmscriptenMouseupClickCallback = [](int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
-            (*((decltype(clickcallback)*)userData))(nullptr, mouseEvent->button, GLFW_RELEASE, 0);
-            return true;
-        };
-        emscripten_set_mousedown_callback("#canvas", &clickcallback, 1, EmscriptenMousedownClickCallback);
-        emscripten_set_mouseup_callback("#canvas", &clickcallback, 1, EmscriptenMouseupClickCallback);
-        #else
-        glfwSetMouseButtonCallback(window, clickcallback);
-        #endif
-
-        
-        #ifndef __EMSCRIPTEN__
-        glfwSetKeyCallback(
-            g_wgpustate.window, 
-            glfwKeyCallback
-        );
-        #else
-
-        #endif
-        #ifndef __EMSCRIPTEN__
-        glfwSetCharCallback(window, [](GLFWwindow* window, unsigned int codePoint){
-            g_wgpustate.charQueue.push_back((int)codePoint);
-        });
-        glfwSetCursorEnterCallback(window, [](GLFWwindow* window, int entered){
-            g_wgpustate.input_map[window].cursorInWindow = entered;
-        });
-        #endif
     }else{
         g_wgpustate.frameBufferFormat = WGPUTextureFormat_BGRA8Unorm;
     }
@@ -954,11 +965,15 @@ extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* 
     secondSurface.Configure(&config);
     ret.surface = secondSurface.MoveToCHandle();
     ret.frameBuffer = LoadRenderTexture(config.width, config.height);
+    g_wgpustate.createdSubwindows[ret.handle] = ret;
+    g_wgpustate.input_map[(GLFWwindow*)ret.handle] = window_input_state{};
+    setupCallbacks((GLFWwindow*)ret.handle);
     #endif
     return ret;
 }
 
 extern "C" void CloseSubWindow(SubWindow subWindow){
+    g_wgpustate.createdSubwindows.erase(subWindow.handle);
     glfwWindowShouldClose((GLFWwindow*)subWindow.handle);
 }
 
@@ -1110,10 +1125,10 @@ extern "C" size_t GetPixelSizeInBytes(WGPUTextureFormat format) {
             return 2;
 
         // 24-bit formats
-        case WGPUTextureFormat_RGB9E5Ufloat:
-            return 4; // Packed format, typically stored in 4 bytes
+        
 
         // 32-bit formats
+        case WGPUTextureFormat_RGB9E5Ufloat: // Packed format, typically stored in 4 bytes
         case WGPUTextureFormat_R32Float:
         case WGPUTextureFormat_R32Uint:
         case WGPUTextureFormat_R32Sint:
