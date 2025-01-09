@@ -1,4 +1,6 @@
 #include <raygpu.h>
+#define RAYGUI_IMPLEMENTATION
+#include <raygui.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -26,7 +28,7 @@ Camera3D cam;
 constexpr float size = 100;
 RenderTexture groundTruth;
 Texture checker;
-
+SubWindow subwindow;
 void mainloop(){
     BeginDrawing();
     ClearBackground(DARKGRAY);
@@ -76,8 +78,13 @@ void mainloop(){
     
     rlEnd();
     EndMode3D();
-    DrawFPS(5, 5);
+    //DrawFPS(5, 5);
+    
+    
     EndDrawing();
+    BeginWindowMode(subwindow);
+    GuiSlider(Rectangle{100,20,300,50}, "0", "5", &cam.position.y, 0.0f, 5.0f);
+    EndWindowMode();
     //Image gt = LoadImageFromTexture(groundTruth.color);
     //SaveImage(gt, "Samthing.png");
     //UnloadImage(gt);
@@ -86,7 +93,8 @@ void mainloop(){
 int main(){
     //SetConfigFlags(FLAG_HEADLESS | FLAG_STDOUT_TO_FFMPEG);
     InitWindow(1920, 1080, "Title");
-    OpenSubWindow(500, 500, "Controls");
+    GuiSetStyle(DEFAULT, TEXT_SIZE, 20);
+    subwindow = OpenSubWindow(500, 500, "Controls");
     SetTargetFPS(0);
     groundTruth = LoadRenderTexture(3840, 2160);
     

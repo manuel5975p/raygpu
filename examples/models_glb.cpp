@@ -63,7 +63,7 @@ int main(){
         .position = CLITERAL(Vector3){20,30,45},
         .target = CLITERAL(Vector3){0,0,0},
         .up = CLITERAL(Vector3){0,1,0},
-        .fovy = 1.0f
+        .fovy = 45.0f
     };
     UploadMesh(&carmodel.meshes[0], false);
     UploadMesh(&carmodel.meshes[1], false);

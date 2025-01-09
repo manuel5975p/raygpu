@@ -30,13 +30,14 @@ A fast and simple [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebG
 - [x] Compute Shaders / Pipelines with Storage textures [Compute Particles](https://github.com/manuel5975p/raygpu/tree/master/examples/compute.cpp), [Mandelbrot](https://github.com/manuel5975p/raygpu/tree/master/examples/textures_storage.cpp)
 - [x] Multisampling [Example](https://github.com/manuel5975p/raygpu/tree/master/examples/core_msaa.c)
 - [x] **Multiple Windows and Headless mode** [Headless Example](https://github.com/manuel5975p/raygpu/tree/master/examples/core_headless.c) [Multiwindow Example](https://github.com/manuel5975p/raygpu/tree/master/examples/core_multiwindow.c)
-- [ ] MIP Maps (WIP)
+- [x] MIP Maps and Anisotropic filtering [Example](https://github.com/manuel5975p/raygpu/tree/master/examples/textures_mipmap.cpp)
+- [x] Basic animation support with GPU Skinning [Example](https://github.com/manuel5975p/raygpu/tree/master/examples/models_gpu_skinning.cpp)
 - [ ] Proper animation support
 - [ ] IQM / VOX support
 - [ ] GLSL Support
 
 # Getting Started
-For building instructions, see [Building](#building) <br>
+For instructions on building or using this project, see [Building](#building) <br>
 For shaders and buffers, see [Shaders and Buffers](#shaders-and-buffers)
 ### The first window
 Opening a window and drawing on it is equivalent to raylib. However
@@ -82,11 +83,30 @@ int main(){
 }
 ```
 ### Building
-CMake is required for all platforms.
+CMake is required for all platforms. If you want to add `raygpu` to your current project, add these snippets to your `CMakeLists.txt`:
+```cmake
+# This is to support FetchContent in the first place.
+# Ignore if you already include it.
+cmake_minimum_required(VERSION 3.19)
+include(FetchContent)
+```
+___
+```cmake
+FetchContent_Declare(
+    raygpu_git
+    GIT_REPOSITORY https://github.com/manuel5975p/raygpu.git
+    
+    GIT_SHALLOW True #optional, enable --depth 1 (shallow) clone
+)
+FetchContent_MakeAvailable(raygpu_git)
+
+target_link_libraries(<your target> PUBLIC raygpu)
+```
+
 ___
 #### Building for Linux
 ```bash
-git clone <repo>
+git clone https://github.com/manuel5975p/raygpu.git
 cd raygpu
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release # optionally: -GNinja
@@ -97,7 +117,7 @@ make -j8 # or ninja i.a.
 ___
 #### Building for Windows
 ```bash
-git clone <repo>
+git clone https://github.com/manuel5975p/raygpu.git
 cd raygpu
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release -G "Visual Studio 17 2022"

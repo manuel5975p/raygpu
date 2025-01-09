@@ -37,7 +37,7 @@ int main(cwoid){
         .position = CLITERAL(Vector3){0,0,10},
         .target = CLITERAL(Vector3){0,0,0},
         .up = CLITERAL(Vector3){0,1,0},
-        .fovy = 1.0f
+        .fovy = 45.0f
     };
     cube = GenMeshCube(3.f,3.f,3.f);
     //assert(cube.ibo.buffer == 0);
