@@ -24,14 +24,14 @@ DescribedSampler smp;
 Texture mipmappedTexture;
 Camera3D cam;
 constexpr float size = 100;
+RenderTexture groundTruth;
 void mainloop(){
-    
     BeginDrawing();
     ClearBackground(DARKGRAY);
-    
-    //DrawTexturePro(mipmappedTexture, Rectangle(0,0,1000,1000), Rectangle(10,200,980,100), Vector2{0,0}, 0.0, WHITE);
-    
-    BeginMode3D(cam);
+
+    BeginTextureMode(groundTruth);
+    //ClearBackground(RED);
+    /*BeginMode3D(cam);
     UseTexture(mipmappedTexture);
     rlBegin(RL_QUADS);
     rlColor3f(1.0f, 1.0f, 1.0f);
@@ -48,20 +48,50 @@ void mainloop(){
     rlVertex3f(0, 0, size);
     
     rlEnd();
-    EndMode3D();
+    EndMode3D();*/
+    DrawCircle(GetMouseX(), GetMouseY(), 1000.0f, GREEN);
+    EndTextureMode();
+    DrawTexturePro(groundTruth.color, Rectangle(0,0, groundTruth.color.width, groundTruth.color.height), Rectangle(0,0,GetScreenWidth(), GetScreenHeight()), Vector2{0,0}, 0.0, RED);
+    //DrawTexturePro(groundTruth.color, Rectangle(0,0, groundTruth.color.width, groundTruth.color.height), Rectangle(0,0,GetScreenWidth(), GetScreenHeight()), Vector2{0,0}, 0.0, WHITE);
+    //DrawTexturePro(groundTruth.color, Rectangle(0,0, groundTruth.color.width, groundTruth.color.height), Rectangle(0,0,GetScreenWidth(), GetScreenHeight()), Vector2{0,0}, 0.0, WHITE);
+    
+    /*BeginMode3D(cam);
+    UseTexture(mipmappedTexture);
+    rlBegin(RL_QUADS);
+    rlColor3f(1.0f, 1.0f, 1.0f);
+    rlTexCoord2f(0, 0);
+    rlVertex3f(0, 0, 0);
+
+    rlTexCoord2f(1, 0);
+    rlVertex3f(size, 0, 0);
+    
+    rlTexCoord2f(1, 1);
+    rlVertex3f(size, 0, size);
+    
+    rlTexCoord2f(0, 1);
+    rlVertex3f(0, 0, size);
+    
+    rlEnd();
+    EndMode3D();*/
     DrawFPS(5, 5);
     EndDrawing();
+    Image gt = LoadImageFromTexture(groundTruth.color);
+    SaveImage(gt, "Samthing.png");
+    //UnloadImage(gt);
 }
 
 int main(){
     //SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(1920, 1080, "Title");
+    groundTruth = LoadRenderTexture(3840, 2160);
+
+    
     cpl = LoadComputePipeline(computeCode);
     mipmappedTexture = LoadTexturePro(
         1000, 1000, 
         WGPUTextureFormat_RGBA8Unorm, WGPUTextureUsage_StorageBinding | WGPUTextureUsage_CopySrc | WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding,
         1, 
-        8
+        10
     );
     Image img = GenImageChecker(WHITE, BLACK, 1000, 1000, 50);
     UpdateTexture(mipmappedTexture, img.data);
@@ -74,10 +104,11 @@ int main(){
         .fovy = 60.0f
     };
 
-    smp = LoadSamplerEx(clampToEdge, linear, linear, 4096.f);
-    SetSampler(2, smp);
-    //Image exp = LoadImageFromTextureEx(mipmappedTexture.id, 7);
-    //SaveImage(exp, "mip.png");
+    smp = LoadSampler(clampToEdge, linear);
+    //SetSampler(2, smp);
+    
+    Image exp = LoadImageFromTextureEx(groundTruth.color.id, 0);
+    SaveImage(exp, "mip.png");
     #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainloop, 0, 0);
     #else 

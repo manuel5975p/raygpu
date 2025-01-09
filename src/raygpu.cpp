@@ -1388,10 +1388,12 @@ Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format
     ret.height = height;
     ret.sampleCount = sampleCount;
     ret.mipmaps = mipmaps;
-    for(uint32_t i = 0;i < mipmaps;i++){
-        textureViewDesc.baseMipLevel = i;
-        textureViewDesc.mipLevelCount = 1;
-        ret.mipViews[i] = wgpuTextureCreateView(ret.id, &textureViewDesc);
+    if(mipmaps > 1){
+        for(uint32_t i = 0;i < mipmaps;i++){
+            textureViewDesc.baseMipLevel = i;
+            textureViewDesc.mipLevelCount = 1;
+            ret.mipViews[i] = wgpuTextureCreateView(ret.id, &textureViewDesc);
+        }
     }
     return ret;
 }
@@ -1828,7 +1830,7 @@ DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode m
     ret.desc.mipmapFilter = (WGPUMipmapFilterMode)fmode;
     ret.desc.compare      = WGPUCompareFunction_Undefined;
     ret.desc.lodMinClamp  = 0.0f;
-    ret.desc.lodMaxClamp  = 100.0f;
+    ret.desc.lodMaxClamp  = 10.0f;
     ret.desc.maxAnisotropy = maxAnisotropy;
     ret.desc.addressModeU = (WGPUAddressMode)amode;
     ret.desc.addressModeV = (WGPUAddressMode)amode;

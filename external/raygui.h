@@ -1712,7 +1712,7 @@ int GuiPanel(Rectangle bounds, const char *text)
     if (text != NULL) GuiStatusBar(statusBar, text);  // Draw panel header as status bar
 
     GuiDrawRectangle(bounds, RAYGUI_PANEL_BORDER_WIDTH, GetColor(GuiGetStyle(DEFAULT, (state == STATE_DISABLED)? (int)BORDER_COLOR_DISABLED: (int)LINE_COLOR)),
-                     GetColor(GuiGetStyle(DEFAULT, (state == STATE_DISABLED)? BASE_COLOR_DISABLED : BACKGROUND_COLOR)));
+                     GetColor(GuiGetStyle(DEFAULT, (state == STATE_DISABLED)? BASE_COLOR_DISABLED : (GuiControlProperty)BACKGROUND_COLOR)));
     //--------------------------------------------------------------------
 
     return result;
