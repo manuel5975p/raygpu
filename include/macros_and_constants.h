@@ -55,7 +55,33 @@ constexpr float RAD2DEG = 180.0 / M_PI;
 #define TERMCTL_MAGENTA "\033[35m"
 #define TERMCTL_WHITE   "\033[37m"
 #endif
-#define MAX_MATERIAL_MAPS 12
 #define TRACELOG(level, ...) TraceLog(level, __VA_ARGS__)
+
+
+// Default shader vertex attribute names to set location points
+#define RL_DEFAULT_SHADER_ATTRIB_NAME_POSITION             "vertexPosition"    // Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_NAME_POSITION
+#define RL_DEFAULT_SHADER_ATTRIB_NAME_TEXCOORD             "vertexTexCoord"    // Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_NAME_TEXCOORD
+#define RL_DEFAULT_SHADER_ATTRIB_NAME_NORMAL               "vertexNormal"      // Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_NAME_NORMAL
+#define RL_DEFAULT_SHADER_ATTRIB_NAME_COLOR                "vertexColor"       // Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_NAME_COLOR
+#define RL_DEFAULT_SHADER_ATTRIB_NAME_TANGENT              "vertexTangent"     // Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_NAME_TANGENT
+#define RL_DEFAULT_SHADER_ATTRIB_NAME_TEXCOORD2            "vertexTexCoord2"   // Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_NAME_TEXCOORD2
+#define RL_DEFAULT_SHADER_ATTRIB_NAME_BONEIDS              "vertexBoneIds"     // Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_NAME_BONEIDS
+#define RL_DEFAULT_SHADER_ATTRIB_NAME_BONEWEIGHTS          "vertexBoneWeights" // Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_NAME_BONEWEIGHTS
+
+#define RL_DEFAULT_SHADER_UNIFORM_NAME_MVP                 "mvp"               // model-view-projection matrix
+#define RL_DEFAULT_SHADER_UNIFORM_NAME_VIEW                "matView"           // view matrix
+#define RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION          "matProjection"     // projection matrix
+#define RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION_VIEW     "Projection_View"   // projection*view matrix
+#define RL_DEFAULT_SHADER_UNIFORM_NAME_MODEL               "matModel"          // model matrix
+#define RL_DEFAULT_SHADER_UNIFORM_NAME_NORMAL              "matNormal"         // normal matrix (transpose(inverse(matModelView))
+#define RL_DEFAULT_SHADER_UNIFORM_NAME_COLOR               "colDiffuse"        // color diffuse (base tint color, multiplied by texture color)
+#define RL_DEFAULT_SHADER_UNIFORM_NAME_BONE_MATRICES       "boneMatrices"      // bone matrices
+#define RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE0          "colDiffuse"          // texture0 (texture slot active 0)
+#define RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE1          "texture1"          // texture1 (texture slot active 1)
+#define RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE2          "texture2"          // texture2 (texture slot active 2)
+#define RL_DEFAULT_SHADER_UNIFORM_NAME_INSTANCE_TX         "instanceTransform" // Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_NAME_INSTANCE_TX
+
+
+
 
 #endif // MACROS_AND_CONSTANTS

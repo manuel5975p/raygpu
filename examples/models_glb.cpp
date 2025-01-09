@@ -13,21 +13,23 @@ Texture card    ;
 Model carmodel;
 Camera3D cam;
 DescribedPipeline* pl;
+Material carMaterial{};
+
 void mainloop(){
     
     BeginDrawing();
-    ClearBackground(Color{255,0,0,255});
+    ClearBackground(Color{35,0,0,255});
     //DrawCircle(GetMouseX(), GetMouseY(), 100.0f, WHITE);
     BeginMode3D(cam);
     //UseNoTexture();
     //BeginPipelineMode(pl);
-    UseTexture(card);
     //if(angle > -0.1)
     Matrix stacc[10];
     for(int i = 0;i < 10;i++){
         stacc[i] = MatrixTranslate(0, 5 * (i - 5),0) * MatrixRotate(Vector3{0, 1, 0}, angle * i);
-    } 
-    DrawMeshInstanced(carmesh, Material{}, stacc, 10);
+    }
+
+    DrawMeshInstanced(carmesh, carMaterial, stacc, 10);
     //EndPipelineMode();
     EndMode3D();
     Matrix mat = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
@@ -48,7 +50,7 @@ void mainloop(){
     EndDrawing();
 }
 int main(){
-    SetConfigFlags(FLAG_STDOUT_TO_FFMPEG | FLAG_HEADLESS);
+    //SetConfigFlags(FLAG_STDOUT_TO_FFMPEG | FLAG_HEADLESS);
     InitWindow(1024, 800, "glTF Model Loading");
     
     TRACELOG(LOG_INFO, "Hello");
@@ -59,6 +61,7 @@ int main(){
     
     //return 0;
     carmodel = LoadModel((resourceDirectoryPath + "/old_car_new.glb").c_str());
+
     cam = CLITERAL(Camera3D){
         .position = CLITERAL(Vector3){20,30,45},
         .target = CLITERAL(Vector3){0,0,0},
@@ -70,7 +73,8 @@ int main(){
     carmesh    = carmodel.meshes[0];
     checker = LoadTextureFromImage(GenImageChecker(WHITE, BLACK, 100, 100, 10));
     card    = LoadTextureFromImage(LoadImage((resourceDirectoryPath + "/old_car_d.png").c_str()));
-
+    carMaterial = LoadMaterialDefault();
+    carMaterial.maps[MATERIAL_MAP_DIFFUSE].texture = card;
     //pl = Relayout(DefaultPipeline(), carmesh.vao);
     //SetPipelineTexture(pl, 1, card);
     #ifdef __EMSCRIPTEN__

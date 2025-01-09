@@ -32,7 +32,7 @@ void mainloop(void){
 }
 int main(cwoid){
     InitWindow(1200, 800, "VAO");
-    
+    SetTargetFPS(0);
     cam = CLITERAL(Camera3D){
         .position = CLITERAL(Vector3){0,0,10},
         .target = CLITERAL(Vector3){0,0,0},

@@ -17,13 +17,21 @@
 #define TINYOBJ_LOADER_C_IMPLEMENTATION
 #include <tinyobj_loader_c.h>
 #include <cgltf.h>
-cgltf_result LoadFileGLTFCallback(const struct cgltf_memory_options *,
-                     const struct cgltf_file_options *, const char *,
-                     cgltf_size *, void **){
-                        return cgltf_result{};
-                     }
-void ReleaseFileGLTFCallback(const struct cgltf_memory_options *, const struct cgltf_file_options *, void *){
-    
+cgltf_result LoadFileGLTFCallback(const struct cgltf_memory_options *memoryOptions, const struct cgltf_file_options *fileOptions, const char *path, cgltf_size *size, void **data){
+    size_t filesize;
+    void* filedata = LoadFileData(path, &filesize);
+
+    if (filedata == NULL) return cgltf_result_io_error;
+
+    *size = filesize;
+    *data = filedata;
+
+    return cgltf_result_success;
+}
+
+// Release file data callback for cgltf
+static void ReleaseFileGLTFCallback(const struct cgltf_memory_options *memoryOptions, const struct cgltf_file_options *fileOptions, void *data){
+    UnloadFileData(data);
 }
 Mesh GenMeshCube(float width, float height, float length){
     constexpr size_t vertexCount = 6 * 4;    //6 sides of 4 vertices
@@ -195,6 +203,7 @@ extern "C" void DrawMeshInstanced(Mesh mesh, Material material, const Matrix* tr
         trfBuffer = GenStorageBuffer(transforms, instances * sizeof(Matrix));
     }
     SetPipelineStorageBuffer(GetActivePipeline(), 3, trfBuffer);
+    SetTexture(GetUniformLocation(GetActivePipeline(), RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE0), material.maps[MATERIAL_MAP_DIFFUSE].texture);
     BindPipelineVertexArray(GetActivePipeline(), mesh.vao);
     if(mesh.ibo){
         DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, *mesh.ibo, mesh.triangleCount * 3, instances);
@@ -205,6 +214,7 @@ extern "C" void DrawMeshInstanced(Mesh mesh, Material material, const Matrix* tr
 }
 extern "C" void DrawMesh(Mesh mesh, Material material, Matrix transform){
     SetStorageBufferData(3, &transform, sizeof(Matrix));
+    SetTexture(GetUniformLocation(GetActivePipeline(), RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE0), material.maps[MATERIAL_MAP_DIFFUSE].texture);
     BindPipelineVertexArray(GetActivePipeline(), mesh.vao);
     if(mesh.ibo){
         DrawArraysIndexed(WGPUPrimitiveTopology_TriangleList, *mesh.ibo, mesh.triangleCount * 3);
@@ -560,16 +570,17 @@ static BoneInfo *LoadBoneInfoGLTF(cgltf_skin skin, int *boneCount)
 
     return bones;
 }
-
-Material LoadMaterialDefault(void)
-{
+void UnloadMaterial(Material mat){
+    RL_FREE(mat.maps);
+}
+Material LoadMaterialDefault(void){
     Material material zeroinit;
-    material.maps = (MaterialMap *)RL_CALLOC(MAX_MATERIAL_MAPS, sizeof(MaterialMap));
+    material.maps = (MaterialMap*) RL_CALLOC(MAX_MATERIAL_MAPS, sizeof(MaterialMap));
 
-    // Using rlgl default shader
+    // Using default pipeline
     material.pipeline = DefaultPipeline();
 
-    // Using rlgl default texture (1x1 pixel, UNCOMPRESSED_R8G8B8A8, 1 mipmap)
+    // Using default texture (1x1 pixel, WGPuTexture, 1 mipmap)
     material.maps[MATERIAL_MAP_DIFFUSE].texture = GetDefaultTexture();
     //material.maps[MATERIAL_MAP_NORMAL].texture;         // NOTE: By default, not set
     //material.maps[MATERIAL_MAP_SPECULAR].texture;       // NOTE: By default, not set
