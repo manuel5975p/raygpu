@@ -199,6 +199,7 @@ typedef struct BoneInfo {
     char name[32];          // Bone name
     int parent;             // Bone parent
 } BoneInfo;
+
 typedef struct MaterialMap{
     Texture texture;
     Color color;
@@ -517,7 +518,8 @@ typedef enum {
     MATERIAL_MAP_CUBEMAP,           // Cubemap material (NOTE: Uses GL_TEXTURE_CUBE_MAP)
     MATERIAL_MAP_IRRADIANCE,        // Irradiance material (NOTE: Uses GL_TEXTURE_CUBE_MAP)
     MATERIAL_MAP_PREFILTER,         // Prefilter material (NOTE: Uses GL_TEXTURE_CUBE_MAP)
-    MATERIAL_MAP_BRDF               // Brdf material
+    MATERIAL_MAP_BRDF,              // Brdf material
+    MAX_MATERIAL_MAPS               // Amount of maps 
 } MaterialMapIndex;
 
 #define MATERIAL_MAP_DIFFUSE      MATERIAL_MAP_ALBEDO
@@ -1104,5 +1106,6 @@ typedef struct wgpustate wgpustate;
 extern wgpustate g_wgpustate;
 #ifdef __cplusplus
 extern const std::unordered_map<WGPUTextureFormat, std::string> textureFormatSpellingTable;
+extern const std::unordered_map<WGPUPresentMode, std::string> presentModeSpellingTable;
 #endif
 #endif

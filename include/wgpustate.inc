@@ -21,6 +21,10 @@ struct wgpustate{
     wgpu::Adapter adapter;
     wgpu::Device device;
     wgpu::Queue queue;
+
+    wgpu::PresentMode unthrottled_PresentMode;
+    wgpu::PresentMode throttled_PresentMode;
+
     GLFWwindow* window;
     wgpu::Surface surface;
     uint32_t width, height;

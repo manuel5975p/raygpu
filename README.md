@@ -36,6 +36,16 @@ A fast and simple [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebG
 - [ ] IQM / VOX support
 - [ ] GLSL Support
 
+##### Tested on
+- Linux 
+    - X11
+    - Wayland 
+    - Vulkan
+    - OpenGL/ES
+    - AMD and NVidia
+- Windows
+  - DX12 
+  - Vulkan
 # Getting Started
 For instructions on building or using this project, see [Building](#building) <br>
 For shaders and buffers, see [Shaders and Buffers](#shaders-and-buffers)

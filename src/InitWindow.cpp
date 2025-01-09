@@ -1,4 +1,5 @@
 #include <raygpu.h>
+#include <unordered_set>
 #include <webgpu/webgpu_cpp.h>
 #include <iostream>
 #include <chrono>
@@ -398,11 +399,7 @@ void ResizeCallback(GLFWwindow* window, int width, int height){
     config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
     config.device = g_wgpustate.device;
     config.format = (wgpu::TextureFormat)g_wgpustate.frameBufferFormat;
-    #ifdef __EMSCRIPTEN__
-    config.presentMode = (wgpu::PresentMode)WGPUPresentMode_Fifo;
-    #else
-    config.presentMode = (wgpu::PresentMode)(!!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? WGPUPresentMode_Fifo : WGPUPresentMode_Immediate);
-    #endif
+    config.presentMode = (wgpu::PresentMode)(!!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? g_wgpustate.throttled_PresentMode : g_wgpustate.unthrottled_PresentMode);
     config.width = width;
     config.height = height;
     g_wgpustate.width = width;
@@ -621,7 +618,36 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         //#ifndef __EMSCRIPTEN__
         wgpu::SurfaceCapabilities capabilities;
         GetCXXSurface().GetCapabilities(GetCXXAdapter(), &capabilities);
+        if(capabilities.presentModeCount == 1){
+            TRACELOG(LOG_INFO, "Only %s supported", presentModeSpellingTable.at((WGPUPresentMode)capabilities.presentModes[0]).c_str());
+            g_wgpustate.unthrottled_PresentMode = capabilities.presentModes[0];
+            g_wgpustate.throttled_PresentMode = capabilities.presentModes[0];
+        }
+        else if(capabilities.presentModeCount > 1){
+            g_wgpustate.unthrottled_PresentMode = capabilities.presentModes[0];
+            g_wgpustate.throttled_PresentMode = capabilities.presentModes[0];
+
+            std::unordered_set<wgpu::PresentMode> pmset(capabilities.presentModes, capabilities.presentModes + capabilities.presentModeCount);
+            if(pmset.find(wgpu::PresentMode::Fifo) != pmset.end()){
+                g_wgpustate.throttled_PresentMode = wgpu::PresentMode::Fifo;
+            }
+            else if(pmset.find(wgpu::PresentMode::FifoRelaxed) != pmset.end()){
+                g_wgpustate.throttled_PresentMode = wgpu::PresentMode::FifoRelaxed;
+            }
+            if(pmset.find(wgpu::PresentMode::Mailbox) != pmset.end()){
+                g_wgpustate.unthrottled_PresentMode = wgpu::PresentMode::Mailbox;
+            }
+            else if(pmset.find(wgpu::PresentMode::Immediate) != pmset.end()){
+                g_wgpustate.unthrottled_PresentMode = wgpu::PresentMode::Immediate;
+            }
+        }
+
+        for(uint32_t i = 0;i < capabilities.presentModeCount;i++){
+            std::cout << (int)capabilities.presentModes[i] << "\n";
+        }
+        
         wgpu::SurfaceConfiguration config = {};
+
         config.device = GetCXXDevice();
         config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
         //std::cout << "Supported format count: " << capabilities.formatCount << "\n";
@@ -642,11 +668,8 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
             config.format = selectedFormat;
         }
         TRACELOG(LOG_INFO, "Selected surface format %s", textureFormatSpellingTable.at((WGPUTextureFormat)config.format).c_str());
-        #ifdef __EMSCRIPTEN__
-        config.presentMode = wgpu::PresentMode::Fifo;
-        #else
-        config.presentMode = !!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? wgpu::PresentMode::Fifo : wgpu::PresentMode::Immediate;
-        #endif
+        
+        config.presentMode = !!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? g_wgpustate.throttled_PresentMode : g_wgpustate.unthrottled_PresentMode;
         config.width = width;
         config.height = height;
         GetCXXSurface().Configure(&config);
@@ -693,8 +716,10 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     g_wgpustate.rstate->renderExtentX = width;
     g_wgpustate.rstate->renderExtentY = height;
     if(!(g_wgpustate.windowFlags & FLAG_HEADLESS)){
-        int wposx, wposy;
+        int wposx = 0, wposy = 0;
+        #ifndef DAWN_USE_WAYLAND
         glfwGetWindowPos(g_wgpustate.window, &wposx, &wposy);
+        #endif
         g_wgpustate.input_map[window].windowPosition = Rectangle{
             (float)wposx,
             (float)wposy,
@@ -841,9 +866,11 @@ void ToggleFullscreen(){
     }
     else{
         //We need to enter fullscreen
-        int xpos, ypos;
+        int xpos = 0, ypos = 0;
         int xs, ys;
+        #ifndef DAWN_USE_WAYLAND
         glfwGetWindowPos(g_wgpustate.window, &xpos, &ypos);
+        #endif
         glfwGetWindowSize(g_wgpustate.window, &xs, &ys);
         g_wgpustate.input_map[g_wgpustate.window].windowPosition = Rectangle{float(xpos), float(ypos), float(xs), float(ys)};
         int monitorCount = 0;
@@ -900,8 +927,9 @@ int GetCurrentMonitor(){
             // Window center position
             int wcx = 0;
             int wcy = 0;
-
+            #ifndef DAWN_USE_WAYLAND
             glfwGetWindowPos(g_wgpustate.window, &wcx, &wcy);
+            #endif
             wcx += (int)GetScreenWidth()/2;
             wcy += (int)GetScreenHeight()/2;
 
@@ -958,6 +986,7 @@ extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* 
     SubWindow ret{};
     #ifndef __EMSCRIPTEN__
     glfwWindowHint(GLFW_RESIZABLE, (g_wgpustate.windowFlags & FLAG_WINDOW_RESIZABLE ) ? GLFW_TRUE : GLFW_FALSE);
+    glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
     ret.handle = glfwCreateWindow(width, height, title, nullptr, nullptr);
     wgpu::Surface secondSurface = wgpu::glfw::CreateSurfaceForWindow(GetInstance(), (GLFWwindow*)ret.handle);
     wgpu::SurfaceCapabilities capabilities;
@@ -966,7 +995,7 @@ extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* 
     config.device = GetCXXDevice();
     config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
     config.format = (wgpu::TextureFormat)g_wgpustate.frameBufferFormat;
-    config.presentMode = wgpu::PresentMode::Immediate;
+    config.presentMode = g_wgpustate.unthrottled_PresentMode;
     config.width = width;
     config.height = height;
     secondSurface.Configure(&config);
@@ -984,7 +1013,15 @@ extern "C" void CloseSubWindow(SubWindow subWindow){
     glfwWindowShouldClose((GLFWwindow*)subWindow.handle);
 }
 
-
+const std::unordered_map<WGPUPresentMode, std::string> presentModeSpellingTable = [](){
+    std::unordered_map<WGPUPresentMode, std::string> map;
+    map[WGPUPresentMode_Fifo] = "WGPUPresentMode_Fifo";
+    map[WGPUPresentMode_FifoRelaxed] = "WGPUPresentMode_FifoRelaxed";
+    map[WGPUPresentMode_Immediate] = "WGPUPresentMode_Immediate";
+    map[WGPUPresentMode_Mailbox] = "WGPUPresentMode_Mailbox";
+    map[WGPUPresentMode_Force32] = "WGPUPresentMode_Force32";
+    return map;
+}();
 const std::unordered_map<WGPUTextureFormat, std::string> textureFormatSpellingTable = [](){
     std::unordered_map<WGPUTextureFormat, std::string> map;
     map[WGPUTextureFormat_Undefined] = "WGPUTextureFormat_Undefined";

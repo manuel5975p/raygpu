@@ -2111,6 +2111,7 @@ void BeginTextureMode(RenderTexture rtex){
     Matrix mat = ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
     SetUniformBufferData(0, &mat, sizeof(Matrix));
 }
+
 void EndTextureMode(){
     drawCurrentBatch();
     g_wgpustate.rstate->renderExtentX = g_wgpustate.currentDefaultRenderTarget.texture.width;
