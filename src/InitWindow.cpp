@@ -479,7 +479,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
             //wgpuSurfaceRelease(g_wgpustate.surface);
             //g_wgpustate.surface = wgpu::glfw::CreateSurfaceForWindow(g_wgpustate.instance, window).MoveToCHandle();
             //while(!g_wgpustate.drawmutex.try_lock());
-            g_wgpustate.drawmutex.lock();
+            //g_wgpustate.drawmutex.lock();
             TraceLog(LOG_DEBUG, "glfwSizeCallback called with %d x %d", width, height);
             wgpu::SurfaceCapabilities capabilities;
             g_wgpustate.surface.GetCapabilities(g_wgpustate.adapter, &capabilities);
@@ -517,7 +517,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
 
             //TODO wtf is this?
             g_wgpustate.rstate->renderpass.dsa->view = g_wgpustate.currentDefaultRenderTarget.depth.view;
-            g_wgpustate.drawmutex.unlock();
+            //g_wgpustate.drawmutex.unlock();
         });
 
         //#ifndef __EMSCRIPTEN__
