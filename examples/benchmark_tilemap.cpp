@@ -5,7 +5,7 @@
 #endif
 const char wgsl[] = R"(
 @group(0) @binding(0) var<uniform> Perspective_View: mat4x4f;
-@group(0) @binding(1) var colDiffuse: texture_2d<f32>;
+@group(0) @binding(1) var texture0: texture_2d<f32>;
 @group(0) @binding(2) var texSampler: sampler;
 @group(0) @binding(3) var<storage> tileTypes: array<u32>;
 
@@ -35,7 +35,7 @@ fn vs_main(@builtin(instance_index) instanceID: u32, in: VertexInput) -> VertexO
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     var uvi: vec2i = vec2i(i32(in.uv.x * 16), i32(in.uv.y * 16));
     uvi += in.offset;
-    var color = textureLoad(colDiffuse, uvi, 0);
+    var color = textureLoad(texture0, uvi, 0);
     return color;
 }
 )";

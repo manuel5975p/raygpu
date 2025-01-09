@@ -57,7 +57,7 @@ struct LightBuffer {
 };
 
 @group(0) @binding(0) var<uniform> Perspective_View: mat4x4f;
-@group(0) @binding(1) var colDiffuse: texture_2d<f32>;
+@group(0) @binding(1) var texture0: texture_2d<f32>;
 @group(0) @binding(2) var texSampler: sampler;
 @group(0) @binding(3) var<storage> modelMatrix: array<mat4x4f>;
 @group(0) @binding(4) var<storage> lights: LightBuffer;
@@ -80,7 +80,7 @@ fn vs_main(@builtin(instance_index) instanceIdx : u32, in: VertexInput) -> Verte
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    return textureSample(colDiffuse, texSampler, in.uv).rgba * in.color;
+    return textureSample(texture0, texSampler, in.uv).rgba * in.color;
 }
 )";
 wgpu::Limits* limitsToBeRequested = nullptr;
@@ -641,12 +641,8 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
                 g_wgpustate.unthrottled_PresentMode = wgpu::PresentMode::Immediate;
             }
         }
-
-        for(uint32_t i = 0;i < capabilities.presentModeCount;i++){
-            std::cout << (int)capabilities.presentModes[i] << "\n";
-        }
         
-        wgpu::SurfaceConfiguration config = {};
+        wgpu::SurfaceConfiguration config zeroinit;
 
         config.device = GetCXXDevice();
         config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
@@ -670,15 +666,12 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         TRACELOG(LOG_INFO, "Selected surface format %s", textureFormatSpellingTable.at((WGPUTextureFormat)config.format).c_str());
         
         config.presentMode = !!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? g_wgpustate.throttled_PresentMode : g_wgpustate.unthrottled_PresentMode;
+        TRACELOG(LOG_INFO, "Selected present mode %s", presentModeSpellingTable.at((WGPUPresentMode)config.presentMode).c_str());
         config.width = width;
         config.height = height;
         GetCXXSurface().Configure(&config);
         g_wgpustate.frameBufferFormat = (WGPUTextureFormat)config.format;
-        //std::cout << "Supported Framebuffer Format: 0x" << std::hex << (WGPUTextureFormat)config.format << std::dec << "\n";
-
-
-
-        
+        //std::cout << "Supported Framebuffer Format: 0x" << std::hex << (WGPUTextureFormat)config.format << std::dec << "\n";        
     }else{
         g_wgpustate.frameBufferFormat = WGPUTextureFormat_BGRA8Unorm;
     }

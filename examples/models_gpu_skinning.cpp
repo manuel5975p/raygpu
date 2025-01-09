@@ -20,7 +20,7 @@
 constexpr char shaderSource[] = R"(
 
 @group(0) @binding(0) var<uniform> Perspective_View: mat4x4f;
-@group(0) @binding(1) var colDiffuse: texture_2d<f32>;
+@group(0) @binding(1) var texture0: texture_2d<f32>;
 @group(0) @binding(2) var texSampler: sampler;
 @group(0) @binding(3) var<storage> modelMatrix: array<mat4x4f>;
 @group(0) @binding(4) var<storage> boneMatrices: array<mat4x4f>;
@@ -72,7 +72,7 @@ struct FSOutput {
 fn fs_main(@location(0) fragTexCoord: vec2<f32>, 
            @location(1) fragColor: vec4<f32>,
            @location(2) fragNormal: vec3<f32>) -> FSOutput {
-    let texel = textureSample(colDiffuse, texSampler, fragTexCoord);
+    let texel = textureSample(texture0, texSampler, fragTexCoord);
     var out: FSOutput;
     out.finalColor = texel * fragColor;
     out.finalColor = vec4f(abs(fragNormal), 1.0f);
@@ -96,7 +96,7 @@ int main(void){
     camera.position = CLITERAL(Vector3){ 5.0f, 5.0f, 5.0f }; // Camera position
     camera.target = CLITERAL(Vector3){ 0.0f, 0.0f, 0.0f };   // Camera looking at point
     camera.up = CLITERAL(Vector3){ 0.0f, 1.0f, 0.0f };       // Camera up vector (rotation towards target)
-    camera.fovy = 1.0f;                                      // Camera field-of-view Y
+    camera.fovy = 60.0f;                                      // Camera field-of-view Y
     //camera.projection = CAMERA_PERSPECTIVE;                // Camera projection type
 
     // Load gltf model
@@ -117,7 +117,7 @@ int main(void){
     unsigned int animCurrentFrame = 0;
     ModelAnimation *modelAnimations = LoadModelAnimations(TextFormat("%s/greenman.glb", dp), &animsCount);
 
-    SetPipelineTexture(skinningShader, GetUniformLocation(skinningShader, "colDiffuse"), GetDefaultTexture());
+    SetPipelineTexture(skinningShader, GetUniformLocation(skinningShader, "texture0"), GetDefaultTexture());
     Vector3 position = { 0.0f, 0.0f, 0.0f }; // Set model position
     
 

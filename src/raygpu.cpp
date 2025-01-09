@@ -2047,7 +2047,7 @@ void SaveImage(Image img, const char* filepath){
     }
 }
 void UseTexture(Texture tex){
-    if(GetUniformLocation(GetActivePipeline(), "colDiffuse") == LOCATION_NOT_FOUND){
+    if(GetUniformLocation(GetActivePipeline(), "texture0") == LOCATION_NOT_FOUND){
         return;
     }
     if(g_wgpustate.rstate->activePipeline->bindGroup.entries[1].textureView == tex.view)return;
@@ -2065,11 +2065,11 @@ void UseTexture(Texture tex){
     
 }
 void UseNoTexture(){
-    uint32_t colDiffuseLocation = GetUniformLocation(GetActivePipeline(), "colDiffuse");
-    if(colDiffuseLocation != LOCATION_NOT_FOUND){
-        if(g_wgpustate.rstate->activePipeline->bindGroup.entries[colDiffuseLocation].textureView == g_wgpustate.whitePixel.view)return;
+    uint32_t textureLocation = GetUniformLocation(GetActivePipeline(), RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE0);
+    if(textureLocation != LOCATION_NOT_FOUND){
+        if(g_wgpustate.rstate->activePipeline->bindGroup.entries[textureLocation].textureView == g_wgpustate.whitePixel.view)return;
         drawCurrentBatch();
-        SetTexture(colDiffuseLocation, g_wgpustate.whitePixel);
+        SetTexture(textureLocation, g_wgpustate.whitePixel);
         //uint32_t samplerLocation = GetUniformLocation(GetActivePipeline(), "texSampler");
         //if(samplerLocation != LOCATION_NOT_FOUND)
         //    SetSampler(samplerLocation, g_wgpustate.defaultSampler);
