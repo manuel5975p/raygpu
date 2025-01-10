@@ -49,9 +49,11 @@ struct wgpustate{
     std::array<std::pair<Matrix, WGPUBuffer>, 16> matrixStack;
 
     int renderTargetStackPosition = -1;
-    std::array<RenderTexture> renderTargetStack;
+    std::array<RenderTexture, 8> renderTargetStack;
+    
+    
 
-    //RenderTexture mainWindowRenderTarget;
+    RenderTexture mainWindowRenderTarget;
     //RenderTexture currentDefaultRenderTarget;
     
     std::unordered_map<GLFWwindow*, window_input_state> input_map;
