@@ -1,3 +1,4 @@
+#if SUPPORT_GLSL_PARSER == 1
 #include <SPIRV/GlslangToSpv.h>
 #include <glslang/Public/ShaderLang.h>
 #include <raygpu.h>
@@ -106,3 +107,8 @@ extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     //}
     return nullptr;
 }
+#else
+int main(){
+    return 0;
+}
+#endif

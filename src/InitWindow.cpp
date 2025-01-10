@@ -458,9 +458,6 @@ EM_BOOL EmscriptenWheelCallback(int eventType, const EmscriptenWheelEvent* wheel
 void cpcallback(GLFWwindow* window, double x, double y){
     g_wgpustate.input_map[window].mousePos = Vector2{float(x), float(y)};
 }
-#ifndef __EMSCRIPTEN__
-
-
 
 #ifdef __EMSCRIPTEN__
 EM_BOOL EmscriptenMouseCallback(int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
@@ -468,10 +465,6 @@ EM_BOOL EmscriptenMouseCallback(int eventType, const EmscriptenMouseEvent *mouse
     return true;
 };
 #endif
-
-
-
-#endif // __EMSCRIPTEN__
 void clickcallback(GLFWwindow* window, int button, int action, int mods){
     if(action == GLFW_PRESS){
         g_wgpustate.input_map[window].mouseButtonDown[button] = 1;
@@ -481,11 +474,11 @@ void clickcallback(GLFWwindow* window, int button, int action, int mods){
     }
 }
 #ifdef __EMSCRIPTEN__
-void EmscriptenMousedownClickCallback(int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
+EM_BOOL EmscriptenMousedownClickCallback(int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
     clickcallback(nullptr, mouseEvent->button, GLFW_PRESS, 0);
     return true;
 };
-void EmscriptenMouseupClickCallback(int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
+EM_BOOL EmscriptenMouseupClickCallback(int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
     clickcallback(nullptr, mouseEvent->button, GLFW_RELEASE, 0);
     return true;
 };
@@ -497,14 +490,14 @@ void EmscriptenMouseupClickCallback(int eventType, const EmscriptenMouseEvent *m
 #endif
 
 
-#ifndef __EMSCRIPTEN__
+//#ifndef __EMSCRIPTEN__
 void CharCallback(GLFWwindow* window, unsigned int codePoint){
     g_wgpustate.input_map[window].charQueue.push_back((int)codePoint);
 }
 void CursorEnterCallback(GLFWwindow* window, int entered){
     g_wgpustate.input_map[window].cursorInWindow = entered;
 }
-#endif
+//#endif
 
 void setupCallbacks(GLFWwindow* window){
     glfwSetWindowSizeCallback(window, ResizeCallback);
@@ -518,10 +511,10 @@ void setupCallbacks(GLFWwindow* window){
     glfwSetScrollCallback(window, scrollCallback);
     glfwSetMouseButtonCallback(window, clickcallback);
     #ifdef __EMSCRIPTEN__
-    emscripten_set_mousedown_callback("#canvas", &clickcallback, 1, EmscriptenMousedownClickCallback);
-    emscripten_set_mouseup_callback("#canvas", &clickcallback, 1, EmscriptenMouseupClickCallback);
-    emscripten_set_mousemove_callback("#canvas", &cpcallback, 1, EmscriptenMouseCallback);
-    emscripten_set_wheel_callback("#canvas", &scrollCallback, 1, EmscriptenWheelCallback);
+    emscripten_set_mousedown_callback("#canvas", nullptr, 1, EmscriptenMousedownClickCallback);
+    emscripten_set_mouseup_callback("#canvas",   nullptr, 1, EmscriptenMouseupClickCallback);
+    emscripten_set_mousemove_callback("#canvas", nullptr, 1, EmscriptenMouseCallback);
+    emscripten_set_wheel_callback("#canvas",     nullptr, 1, EmscriptenWheelCallback);
     #endif
 }
 GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){

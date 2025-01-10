@@ -958,6 +958,9 @@ uint32_t RoundUpToNextMultipleOf256(uint32_t x) {
 uint32_t RoundUpToNextMultipleOf16(uint32_t x) {
     return (x + 15) & ~0xF;
 }
+#ifdef __EMSCRIPTEN__
+
+#endif 
 
 Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t miplevel){
     size_t formatSize = GetPixelSizeInBytes(wgpuTextureGetFormat(tex));
@@ -1024,8 +1027,8 @@ Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t miplevel){
     #ifndef __EMSCRIPTEN__
     g_wgpustate.instance.WaitAny(readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped), 1000000000);
     #else
-    //g_wgpustate.instance.WaitAny(readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped), 1000000000);
-    readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::AllowSpontaneous, onBuffer2Mapped);
+    g_wgpustate.instance.WaitAny(readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped), 1000000000);
+    //readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::AllowSpontaneous, onBuffer2Mapped);
     
     //while(waitflag){
     //    

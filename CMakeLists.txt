@@ -147,10 +147,12 @@ else()
     target_link_libraries(raygpu PUBLIC
         webgpu_dawn
         webgpu_cpp
+        #tint_api_common
+        #tint_lang_wgsl_reader
         dawn_internal_config
         dawn::dawn_glfw
-        glfw
-        glslang
+        #glfw
+        #glslang
     
         #dawn::dawn_native
         #dawn::dawn_common
