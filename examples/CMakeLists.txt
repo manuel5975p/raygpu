@@ -1,10 +1,32 @@
 function(add_example target_name)
     add_executable(${target_name} "${target_name}.c")
     target_link_libraries(${target_name} PUBLIC raygpu)
+    if(EMSCRIPTEN)
+    target_link_options(${target_name} PRIVATE
+        -sUSE_GLFW=3
+        -sASYNCIFY=2
+        -sSTACK_SIZE=16777216
+        -sINITIAL_MEMORY=256Mb
+        -sALLOW_MEMORY_GROWTH
+        --shell-file   ${CMAKE_SOURCE_DIR}/resources/minimal.html
+        --preload-file ${CMAKE_SOURCE_DIR}/resources/@resources/
+    )
+    endif()
 endfunction()
 function(add_cpp_example target_name)
     add_executable(${target_name} "${target_name}.cpp")
     target_link_libraries(${target_name} PUBLIC raygpu)
+    if(EMSCRIPTEN)
+    target_link_options(${target_name} PRIVATE
+        -sUSE_GLFW=3
+        -sASYNCIFY=2
+        -sSTACK_SIZE=16777216
+        -sINITIAL_MEMORY=256Mb
+        -sALLOW_MEMORY_GROWTH
+        --shell-file   ${CMAKE_SOURCE_DIR}/resources/minimal.html
+        --preload-file ${CMAKE_SOURCE_DIR}/resources/@resources/
+    )
+    endif()
 endfunction()
 
 add_example(core_window)

@@ -2,9 +2,9 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
-
+uint32_t width = 1600, height = 1600;
 constexpr char shaderCode[] = R"(
-@group(0) @binding(0) var tex: texture_storage_2d<r32uint, write>;
+@group(0) @binding(0) var tex: texture_storage_2d<rgba8unorm, write>;
 @group(0) @binding(1) var<uniform> scale: f32;
 @group(0) @binding(2) var<uniform> center: vec2<f32>;
 fn mandelIter(p: vec2f, c: vec2f) -> vec2f{
@@ -13,17 +13,26 @@ fn mandelIter(p: vec2f, c: vec2f) -> vec2f{
 
     return vec2f(newr + c.x, newi + c.y);
 }
-const maxiters: i32 = 300;
-fn mandelBailout(z: vec2f) -> i32{
+const maxiters: i32 = 150;
+
+struct termination {
+    iterations: i32,
+    overshoot: f32,
+}
+
+fn mandelBailout(z: vec2f) -> termination{
     var zn = z;
     var i: i32;
     for(i = 0;i < maxiters;i = i + 1){
         zn = mandelIter(zn, z);
-        if(zn.x * zn.x + zn.y * zn.y > 4.0f){
+        if(sqrt(zn.x * zn.x + zn.y * zn.y) > 2.0f){
             break;
         }
     }
-    return i;
+    var ret: termination;
+    ret.iterations = i;
+    ret.overshoot = ((sqrt(zn.x * zn.x + zn.y * zn.y)) - 2.0f) / 2.0f;
+    return ret;
 }
 @compute
 @workgroup_size(16, 16, 1)
@@ -31,15 +40,16 @@ fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
     //let ld: vec4<u32> = textureLoad(tex, id.xy);
     let mandelSample: vec2f = (vec2f(id.xy) - 640.0f) * scale + center;
     let iters = mandelBailout(mandelSample);
-    if(iters == maxiters){
-        textureStore(tex, id.xy, vec4<u32>(0xff000000, 0, 0, 0));
+    if(iters.iterations == maxiters){
+        textureStore(tex, id.xy, vec4<f32>(0, 0, 0, 1.0f));
     }
     else{
-        let inorm: f32 = f32(iters);
-        let colorSpace = 3.0f * log(inorm + 1) / log(f32(maxiters));
-        let colorr: u32 = u32((0.5f * sin(10.0f * colorSpace) + 0.5f) * 255.0f);
-        let colorg: u32 = u32((0.5f * sin(4.0f * colorSpace) + 0.5f) * 255.0f);
-        textureStore(tex, id.xy, vec4<u32>(colorr | (colorg << 8) | 0xff000000, 0, 0, 0));
+        let inorm: f32 = f32(iters.iterations) - iters.overshoot;
+        let colorSpace = log(inorm + 1.0f);//3.0f * log(inorm + 1) / log(f32(maxiters));
+        let colorr: f32 = 0.5f * sin(10.0f * colorSpace) + 0.5f;
+        let colorg: f32 = 0.5f * sin(4.0f * colorSpace) + 0.5f;
+        let colorb: f32 = 0.05f * sin(7.0f * colorSpace) + 0.1f;
+        textureStore(tex, id.xy, vec4<f32>(colorr, colorg, colorb, 1.0f));
     }
 }
 )";
@@ -70,13 +80,13 @@ void mainloop(){
     SetBindgroupUniformBufferData(&pl->bindGroup, 2, &center, sizeof(Vector2));
     BeginComputepass();
     BindComputePipeline(pl);
-    DispatchCompute(1280 / 16, 1280 / 16, 1);
+    DispatchCompute(width / 16, height / 16, 1);
     ComputepassEndOnlyComputing();
     CopyTextureToTexture(storageTex, tex);
     EndComputepass();
     BeginDrawing();
     ClearBackground(BLACK);
-    DrawTexturePro(tex, Rectangle(0,0,1280,1280), Rectangle(0,0,1280,1280), Vector2{0,0}, 0.0f, WHITE);
+    DrawTexturePro(tex, Rectangle(0,0,width,height), Rectangle(0,0,width,height), Vector2{0,0}, 0.0f, WHITE);
     DrawFPS(5, 5);
     EndDrawing();
 }
@@ -84,10 +94,10 @@ void mainloop(){
 
 int main(){
     //SetConfigFlags();
-    InitWindow(1280, 1280, "Storage Texture");
+    InitWindow(width, height, "Storage Texture");
     SetTargetFPS(0);
-    storageTex = LoadTexturePro(1280, 1280, WGPUTextureFormat_R32Uint, WGPUTextureUsage_CopySrc | WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding, 1, 1);
-    tex = LoadTexturePro(1280, 1280, WGPUTextureFormat_RGBA8Unorm, WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst, 1, 1);
+    storageTex = LoadTexturePro(width, height, WGPUTextureFormat_RGBA8Unorm, WGPUTextureUsage_CopySrc | WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding, 1, 1);
+    tex = LoadTexturePro(width, height, WGPUTextureFormat_RGBA8Unorm, WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst, 1, 1);
     pl = LoadComputePipeline(shaderCode);
 
     SetBindgroupTexture(&pl->bindGroup, 0, storageTex);

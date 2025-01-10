@@ -112,7 +112,48 @@ MAPI Vector4 Vector4Normalize(Vector4 vec){
 }
 
 typedef struct Matrix{
-    float data[16];
+    union{
+        float data[16];
+        #ifndef INCORRECT_MATRIX_MATH
+        struct {
+            float m0 ;
+            float m1 ;
+            float m2 ;
+            float m3 ;
+            float m4 ;
+            float m5 ;
+            float m6 ;
+            float m7 ;
+            float m8 ;
+            float m9 ;
+            float m10;
+            float m11;
+            float m12;
+            float m13;
+            float m14;
+            float m15;
+        };
+        #else
+        struct {
+            float m0 ;
+            float m4 ;
+            float m8 ;
+            float m12;
+            float m1 ;
+            float m5 ;
+            float m9 ;
+            float m13;
+            float m2 ;
+            float m6 ;
+            float m10;
+            float m14;
+            float m3 ;
+            float m7 ;
+            float m11;
+            float m15;
+        };
+        #endif
+    };
     #ifdef __cplusplus
     Matrix operator*(const Matrix& o)const noexcept{
         Matrix ret zeroinit;
@@ -127,6 +168,9 @@ typedef struct Matrix{
     }
     #endif// __cplusplus
 } Matrix;
+inline void asdfasdfhlkjhsdsdf(Matrix x){
+    
+}
 
 //typedef struct Quaternion{
 //    float x,y,z,w;

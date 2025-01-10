@@ -20,8 +20,16 @@
 #include <emscripten/html5.h>
 #include <emscripten/emscripten.h>
 #define emscripten_set_main_loop requestAnimationFrameLoopWithJSPI
+#define emscripten_set_main_loop_arg requestAnimationFrameLoopWithJSPIArg
 #endif
 #define RL_FREE free
+
+// Define the UNLIKELY macro based on compiler support
+#if defined(__GNUC__) || defined(__clang__)
+    #define UNLIKELY(x) (__builtin_expect(!!(x), 0))
+#else
+    #define UNLIKELY(x) (x)
+#endif
 #ifndef CHAR_BIT
 #define CHAR_BIT 8
 #endif
@@ -176,20 +184,20 @@ typedef struct Mesh {
     int triangleCount;          // Number of triangles stored (indexed or not)
 
     // Vertex attributes data
-    float *vertices;            // Vertex position (XYZ - 3 components per vertex) (shader-location = 0)
-    float *texcoords;           // Vertex texture coordinates (UV - 2 components per vertex) (shader-location = 1)
-    float *texcoords2;        // Vertex texture second coordinates (UV - 2 components per vertex) (shader-location = 5)
-    float *normals;             // Vertex normals (XYZ - 3 components per vertex) (shader-location = 2)
-    float *tangents;          // Vertex tangents (XYZW - 4 components per vertex) (shader-location = 4)
-    float *colors;              // Vertex colors (RGBA - 4 components per vertex) (shader-location = 3)
-    uint32_t *indices;          // Vertex indices (in case vertex data comes indexed)
+    float* vertices;            // Vertex position (XYZ - 3 components per vertex) (shader-location = 0)
+    float* texcoords;           // Vertex texture coordinates (UV - 2 components per vertex) (shader-location = 1)
+    float* texcoords2;          // Vertex texture second coordinates (UV - 2 components per vertex) (shader-location = 5)
+    float* normals;             // Vertex normals (XYZ - 3 components per vertex) (shader-location = 2)
+    float* tangents;            // Vertex tangents (XYZW - 4 components per vertex) (shader-location = 4)
+    uint8_t* colors;            // Vertex colors (RGBA - 4 components per vertex) (shader-location = 3)
+    uint32_t* indices;          // Vertex indices (in case vertex data comes indexed)
 
     // Animation vertex data (not supported yet)
-    float *animVertices;        // Animated vertex positions (after bones transformations)
-    float *animNormals;         // Animated normals (after bones transformations)
-    unsigned char *boneIds;     // Vertex bone ids, max 255 bone ids, up to 4 bones influence by vertex (skinning) (shader-location = 6)
-    float *boneWeights;         // Vertex bone weight, up to 4 bones influence by vertex (skinning) (shader-location = 7)
-    Matrix *boneMatrices;       // Bones animated transformation matrices
+    float* animVertices;        // Animated vertex positions (after bones transformations)
+    float* animNormals;         // Animated normals (after bones transformations)
+    unsigned char* boneIds;     // Vertex bone ids, max 255 bone ids, up to 4 bones influence by vertex (skinning) (shader-location = 6)
+    float* boneWeights;         // Vertex bone weight, up to 4 bones influence by vertex (skinning) (shader-location = 7)
+    Matrix* boneMatrices;       // Bones animated transformation matrices
     int boneCount;              // Number of bones
 
     // WebGPU identifiers
@@ -197,7 +205,7 @@ typedef struct Mesh {
     DescribedBuffer** vbos;
     DescribedBuffer* ibo;              //Index buffer object, optional
     DescribedBuffer* boneMatrixBuffer; //Storage buffer
-    WGPUVertexFormat boneIDFormat;    //Either WGPUVertexFormat_Uint8 or -16;
+    WGPUVertexFormat boneIDFormat;    //Either WGPUVertexFormat_Uint8 or Uint16;
 } Mesh;
 
 typedef struct BoneInfo {
@@ -258,6 +266,11 @@ externcvar vertex* vboptr;
 externcvar vertex* vboptr_base;
 externcvar VertexArray* renderBatchVAO;
 externcvar DescribedBuffer* renderBatchVBO;
+typedef enum draw_mode{
+    RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS, RL_LINES
+}draw_mode;
+externcvar draw_mode current_drawmode;
+
 externcvar char telegrama_render[];
 externcvar size_t telegrama_render_size;
 
@@ -333,9 +346,6 @@ typedef enum WindowFlag{
     FLAG_WINDOW_RESIZABLE       = 0x00000004,
     FLAG_FULLSCREEN_MODE        = 0x00000002,   // Set to run program in fullscreen
 } WindowFlag;
-typedef enum draw_mode{
-    RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS, RL_LINES
-}draw_mode;
 typedef enum filterMode{
     nearest = WGPUFilterMode_Nearest,
     linear = WGPUFilterMode_Linear,
@@ -557,7 +567,7 @@ typedef struct AttributeAndResidence{
     WGPUVertexAttribute attr;
     uint32_t bufferSlot; //Describes the actual buffer it will reside in
     WGPUVertexStepMode stepMode;
-    bool enabled;
+    uint32_t enabled;
 }AttributeAndResidence;
 
 typedef struct SubWindow{
@@ -653,7 +663,8 @@ std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> getAttrib
 
 EXTERN_C_BEGIN
     GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title);
-    void requestAnimationFrameLoopWithJSPI(void (*callback)(void), int, int);
+    void requestAnimationFrameLoopWithJSPI(void (*callback)(void), int /* unused */, int/* unused */);
+    void requestAnimationFrameLoopWithJSPIArg(void (*callback)(void*), void* userData, int/* unused */, int/* unused */);
     void SetWindowShouldClose(cwoid);
     bool WindowShouldClose(cwoid);
     SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* title);
@@ -815,6 +826,7 @@ EXTERN_C_BEGIN
     void SetShapesTexture(Texture tex, Rectangle rec);
     void UseTexture(Texture tex);
     void UseNoTexture(cwoid);
+    void drawCurrentBatch(cwoid);
     static Color Fade(Color col, float fade_alpha){
         float v = (1.0f - fade_alpha);
         uint8_t a = (uint8_t)roundf(col.a * v);
@@ -853,6 +865,9 @@ EXTERN_C_BEGIN
 
     static void rlVertex2f(float x, float y){
         *(vboptr++) = CLITERAL(vertex){{x, y, 0}, nextuv, nextnormal, nextcol};
+        if(UNLIKELY(vboptr - vboptr_base >= RENDERBATCH_SIZE)){
+            drawCurrentBatch();
+        }
     }
     static void rlNormal3f(float x, float y, float z){
         nextnormal.x = x;
@@ -861,6 +876,9 @@ EXTERN_C_BEGIN
     }
     static void rlVertex3f(float x, float y, float z){
         *(vboptr++) = CLITERAL(vertex){{x, y, z}, nextuv, nextnormal, nextcol};
+        if(UNLIKELY(vboptr - vboptr_base >= RENDERBATCH_SIZE)){
+            drawCurrentBatch();
+        }
     }
     void rlBegin(enum draw_mode mode);
     void rlEnd(cwoid);
@@ -905,7 +923,7 @@ EXTERN_C_BEGIN
     StagingBuffer GenStagingBuffer(size_t size, WGPUBufferUsage usage);
     void UpdateStagingBuffer(StagingBuffer* buffer);
     void RecreateStagingBuffer(StagingBuffer* buffer);
-    //void MapStagingBuffer(size_t size, WGPUBufferUsage usage);
+    void MapStagingBuffer(size_t size, WGPUBufferUsage usage);
     void UnloadStagingBuffer(StagingBuffer* buf);
     
     DescribedBuffer* GenUniformBuffer(const void* data, size_t size);
@@ -930,20 +948,20 @@ EXTERN_C_BEGIN
     void SetPipelineUniformBufferData (DescribedPipeline* pl, uint32_t index, const void* data, size_t size);
     void SetPipelineStorageBufferData (DescribedPipeline* pl, uint32_t index, const void* data, size_t size);
 
-    void SetTexture                   (uint32_t index, Texture tex);
-    void SetSampler                   (uint32_t index, DescribedSampler sampler);
-    void SetUniformBuffer             (uint32_t index, DescribedBuffer* buffer);
-    void SetStorageBuffer             (uint32_t index, DescribedBuffer* buffer);
-    void SetUniformBufferData         (uint32_t index, const void* data, size_t size);
-    void SetStorageBufferData         (uint32_t index, const void* data, size_t size);
-    void SetBindgroupUniformBuffer (DescribedBindGroup* bg, uint32_t index, DescribedBuffer* buffer);
-    void SetBindgroupStorageBuffer (DescribedBindGroup* bg, uint32_t index, DescribedBuffer* buffer);
+    void SetTexture                    (uint32_t index, Texture tex);
+    void SetSampler                    (uint32_t index, DescribedSampler sampler);
+    void SetUniformBuffer              (uint32_t index, DescribedBuffer* buffer);
+    void SetStorageBuffer              (uint32_t index, DescribedBuffer* buffer);
+    void SetUniformBufferData          (uint32_t index, const void* data, size_t size);
+    void SetStorageBufferData          (uint32_t index, const void* data, size_t size);
+    void SetBindgroupUniformBuffer     (DescribedBindGroup* bg, uint32_t index, DescribedBuffer* buffer);
+    void SetBindgroupStorageBuffer     (DescribedBindGroup* bg, uint32_t index, DescribedBuffer* buffer);
     void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size);
     void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size);
-    void SetBindgroupTexture3D(DescribedBindGroup* bg, uint32_t index, Texture3D tex);
-    void SetBindgroupTextureView(DescribedBindGroup* bg, uint32_t index, WGPUTextureView texView);
-    void SetBindgroupTexture(DescribedBindGroup* bg, uint32_t index, Texture tex);
-    void SetBindgroupSampler(DescribedBindGroup* bg, uint32_t index, DescribedSampler sampler);
+    void SetBindgroupTexture3D         (DescribedBindGroup* bg, uint32_t index, Texture3D tex);
+    void SetBindgroupTextureView       (DescribedBindGroup* bg, uint32_t index, WGPUTextureView texView);
+    void SetBindgroupTexture           (DescribedBindGroup* bg, uint32_t index, Texture tex);
+    void SetBindgroupSampler           (DescribedBindGroup* bg, uint32_t index, DescribedSampler sampler);
 
 
 
@@ -955,14 +973,14 @@ EXTERN_C_BEGIN
         The functions LoadVertexArray, VertexAttribPointer, EnableVertexAttribArray, DisableVertexAttribArray
         aim to replicate the behaviour of OpenGL as closely as possible.
      */
-    VertexArray* LoadVertexArray(cwoid);
-    void VertexAttribPointer(VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, WGPUVertexFormat format, uint32_t offset, WGPUVertexStepMode stepmode);
-    void EnableVertexAttribArray(VertexArray* array, uint32_t attribLocation);
+    VertexArray* LoadVertexArray (cwoid);
+    void VertexAttribPointer     (VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, WGPUVertexFormat format, uint32_t offset, WGPUVertexStepMode stepmode);
+    void EnableVertexAttribArray (VertexArray* array, uint32_t attribLocation);
     void DisableVertexAttribArray(VertexArray* array, uint32_t attribLocation);
 
-    void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va);
+    void PreparePipeline        (DescribedPipeline* pipeline, VertexArray* va);
     void BindPipelineVertexArray(DescribedPipeline* pipeline, VertexArray* va);
-    void BindVertexArray(VertexArray* va);
+    void BindVertexArray        (VertexArray* va);
 
     void DrawArrays                (WGPUPrimitiveTopology drawMode, uint32_t vertexCount);
     void DrawArraysInstanced       (WGPUPrimitiveTopology drawMode, uint32_t vertexCount, uint32_t instanceCount);
@@ -1057,6 +1075,7 @@ EXTERN_C_BEGIN
     inline uint32_t attributeSize(WGPUVertexFormat fmt){
         switch(fmt){
             case WGPUVertexFormat_Uint8x4:
+            case WGPUVertexFormat_Unorm8x4:
             case WGPUVertexFormat_Float32:
             case WGPUVertexFormat_Uint32:
             case WGPUVertexFormat_Sint32:
