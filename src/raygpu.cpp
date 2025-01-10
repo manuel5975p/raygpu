@@ -670,6 +670,10 @@ extern "C" void CopyTextureToTexture(Texture source, Texture dest){
     if(!intermediary)
         intermediary = wgpuDeviceCreateBuffer(GetDevice(), &bdesc);
     
+    if(wgpuBufferGetSize(intermediary) < bdesc.size){
+        wgpuBufferRelease(intermediary);
+        intermediary = wgpuDeviceCreateBuffer(GetDevice(), &bdesc);
+    }
     
     WGPUImageCopyTexture src zeroinit;
     src.texture = source.id;
