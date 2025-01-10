@@ -1,8 +1,26 @@
 #include <raygpu.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+
+typedef bool (*FrameCallback)();
+#ifdef __EMSCRIPTEN__
+// Workaround for JSPI not working in emscripten_set_main_loop. Loosely based on this code:
+// https://github.com/emscripten-core/emscripten/issues/22493#issuecomment-2330275282
+// This code only works with JSPI is enabled.
+// I believe -sEXPORTED_RUNTIME_METHODS=getWasmTableEntry is technically necessary to link this.
+EM_JS(void, requestAnimationFrameLoopWithJSPI, (FrameCallback callback), {
+    var wrappedCallback = WebAssembly.promising(getWasmTableEntry(callback));
+    async function tick() {
+        // Start the frame callback. 'await' means we won't call
+        // requestAnimationFrame again until it completes.
+        var keepLooping = await wrappedCallback();
+        if (keepLooping) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+})
 #endif
-void mainloop(void){
+#endif
+bool mainloop(void){
     BeginDrawing();
     ClearBackground((Color){230, 230, 230,255});
     DrawText("Hello WebGPU enjoyer", 100, 300, 50, (Color){190, 190, 190,255});
@@ -11,6 +29,7 @@ void mainloop(void){
         ToggleFullscreen();
     }
     EndDrawing();
+    return true;
 }
 int main(void){
     //SetConfigFlags(FLAG_STDOUT_TO_FFMPEG);
@@ -21,7 +40,8 @@ int main(void){
         mainloop();
     }
     #else
-    emscripten_set_main_loop(mainloop, 0, 0);
+    requestAnimationFrameLoopWithJSPI(mainloop);
+    //emscripten_set_main_loop(mainloop, 0, 0);
     #endif
     
 }
