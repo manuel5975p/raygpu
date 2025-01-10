@@ -2,7 +2,7 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 
-typedef bool (*FrameCallback)();
+typedef void (*FrameCallback)();
 #ifdef __EMSCRIPTEN__
 // Workaround for JSPI not working in emscripten_set_main_loop. Loosely based on this code:
 // https://github.com/emscripten-core/emscripten/issues/22493#issuecomment-2330275282
@@ -13,14 +13,16 @@ EM_JS(void, requestAnimationFrameLoopWithJSPI, (FrameCallback callback), {
     async function tick() {
         // Start the frame callback. 'await' means we won't call
         // requestAnimationFrame again until it completes.
-        var keepLooping = await wrappedCallback();
-        if (keepLooping) requestAnimationFrame(tick);
+        //var keepLooping = await wrappedCallback();
+        //if (keepLooping) requestAnimationFrame(tick);
+        await wrappedCallback();
+        requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
 })
 #endif
 #endif
-bool mainloop(void){
+void mainloop(void){
     BeginDrawing();
     ClearBackground((Color){230, 230, 230,255});
     DrawText("Hello WebGPU enjoyer", 100, 300, 50, (Color){190, 190, 190,255});
@@ -29,7 +31,6 @@ bool mainloop(void){
         ToggleFullscreen();
     }
     EndDrawing();
-    return true;
 }
 int main(void){
     //SetConfigFlags(FLAG_STDOUT_TO_FFMPEG);
@@ -39,6 +40,8 @@ int main(void){
     while(!WindowShouldClose()){
         mainloop();
     }
+    
+    //CopyTextureToTexture
     #else
     requestAnimationFrameLoopWithJSPI(mainloop);
     //emscripten_set_main_loop(mainloop, 0, 0);
