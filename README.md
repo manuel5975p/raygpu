@@ -18,7 +18,10 @@ A fast and simple [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebG
   - Not as lightweight and ubiquitous as OpenGL
   - Still in development
   - No support for platforms older than OpenGLES 3
-
+## Notable Differences to [raylib](https://github.com/raysan5/raylib/)
+- Rendertextures are **not** upside down
+- Vsync: Support for `FLAG_VSYNC_LOWLATENCY_HINT` to create a tearless Mailbox swapchain with a fallback to regular vsync if not supported
+- 
 # Roadmap and Demos
 - [x] Basic Windowing [Example](https://github.com/manuel5975p/raygpu/tree/master/examples/core_window.c)
 - [x] Basic Shapes [Example](https://github.com/manuel5975p/raygpu/tree/master/examples/core_shapes.c)
@@ -35,6 +38,7 @@ A fast and simple [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebG
 - [ ] Proper animation support
 - [ ] IQM / VOX support
 - [ ] GLSL Support
+
 
 ##### Tested on
 - Linux 

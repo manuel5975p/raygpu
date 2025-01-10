@@ -143,6 +143,7 @@ struct webgpu_cxx_state{
     //full_renderstate* rstate = nullptr;
     //Texture depthTexture{};
 };
+
 extern const std::unordered_map<std::string, int> emscriptenToGLFWKeyMap;
 void glfwKeyCallback (GLFWwindow* window, int key, int scancode, int action, int mods){
     if(action == GLFW_PRESS){
@@ -657,8 +658,15 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
             config.format = selectedFormat;
         }
         TRACELOG(LOG_INFO, "Selected surface format %s", textureFormatSpellingTable.at((WGPUTextureFormat)config.format).c_str());
-        
-        config.presentMode = !!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? g_wgpustate.throttled_PresentMode : g_wgpustate.unthrottled_PresentMode;
+        if(g_wgpustate.windowFlags & FLAG_VSYNC_LOWLATENCY_HINT){
+            config.presentMode = ((g_wgpustate.unthrottled_PresentMode == wgpu::PresentMode::Mailbox) ? g_wgpustate.unthrottled_PresentMode : g_wgpustate.throttled_PresentMode);
+        }
+        else if(g_wgpustate.windowFlags & FLAG_VSYNC_HINT){
+            config.presentMode = g_wgpustate.throttled_PresentMode;
+        }
+        else{
+            config.presentMode = g_wgpustate.unthrottled_PresentMode;
+        }
         TRACELOG(LOG_INFO, "Selected present mode %s", presentModeSpellingTable.at((WGPUPresentMode)config.presentMode).c_str());
         config.width = width;
         config.height = height;
@@ -792,7 +800,8 @@ void EnableCursor(cwoid){
     glfwSetInputMode(g_wgpustate.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 }
 void DisableCursor(cwoid){
-    #ifndef __EMSCRIPTEN__
+    
+    #if !defined(__EMSCRIPTEN__) && !defined(DAWN_USE_WAYLAND)
     glfwSetInputMode(g_wgpustate.window, GLFW_CURSOR, GLFW_CURSOR_CAPTURED);
     #endif
 }

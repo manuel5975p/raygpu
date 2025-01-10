@@ -223,8 +223,7 @@ extern "C" void DrawMesh(Mesh mesh, Material material, Matrix transform){
         DrawArrays(WGPUPrimitiveTopology_TriangleList, mesh.vertexCount);
     }
 }
-Model LoadOBJ(const char *fileName)
-{
+Model LoadOBJ(const char *fileName){
     tinyobj_attrib_t objAttributes zeroinit;
     tinyobj_shape_t *objShapes = NULL;
     unsigned int objShapeCount = 0;
