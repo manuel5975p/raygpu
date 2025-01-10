@@ -759,6 +759,11 @@ EXTERN_C_BEGIN
     void EndMode2D(cwoid);
     void BeginMode3D(Camera3D camera);
     void EndMode3D(cwoid);
+    void LoadIdentity(cwoid);
+    void PushMatrix(cwoid);
+    void PopMatrix(cwoid);
+    Matrix GetMatrix(cwoid);
+
     char *LoadFileText(const char* fileName);
     void UnloadFileText(char* content);
     void* LoadFileData(const char* fileName, size_t* dataSize);

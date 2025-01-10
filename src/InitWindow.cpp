@@ -424,7 +424,7 @@ void ResizeCallback(GLFWwindow* window, int width, int height){
         g_wgpustate.mainWindowRenderTarget = toBeResizedRendertexture;
     }
     Matrix newcamera = ScreenMatrix(width, height);
-    BufferData(g_wgpustate.defaultScreenMatrix, &newcamera, sizeof(Matrix));
+    //BufferData(g_wgpustate.defaultScreenMatrix, &newcamera, sizeof(Matrix));
     setTargetTextures(g_wgpustate.rstate, g_wgpustate.rstate->color, g_wgpustate.currentDefaultRenderTarget.colorMultisample.view, g_wgpustate.currentDefaultRenderTarget.depth.view);
     //updateRenderPassDesc(g_wgpustate.rstate);
     //TODO wtf is this?
@@ -755,8 +755,8 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     g_wgpustate.rstate->renderpass.cmdEncoder = wgpuDeviceCreateCommandEncoder(g_wgpustate.device.Get(), &cedesc);
     Matrix m = ScreenMatrix(width, height);
     static_assert(sizeof(Matrix) == 64, "non 4 byte floats? or what");
-    g_wgpustate.defaultScreenMatrix = GenUniformBuffer(&m, sizeof(Matrix));
-    SetUniformBuffer(0, g_wgpustate.defaultScreenMatrix);
+    //g_wgpustate.defaultScreenMatrix = GenUniformBuffer(&m, sizeof(Matrix));
+    //SetUniformBuffer(0, g_wgpustate.defaultScreenMatrix);
     SetTexture(1, g_wgpustate.whitePixel);
     Matrix iden = MatrixIdentity();
     SetStorageBufferData(3, &iden, 64);

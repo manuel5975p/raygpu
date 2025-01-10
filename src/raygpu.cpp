@@ -456,10 +456,10 @@ WGPUDevice GetDevice(){
     return g_wgpustate.device.Get();
 }
 Texture GetDepthTexture(){
-    return g_wgpustate.currentDefaultRenderTarget.depth;
+    return g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].depth;
 }
 Texture GetIntermediaryColorTarget(){
-    return g_wgpustate.currentDefaultRenderTarget.colorMultisample;
+    return g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].colorMultisample;
 }
 WGPUQueue GetQueue(){
     return g_wgpustate.queue.Get();
@@ -596,12 +596,34 @@ void drawCurrentBatch(){
     vboptr = vboptr_base;
 }
 
+void LoadIdentity(cwoid){
+    g_wgpustate.matrixStack[g_wgpustate.stackPosition].first = MatrixIdentity();
+}
+void PushMatrix(){
+    ++g_wgpustate.stackPosition;
+}
+void PopMatrix(){
+    --g_wgpustate.stackPosition;
+}
+Matrix GetMatrix(){
+    return g_wgpustate.matrixStack[g_wgpustate.stackPosition].first;
+}
+Matrix* GetMatrixPtr(){
+    return &g_wgpustate.matrixStack[g_wgpustate.stackPosition].first;
+}
+void SetMatrix(Matrix m){
+    g_wgpustate.matrixStack[g_wgpustate.stackPosition].first = m;
+}
+WGPUBuffer GetMatrixBuffer(){
+    wgpuQueueWriteBuffer(GetQueue(), g_wgpustate.matrixStack[g_wgpustate.stackPosition].second, 0, &g_wgpustate.matrixStack[g_wgpustate.stackPosition].first, sizeof(Matrix));
+    return g_wgpustate.matrixStack[g_wgpustate.stackPosition].second;
+}
 extern "C" void BeginPipelineMode(DescribedPipeline* pipeline){
     drawCurrentBatch();
     g_wgpustate.rstate->activePipeline = pipeline;
     uint32_t location = GetUniformLocation(pipeline, RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION_VIEW);
     if(location != LOCATION_NOT_FOUND){
-        SetUniformBufferData(location, &g_wgpustate.activeScreenMatrix, sizeof(Matrix));
+        SetUniformBufferData(location, &g_wgpustate.matrixStack[g_wgpustate.stackPosition], sizeof(Matrix));
     }
     //BindPipeline(pipeline, drawMode);
 }
@@ -614,24 +636,31 @@ extern "C" void BeginMode2D(Camera2D camera){
     drawCurrentBatch();
     Matrix mat = GetCameraMatrix2D(camera);
     mat = MatrixMultiply(ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY), mat);
-    g_wgpustate.activeScreenMatrix = mat;
+    PushMatrix();
+    SetMatrix(mat);
     SetUniformBufferData(0, &mat, sizeof(Matrix));
 }
 extern "C" void EndMode2D(){
     drawCurrentBatch();
-    g_wgpustate.activeScreenMatrix = ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
-    SetUniformBufferData(0, &g_wgpustate.activeScreenMatrix, sizeof(Matrix));
+    PopMatrix();
+    //g_wgpustate.activeScreenMatrix = ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
+    
+    SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
 }
 void BeginMode3D(Camera3D camera){
     drawCurrentBatch();
     Matrix mat = GetCameraMatrix3D(camera, float(g_wgpustate.rstate->renderExtentX) / g_wgpustate.rstate->renderExtentY);
-    g_wgpustate.activeScreenMatrix = mat;
+    //g_wgpustate.activeScreenMatrix = mat;
+    PushMatrix();
+    SetMatrix(mat);
     SetUniformBufferData(0, &mat, sizeof(Matrix));
 }
 void EndMode3D(){
     drawCurrentBatch();
-    g_wgpustate.activeScreenMatrix = ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
-    SetUniformBufferData(0, &g_wgpustate.activeScreenMatrix, sizeof(Matrix));
+    
+    //g_wgpustate.activeScreenMatrix = ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
+    PopMatrix();
+    SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
 }
 extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode){
     switch(drawMode){
@@ -848,7 +877,7 @@ void BeginDrawing(){
         headless_rtex = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
         setTargetTextures(g_wgpustate.rstate, headless_rtex.texture.view, headless_rtex.colorMultisample.view, headless_rtex.depth.view);
 
-        g_wgpustate.currentDefaultRenderTarget = headless_rtex;
+        g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition] = headless_rtex;
     }
     else{
         
@@ -872,8 +901,10 @@ void BeginDrawing(){
         setTargetTextures(g_wgpustate.rstate, g_wgpustate.currentDefaultRenderTarget.texture.view, g_wgpustate.currentDefaultRenderTarget.colorMultisample.view, g_wgpustate.currentDefaultRenderTarget.depth.view);
     }
     BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
-    SetUniformBuffer(0, g_wgpustate.defaultScreenMatrix);
-    g_wgpustate.activeScreenMatrix = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
+    //SetUniformBuffer(0, g_wgpustate.defaultScreenMatrix);
+    SetMatrix(ScreenMatrix(GetScreenWidth(), GetScreenHeight()));
+    SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
+    
     if(IsKeyPressed(KEY_F2) && (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL) || true)){
         if(g_wgpustate.grst->recording){
             EndGIFRecording();
