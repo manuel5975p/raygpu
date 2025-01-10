@@ -19,8 +19,6 @@
 #include <sdefl.h>
 #include "msf_gif.h"
 #ifdef __EMSCRIPTEN__
-#include <emscripten/html5.h>
-#include <emscripten/emscripten.h>
 #endif  // __EMSCRIPTEN__
 wgpustate g_wgpustate{};
 
@@ -50,13 +48,13 @@ void startRecording(GIFRecordState* grst, uint64_t delay){
     grst->recording = true;
 }
 
-void addScreenshot(GIFRecordState* grst){
+void addScreenshot(GIFRecordState* grst, WGPUTexture tex){
     //#ifdef __EMSCRIPTEN__
     //if(grst->numberOfFrames > 0)
     //    msf_gif_frame(&grst->msf_state, (uint8_t*)fbLoad.data, grst->delayInCentiseconds, 8, fbLoad.rowStrideInBytes);
     //#endif
     grst->lastFrameTimestamp = NanoTime();
-    Image fb = LoadImageFromTextureEx(GetActiveColorTarget(), 0);
+    Image fb = LoadImageFromTextureEx(tex, 0);
     //#ifndef __EMSCRIPTEN__
     msf_gif_frame(&grst->msf_state, (uint8_t*)fb.data, grst->delayInCentiseconds, 8, fb.rowStrideInBytes);
     //#endif
@@ -667,10 +665,10 @@ extern "C" void CopyTextureToTexture(Texture source, Texture dest){
     WGPUBufferDescriptor bdesc zeroinit;
     bdesc.size = rowBytes * source.height;
     bdesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc;
-    if(!intermediary)
+    if(!intermediary){
         intermediary = wgpuDeviceCreateBuffer(GetDevice(), &bdesc);
-    
-    if(wgpuBufferGetSize(intermediary) < bdesc.size){
+    }
+    else if(wgpuBufferGetSize(intermediary) < bdesc.size){
         wgpuBufferRelease(intermediary);
         intermediary = wgpuDeviceCreateBuffer(GetDevice(), &bdesc);
     }
@@ -789,6 +787,33 @@ void EndComputepassEx(DescribedComputepass* computePass){
     wgpuCommandBufferRelease(command);
     wgpuCommandEncoderRelease(computePass->cmdEncoder);
 }
+#ifdef __EMSCRIPTEN__
+typedef void (*FrameCallback)(void);
+// Workaround for JSPI not working in emscripten_set_main_loop. Loosely based on this code:
+// https://github.com/emscripten-core/emscripten/issues/22493#issuecomment-2330275282
+// This code only works with JSPI is enabled.
+// I believe -sEXPORTED_RUNTIME_METHODS=getWasmTableEntry is technically necessary to link this.
+EM_JS(void, requestAnimationFrameLoopWithJSPI_impl, (FrameCallback callback), {
+    var wrappedCallback = WebAssembly.promising(getWasmTableEntry(callback));
+    async function tick() {
+        // Start the frame callback. 'await' means we won't call
+        // requestAnimationFrame again until it completes.
+        //var keepLooping = await wrappedCallback();
+        //if (keepLooping) requestAnimationFrame(tick);
+        await wrappedCallback();
+        requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+});
+//#define emscripten_set_main_loop requestAnimationFrameLoopWithJSPI
+#endif
+void requestAnimationFrameLoopWithJSPI(void (*callback)(void), int, int){
+    #ifdef __EMSCRIPTEN__
+    requestAnimationFrameLoopWithJSPI_impl(callback);
+    #else
+    TRACELOG(LOG_WARNING, "requestAnimationFrame not supported outside of emscripten");
+    #endif
+}
 RenderTexture headless_rtex;
 void BeginDrawing(){
     g_wgpustate.last_timestamps[g_wgpustate.total_frames % 64] = NanoTime();
@@ -881,14 +906,28 @@ void EndDrawing(){
     if(g_wgpustate.grst->recording){
         uint64_t stmp = NanoTime();
         if(stmp - g_wgpustate.grst->lastFrameTimestamp > g_wgpustate.grst->delayInCentiseconds * 10000000ull){
-            addScreenshot(g_wgpustate.grst);
+            g_wgpustate.currentDefaultRenderTarget.texture.format = g_wgpustate.frameBufferFormat;
+            Texture fbCopy = LoadTextureEx(g_wgpustate.currentDefaultRenderTarget.texture.width, g_wgpustate.currentDefaultRenderTarget.texture.height, g_wgpustate.frameBufferFormat, false);
+            BeginComputepass();
+            ComputepassEndOnlyComputing();
+            CopyTextureToTexture(g_wgpustate.currentDefaultRenderTarget.texture, fbCopy);
+            EndComputepass();
+            BeginRenderpass();
+            int recordingTextX = GetScreenWidth() - MeasureText("Recording", 30);
+            DrawText("Recording", recordingTextX, 5, 30, Color{255,40,40,255});
+            EndRenderpass();
+            addScreenshot(g_wgpustate.grst, fbCopy.id);
+            UnloadTexture(fbCopy);
             g_wgpustate.grst->lastFrameTimestamp = stmp;
         }
+        else{
+            BeginRenderpass();
+            int recordingTextX = GetScreenWidth() - MeasureText("Recording", 30);
+            DrawText("Recording", recordingTextX, 5, 30, Color{255,40,40,255});
+            EndRenderpass();
+        }
         
-        //BeginRenderpass();
-        //int recordingTextX = GetScreenWidth() - MeasureText("Recording", 30);
-        //DrawText("Recording", recordingTextX, 5, 30, Color{255,40,40,255});
-        //EndRenderpass();
+        
     }
     
     //WGPUSurfaceTexture surfaceTexture;

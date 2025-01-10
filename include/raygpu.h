@@ -16,6 +16,11 @@
 #include <cassert>
 #include <unordered_map>
 #endif
+#ifdef __EMSCRIPTEN__
+#include <emscripten/html5.h>
+#include <emscripten/emscripten.h>
+#define emscripten_set_main_loop requestAnimationFrameLoopWithJSPI
+#endif
 #define RL_FREE free
 #ifndef CHAR_BIT
 #define CHAR_BIT 8
@@ -319,13 +324,14 @@ constexpr Color RAYWHITE{ 245, 245, 245, 255 };
 
 
 typedef enum WindowFlag{
-    FLAG_STDOUT_TO_FFMPEG   = 0x02000000,   // Redirect tracelog to stderr and dump frames into stdout
+    FLAG_STDOUT_TO_FFMPEG       = 0x02000000,   // Redirect tracelog to stderr and dump frames into stdout
                                             // Made for <program> | ffmpeg -f rawvideo -pix_fmt bgra -s 1920x1080 -i - output.mp4
-    FLAG_HEADLESS           = 0x01000000,   // Disable ALL windowing stuff (Runnable without Desktop Server)
-    FLAG_VSYNC_HINT         = 0x00000040,   // Set to try enabling V-Sync on GPU (i.e. PresentMode::Fifo for the surface)
-    FLAG_MSAA_4X_HINT       = 0x00000020,   // Forcefully Hint (actually force) 4x multisampling for the default color buffer and pipeline
-    FLAG_WINDOW_RESIZABLE   = 0x00000004,
-    FLAG_FULLSCREEN_MODE    = 0x00000002,   // Set to run program in fullscreen
+    FLAG_HEADLESS               = 0x01000000,   // Disable ALL windowing stuff (Runnable without Desktop Server)
+    FLAG_VSYNC_LOWLATENCY_HINT  = 0x00100000,   // Set to try enabling Lowlatency tearless mailbox mode
+    FLAG_VSYNC_HINT             = 0x00000040,   // Set to try enabling V-Sync on GPU (i.e. PresentMode::Fifo for the surface)
+    FLAG_MSAA_4X_HINT           = 0x00000020,   // Forcefully Hint (actually force) 4x multisampling for the default color buffer and pipeline
+    FLAG_WINDOW_RESIZABLE       = 0x00000004,
+    FLAG_FULLSCREEN_MODE        = 0x00000002,   // Set to run program in fullscreen
 } WindowFlag;
 typedef enum draw_mode{
     RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS, RL_LINES
@@ -647,6 +653,7 @@ std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> getAttrib
 
 EXTERN_C_BEGIN
     GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title);
+    void requestAnimationFrameLoopWithJSPI(void (*callback)(void), int, int);
     void SetWindowShouldClose(cwoid);
     bool WindowShouldClose(cwoid);
     SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* title);
