@@ -24,7 +24,6 @@
 #endif  // __EMSCRIPTEN__
 wgpustate g_wgpustate{};
 
-Image fbLoad zeroinit;
 wgpu::Buffer readtex zeroinit;
 volatile bool waitflag = false;
 
@@ -52,15 +51,15 @@ void startRecording(GIFRecordState* grst, uint64_t delay){
 }
 
 void addScreenshot(GIFRecordState* grst){
-    #ifdef __EMSCRIPTEN__
-    if(grst->numberOfFrames > 0)
-        msf_gif_frame(&grst->msf_state, (uint8_t*)fbLoad.data, grst->delayInCentiseconds, 8, fbLoad.rowStrideInBytes);
-    #endif
+    //#ifdef __EMSCRIPTEN__
+    //if(grst->numberOfFrames > 0)
+    //    msf_gif_frame(&grst->msf_state, (uint8_t*)fbLoad.data, grst->delayInCentiseconds, 8, fbLoad.rowStrideInBytes);
+    //#endif
     grst->lastFrameTimestamp = NanoTime();
     Image fb = LoadImageFromTextureEx(GetActiveColorTarget(), 0);
-    #ifndef __EMSCRIPTEN__
-    msf_gif_frame(&grst->msf_state, (uint8_t*)fbLoad.data, grst->delayInCentiseconds, 8, fbLoad.rowStrideInBytes);
-    #endif
+    //#ifndef __EMSCRIPTEN__
+    msf_gif_frame(&grst->msf_state, (uint8_t*)fb.data, grst->delayInCentiseconds, 8, fb.rowStrideInBytes);
+    //#endif
     UnloadImage(fb);
     ++grst->numberOfFrames;
 }
@@ -882,10 +881,10 @@ void EndDrawing(){
             g_wgpustate.grst->lastFrameTimestamp = stmp;
         }
         
-        BeginRenderpass();
-        int recordingTextX = GetScreenWidth() - MeasureText("Recording", 30);
-        DrawText("Recording", recordingTextX, 5, 30, Color{255,40,40,255});
-        EndRenderpass();
+        //BeginRenderpass();
+        //int recordingTextX = GetScreenWidth() - MeasureText("Recording", 30);
+        //DrawText("Recording", recordingTextX, 5, 30, Color{255,40,40,255});
+        //EndRenderpass();
     }
     
     //WGPUSurfaceTexture surfaceTexture;
@@ -962,12 +961,13 @@ uint32_t RoundUpToNextMultipleOf16(uint32_t x) {
 
 #endif 
 
+
 Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t miplevel){
+    
     size_t formatSize = GetPixelSizeInBytes(wgpuTextureGetFormat(tex));
     uint32_t width = wgpuTextureGetWidth(tex);
     uint32_t height = wgpuTextureGetHeight(tex);
     Image ret {(PixelFormat)wgpuTextureGetFormat(tex), wgpuTextureGetWidth(tex), wgpuTextureGetHeight(tex), RoundUpToNextMultipleOf256(formatSize * width), nullptr, 1};
-    fbLoad = ret;
     WGPUBufferDescriptor b{};
     b.mappedAtCreation = false;
     
@@ -1003,9 +1003,9 @@ Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t miplevel){
     //wgpuDeviceTick(GetDevice());
     //#else
     //#endif
-    fbLoad.format = (PixelFormat)ret.format;
+    ret.format = (PixelFormat)ret.format;
     waitflag = true;
-    auto onBuffer2Mapped = [](wgpu::MapAsyncStatus status, const char* userdata){
+    auto onBuffer2Mapped = [&ret](wgpu::MapAsyncStatus status, const char* userdata){
         //std::cout << "Backcalled: " << (int)status << std::endl;
         waitflag = false;
         if(status != wgpu::MapAsyncStatus::Success){
@@ -1015,9 +1015,9 @@ Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t miplevel){
 
         uint64_t bufferSize = readtex.GetSize();
         const void* map = readtex.GetConstMappedRange(0, bufferSize);
-        fbLoad.data = std::realloc(fbLoad.data , bufferSize);
-        //fbLoad.data = std::malloc(bufferSize);
-        std::memcpy(fbLoad.data, map, bufferSize);
+        //fbLoad.data = std::realloc(fbLoad.data , bufferSize);
+        ret.data = std::malloc(bufferSize);
+        std::memcpy(ret.data, map, bufferSize);
         readtex.Unmap();
         wgpuBufferRelease(readtex.MoveToCHandle());
     };
@@ -1065,7 +1065,7 @@ Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t miplevel){
     wgpuDeviceTick(device);
     #endif*/
     //readtex.Destroy();
-    return fbLoad;
+    return ret;
 }
 template<typename from, typename to>
 to convert4(const from& fr){
