@@ -71,7 +71,7 @@ constexpr float RAD2DEG = 180.0 / M_PI;
 #define RL_DEFAULT_SHADER_UNIFORM_NAME_MVP                 "mvp"               // model-view-projection matrix
 #define RL_DEFAULT_SHADER_UNIFORM_NAME_VIEW                "matView"           // view matrix
 #define RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION          "matProjection"     // projection matrix
-#define RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION_VIEW     "Projection_View"   // projection*view matrix
+#define RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION_VIEW     "Perspective_View"  // projection*view matrix
 #define RL_DEFAULT_SHADER_UNIFORM_NAME_MODEL               "matModel"          // model matrix
 #define RL_DEFAULT_SHADER_UNIFORM_NAME_NORMAL              "matNormal"         // normal matrix (transpose(inverse(matModelView))
 #define RL_DEFAULT_SHADER_UNIFORM_NAME_COLOR               "colDiffuse"        // color diffuse (base tint color, multiplied by texture color)

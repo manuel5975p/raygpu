@@ -392,7 +392,8 @@ void ResizeCallback(GLFWwindow* window, int width, int height){
     //g_wgpustate.surface = wgpu::glfw::CreateSurfaceForWindow(g_wgpustate.instance, window).MoveToCHandle();
     //while(!g_wgpustate.drawmutex.try_lock());
     //g_wgpustate.drawmutex.lock();
-    TraceLog(LOG_DEBUG, "glfwSizeCallback called with %d x %d", width, height);
+    
+    TraceLog(LOG_WARNING, "glfwSizeCallback called with %d x %d", width, height);
     wgpu::SurfaceCapabilities capabilities;
     g_wgpustate.surface.GetCapabilities(g_wgpustate.adapter, &capabilities);
     wgpu::SurfaceConfiguration config = {};
@@ -419,6 +420,9 @@ void ResizeCallback(GLFWwindow* window, int width, int height){
     toBeResizedRendertexture.texture.width = width;
     toBeResizedRendertexture.texture.height = height;
     wgpuSurfaceConfigure(g_wgpustate.createdSubwindows[window].surface, (WGPUSurfaceConfiguration*)&config);
+    if(window == g_wgpustate.window){
+        g_wgpustate.mainWindowRenderTarget = toBeResizedRendertexture;
+    }
     Matrix newcamera = ScreenMatrix(width, height);
     BufferData(g_wgpustate.defaultScreenMatrix, &newcamera, sizeof(Matrix));
     setTargetTextures(g_wgpustate.rstate, g_wgpustate.rstate->color, g_wgpustate.currentDefaultRenderTarget.colorMultisample.view, g_wgpustate.currentDefaultRenderTarget.depth.view);
@@ -612,6 +616,16 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         //#ifndef __EMSCRIPTEN__
         wgpu::SurfaceCapabilities capabilities;
         GetCXXSurface().GetCapabilities(GetCXXAdapter(), &capabilities);
+        {
+            std::string presentModeString;
+            for(uint32_t i = 0;i < capabilities.presentModeCount;i++){
+                presentModeString += presentModeSpellingTable.at((WGPUPresentMode)capabilities.presentModes[i]).c_str();
+                if(i < capabilities.presentModeCount - 1){
+                    presentModeString += ", ";
+                }
+            }
+            TRACELOG(LOG_INFO, "Supported present modes: %s", presentModeString.c_str());
+        }
         if(capabilities.presentModeCount == 1){
             TRACELOG(LOG_INFO, "Only %s supported", presentModeSpellingTable.at((WGPUPresentMode)capabilities.presentModes[0]).c_str());
             g_wgpustate.unthrottled_PresentMode = capabilities.presentModes[0];
@@ -640,6 +654,16 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
 
         config.device = GetCXXDevice();
         config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
+        {
+            std::string formatsString;
+            for(uint32_t i = 0;i < capabilities.formatCount;i++){
+                formatsString += textureFormatSpellingTable.at((WGPUTextureFormat)capabilities.formats[i]).c_str();
+                if(i < capabilities.formatCount - 1){
+                    formatsString += ", ";
+                }
+            }
+            TRACELOG(LOG_INFO, "Supported surface formats: %s", formatsString.c_str());
+        }
         //std::cout << "Supported format count: " << capabilities.formatCount << "\n";
         wgpu::TextureFormat selectedFormat = wgpu::TextureFormat::Undefined;
         int format_index = 0;
@@ -760,7 +784,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
         SetTargetFPS(rate);
     }
     else
-        SetTargetFPS(60);
+        SetTargetFPS(0);
     g_wgpustate.createdSubwindows[window].handle = window;
     g_wgpustate.createdSubwindows[window].surface = GetSurface();
     g_wgpustate.createdSubwindows[window].frameBuffer = g_wgpustate.mainWindowRenderTarget;
@@ -801,7 +825,7 @@ void EnableCursor(cwoid){
 }
 void DisableCursor(cwoid){
     
-    #if !defined(__EMSCRIPTEN__) && !defined(DAWN_USE_WAYLAND)
+    #if !defined(__EMSCRIPTEN__) && !defined(DAWN_USE_WAYLAND) && defined(GLFW_CURSOR_CAPTURED)
     glfwSetInputMode(g_wgpustate.window, GLFW_CURSOR, GLFW_CURSOR_CAPTURED);
     #endif
 }

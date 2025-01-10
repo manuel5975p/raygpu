@@ -42,11 +42,11 @@ A fast and simple [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebG
 
 ##### Tested on
 - Linux 
-    - X11
-    - Wayland 
-    - Vulkan
-    - OpenGL/ES
-    - AMD and NVidia
+  - X11
+  - Wayland 
+  - Vulkan
+  - OpenGL/ES
+  - AMD and NVidia
 - Windows
   - DX12 
   - Vulkan
@@ -74,10 +74,8 @@ ___
 ### Rewriting the main loop for emscripten
 It is highly advisable to use `emscripten_set_main_loop` for Web-Targeting programs. This gives control back to the browser in a deterministic and efficient way to control framerate and its own event loop. 
 ```c
-#include <raygpu.h>
-#ifdef __EMSCRIPTEN__
-#include <emscripten.h>
-#endif
+#include <raygpu.h> // Includes <emscripten.h>
+
 void mainloop(){
     BeginDrawing();
     ClearBackground(GREEN);
@@ -116,6 +114,7 @@ FetchContent_MakeAvailable(raygpu_git)
 
 target_link_libraries(<your target> PUBLIC raygpu)
 ```
+Most likely
 
 ___
 #### Building for Linux
@@ -227,7 +226,7 @@ EnableVertexAttribArray(vao, 0);
 BindVertexArray(pipeline, vao);
 DrawArrays(WGPUPrimitiveTopology_TriangleList, 3);
 ```
-In contrast to `glVertexAttribPointer`, `VertexAttribPointer` does not take a stride argument. This is due to a difference in how Vertex Buffer Layouts work in WebGPU and Opengl:
+In contrast to `glVertexAttribPointer`, `VertexAttribPointer` does not take a stride argument. This is due to a difference in how Vertex Buffer Layouts work in WebGPU and OpenGL:
 - In OpenGL, every vertex attribute sets its own stride, allowing attributes in the same buffer to have different strides
 - In WebGPU, the stride is shared per-buffer
 

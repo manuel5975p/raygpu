@@ -30,7 +30,6 @@ struct wgpustate{
     uint32_t width, height;
 
     WGPUTextureFormat frameBufferFormat;
-    draw_mode current_drawmode;
     full_renderstate* rstate;
     
     std::vector<DescribedBuffer*> smallBufferPool;

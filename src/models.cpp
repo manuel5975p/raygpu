@@ -117,11 +117,11 @@ Mesh GenMeshCube(float width, float height, float length){
     };
 
     Mesh cubeMesh zeroinit;
-    cubeMesh.vertices = (float*)  calloc(vertexCount, sizeof(float) * 3);
+    cubeMesh.vertices  = (float*) calloc(vertexCount, sizeof(float) * 3);
     cubeMesh.texcoords = (float*) calloc(vertexCount, sizeof(float) * 2);
-    cubeMesh.normals = (float*)   calloc(vertexCount, sizeof(float) * 3);
-    cubeMesh.colors = (float*)    calloc(vertexCount, sizeof(float) * 4);
-    cubeMesh.indices = (uint32_t*)calloc(36, sizeof(uint32_t));
+    cubeMesh.normals   = (float*) calloc(vertexCount, sizeof(float) * 3);
+    cubeMesh.colors    = (uint8_t*) calloc(vertexCount, sizeof(uint8_t) * 4);
+    cubeMesh.indices   = (uint32_t*)calloc(36, sizeof(uint32_t));
     uint32_t k = 0;
     for(uint32_t i = 0; i < 36; i += 6){
         cubeMesh.indices[i] = 4*k;
@@ -137,15 +137,15 @@ Mesh GenMeshCube(float width, float height, float length){
     memcpy(cubeMesh.texcoords, texcoords, vertexCount * sizeof(float) * 2);
     memcpy(cubeMesh.normals, normals, vertexCount * sizeof(float) * 3);
     cubeMesh.vertexCount = vertexCount;
-    std::fill(cubeMesh.colors, cubeMesh.colors + vertexCount * 4, 1.0f);
+    std::fill(cubeMesh.colors, cubeMesh.colors + vertexCount * 4, uint8_t(255));
     UploadMesh(&cubeMesh, false);
     return cubeMesh;
 }
 void UploadMesh(Mesh *mesh, bool dynamic){
     if(mesh->colors == nullptr){
-        mesh->colors = (float*)RL_CALLOC(mesh->vertexCount, sizeof(Vector4));
+        mesh->colors = (uint8_t*)RL_CALLOC(mesh->vertexCount, sizeof(RGBA8Color));
         for(size_t i = 0;i < mesh->vertexCount * 4;i++){
-            mesh->colors[i] = 1;
+            mesh->colors[i] = 255;
         }
     }
     if(mesh->vbos == nullptr){
@@ -153,7 +153,7 @@ void UploadMesh(Mesh *mesh, bool dynamic){
         mesh->vbos[0] = GenBuffer(mesh->vertices , mesh->vertexCount * sizeof(float  ) * 3);
         mesh->vbos[1] = GenBuffer(mesh->texcoords, mesh->vertexCount * sizeof(float  ) * 2);
         mesh->vbos[2] = GenBuffer(mesh->normals  , mesh->vertexCount * sizeof(float  ) * 3);
-        mesh->vbos[3] = GenBuffer(mesh->colors   , mesh->vertexCount * sizeof(float  ) * 4);
+        mesh->vbos[3] = GenBuffer(mesh->colors   , mesh->vertexCount * sizeof(uint8_t) * 4);
         if(mesh->boneWeights){
             mesh->vbos[4] = GenBuffer(mesh->boneWeights, mesh->vertexCount * sizeof(float) * 4);
         }
@@ -171,7 +171,7 @@ void UploadMesh(Mesh *mesh, bool dynamic){
         EnableVertexAttribArray(mesh->vao, 1);
         VertexAttribPointer(mesh->vao, mesh->vbos[2], 2, WGPUVertexFormat_Float32x3, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
         EnableVertexAttribArray(mesh->vao, 2);
-        VertexAttribPointer(mesh->vao, mesh->vbos[3], 3, WGPUVertexFormat_Float32x4, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
+        VertexAttribPointer(mesh->vao, mesh->vbos[3], 3, WGPUVertexFormat_Unorm8x4, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
         EnableVertexAttribArray(mesh->vao, 3);
         if(mesh->boneWeights){
             VertexAttribPointer(mesh->vao, mesh->vbos[4], 4, WGPUVertexFormat_Float32x4, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
@@ -189,7 +189,7 @@ void UploadMesh(Mesh *mesh, bool dynamic){
         BufferData(mesh->vbos[0], mesh->vertices , mesh->vertexCount * sizeof(float  ) * 3);
         BufferData(mesh->vbos[1], mesh->texcoords, mesh->vertexCount * sizeof(float  ) * 2);
         BufferData(mesh->vbos[2], mesh->normals  , mesh->vertexCount * sizeof(float  ) * 3);
-        BufferData(mesh->vbos[3], mesh->colors   , mesh->vertexCount * sizeof(float  ) * 4);
+        BufferData(mesh->vbos[3], mesh->colors   , mesh->vertexCount * sizeof(uint8_t) * 4);
         if(mesh->indices){
             BufferData(mesh->ibo, mesh->indices, mesh->triangleCount * 3 * sizeof(uint32_t));
         }
@@ -223,6 +223,38 @@ extern "C" void DrawMesh(Mesh mesh, Material material, Matrix transform){
         DrawArrays(WGPUPrimitiveTopology_TriangleList, mesh.vertexCount);
     }
 }
+void ProcessMaterialsOBJ(Material *materials, tinyobj_material_t *mats, int materialCount, const char* directory){
+    // Init model mats
+    for (int m = 0; m < materialCount; m++){
+        // Init material to default
+        // NOTE: Uses default shader, which only supports MATERIAL_MAP_DIFFUSE
+        materials[m] = LoadMaterialDefault();
+
+        if (mats == NULL) continue;
+
+        // Get default texture, in case no texture is defined
+        // NOTE: rlgl default texture is a 1x1 pixel UNCOMPRESSED_R8G8B8A8
+        materials[m].maps[MATERIAL_MAP_DIFFUSE].texture = GetDefaultTexture();
+
+        if (mats[m].diffuse_texname != NULL) materials[m].maps[MATERIAL_MAP_DIFFUSE].texture = LoadTexture(mats[m].diffuse_texname);  //char *diffuse_texname; // map_Kd
+        else materials[m].maps[MATERIAL_MAP_DIFFUSE].color = CLITERAL(Color){ (unsigned char)(mats[m].diffuse[0]*255.0f), (unsigned char)(mats[m].diffuse[1]*255.0f), (unsigned char)(mats[m].diffuse[2]*255.0f), 255 }; //float diffuse[3];
+        materials[m].maps[MATERIAL_MAP_DIFFUSE].value = 0.0f;
+
+        if (mats[m].specular_texname != NULL) materials[m].maps[MATERIAL_MAP_SPECULAR].texture = LoadTexture(mats[m].specular_texname);  //char *specular_texname; // map_Ks
+        materials[m].maps[MATERIAL_MAP_SPECULAR].color = CLITERAL(Color){ (unsigned char)(mats[m].specular[0]*255.0f), (unsigned char)(mats[m].specular[1]*255.0f), (unsigned char)(mats[m].specular[2]*255.0f), 255 }; //float specular[3];
+        materials[m].maps[MATERIAL_MAP_SPECULAR].value = 0.0f;
+
+        if (mats[m].bump_texname != NULL) materials[m].maps[MATERIAL_MAP_NORMAL].texture = LoadTexture(mats[m].bump_texname);  //char *bump_texname; // map_bump, bump
+        materials[m].maps[MATERIAL_MAP_NORMAL].color = WHITE;
+        materials[m].maps[MATERIAL_MAP_NORMAL].value = mats[m].shininess;
+
+        materials[m].maps[MATERIAL_MAP_EMISSION].color = CLITERAL(Color){ (unsigned char)(mats[m].emission[0]*255.0f), (unsigned char)(mats[m].emission[1]*255.0f), (unsigned char)(mats[m].emission[2]*255.0f), 255 }; //float emission[3];
+
+        if (mats[m].displacement_texname != NULL) materials[m].maps[MATERIAL_MAP_HEIGHT].texture = LoadTexture(mats[m].displacement_texname);  //char *displacement_texname; // disp
+    }
+}
+
+
 Model LoadOBJ(const char *fileName){
     tinyobj_attrib_t objAttributes zeroinit;
     tinyobj_shape_t *objShapes = NULL;
@@ -241,11 +273,9 @@ Model LoadOBJ(const char *fileName){
         return model;
     }
 
-    char currentDir[1024] zeroinit;
-
-
+    
     //strcpy(currentDir, GetWorkingDirectory()); // Save current working directory
-    //const char *workingDir = GetDirectoryPath(fileName); // Switch to OBJ directory for material path correctness
+    const char *objDir = GetDirectoryPath(fileName); // Switch to OBJ directory for material path correctness
     //if (CHDIR(workingDir) != 0) TRACELOG(LOG_WARNING, "MODEL: [%s] Failed to change working directory", workingDir);
 
     unsigned int dataSize = (unsigned int)strlen(fileText);
@@ -363,10 +393,10 @@ Model LoadOBJ(const char *fileName){
             model.meshes[i].vertexCount = vertexCount;
             model.meshes[i].triangleCount = vertexCount/3;
 
-            model.meshes[i].vertices = (float *) calloc(vertexCount * 3, sizeof(float));
-            model.meshes[i].normals = (float *)  calloc(vertexCount * 3, sizeof(float));
-            model.meshes[i].texcoords = (float *)calloc(vertexCount * 2, sizeof(float));
-            model.meshes[i].colors = (float *)   calloc(vertexCount * 4, sizeof(float));
+            model.meshes[i].vertices  = (float *)   RL_CALLOC(vertexCount * 3, sizeof(float  ));
+            model.meshes[i].normals   = (float *)   RL_CALLOC(vertexCount * 3, sizeof(float  ));
+            model.meshes[i].texcoords = (float *)   RL_CALLOC(vertexCount * 2, sizeof(float  ));
+            model.meshes[i].colors    = (uint8_t *) RL_CALLOC(vertexCount * 4, sizeof(uint8_t));
         }
 
     free(localMeshVertexCounts);
@@ -426,15 +456,15 @@ Model LoadOBJ(const char *fileName){
 
             model.meshes[meshIndex].texcoords[localMeshVertexCount*2 + 1] = 1.0f - model.meshes[meshIndex].texcoords[localMeshVertexCount*2 + 1];
 
-            for (int i = 0; i < 4; i++) model.meshes[meshIndex].colors[localMeshVertexCount * 4 + i] = 1.0f;
+            for (int i = 0; i < 4; i++) model.meshes[meshIndex].colors[localMeshVertexCount * 4 + i] = uint8_t(255);
 
             faceVertIndex++;
             localMeshVertexCount++;
         }
     }
 
-    //if (objMaterialCount > 0) ProcessMaterialsOBJ(model.materials, objMaterials, objMaterialCount);
-    //else model.materials[0] = LoadMaterialDefault(); // Set default material for the mesh
+    if (objMaterialCount > 0) ProcessMaterialsOBJ(model.materials, objMaterials, objMaterialCount, objDir);
+    else model.materials[0] = LoadMaterialDefault(); // Set default material for the mesh
 
     tinyobj_attrib_free(&objAttributes);
     tinyobj_shapes_free(objShapes, objShapeCount);
@@ -1317,7 +1347,7 @@ Model LoadGLTF(const char *fileName)
                             if (attribute->component_type == cgltf_component_type_r_8u)
                             {
                                 // Init raylib mesh color to copy glTF attribute data
-                                model.meshes[meshIndex].colors = (float*)RL_MALLOC(attribute->count*4*sizeof(float));
+                                model.meshes[meshIndex].colors = (uint8_t*)RL_MALLOC(attribute->count * 4 * sizeof(uint8_t));
 
                                 // Load data into a temp buffer to be converted to raylib data type
                                 unsigned char *temp = (unsigned char*)RL_MALLOC(attribute->count*3*sizeof(unsigned char));
@@ -1338,7 +1368,7 @@ Model LoadGLTF(const char *fileName)
                             else if (attribute->component_type == cgltf_component_type_r_16u)
                             {
                                 // Init raylib mesh color to copy glTF attribute data
-                                model.meshes[meshIndex].colors = (float*)RL_MALLOC(attribute->count * 4 * sizeof(float));
+                                model.meshes[meshIndex].colors = (uint8_t*)RL_MALLOC(attribute->count * 4 * sizeof(uint8_t));
 
                                 // Load data into a temp buffer to be converted to raylib data type
                                 unsigned short *temp = (unsigned short *)RL_MALLOC(attribute->count*3*sizeof(unsigned short));
@@ -1347,10 +1377,10 @@ Model LoadGLTF(const char *fileName)
                                 // Convert data to raylib color data type (4 bytes)
                                 for (unsigned int c = 0, k = 0; c < (attribute->count*4 - 3); c += 4, k += 3)
                                 {
-                                    model.meshes[meshIndex].colors[c] = (unsigned char)(((float)temp[k]/65535.0f));
-                                    model.meshes[meshIndex].colors[c + 1] = (unsigned char)(((float)temp[k + 1]/65535.0f));
-                                    model.meshes[meshIndex].colors[c + 2] = (unsigned char)(((float)temp[k + 2]/65535.0f));
-                                    model.meshes[meshIndex].colors[c + 3] = 1.0f;
+                                    model.meshes[meshIndex].colors[c] = (unsigned char)(((float)temp[k] / 255));
+                                    model.meshes[meshIndex].colors[c + 1] = (unsigned char)(((float)temp[k + 1] / 255));
+                                    model.meshes[meshIndex].colors[c + 2] = (unsigned char)(((float)temp[k + 2] / 255));
+                                    model.meshes[meshIndex].colors[c + 3] = uint8_t(255);
                                 }
 
                                 RL_FREE(temp);
@@ -1358,7 +1388,7 @@ Model LoadGLTF(const char *fileName)
                             else if (attribute->component_type == cgltf_component_type_r_32f)
                             {
                                 // Init raylib mesh color to copy glTF attribute data
-                                model.meshes[meshIndex].colors = (float*)RL_MALLOC(attribute->count*4*sizeof(float));
+                                model.meshes[meshIndex].colors = (uint8_t*)RL_MALLOC(attribute->count*4*sizeof(uint8_t));
 
                                 // Load data into a temp buffer to be converted to raylib data type
                                 float *temp = (float *)RL_MALLOC(attribute->count*3*sizeof(float));
@@ -1367,10 +1397,10 @@ Model LoadGLTF(const char *fileName)
                                 // Convert data to raylib color data type (4 bytes)
                                 for (unsigned int c = 0, k = 0; c < (attribute->count*4 - 3); c += 4, k += 3)
                                 {
-                                    model.meshes[meshIndex].colors[c]     = (unsigned char)(temp[k]);
-                                    model.meshes[meshIndex].colors[c + 1] = (unsigned char)(temp[k + 1]);
-                                    model.meshes[meshIndex].colors[c + 2] = (unsigned char)(temp[k + 2]);
-                                    model.meshes[meshIndex].colors[c + 3] = 1.0f;
+                                    model.meshes[meshIndex].colors[c]     = (unsigned char)(temp[k]     * 255.0f);
+                                    model.meshes[meshIndex].colors[c + 1] = (unsigned char)(temp[k + 1] * 255.0f);
+                                    model.meshes[meshIndex].colors[c + 2] = (unsigned char)(temp[k + 2] * 255.0f);
+                                    model.meshes[meshIndex].colors[c + 3] = uint8_t(255);
                                 }
 
                                 RL_FREE(temp);
@@ -1382,39 +1412,39 @@ Model LoadGLTF(const char *fileName)
                             if (attribute->component_type == cgltf_component_type_r_8u)
                             {
                                 // Init raylib mesh color to copy glTF attribute data
-                                model.meshes[meshIndex].colors = (float*)RL_MALLOC(attribute->count*4*sizeof(float));
+                                model.meshes[meshIndex].colors = (uint8_t*)RL_MALLOC(attribute->count*4*sizeof(uint8_t));
 
                                 unsigned char *temp = (unsigned char*)RL_MALLOC(attribute->count*4*sizeof(unsigned char));
                                 LOAD_ATTRIBUTE(attribute, 4, unsigned char, temp)
-                                for (unsigned int c = 0; c < attribute->count*4; c++) model.meshes[meshIndex].colors[c] = (((float)temp[c]/255.0f));
+                                for (unsigned int c = 0; c < attribute->count*4; c++) model.meshes[meshIndex].colors[c] = temp[c];
 
                                 RL_FREE(temp);
                             }
                             else if (attribute->component_type == cgltf_component_type_r_16u)
                             {
                                 // Init raylib mesh color to copy glTF attribute data
-                                model.meshes[meshIndex].colors = (float*)RL_MALLOC(attribute->count*4*sizeof(float));
+                                model.meshes[meshIndex].colors = (uint8_t*)RL_MALLOC(attribute->count*4*sizeof(uint8_t));
 
                                 // Load data into a temp buffer to be converted to raylib data type
-                                unsigned short *temp = (unsigned short*)RL_MALLOC(attribute->count*4*sizeof(unsigned short));
-                                LOAD_ATTRIBUTE(attribute, 4, unsigned short, temp)
+                                uint16_t *temp = (uint16_t*)RL_MALLOC(attribute->count*4*sizeof(uint16_t));
+                                LOAD_ATTRIBUTE(attribute, 4, uint16_t, temp)
 
                                 // Convert data to raylib color data type (4 bytes)
-                                for (unsigned int c = 0; c < attribute->count*4; c++) model.meshes[meshIndex].colors[c] = (((float)temp[c]/65535.0f));
+                                for (unsigned int c = 0; c < attribute->count*4; c++) model.meshes[meshIndex].colors[c] = (((uint8_t)(temp[c] / 255)));
 
                                 RL_FREE(temp);
                             }
                             else if (attribute->component_type == cgltf_component_type_r_32f)
                             {
                                 // Init raylib mesh color to copy glTF attribute data
-                                model.meshes[meshIndex].colors = (float*)RL_MALLOC(attribute->count*4*sizeof(float));
+                                model.meshes[meshIndex].colors = (uint8_t*)RL_MALLOC(attribute->count * 4 * sizeof(uint8_t));
 
                                 // Load data into a temp buffer to be converted to raylib data type
                                 float *temp = (float*)RL_MALLOC(attribute->count*4*sizeof(float));
                                 LOAD_ATTRIBUTE(attribute, 4, float, temp)
 
                                 // Convert data to raylib color data type (4 bytes), we expect the color data normalized
-                                for (unsigned int c = 0; c < attribute->count*4; c++) model.meshes[meshIndex].colors[c] = (temp[c]);
+                                for (unsigned int c = 0; c < attribute->count*4; c++) model.meshes[meshIndex].colors[c] = uint8_t(temp[c] * 255);
 
                                 RL_FREE(temp);
                             }

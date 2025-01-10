@@ -571,6 +571,8 @@ Texture GetDefaultTexture(cwoid){
 }
 RenderSettings GetDefaultSettings(){
     RenderSettings ret zeroinit;
+    ret.faceCull = 1;
+    ret.frontFace = WGPUFrontFace_CCW;
     ret.depthTest = 1;
     ret.depthCompare = WGPUCompareFunction_LessEqual;
     ret.sampleCount_onlyApplicableIfMoreThanOne = (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;

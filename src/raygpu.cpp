@@ -129,6 +129,7 @@ vertex* vboptr;
 vertex* vboptr_base;
 VertexArray* renderBatchVAO;
 DescribedBuffer* renderBatchVBO;
+draw_mode current_drawmode;
 //DescribedBuffer vbomap;
 #ifdef _WIN32
 #define __builtin_unreachable(...)
@@ -507,7 +508,7 @@ void drawCurrentBatch(){
     renderBatchVAO->buffers.front().first = vbo;
     SetStorageBuffer(3, g_wgpustate.identityMatrix);
     UpdateBindGroup(&g_wgpustate.rstate->activePipeline->bindGroup);
-    switch(g_wgpustate.current_drawmode){
+    switch(current_drawmode){
         case RL_LINES:{
 
             //TODO: Line texturing is currently disable in all DrawLine... functions
@@ -598,7 +599,7 @@ void drawCurrentBatch(){
 extern "C" void BeginPipelineMode(DescribedPipeline* pipeline){
     drawCurrentBatch();
     g_wgpustate.rstate->activePipeline = pipeline;
-    uint32_t location = GetUniformLocation(pipeline, "Perspective_View");
+    uint32_t location = GetUniformLocation(pipeline, RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION_VIEW);
     if(location != LOCATION_NOT_FOUND){
         SetUniformBufferData(location, &g_wgpustate.activeScreenMatrix, sizeof(Matrix));
     }
@@ -789,6 +790,7 @@ void EndComputepassEx(DescribedComputepass* computePass){
 }
 #ifdef __EMSCRIPTEN__
 typedef void (*FrameCallback)(void);
+typedef void (*FrameCallbackArg)(void*);
 // Workaround for JSPI not working in emscripten_set_main_loop. Loosely based on this code:
 // https://github.com/emscripten-core/emscripten/issues/22493#issuecomment-2330275282
 // This code only works with JSPI is enabled.
@@ -805,8 +807,27 @@ EM_JS(void, requestAnimationFrameLoopWithJSPI_impl, (FrameCallback callback), {
     }
     requestAnimationFrame(tick);
 });
+EM_JS(void, requestAnimationFrameLoopWithJSPIArg_impl, (FrameCallbackArg callback, void* userData), {
+    var wrappedCallback = WebAssembly.promising(getWasmTableEntry(callback));
+    async function tick() {
+        // Start the frame callback. 'await' means we won't call
+        // requestAnimationFrame again until it completes.
+        //var keepLooping = await wrappedCallback();
+        //if (keepLooping) requestAnimationFrame(tick);
+        await wrappedCallback(userData);
+        requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+});
 //#define emscripten_set_main_loop requestAnimationFrameLoopWithJSPI
 #endif
+void requestAnimationFrameLoopWithJSPIArg(void (*callback)(void*), void* userData, int, int){
+    #ifdef __EMSCRIPTEN__
+    requestAnimationFrameLoopWithJSPIArg_impl(callback, userData);
+    #else
+    TRACELOG(LOG_WARNING, "requestAnimationFrame not supported outside of emscripten");
+    #endif
+}
 void requestAnimationFrameLoopWithJSPI(void (*callback)(void), int, int){
     #ifdef __EMSCRIPTEN__
     requestAnimationFrameLoopWithJSPI_impl(callback);
@@ -983,13 +1004,13 @@ void rlBegin(draw_mode mode){
     if(mode == RL_LINES){ //TODO: Fix this, why is this required? Check core_msaa and comment this out to trigger a bug
         SetTexture(1, g_wgpustate.whitePixel);
     }
-    if(g_wgpustate.current_drawmode != mode){
+    if(current_drawmode != mode){
         drawCurrentBatch();
         //assert(g_wgpustate.rstate->activeRenderPass == &g_wgpustate.rstate->renderpass);
         //EndRenderpassEx(&g_wgpustate.rstate->renderpass);
         //BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
     }
-    g_wgpustate.current_drawmode = mode;
+    current_drawmode = mode;
 }
 void rlEnd(){
     

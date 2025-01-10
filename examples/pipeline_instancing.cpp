@@ -27,7 +27,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     return in.color;
 })";
-float size = 1.0f / 128;
+float size = 1.0f / 1000;
 float qsize = size * 0.8f;
 float positions[8] = {
     0,0,
@@ -47,7 +47,7 @@ DescribedBuffer* posc;
 VertexArray*     vao;
 
 int main(){
-    SetConfigFlags(FLAG_VSYNC_HINT);
+    SetConfigFlags(FLAG_VSYNC_LOWLATENCY_HINT);
     //SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(1920, 1080, "VAO");
     
@@ -73,7 +73,7 @@ int main(){
     pl = LoadPipelineForVAO(source, vao);
     auto mainloop = [&]{
         for(size_t i = 0;i < offsets.size();i++){
-            offsets[i] += velocities[i] * 0.0003f;
+            offsets[i] += velocities[i] * 0.1f * std::min(GetFrameTime(), 0.01f);
         }
         BufferData(poso, offsets.data(), offsets.size() * sizeof(Vector2));
         BeginDrawing();
