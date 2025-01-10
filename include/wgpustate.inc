@@ -39,17 +39,20 @@ struct wgpustate{
     std::unordered_map<uint64_t, WGPUBindGroup> bindGroupRecyclingBin;
 
     DescribedBuffer* identityMatrix;
-    DescribedBuffer* defaultScreenMatrix;
     DescribedSampler defaultSampler;
-    Matrix activeScreenMatrix;
     
     DescribedBuffer* quadindicesCache{};
 
     Texture whitePixel;
 
-    
-    RenderTexture mainWindowRenderTarget;
-    RenderTexture currentDefaultRenderTarget;
+    int stackPosition = 0;
+    std::array<std::pair<Matrix, WGPUBuffer>, 16> matrixStack;
+
+    int renderTargetStackPosition = -1;
+    std::array<RenderTexture> renderTargetStack;
+
+    //RenderTexture mainWindowRenderTarget;
+    //RenderTexture currentDefaultRenderTarget;
     
     std::unordered_map<GLFWwindow*, window_input_state> input_map;
     

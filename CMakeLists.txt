@@ -152,7 +152,7 @@ else()
         #tint_lang_wgsl_reader
         dawn_internal_config
         dawn::dawn_glfw
-        #glfw
+        glfw
         #glslang
     
         #dawn::dawn_native

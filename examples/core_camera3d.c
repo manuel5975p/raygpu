@@ -7,7 +7,7 @@ int main(void){
         .position = (Vector3){0,0,10},
         .target = (Vector3){0,0,0},
         .up = (Vector3){0,1,0},
-        .fovy = 1.0f
+        .fovy = 50.0f
     };
     float angle = 0.0f;
     while(!WindowShouldClose()){        
