@@ -4,6 +4,7 @@
 #include <iostream>
 #include <chrono>
 #include "GLFW/glfw3.h"
+#include <SDL2/SDL.h>
 #ifndef __EMSCRIPTEN__
 #include "dawn/dawn_proc.h"
 #include "dawn/native/DawnNative.h"
@@ -506,10 +507,7 @@ void CursorEnterCallback(GLFWwindow* window, int entered){
 
 void setupCallbacks(GLFWwindow* window){
     glfwSetWindowSizeCallback(window, ResizeCallback);
-    glfwSetKeyCallback(
-        g_wgpustate.window, 
-        glfwKeyCallback
-    );
+    glfwSetKeyCallback(window, glfwKeyCallback);
     glfwSetCursorPosCallback(window, cpcallback);
     glfwSetCharCallback(window, CharCallback);
     glfwSetCursorEnterCallback(window, CursorEnterCallback);
@@ -520,15 +518,19 @@ void setupCallbacks(GLFWwindow* window){
     emscripten_set_mouseup_callback("#canvas",   nullptr, 1, EmscriptenMouseupClickCallback);
     emscripten_set_mousemove_callback("#canvas", nullptr, 1, EmscriptenMouseCallback);
     emscripten_set_wheel_callback("#canvas",     nullptr, 1, EmscriptenWheelCallback);
+    //emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, 1, EmscriptenKeydownCallback);
+    //emscripten_set_keyup_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, 1, EmscriptenKeyupCallback);
     #endif
 }
+void InitWindow_SDL3();
 GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
+    
     if(g_wgpustate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
-        if(IsATerminal(stdout)){
-            TRACELOG(LOG_ERROR, "Refusing to pipe video output to terminal");
-            TRACELOG(LOG_ERROR, "Try <program> | ffmpeg -y -f rawvideo -pix_fmt rgba -s %ux%u -r 60 -i - -vf format=yuv420p out.mp4", width, height);
-            exit(1);
-        }
+        //if(IsATerminal(stdout)){
+        //    TRACELOG(LOG_ERROR, "Refusing to pipe video output to terminal");
+        //    TRACELOG(LOG_ERROR, "Try <program> | ffmpeg -y -f rawvideo -pix_fmt rgba -s %ux%u -r 60 -i - -vf format=yuv420p out.mp4", width, height);
+        //    exit(1);
+        //}
         SetTraceLogFile(stderr);
     }
 
@@ -540,7 +542,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     g_wgpustate.queue    = std::move(wg_init.queue   );
     g_wgpustate.width = width;
     g_wgpustate.height = height;
-
+    InitWindow_SDL3();
     g_wgpustate.whitePixel = LoadTextureFromImage(GenImageChecker(Color{255,255,255,255}, Color{255,255,255,255}, 1, 1, 0));
     TraceLog(LOG_INFO, "Loaded whitepixel texture");
 
@@ -554,13 +556,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
 
 
 
-    #ifdef __EMSCRIPTEN__
-    //EMSCRIPTEN_RESULT ret = emscripten_set_keypress_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, 1, EmscriptenKeyCallback);
-    emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, 1, EmscriptenKeydownCallback);
-    emscripten_set_keyup_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, 1, EmscriptenKeyupCallback);
-    //if(ret == EMSCRIPTEN_RESULT_SUCCESS)
-    //    TRACELOG(LOG_INFO, "Keypress successfully registered");
-    #endif
+    
 
     GLFWwindow* window = nullptr;
     if(!(g_wgpustate.windowFlags & FLAG_HEADLESS)){
