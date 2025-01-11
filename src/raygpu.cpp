@@ -879,13 +879,18 @@ void BeginDrawing(){
     ++g_wgpustate.renderTargetStackPosition;
     g_wgpustate.last_timestamps[g_wgpustate.total_frames % 64] = NanoTime();
     if(g_wgpustate.windowFlags & FLAG_HEADLESS){
-        UnloadTexture(headless_rtex.texture);
+        if(headless_rtex.texture.id){
+            UnloadTexture(headless_rtex.texture);
+        }
         if(headless_rtex.colorMultisample.id){
             UnloadTexture(headless_rtex.colorMultisample);
         }
-        UnloadTexture(headless_rtex.depth);
+        if(headless_rtex.depth.id){
+            UnloadTexture(headless_rtex.depth);
+        }
 
         headless_rtex = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
+        g_wgpustate.mainWindowRenderTarget = headless_rtex;
         //setTargetTextures(g_wgpustate.rstate, headless_rtex.texture.view, headless_rtex.colorMultisample.view, headless_rtex.depth.view);
 
         g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition] = headless_rtex;
@@ -1207,14 +1212,13 @@ void FormatImage_Impl(const Image& source, Image& dest){
 }
 void ImageFormat(Image* img, PixelFormat newFormat){
     uint32_t psize = GetPixelSizeInBytes((WGPUTextureFormat)newFormat);
-    void* newdata = calloc(img->width * img->height, psize);
     Image newimg zeroinit;
     newimg.format = newFormat;
     newimg.width = img->width;
     newimg.height = img->height;
     newimg.mipmaps = img->mipmaps;
     newimg.rowStrideInBytes = newimg.width * psize;
-    newimg.data = newdata;
+    newimg.data = calloc(img->width * img->height, psize);
     switch(img->format){
         case PixelFormat::BGRA8:{
             if(newFormat == RGBA8){
@@ -1229,7 +1233,8 @@ void ImageFormat(Image* img, PixelFormat newFormat){
         return;
     }
     free(img->data);
-    *img = newimg;
+    img->data = newimg.data;
+    img->rowStrideInBytes = newimg.rowStrideInBytes;
     
 }
 
@@ -1243,7 +1248,7 @@ Image LoadImageFromTexture(Texture tex){
     //#endif
 }
 void TakeScreenshot(const char* filename){
-    Image img = LoadImageFromTextureEx(GetActiveColorTarget(), 0);
+    Image img = LoadImageFromTextureEx(g_wgpustate.mainWindowRenderTarget.texture.id, 0);
     SaveImage(img, filename);
     UnloadImage(img);
 }
@@ -2124,25 +2129,26 @@ extern "C" Image GenImageChecker(Color a, Color b, uint32_t width, uint32_t heig
     }
     return ret;
 }
-void SaveImage(Image img, const char* filepath){
+void SaveImage(Image _img, const char* filepath){
     std::string_view fp(filepath, filepath + std::strlen(filepath));
     //std::cout << img.format << "\n";
-    if(img.format == GRAYSCALE){
+    if(_img.format == GRAYSCALE){
         if(fp.ends_with(".png")){
-            stbi_write_png(filepath, img.width, img.height, 2, img.data, img.width * sizeof(uint16_t));
+            stbi_write_png(filepath, _img.width, _img.height, 2, _img.data, _img.width * sizeof(uint16_t));
             return;
         }
         else{
             TRACELOG(LOG_WARNING, "Grayscale can only export to png");
         }
     }
-    size_t stride = std::ceil(img.rowStrideInBytes);
-    if(stride == 0){
-        stride = img.width * sizeof(Color);
-    }
+    Image img = ImageFromImage(_img, Rectangle{0,0,(float)_img.width, (float)_img.height});
     ImageFormat(&img, PixelFormat::RGBA8);
+    //size_t stride = std::ceil(img.rowStrideInBytes);
+    //if(stride == 0){
+    //    stride = img.width * sizeof(Color);
+    //}
     if(fp.ends_with(".png")){
-        stbi_write_png(filepath, img.width, img.height, 4, img.data, stride);
+        stbi_write_png(filepath, img.width, img.height, 4, img.data, img.rowStrideInBytes);
     }
     else if(fp.ends_with(".jpg")){
         stbi_write_jpg(filepath, img.width, img.height, 4, img.data, 100);
@@ -2155,6 +2161,7 @@ void SaveImage(Image img, const char* filepath){
     else{
         TRACELOG(LOG_ERROR, "Unrecognized image format in filename %s", filepath);
     }
+    UnloadImage(img);
 }
 void UseTexture(Texture tex){
     if(GetUniformLocation(GetActivePipeline(), "texture0") == LOCATION_NOT_FOUND){
@@ -2268,7 +2275,15 @@ extern "C" void EndWindowMode(){
     EndTextureMode();
     //g_wgpustate.currentDefaultRenderTarget = g_wgpustate.mainWindowRenderTarget;
     wgpuSurfacePresent(g_wgpustate.activeSubWindow.surface);
+    auto& ipstate = g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()];
+    std::copy(ipstate.keydown.begin(), ipstate.keydown.end(), ipstate.keydownPrevious.begin());
+    ipstate.mousePosPrevious = ipstate.mousePos;
+    ipstate.scrollPreviousFrame = ipstate.scrollThisFrame;
+    ipstate.scrollThisFrame = Vector2{0, 0};
+    std::copy(ipstate.mouseButtonDown.begin(), ipstate.mouseButtonDown.end(), ipstate.mouseButtonDownPrevious.begin());
+    
     g_wgpustate.activeSubWindow = SubWindow zeroinit;
+    
     return;
 
     //Bad implementation:

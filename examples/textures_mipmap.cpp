@@ -29,39 +29,20 @@ constexpr float size = 100;
 RenderTexture groundTruth;
 Texture checker;
 SubWindow subwindow;
+bool drawMipMapped = true;
 void mainloop(){
     BeginDrawing();
     ClearBackground(DARKGRAY);
 
-    BeginTextureMode(groundTruth);
-    ClearBackground(BLANK);
-    BeginMode3D(cam);
-    UseTexture(mipmappedTexture);
-    rlBegin(RL_QUADS);
-    rlColor3f(1.0f, 1.0f, 1.0f);
-    rlTexCoord2f(0, 0);
-    rlVertex3f(0, 0, 0);
-
-    rlTexCoord2f(1, 0);
-    rlVertex3f(size, 0, 0);
     
-    rlTexCoord2f(1, 1);
-    rlVertex3f(size, 0, size);
-    
-    rlTexCoord2f(0, 1);
-    rlVertex3f(0, 0, size);
-    
-    rlEnd();
-    EndMode3D();
-    //DrawCircle(GetMouseX(), GetMouseY(), 1000.0f, GREEN);
-    EndTextureMode();
     //DrawTexturePro(checker, Rectangle(0,0,50,50), Rectangle(0,0,100,100), Vector2{0,0}, 0.0f, WHITE);
     //DrawTexturePro(groundTruth.color, Rectangle(0,0, groundTruth.color.width, groundTruth.color.height), Rectangle(0,0,GetScreenWidth(), GetScreenHeight()), Vector2{0,0}, 0.0, WHITE);
     //DrawTexturePro(groundTruth.color, Rectangle(0,0, groundTruth.color.width, groundTruth.color.height), Rectangle(0,0,GetScreenWidth(), GetScreenHeight()), Vector2{0,0}, 0.0, WHITE);
     //DrawTexturePro(groundTruth.color, Rectangle(0,0, groundTruth.color.width, groundTruth.color.height), Rectangle(0,0,GetScreenWidth(), GetScreenHeight()), Vector2{0,0}, 0.0, WHITE);
     
     BeginMode3D(cam);
-    UseTexture(mipmappedTexture);
+    SetBindgroupTextureView(&GetActivePipeline()->bindGroup, 1, drawMipMapped ? mipmappedTexture.view : mipmappedTexture.mipViews[0]);
+    //UseTexture(mipmappedTexture);
     rlBegin(RL_QUADS);
     rlColor3f(1.0f, 1.0f, 1.0f);
     rlTexCoord2f(0, 0);
@@ -84,6 +65,7 @@ void mainloop(){
     EndDrawing();
     BeginWindowMode(subwindow);
     GuiSlider(Rectangle{100,20,300,50}, "0", "5", &cam.position.y, 0.0f, 5.0f);
+    GuiCheckBox(Rectangle{100,120,50,50}, "Use mipmaps", &drawMipMapped);
     EndWindowMode();
     //Image gt = LoadImageFromTexture(groundTruth.color);
     //SaveImage(gt, "Samthing.png");
@@ -92,6 +74,7 @@ void mainloop(){
 
 int main(){
     //SetConfigFlags(FLAG_HEADLESS | FLAG_STDOUT_TO_FFMPEG);
+    SetConfigFlags(FLAG_VSYNC_HINT);
     InitWindow(1920, 1080, "Title");
     GuiSetStyle(DEFAULT, TEXT_SIZE, 20);
     subwindow = OpenSubWindow(500, 500, "Controls");
