@@ -4,7 +4,7 @@ int main(void){
 
     SetConfigFlags(FLAG_HEADLESS);
 
-    InitWindow(800, 600, "This title has no effect");
+    InitWindow(800, 800, "This title has no effect");
     Texture tex = LoadTextureFromImage(GenImageChecker(WHITE, BLACK, 100, 100, 10));
     SetTargetFPS(0);
     while(!WindowShouldClose()){
