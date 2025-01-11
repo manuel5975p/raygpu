@@ -289,8 +289,8 @@ extern void LoadFontDefault(void)
     Image imFont = {
         .width = 128,
         .height = 128,
-        .data = calloc(128*128, 4),  // 2 bytes per pixel (gray + alpha)
-        .format = RGBA8
+        .format = RGBA8,
+        .data = calloc(128*128, 4)
     };
 
     // Fill image.data with defaultFontData (convert from bit to pixel!)
@@ -455,7 +455,7 @@ Font LoadFontEx(const char *fileName, int fontSize, int *codepoints, int codepoi
 }
 Image ImageFromImage(Image image, Rectangle rec)
 {
-    Image result = { 0 };
+    Image result zeroinit;
 
     int bytesPerPixel = image.format == GRAYSCALE ? 2 : 4;
 
@@ -494,7 +494,7 @@ Font LoadFontFromImage(Image image, Color key, int firstChar)
     int tempCharValues[MAX_GLYPHS_FROM_IMAGE] = { 0 };
     Rectangle tempCharRecs[MAX_GLYPHS_FROM_IMAGE] = { 0 };
 
-    Color *pixels = image.data;
+    Color* pixels = (Color*)image.data;
 
     // Parse image data to get charSpacing and lineSpacing
     for (y = 0; y < image.height; y++)
@@ -557,10 +557,10 @@ Font LoadFontFromImage(Image image, Color key, int firstChar)
 
     // Create a new image with the processed color data (key color replaced by BLANK)
     Image fontClear = {
-        .data = pixels,
         .width = image.width,
         .height = image.height,
-        .format = RGBA8
+        .format = RGBA8,
+        .data = pixels
     };
 
     // Set font with all data parsed from image
@@ -769,8 +769,8 @@ GlyphInfo *LoadFontData(const unsigned char *fileData, int dataSize, int fontSiz
 
                         Image imSpace = {
                             .data = RL_CALLOC(chars[i].advanceX*fontSize, 2),
-                            .width = chars[i].advanceX,
-                            .height = fontSize,
+                            .width = (uint32_t)chars[i].advanceX,
+                            .height = (uint32_t)fontSize,
                             .format = GRAYSCALE
                         };
 
@@ -808,7 +808,7 @@ GlyphInfo *LoadFontData(const unsigned char *fileData, int dataSize, int fontSiz
 #if defined(SUPPORT_FILEFORMAT_TTF) || defined(SUPPORT_FILEFORMAT_BDF)
 Image GenImageFontAtlas(const GlyphInfo *glyphs, Rectangle **glyphRecs, int glyphCount, int fontSize, int padding, int packMethod)
 {
-    Image atlas = { 0 };
+    Image atlas zeroinit;
 
     if (glyphs == NULL)
     {
@@ -1508,7 +1508,7 @@ char *TextReplace(const char *text, const char *replace, const char *by)
     //  - 'text' points to the remainder of text after "end of replace"
     while (count--)
     {
-        insertPoint = strstr(text, replace);
+        insertPoint = (char*)strstr(text, replace);
         lastReplacePos = (int)(insertPoint - text);
         temp = strncpy(temp, text, lastReplacePos) + lastReplacePos;
         temp = strcpy(temp, by) + byLen;
@@ -1629,7 +1629,7 @@ int TextFindIndex(const char *text, const char *find)
 {
     int position = -1;
 
-    char *ptr = strstr(text, find);
+    const char *ptr = strstr(text, find);
 
     if (ptr != NULL) position = (int)(ptr - text);
 
