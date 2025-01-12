@@ -3,7 +3,7 @@ include(FetchContent)
 project(webgpu_standalone)
 set(SUPPORT_WGSL_PARSER ON)
 set(SUPPORT_GLSL_PARSER OFF)
-set(SUPPORT_SDL2 ON)
+set(SUPPORT_SDL2 OFF)
 set(SUPPORT_GLFW ON)
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=leak")
 #FetchContent_Declare(

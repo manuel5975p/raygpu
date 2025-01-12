@@ -3,28 +3,7 @@
 #include <webgpu/webgpu_cpp.h>
 #include <iostream>
 #include <chrono>
-#ifndef __EMSCRIPTEN__
-#else
-#include <emscripten/html5.h>
-#include <emscripten/emscripten.h>
-// Configurable scaling factors
-constexpr float PIXEL_SCALE = 1.0f;
-constexpr float LINE_SCALE = 20.0f;  // Adjust based on typical line height
-constexpr float PAGE_SCALE = 800.0f; // Adjust based on typical page height
-// Function to calculate scaling based on deltaMode
-float calculateScrollScale(int deltaMode) {
-    switch(deltaMode) {
-        case DOM_DELTA_PIXEL:
-            return PIXEL_SCALE;
-        case DOM_DELTA_LINE:
-            return LINE_SCALE;
-        case DOM_DELTA_PAGE:
-            return PAGE_SCALE;
-        default:
-            return PIXEL_SCALE; // Fallback to pixel scale
-    }
-}
-#endif  // 
+
 #ifdef _WIN32
 #define __builtin_unreachable(...)
 #endif
@@ -159,35 +138,7 @@ bool WindowShouldClose(cwoid){
     return WindowShouldClose_GLFW(g_wgpustate.window);
     #endif
 }
-#ifdef __EMSCRIPTEN__
-EM_BOOL EmscriptenKeydownCallback(int eventType, const EmscriptenKeyboardEvent *keyEvent, void *userData){
-    if(keyEvent->repeat)return 0;
-    uint32_t modifier = 0;
-    if(keyEvent->ctrlKey)
-        modifier |= GLFW_MOD_CONTROL;
-    if(keyEvent->shiftKey)
-        modifier |= GLFW_MOD_SHIFT;
-    if(keyEvent->altKey)
-        modifier |= GLFW_MOD_ALT;
-    glfwKeyCallback(g_wgpustate.window, emscriptenToGLFWKeyMap.at(keyEvent->code), emscriptenToGLFWKeyMap.at(keyEvent->code), GLFW_PRESS, modifier);
-    //__builtin_dump_struct(keyEvent, printf);
-    //printf("Pressed %u\n", keyEvent->which);
-    return 0;
-}
-EM_BOOL EmscriptenKeyupCallback(int eventType, const EmscriptenKeyboardEvent *keyEvent, void *userData){
-    if(keyEvent->repeat)return 1;
-    uint32_t modifier = 0;
-    if(keyEvent->ctrlKey)
-        modifier |= GLFW_MOD_CONTROL;
-    if(keyEvent->shiftKey)
-        modifier |= GLFW_MOD_SHIFT;
-    if(keyEvent->altKey)
-        modifier |= GLFW_MOD_ALT;
-    glfwKeyCallback(g_wgpustate.window, emscriptenToGLFWKeyMap.at(keyEvent->code), emscriptenToGLFWKeyMap.at(keyEvent->code), GLFW_RELEASE, modifier);
-    //printf("Released %u\n", keyEvent->which);
-    return 1;
-}
-#endif// __EMSCRIPTEN__
+
 
 
 
@@ -577,6 +528,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
                                   1
     );
     init_full_renderstate(g_wgpustate.rstate, shaderSource, attrs, 4, uniforms, sizeof(uniforms) / sizeof(UniformDescriptor), colorTexture.view, g_wgpustate.mainWindowRenderTarget.depth.view);
+    TRACELOG(LOG_INFO, "Renderstate inited");
     g_wgpustate.rstate->renderExtentX = width;
     g_wgpustate.rstate->renderExtentY = height;
     
