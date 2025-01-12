@@ -914,6 +914,7 @@ void BeginDrawing(){
         g_wgpustate.mainWindowRenderTarget.texture.view = nextTexture;
         
         g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition] = g_wgpustate.mainWindowRenderTarget;
+        //g_wgpustate.activeSubWindow = 
         //setTargetTextures(g_wgpustate.rstate, g_wgpustate.currentDefaultRenderTarget.texture.view, g_wgpustate.currentDefaultRenderTarget.colorMultisample.view, g_wgpustate.currentDefaultRenderTarget.depth.view);
     }
     BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
