@@ -702,8 +702,11 @@ EXTERN_C_BEGIN
     void PollEvents_SDL(cwoid);
     void PollEvents_GLFW(cwoid);
     uint32_t GetMonitorWidth_GLFW(cwoid);
+    uint32_t GetMonitorWidth_SDL(cwoid);
     uint32_t GetMonitorHeight_GLFW(cwoid);
+    uint32_t GetMonitorHeight_SDL(cwoid);
     void SetWindowShouldClose_GLFW(GLFWwindow* win);
+    void Initialize_SDL();
 
     bool WindowShouldClose_GLFW(GLFWwindow* win);
     SubWindow InitWindow_GLFW(int width, int height, const char* title);
