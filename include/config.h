@@ -15,9 +15,15 @@
 #ifndef SUPPORT_GLFW
     #define SUPPORT_GLFW 0
 #endif
+#if SUPPORT_SDL2 == 0 && SUPPORT_GLFW == 0
+    #define FORCE_HEADLESS 1
+#endif
 
-#define MAIN_WINDOW_GLFW
-
+#if SUPPORT_GLFW == 0
+    #define MAIN_WINDOW_SDL2
+#else
+    #define MAIN_WINDOW_GLFW
+#endif
 #if !defined(MAIN_WINDOW_SDL2) && !defined(MAIN_WINDOW_GLFW)
     #define MAIN_WINDOW_GLFW
 #endif
