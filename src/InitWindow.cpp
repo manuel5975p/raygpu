@@ -481,6 +481,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         #ifdef MAIN_WINDOW_GLFW
         SubWindow glfwWin = InitWindow_GLFW(width, height, title);
         #else
+        Initialize_SDL();
         SubWindow glfwWin = InitWindow_SDL2(width, height, title);
         #endif
         g_wgpustate.window = (GLFWwindow*)glfwWin.handle;
@@ -602,8 +603,8 @@ uint32_t GetMonitorWidth(cwoid){
     #ifdef MAIN_WINDOW_GLFW
     return GetMonitorWidth_GLFW();
     #else
+    return GetMonitorWidth_SDL();
     //TODO
-    return 0;
     #endif
 }
 void SetWindowShouldClose(){
@@ -617,8 +618,8 @@ uint32_t GetMonitorHeight(cwoid){
     #ifdef MAIN_WINDOW_GLFW
     return GetMonitorHeight_GLFW();
     #else
+    return GetMonitorHeight_SDL();
     //TODO
-    return 0;
     #endif
 }
 const std::unordered_map<WGPUPresentMode, std::string> presentModeSpellingTable = [](){

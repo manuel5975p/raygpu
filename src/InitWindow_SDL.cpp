@@ -147,11 +147,17 @@ wgpu::Surface CreateSurfaceForWindow(const wgpu::Instance &instance, SDL_Window 
 }
 } // namespace wgpu::glfw
 #endif
-
+bool initied__sdl = false;
+void Initialize_SDL(){
+    if(!initied__sdl){
+        SDL_SetMainReady();
+        SDL_Init(SDL_INIT_VIDEO);
+    }
+    initied__sdl = true;
+}
 void negotiateSurfaceFormatAndPresentMode(const wgpu::Surface &surf);
 extern "C" SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char *title) {
-    SDL_SetMainReady();
-    SDL_Init(SDL_INIT_VIDEO);
+    
     SubWindow ret;
     SDL_Window *window = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, 0);
     SDL_SetWindowResizable(window, SDL_bool(g_wgpustate.windowFlags & FLAG_WINDOW_RESIZABLE));
@@ -445,6 +451,9 @@ extern "C" void PollEvents_SDL() {
         case SDL_KEYDOWN:{
             SDL_Window *window = SDL_GetWindowFromID(event.key.windowID);
             KeyDownCallback(window, ConvertScancodeToKey(event.key.keysym.scancode), event.key.keysym.scancode, event.key.keysym.mod);
+            if(event.key.keysym.scancode == SDL_SCANCODE_ESCAPE){
+                g_wgpustate.closeFlag = true;
+            }
         }break;
         case SDL_KEYUP:{
             SDL_Window *window = SDL_GetWindowFromID(event.key.windowID);
@@ -507,4 +516,22 @@ extern "C" void PollEvents_SDL() {
             break;
         }
     }
+}
+uint32_t GetMonitorWidth_SDL(){
+    Initialize_SDL();
+    SDL_DisplayMode dm;
+    if (SDL_GetDesktopDisplayMode(0, &dm) != 0){
+         TRACELOG(LOG_ERROR, "SDL_GetDesktopDisplayMode failed: %s", SDL_GetError());
+         return 1;
+    }
+    return dm.w;
+}
+uint32_t GetMonitorHeight_SDL(){
+    Initialize_SDL();
+    SDL_DisplayMode dm;
+    if (SDL_GetDesktopDisplayMode(0, &dm) != 0){
+         TRACELOG(LOG_ERROR, "SDL_GetDesktopDisplayMode failed: %s", SDL_GetError());
+         return 1;
+    }
+    return dm.h;
 }

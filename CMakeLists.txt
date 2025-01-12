@@ -4,7 +4,7 @@ project(webgpu_standalone)
 set(SUPPORT_WGSL_PARSER ON)
 set(SUPPORT_GLSL_PARSER OFF)
 set(SUPPORT_SDL2 ON)
-set(SUPPORT_GLFW ON)
+set(SUPPORT_GLFW OFF)
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=leak")
 #FetchContent_Declare(
 #    dawn
