@@ -912,7 +912,7 @@ void BeginDrawing(){
         g_wgpustate.mainWindowRenderTarget.texture.width = GetScreenWidth();
         g_wgpustate.mainWindowRenderTarget.texture.height = GetScreenHeight();
         g_wgpustate.mainWindowRenderTarget.texture.view = nextTexture;
-        
+        //__builtin_dump_struct(&(g_wgpustate.mainWindowRenderTarget.depth), printf);
         g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition] = g_wgpustate.mainWindowRenderTarget;
         //g_wgpustate.activeSubWindow = 
         //setTargetTextures(g_wgpustate.rstate, g_wgpustate.currentDefaultRenderTarget.texture.view, g_wgpustate.currentDefaultRenderTarget.colorMultisample.view, g_wgpustate.currentDefaultRenderTarget.depth.view);

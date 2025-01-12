@@ -3,6 +3,27 @@
 #include <wgpustate.inc>
 #include "GLFW/glfw3.h"
 #include "webgpu/webgpu_glfw.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten/html5.h>
+#include <emscripten/emscripten.h>
+// Configurable scaling factors
+constexpr float PIXEL_SCALE = 1.0f;
+constexpr float LINE_SCALE = 20.0f;  // Adjust based on typical line height
+constexpr float PAGE_SCALE = 800.0f; // Adjust based on typical page height
+// Function to calculate scaling based on deltaMode
+float calculateScrollScale(int deltaMode) {
+    switch(deltaMode) {
+        case DOM_DELTA_PIXEL:
+            return PIXEL_SCALE;
+        case DOM_DELTA_LINE:
+            return LINE_SCALE;
+        case DOM_DELTA_PAGE:
+            return PAGE_SCALE;
+        default:
+            return PIXEL_SCALE; // Fallback to pixel scale
+    }
+}
+#endif  // 
 extern wgpustate g_wgpustate;
 void setupGLFWCallbacks(GLFWwindow* window);
 void ResizeCallback(GLFWwindow* window, int width, int height){
@@ -73,7 +94,7 @@ EM_BOOL EmscriptenWheelCallback(int eventType, const EmscriptenWheelEvent* wheel
     
     // Invoke the original scroll callback with scaled deltas
     //auto originalCallback = reinterpret_cast<decltype(scrollCallback)*>(userData);
-    scrollCallback(nullptr, deltaX, deltaY);
+    ScrollCallback(nullptr, deltaX, deltaY);
     
     return EM_TRUE; // Indicate that the event was handled
 };
@@ -136,6 +157,35 @@ void glfwKeyCallback (GLFWwindow* window, int key, int scancode, int action, int
         glfwSetWindowShouldClose(window, true);
     }
 }
+#ifdef __EMSCRIPTEN__
+EM_BOOL EmscriptenKeydownCallback(int eventType, const EmscriptenKeyboardEvent *keyEvent, void *userData){
+    if(keyEvent->repeat)return 0;
+    uint32_t modifier = 0;
+    if(keyEvent->ctrlKey)
+        modifier |= GLFW_MOD_CONTROL;
+    if(keyEvent->shiftKey)
+        modifier |= GLFW_MOD_SHIFT;
+    if(keyEvent->altKey)
+        modifier |= GLFW_MOD_ALT;
+    glfwKeyCallback(g_wgpustate.window, emscriptenToGLFWKeyMap.at(keyEvent->code), emscriptenToGLFWKeyMap.at(keyEvent->code), GLFW_PRESS, modifier);
+    //__builtin_dump_struct(keyEvent, printf);
+    //printf("Pressed %u\n", keyEvent->which);
+    return 0;
+}
+EM_BOOL EmscriptenKeyupCallback(int eventType, const EmscriptenKeyboardEvent *keyEvent, void *userData){
+    if(keyEvent->repeat)return 1;
+    uint32_t modifier = 0;
+    if(keyEvent->ctrlKey)
+        modifier |= GLFW_MOD_CONTROL;
+    if(keyEvent->shiftKey)
+        modifier |= GLFW_MOD_SHIFT;
+    if(keyEvent->altKey)
+        modifier |= GLFW_MOD_ALT;
+    glfwKeyCallback(g_wgpustate.window, emscriptenToGLFWKeyMap.at(keyEvent->code), emscriptenToGLFWKeyMap.at(keyEvent->code), GLFW_RELEASE, modifier);
+    //printf("Released %u\n", keyEvent->which);
+    return 1;
+}
+#endif// __EMSCRIPTEN__
 
 void setupGLFWCallbacks(GLFWwindow* window){
     glfwSetWindowSizeCallback(window, ResizeCallback);
@@ -422,6 +472,7 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
     config.viewFormats = &config.format;
     config.viewFormatCount = 1;
     config.device = GetDevice();
+    TRACELOG(LOG_INFO, "Configuring surface");
     wgpuSurfaceConfigure(ret.surface, &config);
     int wposx = 0, wposy = 0;
     #ifndef DAWN_USE_WAYLAND
