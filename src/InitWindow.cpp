@@ -3,12 +3,7 @@
 #include <webgpu/webgpu_cpp.h>
 #include <iostream>
 #include <chrono>
-#include "GLFW/glfw3.h"
-#include <SDL2/SDL.h>
 #ifndef __EMSCRIPTEN__
-#include "dawn/dawn_proc.h"
-#include "dawn/native/DawnNative.h"
-#include "webgpu/webgpu_glfw.h"
 #else
 #include <emscripten/html5.h>
 #include <emscripten/emscripten.h>
@@ -145,17 +140,24 @@ struct webgpu_cxx_state{
     //Texture depthTexture{};
 };
 
-extern const std::unordered_map<std::string, int> emscriptenToGLFWKeyMap;
-void glfwKeyCallback (GLFWwindow* window, int key, int scancode, int action, int mods){
-    if(action == GLFW_PRESS){
-        g_wgpustate.input_map[window].keydown[key] = 1;
-    }else if(action == GLFW_RELEASE){
-        g_wgpustate.input_map[window].keydown[key] = 0;
-    }
-    if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
-        EndGIFRecording();
-        glfwSetWindowShouldClose(window, true);
-    }
+void PollEvents(){
+    #if SUPPORT_SDL2 != 0
+    PollEvents_SDL();
+    #endif
+    #if SUPPORT_GLFW != 0
+    PollEvents_GLFW();
+    #endif
+}
+void* GetActiveWindowHandle(){
+    if(g_wgpustate.activeSubWindow.handle)return g_wgpustate.activeSubWindow.handle;
+    return g_wgpustate.window;
+}
+bool WindowShouldClose(cwoid){
+    #ifdef MAIN_WINDOW_SDL2
+    return g_wgpustate.closeFlag;
+    #else
+    return WindowShouldClose_GLFW(g_wgpustate.window);
+    #endif
 }
 #ifdef __EMSCRIPTEN__
 EM_BOOL EmscriptenKeydownCallback(int eventType, const EmscriptenKeyboardEvent *keyEvent, void *userData){
@@ -388,142 +390,7 @@ void InitWGPU(webgpu_cxx_state* sample){
     TraceLog(LOG_INFO, "Supports %u VBO slots", (unsigned)slimits.limits.maxVertexBuffers);
 
 }
-void ResizeCallback(GLFWwindow* window, int width, int height){
-    //wgpuSurfaceRelease(g_wgpustate.surface);
-    //g_wgpustate.surface = wgpu::glfw::CreateSurfaceForWindow(g_wgpustate.instance, window).MoveToCHandle();
-    //while(!g_wgpustate.drawmutex.try_lock());
-    //g_wgpustate.drawmutex.lock();
-    
-    TraceLog(LOG_WARNING, "glfwSizeCallback called with %d x %d", width, height);
-    wgpu::SurfaceCapabilities capabilities;
-    g_wgpustate.surface.GetCapabilities(g_wgpustate.adapter, &capabilities);
-    wgpu::SurfaceConfiguration config = {};
-    config.alphaMode = wgpu::CompositeAlphaMode::Opaque;
-    config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
-    config.device = g_wgpustate.device;
-    config.format = (wgpu::TextureFormat)g_wgpustate.frameBufferFormat;
-    config.presentMode = (wgpu::PresentMode)(!!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? g_wgpustate.throttled_PresentMode : g_wgpustate.unthrottled_PresentMode);
-    config.width = width;
-    config.height = height;
-    g_wgpustate.width = width;
-    g_wgpustate.height = height;
-    auto& toBeResizedRendertexture = g_wgpustate.createdSubwindows[window].frameBuffer;
-    UnloadTexture(toBeResizedRendertexture.colorMultisample);
-    if(g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT)
-        toBeResizedRendertexture.colorMultisample = LoadTexturePro(width, height, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4, 1);
-    UnloadTexture(toBeResizedRendertexture.depth);
-    toBeResizedRendertexture.depth = LoadTexturePro(width,
-                              height, 
-                              WGPUTextureFormat_Depth24Plus, 
-                              WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
-                              (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
-                              1
-    );
-    toBeResizedRendertexture.texture.width = width;
-    toBeResizedRendertexture.texture.height = height;
-    wgpuSurfaceConfigure(g_wgpustate.createdSubwindows[window].surface, (WGPUSurfaceConfiguration*)&config);
-    
-    if(window == g_wgpustate.window){
-        g_wgpustate.mainWindowRenderTarget = toBeResizedRendertexture;
-    }
-    Matrix newcamera = ScreenMatrix(width, height);
-    //BufferData(g_wgpustate.defaultScreenMatrix, &newcamera, sizeof(Matrix));
-    //setTargetTextures(g_wgpustate.rstate, g_wgpustate.rstate->color, g_wgpustate.currentDefaultRenderTarget.colorMultisample.view, g_wgpustate.currentDefaultRenderTarget.depth.view);
-    //updateRenderPassDesc(g_wgpustate.rstate);
-    //TODO wtf is this?
-    //g_wgpustate.rstate->renderpass.dsa->view = g_wgpustate.currentDefaultRenderTarget.depth.view;
-    //g_wgpustate.drawmutex.unlock();
-}
-void scrollCallback(GLFWwindow* window, double xoffset, double yoffset){
-    g_wgpustate.input_map[window].scrollThisFrame.x += xoffset;
-    g_wgpustate.input_map[window].scrollThisFrame.y += yoffset;
-}
 
-
-#ifdef __EMSCRIPTEN__
-
-
-EM_BOOL EmscriptenWheelCallback(int eventType, const EmscriptenWheelEvent* wheelEvent, void *userData) {
-    // Calculate scaling based on deltaMode
-    float scaleX = calculateScrollScale(wheelEvent->deltaMode);
-    float scaleY = calculateScrollScale(wheelEvent->deltaMode);
-    
-    // Optionally clamp the delta values to prevent excessive scrolling
-    double deltaX = std::clamp(wheelEvent->deltaX * scaleX, -100.0, 100.0) / 100.0f;
-    double deltaY = std::clamp(wheelEvent->deltaY * scaleY, -100.0, 100.0) / 100.0f;
-    
-    std::cout << "wheel: deltaX = " << deltaX << ", deltaY = " << deltaY << std::endl;
-    
-    // Invoke the original scroll callback with scaled deltas
-    //auto originalCallback = reinterpret_cast<decltype(scrollCallback)*>(userData);
-    scrollCallback(nullptr, deltaX, deltaY);
-    
-    return EM_TRUE; // Indicate that the event was handled
-};
-
-#endif
-
-void cpcallback(GLFWwindow* window, double x, double y){
-    g_wgpustate.input_map[window].mousePos = Vector2{float(x), float(y)};
-}
-
-#ifdef __EMSCRIPTEN__
-EM_BOOL EmscriptenMouseCallback(int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
-    cpcallback(nullptr, mouseEvent->targetX, mouseEvent->targetY);
-    return true;
-};
-#endif
-void clickcallback(GLFWwindow* window, int button, int action, int mods){
-    if(action == GLFW_PRESS){
-        g_wgpustate.input_map[window].mouseButtonDown[button] = 1;
-    }
-    else if(action == GLFW_RELEASE){
-        g_wgpustate.input_map[window].mouseButtonDown[button] = 0;
-    }
-}
-#ifdef __EMSCRIPTEN__
-EM_BOOL EmscriptenMousedownClickCallback(int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
-    clickcallback(nullptr, mouseEvent->button, GLFW_PRESS, 0);
-    return true;
-};
-EM_BOOL EmscriptenMouseupClickCallback(int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
-    clickcallback(nullptr, mouseEvent->button, GLFW_RELEASE, 0);
-    return true;
-};
-#endif
-
-#ifndef __EMSCRIPTEN__
-
-#else
-#endif
-
-
-//#ifndef __EMSCRIPTEN__
-void CharCallback(GLFWwindow* window, unsigned int codePoint){
-    g_wgpustate.input_map[window].charQueue.push_back((int)codePoint);
-}
-void CursorEnterCallback(GLFWwindow* window, int entered){
-    g_wgpustate.input_map[window].cursorInWindow = entered;
-}
-//#endif
-
-void setupGLFWCallbacks(GLFWwindow* window){
-    glfwSetWindowSizeCallback(window, ResizeCallback);
-    glfwSetKeyCallback(window, glfwKeyCallback);
-    glfwSetCursorPosCallback(window, cpcallback);
-    glfwSetCharCallback(window, CharCallback);
-    glfwSetCursorEnterCallback(window, CursorEnterCallback);
-    glfwSetScrollCallback(window, scrollCallback);
-    glfwSetMouseButtonCallback(window, clickcallback);
-    #ifdef __EMSCRIPTEN__
-    emscripten_set_mousedown_callback("#canvas", nullptr, 1, EmscriptenMousedownClickCallback);
-    emscripten_set_mouseup_callback("#canvas",   nullptr, 1, EmscriptenMouseupClickCallback);
-    emscripten_set_mousemove_callback("#canvas", nullptr, 1, EmscriptenMouseCallback);
-    emscripten_set_wheel_callback("#canvas",     nullptr, 1, EmscriptenWheelCallback);
-    //emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, 1, EmscriptenKeydownCallback);
-    //emscripten_set_keyup_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, 1, EmscriptenKeyupCallback);
-    #endif
-}
 
 bool negotiateSurfaceFormatAndPresentMode_called = false;
 void negotiateSurfaceFormatAndPresentMode(const wgpu::Surface& surf){
@@ -599,94 +466,7 @@ void negotiateSurfaceFormatAndPresentMode(const wgpu::Surface& surf){
 
 
 
-SubWindow InitWindow_GLFW(int width, int height, const char* title){
-    SubWindow ret{};
-    void* window = nullptr;
-    if (!glfwInit()) {
-            abort();
-        }
-        GLFWmonitor* mon = nullptr;
 
-        glfwSetErrorCallback([](int code, const char* message) {
-            std::cerr << "GLFW error: " << code << " - " << message;
-        });
-
-
-    #ifndef __EMSCRIPTEN__
-
-
-        // Create the test window with no client API.
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        glfwWindowHint(GLFW_RESIZABLE, (g_wgpustate.windowFlags & FLAG_WINDOW_RESIZABLE) ? GLFW_TRUE : GLFW_FALSE);
-        //glfwWindowHint(GLFW_REFRESH_RATE, 144);
-
-        if(g_wgpustate.windowFlags & FLAG_FULLSCREEN_MODE){
-            mon = glfwGetPrimaryMonitor();
-            //std::cout <<glfwGetVideoMode(mon)->refreshRate << std::endl;
-            //abort();
-        }
-    #endif
-        
-    #ifndef __EMSCRIPTEN__
-        window = (void*)glfwCreateWindow(width, height, title, mon, nullptr);
-        //glfwSetWindowPos(window, 200, 1200);
-        if (!window) {
-            abort();
-        }
-        
-
-        // Create the surface.
-        wgpu::Surface rs = wgpu::glfw::CreateSurfaceForWindow(GetInstance(), (GLFWwindow*)window);
-        negotiateSurfaceFormatAndPresentMode(rs);
-        ret.surface = rs.MoveToCHandle();
-    #else
-        // Create the surface.
-        wgpu::SurfaceDescriptorFromCanvasHTMLSelector canvasDesc{};
-        canvasDesc.selector = "#canvas";
-
-        wgpu::SurfaceDescriptor surfaceDesc = {};
-        surfaceDesc.nextInChain = &canvasDesc;
-        g_wgpustate.surface = g_wgpustate.instance.CreateSurface(&surfaceDesc);
-        window = glfwCreateWindow(width, height, title, mon, nullptr);
-        g_wgpustate.window = window;
-    #endif
-    WGPUSurfaceConfiguration config{};
-    if(g_wgpustate.windowFlags & FLAG_VSYNC_LOWLATENCY_HINT){
-        config.presentMode = (WGPUPresentMode)(((g_wgpustate.unthrottled_PresentMode == wgpu::PresentMode::Mailbox) ? g_wgpustate.unthrottled_PresentMode : g_wgpustate.throttled_PresentMode));
-    }
-    else if(g_wgpustate.windowFlags & FLAG_VSYNC_HINT){
-        config.presentMode = (WGPUPresentMode)g_wgpustate.throttled_PresentMode;
-    }
-    else{
-        config.presentMode = (WGPUPresentMode)g_wgpustate.unthrottled_PresentMode;
-    }
-    config.presentMode = WGPUPresentMode_Immediate;
-    config.alphaMode = WGPUCompositeAlphaMode_Opaque;
-    config.format = g_wgpustate.frameBufferFormat;
-    config.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
-    config.width = width;
-    config.height = height;
-    config.viewFormats = &config.format;
-    config.viewFormatCount = 1;
-    config.device = GetDevice();
-    wgpuSurfaceConfigure(ret.surface, &config);
-    int wposx = 0, wposy = 0;
-    #ifndef DAWN_USE_WAYLAND
-    glfwGetWindowPos((GLFWwindow*)window, &wposx, &wposy);
-    #endif
-    g_wgpustate.input_map[window].windowPosition = Rectangle{
-        (float)wposx,
-        (float)wposy,
-        (float)GetScreenWidth(),
-        (float)GetScreenHeight()
-    };
-    ret.handle = (void*)window;
-    //ret.surface = GetSurface();
-    ret.frameBuffer = g_wgpustate.mainWindowRenderTarget;
-    g_wgpustate.createdSubwindows[window] = ret;
-    g_wgpustate.input_map[ret.handle] = window_input_state{};
-    return ret;
-}
 
 
 
@@ -744,12 +524,20 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
 
     //void* window = nullptr;
     if(!(g_wgpustate.windowFlags & FLAG_HEADLESS)){
+        #if SUPPORT_SDL2 == 0
         SubWindow glfwWin = InitWindow_GLFW(width, height, title);
+        #elif defined(MAIN_WINDOW_GLFW)
+        SubWindow glfwWin = InitWindow_GLFW(width, height, title);
+        
+        #else
+        SubWindow glfwWin = InitWindow_SDL2(width, height, title);
+        #endif
+        
 
         g_wgpustate.window = (GLFWwindow*)glfwWin.handle;
         g_wgpustate.surface = wgpu::Surface(g_wgpustate.createdSubwindows[glfwWin.handle].surface);
         
-        setupGLFWCallbacks((GLFWwindow*)glfwWin.handle);
+        
         //#ifndef __EMSCRIPTEN__
         
         //std::cout << "Supported Framebuffer Format: 0x" << std::hex << (WGPUTextureFormat)config.format << std::dec << "\n";        
@@ -826,10 +614,12 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     SetSampler(2, sampler);
     g_wgpustate.init_timestamp = NanoTime();
     #ifndef __EMSCRIPTEN__
-    if(!(g_wgpustate.windowFlags & FLAG_HEADLESS) && (g_wgpustate.windowFlags & FLAG_VSYNC_HINT)){
-        auto rate = glfwGetVideoMode(glfwGetPrimaryMonitor())->refreshRate;
-        SetTargetFPS(rate);
-    }
+    if((g_wgpustate.windowFlags & FLAG_VSYNC_HINT))
+        SetTargetFPS(60);
+    //if(!(g_wgpustate.windowFlags & FLAG_HEADLESS) && (g_wgpustate.windowFlags & FLAG_VSYNC_HINT)){
+    //    auto rate = glfwGetVideoMode(glfwGetPrimaryMonitor())->refreshRate;
+    //    SetTargetFPS(rate);
+    //}
     else
         SetTargetFPS(0);
     
@@ -837,248 +627,40 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     #ifndef __EMSCRIPTEN__
     return nullptr;
     #else
-    return window;
+    return nullptr;
     #endif
 }
-uint32_t GetMonitorWidth (cwoid){
-    const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-    if(mode == nullptr){
-        glfwInit();
-        return GetMonitorWidth();
-    }
-    return mode->width;
+extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* title){
+    #ifdef MAIN_WINDOW_GLFW
+    return OpenSubWindow_GLFW(width, height, title);
+    #else
+    #endif
+    return SubWindow zeroinit;
+}
+extern "C" void ToggleFullscreen(){
+    #ifdef MAIN_WINDOW_GLFW
+    ToggleFullscreen_GLFW();
+    #else
+    #endif
+}
+uint32_t GetMonitorWidth(cwoid){
+    #ifdef MAIN_WINDOW_GLFW
+    return GetMonitorWidth_GLFW();
+    #else
+    #endif
+}
+void SetWindowShouldClose(){
+    #ifdef MAIN_WINDOW_GLFW
+    return SetWindowShouldClose_GLFW(g_wgpustate.window);
+    #else
+    #endif
 }
 uint32_t GetMonitorHeight(cwoid){
-    const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-    if(mode == nullptr){
-        glfwInit();
-        return GetMonitorWidth();
-    }
-    return mode->height;
-}
-void ShowCursor(cwoid){
-    glfwSetInputMode(g_wgpustate.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-}
-void HideCursor(cwoid){
-    glfwSetInputMode(g_wgpustate.window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
-}
-bool IsCursorHidden(cwoid){
-    return glfwGetInputMode(g_wgpustate.window, GLFW_CURSOR) == GLFW_CURSOR_HIDDEN;
-}
-void EnableCursor(cwoid){
-    glfwSetInputMode(g_wgpustate.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-}
-void DisableCursor(cwoid){
-    
-    #if !defined(__EMSCRIPTEN__) && !defined(DAWN_USE_WAYLAND) && defined(GLFW_CURSOR_CAPTURED)
-    glfwSetInputMode(g_wgpustate.window, GLFW_CURSOR, GLFW_CURSOR_CAPTURED);
+    #ifdef MAIN_WINDOW_GLFW
+    return GetMonitorHeight_GLFW();
+    #else
     #endif
 }
-void PollEvents(){
-    SDL_Pollevents();
-    glfwPollEvents();
-}
-bool WindowShouldClose(cwoid){
-    return glfwWindowShouldClose(g_wgpustate.window) || g_wgpustate.closeFlag;
-}
-void* GetActiveWindowHandle(){
-    if(g_wgpustate.activeSubWindow.handle)return g_wgpustate.activeSubWindow.handle;
-    return g_wgpustate.window;
-}
-void ToggleFullscreen(){
-    #ifdef __EMSCRIPTEN__
-    //platform.ourFullscreen = true;
-
-    bool enterFullscreen = false;
-
-    const bool wasFullscreen = EM_ASM_INT( { if (document.fullscreenElement) return 1; }, 0);
-    if (wasFullscreen)
-    {
-        if (g_wgpustate.windowFlags & FLAG_FULLSCREEN_MODE) enterFullscreen = false;
-        //else if (CORE.Window.flags & FLAG_BORDERLESS_WINDOWED_MODE) enterFullscreen = true;
-        else
-        {
-            const int canvasWidth = EM_ASM_INT( { return document.getElementById('canvas').width; }, 0);
-            const int canvasStyleWidth = EM_ASM_INT( { return parseInt(document.getElementById('canvas').style.width); }, 0);
-            if (canvasStyleWidth > canvasWidth) enterFullscreen = false;
-            else enterFullscreen = true;
-        }
-
-        EM_ASM(document.exitFullscreen(););
-
-        //CORE.Window.fullscreen = false;
-        g_wgpustate.windowFlags &= ~FLAG_FULLSCREEN_MODE;
-        //CORE.Window.flags &= ~FLAG_BORDERLESS_WINDOWED_MODE;
-    }
-    else enterFullscreen = true;
-
-    if (enterFullscreen){
-        EM_ASM(
-            setTimeout(function()
-            {
-                Module.requestFullscreen(false, false);
-            }, 100);
-        );
-        g_wgpustate.windowFlags |= FLAG_FULLSCREEN_MODE;
-    }
-    TRACELOG(LOG_DEBUG, "Tagu fullscreen");
-    #else //Other than emscripten
-    GLFWmonitor* monitor = glfwGetWindowMonitor(g_wgpustate.window);
-    if(monitor){
-        //We need to exit fullscreen
-        g_wgpustate.windowFlags &= ~FLAG_FULLSCREEN_MODE;
-        glfwSetWindowMonitor(g_wgpustate.window, NULL, g_wgpustate.input_map[g_wgpustate.window].windowPosition.x, g_wgpustate.input_map[g_wgpustate.window].windowPosition.y, g_wgpustate.input_map[g_wgpustate.window].windowPosition.width, g_wgpustate.input_map[g_wgpustate.window].windowPosition.height, GLFW_DONT_CARE);
-    }
-    else{
-        //We need to enter fullscreen
-        int xpos = 0, ypos = 0;
-        int xs, ys;
-        #ifndef DAWN_USE_WAYLAND
-        glfwGetWindowPos(g_wgpustate.window, &xpos, &ypos);
-        #endif
-        glfwGetWindowSize(g_wgpustate.window, &xs, &ys);
-        g_wgpustate.input_map[g_wgpustate.window].windowPosition = Rectangle{float(xpos), float(ypos), float(xs), float(ys)};
-        int monitorCount = 0;
-        int monitorIndex = GetCurrentMonitor();
-        GLFWmonitor **monitors = glfwGetMonitors(&monitorCount);
-
-        // Use current monitor, so we correctly get the display the window is on
-        GLFWmonitor *monitor = (monitorIndex < monitorCount)? monitors[monitorIndex] : NULL;
-        auto vm = glfwGetVideoMode(monitor);
-        glfwSetWindowMonitor(g_wgpustate.window, glfwGetPrimaryMonitor(), 0, 0, vm->width, vm->height, vm->refreshRate);
-    }
-    
-    
-    #endif
-    //wgpuTextureViewRelease(depthTexture.view);
-    //wgpuTextureRelease(depthTexture.tex);
-    //auto vm = glfwGetVideoMode(glfwGetPrimaryMonitor());
-    //glfwSetWindowMonitor(g_wgpustate.window, glfwGetPrimaryMonitor(), 0, 0, vm->width, vm->height, vm->refreshRate);
-    //depthTexture = LoadDepthTexture(1920, 1200);
-}
-void SetWindowShouldClose(cwoid){
-    glfwSetWindowShouldClose(g_wgpustate.window, GLFW_TRUE);
-}
-int GetCurrentMonitor(){
-    int index = 0;
-    int monitorCount = 0;
-    GLFWmonitor **monitors = glfwGetMonitors(&monitorCount);
-    GLFWmonitor *monitor = NULL;
-
-    if (monitorCount >= 1)
-    {
-        if (glfwGetWindowMonitor(g_wgpustate.window) != nullptr){
-            // Get the handle of the monitor that the specified window is in full screen on
-            monitor = glfwGetWindowMonitor(g_wgpustate.window);
-
-            for (int i = 0; i < monitorCount; i++)
-            {
-                if (monitors[i] == monitor)
-                {
-                    index = i;
-                    break;
-                }
-            }
-        }
-        else
-        {
-            // In case the window is between two monitors, we use below logic
-            // to try to detect the "current monitor" for that window, note that
-            // this is probably an overengineered solution for a very side case
-            // trying to match SDL behaviour
-
-            int closestDist = 0x7FFFFFFF;
-
-            // Window center position
-            int wcx = 0;
-            int wcy = 0;
-            #ifndef DAWN_USE_WAYLAND
-            glfwGetWindowPos(g_wgpustate.window, &wcx, &wcy);
-            #endif
-            wcx += (int)GetScreenWidth()/2;
-            wcy += (int)GetScreenHeight()/2;
-
-            for (int i = 0; i < monitorCount; i++)
-            {
-                // Monitor top-left position
-                int mx = 0;
-                int my = 0;
-
-                monitor = monitors[i];
-                glfwGetMonitorPos(monitor, &mx, &my);
-                const GLFWvidmode *mode = glfwGetVideoMode(monitor);
-
-                if (mode)
-                {
-                    const int right = mx + mode->width - 1;
-                    const int bottom = my + mode->height - 1;
-
-                    if ((wcx >= mx) &&
-                        (wcx <= right) &&
-                        (wcy >= my) &&
-                        (wcy <= bottom))
-                    {
-                        index = i;
-                        break;
-                    }
-
-                    int xclosest = wcx;
-                    if (wcx < mx) xclosest = mx;
-                    else if (wcx > right) xclosest = right;
-
-                    int yclosest = wcy;
-                    if (wcy < my) yclosest = my;
-                    else if (wcy > bottom) yclosest = bottom;
-
-                    int dx = wcx - xclosest;
-                    int dy = wcy - yclosest;
-                    int dist = (dx*dx) + (dy*dy);
-                    if (dist < closestDist)
-                    {
-                        index = i;
-                        closestDist = dist;
-                    }
-                }
-                else TRACELOG(LOG_WARNING, "GLFW: Failed to find video mode for selected monitor");
-            }
-        }
-    }
-
-    return index;
-}
-
-extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* title){
-    SubWindow ret{};
-    #ifndef __EMSCRIPTEN__
-    glfwInit();
-    glfwWindowHint(GLFW_RESIZABLE, (g_wgpustate.windowFlags & FLAG_WINDOW_RESIZABLE ) ? GLFW_TRUE : GLFW_FALSE);
-    glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
-    ret.handle = glfwCreateWindow(width, height, title, nullptr, nullptr);
-    wgpu::Surface secondSurface = wgpu::glfw::CreateSurfaceForWindow(GetInstance(), (GLFWwindow*)ret.handle);
-    wgpu::SurfaceCapabilities capabilities;
-    secondSurface.GetCapabilities(GetCXXAdapter(), &capabilities);
-    wgpu::SurfaceConfiguration config = {};
-    config.device = GetCXXDevice();
-    config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
-    config.format = (wgpu::TextureFormat)g_wgpustate.frameBufferFormat;
-    config.presentMode = g_wgpustate.unthrottled_PresentMode;
-    config.width = width;
-    config.height = height;
-    secondSurface.Configure(&config);
-    ret.surface = secondSurface.MoveToCHandle();
-    ret.frameBuffer = LoadRenderTexture(config.width, config.height);
-    g_wgpustate.createdSubwindows[ret.handle] = ret;
-    g_wgpustate.input_map[(GLFWwindow*)ret.handle] = window_input_state{};
-    setupGLFWCallbacks((GLFWwindow*)ret.handle);
-    #endif
-    return ret;
-}
-
-extern "C" void CloseSubWindow(SubWindow subWindow){
-    g_wgpustate.createdSubwindows.erase(subWindow.handle);
-    glfwWindowShouldClose((GLFWwindow*)subWindow.handle);
-}
-
 const std::unordered_map<WGPUPresentMode, std::string> presentModeSpellingTable = [](){
     std::unordered_map<WGPUPresentMode, std::string> map;
     map[WGPUPresentMode_Fifo] = "WGPUPresentMode_Fifo";
@@ -1419,124 +1001,3 @@ extern "C" size_t GetPixelSizeInBytes(WGPUTextureFormat format) {
             return 0;
     }
 }
-const std::unordered_map<std::string, int> emscriptenToGLFWKeyMap = {
-    // Alphabet Keys
-    {"KeyA", GLFW_KEY_A},
-    {"KeyB", GLFW_KEY_B},
-    {"KeyC", GLFW_KEY_C},
-    {"KeyD", GLFW_KEY_D},
-    {"KeyE", GLFW_KEY_E},
-    {"KeyF", GLFW_KEY_F},
-    {"KeyG", GLFW_KEY_G},
-    {"KeyH", GLFW_KEY_H},
-    {"KeyI", GLFW_KEY_I},
-    {"KeyJ", GLFW_KEY_J},
-    {"KeyK", GLFW_KEY_K},
-    {"KeyL", GLFW_KEY_L},
-    {"KeyM", GLFW_KEY_M},
-    {"KeyN", GLFW_KEY_N},
-    {"KeyO", GLFW_KEY_O},
-    {"KeyP", GLFW_KEY_P},
-    {"KeyQ", GLFW_KEY_Q},
-    {"KeyR", GLFW_KEY_R},
-    {"KeyS", GLFW_KEY_S},
-    {"KeyT", GLFW_KEY_T},
-    {"KeyU", GLFW_KEY_U},
-    {"KeyV", GLFW_KEY_V},
-    {"KeyW", GLFW_KEY_W},
-    {"KeyX", GLFW_KEY_X},
-    {"KeyY", GLFW_KEY_Y},
-    {"KeyZ", GLFW_KEY_Z},
-
-    // Number Keys
-    {"Digit0", GLFW_KEY_0},
-    {"Digit1", GLFW_KEY_1},
-    {"Digit2", GLFW_KEY_2},
-    {"Digit3", GLFW_KEY_3},
-    {"Digit4", GLFW_KEY_4},
-    {"Digit5", GLFW_KEY_5},
-    {"Digit6", GLFW_KEY_6},
-    {"Digit7", GLFW_KEY_7},
-    {"Digit8", GLFW_KEY_8},
-    {"Digit9", GLFW_KEY_9},
-
-    // Function Keys
-    {"F1", GLFW_KEY_F1},
-    {"F2", GLFW_KEY_F2},
-    {"F3", GLFW_KEY_F3},
-    {"F4", GLFW_KEY_F4},
-    {"F5", GLFW_KEY_F5},
-    {"F6", GLFW_KEY_F6},
-    {"F7", GLFW_KEY_F7},
-    {"F8", GLFW_KEY_F8},
-    {"F9", GLFW_KEY_F9},
-    {"F10", GLFW_KEY_F10},
-    {"F11", GLFW_KEY_F11},
-    {"F12", GLFW_KEY_F12},
-
-    // Arrow Keys
-    {"ArrowUp", GLFW_KEY_UP},
-    {"ArrowDown", GLFW_KEY_DOWN},
-    {"ArrowLeft", GLFW_KEY_LEFT},
-    {"ArrowRight", GLFW_KEY_RIGHT},
-
-    // Control Keys
-    {"Enter", GLFW_KEY_ENTER},
-    {"Escape", GLFW_KEY_ESCAPE},
-    {"Space", GLFW_KEY_SPACE},
-    {"Tab", GLFW_KEY_TAB},
-    {"ShiftLeft", GLFW_KEY_LEFT_SHIFT},
-    {"ShiftRight", GLFW_KEY_RIGHT_SHIFT},
-    {"ControlLeft", GLFW_KEY_LEFT_CONTROL},
-    {"ControlRight", GLFW_KEY_RIGHT_CONTROL},
-    {"AltLeft", GLFW_KEY_LEFT_ALT},
-    {"AltRight", GLFW_KEY_RIGHT_ALT},
-    {"CapsLock", GLFW_KEY_CAPS_LOCK},
-    {"Backspace", GLFW_KEY_BACKSPACE},
-    {"Delete", GLFW_KEY_DELETE},
-    {"Insert", GLFW_KEY_INSERT},
-    {"Home", GLFW_KEY_HOME},
-    {"End", GLFW_KEY_END},
-    {"PageUp", GLFW_KEY_PAGE_UP},
-    {"PageDown", GLFW_KEY_PAGE_DOWN},
-
-    // Numpad Keys
-    {"Numpad0", GLFW_KEY_KP_0},
-    {"Numpad1", GLFW_KEY_KP_1},
-    {"Numpad2", GLFW_KEY_KP_2},
-    {"Numpad3", GLFW_KEY_KP_3},
-    {"Numpad4", GLFW_KEY_KP_4},
-    {"Numpad5", GLFW_KEY_KP_5},
-    {"Numpad6", GLFW_KEY_KP_6},
-    {"Numpad7", GLFW_KEY_KP_7},
-    {"Numpad8", GLFW_KEY_KP_8},
-    {"Numpad9", GLFW_KEY_KP_9},
-    {"NumpadDecimal", GLFW_KEY_KP_DECIMAL},
-    {"NumpadDivide", GLFW_KEY_KP_DIVIDE},
-    {"NumpadMultiply", GLFW_KEY_KP_MULTIPLY},
-    {"NumpadSubtract", GLFW_KEY_KP_SUBTRACT},
-    {"NumpadAdd", GLFW_KEY_KP_ADD},
-    {"NumpadEnter", GLFW_KEY_KP_ENTER},
-    {"NumpadEqual", GLFW_KEY_KP_EQUAL},
-
-    // Punctuation and Symbols
-    {"Backquote", GLFW_KEY_GRAVE_ACCENT},
-    {"Minus", GLFW_KEY_MINUS},
-    {"Equal", GLFW_KEY_EQUAL},
-    {"BracketLeft", GLFW_KEY_LEFT_BRACKET},
-    {"BracketRight", GLFW_KEY_RIGHT_BRACKET},
-    {"Backslash", GLFW_KEY_BACKSLASH},
-    {"Semicolon", GLFW_KEY_SEMICOLON},
-    {"Quote", GLFW_KEY_APOSTROPHE},
-    {"Comma", GLFW_KEY_COMMA},
-    {"Period", GLFW_KEY_PERIOD},
-    {"Slash", GLFW_KEY_SLASH},
-
-    // Additional Keys (Add more as needed)
-    {"PrintScreen", GLFW_KEY_PRINT_SCREEN},
-    {"ScrollLock", GLFW_KEY_SCROLL_LOCK},
-    {"Pause", GLFW_KEY_PAUSE},
-    {"ContextMenu", GLFW_KEY_MENU},
-    {"IntlBackslash", GLFW_KEY_UNKNOWN}, // Example of an unmapped key
-    // ... add other keys as necessary
-};
