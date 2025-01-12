@@ -439,7 +439,9 @@ void negotiateSurfaceFormatAndPresentMode(const wgpu::Surface& surf){
 
 
 void* InitWindow(uint32_t width, uint32_t height, const char* title){
-    
+    #if FORCE_HEADLESS == 1
+    g_wgpustate.windowFlags |= FLAG_HEADLESS;
+    #endif
     if(g_wgpustate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
         //if(IsATerminal(stdout)){
         //    TRACELOG(LOG_ERROR, "Refusing to pipe video output to terminal");
@@ -475,18 +477,18 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
 
     //void* window = nullptr;
     if(!(g_wgpustate.windowFlags & FLAG_HEADLESS)){
-        #if SUPPORT_SDL2 == 0
+        #if SUPPORT_GLFW == 1 || SUPPORT_SDL2 == 1
+        #ifdef MAIN_WINDOW_GLFW
         SubWindow glfwWin = InitWindow_GLFW(width, height, title);
-        #elif defined(MAIN_WINDOW_GLFW)
-        SubWindow glfwWin = InitWindow_GLFW(width, height, title);
-        
         #else
         SubWindow glfwWin = InitWindow_SDL2(width, height, title);
         #endif
-        
-
         g_wgpustate.window = (GLFWwindow*)glfwWin.handle;
         g_wgpustate.surface = wgpu::Surface(g_wgpustate.createdSubwindows[glfwWin.handle].surface);
+        #endif
+        
+
+        
         
         
         //#ifndef __EMSCRIPTEN__
@@ -586,6 +588,7 @@ extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* 
     #ifdef MAIN_WINDOW_GLFW
     return OpenSubWindow_GLFW(width, height, title);
     #else
+    return OpenSubWindow_SDL(width, height, title);
     #endif
     return SubWindow zeroinit;
 }
@@ -599,18 +602,23 @@ uint32_t GetMonitorWidth(cwoid){
     #ifdef MAIN_WINDOW_GLFW
     return GetMonitorWidth_GLFW();
     #else
+    //TODO
+    return 0;
     #endif
 }
 void SetWindowShouldClose(){
     #ifdef MAIN_WINDOW_GLFW
     return SetWindowShouldClose_GLFW(g_wgpustate.window);
     #else
+    //TODO
     #endif
 }
 uint32_t GetMonitorHeight(cwoid){
     #ifdef MAIN_WINDOW_GLFW
     return GetMonitorHeight_GLFW();
     #else
+    //TODO
+    return 0;
     #endif
 }
 const std::unordered_map<WGPUPresentMode, std::string> presentModeSpellingTable = [](){

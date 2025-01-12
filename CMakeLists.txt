@@ -3,7 +3,7 @@ include(FetchContent)
 project(webgpu_standalone)
 set(SUPPORT_WGSL_PARSER ON)
 set(SUPPORT_GLSL_PARSER OFF)
-set(SUPPORT_SDL2 OFF)
+set(SUPPORT_SDL2 ON)
 set(SUPPORT_GLFW ON)
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=leak")
 #FetchContent_Declare(
@@ -65,22 +65,23 @@ if(NOT EMSCRIPTEN)
         DOWNLOAD_EXTRACT_TIMESTAMP True
     )
     FetchContent_MakeAvailable(khrGlslang)
-
-    FetchContent_Declare(
-        sdl2fetch
-        URL      https://github.com/libsdl-org/SDL/archive/refs/tags/release-2.30.11.tar.gz
-        DOWNLOAD_EXTRACT_TIMESTAMP True
-    )
-    FetchContent_MakeAvailable(sdl2fetch)
-    FetchContent_Declare(
-        sdl2wgpue
-        GIT_REPOSITORY      https://github.com/manuel5975p/sdl2webgpu.git
-        GIT_TAG main
-        #DOWNLOAD_EXTRACT_TIMESTAMP True
-    )
-    FetchContent_MakeAvailable(sdl2wgpue)
-    target_link_libraries(sdl2webgpu PUBLIC webgpu_dawn)
-    target_compile_definitions(sdl2webgpu PRIVATE WEBGPU_BACKEND_DAWN)
+    if(SUPPORT_SDL2)
+        FetchContent_Declare(
+            sdl2fetch
+            URL      https://github.com/libsdl-org/SDL/archive/refs/tags/release-2.30.11.tar.gz
+            DOWNLOAD_EXTRACT_TIMESTAMP True
+        )
+        FetchContent_MakeAvailable(sdl2fetch)
+        FetchContent_Declare(
+            sdl2wgpue
+            GIT_REPOSITORY      https://github.com/manuel5975p/sdl2webgpu.git
+            GIT_TAG main
+            #DOWNLOAD_EXTRACT_TIMESTAMP True
+        )
+        FetchContent_MakeAvailable(sdl2wgpue)
+        target_link_libraries(sdl2webgpu PUBLIC webgpu_dawn)
+        target_compile_definitions(sdl2webgpu PRIVATE WEBGPU_BACKEND_DAWN)
+    endif()
     
 endif()
 #download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_rect_pack.h" "stb_rect_pack.h")
@@ -103,13 +104,12 @@ set(RG_SOURCES
     "src/pipeline.cpp"
     "src/models.cpp"
     "src/windows_stuff.c"
-    "src/dawn_glfwrip.cpp"
 )
 if(SUPPORT_SDL2)
     list(APPEND RG_SOURCES "src/InitWindow_SDL.cpp")
 endif()
 if(SUPPORT_GLFW)
-    list(APPEND RG_SOURCES "src/InitWindow_GLFW.cpp")
+    list(APPEND RG_SOURCES "src/dawn_glfwrip.cpp" "src/InitWindow_GLFW.cpp")
 endif()
 if (NOT EMSCRIPTEN)
 list(APPEND RG_SOURCES "src/glsl_support.cpp")
@@ -182,7 +182,7 @@ else()
         #tint_api_common
         #tint_lang_wgsl_reader
         dawn_internal_config
-        glfw
+        
         
         #glslang
     
@@ -194,7 +194,10 @@ else()
         #dawn::dawn_proc
     )
     if(SUPPORT_SDL2)
-        target_link_libraries(raygpu PUBLIC SDL2::SDL2 sdl2webgpu)
+    target_link_libraries(raygpu PUBLIC SDL2::SDL2 sdl2webgpu)
+    endif()
+    if(SUPPORT_GLFW)
+    target_link_libraries(raygpu PUBLIC glfw)
     endif()
 endif()
 target_include_directories(raygpu PUBLIC)

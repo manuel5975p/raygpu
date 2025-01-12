@@ -194,6 +194,31 @@ extern "C" SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char
     g_wgpustate.createdSubwindows[ret.handle] = ret;
     return ret;
 }
+
+SubWindow OpenSubWindow_SDL(uint32_t width, uint32_t height, const char* title){
+    SubWindow ret;
+    ret.handle = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, 0);
+    WGPUInstance inst = GetInstance();
+    wgpu::Surface secondSurface = SDL_GetWGPUSurface(inst, (SDL_Window*)ret.handle);
+    wgpu::SurfaceCapabilities capabilities;
+    secondSurface.GetCapabilities(GetCXXAdapter(), &capabilities);
+    wgpu::SurfaceConfiguration config = {};
+    config.device = GetCXXDevice();
+    config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
+    config.format = (wgpu::TextureFormat)g_wgpustate.frameBufferFormat;
+    config.presentMode = g_wgpustate.unthrottled_PresentMode;
+    config.width = width;
+    config.height = height;
+    secondSurface.Configure(&config);
+    ret.surface = secondSurface.MoveToCHandle();
+    ret.frameBuffer = LoadRenderTexture(config.width, config.height);
+    g_wgpustate.createdSubwindows[ret.handle] = ret;
+    g_wgpustate.input_map[(GLFWwindow*)ret.handle] = window_input_state{};
+    //setupGLFWCallbacks((GLFWwindow*)ret.handle);
+    return ret;
+}
+
+
 void ResizeCallback(SDL_Window* window, int width, int height){
     //wgpuSurfaceRelease(g_wgpustate.surface);
     //g_wgpustate.surface = wgpu::glfw::CreateSurfaceForWindow(g_wgpustate.instance, window).MoveToCHandle();
@@ -435,6 +460,8 @@ extern "C" void PollEvents_SDL() {
                 CursorEnterCallback(window, true);
             } else if (event.window.event == SDL_WINDOWEVENT_LEAVE) {
                 CursorEnterCallback(window, false);
+            } else if(event.window.event == SDL_WINDOWEVENT_CLOSE){
+                g_wgpustate.closeFlag = true;
             }
             // Handle other window events if necessary
         } break;

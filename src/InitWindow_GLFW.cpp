@@ -523,7 +523,7 @@ extern "C" SubWindow OpenSubWindow_GLFW(uint32_t width, uint32_t height, const c
 extern "C" bool WindowShouldClose_GLFW(GLFWwindow* win){
     return glfwWindowShouldClose(win);
 }
-extern "C" void CloseSubWindow(SubWindow subWindow){
+extern "C" void CloseSubWindow_GLFW(SubWindow subWindow){
     g_wgpustate.createdSubwindows.erase(subWindow.handle);
     glfwWindowShouldClose((GLFWwindow*)subWindow.handle);
     glfwSetWindowShouldClose((GLFWwindow*)subWindow.handle, GLFW_TRUE);
