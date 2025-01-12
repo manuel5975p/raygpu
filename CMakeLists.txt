@@ -72,12 +72,13 @@ if(NOT EMSCRIPTEN)
     FetchContent_MakeAvailable(sdl2fetch)
     FetchContent_Declare(
         sdl2wgpue
-        GIT_REPOSITORY      https://github.com/eliemichel/sdl2webgpu.git
+        GIT_REPOSITORY      https://github.com/manuel5975p/sdl2webgpu.git
         GIT_TAG main
         #DOWNLOAD_EXTRACT_TIMESTAMP True
     )
     FetchContent_MakeAvailable(sdl2wgpue)
     target_link_libraries(sdl2webgpu PUBLIC webgpu_dawn)
+    target_compile_definitions(sdl2webgpu PUBLIC WEBGPU_BACKEND_DAWN)
     
 endif()
 #download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_rect_pack.h" "stb_rect_pack.h")

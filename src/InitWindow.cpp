@@ -409,7 +409,8 @@ void ResizeCallback(GLFWwindow* window, int width, int height){
     g_wgpustate.height = height;
     auto& toBeResizedRendertexture = g_wgpustate.createdSubwindows[window].frameBuffer;
     UnloadTexture(toBeResizedRendertexture.colorMultisample);
-    toBeResizedRendertexture.colorMultisample = LoadTexturePro(width, height, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4, 1);
+    if(g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT)
+        toBeResizedRendertexture.colorMultisample = LoadTexturePro(width, height, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4, 1);
     UnloadTexture(toBeResizedRendertexture.depth);
     toBeResizedRendertexture.depth = LoadTexturePro(width,
                               height, 
@@ -421,8 +422,9 @@ void ResizeCallback(GLFWwindow* window, int width, int height){
     toBeResizedRendertexture.texture.width = width;
     toBeResizedRendertexture.texture.height = height;
     wgpuSurfaceConfigure(g_wgpustate.createdSubwindows[window].surface, (WGPUSurfaceConfiguration*)&config);
+    
     if(window == g_wgpustate.window){
-        //g_wgpustate.mainWindowRenderTarget = toBeResizedRendertexture;
+        g_wgpustate.mainWindowRenderTarget = toBeResizedRendertexture;
     }
     Matrix newcamera = ScreenMatrix(width, height);
     //BufferData(g_wgpustate.defaultScreenMatrix, &newcamera, sizeof(Matrix));
@@ -505,7 +507,7 @@ void CursorEnterCallback(GLFWwindow* window, int entered){
 }
 //#endif
 
-void setupCallbacks(GLFWwindow* window){
+void setupGLFWCallbacks(GLFWwindow* window){
     glfwSetWindowSizeCallback(window, ResizeCallback);
     glfwSetKeyCallback(window, glfwKeyCallback);
     glfwSetCursorPosCallback(window, cpcallback);
@@ -522,8 +524,190 @@ void setupCallbacks(GLFWwindow* window){
     //emscripten_set_keyup_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, 1, EmscriptenKeyupCallback);
     #endif
 }
-void InitWindow_SDL3();
-GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
+
+bool negotiateSurfaceFormatAndPresentMode_called = false;
+void negotiateSurfaceFormatAndPresentMode(const wgpu::Surface& surf){
+    if(negotiateSurfaceFormatAndPresentMode_called)return;
+    negotiateSurfaceFormatAndPresentMode_called = true;
+    wgpu::SurfaceCapabilities capabilities;
+    surf.GetCapabilities(GetCXXAdapter(), &capabilities);
+    {
+        std::string presentModeString;
+        for(uint32_t i = 0;i < capabilities.presentModeCount;i++){
+            presentModeString += presentModeSpellingTable.at((WGPUPresentMode)capabilities.presentModes[i]).c_str();
+            if(i < capabilities.presentModeCount - 1){
+                presentModeString += ", ";
+            }
+        }
+        TRACELOG(LOG_INFO, "Supported present modes: %s", presentModeString.c_str());
+    }
+    if(capabilities.presentModeCount == 1){
+        TRACELOG(LOG_INFO, "Only %s supported", presentModeSpellingTable.at((WGPUPresentMode)capabilities.presentModes[0]).c_str());
+        g_wgpustate.unthrottled_PresentMode = capabilities.presentModes[0];
+        g_wgpustate.throttled_PresentMode = capabilities.presentModes[0];
+    }
+    else if(capabilities.presentModeCount > 1){
+        g_wgpustate.unthrottled_PresentMode = capabilities.presentModes[0];
+        g_wgpustate.throttled_PresentMode = capabilities.presentModes[0];
+        std::unordered_set<wgpu::PresentMode> pmset(capabilities.presentModes, capabilities.presentModes + capabilities.presentModeCount);
+        if(pmset.find(wgpu::PresentMode::Fifo) != pmset.end()){
+            g_wgpustate.throttled_PresentMode = wgpu::PresentMode::Fifo;
+        }
+        else if(pmset.find(wgpu::PresentMode::FifoRelaxed) != pmset.end()){
+            g_wgpustate.throttled_PresentMode = wgpu::PresentMode::FifoRelaxed;
+        }
+        if(pmset.find(wgpu::PresentMode::Mailbox) != pmset.end()){
+            g_wgpustate.unthrottled_PresentMode = wgpu::PresentMode::Mailbox;
+        }
+        else if(pmset.find(wgpu::PresentMode::Immediate) != pmset.end()){
+            g_wgpustate.unthrottled_PresentMode = wgpu::PresentMode::Immediate;
+        }
+    }
+    
+    {
+        std::string formatsString;
+        for(uint32_t i = 0;i < capabilities.formatCount;i++){
+            formatsString += textureFormatSpellingTable.at((WGPUTextureFormat)capabilities.formats[i]).c_str();
+            if(i < capabilities.formatCount - 1){
+                formatsString += ", ";
+            }
+        }
+        TRACELOG(LOG_INFO, "Supported surface formats: %s", formatsString.c_str());
+    }
+
+    wgpu::TextureFormat selectedFormat = wgpu::TextureFormat::Undefined;
+    int format_index = 0;
+    for(format_index = 0;format_index < capabilities.formatCount;format_index++){
+        if(capabilities.formats[format_index] == wgpu::TextureFormat::BGRA8Unorm ||
+           capabilities.formats[format_index] == wgpu::TextureFormat::RGBA8Unorm){
+            selectedFormat = (capabilities.formats[format_index]);
+            break;
+        }
+    }
+    g_wgpustate.frameBufferFormat = (WGPUTextureFormat)selectedFormat;
+    if(format_index == capabilities.formatCount){
+        TRACELOG(LOG_WARNING, "No RGBA8 / BGRA8 Unorm framebuffer format found, colors might be off"); 
+        g_wgpustate.frameBufferFormat = (WGPUTextureFormat)selectedFormat;
+    }
+    
+    TRACELOG(LOG_INFO, "Selected surface format %s", textureFormatSpellingTable.at((WGPUTextureFormat)g_wgpustate.frameBufferFormat).c_str());
+    
+    //TRACELOG(LOG_INFO, "Selected present mode %s", presentModeSpellingTable.at((WGPUPresentMode)g_wgpustate.presentMode).c_str());
+}
+
+
+
+
+
+SubWindow InitWindow_GLFW(int width, int height, const char* title){
+    SubWindow ret{};
+    void* window = nullptr;
+    if (!glfwInit()) {
+            abort();
+        }
+        GLFWmonitor* mon = nullptr;
+
+        glfwSetErrorCallback([](int code, const char* message) {
+            std::cerr << "GLFW error: " << code << " - " << message;
+        });
+
+
+    #ifndef __EMSCRIPTEN__
+
+
+        // Create the test window with no client API.
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+        glfwWindowHint(GLFW_RESIZABLE, (g_wgpustate.windowFlags & FLAG_WINDOW_RESIZABLE) ? GLFW_TRUE : GLFW_FALSE);
+        //glfwWindowHint(GLFW_REFRESH_RATE, 144);
+
+        if(g_wgpustate.windowFlags & FLAG_FULLSCREEN_MODE){
+            mon = glfwGetPrimaryMonitor();
+            //std::cout <<glfwGetVideoMode(mon)->refreshRate << std::endl;
+            //abort();
+        }
+    #endif
+        
+    #ifndef __EMSCRIPTEN__
+        window = (void*)glfwCreateWindow(width, height, title, mon, nullptr);
+        //glfwSetWindowPos(window, 200, 1200);
+        if (!window) {
+            abort();
+        }
+        
+
+        // Create the surface.
+        wgpu::Surface rs = wgpu::glfw::CreateSurfaceForWindow(GetInstance(), (GLFWwindow*)window);
+        negotiateSurfaceFormatAndPresentMode(rs);
+        ret.surface = rs.MoveToCHandle();
+    #else
+        // Create the surface.
+        wgpu::SurfaceDescriptorFromCanvasHTMLSelector canvasDesc{};
+        canvasDesc.selector = "#canvas";
+
+        wgpu::SurfaceDescriptor surfaceDesc = {};
+        surfaceDesc.nextInChain = &canvasDesc;
+        g_wgpustate.surface = g_wgpustate.instance.CreateSurface(&surfaceDesc);
+        window = glfwCreateWindow(width, height, title, mon, nullptr);
+        g_wgpustate.window = window;
+    #endif
+    WGPUSurfaceConfiguration config{};
+    if(g_wgpustate.windowFlags & FLAG_VSYNC_LOWLATENCY_HINT){
+        config.presentMode = (WGPUPresentMode)(((g_wgpustate.unthrottled_PresentMode == wgpu::PresentMode::Mailbox) ? g_wgpustate.unthrottled_PresentMode : g_wgpustate.throttled_PresentMode));
+    }
+    else if(g_wgpustate.windowFlags & FLAG_VSYNC_HINT){
+        config.presentMode = (WGPUPresentMode)g_wgpustate.throttled_PresentMode;
+    }
+    else{
+        config.presentMode = (WGPUPresentMode)g_wgpustate.unthrottled_PresentMode;
+    }
+    config.presentMode = WGPUPresentMode_Immediate;
+    config.alphaMode = WGPUCompositeAlphaMode_Opaque;
+    config.format = g_wgpustate.frameBufferFormat;
+    config.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
+    config.width = width;
+    config.height = height;
+    config.viewFormats = &config.format;
+    config.viewFormatCount = 1;
+    config.device = GetDevice();
+    wgpuSurfaceConfigure(ret.surface, &config);
+    int wposx = 0, wposy = 0;
+    #ifndef DAWN_USE_WAYLAND
+    glfwGetWindowPos((GLFWwindow*)window, &wposx, &wposy);
+    #endif
+    g_wgpustate.input_map[window].windowPosition = Rectangle{
+        (float)wposx,
+        (float)wposy,
+        (float)GetScreenWidth(),
+        (float)GetScreenHeight()
+    };
+    ret.handle = (void*)window;
+    //ret.surface = GetSurface();
+    ret.frameBuffer = g_wgpustate.mainWindowRenderTarget;
+    g_wgpustate.createdSubwindows[window] = ret;
+    g_wgpustate.input_map[ret.handle] = window_input_state{};
+    return ret;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void* InitWindow(uint32_t width, uint32_t height, const char* title){
     
     if(g_wgpustate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
         //if(IsATerminal(stdout)){
@@ -542,7 +726,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     g_wgpustate.queue    = std::move(wg_init.queue   );
     g_wgpustate.width = width;
     g_wgpustate.height = height;
-    InitWindow_SDL3();
+    
     g_wgpustate.whitePixel = LoadTextureFromImage(GenImageChecker(Color{255,255,255,255}, Color{255,255,255,255}, 1, 1, 0));
     TraceLog(LOG_INFO, "Loaded whitepixel texture");
 
@@ -558,140 +742,16 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
 
     
 
-    GLFWwindow* window = nullptr;
+    //void* window = nullptr;
     if(!(g_wgpustate.windowFlags & FLAG_HEADLESS)){
-        if (!glfwInit()) {
-            abort();
-        }
-        GLFWmonitor* mon = nullptr;
+        SubWindow glfwWin = InitWindow_GLFW(width, height, title);
 
-        glfwSetErrorCallback([](int code, const char* message) {
-            std::cerr << "GLFW error: " << code << " - " << message;
-        });
-
-
-    #ifndef __EMSCRIPTEN__
-
-
-        // Create the test window with no client API.
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        glfwWindowHint(GLFW_RESIZABLE, (g_wgpustate.windowFlags & FLAG_WINDOW_RESIZABLE ) ? GLFW_TRUE : GLFW_FALSE);
-        //glfwWindowHint(GLFW_REFRESH_RATE, 144);
-
-        if(g_wgpustate.windowFlags & FLAG_FULLSCREEN_MODE){
-            mon = glfwGetPrimaryMonitor();
-            //std::cout <<glfwGetVideoMode(mon)->refreshRate << std::endl;
-            //abort();
-        }
-    #endif
+        g_wgpustate.window = (GLFWwindow*)glfwWin.handle;
+        g_wgpustate.surface = wgpu::Surface(g_wgpustate.createdSubwindows[glfwWin.handle].surface);
         
-    #ifndef __EMSCRIPTEN__
-        window = glfwCreateWindow(width, height, title, mon, nullptr);
-        //glfwSetWindowPos(window, 200, 1200);
-        if (!window) {
-            abort();
-        }
-        g_wgpustate.window = window;
-
-        // Create the surface.
-        g_wgpustate.surface = wgpu::glfw::CreateSurfaceForWindow(GetInstance(), window);
-    #else
-        // Create the surface.
-        wgpu::SurfaceDescriptorFromCanvasHTMLSelector canvasDesc{};
-        canvasDesc.selector = "#canvas";
-
-        wgpu::SurfaceDescriptor surfaceDesc = {};
-        surfaceDesc.nextInChain = &canvasDesc;
-        g_wgpustate.surface = g_wgpustate.instance.CreateSurface(&surfaceDesc);
-        window = glfwCreateWindow(width, height, title, mon, nullptr);
-        g_wgpustate.window = window;
-    #endif
-        g_wgpustate.input_map[window] = window_input_state{};
-        
-        setupCallbacks(window);
+        setupGLFWCallbacks((GLFWwindow*)glfwWin.handle);
         //#ifndef __EMSCRIPTEN__
-        wgpu::SurfaceCapabilities capabilities;
-        GetCXXSurface().GetCapabilities(GetCXXAdapter(), &capabilities);
-        {
-            std::string presentModeString;
-            for(uint32_t i = 0;i < capabilities.presentModeCount;i++){
-                presentModeString += presentModeSpellingTable.at((WGPUPresentMode)capabilities.presentModes[i]).c_str();
-                if(i < capabilities.presentModeCount - 1){
-                    presentModeString += ", ";
-                }
-            }
-            TRACELOG(LOG_INFO, "Supported present modes: %s", presentModeString.c_str());
-        }
-        if(capabilities.presentModeCount == 1){
-            TRACELOG(LOG_INFO, "Only %s supported", presentModeSpellingTable.at((WGPUPresentMode)capabilities.presentModes[0]).c_str());
-            g_wgpustate.unthrottled_PresentMode = capabilities.presentModes[0];
-            g_wgpustate.throttled_PresentMode = capabilities.presentModes[0];
-        }
-        else if(capabilities.presentModeCount > 1){
-            g_wgpustate.unthrottled_PresentMode = capabilities.presentModes[0];
-            g_wgpustate.throttled_PresentMode = capabilities.presentModes[0];
-
-            std::unordered_set<wgpu::PresentMode> pmset(capabilities.presentModes, capabilities.presentModes + capabilities.presentModeCount);
-            if(pmset.find(wgpu::PresentMode::Fifo) != pmset.end()){
-                g_wgpustate.throttled_PresentMode = wgpu::PresentMode::Fifo;
-            }
-            else if(pmset.find(wgpu::PresentMode::FifoRelaxed) != pmset.end()){
-                g_wgpustate.throttled_PresentMode = wgpu::PresentMode::FifoRelaxed;
-            }
-            if(pmset.find(wgpu::PresentMode::Mailbox) != pmset.end()){
-                g_wgpustate.unthrottled_PresentMode = wgpu::PresentMode::Mailbox;
-            }
-            else if(pmset.find(wgpu::PresentMode::Immediate) != pmset.end()){
-                g_wgpustate.unthrottled_PresentMode = wgpu::PresentMode::Immediate;
-            }
-        }
         
-        wgpu::SurfaceConfiguration config zeroinit;
-
-        config.device = GetCXXDevice();
-        config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
-        {
-            std::string formatsString;
-            for(uint32_t i = 0;i < capabilities.formatCount;i++){
-                formatsString += textureFormatSpellingTable.at((WGPUTextureFormat)capabilities.formats[i]).c_str();
-                if(i < capabilities.formatCount - 1){
-                    formatsString += ", ";
-                }
-            }
-            TRACELOG(LOG_INFO, "Supported surface formats: %s", formatsString.c_str());
-        }
-        //std::cout << "Supported format count: " << capabilities.formatCount << "\n";
-        wgpu::TextureFormat selectedFormat = wgpu::TextureFormat::Undefined;
-        int format_index = 0;
-        for(format_index = 0;format_index < capabilities.formatCount;format_index++){
-            if(capabilities.formats[format_index] == wgpu::TextureFormat::BGRA8Unorm ||
-               capabilities.formats[format_index] == wgpu::TextureFormat::RGBA8Unorm){
-                selectedFormat = (capabilities.formats[format_index]);
-                break;
-            }
-        }
-        if(format_index == capabilities.formatCount){
-            TRACELOG(LOG_WARNING, "No RGBA8 / BGRA8 Unorm framebuffer format found, colors might be off"); 
-            config.format = capabilities.formats[0];
-        }
-        else{
-            config.format = selectedFormat;
-        }
-        TRACELOG(LOG_INFO, "Selected surface format %s", textureFormatSpellingTable.at((WGPUTextureFormat)config.format).c_str());
-        if(g_wgpustate.windowFlags & FLAG_VSYNC_LOWLATENCY_HINT){
-            config.presentMode = ((g_wgpustate.unthrottled_PresentMode == wgpu::PresentMode::Mailbox) ? g_wgpustate.unthrottled_PresentMode : g_wgpustate.throttled_PresentMode);
-        }
-        else if(g_wgpustate.windowFlags & FLAG_VSYNC_HINT){
-            config.presentMode = g_wgpustate.throttled_PresentMode;
-        }
-        else{
-            config.presentMode = g_wgpustate.unthrottled_PresentMode;
-        }
-        TRACELOG(LOG_INFO, "Selected present mode %s", presentModeSpellingTable.at((WGPUPresentMode)config.presentMode).c_str());
-        config.width = width;
-        config.height = height;
-        GetCXXSurface().Configure(&config);
-        g_wgpustate.frameBufferFormat = (WGPUTextureFormat)config.format;
         //std::cout << "Supported Framebuffer Format: 0x" << std::hex << (WGPUTextureFormat)config.format << std::dec << "\n";        
     }else{
         g_wgpustate.frameBufferFormat = WGPUTextureFormat_BGRA8Unorm;
@@ -731,18 +791,7 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     init_full_renderstate(g_wgpustate.rstate, shaderSource, attrs, 4, uniforms, sizeof(uniforms) / sizeof(UniformDescriptor), colorTexture.view, g_wgpustate.mainWindowRenderTarget.depth.view);
     g_wgpustate.rstate->renderExtentX = width;
     g_wgpustate.rstate->renderExtentY = height;
-    if(!(g_wgpustate.windowFlags & FLAG_HEADLESS)){
-        int wposx = 0, wposy = 0;
-        #ifndef DAWN_USE_WAYLAND
-        glfwGetWindowPos(g_wgpustate.window, &wposx, &wposy);
-        #endif
-        g_wgpustate.input_map[window].windowPosition = Rectangle{
-            (float)wposx,
-            (float)wposy,
-            (float)GetScreenWidth(),
-            (float)GetScreenHeight()
-        };
-    }
+    
 
     LoadFontDefault();
     for(size_t i = 0;i < 512;i++){
@@ -783,12 +832,10 @@ GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title){
     }
     else
         SetTargetFPS(0);
-    g_wgpustate.createdSubwindows[window].handle = window;
-    g_wgpustate.createdSubwindows[window].surface = GetSurface();
-    g_wgpustate.createdSubwindows[window].frameBuffer = g_wgpustate.mainWindowRenderTarget;
+    
     #endif
     #ifndef __EMSCRIPTEN__
-    return window;
+    return nullptr;
     #else
     return window;
     #endif
@@ -828,10 +875,11 @@ void DisableCursor(cwoid){
     #endif
 }
 void PollEvents(){
+    SDL_Pollevents();
     glfwPollEvents();
 }
 bool WindowShouldClose(cwoid){
-    return glfwWindowShouldClose(g_wgpustate.window);
+    return glfwWindowShouldClose(g_wgpustate.window) || g_wgpustate.closeFlag;
 }
 void* GetActiveWindowHandle(){
     if(g_wgpustate.activeSubWindow.handle)return g_wgpustate.activeSubWindow.handle;
@@ -1002,6 +1050,7 @@ int GetCurrentMonitor(){
 extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* title){
     SubWindow ret{};
     #ifndef __EMSCRIPTEN__
+    glfwInit();
     glfwWindowHint(GLFW_RESIZABLE, (g_wgpustate.windowFlags & FLAG_WINDOW_RESIZABLE ) ? GLFW_TRUE : GLFW_FALSE);
     glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
     ret.handle = glfwCreateWindow(width, height, title, nullptr, nullptr);
@@ -1020,7 +1069,7 @@ extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* 
     ret.frameBuffer = LoadRenderTexture(config.width, config.height);
     g_wgpustate.createdSubwindows[ret.handle] = ret;
     g_wgpustate.input_map[(GLFWwindow*)ret.handle] = window_input_state{};
-    setupCallbacks((GLFWwindow*)ret.handle);
+    setupGLFWCallbacks((GLFWwindow*)ret.handle);
     #endif
     return ret;
 }

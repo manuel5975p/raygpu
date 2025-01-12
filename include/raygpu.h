@@ -662,12 +662,13 @@ std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> getAttrib
 #endif
 
 EXTERN_C_BEGIN
-    GLFWwindow* InitWindow(uint32_t width, uint32_t height, const char* title);
+    void* InitWindow(uint32_t width, uint32_t height, const char* title);
     void requestAnimationFrameLoopWithJSPI(void (*callback)(void), int /* unused */, int/* unused */);
     void requestAnimationFrameLoopWithJSPIArg(void (*callback)(void*), void* userData, int/* unused */, int/* unused */);
     void SetWindowShouldClose(cwoid);
     bool WindowShouldClose(cwoid);
     SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* title);
+    SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char* title);
     void CloseSubWindow(SubWindow subWindow);
 
     uint32_t GetScreenWidth (cwoid);                             //Window width
@@ -697,6 +698,7 @@ EXTERN_C_BEGIN
     void EnableCursor(cwoid);                                    // Enables cursor (unlock cursor)
     void DisableCursor(cwoid);                                   // Disables cursor (lock cursor)
     bool IsCursorOnScreen(cwoid);                                // Check if cursor is on the screen
+    void SDL_Pollevents(cwoid);
     void PollEvents(cwoid);
 
     /**

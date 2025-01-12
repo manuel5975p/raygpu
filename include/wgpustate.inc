@@ -56,7 +56,7 @@ struct wgpustate{
     RenderTexture mainWindowRenderTarget;
     //RenderTexture currentDefaultRenderTarget;
     
-    std::unordered_map<GLFWwindow*, window_input_state> input_map;
+    std::unordered_map<void*, window_input_state> input_map;
     
     int windowFlags = 0;
     // Frame timing / FPS
@@ -71,4 +71,6 @@ struct wgpustate{
 
     std::unordered_map<void*, SubWindow> createdSubwindows;
     SubWindow activeSubWindow{};
+
+    bool closeFlag = false;
 };
