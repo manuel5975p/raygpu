@@ -698,9 +698,17 @@ EXTERN_C_BEGIN
     void EnableCursor(cwoid);                                    // Enables cursor (unlock cursor)
     void DisableCursor(cwoid);                                   // Disables cursor (lock cursor)
     bool IsCursorOnScreen(cwoid);                                // Check if cursor is on the screen
-    void SDL_Pollevents(cwoid);
     void PollEvents(cwoid);
+    void PollEvents_SDL(cwoid);
+    void PollEvents_GLFW(cwoid);
+    uint32_t GetMonitorWidth_GLFW(cwoid);
+    uint32_t GetMonitorHeight_GLFW(cwoid);
+    void SetWindowShouldClose_GLFW(GLFWwindow* win);
 
+    bool WindowShouldClose_GLFW(GLFWwindow* win);
+    SubWindow InitWindow_GLFW(int width, int height, const char* title);
+    void ToggleFullscreen_GLFW(cwoid);
+    SubWindow OpenSubWindow_GLFW(uint32_t width, uint32_t height, const char* title);
     /**
      * @brief Get the time elapsed since InitWindow() in seconds since 
      * 
@@ -1140,5 +1148,6 @@ extern wgpustate g_wgpustate;
 #ifdef __cplusplus
 extern const std::unordered_map<WGPUTextureFormat, std::string> textureFormatSpellingTable;
 extern const std::unordered_map<WGPUPresentMode, std::string> presentModeSpellingTable;
+void negotiateSurfaceFormatAndPresentMode(const wgpu::Surface& sf);
 #endif
 #endif

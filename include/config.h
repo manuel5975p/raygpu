@@ -9,9 +9,23 @@
 #ifndef SUPPORT_GLSL_PARSER
     #define SUPPORT_GLSL_PARSER 0
 #endif
+#ifndef SUPPORT_SDL2
+    #define SUPPORT_SDL2 0
+#endif
+#ifndef SUPPORT_GLFW
+    #define SUPPORT_GLFW 0
+#endif
 
+#define MAIN_WINDOW_GLFW
 
-// The RENDERBATCH_SIZE is how many instances of the vertex type can be batched at most
+#if !defined(MAIN_WINDOW_SDL2) && !defined(MAIN_WINDOW_GLFW)
+    #define MAIN_WINDOW_GLFW
+#endif
+#if defined(MAIN_WINDOW_SDL2) && defined(MAIN_WINDOW_GLFW)
+#error only_one_main_window_type_is_supported
+#endif
+
+// The RENDERBATCH_SIZE is how many vertices can be batched at most
 // It must be a multiple of 12 to guarantee that RL_LINES, RL_TRIANGLES and RL_QUADS 
 // trigger an overflow on a completed shape. 
 // Because of that, it needs to be a multiple of both 3 and 4

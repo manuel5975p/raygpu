@@ -3,6 +3,8 @@ include(FetchContent)
 project(webgpu_standalone)
 set(SUPPORT_WGSL_PARSER ON)
 set(SUPPORT_GLSL_PARSER OFF)
+set(SUPPORT_SDL2 ON)
+set(SUPPORT_GLFW ON)
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=leak")
 #FetchContent_Declare(
 #    dawn
@@ -78,7 +80,7 @@ if(NOT EMSCRIPTEN)
     )
     FetchContent_MakeAvailable(sdl2wgpue)
     target_link_libraries(sdl2webgpu PUBLIC webgpu_dawn)
-    target_compile_definitions(sdl2webgpu PUBLIC WEBGPU_BACKEND_DAWN)
+    target_compile_definitions(sdl2webgpu PRIVATE WEBGPU_BACKEND_DAWN)
     
 endif()
 #download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_rect_pack.h" "stb_rect_pack.h")
@@ -90,7 +92,6 @@ endif()
 #add_subdirectory(dawn)
 set(RG_SOURCES
     "src/InitWindow.cpp"
-    "src/InitWindow_SDL.cpp"
     "src/raygpu.cpp"
     "src/shader_parse.cpp"
     "src/stb_impl.c"
@@ -104,11 +105,23 @@ set(RG_SOURCES
     "src/windows_stuff.c"
     "src/dawn_glfwrip.cpp"
 )
+if(SUPPORT_SDL2)
+    list(APPEND RG_SOURCES "src/InitWindow_SDL.cpp")
+endif()
+if(SUPPORT_GLFW)
+    list(APPEND RG_SOURCES "src/InitWindow_GLFW.cpp")
+endif()
 if (NOT EMSCRIPTEN)
-    list(APPEND RG_SOURCES "src/glsl_support.cpp")
+list(APPEND RG_SOURCES "src/glsl_support.cpp")
 endif()
 set(SANITIZER_FLAGS "-fsanitize=address")
 add_library(raygpu ${RG_SOURCES})
+if(SUPPORT_SDL2)
+    target_compile_definitions(raygpu PUBLIC SUPPORT_SDL2=1)
+endif()
+if(SUPPORT_GLFW)
+    target_compile_definitions(raygpu PUBLIC SUPPORT_GLFW=1)
+endif()
 if(NOT MSVC AND NOT EMSCRIPTEN)
     if(CMAKE_BUILD_TYPE MATCHES Debug)
         foreach(source_file IN LISTS RG_SOURCES)
@@ -170,8 +183,7 @@ else()
         #tint_lang_wgsl_reader
         dawn_internal_config
         glfw
-        SDL2::SDL2
-        sdl2webgpu
+        
         #glslang
     
         #dawn::dawn_native
@@ -181,6 +193,9 @@ else()
         #dawn::dawn_test_utils
         #dawn::dawn_proc
     )
+    if(SUPPORT_SDL2)
+        target_link_libraries(raygpu PUBLIC SDL2::SDL2 sdl2webgpu)
+    endif()
 endif()
 target_include_directories(raygpu PUBLIC)
 #add_executable(example "src/example.cpp")
