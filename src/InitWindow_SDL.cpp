@@ -161,6 +161,8 @@ extern "C" SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char
     SubWindow ret;
     SDL_Window *window = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, 0);
     SDL_SetWindowResizable(window, SDL_bool(g_wgpustate.windowFlags & FLAG_WINDOW_RESIZABLE));
+    if(g_wgpustate.windowFlags & FLAG_FULLSCREEN_MODE)
+        SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
     WGPUSurface csurf = SDL_GetWGPUSurface(GetInstance(), window);
     negotiateSurfaceFormatAndPresentMode((const wgpu::Surface &)csurf);
     WGPUSurfaceCapabilities capa;
@@ -180,7 +182,7 @@ extern "C" SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char
     } else {
         config.presentMode = (WGPUPresentMode)g_wgpustate.unthrottled_PresentMode;
     }
-    config.presentMode = WGPUPresentMode_Immediate;
+    //config.presentMode = WGPUPresentMode_Immediate;
     config.alphaMode = WGPUCompositeAlphaMode_Opaque;
     config.format = g_wgpustate.frameBufferFormat;
     config.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
@@ -231,7 +233,7 @@ void ResizeCallback(SDL_Window* window, int width, int height){
     //while(!g_wgpustate.drawmutex.try_lock());
     //g_wgpustate.drawmutex.lock();
     
-    TraceLog(LOG_WARNING, "glfwSizeCallback called with %d x %d", width, height);
+    TraceLog(LOG_WARNING, "SDL's ResizeCallback called with %d x %d", width, height);
     wgpu::SurfaceCapabilities capabilities;
     g_wgpustate.surface.GetCapabilities(g_wgpustate.adapter, &capabilities);
     wgpu::SurfaceConfiguration config = {};
@@ -533,8 +535,8 @@ uint32_t GetMonitorWidth_SDL(){
     Initialize_SDL();
     SDL_DisplayMode dm;
     if (SDL_GetDesktopDisplayMode(0, &dm) != 0){
-         TRACELOG(LOG_ERROR, "SDL_GetDesktopDisplayMode failed: %s", SDL_GetError());
-         return 1;
+        TRACELOG(LOG_ERROR, "SDL_GetDesktopDisplayMode failed: %s", SDL_GetError());
+        return 1;
     }
     return dm.w;
 }
@@ -542,8 +544,36 @@ uint32_t GetMonitorHeight_SDL(){
     Initialize_SDL();
     SDL_DisplayMode dm;
     if (SDL_GetDesktopDisplayMode(0, &dm) != 0){
-         TRACELOG(LOG_ERROR, "SDL_GetDesktopDisplayMode failed: %s", SDL_GetError());
-         return 1;
+        TRACELOG(LOG_ERROR, "SDL_GetDesktopDisplayMode failed: %s", SDL_GetError());
+        return 1;
     }
     return dm.h;
+}
+void ToggleFullscreen_SDL(cwoid){
+    bool alreadyFullscreen = SDL_GetWindowFlags((SDL_Window*)g_wgpustate.window) & SDL_WINDOW_FULLSCREEN;
+    if(alreadyFullscreen){
+        //We need to exit fullscreen
+        g_wgpustate.windowFlags &= ~FLAG_FULLSCREEN_MODE;
+        SDL_SetWindowFullscreen((SDL_Window*)g_wgpustate.window, 0);
+        SDL_SetWindowSize((SDL_Window*)g_wgpustate.window, g_wgpustate.input_map[g_wgpustate.window].windowPosition.width, g_wgpustate.input_map[g_wgpustate.window].windowPosition.height);//g_wgpustate.input_map[g_wgpustate.window].windowPosition.x, g_wgpustate.input_map[g_wgpustate.window].windowPosition.y, g_wgpustate.input_map[g_wgpustate.window].windowPosition.width, g_wgpustate.input_map[g_wgpustate.window].windowPosition.height, GLFW_DONT_CARE);
+    }
+    else{
+        //We need to enter fullscreen
+        int xpos = 0, ypos = 0;
+        int xs, ys;
+        #ifndef DAWN_USE_WAYLAND
+        SDL_GetWindowPosition((SDL_Window*)g_wgpustate.window, &xpos, &ypos);
+        #endif
+        SDL_GetWindowSize((SDL_Window*)g_wgpustate.window, &xs, &ys);
+        g_wgpustate.input_map[g_wgpustate.window].windowPosition = Rectangle{float(xpos), float(ypos), float(xs), float(ys)};
+        SDL_SetWindowSize((SDL_Window*)g_wgpustate.window, GetMonitorWidth_SDL(), GetMonitorHeight_SDL());
+        SDL_SetWindowFullscreen((SDL_Window*)g_wgpustate.window, SDL_WINDOW_FULLSCREEN);
+        //int monitorCount = 0;
+        //int monitorIndex = GetCurrentMonitor_GLFW(g_wgpustate.window);
+        //GLFWmonitor **monitors = glfwGetMonitors(&monitorCount);
+        //// Use current monitor, so we correctly get the display the window is on
+        //GLFWmonitor *monitor = (monitorIndex < monitorCount)? monitors[monitorIndex] : NULL;
+        //auto vm = glfwGetVideoMode(monitor);
+        //glfwSetWindowMonitor(g_wgpustate.window, glfwGetPrimaryMonitor(), 0, 0, vm->width, vm->height, vm->refreshRate);
+    }
 }
