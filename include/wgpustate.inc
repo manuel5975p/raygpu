@@ -8,6 +8,8 @@ struct window_input_state{
     std::vector<uint8_t> keydownPrevious = std::vector<uint8_t>(512, 0);
     std::vector<uint8_t> keydown = std::vector<uint8_t>(512, 0);
     Vector2 scrollThisFrame, scrollPreviousFrame;
+    float gestureZoomThisFrame;
+    float gestureAngleThisFrame;
     Vector2 mousePosPrevious;
     Vector2 mousePos;
     int cursorInWindow;

@@ -4,10 +4,10 @@
 #endif
 SubWindow sdlwin;
 void mainloop(void){
-    BeginWindowMode(sdlwin);
-    ClearBackground(RED);
-    DrawRectangle(GetMouseX(), GetMouseY(), 100, 100, BLUE);
-    EndWindowMode();
+    //BeginWindowMode(sdlwin);
+    //ClearBackground(RED);
+    //DrawRectangle(GetMouseX(), GetMouseY(), 100, 100, BLUE);
+    //EndWindowMode();
 
     BeginDrawing();
     ClearBackground((Color){230, 230, 230,255});
@@ -24,7 +24,7 @@ int main(void){
     SetConfigFlags(FLAG_VSYNC_LOWLATENCY_HINT);
     InitWindow(800, 600, "WebGPU window");
     //SetTargetFPS(0);
-    sdlwin = OpenSubWindow_GLFW(400, 400, "SDL fenschter");
+    //sdlwin = OpenSubWindow_GLFW(400, 400, "SDL fenschter");
 
     #ifndef __EMSCRIPTEN__
     while(!WindowShouldClose()){

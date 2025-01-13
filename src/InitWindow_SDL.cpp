@@ -289,6 +289,10 @@ void KeyUpCallback (SDL_Window* window, int key, int scancode, int mods){
     //    glfwSetWindowShouldClose(window, true);
     //}
 }
+void GestureCallback(SDL_Window* window, float zoom, float angle){
+    g_wgpustate.input_map[window].gestureZoomThisFrame += zoom;
+    g_wgpustate.input_map[window].gestureAngleThisFrame += angle;
+}
 void ScrollCallback(SDL_Window* window, double xoffset, double yoffset){
     g_wgpustate.input_map[window].scrollThisFrame.x += xoffset;
     g_wgpustate.input_map[window].scrollThisFrame.y += yoffset;
@@ -449,10 +453,10 @@ static KeyboardKey ConvertScancodeToKey(SDL_Scancode sdlScancode){
 
     return KEY_NULL; // No equivalent key in Raylib
 }
+SDL_Window* lastTouched = nullptr;
 extern "C" void PollEvents_SDL2() {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
-        
         switch (event.type) {
         case SDL_QUIT:{
             SDL_Window *window = SDL_GetWindowFromID(event.window.windowID);
@@ -484,8 +488,15 @@ extern "C" void PollEvents_SDL2() {
             }
             // Handle other window events if necessary
         } break;
+        case SDL_MULTIGESTURE:{
+            //SDL_Window *window = SDL_GetWindowFromID(event.tfinger.windowID);
+
+            GestureCallback(lastTouched, event.mgesture.dDist, event.mgesture.dTheta);
+        }break;
+
         case SDL_FINGERMOTION:{
-            TRACELOG(LOG_WARNING, "Fingermotion");
+            lastTouched = SDL_GetWindowFromID(event.tfinger.windowID);
+            //std::cout << event.tfinger.x << "\n";
         }break;
         case SDL_MOUSEWHEEL: {
             SDL_Window *window = SDL_GetWindowFromID(event.wheel.windowID);
