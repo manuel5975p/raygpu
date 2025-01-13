@@ -942,6 +942,16 @@ MAPI Vector3 Vector3Barycenter(Vector3 p, Vector3 a, Vector3 b, Vector3 c)
     return result;
 }
 
+MAPI float Vector3DotProduct(Vector3 a, Vector3 b){
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+MAPI Vector3 Vector3CrossProduct(Vector3 a, Vector3 b){
+    Vector3 ret;
+    ret.x = a.y * b.z - a.z * b.y;
+    ret.y = a.z * b.x - a.x * b.z;
+    ret.z = a.x * b.y - a.y * b.x;
+    return ret;
+}
 // Projects a Vector3 from screen space into object space
 // NOTE: We are avoiding calling other raymath functions despite available
 MAPI Vector3 Vector3Unproject(Vector3 source, Matrix projection, Matrix view)

@@ -90,7 +90,6 @@ EM_BOOL EmscriptenWheelCallback(int eventType, const EmscriptenWheelEvent* wheel
     double deltaX = std::clamp(wheelEvent->deltaX * scaleX, -100.0, 100.0) / 100.0f;
     double deltaY = std::clamp(wheelEvent->deltaY * scaleY, -100.0, 100.0) / 100.0f;
     
-    std::cout << "wheel: deltaX = " << deltaX << ", deltaY = " << deltaY << std::endl;
     
     // Invoke the original scroll callback with scaled deltas
     //auto originalCallback = reinterpret_cast<decltype(scrollCallback)*>(userData);

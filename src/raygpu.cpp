@@ -187,7 +187,7 @@ typedef struct VertexArray{
             it->attr.offset = offset;
             it->enabled = true;
 
-            std::cout << "Attribute at shader location " << shaderLocation << " updated.\n";
+            TRACELOG(LOG_DEBUG, "Attribute at shader location %u updated.", shaderLocation);
         } else {
             // Attribute does not exist, add as new
             AttributeAndResidence insert{};
@@ -300,14 +300,13 @@ typedef struct VertexArray{
         if (it != attributes.end()) {
             if (it->enabled) {
                 it->enabled = false;
-                std::cout << "Attribute at shader location " << shaderLocation << " disabled.\n";
+                TRACELOG(LOG_DEBUG, "Attribute at shader location %u disabled.", shaderLocation);
             } else {
-                std::cout << "Attribute at shader location " << shaderLocation << " is already disabled.\n";
+                TRACELOG(LOG_DEBUG, "Attribute at shader location %u is already disabled", shaderLocation);
             }
             return true;
         }
-
-        std::cerr << "Attribute with shader location " << shaderLocation << " not found.\n";
+        TRACELOG(LOG_WARNING, "Attribute at shader location %u does not exist", shaderLocation);
         return false;
     }
 }VertexArray;
@@ -1021,7 +1020,7 @@ void EndDrawing(){
     for(auto& [_, ipstate] : g_wgpustate.input_map){
         ipstate.charQueue.clear();
         ipstate.gestureAngleThisFrame = 0;
-        ipstate.gestureZoomThisFrame = 0;
+        ipstate.gestureZoomThisFrame = 1;
     }
     PollEvents();
     
@@ -1243,6 +1242,14 @@ void ImageFormat(Image* img, PixelFormat newFormat){
     img->data = newimg.data;
     img->rowStrideInBytes = newimg.rowStrideInBytes;
     
+}
+Color* LoadImageColors(Image img){
+    Image copy = ImageFromImage(img, Rectangle{0,0,(float)img.width, (float)img.height});
+    ImageFormat(&copy, RGBA8);
+    return (RGBA8Color*)copy.data;
+}
+void UnloadImageColors(Color* cols){
+    free(cols);
 }
 
 Image LoadImageFromTexture(Texture tex){

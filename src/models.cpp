@@ -17,6 +17,9 @@
 #define TINYOBJ_LOADER_C_IMPLEMENTATION
 #include <tinyobj_loader_c.h>
 #include <cgltf.h>
+#define PAR_SHAPES_IMPLEMENTATION
+#include <par_shapes.h>
+
 cgltf_result LoadFileGLTFCallback(const struct cgltf_memory_options *memoryOptions, const struct cgltf_file_options *fileOptions, const char *path, cgltf_size *size, void **data){
     size_t filesize;
     void* filedata = LoadFileData(path, &filesize);
@@ -33,114 +36,7 @@ cgltf_result LoadFileGLTFCallback(const struct cgltf_memory_options *memoryOptio
 static void ReleaseFileGLTFCallback(const struct cgltf_memory_options *memoryOptions, const struct cgltf_file_options *fileOptions, void *data){
     UnloadFileData(data);
 }
-Mesh GenMeshCube(float width, float height, float length){
-    constexpr size_t vertexCount = 6 * 4;    //6 sides of 4 vertices
-    const float vertices[] = {//3 components per vertex
-        -width/2, -height/2, length/2,
-        width/2, -height/2, length/2,
-        width/2, height/2, length/2,
-        -width/2, height/2, length/2,
-        -width/2, -height/2, -length/2,
-        -width/2, height/2, -length/2,
-        width/2, height/2, -length/2,
-        width/2, -height/2, -length/2,
-        -width/2, height/2, -length/2,
-        -width/2, height/2, length/2,
-        width/2, height/2, length/2,
-        width/2, height/2, -length/2,
-        -width/2, -height/2, -length/2,
-        width/2, -height/2, -length/2,
-        width/2, -height/2, length/2,
-        -width/2, -height/2, length/2,
-        width/2, -height/2, -length/2,
-        width/2, height/2, -length/2,
-        width/2, height/2, length/2,
-        width/2, -height/2, length/2,
-        -width/2, -height/2, -length/2,
-        -width/2, -height/2, length/2,
-        -width/2, height/2, length/2,
-        -width/2, height/2, -length/2
-    };
 
-    constexpr float texcoords[] = {
-        0.0f, 0.0f,
-        1.0f, 0.0f,
-        1.0f, 1.0f,
-        0.0f, 1.0f,
-        1.0f, 0.0f,
-        1.0f, 1.0f,
-        0.0f, 1.0f,
-        0.0f, 0.0f,
-        0.0f, 1.0f,
-        0.0f, 0.0f,
-        1.0f, 0.0f,
-        1.0f, 1.0f,
-        1.0f, 1.0f,
-        0.0f, 1.0f,
-        0.0f, 0.0f,
-        1.0f, 0.0f,
-        1.0f, 0.0f,
-        1.0f, 1.0f,
-        0.0f, 1.0f,
-        0.0f, 0.0f,
-        0.0f, 0.0f,
-        1.0f, 0.0f,
-        1.0f, 1.0f,
-        0.0f, 1.0f
-    };
-
-    constexpr float normals[] = {
-        0.0f, 0.0f, 1.0f,
-        0.0f, 0.0f, 1.0f,
-        0.0f, 0.0f, 1.0f,
-        0.0f, 0.0f, 1.0f,
-        0.0f, 0.0f,-1.0f,
-        0.0f, 0.0f,-1.0f,
-        0.0f, 0.0f,-1.0f,
-        0.0f, 0.0f,-1.0f,
-        0.0f, 1.0f, 0.0f,
-        0.0f, 1.0f, 0.0f,
-        0.0f, 1.0f, 0.0f,
-        0.0f, 1.0f, 0.0f,
-        0.0f,-1.0f, 0.0f,
-        0.0f,-1.0f, 0.0f,
-        0.0f,-1.0f, 0.0f,
-        0.0f,-1.0f, 0.0f,
-        1.0f, 0.0f, 0.0f,
-        1.0f, 0.0f, 0.0f,
-        1.0f, 0.0f, 0.0f,
-        1.0f, 0.0f, 0.0f,
-        -1.0f, 0.0f, 0.0f,
-        -1.0f, 0.0f, 0.0f,
-        -1.0f, 0.0f, 0.0f,
-        -1.0f, 0.0f, 0.0f
-    };
-
-    Mesh cubeMesh zeroinit;
-    cubeMesh.vertices  = (float*) calloc(vertexCount, sizeof(float) * 3);
-    cubeMesh.texcoords = (float*) calloc(vertexCount, sizeof(float) * 2);
-    cubeMesh.normals   = (float*) calloc(vertexCount, sizeof(float) * 3);
-    cubeMesh.colors    = (uint8_t*) calloc(vertexCount, sizeof(uint8_t) * 4);
-    cubeMesh.indices   = (uint32_t*)calloc(36, sizeof(uint32_t));
-    uint32_t k = 0;
-    for(uint32_t i = 0; i < 36; i += 6){
-        cubeMesh.indices[i] = 4*k;
-        cubeMesh.indices[i + 1] = 4*k + 1;
-        cubeMesh.indices[i + 2] = 4*k + 2;
-        cubeMesh.indices[i + 3] = 4*k;
-        cubeMesh.indices[i + 4] = 4*k + 2;
-        cubeMesh.indices[i + 5] = 4*k + 3;
-        k++;
-    }
-    cubeMesh.triangleCount = 12;
-    memcpy(cubeMesh.vertices, vertices, vertexCount * sizeof(float) * 3);
-    memcpy(cubeMesh.texcoords, texcoords, vertexCount * sizeof(float) * 2);
-    memcpy(cubeMesh.normals, normals, vertexCount * sizeof(float) * 3);
-    cubeMesh.vertexCount = vertexCount;
-    std::fill(cubeMesh.colors, cubeMesh.colors + vertexCount * 4, uint8_t(255));
-    UploadMesh(&cubeMesh, false);
-    return cubeMesh;
-}
 void UploadMesh(Mesh *mesh, bool dynamic){
     if(mesh->colors == nullptr){
         mesh->colors = (uint8_t*)RL_CALLOC(mesh->vertexCount, sizeof(RGBA8Color));
@@ -1850,4 +1746,1158 @@ Model LoadModel(const char *fileName){
     if (IsFileExtension(fileName, ".obj")) model = LoadOBJ(fileName);
     else if (IsFileExtension(fileName, ".glb")) model = LoadGLTF(fileName);
     return model;
+}
+
+
+
+
+// 
+// 
+//  ========== MESH GENERATION ==========
+// 
+// 
+
+
+
+
+Mesh GenMeshPoly(int sides, float radius)
+{
+    Mesh mesh zeroinit;
+
+    if (sides < 3) return mesh; // Security check
+
+    int vertexCount = sides*3;
+
+    // Vertices definition
+    Vector3 *vertices = (Vector3 *)RL_MALLOC(vertexCount*sizeof(Vector3));
+
+    float d = 0.0f, dStep = 360.0f/sides;
+    for (int v = 0; v < vertexCount - 2; v += 3)
+    {
+        vertices[v] =     CLITERAL(Vector3){ 0.0f, 0.0f, 0.0f };
+        vertices[v + 1] = CLITERAL(Vector3){ sinf(DEG2RAD*d)*radius, 0.0f, cosf(DEG2RAD*d)*radius };
+        vertices[v + 2] = CLITERAL(Vector3){ sinf(DEG2RAD*(d+dStep))*radius, 0.0f, cosf(DEG2RAD*(d+dStep))*radius };
+        d += dStep;
+    }
+
+    // Normals definition
+    Vector3 *normals = (Vector3 *)RL_MALLOC(vertexCount*sizeof(Vector3));
+    for (int n = 0; n < vertexCount; n++) normals[n] = CLITERAL(Vector3){ 0.0f, 1.0f, 0.0f };   // Vector3.up;
+
+    // TexCoords definition
+    Vector2 *texcoords = (Vector2 *)RL_MALLOC(vertexCount*sizeof(Vector2));
+    for (int n = 0; n < vertexCount; n++) texcoords[n] = CLITERAL(Vector2){ 0.0f, 0.0f };
+
+    mesh.vertexCount = vertexCount;
+    mesh.triangleCount = sides;
+    mesh.vertices = (float *)RL_MALLOC(mesh.vertexCount*3*sizeof(float));
+    mesh.texcoords = (float *)RL_MALLOC(mesh.vertexCount*2*sizeof(float));
+    mesh.normals = (float *)RL_MALLOC(mesh.vertexCount*3*sizeof(float));
+
+    // Mesh vertices position array
+    for (int i = 0; i < mesh.vertexCount; i++)
+    {
+        mesh.vertices[3*i] = vertices[i].x;
+        mesh.vertices[3*i + 1] = vertices[i].y;
+        mesh.vertices[3*i + 2] = vertices[i].z;
+    }
+
+    // Mesh texcoords array
+    for (int i = 0; i < mesh.vertexCount; i++)
+    {
+        mesh.texcoords[2*i] = texcoords[i].x;
+        mesh.texcoords[2*i + 1] = texcoords[i].y;
+    }
+
+    // Mesh normals array
+    for (int i = 0; i < mesh.vertexCount; i++)
+    {
+        mesh.normals[3*i] = normals[i].x;
+        mesh.normals[3*i + 1] = normals[i].y;
+        mesh.normals[3*i + 2] = normals[i].z;
+    }
+
+    RL_FREE(vertices);
+    RL_FREE(normals);
+    RL_FREE(texcoords);
+
+    // Upload vertex data to GPU (static mesh)
+    // NOTE: mesh.vboId array is allocated inside UploadMesh()
+    UploadMesh(&mesh, false);
+
+    return mesh;
+}
+
+// Generate plane mesh (with subdivisions)
+Mesh GenMeshPlane(float width, float length, int resX, int resZ)
+{
+    Mesh mesh zeroinit;
+
+#define CUSTOM_MESH_GEN_PLANE
+#if defined(CUSTOM_MESH_GEN_PLANE)
+    resX++;
+    resZ++;
+
+    // Vertices definition
+    int vertexCount = resX*resZ; // vertices get reused for the faces
+
+    Vector3 *vertices = (Vector3 *)RL_MALLOC(vertexCount*sizeof(Vector3));
+    for (int z = 0; z < resZ; z++)
+    {
+        // [-length/2, length/2]
+        float zPos = ((float)z/(resZ - 1) - 0.5f)*length;
+        for (int x = 0; x < resX; x++)
+        {
+            // [-width/2, width/2]
+            float xPos = ((float)x/(resX - 1) - 0.5f)*width;
+            vertices[x + z*resX] = CLITERAL(Vector3){ xPos, 0.0f, zPos };
+        }
+    }
+
+    // Normals definition
+    Vector3 *normals = (Vector3 *)RL_MALLOC(vertexCount*sizeof(Vector3));
+    for (int n = 0; n < vertexCount; n++) normals[n] = CLITERAL(Vector3){ 0.0f, 1.0f, 0.0f };   // Vector3.up;
+
+    // TexCoords definition
+    Vector2 *texcoords = (Vector2 *)RL_MALLOC(vertexCount*sizeof(Vector2));
+    for (int v = 0; v < resZ; v++)
+    {
+        for (int u = 0; u < resX; u++)
+        {
+            texcoords[u + v*resX] = CLITERAL(Vector2){ (float)u/(resX - 1), (float)v/(resZ - 1) };
+        }
+    }
+
+    // Triangles definition (indices)
+    int numFaces = (resX - 1)*(resZ - 1);
+    int *triangles = (int *)RL_MALLOC(numFaces*6*sizeof(int));
+    int t = 0;
+    for (int face = 0; face < numFaces; face++)
+    {
+        // Retrieve lower left corner from face ind
+        int i = face + face/(resX - 1);
+
+        triangles[t++] = i + resX;
+        triangles[t++] = i + 1;
+        triangles[t++] = i;
+
+        triangles[t++] = i + resX;
+        triangles[t++] = i + resX + 1;
+        triangles[t++] = i + 1;
+    }
+
+    mesh.vertexCount = vertexCount;
+    mesh.triangleCount = numFaces*2;
+    mesh.vertices = (float *)RL_MALLOC(mesh.vertexCount * 3 * sizeof(float));
+    mesh.texcoords = (float *)RL_MALLOC(mesh.vertexCount * 2 * sizeof(float));
+    mesh.normals = (float *)RL_MALLOC(mesh.vertexCount * 3 * sizeof(float));
+    mesh.indices = (uint32_t*) RL_MALLOC(mesh.triangleCount * 3 * sizeof(uint32_t));
+
+    // Mesh vertices position array
+    for (int i = 0; i < mesh.vertexCount; i++)
+    {
+        mesh.vertices[3*i] = vertices[i].x;
+        mesh.vertices[3*i + 1] = vertices[i].y;
+        mesh.vertices[3*i + 2] = vertices[i].z;
+    }
+
+    // Mesh texcoords array
+    for (int i = 0; i < mesh.vertexCount; i++)
+    {
+        mesh.texcoords[2*i] = texcoords[i].x;
+        mesh.texcoords[2*i + 1] = texcoords[i].y;
+    }
+
+    // Mesh normals array
+    for (int i = 0; i < mesh.vertexCount; i++)
+    {
+        mesh.normals[3*i] = normals[i].x;
+        mesh.normals[3*i + 1] = normals[i].y;
+        mesh.normals[3*i + 2] = normals[i].z;
+    }
+
+    // Mesh indices array initialization
+    for (int i = 0; i < mesh.triangleCount*3; i++) mesh.indices[i] = triangles[i];
+
+    RL_FREE(vertices);
+    RL_FREE(normals);
+    RL_FREE(texcoords);
+    RL_FREE(triangles);
+
+#else       // Use par_shapes library to generate plane mesh
+
+    par_shapes_mesh *plane = par_shapes_create_plane(resX, resZ);   // No normals/texcoords generated!!!
+    par_shapes_scale(plane, width, length, 1.0f);
+    par_shapes_rotate(plane, -M_PIPI/2.0f, (float[]){ 1, 0, 0 });
+    par_shapes_translate(plane, -width/2, 0.0f, length/2);
+
+    mesh.vertices = (float *)RL_MALLOC(plane->ntriangles*3*3*sizeof(float));
+    mesh.texcoords = (float *)RL_MALLOC(plane->ntriangles*3*2*sizeof(float));
+    mesh.normals = (float *)RL_MALLOC(plane->ntriangles*3*3*sizeof(float));
+
+    mesh.vertexCount = plane->ntriangles*3;
+    mesh.triangleCount = plane->ntriangles;
+
+    for (int k = 0; k < mesh.vertexCount; k++)
+    {
+        mesh.vertices[k*3] = plane->points[plane->triangles[k]*3];
+        mesh.vertices[k*3 + 1] = plane->points[plane->triangles[k]*3 + 1];
+        mesh.vertices[k*3 + 2] = plane->points[plane->triangles[k]*3 + 2];
+
+        mesh.normals[k*3] = plane->normals[plane->triangles[k]*3];
+        mesh.normals[k*3 + 1] = plane->normals[plane->triangles[k]*3 + 1];
+        mesh.normals[k*3 + 2] = plane->normals[plane->triangles[k]*3 + 2];
+
+        mesh.texcoords[k*2] = plane->tcoords[plane->triangles[k]*2];
+        mesh.texcoords[k*2 + 1] = plane->tcoords[plane->triangles[k]*2 + 1];
+    }
+
+    par_shapes_free_mesh(plane);
+#endif
+
+    // Upload vertex data to GPU (static mesh)
+    UploadMesh(&mesh, false);
+
+    return mesh;
+}
+
+// Generated cuboid mesh
+Mesh GenMeshCube(float width, float height, float length)
+{
+    Mesh mesh zeroinit;
+
+#define CUSTOM_MESH_GEN_CUBE
+#if defined(CUSTOM_MESH_GEN_CUBE)
+    float vertices[] = {
+        -width/2, -height/2, length/2,
+        width/2, -height/2, length/2,
+        width/2, height/2, length/2,
+        -width/2, height/2, length/2,
+        -width/2, -height/2, -length/2,
+        -width/2, height/2, -length/2,
+        width/2, height/2, -length/2,
+        width/2, -height/2, -length/2,
+        -width/2, height/2, -length/2,
+        -width/2, height/2, length/2,
+        width/2, height/2, length/2,
+        width/2, height/2, -length/2,
+        -width/2, -height/2, -length/2,
+        width/2, -height/2, -length/2,
+        width/2, -height/2, length/2,
+        -width/2, -height/2, length/2,
+        width/2, -height/2, -length/2,
+        width/2, height/2, -length/2,
+        width/2, height/2, length/2,
+        width/2, -height/2, length/2,
+        -width/2, -height/2, -length/2,
+        -width/2, -height/2, length/2,
+        -width/2, height/2, length/2,
+        -width/2, height/2, -length/2
+    };
+
+    float texcoords[] = {
+        0.0f, 0.0f,
+        1.0f, 0.0f,
+        1.0f, 1.0f,
+        0.0f, 1.0f,
+        1.0f, 0.0f,
+        1.0f, 1.0f,
+        0.0f, 1.0f,
+        0.0f, 0.0f,
+        0.0f, 1.0f,
+        0.0f, 0.0f,
+        1.0f, 0.0f,
+        1.0f, 1.0f,
+        1.0f, 1.0f,
+        0.0f, 1.0f,
+        0.0f, 0.0f,
+        1.0f, 0.0f,
+        1.0f, 0.0f,
+        1.0f, 1.0f,
+        0.0f, 1.0f,
+        0.0f, 0.0f,
+        0.0f, 0.0f,
+        1.0f, 0.0f,
+        1.0f, 1.0f,
+        0.0f, 1.0f
+    };
+
+    float normals[] = {
+        0.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 1.0f,
+        0.0f, 0.0f,-1.0f,
+        0.0f, 0.0f,-1.0f,
+        0.0f, 0.0f,-1.0f,
+        0.0f, 0.0f,-1.0f,
+        0.0f, 1.0f, 0.0f,
+        0.0f, 1.0f, 0.0f,
+        0.0f, 1.0f, 0.0f,
+        0.0f, 1.0f, 0.0f,
+        0.0f,-1.0f, 0.0f,
+        0.0f,-1.0f, 0.0f,
+        0.0f,-1.0f, 0.0f,
+        0.0f,-1.0f, 0.0f,
+        1.0f, 0.0f, 0.0f,
+        1.0f, 0.0f, 0.0f,
+        1.0f, 0.0f, 0.0f,
+        1.0f, 0.0f, 0.0f,
+        -1.0f, 0.0f, 0.0f,
+        -1.0f, 0.0f, 0.0f,
+        -1.0f, 0.0f, 0.0f,
+        -1.0f, 0.0f, 0.0f
+    };
+
+    mesh.vertices = (float *)RL_MALLOC(24*3*sizeof(float));
+    memcpy(mesh.vertices, vertices, 24*3*sizeof(float));
+
+    mesh.texcoords = (float *)RL_MALLOC(24*2*sizeof(float));
+    memcpy(mesh.texcoords, texcoords, 24*2*sizeof(float));
+
+    mesh.normals = (float *)RL_MALLOC(24*3*sizeof(float));
+    memcpy(mesh.normals, normals, 24*3*sizeof(float));
+
+    mesh.indices = (uint32_t *)RL_MALLOC(36*sizeof(uint32_t));
+
+    int k = 0;
+
+    // Indices can be initialized right now
+    for (int i = 0; i < 36; i += 6)
+    {
+        mesh.indices[i] = 4*k;
+        mesh.indices[i + 1] = 4*k + 1;
+        mesh.indices[i + 2] = 4*k + 2;
+        mesh.indices[i + 3] = 4*k;
+        mesh.indices[i + 4] = 4*k + 2;
+        mesh.indices[i + 5] = 4*k + 3;
+
+        k++;
+    }
+
+    mesh.vertexCount = 24;
+    mesh.triangleCount = 12;
+
+#else               // Use par_shapes library to generate cube mesh
+/*
+// Platonic solids:
+par_shapes_mesh *par_shapes_create_tetrahedron();       // 4 sides polyhedron (pyramid)
+par_shapes_mesh *par_shapes_create_cube();              // 6 sides polyhedron (cube)
+par_shapes_mesh *par_shapes_create_octahedron();        // 8 sides polyhedron (diamond)
+par_shapes_mesh *par_shapes_create_dodecahedron();      // 12 sides polyhedron
+par_shapes_mesh *par_shapes_create_icosahedron();       // 20 sides polyhedron
+*/
+    // Platonic solid generation: cube (6 sides)
+    // NOTE: No normals/texcoords generated by default
+    par_shapes_mesh *cube = par_shapes_create_cube();
+    cube->tcoords = PAR_MALLOC(float, 2*cube->npoints);
+    for (int i = 0; i < 2*cube->npoints; i++) cube->tcoords[i] = 0.0f;
+    par_shapes_scale(cube, width, height, length);
+    par_shapes_translate(cube, -width/2, 0.0f, -length/2);
+    par_shapes_compute_normals(cube);
+
+    mesh.vertices = (float *)RL_MALLOC(cube->ntriangles*3*3*sizeof(float));
+    mesh.texcoords = (float *)RL_MALLOC(cube->ntriangles*3*2*sizeof(float));
+    mesh.normals = (float *)RL_MALLOC(cube->ntriangles*3*3*sizeof(float));
+
+    mesh.vertexCount = cube->ntriangles*3;
+    mesh.triangleCount = cube->ntriangles;
+
+    for (int k = 0; k < mesh.vertexCount; k++)
+    {
+        mesh.vertices[k*3] = cube->points[cube->triangles[k]*3];
+        mesh.vertices[k*3 + 1] = cube->points[cube->triangles[k]*3 + 1];
+        mesh.vertices[k*3 + 2] = cube->points[cube->triangles[k]*3 + 2];
+
+        mesh.normals[k*3] = cube->normals[cube->triangles[k]*3];
+        mesh.normals[k*3 + 1] = cube->normals[cube->triangles[k]*3 + 1];
+        mesh.normals[k*3 + 2] = cube->normals[cube->triangles[k]*3 + 2];
+
+        mesh.texcoords[k*2] = cube->tcoords[cube->triangles[k]*2];
+        mesh.texcoords[k*2 + 1] = cube->tcoords[cube->triangles[k]*2 + 1];
+    }
+
+    par_shapes_free_mesh(cube);
+#endif
+
+    // Upload vertex data to GPU (static mesh)
+    UploadMesh(&mesh, false);
+
+    return mesh;
+}
+
+// Generate sphere mesh (standard sphere)
+Mesh GenMeshSphere(float radius, int rings, int slices)
+{
+    Mesh mesh zeroinit;
+
+    if ((rings >= 3) && (slices >= 3))
+    {
+        par_shapes_set_epsilon_degenerate_sphere(0.0);
+        par_shapes_mesh *sphere = par_shapes_create_parametric_sphere(slices, rings);
+        par_shapes_scale(sphere, radius, radius, radius);
+        // NOTE: Soft normals are computed internally
+
+        mesh.vertices = (float *)RL_MALLOC(sphere->ntriangles*3*3*sizeof(float));
+        mesh.texcoords = (float *)RL_MALLOC(sphere->ntriangles*3*2*sizeof(float));
+        mesh.normals = (float *)RL_MALLOC(sphere->ntriangles*3*3*sizeof(float));
+
+        mesh.vertexCount = sphere->ntriangles*3;
+        mesh.triangleCount = sphere->ntriangles;
+
+        for (int k = 0; k < mesh.vertexCount; k++)
+        {
+            mesh.vertices[k*3] = sphere->points[sphere->triangles[k]*3];
+            mesh.vertices[k*3 + 1] = sphere->points[sphere->triangles[k]*3 + 1];
+            mesh.vertices[k*3 + 2] = sphere->points[sphere->triangles[k]*3 + 2];
+
+            mesh.normals[k*3] = sphere->normals[sphere->triangles[k]*3];
+            mesh.normals[k*3 + 1] = sphere->normals[sphere->triangles[k]*3 + 1];
+            mesh.normals[k*3 + 2] = sphere->normals[sphere->triangles[k]*3 + 2];
+
+            mesh.texcoords[k*2] = sphere->tcoords[sphere->triangles[k]*2];
+            mesh.texcoords[k*2 + 1] = sphere->tcoords[sphere->triangles[k]*2 + 1];
+        }
+
+        par_shapes_free_mesh(sphere);
+
+        // Upload vertex data to GPU (static mesh)
+        UploadMesh(&mesh, false);
+    }
+    else TRACELOG(LOG_WARNING, "MESH: Failed to generate mesh: sphere");
+
+    return mesh;
+}
+
+// Generate hemisphere mesh (half sphere, no bottom cap)
+Mesh GenMeshHemiSphere(float radius, int rings, int slices)
+{
+    Mesh mesh zeroinit;
+
+    if ((rings >= 3) && (slices >= 3))
+    {
+        if (radius < 0.0f) radius = 0.0f;
+
+        par_shapes_mesh *sphere = par_shapes_create_hemisphere(slices, rings);
+        par_shapes_scale(sphere, radius, radius, radius);
+        // NOTE: Soft normals are computed internally
+
+        mesh.vertices = (float *)RL_MALLOC(sphere->ntriangles*3*3*sizeof(float));
+        mesh.texcoords = (float *)RL_MALLOC(sphere->ntriangles*3*2*sizeof(float));
+        mesh.normals = (float *)RL_MALLOC(sphere->ntriangles*3*3*sizeof(float));
+
+        mesh.vertexCount = sphere->ntriangles*3;
+        mesh.triangleCount = sphere->ntriangles;
+
+        for (int k = 0; k < mesh.vertexCount; k++)
+        {
+            mesh.vertices[k*3] = sphere->points[sphere->triangles[k]*3];
+            mesh.vertices[k*3 + 1] = sphere->points[sphere->triangles[k]*3 + 1];
+            mesh.vertices[k*3 + 2] = sphere->points[sphere->triangles[k]*3 + 2];
+
+            mesh.normals[k*3] = sphere->normals[sphere->triangles[k]*3];
+            mesh.normals[k*3 + 1] = sphere->normals[sphere->triangles[k]*3 + 1];
+            mesh.normals[k*3 + 2] = sphere->normals[sphere->triangles[k]*3 + 2];
+
+            mesh.texcoords[k*2] = sphere->tcoords[sphere->triangles[k]*2];
+            mesh.texcoords[k*2 + 1] = sphere->tcoords[sphere->triangles[k]*2 + 1];
+        }
+
+        par_shapes_free_mesh(sphere);
+
+        // Upload vertex data to GPU (static mesh)
+        UploadMesh(&mesh, false);
+    }
+    else TRACELOG(LOG_WARNING, "MESH: Failed to generate mesh: hemisphere");
+
+    return mesh;
+}
+
+// Generate cylinder mesh
+Mesh GenMeshCylinder(float radius, float height, int slices)
+{
+    Mesh mesh zeroinit;
+
+    if (slices >= 3)
+    {
+        // Instance a cylinder that sits on the Z=0 plane using the given tessellation
+        // levels across the UV domain.  Think of "slices" like a number of pizza
+        // slices, and "stacks" like a number of stacked rings
+        // Height and radius are both 1.0, but they can easily be changed with par_shapes_scale
+        par_shapes_mesh *cylinder = par_shapes_create_cylinder(slices, 8);
+        par_shapes_scale(cylinder, radius, radius, height);
+        par_shapes_rotate(cylinder, -M_PI/2.0f, (float[3]){ 1, 0, 0 });
+
+        // Generate an orientable disk shape (top cap)
+        par_shapes_mesh *capTop = par_shapes_create_disk(radius, slices, (float[]){ 0, 0, 0 }, (float[]){ 0, 0, 1 });
+        capTop->tcoords = PAR_MALLOC(float, 2*capTop->npoints);
+        for (int i = 0; i < 2*capTop->npoints; i++) capTop->tcoords[i] = 0.0f;
+        par_shapes_rotate(capTop, -M_PI/2.0f, (float[]){ 1, 0, 0 });
+        par_shapes_rotate(capTop, 90*DEG2RAD, (float[]){ 0, 1, 0 });
+        par_shapes_translate(capTop, 0, height, 0);
+
+        // Generate an orientable disk shape (bottom cap)
+        par_shapes_mesh *capBottom = par_shapes_create_disk(radius, slices, (float[]){ 0, 0, 0 }, (float[]){ 0, 0, -1 });
+        capBottom->tcoords = PAR_MALLOC(float, 2*capBottom->npoints);
+        for (int i = 0; i < 2*capBottom->npoints; i++) capBottom->tcoords[i] = 0.95f;
+        par_shapes_rotate(capBottom, M_PI/2.0f, (float[]){ 1, 0, 0 });
+        par_shapes_rotate(capBottom, -90*DEG2RAD, (float[]){ 0, 1, 0 });
+
+        par_shapes_merge_and_free(cylinder, capTop);
+        par_shapes_merge_and_free(cylinder, capBottom);
+
+        mesh.vertices = (float *)RL_MALLOC(cylinder->ntriangles*3*3*sizeof(float));
+        mesh.texcoords = (float *)RL_MALLOC(cylinder->ntriangles*3*2*sizeof(float));
+        mesh.normals = (float *)RL_MALLOC(cylinder->ntriangles*3*3*sizeof(float));
+
+        mesh.vertexCount = cylinder->ntriangles*3;
+        mesh.triangleCount = cylinder->ntriangles;
+
+        for (int k = 0; k < mesh.vertexCount; k++)
+        {
+            mesh.vertices[k*3] = cylinder->points[cylinder->triangles[k]*3];
+            mesh.vertices[k*3 + 1] = cylinder->points[cylinder->triangles[k]*3 + 1];
+            mesh.vertices[k*3 + 2] = cylinder->points[cylinder->triangles[k]*3 + 2];
+
+            mesh.normals[k*3] = cylinder->normals[cylinder->triangles[k]*3];
+            mesh.normals[k*3 + 1] = cylinder->normals[cylinder->triangles[k]*3 + 1];
+            mesh.normals[k*3 + 2] = cylinder->normals[cylinder->triangles[k]*3 + 2];
+
+            mesh.texcoords[k*2] = cylinder->tcoords[cylinder->triangles[k]*2];
+            mesh.texcoords[k*2 + 1] = cylinder->tcoords[cylinder->triangles[k]*2 + 1];
+        }
+
+        par_shapes_free_mesh(cylinder);
+
+        // Upload vertex data to GPU (static mesh)
+        UploadMesh(&mesh, false);
+    }
+    else TRACELOG(LOG_WARNING, "MESH: Failed to generate mesh: cylinder");
+
+    return mesh;
+}
+
+// Generate cone/pyramid mesh
+Mesh GenMeshCone(float radius, float height, int slices)
+{
+    Mesh mesh zeroinit;
+
+    if (slices >= 3)
+    {
+        // Instance a cone that sits on the Z=0 plane using the given tessellation
+        // levels across the UV domain.  Think of "slices" like a number of pizza
+        // slices, and "stacks" like a number of stacked rings
+        // Height and radius are both 1.0, but they can easily be changed with par_shapes_scale
+        par_shapes_mesh *cone = par_shapes_create_cone(slices, 8);
+        par_shapes_scale(cone, radius, radius, height);
+        par_shapes_rotate(cone, -M_PI/2.0f, (float[]){ 1, 0, 0 });
+        par_shapes_rotate(cone, M_PI/2.0f, (float[]){ 0, 1, 0 });
+
+        // Generate an orientable disk shape (bottom cap)
+        par_shapes_mesh *capBottom = par_shapes_create_disk(radius, slices, (float[]){ 0, 0, 0 }, (float[]){ 0, 0, -1 });
+        capBottom->tcoords = PAR_MALLOC(float, 2*capBottom->npoints);
+        for (int i = 0; i < 2*capBottom->npoints; i++) capBottom->tcoords[i] = 0.95f;
+        par_shapes_rotate(capBottom, M_PI/2.0f, (float[]){ 1, 0, 0 });
+
+        par_shapes_merge_and_free(cone, capBottom);
+
+        mesh.vertices = (float *)RL_MALLOC(cone->ntriangles*3*3*sizeof(float));
+        mesh.texcoords = (float *)RL_MALLOC(cone->ntriangles*3*2*sizeof(float));
+        mesh.normals = (float *)RL_MALLOC(cone->ntriangles*3*3*sizeof(float));
+
+        mesh.vertexCount = cone->ntriangles*3;
+        mesh.triangleCount = cone->ntriangles;
+
+        for (int k = 0; k < mesh.vertexCount; k++)
+        {
+            mesh.vertices[k*3] = cone->points[cone->triangles[k]*3];
+            mesh.vertices[k*3 + 1] = cone->points[cone->triangles[k]*3 + 1];
+            mesh.vertices[k*3 + 2] = cone->points[cone->triangles[k]*3 + 2];
+
+            mesh.normals[k*3] = cone->normals[cone->triangles[k]*3];
+            mesh.normals[k*3 + 1] = cone->normals[cone->triangles[k]*3 + 1];
+            mesh.normals[k*3 + 2] = cone->normals[cone->triangles[k]*3 + 2];
+
+            mesh.texcoords[k*2] = cone->tcoords[cone->triangles[k]*2];
+            mesh.texcoords[k*2 + 1] = cone->tcoords[cone->triangles[k]*2 + 1];
+        }
+
+        par_shapes_free_mesh(cone);
+
+        // Upload vertex data to GPU (static mesh)
+        UploadMesh(&mesh, false);
+    }
+    else TRACELOG(LOG_WARNING, "MESH: Failed to generate mesh: cone");
+
+    return mesh;
+}
+
+// Generate torus mesh
+Mesh GenMeshTorus(float radius, float size, int radSeg, int sides)
+{
+    Mesh mesh zeroinit;
+
+    if ((sides >= 3) && (radSeg >= 3))
+    {
+        if (radius > 1.0f) radius = 1.0f;
+        else if (radius < 0.1f) radius = 0.1f;
+
+        // Create a donut that sits on the Z=0 plane with the specified inner radius
+        // The outer radius can be controlled with par_shapes_scale
+        par_shapes_mesh *torus = par_shapes_create_torus(radSeg, sides, radius);
+        par_shapes_scale(torus, size/2, size/2, size/2);
+
+        mesh.vertices = (float *)RL_MALLOC(torus->ntriangles*3*3*sizeof(float));
+        mesh.texcoords = (float *)RL_MALLOC(torus->ntriangles*3*2*sizeof(float));
+        mesh.normals = (float *)RL_MALLOC(torus->ntriangles*3*3*sizeof(float));
+
+        mesh.vertexCount = torus->ntriangles*3;
+        mesh.triangleCount = torus->ntriangles;
+
+        for (int k = 0; k < mesh.vertexCount; k++)
+        {
+            mesh.vertices[k*3] = torus->points[torus->triangles[k]*3];
+            mesh.vertices[k*3 + 1] = torus->points[torus->triangles[k]*3 + 1];
+            mesh.vertices[k*3 + 2] = torus->points[torus->triangles[k]*3 + 2];
+
+            mesh.normals[k*3] = torus->normals[torus->triangles[k]*3];
+            mesh.normals[k*3 + 1] = torus->normals[torus->triangles[k]*3 + 1];
+            mesh.normals[k*3 + 2] = torus->normals[torus->triangles[k]*3 + 2];
+
+            mesh.texcoords[k*2] = torus->tcoords[torus->triangles[k]*2];
+            mesh.texcoords[k*2 + 1] = torus->tcoords[torus->triangles[k]*2 + 1];
+        }
+
+        par_shapes_free_mesh(torus);
+
+        // Upload vertex data to GPU (static mesh)
+        UploadMesh(&mesh, false);
+    }
+    else TRACELOG(LOG_WARNING, "MESH: Failed to generate mesh: torus");
+
+    return mesh;
+}
+
+// Generate trefoil knot mesh
+Mesh GenMeshKnot(float radius, float size, int radSeg, int sides)
+{
+    Mesh mesh zeroinit;
+
+    if ((sides >= 3) && (radSeg >= 3))
+    {
+        if (radius > 3.0f) radius = 3.0f;
+        else if (radius < 0.5f) radius = 0.5f;
+
+        par_shapes_mesh *knot = par_shapes_create_trefoil_knot(radSeg, sides, radius);
+        par_shapes_scale(knot, size, size, size);
+
+        mesh.vertices = (float *)RL_MALLOC(knot->ntriangles*3*3*sizeof(float));
+        mesh.texcoords = (float *)RL_MALLOC(knot->ntriangles*3*2*sizeof(float));
+        mesh.normals = (float *)RL_MALLOC(knot->ntriangles*3*3*sizeof(float));
+
+        mesh.vertexCount = knot->ntriangles*3;
+        mesh.triangleCount = knot->ntriangles;
+
+        for (int k = 0; k < mesh.vertexCount; k++)
+        {
+            mesh.vertices[k*3] = knot->points[knot->triangles[k]*3];
+            mesh.vertices[k*3 + 1] = knot->points[knot->triangles[k]*3 + 1];
+            mesh.vertices[k*3 + 2] = knot->points[knot->triangles[k]*3 + 2];
+
+            mesh.normals[k*3] = knot->normals[knot->triangles[k]*3];
+            mesh.normals[k*3 + 1] = knot->normals[knot->triangles[k]*3 + 1];
+            mesh.normals[k*3 + 2] = knot->normals[knot->triangles[k]*3 + 2];
+
+            mesh.texcoords[k*2] = knot->tcoords[knot->triangles[k]*2];
+            mesh.texcoords[k*2 + 1] = knot->tcoords[knot->triangles[k]*2 + 1];
+        }
+
+        par_shapes_free_mesh(knot);
+
+        // Upload vertex data to GPU (static mesh)
+        UploadMesh(&mesh, false);
+    }
+    else TRACELOG(LOG_WARNING, "MESH: Failed to generate mesh: knot");
+
+    return mesh;
+}
+
+// Generate a mesh from heightmap
+// NOTE: Vertex data is uploaded to GPU
+Mesh GenMeshHeightmap(Image heightmap, Vector3 size)
+{
+    #define GRAY_VALUE(c) ((float)(c.r + c.g + c.b)/3.0f)
+
+    Mesh mesh zeroinit;
+
+    int mapX = heightmap.width;
+    int mapZ = heightmap.height;
+
+    Color *pixels = LoadImageColors(heightmap);
+
+    // NOTE: One vertex per pixel
+    mesh.triangleCount = (mapX - 1)*(mapZ - 1)*2;    // One quad every four pixels
+
+    mesh.vertexCount = mesh.triangleCount*3;
+
+    mesh.vertices = (float *)RL_MALLOC(mesh.vertexCount*3*sizeof(float));
+    mesh.normals = (float *)RL_MALLOC(mesh.vertexCount*3*sizeof(float));
+    mesh.texcoords = (float *)RL_MALLOC(mesh.vertexCount*2*sizeof(float));
+    mesh.colors = NULL;
+
+    int vCounter = 0;       // Used to count vertices float by float
+    int tcCounter = 0;      // Used to count texcoords float by float
+    int nCounter = 0;       // Used to count normals float by float
+
+    Vector3 scaleFactor = { size.x/(mapX - 1), size.y/255.0f, size.z/(mapZ - 1) };
+
+    Vector3 vA zeroinit;
+    Vector3 vB zeroinit;
+    Vector3 vC zeroinit;
+    Vector3 vN zeroinit;
+
+    for (int z = 0; z < mapZ-1; z++)
+    {
+        for (int x = 0; x < mapX-1; x++)
+        {
+            // Fill vertices array with data
+            //----------------------------------------------------------
+
+            // one triangle - 3 vertex
+            mesh.vertices[vCounter] = (float)x*scaleFactor.x;
+            mesh.vertices[vCounter + 1] = GRAY_VALUE(pixels[x + z*mapX])*scaleFactor.y;
+            mesh.vertices[vCounter + 2] = (float)z*scaleFactor.z;
+
+            mesh.vertices[vCounter + 3] = (float)x*scaleFactor.x;
+            mesh.vertices[vCounter + 4] = GRAY_VALUE(pixels[x + (z + 1)*mapX])*scaleFactor.y;
+            mesh.vertices[vCounter + 5] = (float)(z + 1)*scaleFactor.z;
+
+            mesh.vertices[vCounter + 6] = (float)(x + 1)*scaleFactor.x;
+            mesh.vertices[vCounter + 7] = GRAY_VALUE(pixels[(x + 1) + z*mapX])*scaleFactor.y;
+            mesh.vertices[vCounter + 8] = (float)z*scaleFactor.z;
+
+            // Another triangle - 3 vertex
+            mesh.vertices[vCounter + 9] = mesh.vertices[vCounter + 6];
+            mesh.vertices[vCounter + 10] = mesh.vertices[vCounter + 7];
+            mesh.vertices[vCounter + 11] = mesh.vertices[vCounter + 8];
+
+            mesh.vertices[vCounter + 12] = mesh.vertices[vCounter + 3];
+            mesh.vertices[vCounter + 13] = mesh.vertices[vCounter + 4];
+            mesh.vertices[vCounter + 14] = mesh.vertices[vCounter + 5];
+
+            mesh.vertices[vCounter + 15] = (float)(x + 1)*scaleFactor.x;
+            mesh.vertices[vCounter + 16] = GRAY_VALUE(pixels[(x + 1) + (z + 1)*mapX])*scaleFactor.y;
+            mesh.vertices[vCounter + 17] = (float)(z + 1)*scaleFactor.z;
+            vCounter += 18;     // 6 vertex, 18 floats
+
+            // Fill texcoords array with data
+            //--------------------------------------------------------------
+            mesh.texcoords[tcCounter] = (float)x/(mapX - 1);
+            mesh.texcoords[tcCounter + 1] = (float)z/(mapZ - 1);
+
+            mesh.texcoords[tcCounter + 2] = (float)x/(mapX - 1);
+            mesh.texcoords[tcCounter + 3] = (float)(z + 1)/(mapZ - 1);
+
+            mesh.texcoords[tcCounter + 4] = (float)(x + 1)/(mapX - 1);
+            mesh.texcoords[tcCounter + 5] = (float)z/(mapZ - 1);
+
+            mesh.texcoords[tcCounter + 6] = mesh.texcoords[tcCounter + 4];
+            mesh.texcoords[tcCounter + 7] = mesh.texcoords[tcCounter + 5];
+
+            mesh.texcoords[tcCounter + 8] = mesh.texcoords[tcCounter + 2];
+            mesh.texcoords[tcCounter + 9] = mesh.texcoords[tcCounter + 3];
+
+            mesh.texcoords[tcCounter + 10] = (float)(x + 1)/(mapX - 1);
+            mesh.texcoords[tcCounter + 11] = (float)(z + 1)/(mapZ - 1);
+            tcCounter += 12;    // 6 texcoords, 12 floats
+
+            // Fill normals array with data
+            //--------------------------------------------------------------
+            for (int i = 0; i < 18; i += 9)
+            {
+                vA.x = mesh.vertices[nCounter + i];
+                vA.y = mesh.vertices[nCounter + i + 1];
+                vA.z = mesh.vertices[nCounter + i + 2];
+
+                vB.x = mesh.vertices[nCounter + i + 3];
+                vB.y = mesh.vertices[nCounter + i + 4];
+                vB.z = mesh.vertices[nCounter + i + 5];
+
+                vC.x = mesh.vertices[nCounter + i + 6];
+                vC.y = mesh.vertices[nCounter + i + 7];
+                vC.z = mesh.vertices[nCounter + i + 8];
+
+                vN = Vector3Normalize(Vector3CrossProduct(Vector3Subtract(vB, vA), Vector3Subtract(vC, vA)));
+
+                mesh.normals[nCounter + i] = vN.x;
+                mesh.normals[nCounter + i + 1] = vN.y;
+                mesh.normals[nCounter + i + 2] = vN.z;
+
+                mesh.normals[nCounter + i + 3] = vN.x;
+                mesh.normals[nCounter + i + 4] = vN.y;
+                mesh.normals[nCounter + i + 5] = vN.z;
+
+                mesh.normals[nCounter + i + 6] = vN.x;
+                mesh.normals[nCounter + i + 7] = vN.y;
+                mesh.normals[nCounter + i + 8] = vN.z;
+            }
+
+            nCounter += 18;     // 6 vertex, 18 floats
+        }
+    }
+
+    UnloadImageColors(pixels);  // Unload pixels color data
+
+    // Upload vertex data to GPU (static mesh)
+    UploadMesh(&mesh, false);
+
+    return mesh;
+}
+
+// Generate a cubes mesh from pixel data
+// NOTE: Vertex data is uploaded to GPU
+Mesh GenMeshCubicmap(Image cubicmap, Vector3 cubeSize)
+{
+    #define COLOR_EQUAL(col1, col2) ((col1.r == col2.r)&&(col1.g == col2.g)&&(col1.b == col2.b)&&(col1.a == col2.a))
+
+    Mesh mesh zeroinit;
+
+    Color *pixels = LoadImageColors(cubicmap);
+
+    // NOTE: Max possible number of triangles numCubes*(12 triangles by cube)
+    int maxTriangles = cubicmap.width*cubicmap.height*12;
+
+    int vCounter = 0;       // Used to count vertices
+    int tcCounter = 0;      // Used to count texcoords
+    int nCounter = 0;       // Used to count normals
+
+    float w = cubeSize.x;
+    float h = cubeSize.z;
+    float h2 = cubeSize.y;
+
+    Vector3 *mapVertices = (Vector3 *)RL_MALLOC(maxTriangles*3*sizeof(Vector3));
+    Vector2 *mapTexcoords = (Vector2 *)RL_MALLOC(maxTriangles*3*sizeof(Vector2));
+    Vector3 *mapNormals = (Vector3 *)RL_MALLOC(maxTriangles*3*sizeof(Vector3));
+
+    // Define the 6 normals of the cube, we will combine them accordingly later...
+    Vector3 n1 = { 1.0f, 0.0f, 0.0f };
+    Vector3 n2 = { -1.0f, 0.0f, 0.0f };
+    Vector3 n3 = { 0.0f, 1.0f, 0.0f };
+    Vector3 n4 = { 0.0f, -1.0f, 0.0f };
+    Vector3 n5 = { 0.0f, 0.0f, -1.0f };
+    Vector3 n6 = { 0.0f, 0.0f, 1.0f };
+
+    // NOTE: We use texture rectangles to define different textures for top-bottom-front-back-right-left (6)
+    typedef struct RectangleF {
+        float x;
+        float y;
+        float width;
+        float height;
+    } RectangleF;
+
+    RectangleF rightTexUV = { 0.0f, 0.0f, 0.5f, 0.5f };
+    RectangleF leftTexUV = { 0.5f, 0.0f, 0.5f, 0.5f };
+    RectangleF frontTexUV = { 0.0f, 0.0f, 0.5f, 0.5f };
+    RectangleF backTexUV = { 0.5f, 0.0f, 0.5f, 0.5f };
+    RectangleF topTexUV = { 0.0f, 0.5f, 0.5f, 0.5f };
+    RectangleF bottomTexUV = { 0.5f, 0.5f, 0.5f, 0.5f };
+
+    for (int z = 0; z < cubicmap.height; ++z)
+    {
+        for (int x = 0; x < cubicmap.width; ++x)
+        {
+            // Define the 8 vertex of the cube, we will combine them accordingly later...
+            Vector3 v1 = { w*(x - 0.5f), h2, h*(z - 0.5f) };
+            Vector3 v2 = { w*(x - 0.5f), h2, h*(z + 0.5f) };
+            Vector3 v3 = { w*(x + 0.5f), h2, h*(z + 0.5f) };
+            Vector3 v4 = { w*(x + 0.5f), h2, h*(z - 0.5f) };
+            Vector3 v5 = { w*(x + 0.5f), 0, h*(z - 0.5f) };
+            Vector3 v6 = { w*(x - 0.5f), 0, h*(z - 0.5f) };
+            Vector3 v7 = { w*(x - 0.5f), 0, h*(z + 0.5f) };
+            Vector3 v8 = { w*(x + 0.5f), 0, h*(z + 0.5f) };
+
+            // We check pixel color to be WHITE -> draw full cube
+            if (COLOR_EQUAL(pixels[z*cubicmap.width + x], WHITE))
+            {
+                // Define triangles and checking collateral cubes
+                //------------------------------------------------
+
+                // Define top triangles (2 tris, 6 vertex --> v1-v2-v3, v1-v3-v4)
+                // WARNING: Not required for a WHITE cubes, created to allow seeing the map from outside
+                mapVertices[vCounter] = v1;
+                mapVertices[vCounter + 1] = v2;
+                mapVertices[vCounter + 2] = v3;
+                mapVertices[vCounter + 3] = v1;
+                mapVertices[vCounter + 4] = v3;
+                mapVertices[vCounter + 5] = v4;
+                vCounter += 6;
+
+                mapNormals[nCounter] = n3;
+                mapNormals[nCounter + 1] = n3;
+                mapNormals[nCounter + 2] = n3;
+                mapNormals[nCounter + 3] = n3;
+                mapNormals[nCounter + 4] = n3;
+                mapNormals[nCounter + 5] = n3;
+                nCounter += 6;
+
+                mapTexcoords[tcCounter] = CLITERAL(Vector2){ topTexUV.x, topTexUV.y };
+                mapTexcoords[tcCounter + 1] = CLITERAL(Vector2){ topTexUV.x, topTexUV.y + topTexUV.height };
+                mapTexcoords[tcCounter + 2] = CLITERAL(Vector2){ topTexUV.x + topTexUV.width, topTexUV.y + topTexUV.height };
+                mapTexcoords[tcCounter + 3] = CLITERAL(Vector2){ topTexUV.x, topTexUV.y };
+                mapTexcoords[tcCounter + 4] = CLITERAL(Vector2){ topTexUV.x + topTexUV.width, topTexUV.y + topTexUV.height };
+                mapTexcoords[tcCounter + 5] = CLITERAL(Vector2){ topTexUV.x + topTexUV.width, topTexUV.y };
+                tcCounter += 6;
+
+                // Define bottom triangles (2 tris, 6 vertex --> v6-v8-v7, v6-v5-v8)
+                mapVertices[vCounter] = v6;
+                mapVertices[vCounter + 1] = v8;
+                mapVertices[vCounter + 2] = v7;
+                mapVertices[vCounter + 3] = v6;
+                mapVertices[vCounter + 4] = v5;
+                mapVertices[vCounter + 5] = v8;
+                vCounter += 6;
+
+                mapNormals[nCounter] = n4;
+                mapNormals[nCounter + 1] = n4;
+                mapNormals[nCounter + 2] = n4;
+                mapNormals[nCounter + 3] = n4;
+                mapNormals[nCounter + 4] = n4;
+                mapNormals[nCounter + 5] = n4;
+                nCounter += 6;
+
+                mapTexcoords[tcCounter] = CLITERAL(Vector2){ bottomTexUV.x + bottomTexUV.width, bottomTexUV.y };
+                mapTexcoords[tcCounter + 1] = CLITERAL(Vector2){ bottomTexUV.x, bottomTexUV.y + bottomTexUV.height };
+                mapTexcoords[tcCounter + 2] = CLITERAL(Vector2){ bottomTexUV.x + bottomTexUV.width, bottomTexUV.y + bottomTexUV.height };
+                mapTexcoords[tcCounter + 3] = CLITERAL(Vector2){ bottomTexUV.x + bottomTexUV.width, bottomTexUV.y };
+                mapTexcoords[tcCounter + 4] = CLITERAL(Vector2){ bottomTexUV.x, bottomTexUV.y };
+                mapTexcoords[tcCounter + 5] = CLITERAL(Vector2){ bottomTexUV.x, bottomTexUV.y + bottomTexUV.height };
+                tcCounter += 6;
+
+                // Checking cube on bottom of current cube
+                if (((z < cubicmap.height - 1) && COLOR_EQUAL(pixels[(z + 1)*cubicmap.width + x], BLACK)) || (z == cubicmap.height - 1))
+                {
+                    // Define front triangles (2 tris, 6 vertex) --> v2 v7 v3, v3 v7 v8
+                    // NOTE: Collateral occluded faces are not generated
+                    mapVertices[vCounter] = v2;
+                    mapVertices[vCounter + 1] = v7;
+                    mapVertices[vCounter + 2] = v3;
+                    mapVertices[vCounter + 3] = v3;
+                    mapVertices[vCounter + 4] = v7;
+                    mapVertices[vCounter + 5] = v8;
+                    vCounter += 6;
+
+                    mapNormals[nCounter] = n6;
+                    mapNormals[nCounter + 1] = n6;
+                    mapNormals[nCounter + 2] = n6;
+                    mapNormals[nCounter + 3] = n6;
+                    mapNormals[nCounter + 4] = n6;
+                    mapNormals[nCounter + 5] = n6;
+                    nCounter += 6;
+
+                    mapTexcoords[tcCounter] = CLITERAL(Vector2){ frontTexUV.x, frontTexUV.y };
+                    mapTexcoords[tcCounter + 1] = CLITERAL(Vector2){ frontTexUV.x, frontTexUV.y + frontTexUV.height };
+                    mapTexcoords[tcCounter + 2] = CLITERAL(Vector2){ frontTexUV.x + frontTexUV.width, frontTexUV.y };
+                    mapTexcoords[tcCounter + 3] = CLITERAL(Vector2){ frontTexUV.x + frontTexUV.width, frontTexUV.y };
+                    mapTexcoords[tcCounter + 4] = CLITERAL(Vector2){ frontTexUV.x, frontTexUV.y + frontTexUV.height };
+                    mapTexcoords[tcCounter + 5] = CLITERAL(Vector2){ frontTexUV.x + frontTexUV.width, frontTexUV.y + frontTexUV.height };
+                    tcCounter += 6;
+                }
+
+                // Checking cube on top of current cube
+                if (((z > 0) && COLOR_EQUAL(pixels[(z - 1)*cubicmap.width + x], BLACK)) || (z == 0))
+                {
+                    // Define back triangles (2 tris, 6 vertex) --> v1 v5 v6, v1 v4 v5
+                    // NOTE: Collateral occluded faces are not generated
+                    mapVertices[vCounter] = v1;
+                    mapVertices[vCounter + 1] = v5;
+                    mapVertices[vCounter + 2] = v6;
+                    mapVertices[vCounter + 3] = v1;
+                    mapVertices[vCounter + 4] = v4;
+                    mapVertices[vCounter + 5] = v5;
+                    vCounter += 6;
+
+                    mapNormals[nCounter] = n5;
+                    mapNormals[nCounter + 1] = n5;
+                    mapNormals[nCounter + 2] = n5;
+                    mapNormals[nCounter + 3] = n5;
+                    mapNormals[nCounter + 4] = n5;
+                    mapNormals[nCounter + 5] = n5;
+                    nCounter += 6;
+
+                    mapTexcoords[tcCounter] = CLITERAL(Vector2){ backTexUV.x + backTexUV.width, backTexUV.y };
+                    mapTexcoords[tcCounter + 1] = CLITERAL(Vector2){ backTexUV.x, backTexUV.y + backTexUV.height };
+                    mapTexcoords[tcCounter + 2] = CLITERAL(Vector2){ backTexUV.x + backTexUV.width, backTexUV.y + backTexUV.height };
+                    mapTexcoords[tcCounter + 3] = CLITERAL(Vector2){ backTexUV.x + backTexUV.width, backTexUV.y };
+                    mapTexcoords[tcCounter + 4] = CLITERAL(Vector2){ backTexUV.x, backTexUV.y };
+                    mapTexcoords[tcCounter + 5] = CLITERAL(Vector2){ backTexUV.x, backTexUV.y + backTexUV.height };
+                    tcCounter += 6;
+                }
+
+                // Checking cube on right of current cube
+                if (((x < cubicmap.width - 1) && COLOR_EQUAL(pixels[z*cubicmap.width + (x + 1)], BLACK)) || (x == cubicmap.width - 1))
+                {
+                    // Define right triangles (2 tris, 6 vertex) --> v3 v8 v4, v4 v8 v5
+                    // NOTE: Collateral occluded faces are not generated
+                    mapVertices[vCounter] = v3;
+                    mapVertices[vCounter + 1] = v8;
+                    mapVertices[vCounter + 2] = v4;
+                    mapVertices[vCounter + 3] = v4;
+                    mapVertices[vCounter + 4] = v8;
+                    mapVertices[vCounter + 5] = v5;
+                    vCounter += 6;
+
+                    mapNormals[nCounter] = n1;
+                    mapNormals[nCounter + 1] = n1;
+                    mapNormals[nCounter + 2] = n1;
+                    mapNormals[nCounter + 3] = n1;
+                    mapNormals[nCounter + 4] = n1;
+                    mapNormals[nCounter + 5] = n1;
+                    nCounter += 6;
+
+                    mapTexcoords[tcCounter] = CLITERAL(Vector2){ rightTexUV.x, rightTexUV.y };
+                    mapTexcoords[tcCounter + 1] = CLITERAL(Vector2){ rightTexUV.x, rightTexUV.y + rightTexUV.height };
+                    mapTexcoords[tcCounter + 2] = CLITERAL(Vector2){ rightTexUV.x + rightTexUV.width, rightTexUV.y };
+                    mapTexcoords[tcCounter + 3] = CLITERAL(Vector2){ rightTexUV.x + rightTexUV.width, rightTexUV.y };
+                    mapTexcoords[tcCounter + 4] = CLITERAL(Vector2){ rightTexUV.x, rightTexUV.y + rightTexUV.height };
+                    mapTexcoords[tcCounter + 5] = CLITERAL(Vector2){ rightTexUV.x + rightTexUV.width, rightTexUV.y + rightTexUV.height };
+                    tcCounter += 6;
+                }
+
+                // Checking cube on left of current cube
+                if (((x > 0) && COLOR_EQUAL(pixels[z*cubicmap.width + (x - 1)], BLACK)) || (x == 0))
+                {
+                    // Define left triangles (2 tris, 6 vertex) --> v1 v7 v2, v1 v6 v7
+                    // NOTE: Collateral occluded faces are not generated
+                    mapVertices[vCounter] = v1;
+                    mapVertices[vCounter + 1] = v7;
+                    mapVertices[vCounter + 2] = v2;
+                    mapVertices[vCounter + 3] = v1;
+                    mapVertices[vCounter + 4] = v6;
+                    mapVertices[vCounter + 5] = v7;
+                    vCounter += 6;
+
+                    mapNormals[nCounter] = n2;
+                    mapNormals[nCounter + 1] = n2;
+                    mapNormals[nCounter + 2] = n2;
+                    mapNormals[nCounter + 3] = n2;
+                    mapNormals[nCounter + 4] = n2;
+                    mapNormals[nCounter + 5] = n2;
+                    nCounter += 6;
+
+                    mapTexcoords[tcCounter] = CLITERAL(Vector2){ leftTexUV.x, leftTexUV.y };
+                    mapTexcoords[tcCounter + 1] = CLITERAL(Vector2){ leftTexUV.x + leftTexUV.width, leftTexUV.y + leftTexUV.height };
+                    mapTexcoords[tcCounter + 2] = CLITERAL(Vector2){ leftTexUV.x + leftTexUV.width, leftTexUV.y };
+                    mapTexcoords[tcCounter + 3] = CLITERAL(Vector2){ leftTexUV.x, leftTexUV.y };
+                    mapTexcoords[tcCounter + 4] = CLITERAL(Vector2){ leftTexUV.x, leftTexUV.y + leftTexUV.height };
+                    mapTexcoords[tcCounter + 5] = CLITERAL(Vector2){ leftTexUV.x + leftTexUV.width, leftTexUV.y + leftTexUV.height };
+                    tcCounter += 6;
+                }
+            }
+            // We check pixel color to be BLACK, we will only draw floor and roof
+            else if (COLOR_EQUAL(pixels[z*cubicmap.width + x], BLACK))
+            {
+                // Define top triangles (2 tris, 6 vertex --> v1-v2-v3, v1-v3-v4)
+                mapVertices[vCounter] = v1;
+                mapVertices[vCounter + 1] = v3;
+                mapVertices[vCounter + 2] = v2;
+                mapVertices[vCounter + 3] = v1;
+                mapVertices[vCounter + 4] = v4;
+                mapVertices[vCounter + 5] = v3;
+                vCounter += 6;
+
+                mapNormals[nCounter] = n4;
+                mapNormals[nCounter + 1] = n4;
+                mapNormals[nCounter + 2] = n4;
+                mapNormals[nCounter + 3] = n4;
+                mapNormals[nCounter + 4] = n4;
+                mapNormals[nCounter + 5] = n4;
+                nCounter += 6;
+
+                mapTexcoords[tcCounter] = CLITERAL(Vector2){ topTexUV.x, topTexUV.y };
+                mapTexcoords[tcCounter + 1] = CLITERAL(Vector2){ topTexUV.x + topTexUV.width, topTexUV.y + topTexUV.height };
+                mapTexcoords[tcCounter + 2] = CLITERAL(Vector2){ topTexUV.x, topTexUV.y + topTexUV.height };
+                mapTexcoords[tcCounter + 3] = CLITERAL(Vector2){ topTexUV.x, topTexUV.y };
+                mapTexcoords[tcCounter + 4] = CLITERAL(Vector2){ topTexUV.x + topTexUV.width, topTexUV.y };
+                mapTexcoords[tcCounter + 5] = CLITERAL(Vector2){ topTexUV.x + topTexUV.width, topTexUV.y + topTexUV.height };
+                tcCounter += 6;
+
+                // Define bottom triangles (2 tris, 6 vertex --> v6-v8-v7, v6-v5-v8)
+                mapVertices[vCounter] = v6;
+                mapVertices[vCounter + 1] = v7;
+                mapVertices[vCounter + 2] = v8;
+                mapVertices[vCounter + 3] = v6;
+                mapVertices[vCounter + 4] = v8;
+                mapVertices[vCounter + 5] = v5;
+                vCounter += 6;
+
+                mapNormals[nCounter] = n3;
+                mapNormals[nCounter + 1] = n3;
+                mapNormals[nCounter + 2] = n3;
+                mapNormals[nCounter + 3] = n3;
+                mapNormals[nCounter + 4] = n3;
+                mapNormals[nCounter + 5] = n3;
+                nCounter += 6;
+
+                mapTexcoords[tcCounter] = CLITERAL(Vector2){ bottomTexUV.x + bottomTexUV.width, bottomTexUV.y };
+                mapTexcoords[tcCounter + 1] = CLITERAL(Vector2){ bottomTexUV.x + bottomTexUV.width, bottomTexUV.y + bottomTexUV.height };
+                mapTexcoords[tcCounter + 2] = CLITERAL(Vector2){ bottomTexUV.x, bottomTexUV.y + bottomTexUV.height };
+                mapTexcoords[tcCounter + 3] = CLITERAL(Vector2){ bottomTexUV.x + bottomTexUV.width, bottomTexUV.y };
+                mapTexcoords[tcCounter + 4] = CLITERAL(Vector2){ bottomTexUV.x, bottomTexUV.y + bottomTexUV.height };
+                mapTexcoords[tcCounter + 5] = CLITERAL(Vector2){ bottomTexUV.x, bottomTexUV.y };
+                tcCounter += 6;
+            }
+        }
+    }
+
+    // Move data from mapVertices temp arrays to vertices float array
+    mesh.vertexCount = vCounter;
+    mesh.triangleCount = vCounter/3;
+
+    mesh.vertices = (float *)RL_MALLOC(mesh.vertexCount*3*sizeof(float));
+    mesh.normals = (float *)RL_MALLOC(mesh.vertexCount*3*sizeof(float));
+    mesh.texcoords = (float *)RL_MALLOC(mesh.vertexCount*2*sizeof(float));
+    mesh.colors = NULL;
+
+    int fCounter = 0;
+
+    // Move vertices data
+    for (int i = 0; i < vCounter; i++)
+    {
+        mesh.vertices[fCounter] = mapVertices[i].x;
+        mesh.vertices[fCounter + 1] = mapVertices[i].y;
+        mesh.vertices[fCounter + 2] = mapVertices[i].z;
+        fCounter += 3;
+    }
+
+    fCounter = 0;
+
+    // Move normals data
+    for (int i = 0; i < nCounter; i++)
+    {
+        mesh.normals[fCounter] = mapNormals[i].x;
+        mesh.normals[fCounter + 1] = mapNormals[i].y;
+        mesh.normals[fCounter + 2] = mapNormals[i].z;
+        fCounter += 3;
+    }
+
+    fCounter = 0;
+
+    // Move texcoords data
+    for (int i = 0; i < tcCounter; i++)
+    {
+        mesh.texcoords[fCounter] = mapTexcoords[i].x;
+        mesh.texcoords[fCounter + 1] = mapTexcoords[i].y;
+        fCounter += 2;
+    }
+
+    RL_FREE(mapVertices);
+    RL_FREE(mapNormals);
+    RL_FREE(mapTexcoords);
+
+    UnloadImageColors(pixels);   // Unload pixels color data
+
+    // Upload vertex data to GPU (static mesh)
+    UploadMesh(&mesh, false);
+
+    return mesh;
 }

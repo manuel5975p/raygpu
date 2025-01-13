@@ -378,7 +378,7 @@ PipelineTriplet GetPipelinesForLayout(DescribedPipeline* pipeline, const std::ve
         //TRACELOG(LOG_INFO, "Reusing cached pipeline triplet");
         return it->second;
     }
-    TRACELOG(LOG_INFO, "Creating new pipeline triplet");
+    TRACELOG(LOG_DEBUG, "Creating new pipeline triplet");
     uint32_t maxslot = 0;
     for(size_t i = 0;i < attribCount;i++){
         maxslot = std::max(maxslot, attribs[i].bufferSlot);
