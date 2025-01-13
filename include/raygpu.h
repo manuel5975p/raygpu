@@ -699,21 +699,21 @@ EXTERN_C_BEGIN
     void DisableCursor(cwoid);                                   // Disables cursor (lock cursor)
     bool IsCursorOnScreen(cwoid);                                // Check if cursor is on the screen
     void PollEvents(cwoid);
-    void PollEvents_SDL(cwoid);
+    void PollEvents_SDL2(cwoid);
     void PollEvents_GLFW(cwoid);
     uint32_t GetMonitorWidth_GLFW(cwoid);
-    uint32_t GetMonitorWidth_SDL(cwoid);
+    uint32_t GetMonitorWidth_SDL2(cwoid);
     uint32_t GetMonitorHeight_GLFW(cwoid);
-    uint32_t GetMonitorHeight_SDL(cwoid);
+    uint32_t GetMonitorHeight_SDL2(cwoid);
     void SetWindowShouldClose_GLFW(GLFWwindow* win);
-    void Initialize_SDL(cwoid);
+    void Initialize_SDL2(cwoid);
 
     bool WindowShouldClose_GLFW(GLFWwindow* win);
     SubWindow InitWindow_GLFW(int width, int height, const char* title);
     void ToggleFullscreen_GLFW(cwoid);
-    void ToggleFullscreen_SDL(cwoid);
+    void ToggleFullscreen_SDL2(cwoid);
     SubWindow OpenSubWindow_GLFW(uint32_t width, uint32_t height, const char* title);
-    SubWindow OpenSubWindow_SDL(uint32_t width, uint32_t height, const char* title);
+    SubWindow OpenSubWindow_SDL2(uint32_t width, uint32_t height, const char* title);
 
     /**
      * @brief Get the time elapsed since InitWindow() in seconds since 

@@ -148,7 +148,7 @@ wgpu::Surface CreateSurfaceForWindow(const wgpu::Instance &instance, SDL_Window 
 } // namespace wgpu::glfw
 #endif
 bool initied__sdl = false;
-void Initialize_SDL(){
+void Initialize_SDL2(){
     if(!initied__sdl){
         SDL_SetMainReady();
         SDL_Init(SDL_INIT_VIDEO);
@@ -203,7 +203,7 @@ extern "C" SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char
     return ret;
 }
 
-SubWindow OpenSubWindow_SDL(uint32_t width, uint32_t height, const char* title){
+SubWindow OpenSubWindow_SDL2(uint32_t width, uint32_t height, const char* title){
     SubWindow ret;
     ret.handle = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, 0);
     WGPUInstance inst = GetInstance();
@@ -450,7 +450,7 @@ static KeyboardKey ConvertScancodeToKey(SDL_Scancode sdlScancode){
 
     return KEY_NULL; // No equivalent key in Raylib
 }
-extern "C" void PollEvents_SDL() {
+extern "C" void PollEvents_SDL2() {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         
@@ -485,7 +485,9 @@ extern "C" void PollEvents_SDL() {
             }
             // Handle other window events if necessary
         } break;
-
+        case SDL_FINGERMOTION:{
+            TRACELOG(LOG_WARNING, "Fingermotion");
+        }break;
         case SDL_MOUSEWHEEL: {
             SDL_Window *window = SDL_GetWindowFromID(event.wheel.windowID);
             // Note: SDL's yoffset is positive when scrolling up, negative when scrolling down
@@ -531,8 +533,8 @@ extern "C" void PollEvents_SDL() {
         }
     }
 }
-uint32_t GetMonitorWidth_SDL(){
-    Initialize_SDL();
+uint32_t GetMonitorWidth_SDL2(){
+    Initialize_SDL2();
     SDL_DisplayMode dm;
     if (SDL_GetDesktopDisplayMode(0, &dm) != 0){
         TRACELOG(LOG_ERROR, "SDL_GetDesktopDisplayMode failed: %s", SDL_GetError());
@@ -540,8 +542,8 @@ uint32_t GetMonitorWidth_SDL(){
     }
     return dm.w;
 }
-uint32_t GetMonitorHeight_SDL(){
-    Initialize_SDL();
+uint32_t GetMonitorHeight_SDL2(){
+    Initialize_SDL2();
     SDL_DisplayMode dm;
     if (SDL_GetDesktopDisplayMode(0, &dm) != 0){
         TRACELOG(LOG_ERROR, "SDL_GetDesktopDisplayMode failed: %s", SDL_GetError());
@@ -549,7 +551,7 @@ uint32_t GetMonitorHeight_SDL(){
     }
     return dm.h;
 }
-void ToggleFullscreen_SDL(cwoid){
+void ToggleFullscreen_SDL2(cwoid){
     bool alreadyFullscreen = SDL_GetWindowFlags((SDL_Window*)g_wgpustate.window) & SDL_WINDOW_FULLSCREEN;
     if(alreadyFullscreen){
         //We need to exit fullscreen
@@ -566,7 +568,7 @@ void ToggleFullscreen_SDL(cwoid){
         #endif
         SDL_GetWindowSize((SDL_Window*)g_wgpustate.window, &xs, &ys);
         g_wgpustate.input_map[g_wgpustate.window].windowPosition = Rectangle{float(xpos), float(ypos), float(xs), float(ys)};
-        SDL_SetWindowSize((SDL_Window*)g_wgpustate.window, GetMonitorWidth_SDL(), GetMonitorHeight_SDL());
+        SDL_SetWindowSize((SDL_Window*)g_wgpustate.window, GetMonitorWidth_SDL2(), GetMonitorHeight_SDL2());
         SDL_SetWindowFullscreen((SDL_Window*)g_wgpustate.window, SDL_WINDOW_FULLSCREEN);
         //int monitorCount = 0;
         //int monitorIndex = GetCurrentMonitor_GLFW(g_wgpustate.window);

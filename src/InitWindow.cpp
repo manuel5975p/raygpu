@@ -121,7 +121,7 @@ struct webgpu_cxx_state{
 
 void PollEvents(){
     #if SUPPORT_SDL2 != 0
-    PollEvents_SDL();
+    PollEvents_SDL2();
     #endif
     #if SUPPORT_GLFW != 0
     PollEvents_GLFW();
@@ -481,7 +481,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         #ifdef MAIN_WINDOW_GLFW
         SubWindow glfwWin = InitWindow_GLFW(width, height, title);
         #else
-        Initialize_SDL();
+        Initialize_SDL2();
         SubWindow glfwWin = InitWindow_SDL2(width, height, title);
         #endif
         g_wgpustate.window = (GLFWwindow*)glfwWin.handle;
@@ -589,7 +589,7 @@ extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* 
     #ifdef MAIN_WINDOW_GLFW
     return OpenSubWindow_GLFW(width, height, title);
     #else
-    return OpenSubWindow_SDL(width, height, title);
+    return OpenSubWindow_SDL2(width, height, title);
     #endif
     return SubWindow zeroinit;
 }
@@ -597,14 +597,14 @@ extern "C" void ToggleFullscreen(){
     #ifdef MAIN_WINDOW_GLFW
     ToggleFullscreen_GLFW();
     #else
-    ToggleFullscreen_SDL();
+    ToggleFullscreen_SDL2();
     #endif
 }
 uint32_t GetMonitorWidth(cwoid){
     #ifdef MAIN_WINDOW_GLFW
     return GetMonitorWidth_GLFW();
     #else
-    return GetMonitorWidth_SDL();
+    return GetMonitorWidth_SDL2();
     
     #endif
 }
@@ -619,7 +619,7 @@ uint32_t GetMonitorHeight(cwoid){
     #ifdef MAIN_WINDOW_GLFW
     return GetMonitorHeight_GLFW();
     #else
-    return GetMonitorHeight_SDL();
+    return GetMonitorHeight_SDL2();
     
     #endif
 }
