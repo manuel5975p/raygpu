@@ -182,7 +182,6 @@ extern "C" SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char
     } else {
         config.presentMode = (WGPUPresentMode)g_wgpustate.unthrottled_PresentMode;
     }
-    //config.presentMode = WGPUPresentMode_Immediate;
     config.alphaMode = WGPUCompositeAlphaMode_Opaque;
     config.format = g_wgpustate.frameBufferFormat;
     config.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
