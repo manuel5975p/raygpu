@@ -684,6 +684,9 @@ EXTERN_C_BEGIN
 
     int GetMouseX(cwoid);
     int GetMouseY(cwoid);
+    float GetTouchZoom(cwoid);
+    float GetTouchRotate(cwoid);
+    
     Vector2 GetMousePosition(cwoid);
     Vector2 GetMouseDelta(cwoid);
     float GetMouseWheelMove(void);                          // Get mouse wheel movement for X or Y, whichever is larger

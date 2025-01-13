@@ -24,7 +24,7 @@
 #elif SUPPORT_GLFW == 1 && SUPPORT_SDL2 == 0
     #define MAIN_WINDOW_GLFW
 #elif SUPPORT_GLFW == 1 && SUPPORT_SDL2 == 1
-    #define MAIN_WINDOW_GLFW
+    #define MAIN_WINDOW_SDL2
 #else
 
 #endif

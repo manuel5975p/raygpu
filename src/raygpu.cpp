@@ -1020,8 +1020,11 @@ void EndDrawing(){
     std::copy(ipstate.mouseButtonDown.begin(), ipstate.mouseButtonDown.end(), ipstate.mouseButtonDownPrevious.begin());
     for(auto& [_, ipstate] : g_wgpustate.input_map){
         ipstate.charQueue.clear();
+        ipstate.gestureAngleThisFrame = 0;
+        ipstate.gestureZoomThisFrame = 0;
     }
     PollEvents();
+    
     //if(!(g_wgpustate.windowFlags & FLAG_HEADLESS))
     //    g_wgpustate.drawmutex.unlock();
     uint64_t nanosecondsPerFrame = std::floor(1e9 / GetTargetFPS());
@@ -1329,6 +1332,14 @@ int GetMouseX(cwoid){
 }
 int GetMouseY(cwoid){
     return (int)GetMousePosition().y;
+}
+
+float GetTouchZoom(cwoid){
+    return g_wgpustate.input_map[g_wgpustate.window].gestureZoomThisFrame;
+}
+float GetTouchRotate(cwoid){
+     
+    return g_wgpustate.input_map[g_wgpustate.window].gestureAngleThisFrame;
 }
 Vector2 GetMousePosition(cwoid){
     return g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mousePos;
