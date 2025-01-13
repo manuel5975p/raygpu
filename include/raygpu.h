@@ -732,8 +732,34 @@ EXTERN_C_BEGIN
      * @return uint64_t 
      */
     uint64_t NanoTime(cwoid);
+    
+    /**
+     * @brief This function exists to request limits that are higher than the default ones
+     * 
+     * @details 
+     * By default, device limits are **very** conservative to guarantee support on most platforms
+     * If a higher limit is desired, e.g. for maxTextureDimension2D, it has to be explicitly requested 
+     * @param limit The limit type, e.g. maxTextureDimension2D, maxBufferSize
+     * @param value The new value for this limit
+     */
     void RequestLimit(LimitType limit, uint64_t value);
+    
+    /**
+     * @brief Use a specific backend for the adapter. 
+     * 
+     * @param backend The backend to use, e.g. WGPUBackendType_Vulkan, WGPUBackendType_D3D12
+     */
+    void RequestBackend(WGPUBackendType backend);
+    
+    /**
+     * @brief Force a specific adapter type, namely WGPUAdapterType_DiscreteGPU, WGPUAdapterType_IntegratedGPU or WGPUAdapterType_CPU.
+     * Not all types are guaranteed to exist.
+     * @param type The adapter type
+     */
+    void RequestAdapterType(WGPUAdapterType type);
     void SetConfigFlags(int /* enum WindowFlag */ flag);
+    
+    
     bool IsATerminal(FILE *stream);
     void SetTargetFPS(int fps);                                 // Set target FPS (maximum)
     int GetTargetFPS(cwoid);
@@ -748,7 +774,7 @@ EXTERN_C_BEGIN
     void StartGIFRecording(cwoid);
     void EndGIFRecording(cwoid);
     Texture GetDepthTexture(cwoid);
-    Texture GetIntermediaryColorTarget(cwoid);
+    Texture GetMultisampleColorTarget(cwoid);
 
 
     DescribedRenderpass LoadRenderpass(WGPUTextureView color, WGPUTextureView depth);
@@ -1154,6 +1180,7 @@ extern wgpustate g_wgpustate;
 #ifdef __cplusplus
 extern const std::unordered_map<WGPUTextureFormat, std::string> textureFormatSpellingTable;
 extern const std::unordered_map<WGPUPresentMode, std::string> presentModeSpellingTable;
+extern const std::unordered_map<WGPUBackendType, std::string> backendTypeSpellingTable;
 void negotiateSurfaceFormatAndPresentMode(const wgpu::Surface& sf);
 #endif
 #endif

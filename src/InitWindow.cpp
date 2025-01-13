@@ -2,6 +2,7 @@
 #include <unordered_set>
 #include <webgpu/webgpu_cpp.h>
 #include <iostream>
+#include <optional>
 #include <chrono>
 
 #ifdef _WIN32
@@ -58,7 +59,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     return textureSample(texture0, texSampler, in.uv).rgba * in.color;
 }
 )";
-wgpu::Limits* limitsToBeRequested = nullptr;
+std::optional<wgpu::Limits> limitsToBeRequested = std::nullopt;
 
 void setlimit(wgpu::Limits& limits, LimitType limit, uint64_t value){
     switch(limit){
@@ -101,10 +102,18 @@ void setlimit(wgpu::Limits& limits, LimitType limit, uint64_t value){
     }
 }
 extern "C" void RequestLimit(LimitType limit, uint64_t value){
-    if(limitsToBeRequested == nullptr){
-        limitsToBeRequested = new wgpu::Limits;
+    if(!limitsToBeRequested.has_value()){
+        limitsToBeRequested = wgpu::Limits();
     }
-    setlimit(*limitsToBeRequested, limit, value);
+    setlimit(limitsToBeRequested.value(), limit, value);
+}
+WGPUBackendType requestedBackend = DEFAULT_BACKEND;
+WGPUAdapterType requestedAdapterType = WGPUAdapterType_Unknown;
+extern "C" void RequestAdapterType(WGPUAdapterType type){
+    requestedAdapterType = type;
+}
+extern "C" void RequestBackend(WGPUBackendType backend){
+    requestedBackend = backend;
 }
 
 struct full_renderstate;
@@ -134,8 +143,10 @@ void* GetActiveWindowHandle(){
 bool WindowShouldClose(cwoid){
     #ifdef MAIN_WINDOW_SDL2
     return g_wgpustate.closeFlag;
-    #else
+    #elif defined(MAIN_WINDOW_GLFW)
     return WindowShouldClose_GLFW(g_wgpustate.window);
+    #else
+    return false;
     #endif
 }
 
@@ -163,8 +174,8 @@ void InitWGPU(webgpu_cxx_state* sample){
     // Setup base adapter options with toggles.
     wgpu::RequestAdapterOptions adapterOptions = {};
     adapterOptions.nextInChain = togglesChain;
-    auto backendType = wgpu::BackendType::Vulkan;
-    auto adapterType = wgpu::AdapterType::Unknown;
+    auto backendType = (wgpu::BackendType)requestedBackend;
+    auto adapterType = wgpu::AdapterType::DiscreteGPU;
     adapterOptions.backendType = backendType;
     if (backendType != wgpu::BackendType::Undefined) {
         auto bcompat = [](wgpu::BackendType backend) {
@@ -185,7 +196,7 @@ void InitWGPU(webgpu_cxx_state* sample){
                     //return false;
             }
         };
-        adapterOptions.featureLevel = wgpu::FeatureLevel::Core;
+        adapterOptions.featureLevel = bcompat(backendType) ?  wgpu::FeatureLevel::Compatibility : wgpu::FeatureLevel::Core;
 
     }
 
@@ -241,16 +252,36 @@ void InitWGPU(webgpu_cxx_state* sample){
     }
     wgpu::AdapterInfo info;
     sample->adapter.GetInfo(&info);
+    
     std::vector<char> deviceNameCstr(info.device.length + 1, '\0');
+    std::vector<char> architectureCstr(info.architecture.length + 1, '\0');
     std::vector<char> deviceDescCstr(info.description.length + 1, '\0');
+    std::vector<char> vendorC2str(info.vendor.length + 1, '\0');
+
     memcpy(deviceNameCstr.data(), info.device.data, info.device.length);
     memcpy(deviceDescCstr.data(), info.description.data, info.description.length);
-    TRACELOG(LOG_INFO, "Using adapter %s", deviceNameCstr.data());
-    TRACELOG(LOG_INFO, "Description %s", deviceDescCstr.data());
+    memcpy(architectureCstr.data(), info.architecture.data, info.architecture.length);
+    memcpy(vendorC2str.data(), info.vendor.data, info.vendor.length);
+    
+    const char* adapterTypeString = info.adapterType == wgpu::AdapterType::CPU ? "CPU" : (info.adapterType == wgpu::AdapterType::IntegratedGPU ? "Integrated GPU" : "Dedicated GPU");
+    const char* backendString = backendTypeSpellingTable.at((WGPUBackendType)info.backendType).c_str();
 
+    TRACELOG(LOG_INFO, "Using adapter %s %s", vendorC2str.data(), deviceNameCstr.data());
+    TRACELOG(LOG_INFO, "Adapter description: %s", deviceDescCstr.data());
+    TRACELOG(LOG_INFO, "Adapter architecture: %s", architectureCstr.data());
+    TRACELOG(LOG_INFO, "%s renderer running on %s", backendString, adapterTypeString);
     // Create device descriptor with callbacks and toggles
     wgpu::SupportedFeatures features;
     sample->adapter.GetFeatures(&features);
+    wgpu::SupportedLimits adapterLimits;
+    sample->adapter.GetLimits(&adapterLimits);
+    {
+        TraceLog(LOG_INFO, "Platform could support %u bindings per bindgroup",    (unsigned)adapterLimits.limits.maxBindingsPerBindGroup);
+        TraceLog(LOG_INFO, "Platform could support %u bindgroups",                (unsigned)adapterLimits.limits.maxBindGroups);
+        TraceLog(LOG_INFO, "Platform could support buffers up to %llu megabytes", (unsigned long long)adapterLimits.limits.maxBufferSize / (1000000ull));
+        TraceLog(LOG_INFO, "Platform could support textures up to %u x %u",       (unsigned)adapterLimits.limits.maxTextureDimension2D, (unsigned)adapterLimits.limits.maxTextureDimension2D);
+        TraceLog(LOG_INFO, "Platform could support %u VBO slots",                 (unsigned)adapterLimits.limits.maxVertexBuffers);
+    }
     for(size_t i = 0;i < features.featureCount;i++){
         const wgpu::FeatureName& fn = features.features[i];
         //TRACELOG(LOG_INFO, "Supports: %d", fn);
@@ -259,7 +290,7 @@ void InitWGPU(webgpu_cxx_state* sample){
     #ifndef __EMSCRIPTEN__ //y tho
     wgpu::FeatureName fname = wgpu::FeatureName::ClipDistances;
     deviceDesc.requiredFeatures = &fname;
-    deviceDesc.requiredFeatureCount = 1;
+    deviceDesc.requiredFeatureCount = 0;
     #endif
     deviceDesc.nextInChain = togglesChain;
     deviceDesc.SetDeviceLostCallback(
@@ -306,10 +337,22 @@ void InitWGPU(webgpu_cxx_state* sample){
             std::cerr << errorTypeName << " error: " << std::string(message.data, message.length);
         });
 
+    
+    if(!limitsToBeRequested.has_value()){
+        limitsToBeRequested = wgpu::Limits();
+    }
+    
+    
     // Synchronously create the device
     wgpu::RequiredLimits reqLimits;
-    if(limitsToBeRequested){
-        reqLimits.limits = *limitsToBeRequested;
+
+
+
+    if(limitsToBeRequested.has_value()){
+        limitsToBeRequested->maxStorageBuffersInVertexStage = adapterLimits.limits.maxStorageBuffersInVertexStage;
+        limitsToBeRequested->maxStorageBuffersInFragmentStage = adapterLimits.limits.maxStorageBuffersInFragmentStage;
+
+        reqLimits.limits = limitsToBeRequested.value();
         deviceDesc.requiredLimits = &reqLimits;
     }
     else{
@@ -334,11 +377,11 @@ void InitWGPU(webgpu_cxx_state* sample){
     wgpu::SupportedLimits slimits;
     
     sample->device.GetLimits(&slimits);
-    TraceLog(LOG_INFO, "Supports %u bindings per bindgroup", (unsigned)slimits.limits.maxBindingsPerBindGroup);
-    TraceLog(LOG_INFO, "Supports %u bindgroups", (unsigned)slimits.limits.maxBindGroups);
-    TraceLog(LOG_INFO, "Supports buffers up to %llu megabytes", (unsigned long long)slimits.limits.maxBufferSize / (1000000ull));
-    TraceLog(LOG_INFO, "Supports textures up to %u x %u", (unsigned)slimits.limits.maxTextureDimension2D, (unsigned)slimits.limits.maxTextureDimension2D);
-    TraceLog(LOG_INFO, "Supports %u VBO slots", (unsigned)slimits.limits.maxVertexBuffers);
+    TraceLog(LOG_INFO, "Device supports %u bindings per bindgroup", (unsigned)slimits.limits.maxBindingsPerBindGroup);
+    TraceLog(LOG_INFO, "Device supports %u bindgroups", (unsigned)slimits.limits.maxBindGroups);
+    TraceLog(LOG_INFO, "Device supports buffers up to %llu megabytes", (unsigned long long)slimits.limits.maxBufferSize / (1000000ull));
+    TraceLog(LOG_INFO, "Device supports textures up to %u x %u", (unsigned)slimits.limits.maxTextureDimension2D, (unsigned)slimits.limits.maxTextureDimension2D);
+    TraceLog(LOG_INFO, "Device supports %u VBO slots", (unsigned)slimits.limits.maxVertexBuffers);
 
 }
 
@@ -359,7 +402,10 @@ void negotiateSurfaceFormatAndPresentMode(const wgpu::Surface& surf){
         }
         TRACELOG(LOG_INFO, "Supported present modes: %s", presentModeString.c_str());
     }
-    if(capabilities.presentModeCount == 1){
+    if(capabilities.presentModeCount == 0){
+        TRACELOG(LOG_ERROR, "No presentation modes supported! This surface is most likely invalid");
+    }
+    else if(capabilities.presentModeCount == 1){
         TRACELOG(LOG_INFO, "Only %s supported", presentModeSpellingTable.at((WGPUPresentMode)capabilities.presentModes[0]).c_str());
         g_wgpustate.unthrottled_PresentMode = capabilities.presentModes[0];
         g_wgpustate.throttled_PresentMode = capabilities.presentModes[0];
@@ -588,7 +634,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
 extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* title){
     #ifdef MAIN_WINDOW_GLFW
     return OpenSubWindow_GLFW(width, height, title);
-    #else
+    #elif defined(MAIN_WINDOW_SDL2)
     return OpenSubWindow_SDL2(width, height, title);
     #endif
     return SubWindow zeroinit;
@@ -596,33 +642,48 @@ extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* 
 extern "C" void ToggleFullscreen(){
     #ifdef MAIN_WINDOW_GLFW
     ToggleFullscreen_GLFW();
-    #else
+    #elif defined(MAIN_WINDOW_SDL2)
     ToggleFullscreen_SDL2();
     #endif
 }
 uint32_t GetMonitorWidth(cwoid){
     #ifdef MAIN_WINDOW_GLFW
     return GetMonitorWidth_GLFW();
-    #else
+    #elif defined(MAIN_WINDOW_SDL2)
     return GetMonitorWidth_SDL2();
-    
+    #else
+    return 0;
     #endif
 }
 void SetWindowShouldClose(){
     #ifdef MAIN_WINDOW_GLFW
     return SetWindowShouldClose_GLFW(g_wgpustate.window);
-    #else
+    #elif defined(MAIN_WINDOW_SDL2)
     g_wgpustate.closeFlag = true;
     #endif
 }
 uint32_t GetMonitorHeight(cwoid){
     #ifdef MAIN_WINDOW_GLFW
     return GetMonitorHeight_GLFW();
-    #else
+    #elif defined(MAIN_WINDOW_SDL2)
     return GetMonitorHeight_SDL2();
-    
+    #else
+    return 0;
     #endif
 }
+const std::unordered_map<WGPUBackendType, std::string> backendTypeSpellingTable = [](){
+    std::unordered_map<WGPUBackendType, std::string> map;
+    map[WGPUBackendType_Undefined] = "Undefined";
+    map[WGPUBackendType_Null] = "Null";
+    map[WGPUBackendType_WebGPU] = "WebGPU";
+    map[WGPUBackendType_D3D11] = "D3D11";
+    map[WGPUBackendType_D3D12] = "D3D12";
+    map[WGPUBackendType_Metal] = "Metal";
+    map[WGPUBackendType_Vulkan] = "Vulkan";
+    map[WGPUBackendType_OpenGL] = "OpenGL";
+    map[WGPUBackendType_OpenGLES] = "OpenGLES";
+    return map;
+}();
 const std::unordered_map<WGPUPresentMode, std::string> presentModeSpellingTable = [](){
     std::unordered_map<WGPUPresentMode, std::string> map;
     map[WGPUPresentMode_Fifo] = "WGPUPresentMode_Fifo";

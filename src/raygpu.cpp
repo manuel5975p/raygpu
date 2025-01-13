@@ -458,7 +458,7 @@ WGPUDevice GetDevice(){
 Texture GetDepthTexture(){
     return g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].depth;
 }
-Texture GetIntermediaryColorTarget(){
+Texture GetMultisampleColorTarget(){
     return g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].colorMultisample;
 }
 WGPUQueue GetQueue(){

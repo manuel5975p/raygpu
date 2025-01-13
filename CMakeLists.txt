@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.25)
 include(FetchContent)
 project(webgpu_standalone)
-option(SUPPORT_WGSL_PARSER ON)
+set(SUPPORT_WGSL_PARSER ON CACHE BOOL "Support wgsl parsing for uniform and attribute locations" FORCE)
 option(SUPPORT_GLSL_PARSER OFF)
 option(SUPPORT_SDL2 OFF)
-option(SUPPORT_GLFW ON)
+option(SUPPORT_GLFW OFF)
 if(EMSCRIPTEN)
-option(SUPPORT_SDL2 OFF CACHE BOOL "Support the SDL2 windowing backend" FORCE)
+    set(SUPPORT_SDL2 OFF CACHE BOOL "Support the SDL2 windowing backend" FORCE)
 endif()
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=leak")
 #FetchContent_Declare(
@@ -79,6 +79,7 @@ if(NOT EMSCRIPTEN)
             sdl2wgpue
             GIT_REPOSITORY      https://github.com/manuel5975p/sdl2webgpu.git
             GIT_TAG main
+            GIT_SHALLOW         True
             #DOWNLOAD_EXTRACT_TIMESTAMP True
         )
         FetchContent_MakeAvailable(sdl2wgpue)
