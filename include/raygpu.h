@@ -706,7 +706,7 @@ EXTERN_C_BEGIN
     uint32_t GetMonitorHeight_GLFW(cwoid);
     uint32_t GetMonitorHeight_SDL(cwoid);
     void SetWindowShouldClose_GLFW(GLFWwindow* win);
-    void Initialize_SDL();
+    void Initialize_SDL(cwoid);
 
     bool WindowShouldClose_GLFW(GLFWwindow* win);
     SubWindow InitWindow_GLFW(int width, int height, const char* title);

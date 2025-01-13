@@ -604,14 +604,14 @@ uint32_t GetMonitorWidth(cwoid){
     return GetMonitorWidth_GLFW();
     #else
     return GetMonitorWidth_SDL();
-    //TODO
+    
     #endif
 }
 void SetWindowShouldClose(){
     #ifdef MAIN_WINDOW_GLFW
     return SetWindowShouldClose_GLFW(g_wgpustate.window);
     #else
-    //TODO
+    g_wgpustate.closeFlag = true;
     #endif
 }
 uint32_t GetMonitorHeight(cwoid){
@@ -619,7 +619,7 @@ uint32_t GetMonitorHeight(cwoid){
     return GetMonitorHeight_GLFW();
     #else
     return GetMonitorHeight_SDL();
-    //TODO
+    
     #endif
 }
 const std::unordered_map<WGPUPresentMode, std::string> presentModeSpellingTable = [](){

@@ -305,6 +305,15 @@ void KeyDownCallback (SDL_Window* window, int key, int scancode, int mods){
     //}
 }
 
+void MouseButtonCallback(SDL_Window* window, int button, int action){
+    if(action == SDL_PRESSED){
+        g_wgpustate.input_map[window].mouseButtonDown[button] = 1;
+    }
+    else if(action == SDL_RELEASED){
+        g_wgpustate.input_map[window].mouseButtonDown[button] = 0;
+    }
+}
+
 #define SCANCODE_MAPPED_NUM 232
 static const KeyboardKey mapScancodeToKey[SCANCODE_MAPPED_NUM] = {
     KEY_NULL,           // SDL_SCANCODE_UNKNOWN
@@ -490,7 +499,11 @@ extern "C" void PollEvents_SDL() {
         case SDL_MOUSEBUTTONUP: {
             SDL_Window *window = SDL_GetWindowFromID(event.button.windowID);
             Uint8 state = (event.type == SDL_MOUSEBUTTONDOWN) ? SDL_PRESSED : SDL_RELEASED;
-            //MouseButtonCallback(window, event.button.button, state);
+
+            uint8_t forGLFW = event.button.button - 1;
+            if (forGLFW == 2) forGLFW = 1;
+            else if (forGLFW == 1) forGLFW = 2;
+            MouseButtonCallback(window, forGLFW, state);
         } break;
 
         case SDL_TEXTINPUT: {
@@ -501,7 +514,6 @@ extern "C" void PollEvents_SDL() {
             if (event.text.text[0] != '\0') {
                 codePoint = static_cast<unsigned int>(event.text.text[0]);
             }
-            std::cout << "Text inputted: " << event.text.text << "\n";
             CharCallback(window, codePoint);
         } break;
 
