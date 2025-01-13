@@ -711,6 +711,7 @@ EXTERN_C_BEGIN
     bool WindowShouldClose_GLFW(GLFWwindow* win);
     SubWindow InitWindow_GLFW(int width, int height, const char* title);
     void ToggleFullscreen_GLFW(cwoid);
+    void ToggleFullscreen_SDL(cwoid);
     SubWindow OpenSubWindow_GLFW(uint32_t width, uint32_t height, const char* title);
     SubWindow OpenSubWindow_SDL(uint32_t width, uint32_t height, const char* title);
 

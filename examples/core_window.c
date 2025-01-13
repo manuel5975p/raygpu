@@ -20,7 +20,7 @@ void mainloop(void){
 }
 int main(void){
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-    InitWindow(1920, 1080, "WebGPU window");
+    InitWindow(800, 600, "WebGPU window");
     SetTargetFPS(0);
     //sdlwin = OpenSubWindow(400,400,"SDL fenschter");
 

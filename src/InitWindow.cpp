@@ -597,6 +597,7 @@ extern "C" void ToggleFullscreen(){
     #ifdef MAIN_WINDOW_GLFW
     ToggleFullscreen_GLFW();
     #else
+    ToggleFullscreen_SDL();
     #endif
 }
 uint32_t GetMonitorWidth(cwoid){
