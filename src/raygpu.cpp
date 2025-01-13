@@ -1018,6 +1018,10 @@ void EndDrawing(){
     ipstate.scrollPreviousFrame = ipstate.scrollThisFrame;
     ipstate.scrollThisFrame = Vector2{0, 0};
     std::copy(ipstate.mouseButtonDown.begin(), ipstate.mouseButtonDown.end(), ipstate.mouseButtonDownPrevious.begin());
+    for(auto& [_, ipstate] : g_wgpustate.input_map){
+        ipstate.charQueue.clear();
+    }
+    PollEvents();
     //if(!(g_wgpustate.windowFlags & FLAG_HEADLESS))
     //    g_wgpustate.drawmutex.unlock();
     uint64_t nanosecondsPerFrame = std::floor(1e9 / GetTargetFPS());
@@ -1026,7 +1030,6 @@ void EndDrawing(){
     if(elapsed & (1ull << 63))return;
     if(!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) && nanosecondsPerFrame > elapsed && GetTargetFPS() > 0)
         NanoWait(nanosecondsPerFrame - elapsed);
-    PollEvents();
     
     --g_wgpustate.renderTargetStackPosition;
     //std::this_thread::sleep_for(std::chrono::nanoseconds(nanosecondsPerFrame - elapsed));

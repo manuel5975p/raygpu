@@ -7,7 +7,14 @@ A fast and simple [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebG
 - [Examples and snippets](#more-advanced-examples)
 
 ### Why WebGPU
-[WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API) is a new graphics API meant to give portable access to most GPU features, able to run on DirectX 11/12, Vulkan, OpenGL, Metal platforms and most importantly in [browsers](https://caniuse.com/webgpu). Web support is done by [Emscripten](https://emscripten.org/).
+[WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API) is a new graphics API meant to give portable access to advanced GPU features. The supported backends are
+- DirectX 11/12 
+- Vulkan
+- OpenGL
+- Metal 
+- Most importantly, [browsers](https://caniuse.com/webgpu). 
+
+Web support for C++/ wasm programs is done by [Emscripten](https://emscripten.org/).
 - **Pros**
   - Direct but portable support for OpenGL(ES), Vulkan, DirectX 12 and Metal
   - Web support for compute shaders and storage buffers
