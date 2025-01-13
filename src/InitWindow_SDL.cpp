@@ -290,7 +290,7 @@ void KeyUpCallback (SDL_Window* window, int key, int scancode, int mods){
     //}
 }
 void GestureCallback(SDL_Window* window, float zoom, float angle){
-    g_wgpustate.input_map[window].gestureZoomThisFrame += zoom;
+    g_wgpustate.input_map[window].gestureZoomThisFrame *= (1 + zoom);
     g_wgpustate.input_map[window].gestureAngleThisFrame += angle;
 }
 void ScrollCallback(SDL_Window* window, double xoffset, double yoffset){
@@ -490,13 +490,13 @@ extern "C" void PollEvents_SDL2() {
         } break;
         case SDL_MULTIGESTURE:{
             //SDL_Window *window = SDL_GetWindowFromID(event.tfinger.windowID);
-
-            GestureCallback(lastTouched, event.mgesture.dDist, event.mgesture.dTheta);
+            if(lastTouched)
+                GestureCallback(lastTouched, event.mgesture.dDist, event.mgesture.dTheta);
         }break;
 
         case SDL_FINGERMOTION:{
             lastTouched = SDL_GetWindowFromID(event.tfinger.windowID);
-            //std::cout << event.tfinger.x << "\n";
+        
         }break;
         case SDL_MOUSEWHEEL: {
             SDL_Window *window = SDL_GetWindowFromID(event.wheel.windowID);
