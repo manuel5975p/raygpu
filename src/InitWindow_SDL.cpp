@@ -6,7 +6,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
-#include <sdl2webgpu.h>
+#include "sdl2webgpu.h"
 #include <utility>
 #include <wgpustate.inc>
 extern wgpustate g_wgpustate;
@@ -166,14 +166,16 @@ extern "C" SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char
     WGPUSurface csurf = SDL_GetWGPUSurface(GetInstance(), window);
     negotiateSurfaceFormatAndPresentMode((const wgpu::Surface &)csurf);
     WGPUSurfaceCapabilities capa;
+    wgpu::SurfaceCapabilities cxxcapa;
     WGPUAdapter adapter = GetAdapter();
     // std::cout << surf.Get() << "\n";
-    // surf.GetCapabilities(GetCXXAdapter(), &capa);
+    //wgpu::Surface(csurf).GetCapabilities(GetCXXAdapter(), &cxxcapa);
+
     wgpuSurfaceGetCapabilities(csurf, adapter, &capa);
-    // std::cout << capa.presentModeCount << "\n";
-    // for(uint32_t i = 0;i < capa.presentModeCount;i++){
-    //     std::cout << "Sdl supports " << textureFormatSpellingTable.at(capa.formats[i]) << "\n";
-    // }
+    //std::cout << capa.presentModeCount << "\n";
+    //for(uint32_t i = 0;i < capa.presentModeCount;i++){
+    //    std::cout << "Sdl supports " << presentModeSpellingTable.at(capa.presentModes[i]) << std::endl;
+    //}
     WGPUSurfaceConfiguration config{};
     if (g_wgpustate.windowFlags & FLAG_VSYNC_LOWLATENCY_HINT) {
         config.presentMode = (WGPUPresentMode)(((g_wgpustate.unthrottled_PresentMode == wgpu::PresentMode::Mailbox) ? g_wgpustate.unthrottled_PresentMode : g_wgpustate.throttled_PresentMode));
@@ -182,6 +184,7 @@ extern "C" SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char
     } else {
         config.presentMode = (WGPUPresentMode)g_wgpustate.unthrottled_PresentMode;
     }
+    TRACELOG(LOG_INFO, "Initialized SDL2 window with surface %s", presentModeSpellingTable.at(config.presentMode).c_str());
     config.alphaMode = WGPUCompositeAlphaMode_Opaque;
     config.format = g_wgpustate.frameBufferFormat;
     config.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;

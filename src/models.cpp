@@ -20,6 +20,14 @@
 #define PAR_SHAPES_IMPLEMENTATION
 #include <par_shapes.h>
 
+constexpr float v3_zero [3] = {0,0,0};
+constexpr float v3_xunit[3] = {1,0,0};
+constexpr float v3_yunit[3] = {0,1,0};
+constexpr float v3_zunit[3] = {0,0,1};
+constexpr float v3_xunit_negative[3] = {-1,0,0};
+constexpr float v3_yunit_negative[3] = {0,-1,0};
+constexpr float v3_zunit_negative[3] = {0,0,-1};
+
 cgltf_result LoadFileGLTFCallback(const struct cgltf_memory_options *memoryOptions, const struct cgltf_file_options *fileOptions, const char *path, cgltf_size *size, void **data){
     size_t filesize;
     void* filedata = LoadFileData(path, &filesize);
@@ -1928,7 +1936,7 @@ Mesh GenMeshPlane(float width, float length, int resX, int resZ)
 
     par_shapes_mesh *plane = par_shapes_create_plane(resX, resZ);   // No normals/texcoords generated!!!
     par_shapes_scale(plane, width, length, 1.0f);
-    par_shapes_rotate(plane, -M_PIPI/2.0f, (float[]){ 1, 0, 0 });
+    par_shapes_rotate(plane, -M_PIPI/2.0f,v3_xunit);
     par_shapes_translate(plane, -width/2, 0.0f, length/2);
 
     mesh.vertices = (float *)RL_MALLOC(plane->ntriangles*3*3*sizeof(float));
@@ -2226,22 +2234,22 @@ Mesh GenMeshCylinder(float radius, float height, int slices)
         // Height and radius are both 1.0, but they can easily be changed with par_shapes_scale
         par_shapes_mesh *cylinder = par_shapes_create_cylinder(slices, 8);
         par_shapes_scale(cylinder, radius, radius, height);
-        par_shapes_rotate(cylinder, -M_PI/2.0f, (float[3]){ 1, 0, 0 });
+        par_shapes_rotate(cylinder, -M_PI/2.0f, v3_xunit);
 
         // Generate an orientable disk shape (top cap)
-        par_shapes_mesh *capTop = par_shapes_create_disk(radius, slices, (float[]){ 0, 0, 0 }, (float[]){ 0, 0, 1 });
+        par_shapes_mesh *capTop = par_shapes_create_disk(radius, slices, v3_zero, v3_zunit);
         capTop->tcoords = PAR_MALLOC(float, 2*capTop->npoints);
         for (int i = 0; i < 2*capTop->npoints; i++) capTop->tcoords[i] = 0.0f;
-        par_shapes_rotate(capTop, -M_PI/2.0f, (float[]){ 1, 0, 0 });
-        par_shapes_rotate(capTop, 90*DEG2RAD, (float[]){ 0, 1, 0 });
+        par_shapes_rotate(capTop, -M_PI/2.0f,v3_xunit);
+        par_shapes_rotate(capTop, 90*DEG2RAD,v3_yunit);
         par_shapes_translate(capTop, 0, height, 0);
 
         // Generate an orientable disk shape (bottom cap)
-        par_shapes_mesh *capBottom = par_shapes_create_disk(radius, slices, (float[]){ 0, 0, 0 }, (float[]){ 0, 0, -1 });
+        par_shapes_mesh *capBottom = par_shapes_create_disk(radius, slices, v3_zero, v3_zunit_negative);
         capBottom->tcoords = PAR_MALLOC(float, 2*capBottom->npoints);
         for (int i = 0; i < 2*capBottom->npoints; i++) capBottom->tcoords[i] = 0.95f;
-        par_shapes_rotate(capBottom, M_PI/2.0f, (float[]){ 1, 0, 0 });
-        par_shapes_rotate(capBottom, -90*DEG2RAD, (float[]){ 0, 1, 0 });
+        par_shapes_rotate(capBottom, M_PI/2.0f,v3_xunit);
+        par_shapes_rotate(capBottom, -90*DEG2RAD,v3_yunit);
 
         par_shapes_merge_and_free(cylinder, capTop);
         par_shapes_merge_and_free(cylinder, capBottom);
@@ -2290,14 +2298,14 @@ Mesh GenMeshCone(float radius, float height, int slices)
         // Height and radius are both 1.0, but they can easily be changed with par_shapes_scale
         par_shapes_mesh *cone = par_shapes_create_cone(slices, 8);
         par_shapes_scale(cone, radius, radius, height);
-        par_shapes_rotate(cone, -M_PI/2.0f, (float[]){ 1, 0, 0 });
-        par_shapes_rotate(cone, M_PI/2.0f, (float[]){ 0, 1, 0 });
+        par_shapes_rotate(cone, -M_PI/2.0f,v3_xunit);
+        par_shapes_rotate(cone, M_PI/2.0f,v3_yunit);
 
         // Generate an orientable disk shape (bottom cap)
-        par_shapes_mesh *capBottom = par_shapes_create_disk(radius, slices, (float[]){ 0, 0, 0 }, (float[]){ 0, 0, -1 });
+        par_shapes_mesh *capBottom = par_shapes_create_disk(radius, slices, v3_zero, v3_zunit_negative);
         capBottom->tcoords = PAR_MALLOC(float, 2*capBottom->npoints);
         for (int i = 0; i < 2*capBottom->npoints; i++) capBottom->tcoords[i] = 0.95f;
-        par_shapes_rotate(capBottom, M_PI/2.0f, (float[]){ 1, 0, 0 });
+        par_shapes_rotate(capBottom, M_PI/2.0f,v3_xunit);
 
         par_shapes_merge_and_free(cone, capBottom);
 
