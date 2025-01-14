@@ -8,6 +8,7 @@
 #include <memory>
 #include "sdl2webgpu.h"
 #include <utility>
+#include <algorithm>
 #include <wgpustate.inc>
 extern wgpustate g_wgpustate;
 // #include "dawn/common/Log.h"
@@ -285,7 +286,9 @@ int GetTouchY(){
 }
 Vector2 GetTouchPosition(int index){
     if(index < g_wgpustate.input_map[GetActiveWindowHandle()].touchPoints.size()){
-        return g_wgpustate.input_map[GetActiveWindowHandle()].touchPoints[index];
+        auto it = g_wgpustate.input_map[GetActiveWindowHandle()].touchPoints.begin();
+        for(int i = 0;i < index;++i) ++it;
+        return it->second;
     }
     else{
         TRACELOG(LOG_WARNING, "Querying nonexistant touchpoint %d of %d", (int)index, (int)g_wgpustate.input_map[GetActiveWindowHandle()].touchPoints.size());
@@ -325,9 +328,24 @@ void ScrollCallback(SDL_Window* window, double xoffset, double yoffset){
     g_wgpustate.input_map[window].scrollThisFrame.x += xoffset;
     g_wgpustate.input_map[window].scrollThisFrame.y += yoffset;
 }
-void FingerCallback(SDL_Window* window, float x, float y){
-    g_wgpustate.input_map[window].touchPoints.push_back(Vector2{x, y});
-    //TRACELOG(LOG_INFO, "%f, %f", x, y);
+void FingerUpCallback(SDL_Window* window, SDL_FingerID id, float x, float y){
+    g_wgpustate.input_map[window].touchPoints.erase(
+        std::find_if(g_wgpustate.input_map[window].touchPoints.begin(),
+                     g_wgpustate.input_map[window].touchPoints.end(), [id](const std::pair<SDL_FingerID, Vector2> p){
+                        return p.first == id;
+                     }));
+        
+}
+void FingerDownCallback(SDL_Window* window, SDL_FingerID id, float x, float y){
+    g_wgpustate.input_map[window].touchPoints.emplace_back(id, Vector2{x, y});
+}
+void FingerMotionCallback(SDL_Window* window, SDL_FingerID id, float x, float y){
+    auto it = std::find_if(g_wgpustate.input_map[window].touchPoints.begin(),
+                     g_wgpustate.input_map[window].touchPoints.end(), [id](const std::pair<SDL_FingerID, Vector2> p){
+                        return p.first == id;
+                     });
+
+    it->second = Vector2{x, y};
 }
 void KeyDownCallback (SDL_Window* window, int key, int scancode, int mods){
     g_wgpustate.input_map[window].keydown[key] = 1;
@@ -488,6 +506,7 @@ static KeyboardKey ConvertScancodeToKey(SDL_Scancode sdlScancode){
 SDL_Window* lastTouched = nullptr;
 extern "C" void PollEvents_SDL2() {
     SDL_Event event;
+    
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
         case SDL_QUIT:{
@@ -525,10 +544,23 @@ extern "C" void PollEvents_SDL2() {
             if(lastTouched)
                 GestureCallback(lastTouched, event.mgesture.dDist, event.mgesture.dTheta);
         }break;
-
+        case SDL_FINGERDOWN:{
+            lastTouched = SDL_GetWindowFromID(event.tfinger.windowID);
+            int w, h;
+            SDL_GetWindowSize(lastTouched, &w, &h);
+            FingerDownCallback(lastTouched, event.tfinger.fingerId, event.tfinger.x * w, event.tfinger.y * h);
+        }break;
+        case SDL_FINGERUP:{
+            lastTouched = SDL_GetWindowFromID(event.tfinger.windowID);
+            int w, h;
+            SDL_GetWindowSize(lastTouched, &w, &h);
+            FingerUpCallback(lastTouched, event.tfinger.fingerId, event.tfinger.x * w, event.tfinger.y * h);
+        }break;
         case SDL_FINGERMOTION:{
             lastTouched = SDL_GetWindowFromID(event.tfinger.windowID);
-            FingerCallback(lastTouched, event.tfinger.x, event.tfinger.y);
+            int w, h;
+            SDL_GetWindowSize(lastTouched, &w, &h);
+            FingerMotionCallback(lastTouched, event.tfinger.fingerId, event.tfinger.x * w, event.tfinger.y * h);
         }break;
         case SDL_MOUSEWHEEL: {
             SDL_Window *window = SDL_GetWindowFromID(event.wheel.windowID);
@@ -547,8 +579,8 @@ extern "C" void PollEvents_SDL2() {
             Uint8 state = (event.type == SDL_MOUSEBUTTONDOWN) ? SDL_PRESSED : SDL_RELEASED;
 
             uint8_t forGLFW = event.button.button - 1;
-            if (forGLFW == 2) forGLFW = 1;
-            else if (forGLFW == 1) forGLFW = 2;
+            if(forGLFW == 2) forGLFW = 1;
+            else if(forGLFW == 1) forGLFW = 2;
             MouseButtonCallback(window, forGLFW, state);
         } break;
 
