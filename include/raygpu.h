@@ -684,8 +684,16 @@ EXTERN_C_BEGIN
 
     int GetMouseX(cwoid);
     int GetMouseY(cwoid);
-    float GetTouchZoom(cwoid);
-    float GetTouchRotate(cwoid);
+
+    int GetTouchX(void);                                    // Get touch position X for touch point 0 (relative to screen size)
+    int GetTouchY(void);                                    // Get touch position Y for touch point 0 (relative to screen size)
+    Vector2 GetTouchPosition(int index);                    // Get touch position XY for a touch point index (relative to screen size)
+    int GetTouchPointId(int index);                         // Get touch point identifier for given index
+    int GetTouchPointCount(void);                           // Get number of touch points
+
+
+    float GetGesturePinchZoom(cwoid);
+    float GetGesturePinchAngle(cwoid);
     
     Vector2 GetMousePosition(cwoid);
     Vector2 GetMouseDelta(cwoid);
@@ -1070,6 +1078,16 @@ EXTERN_C_BEGIN
     BoundingBox GetMeshBoundingBox(Mesh mesh);                                            // Compute mesh bounding box limits
     void GenMeshTangents(Mesh *mesh);                                                     // Compute mesh tangents
     Mesh GenMeshCube(float width, float height, float length);
+    Mesh GenMeshPoly(int sides, float radius);
+    Mesh GenMeshPlane(float width, float length, int resX, int resZ);
+    Mesh GenMeshSphere(float radius, int rings, int slices);
+    Mesh GenMeshHemiSphere(float radius, int rings, int slices);
+    Mesh GenMeshCylinder(float radius, float height, int slices);
+    Mesh GenMeshCone(float radius, float height, int slices);
+    Mesh GenMeshTorus(float radius, float size, int radSeg, int sides);
+    Mesh GenMeshKnot(float radius, float size, int radSeg, int sides);
+    Mesh GenMeshHeightmap(Image heightmap, Vector3 size);
+    Mesh GenMeshCubicmap(Image cubicmap, Vector3 cubeSize);
     //bool ExportMesh(Mesh mesh, const char *fileName);                                     // Export mesh data to file, returns true on success
     //bool ExportMeshAsCode(Mesh mesh, const char *fileName);                               // Export mesh as code file (.h) defining multiple arrays of vertex attributes
 

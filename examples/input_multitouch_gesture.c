@@ -3,8 +3,8 @@ float angle = 0;
 float zoom = 100;
 void mainloop(void){
     BeginDrawing();
-    angle += RAD2DEG * GetTouchRotate();
-    zoom *= GetTouchZoom();
+    angle += RAD2DEG * GetGesturePinchAngle();
+    zoom *= GetGesturePinchZoom();
     DrawRectanglePro((Rectangle){400, 400, zoom, zoom}, (Vector2){zoom / 2,zoom / 2}, angle, WHITE);
     EndDrawing();
 }

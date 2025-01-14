@@ -277,6 +277,30 @@ void ResizeCallback(SDL_Window* window, int width, int height){
     //g_wgpustate.drawmutex.unlock();
 }
 
+int GetTouchX(){
+    return 0;
+}
+int GetTouchY(){
+    return 0;
+}
+Vector2 GetTouchPosition(int index){
+    if(index < g_wgpustate.input_map[GetActiveWindowHandle()].touchPoints.size()){
+        return g_wgpustate.input_map[GetActiveWindowHandle()].touchPoints[index];
+    }
+    else{
+        TRACELOG(LOG_WARNING, "Querying nonexistant touchpoint %d of %d", (int)index, (int)g_wgpustate.input_map[GetActiveWindowHandle()].touchPoints.size());
+        return Vector2{0, 0};
+    }
+
+}
+int GetTouchPointId(int index){
+    return 0;
+}
+int GetTouchPointCount(){
+    return g_wgpustate.input_map[GetActiveWindowHandle()].touchPoints.size();
+}
+
+
 void CharCallback(SDL_Window* window, unsigned int codePoint){
     g_wgpustate.input_map[window].charQueue.push_back((int)codePoint);
 }
@@ -301,8 +325,9 @@ void ScrollCallback(SDL_Window* window, double xoffset, double yoffset){
     g_wgpustate.input_map[window].scrollThisFrame.x += xoffset;
     g_wgpustate.input_map[window].scrollThisFrame.y += yoffset;
 }
-void FingerCallback(SDL_Window* win, float x, float y){
-    TRACELOG(LOG_INFO, "%f, %f", x, y);
+void FingerCallback(SDL_Window* window, float x, float y){
+    g_wgpustate.input_map[window].touchPoints.push_back(Vector2{x, y});
+    //TRACELOG(LOG_INFO, "%f, %f", x, y);
 }
 void KeyDownCallback (SDL_Window* window, int key, int scancode, int mods){
     g_wgpustate.input_map[window].keydown[key] = 1;

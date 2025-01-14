@@ -31,6 +31,7 @@ void mainloop(void){
     EndDrawing();
 }
 int main(cwoid){
+    SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(1200, 800, "VAO");
     SetTargetFPS(0);
     cam = CLITERAL(Camera3D){

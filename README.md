@@ -16,10 +16,10 @@ A fast and simple [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebG
 
 Web support for C++/ wasm programs is done by [Emscripten](https://emscripten.org/).
 - **Pros**
-  - Direct but portable support for OpenGL(ES), Vulkan, DirectX 12 and Metal
-  - Web support for compute shaders and storage buffers
+  - Full support for OpenGL(ES), Vulkan, DirectX 12 and Metal
+  - Compute shaders and storage buffers **on all platforms**
   - Multi-windowing and multithreading support
-  - True Headless Support
+  - True Headless Support (glfw, sdl, xlib etc. all **not** required)
 
 - **Cons**
   - Not as lightweight and ubiquitous as OpenGL

@@ -1021,6 +1021,7 @@ void EndDrawing(){
         ipstate.charQueue.clear();
         ipstate.gestureAngleThisFrame = 0;
         ipstate.gestureZoomThisFrame = 1;
+        ipstate.touchPoints.clear();
     }
     PollEvents();
     
@@ -1341,10 +1342,10 @@ int GetMouseY(cwoid){
     return (int)GetMousePosition().y;
 }
 
-float GetTouchZoom(cwoid){
+float GetGesturePinchZoom(cwoid){
     return g_wgpustate.input_map[g_wgpustate.window].gestureZoomThisFrame;
 }
-float GetTouchRotate(cwoid){
+float GetGesturePinchAngle(cwoid){
      
     return g_wgpustate.input_map[g_wgpustate.window].gestureAngleThisFrame;
 }
