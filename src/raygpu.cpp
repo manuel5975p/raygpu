@@ -1021,7 +1021,6 @@ void EndDrawing(){
         ipstate.charQueue.clear();
         ipstate.gestureAngleThisFrame = 0;
         ipstate.gestureZoomThisFrame = 1;
-        ipstate.touchPoints.clear();
     }
     PollEvents();
     

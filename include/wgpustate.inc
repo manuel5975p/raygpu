@@ -17,7 +17,7 @@ struct window_input_state{
     std::array<uint8_t, 16> mouseButtonDownPrevious;
     std::array<uint8_t, 16> mouseButtonDown;
     
-    std::vector<Vector2> touchPoints;
+    std::vector<std::pair<int64_t, Vector2>> touchPoints; //Map from SDL_FingerID to Vector2
     std::deque<int> charQueue;
 };
 struct wgpustate{
