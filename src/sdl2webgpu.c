@@ -172,21 +172,12 @@ WGPUSurface SDL_GetWGPUSurface(WGPUInstance instance, SDL_Window* window) {
     }
 #elif defined(SDL_VIDEO_DRIVER_EMSCRIPTEN)
     {
-#  ifdef WEBGPU_BACKEND_DAWN
-        WGPUSurfaceSourceCanvasHTMLSelector_Emscripten fromCanvasHTMLSelector;
-        fromCanvasHTMLSelector.chain.sType = WGPUSType_SurfaceSourceCanvasHTMLSelector_Emscripten;
-#  else
-        WGPUSurfaceDescriptorFromCanvasHTMLSelector fromCanvasHTMLSelector;
-        fromCanvasHTMLSelector.chain.sType = WGPUSType_SurfaceDescriptorFromCanvasHTMLSelector;
-#  endif
-        fromCanvasHTMLSelector.chain.next = NULL;
-        fromCanvasHTMLSelector.selector = "canvas";
+        WGPUSurfaceDescriptorFromCanvasHTMLSelector canvasDesc = {0};
+        canvasDesc.selector = (WGPUStringView){.data = "#canvas", .length = 7};
 
-        WGPUSurfaceDescriptor surfaceDescriptor;
-        surfaceDescriptor.nextInChain = &fromCanvasHTMLSelector.chain;
-        surfaceDescriptor.label = (WGPUStringView){NULL, 0};
-
-        return wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
+        WGPUSurfaceDescriptor surfaceDesc = {0};
+        surfaceDesc.nextInChain = &canvasDesc.chain;
+        return wgpuInstanceCreateSurface(instance, &surfaceDesc);
     }  
 #else
     // TODO: See SDL_syswm.h for other possible enum values!
