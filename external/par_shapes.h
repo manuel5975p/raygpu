@@ -870,7 +870,7 @@ void par_shapes_invert(par_shapes_mesh* m, int face, int nfaces)
     nfaces = nfaces ? nfaces : m->ntriangles;
     PAR_SHAPES_T* tri = m->triangles + face * 3;
     for (int i = 0; i < nfaces; i++) {
-        PAR_SWAP(PAR_SHAPES_T, tri[0], tri[2]);
+        PAR_SWAP(PAR_SHAPES_T, tri[0], tri[2])
         tri += 3;
     }
 }
@@ -1127,7 +1127,7 @@ static par_shapes__rule* par_shapes__pick_rule(const char* name,
             total += rule->weight;
         }
     }
-    float r = (float) rand() / RAND_MAX;
+    float r = (float) rand() / float(RAND_MAX);
     float t = 0;
     for (int i = 0; i < nrules; i++) {
         rule = rules + i;

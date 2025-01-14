@@ -462,7 +462,7 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
     else{
         config.presentMode = (WGPUPresentMode)g_wgpustate.unthrottled_PresentMode;
     }
-    TRACELOG(LOG_INFO, "Initialized window with surface %s", presentModeSpellingTable.at(config.presentMode).c_str());
+    TRACELOG(LOG_INFO, "Initialized GLFW window with surface %s", presentModeSpellingTable.at(config.presentMode).c_str());
     config.alphaMode = WGPUCompositeAlphaMode_Opaque;
     config.format = g_wgpustate.frameBufferFormat;
     config.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;

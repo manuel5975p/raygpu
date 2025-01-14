@@ -3,11 +3,11 @@ include(FetchContent)
 project(webgpu_standalone)
 set(SUPPORT_WGSL_PARSER ON CACHE BOOL "Support wgsl parsing for uniform and attribute locations" FORCE)
 option(SUPPORT_GLSL_PARSER OFF)
-option(SUPPORT_SDL2 OFF)
+option(SUPPORT_SDL2 ON)
 option(SUPPORT_GLFW OFF)
-if(EMSCRIPTEN)
-    set(SUPPORT_SDL2 OFF CACHE BOOL "Support the SDL2 windowing backend" FORCE)
-endif()
+#if(EMSCRIPTEN)
+#    set(SUPPORT_SDL2 OFF CACHE BOOL "Support the SDL2 windowing backend" FORCE)
+#endif()
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=leak")
 #FetchContent_Declare(
 #    dawn
@@ -68,25 +68,16 @@ if(NOT EMSCRIPTEN)
         DOWNLOAD_EXTRACT_TIMESTAMP True
     )
     FetchContent_MakeAvailable(khrGlslang)
-    if(SUPPORT_SDL2)
-        FetchContent_Declare(
-            sdl2fetch
-            URL      https://github.com/libsdl-org/SDL/archive/refs/tags/release-2.30.11.tar.gz
-            DOWNLOAD_EXTRACT_TIMESTAMP True
-        )
-        FetchContent_MakeAvailable(sdl2fetch)
-        FetchContent_Declare(
-            sdl2wgpue
-            GIT_REPOSITORY      https://github.com/manuel5975p/sdl2webgpu.git
-            GIT_TAG main
-            GIT_SHALLOW         True
-            #DOWNLOAD_EXTRACT_TIMESTAMP True
-        )
-        FetchContent_MakeAvailable(sdl2wgpue)
-        target_link_libraries(sdl2webgpu PUBLIC webgpu_dawn)
-        target_compile_definitions(sdl2webgpu PRIVATE WEBGPU_BACKEND_DAWN)
-    endif()
     
+    
+endif()
+if(SUPPORT_SDL2)
+    FetchContent_Declare(
+        sdl2fetch
+        URL      https://github.com/libsdl-org/SDL/archive/refs/tags/release-2.30.11.tar.gz
+        DOWNLOAD_EXTRACT_TIMESTAMP True
+    )
+    FetchContent_MakeAvailable(sdl2fetch)
 endif()
 #download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_rect_pack.h" "stb_rect_pack.h")
 #download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_truetype.h" "stb_truetype.h")
@@ -111,6 +102,7 @@ set(RG_SOURCES
 )
 if(SUPPORT_SDL2)
     list(APPEND RG_SOURCES "src/InitWindow_SDL.cpp")
+    list(APPEND RG_SOURCES "src/sdl2webgpu.c")
 endif()
 if(SUPPORT_GLFW)
     list(APPEND RG_SOURCES "src/dawn_glfwrip.cpp" "src/InitWindow_GLFW.cpp")
@@ -182,7 +174,9 @@ if(EMSCRIPTEN)
         tint_lang_wgsl_reader
     )
     endif()
-    
+    if(SUPPORT_SDL2)
+    target_link_libraries(raygpu PUBLIC SDL2::SDL2 sdl2webgpu)
+    endif()
     target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
 else()
     target_link_libraries(raygpu PUBLIC
@@ -203,7 +197,7 @@ else()
         #dawn::dawn_proc
     )
     if(SUPPORT_SDL2)
-    target_link_libraries(raygpu PUBLIC SDL2::SDL2 sdl2webgpu)
+    target_link_libraries(raygpu PUBLIC SDL2::SDL2)
     endif()
     if(SUPPORT_GLFW)
     target_link_libraries(raygpu PUBLIC glfw)

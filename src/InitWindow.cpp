@@ -159,7 +159,7 @@ void InitWGPU(webgpu_cxx_state* sample){
     wgpu::ChainedStruct* togglesChain = nullptr;
     wgpu::SType type;
 #ifndef __EMSCRIPTEN__
-    std::vector<const char*> enableToggleNames{};
+    std::vector<const char*> enableToggleNames;//{"Toggle::SkipValidation"};
     std::vector<const char*> disabledToggleNames{};
 
     wgpu::DawnTogglesDescriptor toggles = {};
@@ -175,7 +175,7 @@ void InitWGPU(webgpu_cxx_state* sample){
     wgpu::RequestAdapterOptions adapterOptions = {};
     adapterOptions.nextInChain = togglesChain;
     auto backendType = (wgpu::BackendType)requestedBackend;
-    auto adapterType = wgpu::AdapterType::DiscreteGPU;
+    auto adapterType = (wgpu::AdapterType)requestedAdapterType;
     adapterOptions.backendType = backendType;
     if (backendType != wgpu::BackendType::Undefined) {
         auto bcompat = [](wgpu::BackendType backend) {

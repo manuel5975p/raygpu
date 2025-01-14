@@ -6,7 +6,6 @@ R"(struct VertexInput {
     @location(2) normal: vec3f,
     @location(3) color: vec4f
 };
-
 struct VertexOutput {
     @builtin(position) position: vec4f,
     @location(0) color: vec4f
