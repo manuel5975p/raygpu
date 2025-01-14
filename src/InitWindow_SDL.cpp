@@ -159,7 +159,7 @@ void negotiateSurfaceFormatAndPresentMode(const wgpu::Surface &surf);
 extern "C" SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char *title) {
     
     SubWindow ret;
-    SDL_SetHint(SDL_HINT_TRACKPAD_IS_TOUCH_ONLY, "1");
+    //SDL_SetHint(SDL_HINT_TRACKPAD_IS_TOUCH_ONLY, "1");
     SDL_Window *window = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, 0);
     SDL_SetWindowResizable(window, SDL_bool(g_wgpustate.windowFlags & FLAG_WINDOW_RESIZABLE));
     if(g_wgpustate.windowFlags & FLAG_FULLSCREEN_MODE)
@@ -300,6 +300,9 @@ void GestureCallback(SDL_Window* window, float zoom, float angle){
 void ScrollCallback(SDL_Window* window, double xoffset, double yoffset){
     g_wgpustate.input_map[window].scrollThisFrame.x += xoffset;
     g_wgpustate.input_map[window].scrollThisFrame.y += yoffset;
+}
+void FingerCallback(SDL_Window* win, float x, float y){
+    TRACELOG(LOG_INFO, "%f, %f", x, y);
 }
 void KeyDownCallback (SDL_Window* window, int key, int scancode, int mods){
     g_wgpustate.input_map[window].keydown[key] = 1;
@@ -500,7 +503,7 @@ extern "C" void PollEvents_SDL2() {
 
         case SDL_FINGERMOTION:{
             lastTouched = SDL_GetWindowFromID(event.tfinger.windowID);
-        
+            FingerCallback(lastTouched, event.tfinger.x, event.tfinger.y);
         }break;
         case SDL_MOUSEWHEEL: {
             SDL_Window *window = SDL_GetWindowFromID(event.wheel.windowID);
