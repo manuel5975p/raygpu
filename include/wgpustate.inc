@@ -16,7 +16,8 @@ struct window_input_state{
     int cursorInWindow;
     std::array<uint8_t, 16> mouseButtonDownPrevious;
     std::array<uint8_t, 16> mouseButtonDown;
-
+    
+    std::vector<Vector2> touchPoints;
     std::deque<int> charQueue;
 };
 struct wgpustate{

@@ -61,15 +61,13 @@ else()
 message(STATUS "File ${filename} already exists, skipping download.")
 endif()
 endfunction()
-if(NOT EMSCRIPTEN)
+if(NOT EMSCRIPTEN AND SUPPORT_GLSL_PARSER)
     FetchContent_Declare(
         khrGlslang
         URL      https://github.com/KhronosGroup/glslang/archive/refs/tags/15.1.0.tar.gz
         DOWNLOAD_EXTRACT_TIMESTAMP True
     )
     FetchContent_MakeAvailable(khrGlslang)
-    
-    
 endif()
 if(SUPPORT_SDL2)
     FetchContent_Declare(
@@ -122,6 +120,9 @@ if(SUPPORT_SDL2)
 endif()
 if(SUPPORT_GLFW)
     target_compile_definitions(raygpu PUBLIC SUPPORT_GLFW=1)
+endif()
+if(SUPPORT_GLSL_PARSER)
+    target_compile_definitions(raygpu PUBLIC SUPPORT_GLSL_PARSER=1)
 endif()
 if(NOT MSVC AND NOT EMSCRIPTEN)
     if(CMAKE_BUILD_TYPE MATCHES Debug)
@@ -197,10 +198,13 @@ else()
         #dawn::dawn_proc
     )
     if(SUPPORT_SDL2)
-    target_link_libraries(raygpu PUBLIC SDL2::SDL2)
+        target_link_libraries(raygpu PUBLIC SDL2::SDL2)
     endif()
     if(SUPPORT_GLFW)
-    target_link_libraries(raygpu PUBLIC glfw)
+        target_link_libraries(raygpu PUBLIC glfw)
+    endif()
+    if(SUPPORT_GLSL_PARSER)
+        target_link_libraries(raygpu PUBLIC glslang)
     endif()
 endif()
 target_include_directories(raygpu PUBLIC)
