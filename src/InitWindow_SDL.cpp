@@ -147,18 +147,19 @@ wgpu::Surface CreateSurfaceForWindow(const wgpu::Instance &instance, SDL_Window 
 }
 } // namespace wgpu::glfw
 #endif
-bool initied__sdl = false;
+bool inited_sdl_ = false;
 void Initialize_SDL2(){
-    if(!initied__sdl){
+    if(!inited_sdl_){
         SDL_SetMainReady();
         SDL_Init(SDL_INIT_VIDEO);
     }
-    initied__sdl = true;
+    inited_sdl_ = true;
 }
 void negotiateSurfaceFormatAndPresentMode(const wgpu::Surface &surf);
 extern "C" SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char *title) {
     
     SubWindow ret;
+    SDL_SetHint(SDL_HINT_TRACKPAD_IS_TOUCH_ONLY, "1");
     SDL_Window *window = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, 0);
     SDL_SetWindowResizable(window, SDL_bool(g_wgpustate.windowFlags & FLAG_WINDOW_RESIZABLE));
     if(g_wgpustate.windowFlags & FLAG_FULLSCREEN_MODE)
