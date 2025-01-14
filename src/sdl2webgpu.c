@@ -33,7 +33,9 @@
 #include "sdl2webgpu.h"
 
 #include <webgpu/webgpu.h>
-
+#ifndef WEBGPU_BACKEND_DAWN
+#define WEBGPU_BACKEND_DAWN 1
+#endif
 #if defined(SDL_VIDEO_DRIVER_COCOA)
 #  include <Cocoa/Cocoa.h>
 #  include <Foundation/Foundation.h>
@@ -131,13 +133,8 @@ WGPUSurface SDL_GetWGPUSurface(WGPUInstance instance, SDL_Window* window) {
         struct wl_display* wayland_display = windowWMInfo.info.wl.display;
         struct wl_surface* wayland_surface = windowWMInfo.info.wl.surface;
 
-#  ifdef WEBGPU_BACKEND_DAWN
         WGPUSurfaceSourceWaylandSurface fromWaylandSurface;
         fromWaylandSurface.chain.sType = WGPUSType_SurfaceSourceWaylandSurface;
-#  else
-        WGPUSurfaceDescriptorFromWaylandSurface fromWaylandSurface;
-        fromWaylandSurface.chain.sType = WGPUSType_SurfaceDescriptorFromWaylandSurface;
-#  endif
         fromWaylandSurface.chain.next = NULL;
         fromWaylandSurface.display = wayland_display;
         fromWaylandSurface.surface = wayland_surface;
@@ -184,4 +181,7 @@ WGPUSurface SDL_GetWGPUSurface(WGPUInstance instance, SDL_Window* window) {
 #error "Unsupported WGPU_TARGET"
 #endif
 }
-
+void usedefinedawnmacro___(void){ //Silence warning
+    int x = WEBGPU_BACKEND_DAWN;
+    (void)x;
+}
