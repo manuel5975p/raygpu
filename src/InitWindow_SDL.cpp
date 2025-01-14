@@ -236,7 +236,7 @@ void ResizeCallback(SDL_Window* window, int width, int height){
     //while(!g_wgpustate.drawmutex.try_lock());
     //g_wgpustate.drawmutex.lock();
     
-    TraceLog(LOG_WARNING, "SDL's ResizeCallback called with %d x %d", width, height);
+    TraceLog(LOG_INFO, "SDL's ResizeCallback called with %d x %d", width, height);
     wgpu::SurfaceCapabilities capabilities;
     g_wgpustate.surface.GetCapabilities(g_wgpustate.adapter, &capabilities);
     wgpu::SurfaceConfiguration config = {};

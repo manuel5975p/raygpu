@@ -154,7 +154,6 @@ bool WindowShouldClose(cwoid){
 
 
 void InitWGPU(webgpu_cxx_state* sample){
-    
     // Create the toggles descriptor if not using emscripten.
     wgpu::ChainedStruct* togglesChain = nullptr;
     wgpu::SType type;

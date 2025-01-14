@@ -519,7 +519,8 @@ DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
     pipeline->layout.descriptor.bindGroupLayouts = &pipeline->bglayout.layout;
     pipeline->layout.layout = wgpuDeviceCreatePipelineLayout(GetDevice(), &pipeline->layout.descriptor);
     pipeline->bindGroup.desc.entries = pipeline->bindGroup.entries;
-    pipeline->bindGroup.bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &pipeline->bindGroup.desc);
+    pipeline->bindGroup.needsUpdate = true;
+    //pipeline->bindGroup.bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &pipeline->bindGroup.desc);
     pipeline->descriptor.depthStencil = pipeline->settings.depthTest ? pipeline->depthStencilState : nullptr;
     pipeline->descriptor.fragment = pipeline->fragmentState;
     pipeline->descriptor.layout = pipeline->layout.layout;

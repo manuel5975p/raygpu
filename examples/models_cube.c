@@ -16,11 +16,11 @@ void mainloop(void){
     cam.position = (Vector3){sinf(angle) * 10.f, 5.0f, cosf(angle) * 10.f};
     ClearBackground(BLACK);
     //TODO: Swapping the next two causes a problem since the BindGroup is lazily updated only at BindPipeline
-    //EDIT: It's not due to lazy update; DrawArrays and DrawArraysFixed did not check for a pending Bindgroup Update
+    //EDIT: It's not due to lazy update; DrawArrays and DrawArraysIndexed did not check for a pending Bindgroup Update
     BeginPipelineMode(pl);
     UseTexture(checkers);
     BeginMode3D(cam);
-    BindPipelineVertexArray(pl, cube.vao);
+    BindVertexArray(cube.vao);
     DrawArraysIndexed(WGPUPrimitiveTopology_TriangleList, *cube.ibo, 36);
     EndMode3D();
     EndPipelineMode();
