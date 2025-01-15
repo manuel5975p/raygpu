@@ -33,7 +33,7 @@ typedef struct GIFRecordState{
     bool recording;
 }GIFRecordState;
 
-void startRecording(GIFRecordState* grst, uint64_t delay){
+void startRecording(GIFRecordState* grst, uint64_t delayInCentiseconds){
     if(grst->recording){
         TRACELOG(LOG_WARNING, "Already recording");
         return;
@@ -43,7 +43,7 @@ void startRecording(GIFRecordState* grst, uint64_t delay){
     }
     msf_gif_bgra_flag = true;
     grst->msf_state = MsfGifState{};
-    grst->delayInCentiseconds = delay;
+    grst->delayInCentiseconds = delayInCentiseconds;
     msf_gif_begin(&grst->msf_state, GetScreenWidth(), GetScreenHeight());
     grst->recording = true;
 }
