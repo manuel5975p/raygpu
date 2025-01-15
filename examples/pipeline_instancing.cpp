@@ -54,7 +54,7 @@ int main(){
     for(float i = -1;i <= 1;i += size){
         for(float j = -1;j <= 1;j += size){
             offsets.push_back(Vector2{i, j});
-            velocities.push_back(Vector2{(float)drand48() - 0.5f, (float)drand48() - 0.5f});
+            //velocities.push_back(Vector2{(float)drand48() - 0.5f, (float)drand48() - 0.5f});
             colors.push_back((uint32_t)gen());
         }
     }

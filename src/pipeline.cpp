@@ -541,7 +541,7 @@ DescribedPipeline* ClonePipelineWithSettings(const DescribedPipeline* pl, Render
     cloned->blendState->alpha.srcFactor = settings.blendFactorSrcAlpha;
     cloned->blendState->alpha.dstFactor = settings.blendFactorDstAlpha;
     cloned->blendState->alpha.operation = settings.blendOperationAlpha;
-
+    return cloned;
 }
 DescribedComputePipeline* LoadComputePipeline(const char* shaderCode){
     auto bindmap = getBindings(shaderCode);
