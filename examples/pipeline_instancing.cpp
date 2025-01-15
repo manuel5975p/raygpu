@@ -50,11 +50,12 @@ int main(){
     SetConfigFlags(FLAG_VSYNC_LOWLATENCY_HINT);
     //SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(1920, 1080, "VAO");
-    
+    std::mt19937_64 gen(42);
+    std::uniform_real_distribution<float> dis(0,1);
     for(float i = -1;i <= 1;i += size){
         for(float j = -1;j <= 1;j += size){
             offsets.push_back(Vector2{i, j});
-            //velocities.push_back(Vector2{(float)drand48() - 0.5f, (float)drand48() - 0.5f});
+            velocities.push_back(Vector2{dis(gen) - 0.5f, dis(gen) - 0.5f});
             colors.push_back((uint32_t)gen());
         }
     }

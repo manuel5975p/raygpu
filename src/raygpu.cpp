@@ -1615,11 +1615,11 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     //state->shader = sh;
     state->color = c;
     state->depth = d;
-    RenderSettings settings{};
-    settings.depthTest = 1;
-    settings.depthCompare = WGPUCompareFunction_LessEqual;
+    RenderSettings settings = GetDefaultSettings();
+    //settings.depthTest = 1;
+    //settings.depthCompare = WGPUCompareFunction_LessEqual;
     //settings.optionalDepthTexture = d;
-    settings.sampleCount = (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
+    //settings.sampleCount = (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
     state->computepass = DescribedComputepass{};
     state->renderpass = LoadRenderpassEx(c, d, settings);
     state->renderpass.renderPassDesc.label = STRVIEW("g_wgpustate::render_pass");
