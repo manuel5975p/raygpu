@@ -2784,4 +2784,6 @@ unsigned char *DecodeDataBase64(const unsigned char *data, int *outputSize)
     return decodedData;
 }
 #include "telegrama_render_literal.inc"
-size_t telegrama_render_size = sizeof(telegrama_render);
+size_t telegrama_render_size1 = sizeof(telegrama_render1);
+size_t telegrama_render_size2 = sizeof(telegrama_render2);
+size_t telegrama_render_size3 = sizeof(telegrama_render3);

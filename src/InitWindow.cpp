@@ -350,6 +350,7 @@ void InitWGPU(webgpu_cxx_state* sample){
     if(limitsToBeRequested.has_value()){
         limitsToBeRequested->maxStorageBuffersInVertexStage = adapterLimits.limits.maxStorageBuffersInVertexStage;
         limitsToBeRequested->maxStorageBuffersInFragmentStage = adapterLimits.limits.maxStorageBuffersInFragmentStage;
+        limitsToBeRequested->maxStorageBuffersPerShaderStage = adapterLimits.limits.maxStorageBuffersPerShaderStage;
 
         reqLimits.limits = limitsToBeRequested.value();
         deviceDesc.requiredLimits = &reqLimits;

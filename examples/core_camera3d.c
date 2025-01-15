@@ -1,6 +1,7 @@
 #include <raygpu.h>
 
 int main(void){
+    RequestBackend(WGPUBackendType_D3D12);
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(1000, 1000, "Camera3D Example");
     Camera3D cam = (Camera3D){
