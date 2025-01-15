@@ -28,7 +28,6 @@ if(NOT SUPPORT_GLFW)
     endif()
 endif()
 
-
 set(TINT_BUILD_CMD_TOOLS OFF CACHE BOOL "" FORCE)
 set(TINT_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
 set(DAWN_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
@@ -199,8 +198,8 @@ else()
         #tint_api_common
         #tint_lang_wgsl_reader
         dawn_internal_config
-        
-        
+        tint_lang_wgsl
+        tint_api
         #glslang
     
         #dawn::dawn_native
@@ -220,10 +219,12 @@ else()
         target_link_libraries(raygpu PUBLIC glslang)
     endif()
 endif()
-target_include_directories(raygpu PUBLIC)
+
 #add_executable(example "src/example.cpp")
 target_compile_features(raygpu PUBLIC cxx_std_20)
-target_compile_options(raygpu PUBLIC "-Wno-gnu-anonymous-struct" "-Wno-nested-anon-types")
+#if(NOT MSVC)
+#target_compile_options(raygpu PUBLIC "-Wno-gnu-anonymous-struct" "-Wno-nested-anon-types")
+#endif()
 #target_compile_features(example PUBLIC cxx_std_20)
 #target_link_libraries(example PUBLIC raygpu)
 if(CMAKE_BUILD_TYPE MATCHES Debug)

@@ -271,8 +271,12 @@ typedef enum draw_mode{
 }draw_mode;
 externcvar draw_mode current_drawmode;
 
-externcvar char telegrama_render[];
-externcvar size_t telegrama_render_size;
+externcvar char telegrama_render1[];
+externcvar char telegrama_render2[];
+externcvar char telegrama_render3[];
+externcvar size_t telegrama_render_size1;
+externcvar size_t telegrama_render_size2;
+externcvar size_t telegrama_render_size3;
 
 //extern DescribedBuffer vbomap;
 #ifdef __cplusplus
