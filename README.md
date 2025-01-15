@@ -280,3 +280,16 @@ int main(void){
 ```
 ___
 More examples can be found in [here](https://github.com/manuel5975p/raygpu/tree/master/examples).
+
+## Single compile command
+```bash
+# Compile .cpp files
+g++ -std=c++20 -c -DSUPPORT_SDL=0 -DSUPPORT_GLFW=0 ../src/InitWindow.cpp ../src/models.cpp ../src/pipeline.cpp ../src/raygpu.cpp ../src/rshapes.cpp ../src/shader_parse.cpp -I ../include/ -I ../external/ -I/raygpu/include -I/raygpu/gccbuild -I/raygpu/external -I/raygpu/dawn/include -I/raygpu/gccbuild/dawn/gen/include -I/raygpu/dawn -I/raygpu/dawn/src -I/raygpu/gccbuild/dawn/gen/src
+
+# Compile .c files
+gcc -c -DSUPPORT_SDL=0 -DSUPPORT_GLFW=0 ../src/cgltf_impl.c ../src/msf_gif_impl.c ../src/rtext.c ../src/sinfl_impl.c ../src/stb_impl.c ../src/windows_stuff.c -I ../include/ -I ../external/ -I/raygpu/gccbuild/dawn/gen/include -I/raygpu/dawn/include
+```
+Finally, an example of choice can be compiled:
+```bash
+g++ *.o ../examples/core_window.c -I ../include/ -I ../external/ -I/raygpu/gccbuild/dawn/gen/include -I/raygpu /dawn/include -L/raygpu/gccbuild/dawn/src/dawn/native/ -Wl,-rpath=/raygpu/gccbuild/dawn/src/dawn/native/ -lwebgpu_dawn
+```

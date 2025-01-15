@@ -3,8 +3,8 @@
 int main(void){
 
     SetConfigFlags(FLAG_HEADLESS);
-
-    InitWindow(800, 800, "This title has no effect");
+    RequestBackend(WGPUBackendType_Vulkan);
+    InitWindow(3840, 2160, "This title has no effect");
     Texture tex = LoadTextureFromImage(GenImageChecker(WHITE, BLACK, 100, 100, 10));
     SetTargetFPS(0);
     while(!WindowShouldClose()){
@@ -19,8 +19,9 @@ int main(void){
         
         DrawFPS(0, 0);
         EndDrawing();
-        if(GetFrameCount() % 128 == 0){
+        if(GetFrameCount() % 16 == 0){
             TakeScreenshot(TextFormat("frame%llu.png", GetFrameCount()));
+            printf("FPS: %d\n", GetFPS());
         }
     }
 }
