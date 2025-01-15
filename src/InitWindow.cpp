@@ -531,7 +531,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         SubWindow glfwWin = InitWindow_SDL2(width, height, title);
         #endif
         g_wgpustate.window = (GLFWwindow*)glfwWin.handle;
-        g_wgpustate.surface = wgpu::Surface(g_wgpustate.createdSubwindows[glfwWin.handle].surface);
+        g_wgpustate.surface = wgpu::Surface(g_wgpustate.createdSubwindows[glfwWin.handle].surface.surface);
         #endif
         
 
@@ -1022,5 +1022,43 @@ extern "C" size_t GetPixelSizeInBytes(WGPUTextureFormat format) {
         default:
             // Unknown format
             return 0;
+    }
+}
+extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t newWidth, uint32_t newHeight){
+    fsurface->surfaceConfig.width = newWidth;
+    fsurface->surfaceConfig.height = newHeight;
+    fsurface->frameBuffer.colorMultisample.width = newWidth;
+    fsurface->frameBuffer.colorMultisample.height = newHeight;
+    fsurface->frameBuffer.texture.width = newWidth;
+    fsurface->frameBuffer.texture.height = newHeight;
+    fsurface->frameBuffer.depth.width = newWidth;
+    fsurface->frameBuffer.depth.height = newHeight;
+    WGPUTextureFormat format = g_wgpustate.frameBufferFormat;
+    fsurface->surfaceConfig.viewFormats = &format;
+    wgpuSurfaceConfigure(fsurface->surface, &fsurface->surfaceConfig);
+    UnloadTexture(fsurface->frameBuffer.colorMultisample);
+    UnloadTexture(fsurface->frameBuffer.depth);
+    if(g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT){
+        fsurface->frameBuffer.colorMultisample = LoadTexturePro(newWidth, newHeight, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4, 1);
+    }
+    fsurface->frameBuffer.depth = LoadTexturePro(newWidth,
+                           newHeight, 
+                           WGPUTextureFormat_Depth24Plus, 
+                           WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
+                           (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
+                           1
+    );
+}
+extern "C" void GetNewTexture(FullSurface* fsurface){
+    if(fsurface->surface == 0){
+        return;
+    }
+    else{
+        WGPUSurfaceTexture surfaceTexture;
+        wgpuSurfaceGetCurrentTexture(fsurface->surface, &surfaceTexture);
+        fsurface->frameBuffer.texture.id = surfaceTexture.texture;
+        fsurface->frameBuffer.texture.width = GetScreenWidth();
+        fsurface->frameBuffer.texture.height = GetScreenHeight();
+        fsurface->frameBuffer.texture.view = wgpuTextureCreateView(surfaceTexture.texture, nullptr);
     }
 }

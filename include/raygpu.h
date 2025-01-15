@@ -573,11 +573,14 @@ typedef struct AttributeAndResidence{
     WGPUVertexStepMode stepMode;
     uint32_t enabled;
 }AttributeAndResidence;
-
+typedef struct FullSurface{
+    WGPUSurface surface;
+    WGPUSurfaceConfiguration surfaceConfig;
+    RenderTexture frameBuffer;
+}FullSurface;
 typedef struct SubWindow{
     void* handle;
-    WGPUSurface surface;
-    RenderTexture frameBuffer;
+    FullSurface surface;
 }SubWindow;
 
 typedef struct full_renderstate full_renderstate;
@@ -658,7 +661,7 @@ typedef struct VertexStateToPipelineMap{
 std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shaderSource);
 /**
  * @brief returning a map from 
- * Attribute name -> Attribute format (vec2f, vec3f, etc.) and binding location
+ * Attribute name -> Attribute format (vec2f, vec3f, etc.) and attribute location
  * @param shaderSource 
  * @return std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> 
  */
@@ -674,7 +677,8 @@ EXTERN_C_BEGIN
     SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* title);
     SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char* title);
     void CloseSubWindow(SubWindow subWindow);
-
+    void ResizeSurface(FullSurface* fsurface, uint32_t width, uint32_t height);
+    void GetNewTexture(FullSurface* fsurface);
     uint32_t GetScreenWidth (cwoid);                             //Window width
     uint32_t GetScreenHeight(cwoid);                             //Window height
     uint32_t GetMonitorWidth (cwoid);                            //Monitor height

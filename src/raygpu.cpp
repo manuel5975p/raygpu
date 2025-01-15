@@ -901,30 +901,19 @@ void BeginDrawing(){
         
 
         //g_wgpustate.drawmutex.lock();
-        g_wgpustate.rstate->renderExtentX = GetScreenWidth();
-        g_wgpustate.rstate->renderExtentY = GetScreenHeight();
-        WGPUSurfaceTexture surfaceTexture;
-        wgpuSurfaceGetCurrentTexture(g_wgpustate.createdSubwindows[g_wgpustate.window].surface, &surfaceTexture);
-        WGPUTextureView nextTexture = wgpuTextureCreateView(surfaceTexture.texture, nullptr);
-        TRACELOG(LOG_WARNING, "Assumed that the surface is %u x %u", GetScreenWidth(), GetScreenHeight());
-        TRACELOG(LOG_WARNING, "And actually it is %u x %u", wgpuTextureGetWidth(surfaceTexture.texture), wgpuTextureGetHeight(surfaceTexture.texture));
-        TRACELOG(LOG_WARNING, "using: %ull", g_wgpustate.createdSubwindows[g_wgpustate.window].surface);
-        if(wgpuTextureGetWidth(surfaceTexture.texture) != GetScreenWidth()){
-            //GetCXXSurface().Present();
-        }      
-
-        g_wgpustate.mainWindowRenderTarget.texture.id = surfaceTexture.texture;
-        g_wgpustate.mainWindowRenderTarget.texture.width = GetScreenWidth();
-        g_wgpustate.mainWindowRenderTarget.texture.height = GetScreenHeight();
-        g_wgpustate.mainWindowRenderTarget.texture.view = nextTexture;
-        //__builtin_dump_struct(&(g_wgpustate.mainWindowRenderTarget.depth), printf);
+        g_wgpustate.rstate->renderExtentX = g_wgpustate.createdSubwindows[g_wgpustate.window].surface.frameBuffer.texture.width;
+        g_wgpustate.width = g_wgpustate.createdSubwindows[g_wgpustate.window].surface.frameBuffer.texture.width;
+        g_wgpustate.rstate->renderExtentY = g_wgpustate.createdSubwindows[g_wgpustate.window].surface.frameBuffer.texture.height;
+        g_wgpustate.height = g_wgpustate.createdSubwindows[g_wgpustate.window].surface.frameBuffer.texture.height;
+        std::cout << g_wgpustate.createdSubwindows[g_wgpustate.window].surface.frameBuffer.depth.width << std::endl;
+        GetNewTexture(&g_wgpustate.createdSubwindows[g_wgpustate.window].surface);
+        g_wgpustate.mainWindowRenderTarget = g_wgpustate.createdSubwindows[g_wgpustate.window].surface.frameBuffer;
         g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition] = g_wgpustate.mainWindowRenderTarget;
-        //g_wgpustate.activeSubWindow = 
-        //setTargetTextures(g_wgpustate.rstate, g_wgpustate.currentDefaultRenderTarget.texture.view, g_wgpustate.currentDefaultRenderTarget.colorMultisample.view, g_wgpustate.currentDefaultRenderTarget.depth.view);
+        //__builtin_dump_struct(&(g_wgpustate.mainWindowRenderTarget.depth), printf);
     }
     BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
     //SetUniformBuffer(0, g_wgpustate.defaultScreenMatrix);
-    SetMatrix(ScreenMatrix(GetScreenWidth(), GetScreenHeight()));
+    SetMatrix(ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY));
     SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
     
     if(IsKeyPressed(KEY_F2) && (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL) || true)){
@@ -1526,6 +1515,7 @@ Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format
         textureViewDesc.label.data = potlabel;
         textureViewDesc.label.length = len;
     }
+    textureViewDesc.usage = usage;
     textureViewDesc.aspect = ((format == WGPUTextureFormat_Depth24Plus) ? WGPUTextureAspect_DepthOnly : WGPUTextureAspect_All);
     textureViewDesc.baseArrayLayer = 0;
     textureViewDesc.arrayLayerCount = 1;
@@ -2281,18 +2271,17 @@ void EndTextureMode(){
         BeginRenderpass();
 }
 extern "C" void BeginWindowMode(SubWindow sw){
-    sw = g_wgpustate.createdSubwindows.at(sw.handle);
+    auto& swref = g_wgpustate.createdSubwindows.at(sw.handle);
     g_wgpustate.activeSubWindow = sw;
-    WGPUSurfaceTexture surfaceTexture;
-    wgpuSurfaceGetCurrentTexture(sw.surface, &surfaceTexture);
+    GetNewTexture(&swref.surface);
 
 
-    WGPUTextureView nextTexture = wgpuTextureCreateView(surfaceTexture.texture,nullptr);
+    //WGPUTextureView nextTexture = wgpuTextureCreateView(surfaceTexture.texture,nullptr);
     //wgpuTextureViewRelease(g_wgpustate.activeSubWindow.frameBuffer.color.view);
     //wgpuTextureRelease(g_wgpustate.activeSubWindow.frameBuffer.color.id);
-    sw.frameBuffer.texture.view = nextTexture;
-    sw.frameBuffer.texture.id = surfaceTexture.texture;
-    BeginTextureMode(sw.frameBuffer);
+    //sw.frameBuffer.texture.view = nextTexture;
+    //sw.frameBuffer.texture.id = surfaceTexture.texture;
+    BeginTextureMode(sw.surface.frameBuffer);
     //++g_wgpustate.renderTargetStackPosition;
     
     //g_wgpustate.currentDefaultRenderTarget = sw.frameBuffer;
@@ -2302,7 +2291,7 @@ extern "C" void EndWindowMode(){
     //EndRenderpass();
     EndTextureMode();
     //g_wgpustate.currentDefaultRenderTarget = g_wgpustate.mainWindowRenderTarget;
-    wgpuSurfacePresent(g_wgpustate.activeSubWindow.surface);
+    wgpuSurfacePresent(g_wgpustate.activeSubWindow.surface.surface);
     auto& ipstate = g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()];
     std::copy(ipstate.keydown.begin(), ipstate.keydown.end(), ipstate.keydownPrevious.begin());
     ipstate.mousePosPrevious = ipstate.mousePos;
