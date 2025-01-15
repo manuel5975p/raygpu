@@ -170,6 +170,7 @@ WGPUSurface SDL_GetWGPUSurface(WGPUInstance instance, SDL_Window* window) {
 #elif defined(SDL_VIDEO_DRIVER_EMSCRIPTEN)
     {
         WGPUSurfaceDescriptorFromCanvasHTMLSelector canvasDesc = {0};
+        canvasDesc.chain.sType = WGPUSType_SurfaceSourceCanvasHTMLSelector_Emscripten;
         canvasDesc.selector = (WGPUStringView){.data = "#canvas", .length = 7};
 
         WGPUSurfaceDescriptor surfaceDesc = {0};

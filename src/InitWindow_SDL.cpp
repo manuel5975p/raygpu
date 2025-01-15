@@ -237,7 +237,7 @@ void ResizeCallback(SDL_Window* window, int width, int height){
     //while(!g_wgpustate.drawmutex.try_lock());
     //g_wgpustate.drawmutex.lock();
     
-    TraceLog(LOG_INFO, "SDL's ResizeCallback called with %d x %d", width, height);
+    TRACELOG(LOG_INFO, "SDL's ResizeCallback called with %d x %d", width, height);
     wgpu::SurfaceCapabilities capabilities;
     g_wgpustate.surface.GetCapabilities(g_wgpustate.adapter, &capabilities);
     wgpu::SurfaceConfiguration config = {};
@@ -631,7 +631,8 @@ void ToggleFullscreen_SDL2(cwoid){
         //We need to exit fullscreen
         g_wgpustate.windowFlags &= ~FLAG_FULLSCREEN_MODE;
         SDL_SetWindowFullscreen((SDL_Window*)g_wgpustate.window, 0);
-        SDL_SetWindowSize((SDL_Window*)g_wgpustate.window, g_wgpustate.input_map[g_wgpustate.window].windowPosition.width, g_wgpustate.input_map[g_wgpustate.window].windowPosition.height);//g_wgpustate.input_map[g_wgpustate.window].windowPosition.x, g_wgpustate.input_map[g_wgpustate.window].windowPosition.y, g_wgpustate.input_map[g_wgpustate.window].windowPosition.width, g_wgpustate.input_map[g_wgpustate.window].windowPosition.height, GLFW_DONT_CARE);
+        SDL_SetWindowSize((SDL_Window*)g_wgpustate.window, g_wgpustate.input_map[g_wgpustate.window].windowPosition.width, g_wgpustate.input_map[g_wgpustate.window].windowPosition.height);
+        TRACELOG(LOG_WARNING, "Setting the size to  %d x %d", (int)g_wgpustate.input_map[g_wgpustate.window].windowPosition.width, (int)g_wgpustate.input_map[g_wgpustate.window].windowPosition.height);
     }
     else{
         //We need to enter fullscreen
