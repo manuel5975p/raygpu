@@ -457,15 +457,19 @@ Image ImageFromImage(Image image, Rectangle rec)
 {
     Image result zeroinit;
 
-    int bytesPerPixel = image.format == GRAYSCALE ? 2 : 4;
+    int bytesPerPixel = ((image.format == GRAYSCALE) ? 2 : GetPixelSizeInBytes(image.format));
 
     result.width = (int)rec.width;
     result.height = (int)rec.height;
     result.data = calloc((int)rec.width*(int)rec.height*bytesPerPixel, 1);
     result.format = image.format;
+    result.rowStrideInBytes = (uint32_t)rec.width*bytesPerPixel;
 
     for (int y = 0; y < (int)rec.height; y++){
-        memcpy(((unsigned char *)result.data) + y*(int)rec.width*bytesPerPixel, ((unsigned char *)image.data) + ((y + (int)rec.y)*image.width + (int)rec.x)*bytesPerPixel, (int)rec.width*bytesPerPixel);
+        memcpy(((unsigned char *)result.data) + y*(int)rec.width*bytesPerPixel, 
+               ((unsigned char *)image.data) + ((y + (int)rec.y)*image.rowStrideInBytes) + ((int)rec.x)*bytesPerPixel, 
+               (int)rec.width*bytesPerPixel
+        );
     }
 
     return result;

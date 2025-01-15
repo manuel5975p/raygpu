@@ -207,7 +207,7 @@ void InitWGPU(webgpu_cxx_state* sample){
             adapterOptions.powerPreference = wgpu::PowerPreference::HighPerformance;
             break;
         case wgpu::AdapterType::IntegratedGPU:
-            adapterOptions.powerPreference = wgpu::PowerPreference::LowPower;
+            adapterOptions.powerPreference = wgpu::PowerPreference::HighPerformance;
             break;
         case wgpu::AdapterType::Unknown:
             break;

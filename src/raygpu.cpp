@@ -2186,12 +2186,13 @@ void SaveImage(Image _img, const char* filepath){
     UnloadImage(img);
 }
 void UseTexture(Texture tex){
-    if(GetUniformLocation(GetActivePipeline(), "texture0") == LOCATION_NOT_FOUND){
+    uint32_t texture0loc = GetUniformLocation(GetActivePipeline(), RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE0);
+    if(texture0loc == LOCATION_NOT_FOUND){
         return;
     }
-    if(g_wgpustate.rstate->activePipeline->bindGroup.entries[1].textureView == tex.view)return;
+    if(g_wgpustate.rstate->activePipeline->bindGroup.entries[texture0loc].textureView == tex.view)return;
     drawCurrentBatch();
-    SetTexture(1, tex);
+    SetTexture(texture0loc, tex);
     //WGPUBindGroupEntry entry{};
     //entry.binding = 1;
     //entry.textureView = tex.view;
