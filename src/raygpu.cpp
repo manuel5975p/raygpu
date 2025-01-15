@@ -904,8 +904,14 @@ void BeginDrawing(){
         g_wgpustate.rstate->renderExtentX = GetScreenWidth();
         g_wgpustate.rstate->renderExtentY = GetScreenHeight();
         WGPUSurfaceTexture surfaceTexture;
-        wgpuSurfaceGetCurrentTexture(g_wgpustate.surface.Get(), &surfaceTexture);
+        wgpuSurfaceGetCurrentTexture(g_wgpustate.createdSubwindows[g_wgpustate.window].surface, &surfaceTexture);
         WGPUTextureView nextTexture = wgpuTextureCreateView(surfaceTexture.texture, nullptr);
+        TRACELOG(LOG_WARNING, "Assumed that the surface is %u x %u", GetScreenWidth(), GetScreenHeight());
+        TRACELOG(LOG_WARNING, "And actually it is %u x %u", wgpuTextureGetWidth(surfaceTexture.texture), wgpuTextureGetHeight(surfaceTexture.texture));
+        TRACELOG(LOG_WARNING, "using: %ull", g_wgpustate.createdSubwindows[g_wgpustate.window].surface);
+        if(wgpuTextureGetWidth(surfaceTexture.texture) != GetScreenWidth()){
+            //GetCXXSurface().Present();
+        }      
 
         g_wgpustate.mainWindowRenderTarget.texture.id = surfaceTexture.texture;
         g_wgpustate.mainWindowRenderTarget.texture.width = GetScreenWidth();
