@@ -264,8 +264,10 @@ void ResizeCallback(SDL_Window* window, int width, int height){
     );
     toBeResizedRendertexture.texture.width = width;
     toBeResizedRendertexture.texture.height = height;
-    wgpuSurfaceConfigure(g_wgpustate.createdSubwindows[window].surface, (WGPUSurfaceConfiguration*)&config);
     
+    wgpuSurfaceConfigure(g_wgpustate.createdSubwindows[window].surface, (WGPUSurfaceConfiguration*)&config);
+    TRACELOG(LOG_WARNING, "configured: %llu with extents %u x %u", g_wgpustate.createdSubwindows[window].surface, width, height);
+    //g_wgpustate.surface = wgpu::Surface(g_wgpustate.createdSubwindows[window].surface);
     if((void*)window == (void*)g_wgpustate.window){
         g_wgpustate.mainWindowRenderTarget = toBeResizedRendertexture;
     }
