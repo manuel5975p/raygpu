@@ -18,9 +18,9 @@ int main(void){
     int dsize = 0;
     int deflsize = 0;
 
-    unsigned char* tgrd = DecodeDataBase64((uint8_t*)telegrama_render, &dsize);
-    unsigned char* decomp = DecompressData(tgrd, dsize, &deflsize);
-    tele = LoadFontFromMemory(".ttf", decomp, deflsize, 200, 0, 1000);
+    //unsigned char* tgrd = DecodeDataBase64((uint8_t*)telegrama_render, &dsize);
+    //unsigned char* decomp = DecompressData(tgrd, dsize, &deflsize);
+    //tele = LoadFontFromMemory(".ttf", decomp, deflsize, 200, 0, 1000);
     #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainloop, 0, 0);
     #else

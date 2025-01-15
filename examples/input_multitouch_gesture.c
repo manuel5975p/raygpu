@@ -1,4 +1,5 @@
 #include <raygpu.h>
+#ifndef _WIN64
 float angle = 0;
 float zoom = 100;
 void mainloop(void){
@@ -24,3 +25,6 @@ int main(void){
     emscripten_set_main_loop(mainloop, 0, 0);
     #endif
 }
+#else
+int main(void) { return 0; }
+#endif

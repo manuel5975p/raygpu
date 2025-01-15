@@ -212,8 +212,16 @@ extern void LoadFontDefault(void)
 {
     int dsize = 0;
     int deflsize = 0;
-
-    unsigned char* tgrd = DecodeDataBase64((uint8_t*)telegrama_render, &dsize);
+    uint8_t *telegrama_render_dump = calloc(100000, 1);
+    size_t p_entry = 0;
+    memcpy(telegrama_render_dump + p_entry, telegrama_render1, telegrama_render_size1);
+    p_entry += telegrama_render_size1;
+    memcpy(telegrama_render_dump + p_entry, telegrama_render2, telegrama_render_size2);
+    p_entry += telegrama_render_size2;
+    memcpy(telegrama_render_dump + p_entry, telegrama_render3, telegrama_render_size3);
+    p_entry += telegrama_render_size3;
+    telegrama_render_dump[p_entry] = 0;
+    unsigned char* tgrd = DecodeDataBase64((uint8_t*)telegrama_render_dump, &dsize);
     unsigned char* decomp = DecompressData(tgrd, dsize, &deflsize);
     defaultFont = LoadFontFromMemory(".ttf", decomp, deflsize, 50, 0, 1000);
     return;
