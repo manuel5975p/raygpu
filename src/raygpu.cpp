@@ -1618,8 +1618,8 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     RenderSettings settings{};
     settings.depthTest = 1;
     settings.depthCompare = WGPUCompareFunction_LessEqual;
-    settings.optionalDepthTexture = d;
-    settings.sampleCount_onlyApplicableIfMoreThanOne = (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
+    //settings.optionalDepthTexture = d;
+    settings.sampleCount = (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
     state->computepass = DescribedComputepass{};
     state->renderpass = LoadRenderpassEx(c, d, settings);
     state->renderpass.renderPassDesc.label = STRVIEW("g_wgpustate::render_pass");
@@ -1940,7 +1940,7 @@ inline bool operator==(const RenderSettings& a, const RenderSettings& b){
            a.depthCompare == b.depthCompare &&
            a.frontFace == b.frontFace;
 }
-extern "C" void UpdateRenderpass(DescribedRenderpass* rp, RenderSettings newSettings){
+/*extern "C" void UpdateRenderpass(DescribedRenderpass* rp, RenderSettings newSettings){
     if(rp->settings == newSettings){
         return;
     }
@@ -1952,7 +1952,7 @@ extern "C" void UpdateRenderpass(DescribedRenderpass* rp, RenderSettings newSett
         free(rp->dsa);
         rp->renderPassDesc.depthStencilAttachment = nullptr;
     }
-}
+}*/
 void UnloadRenderpass(DescribedRenderpass rp){
     if(rp.rca)free(rp.rca); //Should not happen
     rp.rca = nullptr;
@@ -1964,11 +1964,10 @@ extern "C" DescribedRenderpass LoadRenderpass(WGPUTextureView color, WGPUTexture
     return LoadRenderpassEx(color, depth, RenderSettings{
         .depthTest = false,
         .faceCull = false,
-        .sampleCount_onlyApplicableIfMoreThanOne = 1,
+        .sampleCount = 1,
         .depthCompare = WGPUCompareFunction_LessEqual, //Not applicable anyway
         .frontFace = WGPUFrontFace_CCW, //Not applicable anyway
-        .optionalDepthTexture = depth,
-    });    
+    });
 }
 DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode mipmapFilter, float maxAnisotropy){
     DescribedSampler ret zeroinit;

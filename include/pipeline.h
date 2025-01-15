@@ -26,17 +26,27 @@ typedef struct UniformDescriptor{
     format_or_sample_type fstype;
 }UniformDescriptor;
 
-
+//TODO: Stencil attachment
 typedef struct RenderSettings{
-    uint8_t depthTest;
-    uint8_t faceCull;
-    uint8_t sampleCount_onlyApplicableIfMoreThanOne;
+    bool depthTest;
+    bool faceCull;
+    uint8_t sampleCount;
     WGPUCompareFunction depthCompare;
     WGPUFrontFace frontFace;
 
-    WGPUTextureView optionalDepthTexture; //Depth texture (pointer), applicable if depthTest != 0
+    WGPUBlendOperation blendOperationAlpha;
+    WGPUBlendFactor    blendFactorSrcAlpha;
+    WGPUBlendFactor    blendFactorDstAlpha;
 
+    WGPUBlendOperation blendOperationColor;
+    WGPUBlendFactor    blendFactorSrcColor;
+    WGPUBlendFactor    blendFactorDstColor;
 }RenderSettings;
+
+static inline bool RenderSettingsComptatible(RenderSettings settings1, RenderSettings settings2){
+    return settings1.sampleCount == settings2.sampleCount &&
+           settings1.depthTest == settings2.depthTest;
+}
 
 typedef struct DescribedBindGroupLayout{
     WGPUBindGroupLayoutDescriptor descriptor;

@@ -790,7 +790,7 @@ EXTERN_C_BEGIN
 
     DescribedRenderpass LoadRenderpass(WGPUTextureView color, WGPUTextureView depth);
     DescribedRenderpass LoadRenderpassEx(WGPUTextureView color, WGPUTextureView depth, RenderSettings settings);
-    void UpdateRenderpass(DescribedRenderpass* rp, RenderSettings newSettings);
+    //void UpdateRenderpass(DescribedRenderpass* rp, RenderSettings newSettings);
     void UnloadRenderpass(DescribedRenderpass rp);
     
     void BeginRenderpass(cwoid);

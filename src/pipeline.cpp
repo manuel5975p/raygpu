@@ -294,7 +294,7 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     ret.layout.layout = wgpuDeviceCreatePipelineLayout(GetDevice(), &ret.layout.descriptor);
     
     WGPURenderPipelineDescriptor& pipelineDesc = ret.descriptor;
-    pipelineDesc.multisample.count = settings.sampleCount_onlyApplicableIfMoreThanOne ? settings.sampleCount_onlyApplicableIfMoreThanOne : 1;
+    pipelineDesc.multisample.count = settings.sampleCount ? settings.sampleCount : 1;
     pipelineDesc.multisample.mask = 0xFFFFFFFF;
     pipelineDesc.multisample.alphaToCoverageEnabled = false;
     pipelineDesc.layout = ret.layout.layout;
@@ -315,13 +315,13 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     ret.fragmentState->constantCount = 0;
     ret.fragmentState->constants = nullptr;
     ret.blendState = new WGPUBlendState{};
-    ret.blendState->color.srcFactor = WGPUBlendFactor_SrcAlpha;
-    ret.blendState->color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
-    ret.blendState->color.operation = WGPUBlendOperation_Add;
+    ret.blendState->color.srcFactor = settings.blendFactorSrcColor;
+    ret.blendState->color.dstFactor = settings.blendFactorDstColor;
+    ret.blendState->color.operation = settings.blendOperationColor;
 
-    ret.blendState->alpha.srcFactor = WGPUBlendFactor_One;
-    ret.blendState->alpha.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
-    ret.blendState->alpha.operation = WGPUBlendOperation_Add;
+    ret.blendState->alpha.srcFactor = settings.blendFactorSrcAlpha;
+    ret.blendState->alpha.dstFactor = settings.blendFactorDstAlpha;
+    ret.blendState->alpha.operation = settings.blendOperationAlpha;
     ret.colorTarget = callocnew(WGPUColorTargetState);
     ret.colorTarget->format = g_wgpustate.frameBufferFormat;
     ret.colorTarget->blend = ret.blendState;
@@ -530,6 +530,19 @@ DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
     new(pipeline->uniformLocations) StringToUniformMap(*_pipeline->uniformLocations);
     return pipeline;
 }
+DescribedPipeline* ClonePipelineWithSettings(const DescribedPipeline* pl, RenderSettings settings){
+    DescribedPipeline* cloned = ClonePipeline(pl);
+    cloned->settings = settings;
+    cloned->descriptor.multisample.count = settings.sampleCount;
+    cloned->blendState->color.srcFactor = settings.blendFactorSrcColor;
+    cloned->blendState->color.dstFactor = settings.blendFactorDstColor;
+    cloned->blendState->color.operation = settings.blendOperationColor;
+
+    cloned->blendState->alpha.srcFactor = settings.blendFactorSrcAlpha;
+    cloned->blendState->alpha.dstFactor = settings.blendFactorDstAlpha;
+    cloned->blendState->alpha.operation = settings.blendOperationAlpha;
+
+}
 DescribedComputePipeline* LoadComputePipeline(const char* shaderCode){
     auto bindmap = getBindings(shaderCode);
     std::vector<UniformDescriptor> udesc;
@@ -576,7 +589,16 @@ RenderSettings GetDefaultSettings(){
     ret.frontFace = WGPUFrontFace_CCW;
     ret.depthTest = 1;
     ret.depthCompare = WGPUCompareFunction_LessEqual;
-    ret.sampleCount_onlyApplicableIfMoreThanOne = (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
+    ret.sampleCount = (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
+
+    ret.blendFactorSrcAlpha = WGPUBlendFactor_SrcAlpha;
+    ret.blendFactorDstAlpha = WGPUBlendFactor_OneMinusSrcAlpha;
+    ret.blendOperationAlpha = WGPUBlendOperation_Add;
+
+    ret.blendFactorSrcColor = WGPUBlendFactor_One;
+    ret.blendFactorDstColor = WGPUBlendFactor_OneMinusSrcAlpha;
+    ret.blendOperationColor = WGPUBlendOperation_Add;
+    
     return ret;
 }
 DescribedPipeline* DefaultPipeline(){

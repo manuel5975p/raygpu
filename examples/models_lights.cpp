@@ -87,7 +87,7 @@ int main(){
     
     RenderSettings settings zeroinit;
     settings.depthTest = 1;
-    settings.sampleCount_onlyApplicableIfMoreThanOne = msaa ? 4 : 1;
+    settings.sampleCount = msaa ? 4 : 1;
     settings.depthCompare = WGPUCompareFunction_LessEqual;
     DescribedPipeline* pl = LoadPipelineForVAO(shaderSource, churchMesh.vao);
     Camera3D cam = CLITERAL(Camera3D){
