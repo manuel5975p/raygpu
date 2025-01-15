@@ -78,12 +78,13 @@ void mainloop(){
 }
 int main(){
     //SetConfigFlags(FLAG_MSAA_4X_HINT);
-    //SetConfigFlags(FLAG_VSYNC_HINT);
+    SetConfigFlags(FLAG_VSYNC_HINT);
     std::filesystem::path p(".");
     std::cout << std::filesystem::absolute(p) << "\n";
     InitWindow(640, 480, "Tilemap Benchmark");
     SetTargetFPS(0);
     Image img = LoadImage("../resources/tileset.png");
+    //Image img = GenImageColor(RED, 100, 100);
     tilemap = LoadTextureFromImage(img);
     cam = Camera2D{
         .offset = Vector2{GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f}, 
@@ -98,9 +99,9 @@ int main(){
     tileVAO = LoadVertexArray();
     float tileVertices [8] = {
         0, 0,
-        1, 0,
+        0, 1,
         1, 1,
-        0, 1
+        1, 0
     };
     uint32_t tileIndices[6] = {
         0,1,2,0,2,3
@@ -119,6 +120,7 @@ int main(){
             ++tileCount;
         }
     }
+    //std::cout << tileCount << "\n";
     tileOffsets = GenBuffer(offsets.data(), offsets.size() * sizeof(Vector2));
     tileTypes = GenStorageBuffer(tt.data(), tt.size() * sizeof(uint32_t));
     VertexAttribPointer(tileVAO, tileVBO, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);

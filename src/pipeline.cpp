@@ -595,7 +595,7 @@ RenderSettings GetDefaultSettings(){
     ret.blendFactorDstAlpha = WGPUBlendFactor_OneMinusSrcAlpha;
     ret.blendOperationAlpha = WGPUBlendOperation_Add;
 
-    ret.blendFactorSrcColor = WGPUBlendFactor_One;
+    ret.blendFactorSrcColor = WGPUBlendFactor_SrcAlpha;
     ret.blendFactorDstColor = WGPUBlendFactor_OneMinusSrcAlpha;
     ret.blendOperationColor = WGPUBlendOperation_Add;
     
