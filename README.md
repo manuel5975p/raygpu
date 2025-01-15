@@ -1,11 +1,11 @@
 # RayGPU
-A fast and simple [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API) based graphics library for C and C++, inspired by and based on [raylib](https://github.com/raysan5/raylib/).
+A fast and simple [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API) based graphics library for **C and C++**, inspired by and based on [raylib](https://github.com/raysan5/raylib/).
 ### Outline
 - [Getting Started](#getting-started)
 - [Building](#building)
 - [OpenGL compatibility](#opengl-compatibility-and-similarity)
 - [Examples and snippets](#more-advanced-examples)
-
+___
 ### Why WebGPU
 [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API) is a new graphics API meant to give portable access to advanced GPU features. The supported backends are
 - DirectX 11/12 
