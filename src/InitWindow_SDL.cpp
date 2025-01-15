@@ -159,21 +159,21 @@ void Initialize_SDL2(){
 void negotiateSurfaceFormatAndPresentMode(const wgpu::Surface &surf);
 extern "C" SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char *title) {
     
-    SubWindow ret;
+    SubWindow ret{};
     //SDL_SetHint(SDL_HINT_TRACKPAD_IS_TOUCH_ONLY, "1");
     SDL_Window *window = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, 0);
     SDL_SetWindowResizable(window, SDL_bool(g_wgpustate.windowFlags & FLAG_WINDOW_RESIZABLE));
     if(g_wgpustate.windowFlags & FLAG_FULLSCREEN_MODE)
         SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
-    WGPUSurface csurf = SDL_GetWGPUSurface(GetInstance(), window);
-    negotiateSurfaceFormatAndPresentMode((const wgpu::Surface &)csurf);
+    ret.surface.surface = SDL_GetWGPUSurface(GetInstance(), window);
+    negotiateSurfaceFormatAndPresentMode(*((const wgpu::Surface*)&ret.surface.surface));
     WGPUSurfaceCapabilities capa;
     wgpu::SurfaceCapabilities cxxcapa;
     WGPUAdapter adapter = GetAdapter();
     // std::cout << surf.Get() << "\n";
     //wgpu::Surface(csurf).GetCapabilities(GetCXXAdapter(), &cxxcapa);
 
-    wgpuSurfaceGetCapabilities(csurf, adapter, &capa);
+    wgpuSurfaceGetCapabilities(ret.surface.surface, adapter, &capa);
     //std::cout << capa.presentModeCount << "\n";
     //for(uint32_t i = 0;i < capa.presentModeCount;i++){
     //    std::cout << "Sdl supports " << presentModeSpellingTable.at(capa.presentModes[i]) << std::endl;
@@ -195,35 +195,34 @@ extern "C" SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char
     config.viewFormats = &config.format;
     config.viewFormatCount = 1;
     config.device = GetDevice();
-    wgpuSurfaceConfigure(csurf, &config);
+    wgpuSurfaceConfigure(ret.surface.surface, &config);
     // surf.Configure(&config);
     // wgpu::SurfaceTexture tex;
     // surf.Present();
     // std::cout << SDL_GetCurrentVideoDriver() << "\n";
     ret.handle = window;
-    ret.frameBuffer = LoadRenderTexture(width, height);
-    ret.surface = csurf;
+    ret.surface.frameBuffer = LoadRenderTexture(width, height);
+
+    ret.surface.surfaceConfig = config;
     g_wgpustate.createdSubwindows[ret.handle] = ret;
     return ret;
 }
 
 SubWindow OpenSubWindow_SDL2(uint32_t width, uint32_t height, const char* title){
-    SubWindow ret;
-    ret.handle = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, 0);
+    SubWindow ret zeroinit;
     WGPUInstance inst = GetInstance();
-    wgpu::Surface secondSurface = SDL_GetWGPUSurface(inst, (SDL_Window*)ret.handle);
-    wgpu::SurfaceCapabilities capabilities;
-    secondSurface.GetCapabilities(GetCXXAdapter(), &capabilities);
-    wgpu::SurfaceConfiguration config = {};
-    config.device = GetCXXDevice();
-    config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
-    config.format = (wgpu::TextureFormat)g_wgpustate.frameBufferFormat;
-    config.presentMode = g_wgpustate.unthrottled_PresentMode;
-    config.width = width;
-    config.height = height;
-    secondSurface.Configure(&config);
-    ret.surface = secondSurface.MoveToCHandle();
-    ret.frameBuffer = LoadRenderTexture(config.width, config.height);
+    WGPUSurfaceCapabilities capabilities zeroinit;
+    ret.handle = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, 0);
+    ret.surface.surface = SDL_GetWGPUSurface(inst, (SDL_Window*)ret.handle);
+    wgpuSurfaceGetCapabilities(ret.surface.surface, GetAdapter(), &capabilities);
+    ret.surface.surfaceConfig.device = GetDevice();
+    ret.surface.surfaceConfig.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
+    ret.surface.surfaceConfig.format = g_wgpustate.frameBufferFormat;
+    ret.surface.surfaceConfig.presentMode = (WGPUPresentMode)g_wgpustate.unthrottled_PresentMode;
+    ret.surface.surfaceConfig.width = width;
+    ret.surface.surfaceConfig.height = height;
+    wgpuSurfaceConfigure(ret.surface.surface, &ret.surface.surfaceConfig);
+    ret.surface.frameBuffer = LoadRenderTexture(ret.surface.surfaceConfig.width, ret.surface.surfaceConfig.height);
     g_wgpustate.createdSubwindows[ret.handle] = ret;
     g_wgpustate.input_map[(GLFWwindow*)ret.handle] = window_input_state{};
     //setupGLFWCallbacks((GLFWwindow*)ret.handle);
@@ -238,38 +237,13 @@ void ResizeCallback(SDL_Window* window, int width, int height){
     //g_wgpustate.drawmutex.lock();
     
     TRACELOG(LOG_INFO, "SDL's ResizeCallback called with %d x %d", width, height);
-    wgpu::SurfaceCapabilities capabilities;
-    g_wgpustate.surface.GetCapabilities(g_wgpustate.adapter, &capabilities);
-    wgpu::SurfaceConfiguration config = {};
-    config.alphaMode = wgpu::CompositeAlphaMode::Opaque;
-    config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
-    config.device = g_wgpustate.device;
-    config.format = (wgpu::TextureFormat)g_wgpustate.frameBufferFormat;
-    config.presentMode = (wgpu::PresentMode)(!!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? g_wgpustate.throttled_PresentMode : g_wgpustate.unthrottled_PresentMode);
-    config.width = width;
-    config.height = height;
-    g_wgpustate.width = width;
-    g_wgpustate.height = height;
-    auto& toBeResizedRendertexture = g_wgpustate.createdSubwindows[window].frameBuffer;
-    UnloadTexture(toBeResizedRendertexture.colorMultisample);
-    if(g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT)
-        toBeResizedRendertexture.colorMultisample = LoadTexturePro(width, height, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4, 1);
-    UnloadTexture(toBeResizedRendertexture.depth);
-    toBeResizedRendertexture.depth = LoadTexturePro(width,
-                              height, 
-                              WGPUTextureFormat_Depth24Plus, 
-                              WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
-                              (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
-                              1
-    );
-    toBeResizedRendertexture.texture.width = width;
-    toBeResizedRendertexture.texture.height = height;
+    ResizeSurface(&g_wgpustate.createdSubwindows[window].surface, width, height);
     
-    wgpuSurfaceConfigure(g_wgpustate.createdSubwindows[window].surface, (WGPUSurfaceConfiguration*)&config);
-    TRACELOG(LOG_WARNING, "configured: %llu with extents %u x %u", g_wgpustate.createdSubwindows[window].surface, width, height);
+    //wgpuSurfaceConfigure(g_wgpustate.createdSubwindows[window].surface, (WGPUSurfaceConfiguration*)&config);
+    //TRACELOG(LOG_WARNING, "configured: %llu with extents %u x %u", g_wgpustate.createdSubwindows[window].surface, width, height);
     //g_wgpustate.surface = wgpu::Surface(g_wgpustate.createdSubwindows[window].surface);
     if((void*)window == (void*)g_wgpustate.window){
-        g_wgpustate.mainWindowRenderTarget = toBeResizedRendertexture;
+        g_wgpustate.mainWindowRenderTarget = g_wgpustate.createdSubwindows[window].surface.frameBuffer;
     }
     Matrix newcamera = ScreenMatrix(width, height);
     //BufferData(g_wgpustate.defaultScreenMatrix, &newcamera, sizeof(Matrix));
