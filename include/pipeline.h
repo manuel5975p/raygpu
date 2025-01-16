@@ -83,14 +83,27 @@ typedef struct StringToUniformMap StringToUniformMap;
  * @brief Hashmap: std::pair<std::vector<AttributeAndResidence>, WGPUPrimitiveTopology> -> WGPURenderPipeline, only visible for C++
  */
 typedef struct VertexStateToPipelineMap VertexStateToPipelineMap;
+typedef enum ShaderSourceType{
+    sourceTypeWGSL = WGPUSType_ShaderSourceWGSL, sourceTypeSPIRV = WGPUSType_ShaderSourceSPIRV
+}ShaderSourceType;
+typedef struct DescribedShaderModule{
 
+    /**
+     * @brief Either binary uint32_t* for SPIR-V or printable char* for WGSL
+     */
+    const void* source;
+    ShaderSourceType sourceType;
+    size_t sourceLengthInBytes;
 
+    WGPUShaderModule shaderModule;
+    StringToUniformMap* uniformLocations;
+}DescribedShaderModule;
 
 typedef struct DescribedPipeline{
     RenderSettings settings;
 
     //TODO: Multiple bindgrouplayouts
-    WGPUShaderModule sh;
+    DescribedShaderModule sh;
     DescribedBindGroup bindGroup;
     DescribedPipelineLayout layout;
     DescribedBindGroupLayout bglayout;
@@ -108,7 +121,7 @@ typedef struct DescribedPipeline{
     WGPUColorTargetState* colorTarget;
     WGPUDepthStencilState* depthStencilState;
 
-    StringToUniformMap* uniformLocations;
+    
     VertexStateToPipelineMap* createdPipelines;
 }DescribedPipeline;
 typedef struct DescribedBuffer DescribedBuffer;
@@ -124,7 +137,7 @@ typedef struct DescribedComputePipeline{
     WGPUComputePipeline pipeline;
     DescribedBindGroupLayout bglayout;
     DescribedBindGroup bindGroup;
-    StringToUniformMap* uniformLocations;
+    DescribedShaderModule shaderModule;
     #ifdef __cplusplus
     UniformAccessor operator[](const char* uniformName);
     #endif

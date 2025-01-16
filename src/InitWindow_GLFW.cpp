@@ -27,50 +27,17 @@ float calculateScrollScale(int deltaMode) {
 extern wgpustate g_wgpustate;
 void setupGLFWCallbacks(GLFWwindow* window);
 void ResizeCallback(GLFWwindow* window, int width, int height){
-    //wgpuSurfaceRelease(g_wgpustate.surface);
-    //g_wgpustate.surface = wgpu::glfw::CreateSurfaceForWindow(g_wgpustate.instance, window).MoveToCHandle();
-    //while(!g_wgpustate.drawmutex.try_lock());
-    //g_wgpustate.drawmutex.lock();
     
-    TraceLog(LOG_INFO, "glfwSizeCallback called with %d x %d", width, height);
-    wgpu::SurfaceCapabilities capabilities;
-    g_wgpustate.surface.GetCapabilities(g_wgpustate.adapter, &capabilities);
-    wgpu::SurfaceConfiguration config = {};
-    config.alphaMode = wgpu::CompositeAlphaMode::Opaque;
-    config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
-    config.device = g_wgpustate.device;
-    config.format = (wgpu::TextureFormat)g_wgpustate.frameBufferFormat;
-    config.presentMode = (wgpu::PresentMode)(!!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) ? g_wgpustate.throttled_PresentMode : g_wgpustate.unthrottled_PresentMode);
-    config.width = width;
-    config.height = height;
-    g_wgpustate.width = width;
-    g_wgpustate.height = height;
-    auto& toBeResizedRendertexture = g_wgpustate.createdSubwindows[window].frameBuffer;
-    UnloadTexture(toBeResizedRendertexture.colorMultisample);
-    if(g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT)
-        toBeResizedRendertexture.colorMultisample = LoadTexturePro(width, height, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4, 1);
-    UnloadTexture(toBeResizedRendertexture.depth);
-    toBeResizedRendertexture.depth = LoadTexturePro(width,
-                              height, 
-                              WGPUTextureFormat_Depth24Plus, 
-                              WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
-                              (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
-                              1
-    );
-    toBeResizedRendertexture.texture.width = width;
-    toBeResizedRendertexture.texture.height = height;
-    wgpuSurfaceConfigure(g_wgpustate.createdSubwindows[window].surface, (WGPUSurfaceConfiguration*)&config);
+    TRACELOG(LOG_INFO, "SDL's ResizeCallback called with %d x %d", width, height);
+    ResizeSurface(&g_wgpustate.createdSubwindows[window].surface, width, height);
     
-    if(window == g_wgpustate.window){
-        g_wgpustate.mainWindowRenderTarget = toBeResizedRendertexture;
+    //wgpuSurfaceConfigure(g_wgpustate.createdSubwindows[window].surface, (WGPUSurfaceConfiguration*)&config);
+    //TRACELOG(LOG_WARNING, "configured: %llu with extents %u x %u", g_wgpustate.createdSubwindows[window].surface, width, height);
+    //g_wgpustate.surface = wgpu::Surface(g_wgpustate.createdSubwindows[window].surface);
+    if((void*)window == (void*)g_wgpustate.window){
+        g_wgpustate.mainWindowRenderTarget = g_wgpustate.createdSubwindows[window].surface.frameBuffer;
     }
     Matrix newcamera = ScreenMatrix(width, height);
-    //BufferData(g_wgpustate.defaultScreenMatrix, &newcamera, sizeof(Matrix));
-    //setTargetTextures(g_wgpustate.rstate, g_wgpustate.rstate->color, g_wgpustate.currentDefaultRenderTarget.colorMultisample.view, g_wgpustate.currentDefaultRenderTarget.depth.view);
-    //updateRenderPassDesc(g_wgpustate.rstate);
-    //TODO wtf is this?
-    //g_wgpustate.rstate->renderpass.dsa->view = g_wgpustate.currentDefaultRenderTarget.depth.view;
-    //g_wgpustate.drawmutex.unlock();
 }
 void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset){
     g_wgpustate.input_map[window].scrollThisFrame.x += xoffset;
@@ -438,7 +405,7 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
         // Create the surface.
         wgpu::Surface rs = wgpu::glfw::CreateSurfaceForWindow(GetInstance(), (GLFWwindow*)window);
         negotiateSurfaceFormatAndPresentMode(rs);
-        ret.surface = rs.MoveToCHandle();
+        ret.surface.surface = rs.MoveToCHandle();
     #else
         // Create the surface.
         wgpu::SurfaceDescriptorFromCanvasHTMLSelector canvasDesc{};
@@ -448,11 +415,13 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
         surfaceDesc.nextInChain = &canvasDesc;
         g_wgpustate.surface = g_wgpustate.instance.CreateSurface(&surfaceDesc);
         negotiateSurfaceFormatAndPresentMode(g_wgpustate.surface);
-        ret.surface = g_wgpustate.surface.Get();
+        ret.surface.surface = g_wgpustate.surface.Get();
         window = glfwCreateWindow(width, height, title, mon, nullptr);
         g_wgpustate.window = (GLFWwindow*)window;
     #endif
-    WGPUSurfaceConfiguration config{};
+    ret.surface.surfaceConfig = WGPUSurfaceConfiguration{};
+
+    WGPUSurfaceConfiguration& config = ret.surface.surfaceConfig;
     if(g_wgpustate.windowFlags & FLAG_VSYNC_LOWLATENCY_HINT){
         config.presentMode = (WGPUPresentMode)(((g_wgpustate.unthrottled_PresentMode == wgpu::PresentMode::Mailbox) ? g_wgpustate.unthrottled_PresentMode : g_wgpustate.throttled_PresentMode));
     }
@@ -472,7 +441,7 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
     config.viewFormatCount = 1;
     config.device = GetDevice();
     TRACELOG(LOG_INFO, "Configuring surface");
-    wgpuSurfaceConfigure(ret.surface, &config);
+    wgpuSurfaceConfigure(ret.surface.surface, &config);
     int wposx = 0, wposy = 0;
     #ifndef DAWN_USE_WAYLAND
     glfwGetWindowPos((GLFWwindow*)window, &wposx, &wposy);
@@ -485,7 +454,7 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
     };
     ret.handle = (void*)window;
     //ret.surface = GetSurface();
-    ret.frameBuffer = g_wgpustate.mainWindowRenderTarget;
+    ret.surface.frameBuffer = g_wgpustate.mainWindowRenderTarget;
     g_wgpustate.createdSubwindows[window] = ret;
     g_wgpustate.input_map[ret.handle] = window_input_state{};
     setupGLFWCallbacks((GLFWwindow*)ret.handle);
@@ -511,8 +480,9 @@ extern "C" SubWindow OpenSubWindow_GLFW(uint32_t width, uint32_t height, const c
     config.width = width;
     config.height = height;
     secondSurface.Configure(&config);
-    ret.surface = secondSurface.MoveToCHandle();
-    ret.frameBuffer = LoadRenderTexture(config.width, config.height);
+    ret.surface.surfaceConfig = config;
+    ret.surface.surface = secondSurface.MoveToCHandle();
+    ret.surface.frameBuffer = LoadRenderTexture(config.width, config.height);
     g_wgpustate.createdSubwindows[ret.handle] = ret;
     g_wgpustate.input_map[(GLFWwindow*)ret.handle] = window_input_state{};
     setupGLFWCallbacks((GLFWwindow*)ret.handle);

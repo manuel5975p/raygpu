@@ -12,7 +12,7 @@
 #include <tint/lang/core/type/reference.h>
 
 bool glslang_initialized = false;
-std::vector<uint32_t> glsl_to_spirv(const char *vs, const char *fs) {
+std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char *vs, const char *fs) {
 
     if (!glslang_initialized)
         glslang::InitializeProcess();
@@ -66,44 +66,81 @@ std::vector<uint32_t> glsl_to_spirv(const char *vs, const char *fs) {
 
     //std::cout << uniformCount << "\n";
 
-    glslang::TIntermediate *intermediate = program.getIntermediate(EShLangFragment);
-    if (!intermediate) {
-        std::cerr << "Failed to get intermediate representation." << std::endl;
+    glslang::TIntermediate *vertexIntermediate = program.getIntermediate(EShLanguage(EShLangVertex));
+    glslang::TIntermediate *fragmentIntermediate = program.getIntermediate(EShLanguage(EShLangFragment));
+    if (!vertexIntermediate) {
+        std::cerr << "Failed to get intermediate representation for vertex" << std::endl;
+    }
+    if (!fragmentIntermediate) {
+        std::cerr << "Failed to get intermediate representation for fragment" << std::endl;
     }
     
 
     // Convert to SPIR-V
-    std::vector<uint32_t> spirv;
+    std::vector<uint32_t> spirvV, spirvF;
     glslang::SpvOptions opt;
     opt.disableOptimizer = false;
-    glslang::GlslangToSpv(*intermediate, spirv, &opt);
+    glslang::GlslangToSpv(*vertexIntermediate, spirvV, &opt);
+    glslang::GlslangToSpv(*fragmentIntermediate, spirvF, &opt);
 
-    return spirv;
+    return {spirvV, spirvF};
 }
 extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
-    std::vector<uint32_t> spirv = glsl_to_spirv(vs, fs);
+    auto [spirvV, spirvF] = glsl_to_spirv(vs, fs);
     //std::cout.write((char*)spirv.data(), spirv.size() * sizeof(uint32_t));
     //std::cout.flush();
     //return nullptr;
-    tint::Slice<uint32_t> sl(spirv.data(), spirv.size());
-    tint::spirv::reader::Options options{};
-    auto result = tint::spirv::reader::ReadIR(spirv);
+    tint::Slice<uint32_t> slv(spirvV.data(), spirvV.size());
+    tint::Slice<uint32_t> slF(spirvV.data(), spirvV.size());
+    tint::wgsl::writer::ProgramOptions prgoptions{};
+    prgoptions.allowed_features.extensions.insert(tint::wgsl::Extension::kClipDistances);
+    //options.allowed_features.features;
+    auto resultV = tint::spirv::reader::Read(spirvV);
+    auto resultF = tint::spirv::reader::Read(spirvF);
+    //std::cout << resultV << "\n";
+
+    //resultF.Symbols().Foreach([](tint::Symbol s){
+    //    std::cout << s.Name() << "\n";
+    //});
+    for(auto semnode : resultF.SemNodes().Objects()){
+        std::cout << semnode->TypeInfo().name << "\n";
+    }
+    auto wgsl_from_prog_resultV = tint::wgsl::writer::Generate(resultV, tint::wgsl::writer::Options{});
+    auto wgsl_from_prog_resultF = tint::wgsl::writer::Generate(resultF, tint::wgsl::writer::Options{});
+    std::cout << wgsl_from_prog_resultV->wgsl << "\n";
+    std::cout << wgsl_from_prog_resultF->wgsl << "\n";
+    //resultF.Foreach([](tint::Symbol s){
+    //    std::cout << s.Name() << "\n";
+    //});
     //auto parse = tint::spirv::reader::Parse(sl);
     //std::cout << result.Diagnostics() << "\n";
-    wgpu::ShaderModuleSPIRVDescriptor shaderCodeDesc{};
-    shaderCodeDesc.nextInChain = nullptr;
-    shaderCodeDesc.sType = wgpu::SType::ShaderSourceSPIRV;
-    shaderCodeDesc.code = (uint32_t*)spirv.data();
-    shaderCodeDesc.codeSize = spirv.size();
-    wgpu::ShaderModuleDescriptor shaderDesc{};
-    shaderDesc.nextInChain = &shaderCodeDesc;
-    WGPUStringView strv = STRVIEW("wtf");
-    wgpu::ShaderModule sh = GetCXXDevice().CreateShaderModule(&shaderDesc);
-    
-    auto wgslres = tint::wgsl::writer::WgslFromIR(result.Get(), tint::wgsl::writer::ProgramOptions{});
-    std::cerr << wgslres.Get().wgsl << "\n";
-    //for(size_t i = 0;i < result->functions.Length();i++){
-    //    std::cout << (int)result->functions[i]->IsEntryPoint() << "\n";
+    //auto mod = LoadShaderModuleFromSPIRV(spirv.data(), spirv.size() * sizeof(uint32_t));
+    //UniformDescriptor ud[2] = {
+    //    UniformDescriptor{
+    //        .type = uniform_type::texture2d,
+    //        .minBindingSize = 0,
+    //        .location = 0,
+    //        .access = readonly,
+    //        .fstype = sample_f32
+    //    },
+    //    UniformDescriptor{
+    //        .type = uniform_type::sampler,
+    //        .minBindingSize = 0,
+    //        .location = 1,
+    //        .access = readonly,  //ignore
+    //        .fstype = sample_f32 //ignore
+    //    }
+    //};
+    //AttributeAndResidence attr[1] = {
+    //    AttributeAndResidence{
+    //        .attr = WGPUVertexAttribute{.format = WGPUVertexFormat_Float32x3, .offset = 0, .shaderLocation = 0},
+    //        .bufferSlot = 0,
+    //        .stepMode = WGPUVertexStepMode_Vertex,
+    //        .enabled = true
+    //    }
+    //};
+    //LoadPipelineMod(mod, attr, 1, ud, 2, GetDefaultSettings());
+    //LoadPipelineEx
     //}
     return nullptr;
 }

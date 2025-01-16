@@ -959,12 +959,14 @@ EXTERN_C_BEGIN
     void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode);
     void BindComputePipeline(DescribedComputePipeline* pipeline);
 
-    WGPUShaderModule LoadShaderFromMemory(const char* shaderSource);
-    WGPUShaderModule LoadShader(const char* path);
+    DescribedShaderModule LoadShaderModuleFromMemory(const char* shaderSourceWGSL);
+    DescribedShaderModule LoadShaderModuleFromSPIRV(const uint32_t* shaderCodeSPIRV, size_t codeSizeInBytes);
+    //WGPUShaderModule LoadShader(const char* path);
 
     DescribedPipeline* ClonePipeline(const DescribedPipeline* pl);
     DescribedPipeline* LoadPipeline(const char* shaderSource);
     DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
+    DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
     DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao);
     DescribedPipeline* LoadPipelineForVAOEx(const char* shaderSource, VertexArray* vao, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
     DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs);

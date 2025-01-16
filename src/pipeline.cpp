@@ -179,10 +179,10 @@ extern "C" DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, Verte
     return pl;
 }
 uint32_t GetUniformLocation(DescribedPipeline* pl, const char* uniformName){
-    return pl->uniformLocations->GetLocation(uniformName);
+    return pl->sh.uniformLocations->GetLocation(uniformName);
 }
 uint32_t GetUniformLocationCompute(DescribedComputePipeline* pl, const char* uniformName){
-    return pl->uniformLocations->GetLocation(uniformName);
+    return pl->shaderModule.uniformLocations->GetLocation(uniformName);
 }
 DescribedPipeline* LoadPipelineForVAOEx(const char* shaderSource, VertexArray* vao, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
     DescribedPipeline* pl = LoadPipelineEx(shaderSource, nullptr, 0, uniforms, uniformCount, settings);
@@ -204,7 +204,7 @@ extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
                 .format = format,
                 .offset = offset,
                 .shaderLocation = location},
-            .bufferSlot = 0, 
+            .bufferSlot = 0,
             .stepMode = WGPUVertexStepMode_Vertex,
             .enabled = true}
         );
@@ -222,32 +222,86 @@ extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
     
     return pl;
 }
-extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
+DescribedShaderModule LoadShaderModuleFromSPIRV(const uint32_t* shaderCodeSPIRV, size_t codeSizeInBytes){
 
-    DescribedPipeline* retp = callocnew(DescribedPipeline);
-    retp->createdPipelines = callocnew(VertexStateToPipelineMap);
-    new (retp->createdPipelines) VertexStateToPipelineMap;
-    if(retp->uniformLocations == nullptr){
-        retp->uniformLocations = callocnew(StringToUniformMap);
-        new (retp->uniformLocations) StringToUniformMap{};
-    }
-    std::unordered_map<std::string, UniformDescriptor> bindings = getBindings(shaderSource);
+    WGPUShaderModuleSPIRVDescriptor shaderCodeDesc zeroinit;
+    
+    shaderCodeDesc.chain.next = nullptr;
+    shaderCodeDesc.chain.sType = WGPUSType_ShaderSourceSPIRV;
+
+    shaderCodeDesc.code = (uint32_t*)shaderCodeSPIRV;
+    shaderCodeDesc.codeSize = codeSizeInBytes / sizeof(uint32_t);
+    WGPUShaderModuleDescriptor shaderDesc zeroinit;
+    shaderDesc.nextInChain = &shaderCodeDesc.chain;
+    WGPUStringView strv = STRVIEW("spirv_shader");
+    WGPUShaderModule sh = wgpuDeviceCreateShaderModule(GetDevice(), &shaderDesc);
+    DescribedShaderModule ret zeroinit;
+    ret.shaderModule = sh;
+    ret.source = calloc(codeSizeInBytes / sizeof(uint32_t), sizeof(uint32_t));
+    std::memcpy(const_cast<void*>(ret.source), shaderCodeSPIRV, codeSizeInBytes);
+    ret.sourceLengthInBytes = codeSizeInBytes;
+    ret.uniformLocations = callocnew(StringToUniformMap);
+    new (ret.uniformLocations) StringToUniformMap;
+    return ret;
+}
+DescribedShaderModule LoadShaderModuleFromMemory(const char* shaderSourceWGSL) {
+    WGPUShaderModuleWGSLDescriptor shaderCodeDesc{};
+
+    size_t sourceSize = strlen(shaderSourceWGSL);
+
+    std::unordered_map<std::string, UniformDescriptor> bindings = getBindings(shaderSourceWGSL);
     
     std::vector<UniformDescriptor> values;
     values.reserve(bindings.size());
     for(const auto& [x,y] : bindings){
         values.push_back(y);
     }
-
     std::sort(values.begin(), values.end(),[](const UniformDescriptor& x, const UniformDescriptor& y){
         return x.location < y.location;
     });
+    
+    shaderCodeDesc.chain.next = nullptr;
+    shaderCodeDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
+    shaderCodeDesc.code = WGPUStringView{shaderSourceWGSL, sourceSize};
+    WGPUShaderModuleDescriptor shaderDesc zeroinit;
+    shaderDesc.nextInChain = &shaderCodeDesc.chain;
+    #ifdef WEBGPU_BACKEND_WGPU
+    shaderDesc.hintCount = 0;
+    shaderDesc.hints = nullptr;
+    #endif
+    WGPUShaderModule mod = wgpuDeviceCreateShaderModule(GetDevice(), &shaderDesc);
+    DescribedShaderModule ret zeroinit;
+    ret.sourceType = sourceTypeWGSL;
+    ret.uniformLocations = callocnew(StringToUniformMap);
+    new (ret.uniformLocations) StringToUniformMap;
     for(const auto& [x,y] : bindings){
-        (*retp->uniformLocations).uniforms[x] = y;
+        ret.uniformLocations->uniforms[x] = y;
     }
+    void* source = std::calloc(sourceSize + 1, 1);
+    std::memcpy(source, shaderSourceWGSL, sourceSize);
+    ret.shaderModule = mod;
+    ret.sourceLengthInBytes = sourceSize;
+    ret.source = source;
+    return ret;
+}
+void UnloadShaderModule(DescribedShaderModule mod){
+    //hmmmmmmmmmmmmmmmmmmmmmmmmmm
+    //const shouldn't exist!!1!
+    free(const_cast<void*>(mod.source));
+}
+extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
+    DescribedShaderModule mod = LoadShaderModuleFromMemory(shaderSource);
+    return LoadPipelineMod(mod, attribs, attribCount, uniforms, uniformCount, settings);
+}
+extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
+
+    DescribedPipeline* retp = callocnew(DescribedPipeline);
+    retp->createdPipelines = callocnew(VertexStateToPipelineMap);
+    new (retp->createdPipelines) VertexStateToPipelineMap;
+    
     retp->settings = settings;
     DescribedPipeline& ret = *retp;
-    ret.sh = LoadShaderFromMemory(shaderSource);
+    ret.sh = mod;
 
     uint32_t maxslot = 0;
     for(size_t i = 0;i < attribCount;i++){
@@ -300,7 +354,7 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     pipelineDesc.layout = ret.layout.layout;
     
     WGPUVertexState vertexState{};
-    vertexState.module = ret.sh;
+    vertexState.module = ret.sh.shaderModule;
     vertexState.bufferCount = number_of_buffers;
     vertexState.buffers = ret.vbLayouts;
     vertexState.constantCount = 0;
@@ -310,7 +364,7 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     ret.fragmentState = callocnew(WGPUFragmentState);
 
     pipelineDesc.fragment = ret.fragmentState;
-    ret.fragmentState->module = ret.sh;
+    ret.fragmentState->module = ret.sh.shaderModule;
     ret.fragmentState->entryPoint = STRVIEW("fs_main");
     ret.fragmentState->constantCount = 0;
     ret.fragmentState->constants = nullptr;
@@ -505,13 +559,14 @@ DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
     pipeline->fragmentState     = callocnew(WGPUFragmentState);
     pipeline->colorTarget       = callocnew(WGPUColorTargetState);
     pipeline->depthStencilState = callocnew(WGPUDepthStencilState);
+    //TODO: this incurs lifetime problem, so do other things in this
     pipeline->sh = _pipeline->sh;
     memcpy(pipeline->blendState, _pipeline->blendState, sizeof(WGPUBlendState));
     memcpy(pipeline->fragmentState, _pipeline->fragmentState, sizeof(WGPUFragmentState));
     memcpy(pipeline->colorTarget, _pipeline->colorTarget, sizeof(WGPUColorTargetState));
     memcpy(pipeline->depthStencilState, _pipeline->depthStencilState, sizeof(WGPUDepthStencilState));
-    pipeline->descriptor.vertex.module = pipeline->sh;
-    pipeline->fragmentState->module = pipeline->sh;
+    pipeline->descriptor.vertex.module = pipeline->sh.shaderModule;
+    pipeline->fragmentState->module = pipeline->sh.shaderModule;
     pipeline->colorTarget->blend = pipeline->blendState;
     pipeline->fragmentState->targets = pipeline->colorTarget;
     pipeline->bglayout.layout = wgpuDeviceCreateBindGroupLayout(GetDevice(), &pipeline->bglayout.descriptor);
@@ -526,8 +581,9 @@ DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
     pipeline->descriptor.layout = pipeline->layout.layout;
     pipeline->pipeline = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipeline->descriptor);
 
-    pipeline->uniformLocations = callocnew(StringToUniformMap);
-    new(pipeline->uniformLocations) StringToUniformMap(*_pipeline->uniformLocations);
+
+    pipeline->sh.uniformLocations = callocnew(StringToUniformMap);
+    new(pipeline->sh.uniformLocations) StringToUniformMap(*_pipeline->sh.uniformLocations);
     return pipeline;
 }
 DescribedPipeline* ClonePipelineWithSettings(const DescribedPipeline* pl, RenderSettings settings){
@@ -565,7 +621,8 @@ DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const Un
     pldesc.bindGroupLayoutCount = 1;
     pldesc.bindGroupLayouts = &ret->bglayout.layout;
     WGPUPipelineLayout playout = wgpuDeviceCreatePipelineLayout(GetDevice(), &pldesc);
-    desc.compute.module = LoadShaderFromMemory(shaderCode);
+    ret->shaderModule = LoadShaderModuleFromMemory(shaderCode);
+    desc.compute.module = ret->shaderModule.shaderModule;
     desc.compute.entryPoint = STRVIEW("compute_main");
     desc.layout = playout;
     ret->pipeline = wgpuDeviceCreateComputePipeline(GetDevice(), &ret->desc);
@@ -575,9 +632,6 @@ DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const Un
         bge[i].binding = uniforms[i].location;
     }
     ret->bindGroup = LoadBindGroup(&ret->bglayout, bge.data(), bge.size());
-    ret->uniformLocations = callocnew(StringToUniformMap);
-    new (ret->uniformLocations) StringToUniformMap;
-    ret->uniformLocations->uniforms = std::move(bindmap);
     return ret;
 }
 Texture GetDefaultTexture(cwoid){
@@ -613,7 +667,7 @@ extern "C" void UnloadPipeline(DescribedPipeline* pl){
     wgpuRenderPipelineRelease(pl->pipeline_LineList);
     wgpuRenderPipelineRelease(pl->pipeline_TriangleStrip);
     free(pl->attributePool);
-    free(pl->uniformLocations);
+    UnloadShaderModule(pl->sh);
     free(pl->blendState);
     free(pl->colorTarget);
     free(pl->depthStencilState);
@@ -732,8 +786,8 @@ void UniformAccessor::operator=(DescribedBuffer* buf){
     SetBindgroupStorageBuffer(bindgroup, index, buf);
 }
 UniformAccessor DescribedComputePipeline::operator[](const char* uniformName){
-    auto it = this->uniformLocations->uniforms.find(uniformName);
-    if(it == this->uniformLocations->uniforms.end()){
+    auto it = shaderModule.uniformLocations->uniforms.find(uniformName);
+    if(it == shaderModule.uniformLocations->uniforms.end()){
         TRACELOG(LOG_ERROR, "Accessing nonexistent uniform %s", uniformName);
         return UniformAccessor{.index = LOCATION_NOT_FOUND, .bindgroup = nullptr};
     }

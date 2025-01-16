@@ -27,7 +27,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     return in.color;
 })";
-float size = 1.0f / 1000;
+float size = 1.0f / 200;
 float qsize = size * 0.8f;
 float positions[8] = {
     0,0,

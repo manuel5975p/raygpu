@@ -1395,21 +1395,8 @@ void DrawFPS(int posX, int posY){
     uint8_t v8 = ratio * 255;
     DrawText(fpstext, posX, posY, 40, Color{uint8_t(255 - uint8_t(ratio * ratio * 255)), v8, 20, 255});
 }
-WGPUShaderModule LoadShaderFromMemory(const char* shaderSource) {
-    WGPUShaderModuleWGSLDescriptor shaderCodeDesc{};
 
-    shaderCodeDesc.chain.next = nullptr;
-    shaderCodeDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
-    shaderCodeDesc.code = WGPUStringView{shaderSource, strlen(shaderSource)};
-    WGPUShaderModuleDescriptor shaderDesc{};
-    shaderDesc.nextInChain = &shaderCodeDesc.chain;
-    #ifdef WEBGPU_BACKEND_WGPU
-    shaderDesc.hintCount = 0;
-    shaderDesc.hints = nullptr;
-    #endif
-    return wgpuDeviceCreateShaderModule(GetDevice(), &shaderDesc);
-}
-WGPUShaderModule LoadShader(const char* path) {
+/*WGPUShaderModule LoadShader(const char* path) {
     std::ifstream file(path);
     if (!file.is_open()) {
         return nullptr;
@@ -1430,7 +1417,7 @@ WGPUShaderModule LoadShader(const char* path) {
     shaderDesc.hints = nullptr;
 #endif
     return wgpuDeviceCreateShaderModule(GetDevice(), &shaderDesc);
-}
+}*/
 Texture3D LoadTexture3DEx(uint32_t width, uint32_t height, uint32_t depth, WGPUTextureFormat format){
     return LoadTexture3DPro(width, height, depth, format, WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_StorageBinding, 1);
 }
