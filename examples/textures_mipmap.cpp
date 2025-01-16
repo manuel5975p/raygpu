@@ -49,13 +49,13 @@ void mainloop(){
     rlVertex3f(0, 0, 0);
 
     rlTexCoord2f(1, 0);
-    rlVertex3f(size, 0, 0);
+    rlVertex3f(0, 0, size);
     
     rlTexCoord2f(1, 1);
     rlVertex3f(size, 0, size);
     
     rlTexCoord2f(0, 1);
-    rlVertex3f(0, 0, size);
+    rlVertex3f(size, 0, 0);
     
     rlEnd();
     EndMode3D();
