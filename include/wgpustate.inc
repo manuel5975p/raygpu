@@ -54,6 +54,8 @@ struct wgpustate{
 
     int renderTargetStackPosition = -1;
     std::array<RenderTexture, 8> renderTargetStack;
+
+    bool wantsToggleFullscreen;
     
     
 

@@ -18,6 +18,7 @@
 #include <sinfl.h>
 #include <sdefl.h>
 #include "msf_gif.h"
+extern "C" void ToggleFullscreenImpl(cwoid);
 #ifdef __EMSCRIPTEN__
 #endif  // __EMSCRIPTEN__
 wgpustate g_wgpustate{};
@@ -1020,7 +1021,10 @@ void EndDrawing(){
         ipstate.gestureZoomThisFrame = 1;
     }
     PollEvents();
-    
+    if(g_wgpustate.wantsToggleFullscreen){
+        g_wgpustate.wantsToggleFullscreen = false;
+        ToggleFullscreenImpl();
+    }
     //if(!(g_wgpustate.windowFlags & FLAG_HEADLESS))
     //    g_wgpustate.drawmutex.unlock();
     uint64_t nanosecondsPerFrame = std::floor(1e9 / GetTargetFPS());
@@ -1946,19 +1950,7 @@ void UnloadRenderpass(DescribedRenderpass rp){
     rp.dsa = nullptr;
 }
 extern "C" DescribedRenderpass LoadRenderpass(WGPUTextureView color, WGPUTextureView depth){
-    return LoadRenderpassEx(color, depth, RenderSettings{
-        .depthTest = false,
-        .faceCull = false,
-        .sampleCount = 1,
-        .depthCompare = WGPUCompareFunction_LessEqual, //Not applicable anyway
-        .frontFace = WGPUFrontFace_CCW, //Not applicable anyway
-        .blendOperationAlpha = WGPUBlendOperation_Add,
-        .blendFactorSrcAlpha = WGPUBlendFactor_SrcAlpha,
-        .blendFactorDstAlpha = WGPUBlendFactor_OneMinusSrcAlpha,
-        .blendOperationColor = WGPUBlendOperation_Add,
-        .blendFactorSrcColor = WGPUBlendFactor_One,
-        .blendFactorDstColor = WGPUBlendFactor_OneMinusSrcAlpha
-    });
+    return LoadRenderpassEx(color, depth, GetDefaultSettings());
 }
 DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode mipmapFilter, float maxAnisotropy){
     DescribedSampler ret zeroinit;

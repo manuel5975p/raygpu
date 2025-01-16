@@ -10,7 +10,7 @@
 #include <tint/lang/wgsl/writer/writer.h>
 #include <tint/lang/glsl/writer/writer.h>
 #include <tint/lang/core/type/reference.h>
-
+#include <regex>
 bool glslang_initialized = false;
 std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char *vs, const char *fs) {
 
@@ -55,16 +55,18 @@ std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char
     glslang::TProgram program;
     program.addShader(&shader);
     program.addShader(&fragshader);
-
-    if (!program.link(messages)) {
-        std::cerr << "GLSL Linking Failed:\n" << program.getInfoLog() << std::endl;
-    }
+    program.link(messages);
+    //if (!program.link(messages)) {
+    //    std::cerr << "GLSL Linking Failed:\n" << program.getInfoLog() << std::endl;
+    //}
 
     // Retrieve the intermediate representation
-    program.buildReflection();
-    int uniformCount = program.getNumUniformVariables();
+    //program.buildReflection();
+    //int uniformCount = program.getNumUniformVariables();
 
     //std::cout << uniformCount << "\n";
+    //glslang::TIntermediate *vertexIntermediate   = shader.getIntermediate();
+    //glslang::TIntermediate *fragmentIntermediate = fragshader.getIntermediate();
 
     glslang::TIntermediate *vertexIntermediate = program.getIntermediate(EShLanguage(EShLangVertex));
     glslang::TIntermediate *fragmentIntermediate = program.getIntermediate(EShLanguage(EShLangFragment));
@@ -98,17 +100,32 @@ extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     auto resultV = tint::spirv::reader::Read(spirvV);
     auto resultF = tint::spirv::reader::Read(spirvF);
     //std::cout << resultV << "\n";
-
-    //resultF.Symbols().Foreach([](tint::Symbol s){
-    //    std::cout << s.Name() << "\n";
-    //});
+    tint::ast::transform::Renamer ren;
+    resultF.Symbols().Foreach([](tint::Symbol s){
+        //std::cout << s.value() << "\n";
+    });
+    
     for(auto semnode : resultF.SemNodes().Objects()){
-        std::cout << semnode->TypeInfo().name << "\n";
+        //std::cout << semnode << "\n";
     }
+    tint::ast::transform::DataMap imput{};
+    tint::ast::transform::DataMap ouput{};
+    
     auto wgsl_from_prog_resultV = tint::wgsl::writer::Generate(resultV, tint::wgsl::writer::Options{});
     auto wgsl_from_prog_resultF = tint::wgsl::writer::Generate(resultF, tint::wgsl::writer::Options{});
-    std::cout << wgsl_from_prog_resultV->wgsl << "\n";
-    std::cout << wgsl_from_prog_resultF->wgsl << "\n";
+    //std::cout << spirvV.size() << "\n";
+    //std::cout << resultV.Diagnostics() << "\n";
+    //std::cout << wgsl_from_prog_resultF->wgsl << "\n";
+    //std::exit(0);
+
+    std::regex pattern("main");
+
+    std::string replacementV = "vs_main";
+    std::string replacementF = "fs_main";
+
+    std::string sourceV = std::regex_replace(wgsl_from_prog_resultV->wgsl, pattern, replacementV);
+    std::string sourceF = std::regex_replace(wgsl_from_prog_resultF->wgsl, pattern, replacementF);
+    //std::cout << sourceF << "\n";
     //resultF.Foreach([](tint::Symbol s){
     //    std::cout << s.Name() << "\n";
     //});
@@ -142,7 +159,10 @@ extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     //LoadPipelineMod(mod, attr, 1, ud, 2, GetDefaultSettings());
     //LoadPipelineEx
     //}
-    return nullptr;
+    //return nullptr;
+    std::string composed = sourceV + "\n\n" + sourceF;
+    //std::cout << wgsl_from_prog_resultF->wgsl << "\n";
+    return LoadPipeline(composed.c_str());
 }
 #else
 //int main(){

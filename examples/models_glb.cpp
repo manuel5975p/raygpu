@@ -44,7 +44,7 @@ void mainloop(){
     DrawCircle(GetMouseX(), GetMouseY(), 50.0f, WHITE);
     DrawFPS(5, 5);
     if(IsKeyPressed(KEY_U)){
-        ToggleFullscreen();
+        ToggleFullscreenImpl();
     }
     angle -= GetFrameTime() * 10.0f;
     EndDrawing();

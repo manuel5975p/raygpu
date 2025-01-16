@@ -219,6 +219,15 @@ std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shade
         if(ast_equivalent->As<tint::ast::Const>() || ast_equivalent->As<tint::ast::Override>()){
             continue; // Skip constants, only process uniforms
         }
+        if(auto var = ast_equivalent->As<tint::ast::Var>()){
+            if(var->declared_address_space && var->declared_address_space->As<tint::ast::IdentifierExpression>()){
+                if(var->declared_address_space->As<tint::ast::IdentifierExpression>()->identifier){
+                    if(var->declared_address_space->As<tint::ast::IdentifierExpression>()->identifier->symbol.Name() == "private"){
+                        continue; //continue var<private>
+                    }
+                }
+            }
+        }
         auto sgvar = psem.Get(result.AST().GlobalVariables()[i])->As<tint::sem::GlobalVariable>();
         UniformDescriptor desc{};
         std::stringstream sstr;

@@ -12,7 +12,7 @@ int main(void){
         DrawCircleSector(GetMousePosition(), 100.0f, 0.0f, 360.0f, 128, WHITE);
         DrawFPS(10, 10);
         if(IsKeyPressed(KEY_F)){
-            ToggleFullscreen();
+            ToggleFullscreenImpl();
         }
         EndDrawing();
     }
