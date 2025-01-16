@@ -167,8 +167,8 @@ extern "C" SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char
         SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
     ret.surface.surface = SDL_GetWGPUSurface(GetInstance(), window);
     negotiateSurfaceFormatAndPresentMode(*((const wgpu::Surface*)&ret.surface.surface));
-    WGPUSurfaceCapabilities capa;
-    wgpu::SurfaceCapabilities cxxcapa;
+    WGPUSurfaceCapabilities capa{};
+    //wgpu::SurfaceCapabilities cxxcapa;
     WGPUAdapter adapter = GetAdapter();
     // std::cout << surf.Get() << "\n";
     //wgpu::Surface(csurf).GetCapabilities(GetCXXAdapter(), &cxxcapa);
@@ -562,12 +562,9 @@ extern "C" void PollEvents_SDL2() {
 
         case SDL_TEXTINPUT: {
             SDL_Window *window = SDL_GetWindowFromID(event.text.windowID);
-            unsigned int codePoint = 0;
-            // Convert UTF-8 text to Unicode code point
-            // This is a simplified example; proper UTF-8 to code point conversion is needed
-            if (event.text.text[0] != '\0') {
-                codePoint = static_cast<unsigned int>(event.text.text[0]);
-            }
+            int cpsize = 0;
+            unsigned int codePoint = (unsigned int)GetCodepoint(event.text.text, &cpsize);
+            
             CharCallback(window, codePoint);
         } break;
 
@@ -606,9 +603,14 @@ void ToggleFullscreen_SDL2(cwoid){
     if(alreadyFullscreen){
         //We need to exit fullscreen
         g_wgpustate.windowFlags &= ~FLAG_FULLSCREEN_MODE;
+        //SDL_SetWindowResizable((SDL_Window*)g_wgpustate.window, SDL_FALSE);
         SDL_SetWindowFullscreen((SDL_Window*)g_wgpustate.window, 0);
+
         SDL_SetWindowSize((SDL_Window*)g_wgpustate.window, g_wgpustate.input_map[g_wgpustate.window].windowPosition.width, g_wgpustate.input_map[g_wgpustate.window].windowPosition.height);
-        TRACELOG(LOG_WARNING, "Setting the size to  %d x %d", (int)g_wgpustate.input_map[g_wgpustate.window].windowPosition.width, (int)g_wgpustate.input_map[g_wgpustate.window].windowPosition.height);
+        //SDL_SetWindowSize((SDL_Window*)g_wgpustate.window, g_wgpustate.input_map[g_wgpustate.window].windowPosition.width, g_wgpustate.input_map[g_wgpustate.window].windowPosition.height);
+        //SDL_SetWindowSize((SDL_Window*)g_wgpustate.window, g_wgpustate.input_map[g_wgpustate.window].windowPosition.width, g_wgpustate.input_map[g_wgpustate.window].windowPosition.height);
+        //SDL_SetWindowSize((SDL_Window*)g_wgpustate.window, g_wgpustate.input_map[g_wgpustate.window].windowPosition.width, g_wgpustate.input_map[g_wgpustate.window].windowPosition.height);
+        //TRACELOG(LOG_WARNING, "Setting the size to  %d x %d", (int)g_wgpustate.input_map[g_wgpustate.window].windowPosition.width, (int)g_wgpustate.input_map[g_wgpustate.window].windowPosition.height);
     }
     else{
         //We need to enter fullscreen
