@@ -442,6 +442,10 @@ void negotiateSurfaceFormatAndPresentMode(const wgpu::Surface& surf){
     wgpu::TextureFormat selectedFormat = wgpu::TextureFormat::Undefined;
     int format_index = 0;
     for(format_index = 0;format_index < capabilities.formatCount;format_index++){
+        if(capabilities.formats[format_index] == wgpu::TextureFormat::RGBA16Float){
+            selectedFormat = (capabilities.formats[format_index]);
+            break;
+        }
         if(capabilities.formats[format_index] == wgpu::TextureFormat::BGRA8Unorm ||
            capabilities.formats[format_index] == wgpu::TextureFormat::RGBA8Unorm){
             selectedFormat = (capabilities.formats[format_index]);

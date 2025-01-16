@@ -877,7 +877,7 @@ RenderTexture headless_rtex;
 void BeginDrawing(){
     
     ++g_wgpustate.renderTargetStackPosition;
-    g_wgpustate.last_timestamps[g_wgpustate.total_frames % 64] = NanoTime();
+    
     if(g_wgpustate.windowFlags & FLAG_HEADLESS){
         if(headless_rtex.texture.id){
             UnloadTexture(headless_rtex.texture);
@@ -1005,8 +1005,7 @@ void EndDrawing(){
         g_wgpustate.surface.Present();
         #endif
     }
-    uint64_t beginframe_stmp = g_wgpustate.last_timestamps[g_wgpustate.total_frames % 64];
-    ++g_wgpustate.total_frames;
+    
     std::copy(g_wgpustate.smallBufferRecyclingBin.begin(), g_wgpustate.smallBufferRecyclingBin.end(), std::back_inserter(g_wgpustate.smallBufferPool));
     g_wgpustate.smallBufferRecyclingBin.clear();
     auto& ipstate = g_wgpustate.input_map[g_wgpustate.window];
@@ -1029,13 +1028,16 @@ void EndDrawing(){
     //    g_wgpustate.drawmutex.unlock();
     uint64_t nanosecondsPerFrame = std::floor(1e9 / GetTargetFPS());
     //std::cout << nanosecondsPerFrame << "\n";
+    uint64_t beginframe_stmp = g_wgpustate.last_timestamps[(g_wgpustate.total_frames) % 64];
+    ++g_wgpustate.total_frames;
+    g_wgpustate.last_timestamps[g_wgpustate.total_frames % 64] = NanoTime();
     uint64_t elapsed = NanoTime() - beginframe_stmp;
     if(elapsed & (1ull << 63))return;
     if(!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) && nanosecondsPerFrame > elapsed && GetTargetFPS() > 0)
         NanoWait(nanosecondsPerFrame - elapsed);
     
     --g_wgpustate.renderTargetStackPosition;
-    //std::this_thread::sleep_for(std::chrono::nanoseconds(nanosecondsPerFrame - elapsed));
+    //std::this_thread::sleep_for(std::chrono::milliseconds(100));
 }
 void StartGIFRecording(){
     startRecording(g_wgpustate.grst, 4);
@@ -1569,13 +1571,13 @@ void UpdateTexture(Texture tex, void* data){
 
     WGPUTextureDataLayout source{};
     source.offset = 0;
-    source.bytesPerRow = 4 * tex.width;
+    source.bytesPerRow = GetPixelSizeInBytes(tex.format) * tex.width;
     source.rowsPerImage = tex.height;
     WGPUExtent3D writeSize{};
     writeSize.depthOrArrayLayers = 1;
     writeSize.width = tex.width;
     writeSize.height = tex.height;
-    wgpuQueueWriteTexture(GetQueue(), &destination, data, tex.width * tex.height * 4, &source, &writeSize);
+    wgpuQueueWriteTexture(GetQueue(), &destination, data, tex.width * tex.height * GetPixelSizeInBytes(tex.format), &source, &writeSize);
 }
 inline WGPUVertexFormat f16format(uint32_t s){
     switch(s){
@@ -2430,7 +2432,7 @@ extern "C" uint64_t GetFrameCount(){
 }
 //TODO: this is bad
 extern "C" float GetFrameTime(){
-    if(g_wgpustate.total_frames == 0){
+    if(g_wgpustate.total_frames <= 1){
         return 0.0f;
     }
     if(g_wgpustate.last_timestamps[g_wgpustate.total_frames % 64] - g_wgpustate.last_timestamps[(g_wgpustate.total_frames - 1) % 64] < 0){
