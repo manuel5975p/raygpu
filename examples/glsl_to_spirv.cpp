@@ -5,8 +5,6 @@
 #include <cstdint>
 
 #include <raygpu.h>
-// Function to read shader code from a file
-std::vector<uint32_t> glsl_to_spirv(const char *vs, const char *fs);
 
 int main(int argc, char* argv[]) {
     //auto spirv = glsl_to_spirv(LoadFileText("../resources/simple.vert"), LoadFileText("../resources/simple.frag"));

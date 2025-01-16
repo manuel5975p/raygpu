@@ -20,10 +20,10 @@ void mainloop(void){
     
 }
 int main(void){
-    RequestLimit(maxBufferSize, 1 << 13);
-    RequestBackend(WGPUBackendType_Vulkan);
-    SetConfigFlags(FLAG_VSYNC_HINT);
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    //RequestLimit(maxBufferSize, 1 << 13);
+    //RequestBackend(WGPUBackendType_Vulkan);
+    //SetConfigFlags(FLAG_VSYNC_HINT);
+    //SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(800, 600, "WebGPU window");
     //SetTargetFPS(0);
     //sdlwin = OpenSubWindow_GLFW(400, 400, "SDL fenschter");

@@ -978,6 +978,7 @@ EXTERN_C_BEGIN
     void UnloadPipeline(DescribedPipeline* pl);
 
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
+    RenderTexture LoadRenderTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat colorFormat, uint32_t sampleCount);
     const char* TextureFormatName(WGPUTextureFormat fmt);
     size_t GetPixelSizeInBytes(WGPUTextureFormat format);
     Texture LoadBlankTexture(uint32_t width, uint32_t height);
@@ -1108,6 +1109,7 @@ EXTERN_C_BEGIN
     const char *TextFormat(const char *text, ...);
 
     void DrawTexturePro(Texture texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint);
+    void DrawTexture(Texture texture, int posX, int posY, Color tint);
     void DrawTextureV(Texture texture, Vector2 position, Color tint);                                // Draw a Texture2D with position defined as Vector2
     void DrawTextureEx(Texture texture, Vector2 position, float rotation, float scale, Color tint);  // Draw a Texture2D with extended parameters
     void DrawTextureRec(Texture texture, Rectangle source, Vector2 position, Color tint);            // Draw a part of a texture defined by a rectangle

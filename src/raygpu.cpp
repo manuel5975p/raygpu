@@ -645,7 +645,7 @@ extern "C" void EndPipelineMode(){
         BeginRenderpass();
     }
     g_wgpustate.rstate->activePipeline = g_wgpustate.rstate->defaultPipeline;
-    BindPipeline(g_wgpustate.rstate->activePipeline, g_wgpustate.rstate->activePipeline->lastUsedAs);
+    //BindPipeline(g_wgpustate.rstate->activePipeline, g_wgpustate.rstate->activePipeline->lastUsedAs);
 }
 extern "C" void BeginMode2D(Camera2D camera){
     drawCurrentBatch();
@@ -767,6 +767,7 @@ void BeginRenderpassEx(DescribedRenderpass* renderPass){
     }
     else{
         renderPass->rca->view = g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.view;
+        renderPass->rca->resolveTarget = nullptr;
     }
     renderPass->dsa->view = g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].depth.view;
     renderPass->rpEncoder = wgpuCommandEncoderBeginRenderPass(renderPass->cmdEncoder, &renderPass->renderPassDesc);
@@ -1073,14 +1074,15 @@ void EndGIFRecording(){
     endRecording(g_wgpustate.grst, buf);
 }
 void rlBegin(draw_mode mode){
-    if(mode == RL_LINES){ //TODO: Fix this, why is this required? Check core_msaa and comment this out to trigger a bug
-        SetTexture(1, g_wgpustate.whitePixel);
-    }
+    
     if(current_drawmode != mode){
         drawCurrentBatch();
         //assert(g_wgpustate.rstate->activeRenderPass == &g_wgpustate.rstate->renderpass);
         //EndRenderpassEx(&g_wgpustate.rstate->renderpass);
         //BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
+    }
+    if(mode == RL_LINES){ //TODO: Fix this, why is this required? Check core_msaa and comment this out to trigger a bug
+        SetTexture(1, g_wgpustate.whitePixel);
     }
     current_drawmode = mode;
 }
@@ -1565,6 +1567,17 @@ Texture LoadBlankTexture(uint32_t width, uint32_t height){
 
 Texture LoadDepthTexture(uint32_t width, uint32_t height){
     return LoadTextureEx(width, height, WGPUTextureFormat_Depth24Plus, true);
+}
+RenderTexture LoadRenderTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat colorFormat, uint32_t sampleCount){
+    RenderTexture ret{
+        .texture = LoadTextureEx(width, height, colorFormat, true),
+        .colorMultisample = Texture{}, 
+        .depth = LoadTexturePro(width, height, WGPUTextureFormat_Depth24Plus, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, sampleCount, 1)
+    };
+    if(sampleCount > 1){
+        ret.colorMultisample = LoadTexturePro(width, height, colorFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, sampleCount, 1);
+    }
+    return ret;
 }
 RenderTexture LoadRenderTexture(uint32_t width, uint32_t height){
     RenderTexture ret{
