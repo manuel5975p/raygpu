@@ -645,7 +645,7 @@ RenderSettings GetDefaultSettings(){
     ret.depthCompare = WGPUCompareFunction_LessEqual;
     ret.sampleCount = (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
 
-    ret.blendFactorSrcAlpha = WGPUBlendFactor_SrcAlpha;
+    ret.blendFactorSrcAlpha = WGPUBlendFactor_One;
     ret.blendFactorDstAlpha = WGPUBlendFactor_OneMinusSrcAlpha;
     ret.blendOperationAlpha = WGPUBlendOperation_Add;
 

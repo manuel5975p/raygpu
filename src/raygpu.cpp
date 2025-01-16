@@ -620,6 +620,9 @@ WGPUBuffer GetMatrixBuffer(){
 }
 extern "C" void BeginPipelineMode(DescribedPipeline* pipeline){
     drawCurrentBatch();
+    if(RenderSettingsComptatible(pipeline->settings, g_wgpustate.rstate->renderpass.settings)){
+        EndRenderpass();
+    }
     g_wgpustate.rstate->activePipeline = pipeline;
     uint32_t location = GetUniformLocation(pipeline, RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION_VIEW);
     if(location != LOCATION_NOT_FOUND){
