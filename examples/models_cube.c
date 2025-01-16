@@ -26,7 +26,7 @@ void mainloop(void){
     EndPipelineMode();
     DrawFPS(0, 0);
     if(IsKeyPressed(KEY_U)){
-        ToggleFullscreen();
+        ToggleFullscreenImpl();
     }
     EndDrawing();
 }

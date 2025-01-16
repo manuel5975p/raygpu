@@ -684,6 +684,7 @@ EXTERN_C_BEGIN
     uint32_t GetMonitorWidth (cwoid);                            //Monitor height
     uint32_t GetMonitorHeight(cwoid);                            //Monitor height
     void ToggleFullscreen(cwoid);
+    
     int GetCurrentMonitor(void);
 
     bool IsKeyDown(int key);

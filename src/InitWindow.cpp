@@ -639,12 +639,15 @@ extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* 
     #endif
     return SubWindow zeroinit;
 }
-extern "C" void ToggleFullscreen(){
+extern "C" void ToggleFullscreenImpl(){
     #ifdef MAIN_WINDOW_GLFW
     ToggleFullscreen_GLFW();
     #elif defined(MAIN_WINDOW_SDL2)
     ToggleFullscreen_SDL2();
     #endif
+}
+extern "C" void ToggleFullscreen(){
+    g_wgpustate.wantsToggleFullscreen = true;
 }
 uint32_t GetMonitorWidth(cwoid){
     #ifdef MAIN_WINDOW_GLFW
