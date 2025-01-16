@@ -289,7 +289,7 @@ void InitWGPU(webgpu_cxx_state* sample){
     #ifndef __EMSCRIPTEN__ //y tho
     wgpu::FeatureName fname = wgpu::FeatureName::ClipDistances;
     deviceDesc.requiredFeatures = &fname;
-    deviceDesc.requiredFeatureCount = 0;
+    deviceDesc.requiredFeatureCount = 1;
     #endif
     deviceDesc.nextInChain = togglesChain;
     deviceDesc.SetDeviceLostCallback(
@@ -509,7 +509,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     g_wgpustate.whitePixel = LoadTextureFromImage(GenImageChecker(Color{255,255,255,255}, Color{255,255,255,255}, 1, 1, 0));
     TraceLog(LOG_INFO, "Loaded whitepixel texture");
 
-    WGPUShaderModule tShader = LoadShaderFromMemory(shaderSource);
+    //DescribedShaderModule tShader = LoadShaderModuleFromMemory(shaderSource);
     g_wgpustate.rstate = new full_renderstate;
     
     Matrix identity = MatrixIdentity();
