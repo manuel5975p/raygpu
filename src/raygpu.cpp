@@ -618,10 +618,17 @@ WGPUBuffer GetMatrixBuffer(){
     wgpuQueueWriteBuffer(GetQueue(), g_wgpustate.matrixStack[g_wgpustate.stackPosition].second, 0, &g_wgpustate.matrixStack[g_wgpustate.stackPosition].first, sizeof(Matrix));
     return g_wgpustate.matrixStack[g_wgpustate.stackPosition].second;
 }
+void adaptRenderPass(DescribedRenderpass* drp, RenderSettings settings){
+    drp->settings = settings;
+    //drp->renderPassDesc.colorAttachments = settings.depthTest ? drp->rca : nullptr;
+    drp->renderPassDesc.depthStencilAttachment = settings.depthTest ? drp->dsa : nullptr;
+}
 extern "C" void BeginPipelineMode(DescribedPipeline* pipeline){
     drawCurrentBatch();
-    if(RenderSettingsComptatible(pipeline->settings, g_wgpustate.rstate->renderpass.settings)){
+    if(!RenderSettingsComptatible(pipeline->settings, g_wgpustate.rstate->renderpass.settings)){
         EndRenderpass();
+        adaptRenderPass(&g_wgpustate.rstate->renderpass, pipeline->settings);
+        BeginRenderpass();
     }
     g_wgpustate.rstate->activePipeline = pipeline;
     uint32_t location = GetUniformLocation(pipeline, RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION_VIEW);
@@ -632,6 +639,11 @@ extern "C" void BeginPipelineMode(DescribedPipeline* pipeline){
 }
 extern "C" void EndPipelineMode(){
     drawCurrentBatch();
+    if(!RenderSettingsComptatible(g_wgpustate.rstate->defaultPipeline->settings, g_wgpustate.rstate->renderpass.settings)){
+        EndRenderpass();
+        adaptRenderPass(&g_wgpustate.rstate->renderpass, g_wgpustate.rstate->defaultPipeline->settings);
+        BeginRenderpass();
+    }
     g_wgpustate.rstate->activePipeline = g_wgpustate.rstate->defaultPipeline;
     BindPipeline(g_wgpustate.rstate->activePipeline, g_wgpustate.rstate->activePipeline->lastUsedAs);
 }

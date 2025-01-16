@@ -334,6 +334,7 @@ void InitWGPU(webgpu_cxx_state* sample){
                     __builtin_unreachable();
             }
             std::cerr << errorTypeName << " error: " << std::string(message.data, message.length);
+            __builtin_trap();
         });
 
     

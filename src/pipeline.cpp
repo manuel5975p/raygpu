@@ -597,6 +597,10 @@ DescribedPipeline* ClonePipelineWithSettings(const DescribedPipeline* pl, Render
     cloned->blendState->alpha.srcFactor = settings.blendFactorSrcAlpha;
     cloned->blendState->alpha.dstFactor = settings.blendFactorDstAlpha;
     cloned->blendState->alpha.operation = settings.blendOperationAlpha;
+    cloned->descriptor.primitive.cullMode = settings.faceCull ? WGPUCullMode_Back : WGPUCullMode_None;
+    cloned->descriptor.primitive.frontFace = settings.frontFace;
+    cloned->descriptor.depthStencil = settings.depthTest ? cloned->depthStencilState : nullptr;
+    cloned->depthStencilState->depthCompare = settings.depthCompare;
     return cloned;
 }
 DescribedComputePipeline* LoadComputePipeline(const char* shaderCode){
