@@ -601,6 +601,8 @@ DescribedPipeline* ClonePipelineWithSettings(const DescribedPipeline* pl, Render
     cloned->descriptor.primitive.frontFace = settings.frontFace;
     cloned->descriptor.depthStencil = settings.depthTest ? cloned->depthStencilState : nullptr;
     cloned->depthStencilState->depthCompare = settings.depthCompare;
+    wgpuRenderPipelineRelease(cloned->pipeline);
+    cloned->pipeline = wgpuDeviceCreateRenderPipeline(GetDevice(), &cloned->descriptor);
     return cloned;
 }
 DescribedComputePipeline* LoadComputePipeline(const char* shaderCode){
