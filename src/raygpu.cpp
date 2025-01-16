@@ -896,8 +896,10 @@ void BeginDrawing(){
     }
     else{
         
-        if(g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.id)
-            UnloadTexture(g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture);
+        //if(g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.id)
+        //    UnloadTexture(g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture);
+        if(g_wgpustate.createdSubwindows[g_wgpustate.window].surface.frameBuffer.texture.id)
+            UnloadTexture(g_wgpustate.createdSubwindows[g_wgpustate.window].surface.frameBuffer.texture);
         
 
         //g_wgpustate.drawmutex.lock();
