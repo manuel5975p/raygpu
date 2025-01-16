@@ -224,7 +224,7 @@ SubWindow OpenSubWindow_SDL2(uint32_t width, uint32_t height, const char* title)
     wgpuSurfaceConfigure(ret.surface.surface, &ret.surface.surfaceConfig);
     ret.surface.frameBuffer = LoadRenderTexture(ret.surface.surfaceConfig.width, ret.surface.surfaceConfig.height);
     g_wgpustate.createdSubwindows[ret.handle] = ret;
-    g_wgpustate.input_map[(GLFWwindow*)ret.handle] = window_input_state{};
+    g_wgpustate.input_map[(GLFWwindow*)ret.handle];
     //setupGLFWCallbacks((GLFWwindow*)ret.handle);
     return ret;
 }

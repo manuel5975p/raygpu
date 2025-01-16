@@ -1036,6 +1036,8 @@ extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t newWidth, uint32_t
     WGPUTextureFormat format = g_wgpustate.frameBufferFormat;
     fsurface->surfaceConfig.viewFormats = &format;
     wgpuSurfaceConfigure(fsurface->surface, &fsurface->surfaceConfig);
+    //UnloadTexture(fsurface->frameBuffer.texture);
+    //fsurface->frameBuffer.texture = Texture zeroinit;
     UnloadTexture(fsurface->frameBuffer.colorMultisample);
     UnloadTexture(fsurface->frameBuffer.depth);
     if(g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT){
@@ -1057,8 +1059,8 @@ extern "C" void GetNewTexture(FullSurface* fsurface){
         WGPUSurfaceTexture surfaceTexture;
         wgpuSurfaceGetCurrentTexture(fsurface->surface, &surfaceTexture);
         fsurface->frameBuffer.texture.id = surfaceTexture.texture;
-        fsurface->frameBuffer.texture.width = GetScreenWidth();
-        fsurface->frameBuffer.texture.height = GetScreenHeight();
+        fsurface->frameBuffer.texture.width = wgpuTextureGetWidth(surfaceTexture.texture);
+        fsurface->frameBuffer.texture.height = wgpuTextureGetHeight(surfaceTexture.texture);
         fsurface->frameBuffer.texture.view = wgpuTextureCreateView(surfaceTexture.texture, nullptr);
     }
 }

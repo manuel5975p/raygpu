@@ -905,7 +905,7 @@ void BeginDrawing(){
         g_wgpustate.width = g_wgpustate.createdSubwindows[g_wgpustate.window].surface.frameBuffer.texture.width;
         g_wgpustate.rstate->renderExtentY = g_wgpustate.createdSubwindows[g_wgpustate.window].surface.frameBuffer.texture.height;
         g_wgpustate.height = g_wgpustate.createdSubwindows[g_wgpustate.window].surface.frameBuffer.texture.height;
-        std::cout << g_wgpustate.createdSubwindows[g_wgpustate.window].surface.frameBuffer.depth.width << std::endl;
+        //std::cout << g_wgpustate.createdSubwindows[g_wgpustate.window].surface.frameBuffer.depth.width << std::endl;
         GetNewTexture(&g_wgpustate.createdSubwindows[g_wgpustate.window].surface);
         g_wgpustate.mainWindowRenderTarget = g_wgpustate.createdSubwindows[g_wgpustate.window].surface.frameBuffer;
         g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition] = g_wgpustate.mainWindowRenderTarget;
@@ -1963,6 +1963,12 @@ extern "C" DescribedRenderpass LoadRenderpass(WGPUTextureView color, WGPUTexture
         .sampleCount = 1,
         .depthCompare = WGPUCompareFunction_LessEqual, //Not applicable anyway
         .frontFace = WGPUFrontFace_CCW, //Not applicable anyway
+        .blendOperationAlpha = WGPUBlendOperation_Add,
+        .blendFactorSrcAlpha = WGPUBlendFactor_SrcAlpha,
+        .blendFactorDstAlpha = WGPUBlendFactor_OneMinusSrcAlpha,
+        .blendOperationColor = WGPUBlendOperation_Add,
+        .blendFactorSrcColor = WGPUBlendFactor_One,
+        .blendFactorDstColor = WGPUBlendFactor_OneMinusSrcAlpha
     });
 }
 DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode mipmapFilter, float maxAnisotropy){
@@ -2281,7 +2287,7 @@ extern "C" void BeginWindowMode(SubWindow sw){
     //wgpuTextureRelease(g_wgpustate.activeSubWindow.frameBuffer.color.id);
     //sw.frameBuffer.texture.view = nextTexture;
     //sw.frameBuffer.texture.id = surfaceTexture.texture;
-    BeginTextureMode(sw.surface.frameBuffer);
+    BeginTextureMode(swref.surface.frameBuffer);
     //++g_wgpustate.renderTargetStackPosition;
     
     //g_wgpustate.currentDefaultRenderTarget = sw.frameBuffer;

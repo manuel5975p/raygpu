@@ -37,7 +37,6 @@ typedef struct RenderSettings{
     WGPUBlendOperation blendOperationAlpha;
     WGPUBlendFactor    blendFactorSrcAlpha;
     WGPUBlendFactor    blendFactorDstAlpha;
-
     WGPUBlendOperation blendOperationColor;
     WGPUBlendFactor    blendFactorSrcColor;
     WGPUBlendFactor    blendFactorDstColor;
