@@ -1,3 +1,27 @@
+/*
+ * MIT License
+ * 
+ * Copyright (c) 2025 @manuel5975p
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include <algorithm>
 #include <raygpu.h>
 #include <webgpu/webgpu_cpp.h>
@@ -288,7 +312,7 @@ DescribedShaderModule LoadShaderModuleFromMemory(const char* shaderSourceWGSL) {
 void UnloadShaderModule(DescribedShaderModule mod){
     //hmmmmmmmmmmmmmmmmmmmmmmmmmm
     //const shouldn't exist!!1!
-    free(const_cast<void*>(mod.source));
+    std::free(const_cast<void*>(mod.source));
 }
 extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
     DescribedShaderModule mod = LoadShaderModuleFromMemory(shaderSource);
@@ -643,6 +667,8 @@ DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const Un
 }
 Shader LoadShaderFromMemory(const char *vertexSource, const char *fragmentSource){
     Shader shader zeroinit;
+    
+    #if SUPPORT_GLSL_PARSER == 1
 
     shader.id = LoadPipelineGLSL(vertexSource, fragmentSource);
     shader.locs = (int*)std::calloc(RL_MAX_SHADER_LOCATIONS, sizeof(int));
@@ -672,8 +698,10 @@ Shader LoadShaderFromMemory(const char *vertexSource, const char *fragmentSource
     shader.locs[SHADER_LOC_MAP_DIFFUSE]   = GetUniformLocation(shader.id, RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE0);  // SHADER_LOC_MAP_ALBEDO
     shader.locs[SHADER_LOC_MAP_SPECULAR]  = GetUniformLocation(shader.id, RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE1); // SHADER_LOC_MAP_METALNESS
     shader.locs[SHADER_LOC_MAP_NORMAL]    = GetUniformLocation(shader.id, RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE2);
-    
-
+    #else
+    TRACELOG(LOG_ERROR, "GLSL Shader requested but compiled without GLSL support");
+    TRACELOG(LOG_ERROR, "Configure CMake with -DSUPPORT_GLSL_PARSER=ON");
+    #endif
     return shader;
 }
 Texture GetDefaultTexture(cwoid){

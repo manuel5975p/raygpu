@@ -12,7 +12,9 @@ ___
 - Vulkan (includes Android)
 - OpenGL
 - Metal (includes iOS)
-- Most importantly, [browsers](https://caniuse.com/webgpu). 
+- Most importantly, [browsers](https://caniuse.com/webgpu).
+
+It also includes a [specification of WGSL](https://www.w3.org/TR/WGSL/), a shading language that will can translated into any native shading language, like MSL, HLSL, GLSL and most importantly SPIR-V. This library includes an optional GLSL parser, making GLSL another option for input to be translated.
 
 Mobile support is done with SDL, Web support for C++/ wasm programs is done by [Emscripten](https://emscripten.org/). 
 - **Pros**
@@ -27,8 +29,8 @@ Mobile support is done with SDL, Web support for C++/ wasm programs is done by [
   - No support for platforms older than OpenGLES 3
 ## Notable Differences to [raylib](https://github.com/raysan5/raylib/)
 - Rendertextures are **not** upside down
-- Vsync: Support for `FLAG_VSYNC_LOWLATENCY_HINT` to create a tearless Mailbox swapchain with a fallback to regular vsync if not supported
-- 
+- VSync: Support for `FLAG_VSYNC_LOWLATENCY_HINT` to create a tearless Mailbox swapchain with a fallback to regular vsync if not supported
+
 # Roadmap and Demos
 - [x] Basic Windowing [Example](https://github.com/manuel5975p/raygpu/tree/master/examples/core_window.c)
 - [x] Basic Shapes [Example](https://github.com/manuel5975p/raygpu/tree/master/examples/core_shapes.c)
@@ -42,9 +44,9 @@ Mobile support is done with SDL, Web support for C++/ wasm programs is done by [
 - [x] **Multiple Windows and Headless mode** [Headless Example](https://github.com/manuel5975p/raygpu/tree/master/examples/core_headless.c) [Multiwindow Example](https://github.com/manuel5975p/raygpu/tree/master/examples/core_multiwindow.c)
 - [x] MIP Maps and Anisotropic filtering [Example](https://github.com/manuel5975p/raygpu/tree/master/examples/textures_mipmap.cpp)
 - [x] Basic animation support with GPU Skinning [Example](https://github.com/manuel5975p/raygpu/tree/master/examples/models_gpu_skinning.cpp)
+- [X] Support for GLSL as an input
 - [ ] Proper animation support
 - [ ] IQM / VOX support
-- [ ] GLSL Support
 
 
 ##### Tested on

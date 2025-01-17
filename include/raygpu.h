@@ -57,12 +57,12 @@ struct RGBA32FColor{
 };
 
 typedef enum PixelFormat{
-    RGBA8 = WGPUTextureFormat_RGBA8Unorm,
-    BGRA8 = WGPUTextureFormat_BGRA8Unorm,
+    RGBA8   = WGPUTextureFormat_RGBA8Unorm,
+    BGRA8   = WGPUTextureFormat_BGRA8Unorm,
     RGBA32F = WGPUTextureFormat_RGBA32Float,
 
     GRAYSCALE = 0x100000, //No WGPU_ equivalent
-    RGB8 = 0x100000,
+    RGB8      = 0x100001,
 }PixelFormat;
 
 typedef struct Image{
