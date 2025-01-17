@@ -162,6 +162,7 @@ extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     //return nullptr;
     std::string composed = sourceV + "\n\n" + sourceF;
     //std::cout << wgsl_from_prog_resultF->wgsl << "\n";
+    DescribedShaderModule mod = LoadShaderModuleFromMemory
     return LoadPipeline(composed.c_str());
 }
 #else
