@@ -1,3 +1,4 @@
+#include "tint/lang/spirv/reader/ast_parser/attributes.h"
 #if SUPPORT_GLSL_PARSER == 1
 #include <SPIRV/GlslangToSpv.h>
 #include <glslang/Public/ShaderLang.h>
@@ -99,6 +100,7 @@ extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     //options.allowed_features.features;
     auto resultV = tint::spirv::reader::Read(spirvV);
     auto resultF = tint::spirv::reader::Read(spirvF);
+    
     //std::cout << resultV << "\n";
     tint::ast::transform::Renamer ren;
     
@@ -109,14 +111,51 @@ extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     for(auto semnode : resultF.SemNodes().Objects()){
         //std::cout << semnode << "\n";
     }
-    tint::ast::transform::DataMap imput{};
-    tint::ast::transform::Renamer::Config dat;
+    tint::ast::transform::DataMap imputV{};
+    tint::ast::transform::DataMap imputF{};
+    tint::ast::transform::Renamer::Config datF;
+    tint::ast::transform::Renamer::Config datV;
 
-    imput.Add(dat);
+    std::vector<std::string> scrambleInFragment;
+    for(auto& gvar : resultF.AST().GlobalVariables()){
+        std::string name = gvar->name->symbol.Name();
+        if(gvar->As<tint::ast::Var>() && gvar->As<tint::ast::Var>()->declared_address_space){
+            if(gvar->As<tint::ast::Var>()->declared_address_space->As<tint::ast::IdentifierExpression>()){
+                if(gvar->As<tint::ast::Var>()->declared_address_space->As<tint::ast::IdentifierExpression>()->identifier->symbol.Name() == "private"){
+                    scrambleInFragment.push_back(name);
+                }
+            }
+        }
+    }
+    resultV.Symbols().Foreach([&](tint::Symbol x){
+        std::regex m("main");
+        std::string repl = "vs_main";
+        std::string tname = std::regex_replace(x.Name(), m, repl);
+        datV.requested_names.emplace(x.Name(), tname);
+    });
+    resultF.Symbols().Foreach([&](tint::Symbol x){
+        std::regex m("main");
+        std::string repl = "fs_main";
+        std::string tname = std::regex_replace(x.Name(), m, repl);
+        datF.requested_names.emplace(x.Name(), tname);
+    });
+
+    //datV.requested_names["main"] = "vs_main";
+    //datV.requested_names["main_1"] = "vs_main_1";
+    //datF.requested_names["main"] = "fs_main";
+    //datF.requested_names["main_1"] = "fs_main_1";
+    for(auto& n : scrambleInFragment){
+        datF.requested_names[n] = n + "_frag";
+    }
+    datV.target = tint::ast::transform::Renamer::Target::kAll;
+    datF.target = tint::ast::transform::Renamer::Target::kAll;
+    imputV.Add<tint::ast::transform::Renamer::Config>(datV);
+    imputF.Add<tint::ast::transform::Renamer::Config>(datF);
     tint::ast::transform::DataMap ouput{};
-    ren.Apply(resultF, imput, ouput);
-    auto wgsl_from_prog_resultV = tint::wgsl::writer::Generate(resultV, tint::wgsl::writer::Options{});
-    auto wgsl_from_prog_resultF = tint::wgsl::writer::Generate(resultF, tint::wgsl::writer::Options{});
+    auto aresultV = ren.Apply(resultV, imputV, ouput);
+    auto aresultF = ren.Apply(resultF, imputF, ouput);
+    auto wgsl_from_prog_resultV = tint::wgsl::writer::Generate(aresultV.value(), tint::wgsl::writer::Options{});
+    auto wgsl_from_prog_resultF = tint::wgsl::writer::Generate(aresultF.value(), tint::wgsl::writer::Options{});
     //std::cout << spirvV.size() << "\n";
     //std::cout << resultV.Diagnostics() << "\n";
     //std::cout << wgsl_from_prog_resultF->wgsl << "\n";
@@ -127,8 +166,9 @@ extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     std::string replacementV = "vs_main";
     std::string replacementF = "fs_main";
 
-    std::string sourceV = std::regex_replace(wgsl_from_prog_resultV->wgsl, pattern, replacementV);
-    std::string sourceF = std::regex_replace(wgsl_from_prog_resultF->wgsl, pattern, replacementF);
+    std::string sourceV = wgsl_from_prog_resultV->wgsl;//std::regex_replace(wgsl_from_prog_resultV->wgsl, pattern, replacementV);
+    std::string sourceF = wgsl_from_prog_resultF->wgsl;//std::regex_replace(wgsl_from_prog_resultF->wgsl, pattern, replacementF);
+    
     //std::cout << sourceF << "\n";
     //resultF.Foreach([](tint::Symbol s){
     //    std::cout << s.Name() << "\n";
@@ -164,7 +204,7 @@ extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     //LoadPipelineEx
     //}
     //return nullptr;
-    std::cout << sourceV << "\n\n\n" << sourceF << "\n\n\n";
+    //std::cout << sourceV << "\n\n\n" << sourceF << "\n\n\n";
 
     std::string composed = sourceV + "\n\n" + sourceF;
     //std::cout << wgsl_from_prog_resultF->wgsl << "\n";
