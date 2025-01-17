@@ -269,6 +269,18 @@ DescribedShaderModule LoadShaderModuleFromSPIRV(const uint32_t* shaderCodeSPIRV,
     new (ret.uniformLocations) StringToUniformMap;
     return ret;
 }
+DescribedShaderModule LoadShaderModuleFromMemoryWGSL2(const char* shaderSourceWGSLVertex, const char* shaderSourceWGSLFragment){
+    WGPUShaderModuleDescriptor shaderDesc zeroinit;
+
+    WGPUShaderModuleWGSLDescriptor shaderCodeDesc1 zeroinit;
+    WGPUShaderModuleWGSLDescriptor shaderCodeDesc2 zeroinit;
+    WGPUShaderModuleSPIRVDescriptor shaderCodeDesc3 zeroinit;
+
+    shaderDesc.nextInChain = &shaderCodeDesc1.chain;
+}
+
+
+
 DescribedShaderModule LoadShaderModuleFromMemory(const char* shaderSourceWGSL) {
     WGPUShaderModuleWGSLDescriptor shaderCodeDesc{};
 

@@ -1001,6 +1001,7 @@ EXTERN_C_BEGIN
     void BindComputePipeline(DescribedComputePipeline* pipeline);
 
     DescribedShaderModule LoadShaderModuleFromMemory(const char* shaderSourceWGSL);
+    DescribedShaderModule LoadShaderModuleFromMemoryWGSL2(const char* shaderSourceWGSLVertex, const char* shaderSourceWGSLFragment);
     DescribedShaderModule LoadShaderModuleFromSPIRV(const uint32_t* shaderCodeSPIRV, size_t codeSizeInBytes);
     //WGPUShaderModule LoadShader(const char* path);
 
