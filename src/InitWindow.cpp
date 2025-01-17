@@ -271,10 +271,12 @@ void InitWGPU(webgpu_cxx_state* sample){
     {
         wgpu::SupportedFeatures features;
         sample->adapter.GetFeatures(&features);
+        std::string featuresString;
         for(size_t i = 0; i < features.featureCount;i++){
-            TRACELOG(LOG_INFO, "Features supported: %s ", featureSpellingTable.at((WGPUFeatureName)features.features[i]).c_str());
-            wgpu::FeatureName x;
+            featuresString += featureSpellingTable.at((WGPUFeatureName)features.features[i]);
+            if(i < features.featureCount - 1)featuresString += ", ";
         }
+        TRACELOG(LOG_INFO, "Features supported: %s ", featuresString.c_str());
     }
     wgpu::SupportedLimits adapterLimits;
     sample->adapter.GetLimits(&adapterLimits);
@@ -688,6 +690,23 @@ uint32_t GetMonitorHeight(cwoid){
 
 const std::unordered_map<WGPUFeatureName, std::string> featureSpellingTable = [](){
     std::unordered_map<WGPUFeatureName, std::string> ret;
+    #ifdef __EMSCRIPTEN__
+    ret[WGPUFeatureName_DepthClipControl] = "WGPUFeatureName_DepthClipControl";
+    ret[WGPUFeatureName_Depth32FloatStencil8] = "WGPUFeatureName_Depth32FloatStencil8";
+    ret[WGPUFeatureName_TimestampQuery] = "WGPUFeatureName_TimestampQuery";
+    ret[WGPUFeatureName_TextureCompressionBC] = "WGPUFeatureName_TextureCompressionBC";
+    ret[WGPUFeatureName_TextureCompressionETC2] = "WGPUFeatureName_TextureCompressionETC2";
+    ret[WGPUFeatureName_TextureCompressionASTC] = "WGPUFeatureName_TextureCompressionASTC";
+    ret[WGPUFeatureName_IndirectFirstInstance] = "WGPUFeatureName_IndirectFirstInstance";
+    ret[WGPUFeatureName_ShaderF16] = "WGPUFeatureName_ShaderF16";
+    ret[WGPUFeatureName_RG11B10UfloatRenderable] = "WGPUFeatureName_RG11B10UfloatRenderable";
+    ret[WGPUFeatureName_BGRA8UnormStorage] = "WGPUFeatureName_BGRA8UnormStorage";
+    ret[WGPUFeatureName_Float32Filterable] = "WGPUFeatureName_Float32Filterable";
+    ret[WGPUFeatureName_Float32Blendable] = "WGPUFeatureName_Float32Blendable";
+    ret[WGPUFeatureName_Subgroups] = "WGPUFeatureName_Subgroups";
+    ret[WGPUFeatureName_SubgroupsF16] = "WGPUFeatureName_SubgroupsF16";
+    ret[WGPUFeatureName_Force32] = "WGPUFeatureName_Force32";
+    #else
     ret[WGPUFeatureName_DepthClipControl] = "WGPUFeatureName_DepthClipControl";
     ret[WGPUFeatureName_Depth32FloatStencil8] = "WGPUFeatureName_Depth32FloatStencil8";
     ret[WGPUFeatureName_TimestampQuery] = "WGPUFeatureName_TimestampQuery";
@@ -760,6 +779,7 @@ const std::unordered_map<WGPUFeatureName, std::string> featureSpellingTable = []
     ret[WGPUFeatureName_DawnTexelCopyBufferRowAlignment] = "WGPUFeatureName_DawnTexelCopyBufferRowAlignment";
     ret[WGPUFeatureName_FlexibleTextureViews] = "WGPUFeatureName_FlexibleTextureViews";
     ret[WGPUFeatureName_Force32] = "WGPUFeatureName_Force32";
+    #endif
     return ret;
 }();
 
