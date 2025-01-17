@@ -277,6 +277,7 @@ DescribedShaderModule LoadShaderModuleFromMemoryWGSL2(const char* shaderSourceWG
     WGPUShaderModuleSPIRVDescriptor shaderCodeDesc3 zeroinit;
 
     shaderDesc.nextInChain = &shaderCodeDesc1.chain;
+    return {};
 }
 
 

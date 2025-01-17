@@ -101,6 +101,7 @@ extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     auto resultF = tint::spirv::reader::Read(spirvF);
     //std::cout << resultV << "\n";
     tint::ast::transform::Renamer ren;
+    
     resultF.Symbols().Foreach([](tint::Symbol s){
         //std::cout << s.value() << "\n";
     });
@@ -109,8 +110,11 @@ extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
         //std::cout << semnode << "\n";
     }
     tint::ast::transform::DataMap imput{};
+    tint::ast::transform::Renamer::Config dat;
+
+    imput.Add(dat);
     tint::ast::transform::DataMap ouput{};
-    
+    ren.Apply(resultF, imput, ouput);
     auto wgsl_from_prog_resultV = tint::wgsl::writer::Generate(resultV, tint::wgsl::writer::Options{});
     auto wgsl_from_prog_resultF = tint::wgsl::writer::Generate(resultF, tint::wgsl::writer::Options{});
     //std::cout << spirvV.size() << "\n";
@@ -160,9 +164,10 @@ extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     //LoadPipelineEx
     //}
     //return nullptr;
+    std::cout << sourceV << "\n\n\n" << sourceF << "\n\n\n";
+
     std::string composed = sourceV + "\n\n" + sourceF;
     //std::cout << wgsl_from_prog_resultF->wgsl << "\n";
-    DescribedShaderModule mod = LoadShaderModuleFromMemory
     return LoadPipeline(composed.c_str());
 }
 #else
