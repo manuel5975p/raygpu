@@ -48,7 +48,7 @@ format_or_sample_type extractFormat(const tint::ast::Identifier* iden){
                     return format_rgba8unorm;
                 }
                 else if(arg_iden->symbol.Name() == "rgba32float"){
-                    return format_rgba8unorm;
+                    return format_rgba32float;
                 }
                 if(arg_iden->symbol.Name() == "f32"){
                     return sample_f32;

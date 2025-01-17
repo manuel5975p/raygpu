@@ -21,7 +21,7 @@ fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
     textureStore(nextMipLevel, id.xy, color);
 }
 )";
-DescribedComputePipeline* cpl;
+DescribedComputePipeline* firstPassPipeline;
 DescribedSampler smp;
 Texture mipmappedTexture;
 Camera3D cam;
@@ -81,7 +81,7 @@ int main(){
     SetTargetFPS(0);
     groundTruth = LoadRenderTexture(3840, 2160);
     
-    cpl = LoadComputePipeline(computeCode);
+    firstPassPipeline = LoadComputePipeline(computeCode);
     mipmappedTexture = LoadTexturePro(
         1000, 1000,
         WGPUTextureFormat_RGBA8Unorm, WGPUTextureUsage_StorageBinding | WGPUTextureUsage_CopySrc | WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding,
