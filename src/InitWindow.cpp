@@ -5,9 +5,7 @@
 #include <optional>
 #include <chrono>
 
-#ifdef _WIN32
-#define __builtin_unreachable(...)
-#endif
+
 inline std::ostream& operator<<(std::ostream& ostr, const wgpu::StringView& st){
     ostr.write(st.data, st.length);
     return ostr;

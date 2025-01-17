@@ -9,18 +9,18 @@ ___
 ### Why WebGPU
 [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API) is a new graphics API meant to give portable access to advanced GPU features. The supported backends are
 - DirectX 11/12 
-- Vulkan
+- Vulkan (includes Android)
 - OpenGL
-- Metal 
+- Metal (includes iOS)
 - Most importantly, [browsers](https://caniuse.com/webgpu). 
 
-Web support for C++/ wasm programs is done by [Emscripten](https://emscripten.org/).
+Mobile support is done with SDL, Web support for C++/ wasm programs is done by [Emscripten](https://emscripten.org/). 
 - **Pros**
   - Full support for OpenGL(ES), Vulkan, DirectX 12 and Metal
   - Compute shaders and storage buffers **on all platforms**
-  - Multi-windowing and multithreading support
+  - Multi-windowing support
   - True Headless Support (glfw, sdl, xlib etc. all **not** required)
-
+  - Highly portable, rendering backend is discovered at runtime
 - **Cons**
   - Not as lightweight and ubiquitous as OpenGL
   - Still in development
