@@ -497,6 +497,9 @@ void negotiateSurfaceFormatAndPresentMode(const wgpu::Surface& surf){
 
 
 void* InitWindow(uint32_t width, uint32_t height, const char* title){
+    TRACELOG(LOG_INFO, "Hello!");
+    std::filesystem::current_path();
+    TRACELOG(LOG_INFO, "Working directory");
     #if FORCE_HEADLESS == 1
     g_wgpustate.windowFlags |= FLAG_HEADLESS;
     #endif

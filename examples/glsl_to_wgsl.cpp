@@ -28,6 +28,7 @@ int main(int argc, char* argv[]) {
         1, 0, 0,
         0, 1, 0,
     };
+    
     DescribedBuffer* vb = GenBuffer(vertexdata, sizeof(vertexdata));
     VertexArray* va = LoadVertexArray();
     VertexAttribPointer(va, vb, 0, WGPUVertexFormat_Float32x3, 0, WGPUVertexStepMode_Vertex);
