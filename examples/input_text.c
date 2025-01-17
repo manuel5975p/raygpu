@@ -14,9 +14,10 @@ void mainloop(cwoid){
     //    DrawText("48762938476293874598ljfasdhgfakjhfaskjdsgjksafdgjaskdjfdsagjkfasdghkajs48762938476293874598ljfasdhgfakjhfaskjdsgjksafdgjaskdjfdsagjkfasdghkajs48762938476293874598ljfasdhgfakjhfaskjdsgjksafdgjaskdjfdsagjkfasdghkajs48762938476293874598ljfasdhgfakjhfaskjdsgjksafdgjaskdjfdsagjkfasdghkajs", 0, 500 + 10*i, 5, WHITE);
     DrawFPS(5, 5);
     EndDrawing();
+    TRACELOG(LOG_WARNING, "%d", GetFPS());
 }
 int main(void){
-    SetConfigFlags(FLAG_VSYNC_LOWLATENCY_HINT);
+    SetConfigFlags(FLAG_VSYNC_HINT);
     InitWindow(1000, 700, "Text input");
     GuiSetStyle(DEFAULT, TEXT_SIZE, 30);
     #ifdef __EMSCRIPTEN__

@@ -13,7 +13,7 @@ typedef enum access_type{
 }access_type;
 
 typedef enum format_or_sample_type{
-    sample_f32, sample_u32, format_r32float, format_r32uint, format_rgba8unorm
+    sample_f32, sample_u32, format_r32float, format_r32uint, format_rgba8unorm, format_rgba32float
 }format_or_sample_type;
 
 typedef struct UniformDescriptor{

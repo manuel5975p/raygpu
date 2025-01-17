@@ -494,14 +494,14 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     g_wgpustate.windowFlags |= FLAG_HEADLESS;
     #endif
     if(g_wgpustate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
-        //if(IsATerminal(stdout)){
-        //    TRACELOG(LOG_ERROR, "Refusing to pipe video output to terminal");
-        //    TRACELOG(LOG_ERROR, "Try <program> | ffmpeg -y -f rawvideo -pix_fmt rgba -s %ux%u -r 60 -i - -vf format=yuv420p out.mp4", width, height);
-        //    exit(1);
-        //}
+        if(IsATerminal(stdout)){
+            TRACELOG(LOG_ERROR, "Refusing to pipe video output to terminal");
+            TRACELOG(LOG_ERROR, "Try <program> | ffmpeg -y -f rawvideo -pix_fmt rgba -s %ux%u -r 60 -i - -vf format=yuv420p out.mp4", width, height);
+            exit(1);
+        }
         SetTraceLogFile(stderr);
     }
-
+    g_wgpustate.last_timestamps[0] = NanoTime();
     webgpu_cxx_state wg_init;
     InitWGPU(&wg_init);
     g_wgpustate.instance = std::move(wg_init.instance);
@@ -635,6 +635,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     #else
     return nullptr;
     #endif
+
 }
 extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* title){
     #ifdef MAIN_WINDOW_GLFW

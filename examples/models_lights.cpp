@@ -23,7 +23,7 @@ struct LightBuffer {
 
 
 @group(0) @binding(0) var<uniform> Perspective_View: mat4x4f;
-@group(0) @binding(1) var colDiffuse: texture_2d<f32>;
+@group(0) @binding(1) var texture0: texture_2d<f32>;
 @group(0) @binding(2) var grsampler: sampler;
 @group(0) @binding(3) var<storage> modelMatrix: array<mat4x4f>;
 @group(0) @binding(4) var<storage> lights: LightBuffer;
@@ -55,7 +55,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         let prod = max(0.0f, dot(in.worldNormal, dist));
         illum += 100.0f * prod / dot(dist, dist);
     }
-    return textureSample(colDiffuse, grsampler, in.uv).rgba * in.color * (illum + 0.1f);
+    return textureSample(texture0, grsampler, in.uv).rgba * in.color * (illum + 0.1f);
 }
 )";
 int main(){
@@ -94,7 +94,7 @@ int main(){
         .position = CLITERAL(Vector3){20,20,30},
         .target = CLITERAL(Vector3){0,0,0},
         .up = CLITERAL(Vector3){0,1,0},
-        .fovy = 1.0f
+        .fovy = 40.0f
     };
     //WGPUSamplerDescriptor samplerDesc{};
     //samplerDesc.addressModeU = WGPUAddressMode_Repeat;
@@ -110,6 +110,8 @@ int main(){
     //WGPUSampler sampler = wgpuDeviceCreateSampler(GetDevice(), &samplerDesc);
 
     DescribedSampler sampler = LoadSampler(repeat, linear);
+    Material defMaterial = LoadMaterialDefault();
+    defMaterial.maps[MATERIAL_MAP_ALBEDO].texture = cdif;
     while(!WindowShouldClose()){
         BeginDrawing();
         ClearBackground(BLANK);
@@ -119,7 +121,7 @@ int main(){
         SetStorageBuffer(4, libufs);
         UseTexture(cdif);
         BeginMode3D(cam);
-        DrawMesh(churchMesh, Material{}, MatrixIdentity());
+        DrawMesh(churchMesh, defMaterial, MatrixIdentity());
         EndMode3D();
         EndPipelineMode();
         DrawFPS(0,0);
