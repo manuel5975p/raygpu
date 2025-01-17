@@ -1408,6 +1408,7 @@ double GetTime(cwoid){
 uint32_t GetFPS(cwoid){
     auto firstzero = std::find(std::begin(g_wgpustate.last_timestamps), std::end(g_wgpustate.last_timestamps), int64_t(0));
     auto [minit, maxit] = std::minmax_element(std::begin(g_wgpustate.last_timestamps), firstzero);
+    //TRACELOG(LOG_INFO, "%d : %d", int(minit - std::begin(g_wgpustate.last_timestamps)), int(maxit - std::begin(g_wgpustate.last_timestamps)));
     return uint32_t(std::round((firstzero - std::begin(g_wgpustate.last_timestamps) - 1.0) * 1.0e9 / (*maxit - *minit)));
 }
 void DrawFPS(int posX, int posY){
@@ -2497,7 +2498,7 @@ void SetTraceLogFile(FILE* file){
     tracelogFile = file;
 }
 void SetTraceLogLevel(int logLevel){
-    logLevel = logLevel;
+    tracelogLevel = logLevel;
 }
 void TraceLog(int logType, const char *text, ...){
     // Message has level below current threshold, don't emit
