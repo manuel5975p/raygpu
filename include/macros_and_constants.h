@@ -81,7 +81,10 @@ constexpr float RAD2DEG = 180.0 / M_PI;
 #define RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE2          "texture2"          // texture2 (texture slot active 2)
 #define RL_DEFAULT_SHADER_UNIFORM_NAME_INSTANCE_TX         "modelMatrix"       // Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_NAME_INSTANCE_TX
 
+#define RL_MAX_SHADER_LOCATIONS 32
 
-
+#if defined(_MSC_VER) || defined(_MSC_FULL_VER) 
+    #define __builtin_unreachable(...) __assume(false)
+#endif
 
 #endif // MACROS_AND_CONSTANTS

@@ -80,7 +80,7 @@ typedef struct PipelineTriplet{
  */
 typedef struct StringToUniformMap StringToUniformMap;
 /**
- * @brief Hashmap: std::pair<std::vector<AttributeAndResidence>, WGPUPrimitiveTopology> -> WGPURenderPipeline, only visible for C++
+ * @brief Hashmap: std::pair<std::vector<AttributeAndResidence>, WGPUPrimitiveTopology> -> PipelineTriplet, only visible for C++
  */
 typedef struct VertexStateToPipelineMap VertexStateToPipelineMap;
 typedef enum ShaderSourceType{
@@ -89,7 +89,7 @@ typedef enum ShaderSourceType{
 typedef struct DescribedShaderModule{
 
     /**
-     * @brief Either binary uint32_t* for SPIR-V or printable char* for WGSL
+     * @brief source is Either binary uint32_t* for SPIR-V or printable char* for WGSL
      */
     const void* source;
     ShaderSourceType sourceType;
@@ -113,7 +113,7 @@ typedef struct DescribedPipeline{
     WGPURenderPipeline pipeline; //TriangleList
     WGPURenderPipeline pipeline_TriangleStrip;
     WGPURenderPipeline pipeline_LineList;
-    WGPUPrimitiveTopology lastUsedAs;
+    WGPUPrimitiveTopology lastUsedAs; //unused?
 
     WGPUBlendState* blendState;
     // WGPUVertexState not required as it's a nonpointer member of WGPURenderPipelineDescriptor
@@ -124,6 +124,14 @@ typedef struct DescribedPipeline{
     
     VertexStateToPipelineMap* createdPipelines;
 }DescribedPipeline;
+
+typedef struct Shader {
+    DescribedPipeline* id;  // Pipeline
+    int *locs;              // Shader locations array (RL_MAX_SHADER_LOCATIONS)
+} Shader;
+
+
+
 typedef struct DescribedBuffer DescribedBuffer;
 #ifdef __cplusplus
 struct UniformAccessor{
@@ -164,5 +172,13 @@ EXTERN_C_BEGIN
     DescribedPipeline* Relayout(DescribedPipeline* pl, VertexArray* vao);
     DescribedComputePipeline* LoadComputePipeline(const char* shaderCode);
     DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const UniformDescriptor* uniforms, uint32_t uniformCount);
+    /**
+     * @brief Loads a shader given vertex and fragment GLSL source.
+     * 
+     * @param vertexSource 
+     * @param fragmentSource 
+     * @return Shader 
+     */
+    Shader LoadShaderFromMemory(const char* vertexSource, const char* fragmentSource);
 EXTERN_C_END
 #endif// PIPELINE_H

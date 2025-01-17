@@ -641,6 +641,41 @@ DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const Un
     ret->bindGroup = LoadBindGroup(&ret->bglayout, bge.data(), bge.size());
     return ret;
 }
+Shader LoadShaderFromMemory(const char *vertexSource, const char *fragmentSource){
+    Shader shader zeroinit;
+
+    shader.id = LoadPipelineGLSL(vertexSource, fragmentSource);
+    shader.locs = (int*)std::calloc(RL_MAX_SHADER_LOCATIONS, sizeof(int));
+    for (int i = 0; i < RL_MAX_SHADER_LOCATIONS; i++) {
+        shader.locs[i] = LOCATION_NOT_FOUND;
+    }
+    //shader.locs[SHADER_LOC_VERTEX_POSITION] = rlGetLocationAttrib(shader.id, RL_DEFAULT_SHADER_ATTRIB_NAME_POSITION);
+    //shader.locs[SHADER_LOC_VERTEX_TEXCOORD01] = rlGetLocationAttrib(shader.id, RL_DEFAULT_SHADER_ATTRIB_NAME_TEXCOORD);
+    //shader.locs[SHADER_LOC_VERTEX_TEXCOORD02] = rlGetLocationAttrib(shader.id, RL_DEFAULT_SHADER_ATTRIB_NAME_TEXCOORD2);
+    //shader.locs[SHADER_LOC_VERTEX_NORMAL] = rlGetLocationAttrib(shader.id, RL_DEFAULT_SHADER_ATTRIB_NAME_NORMAL);
+    //shader.locs[SHADER_LOC_VERTEX_TANGENT] = rlGetLocationAttrib(shader.id, RL_DEFAULT_SHADER_ATTRIB_NAME_TANGENT);
+    //shader.locs[SHADER_LOC_VERTEX_COLOR] = rlGetLocationAttrib(shader.id, RL_DEFAULT_SHADER_ATTRIB_NAME_COLOR);
+    //shader.locs[SHADER_LOC_VERTEX_BONEIDS] = rlGetLocationAttrib(shader.id, RL_DEFAULT_SHADER_ATTRIB_NAME_BONEIDS);
+    //shader.locs[SHADER_LOC_VERTEX_BONEWEIGHTS] = rlGetLocationAttrib(shader.id, RL_DEFAULT_SHADER_ATTRIB_NAME_BONEWEIGHTS);
+    //shader.locs[SHADER_LOC_VERTEX_INSTANCE_TX] = rlGetLocationAttrib(shader.id, RL_DEFAULT_SHADER_ATTRIB_NAME_INSTANCE_TX);
+
+    // Get handles to GLSL uniform locations (vertex shader)
+    shader.locs[SHADER_LOC_MATRIX_MVP] = GetUniformLocation(shader.id, RL_DEFAULT_SHADER_UNIFORM_NAME_MVP);
+    shader.locs[SHADER_LOC_MATRIX_VIEW] = GetUniformLocation(shader.id, RL_DEFAULT_SHADER_UNIFORM_NAME_VIEW);
+    shader.locs[SHADER_LOC_MATRIX_PROJECTION] = GetUniformLocation(shader.id, RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION);
+    shader.locs[SHADER_LOC_MATRIX_MODEL] = GetUniformLocation(shader.id, RL_DEFAULT_SHADER_UNIFORM_NAME_MODEL);
+    shader.locs[SHADER_LOC_MATRIX_NORMAL] = GetUniformLocation(shader.id, RL_DEFAULT_SHADER_UNIFORM_NAME_NORMAL);
+    shader.locs[SHADER_LOC_BONE_MATRICES] = GetUniformLocation(shader.id, RL_DEFAULT_SHADER_UNIFORM_NAME_BONE_MATRICES);
+
+    // Get handles to GLSL uniform locations (fragment shader)
+    shader.locs[SHADER_LOC_COLOR_DIFFUSE] = GetUniformLocation(shader.id, RL_DEFAULT_SHADER_UNIFORM_NAME_COLOR);
+    shader.locs[SHADER_LOC_MAP_DIFFUSE]   = GetUniformLocation(shader.id, RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE0);  // SHADER_LOC_MAP_ALBEDO
+    shader.locs[SHADER_LOC_MAP_SPECULAR]  = GetUniformLocation(shader.id, RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE1); // SHADER_LOC_MAP_METALNESS
+    shader.locs[SHADER_LOC_MAP_NORMAL]    = GetUniformLocation(shader.id, RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE2);
+    
+
+    return shader;
+}
 Texture GetDefaultTexture(cwoid){
     return g_wgpustate.whitePixel;
 }
