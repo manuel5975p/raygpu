@@ -1258,6 +1258,7 @@ extern wgpustate g_wgpustate;
 extern const std::unordered_map<WGPUTextureFormat, std::string> textureFormatSpellingTable;
 extern const std::unordered_map<WGPUPresentMode, std::string> presentModeSpellingTable;
 extern const std::unordered_map<WGPUBackendType, std::string> backendTypeSpellingTable;
+extern const std::unordered_map<WGPUFeatureName, std::string> featureSpellingTable;
 void negotiateSurfaceFormatAndPresentMode(const wgpu::Surface& sf);
 #endif
 #endif

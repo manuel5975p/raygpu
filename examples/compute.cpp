@@ -39,7 +39,7 @@ fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
     //posBuffer[id.x] = posBuffer[id.x] + velBuffer[id.x];
 })";
 DescribedPipeline *rpl;
-DescribedComputePipeline* cpl;
+DescribedComputePipeline* firstPassPipeline;
 VertexArray* vao;
 DescribedBuffer* quad;
 DescribedBuffer* positions;
@@ -52,7 +52,7 @@ constexpr size_t parts = (1 << 23);
 void mainloop(void){
     BeginDrawing();
     BeginComputepass();
-    BindComputePipeline(cpl);
+    BindComputePipeline(firstPassPipeline);
     DispatchCompute(parts / 64 / 16, 16, 1);
     EndComputepass();
     ClearBackground(BLACK);
@@ -110,9 +110,9 @@ int main(){
     positions = GenBufferEx(pos.data(), pos.size() * sizeof(Vector2), WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
     velocities = GenBufferEx(vel.data(), vel.size() * sizeof(Vector2), WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst);
 
-    cpl = LoadComputePipeline(computeSource);
-    (*cpl)["posBuffer"] = positions;
-    (*cpl)["velBuffer"] = velocities;
+    firstPassPipeline = LoadComputePipeline(computeSource);
+    (*firstPassPipeline)["posBuffer"] = positions;
+    (*firstPassPipeline)["velBuffer"] = velocities;
 
     //SetBindgroupStorageBuffer(&cpl->bindGroup, GetUniformLocationCompute(cpl, "posBuffer"), positions);
     //SetBindgroupStorageBuffer(&cpl->bindGroup, GetUniformLocationCompute(cpl, "velBuffer"), velocities);

@@ -161,7 +161,7 @@ extern "C" SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char
     
     SubWindow ret{};
     //SDL_SetHint(SDL_HINT_TRACKPAD_IS_TOUCH_ONLY, "1");
-    SDL_Window *window = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, 0);
+    SDL_Window *window = SDL_CreateWindow(title, 100, 100, width, height, 0);
     SDL_SetWindowResizable(window, SDL_bool(g_wgpustate.windowFlags & FLAG_WINDOW_RESIZABLE));
     if(g_wgpustate.windowFlags & FLAG_FULLSCREEN_MODE)
         SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
