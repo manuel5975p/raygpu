@@ -608,11 +608,12 @@ typedef enum {
 
 
 typedef struct AttributeAndResidence{
-    WGPUVertexAttribute attr;
+    VertexAttribute attr;
     uint32_t bufferSlot; //Describes the actual buffer it will reside in
-    WGPUVertexStepMode stepMode;
+    VertexStepMode stepMode;
     uint32_t enabled;
 }AttributeAndResidence;
+
 typedef struct FullSurface{
     WGPUSurface surface;
     WGPUSurfaceConfiguration surfaceConfig;
@@ -685,7 +686,7 @@ struct attributeVectorCompare{
     }
 };
 typedef struct VertexStateToPipelineMap{
-    std::unordered_map<std::vector<AttributeAndResidence>, PipelineTriplet, std::hash<std::vector<AttributeAndResidence>>, attributeVectorCompare> pipelines;
+    std::unordered_map<std::vector<AttributeAndResidence>, RenderPipelineQuartet, std::hash<std::vector<AttributeAndResidence>>, attributeVectorCompare> pipelines;
 
 }VertexStateToPipelineMap;
 #endif
@@ -698,14 +699,14 @@ typedef struct VertexStateToPipelineMap{
  * @param shaderSource 
  * @return std::unordered_map<std::string, std::pair<uint32_t, UniformDescriptor>> 
  */
-std::unordered_map<std::string, UniformDescriptor> getBindings(const char* shaderSource);
+std::unordered_map<std::string, ResourceTypeDescriptor> getBindings(const char* shaderSource);
 /**
  * @brief returning a map from 
  * Attribute name -> Attribute format (vec2f, vec3f, etc.) and attribute location
  * @param shaderSource 
  * @return std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> 
  */
-std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> getAttributes(const char* shaderSource);
+std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes(const char* shaderSource);
 #endif
 
 EXTERN_C_BEGIN
@@ -1010,11 +1011,13 @@ EXTERN_C_BEGIN
     DescribedPipeline* ClonePipeline(const DescribedPipeline* pl);
     DescribedPipeline* ClonePipelineWithSettings(const DescribedPipeline* pl, RenderSettings settings);
     DescribedPipeline* LoadPipeline(const char* shaderSource);
-    DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
-    DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
+    DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
+    DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
     DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao);
-    DescribedPipeline* LoadPipelineForVAOEx(const char* shaderSource, VertexArray* vao, const UniformDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
+    DescribedPipeline* LoadPipelineForVAOEx(const char* shaderSource, VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
     DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs);
+
+    void UpdatePipeline(DescribedPipeline* pl);
     DescribedPipeline* DefaultPipeline(cwoid);
     RenderSettings GetDefaultSettings(cwoid);
     Texture GetDefaultTexture(cwoid);
@@ -1081,7 +1084,7 @@ EXTERN_C_BEGIN
 
 
 
-    void init_full_renderstate (full_renderstate* state, const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const UniformDescriptor* uniforms, uint32_t uniform_count, WGPUTextureView c, WGPUTextureView d);
+    void init_full_renderstate (full_renderstate* state, const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniform_count, WGPUTextureView c, WGPUTextureView d);
     void updatePipeline        (full_renderstate* state, enum draw_mode drawmode);
     //void setTargetTextures     (full_renderstate* state, WGPUTextureView c, WGPUTextureView colorMultisample, WGPUTextureView d);
 
@@ -1199,37 +1202,37 @@ EXTERN_C_BEGIN
     void DrawSplineSegmentBezierQuadratic(Vector2 p1, Vector2 c2, Vector2 p3, float thick, Color color);
     void DrawSplineSegmentBezierCubic(Vector2 p1, Vector2 c2, Vector2 c3, Vector2 p4, float thick, Color color);
     
-    inline uint32_t attributeSize(WGPUVertexFormat fmt){
+    inline uint32_t attributeSize(VertexFormat fmt){
         switch(fmt){
-            case WGPUVertexFormat_Uint8x4:
-            case WGPUVertexFormat_Unorm8x4:
-            case WGPUVertexFormat_Float32:
-            case WGPUVertexFormat_Uint32:
-            case WGPUVertexFormat_Sint32:
-            case WGPUVertexFormat_Float16x2:
-            case WGPUVertexFormat_Uint16x2:
-            case WGPUVertexFormat_Sint16x2:
+            case VertexFormat_Uint8x4:
+            case VertexFormat_Unorm8x4:
+            case VertexFormat_Float32:
+            case VertexFormat_Uint32:
+            case VertexFormat_Sint32:
+            case VertexFormat_Float16x2:
+            case VertexFormat_Uint16x2:
+            case VertexFormat_Sint16x2:
             return 4;
-            case WGPUVertexFormat_Float32x2:
-            case WGPUVertexFormat_Uint32x2:
-            case WGPUVertexFormat_Sint32x2:
-            case WGPUVertexFormat_Float16x4:
-            case WGPUVertexFormat_Uint16x4:
-            case WGPUVertexFormat_Sint16x4:
+            case VertexFormat_Float32x2:
+            case VertexFormat_Uint32x2:
+            case VertexFormat_Sint32x2:
+            case VertexFormat_Float16x4:
+            case VertexFormat_Uint16x4:
+            case VertexFormat_Sint16x4:
             return 8;
-            case WGPUVertexFormat_Float32x3:
-            case WGPUVertexFormat_Uint32x3:
-            case WGPUVertexFormat_Sint32x3:
+            case VertexFormat_Float32x3:
+            case VertexFormat_Uint32x3:
+            case VertexFormat_Sint32x3:
             return 12;
-            case WGPUVertexFormat_Float32x4:
-            case WGPUVertexFormat_Uint32x4:
-            case WGPUVertexFormat_Sint32x4:
+            case VertexFormat_Float32x4:
+            case VertexFormat_Uint32x4:
+            case VertexFormat_Sint32x4:
             return 16;
-            case WGPUVertexFormat_Float16:
-            case WGPUVertexFormat_Uint16:
-            case WGPUVertexFormat_Sint16:
+            case VertexFormat_Float16:
+            case VertexFormat_Uint16:
+            case VertexFormat_Sint16:
             return 2;
-            case WGPUVertexFormat_Uint8:
+            case VertexFormat_Uint8:
             return 1;
             default:
             break;
