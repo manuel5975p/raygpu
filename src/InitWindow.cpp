@@ -498,12 +498,6 @@ void negotiateSurfaceFormatAndPresentMode(const wgpu::Surface& surf){
 
 
 void* InitWindow(uint32_t width, uint32_t height, const char* title){
-    TRACELOG(LOG_INFO, "Hello!");
-    std::string working_dir = std::filesystem::absolute(std::filesystem::current_path()).string();
-    if(!working_dir.ends_with('/')){
-        working_dir += '/';
-    }
-    TRACELOG(LOG_INFO, "Working directory: %s", working_dir.c_str());
     #if FORCE_HEADLESS == 1
     g_wgpustate.windowFlags |= FLAG_HEADLESS;
     #endif
@@ -515,6 +509,12 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         }
         SetTraceLogFile(stderr);
     }
+    TRACELOG(LOG_INFO, "Hello!");
+    std::string working_dir = std::filesystem::absolute(std::filesystem::current_path()).string();
+    if(!working_dir.ends_with('/')){
+        working_dir += '/';
+    }
+    TRACELOG(LOG_INFO, "Working directory: %s", working_dir.c_str());
     g_wgpustate.last_timestamps[0] = NanoTime();
     webgpu_cxx_state wg_init;
     InitWGPU(&wg_init);
@@ -668,6 +668,24 @@ extern "C" void ToggleFullscreenImpl(){
 }
 extern "C" void ToggleFullscreen(){
     g_wgpustate.wantsToggleFullscreen = true;
+}
+Vector2 GetTouchPosition(int index){
+    #ifdef MAIN_WINDOW_GLFW
+    return GetTouchPointCount_GLFW(index);
+    #elif defined(MAIN_WINDOW_SDL2)
+    return GetTouchPosition_SDL2(index);
+    #else
+    return 0;
+    #endif
+}
+int GetTouchPointCount(cwoid){
+    #ifdef MAIN_WINDOW_GLFW
+    return GetTouchPointCount_GLFW();
+    #elif defined(MAIN_WINDOW_SDL2)
+    return GetTouchPointCount_SDL2();
+    #else
+    return 0;
+    #endif
 }
 uint32_t GetMonitorWidth(cwoid){
     #ifdef MAIN_WINDOW_GLFW

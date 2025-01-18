@@ -765,6 +765,8 @@ EXTERN_C_BEGIN
     uint32_t GetMonitorWidth_SDL2(cwoid);
     uint32_t GetMonitorHeight_GLFW(cwoid);
     uint32_t GetMonitorHeight_SDL2(cwoid);
+    int GetTouchPointCount_SDL2(cwoid);
+    Vector2 GetTouchPosition_SDL2(int);
     void SetWindowShouldClose_GLFW(GLFWwindow* win);
     void Initialize_SDL2(cwoid);
 

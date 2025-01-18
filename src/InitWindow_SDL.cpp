@@ -254,13 +254,13 @@ void ResizeCallback(SDL_Window* window, int width, int height){
     //g_wgpustate.drawmutex.unlock();
 }
 
-int GetTouchX(){
+int GetTouchX_SDL2(){
     return 0;
 }
-int GetTouchY(){
+int GetTouchY_SDL2(){
     return 0;
 }
-Vector2 GetTouchPosition(int index){
+Vector2 GetTouchPosition_SDL2(int index){
     if(index < g_wgpustate.input_map[GetActiveWindowHandle()].touchPoints.size()){
         auto it = g_wgpustate.input_map[GetActiveWindowHandle()].touchPoints.begin();
         for(int i = 0;i < index;++i) ++it;
@@ -272,10 +272,10 @@ Vector2 GetTouchPosition(int index){
     }
 
 }
-int GetTouchPointId(int index){
+int GetTouchPointId_SDL2(int index){
     return 0;
 }
-int GetTouchPointCount(){
+int GetTouchPointCount_SDL2(){
     return g_wgpustate.input_map[GetActiveWindowHandle()].touchPoints.size();
 }
 
