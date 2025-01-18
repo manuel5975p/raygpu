@@ -4,7 +4,7 @@ int main(void){
 
     SetConfigFlags(FLAG_HEADLESS | FLAG_MSAA_4X_HINT);
     RequestBackend(WGPUBackendType_Vulkan);
-    InitWindow(3840, 2160, "This title has no effect");
+    InitWindow(500, 500, "This title has no effect");
     Texture tex = LoadTextureFromImage(GenImageChecker(WHITE, BLACK, 100, 100, 10));
     SetTargetFPS(0);
     while(!WindowShouldClose()){

@@ -139,11 +139,7 @@ extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
         std::string tname = std::regex_replace(x.Name(), m, repl);
         datF.requested_names.emplace(x.Name(), tname);
     });
-
-    //datV.requested_names["main"] = "vs_main";
-    //datV.requested_names["main_1"] = "vs_main_1";
-    //datF.requested_names["main"] = "fs_main";
-    //datF.requested_names["main_1"] = "fs_main_1";
+    
     for(auto& n : scrambleInFragment){
         datF.requested_names[n] = n + "_frag";
     }
