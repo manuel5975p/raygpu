@@ -205,7 +205,7 @@ typedef struct Mesh {
     DescribedBuffer** vbos;
     DescribedBuffer* ibo;              //Index buffer object, optional
     DescribedBuffer* boneMatrixBuffer; //Storage buffer
-    WGPUVertexFormat boneIDFormat;    //Either WGPUVertexFormat_Uint8 or Uint16;
+    VertexFormat boneIDFormat;    //Either WGPUVertexFormat_Uint8 or Uint16;
 } Mesh;
 
 typedef struct BoneInfo {
@@ -1093,7 +1093,7 @@ EXTERN_C_BEGIN
         aim to replicate the behaviour of OpenGL as closely as possible.
      */
     VertexArray* LoadVertexArray (cwoid);
-    void VertexAttribPointer     (VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, WGPUVertexFormat format, uint32_t offset, WGPUVertexStepMode stepmode);
+    void VertexAttribPointer     (VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, VertexFormat format, uint32_t offset, VertexStepMode stepmode);
     void EnableVertexAttribArray (VertexArray* array, uint32_t attribLocation);
     void DisableVertexAttribArray(VertexArray* array, uint32_t attribLocation);
 

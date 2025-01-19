@@ -88,7 +88,7 @@ void mainloop(void){
 int main(cwoid){
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(1200, 800, "VAO");
-    SetTargetFPS(300);
+    //SetTargetFPS(300);
     cam = CLITERAL(Camera3D){
         .position = CLITERAL(Vector3){0,0,10},
         .target = CLITERAL(Vector3){0,0,0},

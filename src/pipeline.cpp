@@ -350,7 +350,7 @@ extern "C" void UpdatePipeline(DescribedPipeline* pl){
     VertexBufferLayoutSet& vlayout_complete = pl->vertexLayout;
     vertexState.bufferCount = vlayout_complete.number_of_buffers;
 
-    std::vector<WGPUVertexBufferLayout> layouts_converted(vlayout_complete.number_of_buffers);
+    std::vector<WGPUVertexBufferLayout> layouts_converted;
     for(uint32_t i = 0;i < vlayout_complete.number_of_buffers;i++){
         layouts_converted.push_back(WGPUVertexBufferLayout{
             .arrayStride    = vlayout_complete.layouts[i].arrayStride,
@@ -407,7 +407,7 @@ extern "C" void UpdatePipeline(DescribedPipeline* pl){
     
     pipelineDesc.primitive.frontFace = (WGPUFrontFace)settings.frontFace;
     pipelineDesc.primitive.cullMode = settings.faceCull ? WGPUCullMode_Back : WGPUCullMode_None;
-    //if(attribCount != 0){
+    if(pl->vertexLayout.layouts->attributeCount != 0){
         pipelineDesc.primitive.topology = WGPUPrimitiveTopology_PointList;
         pl->quartet.pipeline_PointList = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipelineDesc);
         pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
@@ -419,7 +419,7 @@ extern "C" void UpdatePipeline(DescribedPipeline* pl){
         pl->quartet.pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipelineDesc);
         pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
         pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
-    //}
+    }
 }
 extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
     DescribedShaderModule mod = LoadShaderModuleFromMemory(shaderSource);
@@ -488,7 +488,7 @@ RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, const std::ve
     VertexBufferLayoutSet& vlayout_complete = pl->vertexLayout;
     vertexState.bufferCount = vlayout_complete.number_of_buffers;
 
-    std::vector<WGPUVertexBufferLayout> layouts_converted(vlayout_complete.number_of_buffers);
+    std::vector<WGPUVertexBufferLayout> layouts_converted;
     for(uint32_t i = 0;i < vlayout_complete.number_of_buffers;i++){
         layouts_converted.push_back(WGPUVertexBufferLayout{
             .arrayStride    = vlayout_complete.layouts[i].arrayStride,
@@ -619,7 +619,18 @@ DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
             }
         }
     }
-
+    pipeline->vertexLayout = VertexBufferLayoutSet zeroinit;
+    
+    pipeline->vertexLayout.layouts = (VertexBufferLayout*)std::calloc(_pipeline->vertexLayout.number_of_buffers, sizeof(VertexBufferLayout));
+    pipeline->vertexLayout.number_of_buffers = _pipeline->vertexLayout.number_of_buffers;
+    uint32_t attributeCount = 0;
+    for(size_t i = 0;i < pipeline->vertexLayout.number_of_buffers;i++){
+        attributeCount += _pipeline->vertexLayout.layouts[i].attributeCount;
+    }
+    pipeline->vertexLayout.attributePool = (VertexAttribute*)std::calloc(attributeCount, sizeof(VertexAttribute));
+    for(size_t i = 0;i < _pipeline->vertexLayout.number_of_buffers;i++){
+        pipeline->vertexLayout.layouts[i].attributes = pipeline->vertexLayout.attributePool + (_pipeline->vertexLayout.layouts[i].attributes - _pipeline->vertexLayout.attributePool);
+    }
     //TODO: this incurs lifetime problem, so do other things in this
     pipeline->sh = _pipeline->sh;
 
@@ -751,7 +762,7 @@ extern "C" void UnloadPipeline(DescribedPipeline* pl){
     free(pl->colorTarget);
     free(pl->depthStencilState);*/
 }
-uint64_t bgEntryHash(const WGPUBindGroupEntry& bge){
+uint64_t bgEntryHash(const ResourceDescriptor& bge){
     const uint32_t rotation = (bge.binding * 7) & 63;
     uint64_t value = ROT_BYTES((uint64_t)bge.buffer, rotation);
     value ^= ROT_BYTES((uint64_t)bge.textureView, rotation);
@@ -765,36 +776,22 @@ extern "C" DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bgla
     DescribedBindGroup ret zeroinit;
     ret.entries = (ResourceDescriptor*)std::calloc(entryCount, sizeof(ResourceDescriptor));
     std::memcpy(ret.entries, entries, entryCount * sizeof(ResourceDescriptor));
-    
-    std::vector<WGPUBindGroupEntry> aswgpu(entryCount);
-    for(uint32_t i = 0;i < entryCount;i++){
-        aswgpu[i].binding = entries[i].binding;
-        aswgpu[i].buffer = (WGPUBuffer)entries[i].buffer;
-        aswgpu[i].offset = entries[i].offset;
-        aswgpu[i].size = entries[i].size;
-        aswgpu[i].sampler = (WGPUSampler)entries[i].sampler;
-        aswgpu[i].textureView = (WGPUTextureView)entries[i].textureView;
-    }
-    WGPUBindGroupDescriptor desc{};
-    desc.entries = aswgpu.data();
-    desc.entryCount = aswgpu.size();
-    desc.layout = (WGPUBindGroupLayout)bglayout->layout;
-    ret.desc.layout = bglayout->layout;
-    ret.desc.entries = ret.entries;
-    ret.desc.entryCount = entryCount;
+    ret.entryCount = entryCount;
+    ret.layout = bglayout->layout;
+
     ret.needsUpdate = true;
     ret.descriptorHash = 0;
 
 
-    for(uint32_t i = 0;i < ret.desc.entryCount;i++){
+    for(uint32_t i = 0;i < ret.entryCount;i++){
         ret.descriptorHash ^= bgEntryHash(ret.entries[i]);
     }
     //ret.bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &ret.desc);
     return ret;
 }
 extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry){
-    if(index >= bg->desc.entryCount){
-        TRACELOG(LOG_WARNING, "Trying to set entry %d on a BindGroup with only %d entries", (int)index, (int)bg->desc.entryCount);
+    if(index >= bg->entryCount){
+        TRACELOG(LOG_WARNING, "Trying to set entry %d on a BindGroup with only %d entries", (int)index, (int)bg->entryCount);
         //return;
     }
     auto& newpuffer = entry.buffer;
@@ -808,14 +805,14 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, Resou
     if(bg->releaseOnClear & (1 << index)){
         //donotcache = true;
         if(bg->entries[index].buffer){
-            wgpuBufferRelease(bg->entries[index].buffer);
+            wgpuBufferRelease((WGPUBuffer)bg->entries[index].buffer);
         }
         else if(bg->entries[index].textureView){
             //Todo: currently not the case anyway, but this is nadinöf
-            wgpuTextureViewRelease(bg->entries[index].textureView);
+            wgpuTextureViewRelease((WGPUTextureView)bg->entries[index].textureView);
         }
         else if(bg->entries[index].sampler){
-            wgpuSamplerRelease(bg->entries[index].sampler);
+            wgpuSamplerRelease((WGPUSampler)bg->entries[index].sampler);
         }
         bg->releaseOnClear &= ~(1 << index);
     }
@@ -825,7 +822,7 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, Resou
     //TODO don't release and recreate here or find something better
     if(true /*|| donotcache*/){
         if(bg->bindGroup)
-            wgpuBindGroupRelease(bg->bindGroup);
+            wgpuBindGroupRelease((WGPUBindGroup)bg->bindGroup);
         bg->bindGroup = nullptr;
     }
     //else if(!bg->needsUpdate && bg->bindGroup){
@@ -843,7 +840,6 @@ DescribedPipeline* Relayout(DescribedPipeline* pl, VertexArray* vao){
 }
 
 extern "C" void UpdateBindGroup(DescribedBindGroup* bg){
-    bg->desc.nextInChain = nullptr;
     //std::cout << "Updating bindgroup with " << bg->desc.entryCount << " entries" << std::endl;
     //std::cout << "Updating bindgroup with " << bg->desc.entries[1].binding << " entries" << std::endl;
     if(bg->needsUpdate){
@@ -856,12 +852,25 @@ extern "C" void UpdateBindGroup(DescribedBindGroup* bg){
             //__builtin_dump_struct(&(bg->desc), printf);
             //for(size_t i = 0;i < bg->desc.entryCount;i++)
             //    __builtin_dump_struct(&(bg->desc.entries[i]), printf);
-            bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
+            WGPUBindGroupDescriptor desc{};
+            std::vector<WGPUBindGroupEntry> aswgpu(bg->entryCount);
+            for(uint32_t i = 0;i < bg->entryCount;i++){
+                aswgpu[i].binding = bg->entries[i].binding;
+                aswgpu[i].buffer = (WGPUBuffer)bg->entries[i].buffer;
+                aswgpu[i].offset = bg->entries[i].offset;
+                aswgpu[i].size = bg->entries[i].size;
+                aswgpu[i].sampler = (WGPUSampler)bg->entries[i].sampler;
+                aswgpu[i].textureView = (WGPUTextureView)bg->entries[i].textureView;
+            }
+            desc.entries = aswgpu.data();
+            desc.entryCount = aswgpu.size();
+            desc.layout = (WGPUBindGroupLayout)bg->layout;
+            bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &desc);
         }
         bg->needsUpdate = false;
     }
 }
-WGPUBindGroup GetWGPUBindGroup(DescribedBindGroup* bg){
+NativeBindgroupHandle GetWGPUBindGroup(DescribedBindGroup* bg){
     if(bg->needsUpdate){
         UpdateBindGroup(bg);
         //bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
@@ -871,11 +880,11 @@ WGPUBindGroup GetWGPUBindGroup(DescribedBindGroup* bg){
 }
 extern "C" void UnloadBindGroup(DescribedBindGroup* bg){
     free(bg->entries);
-    wgpuBindGroupRelease(bg->bindGroup);
+    wgpuBindGroupRelease((WGPUBindGroup)bg->bindGroup);
 }
 extern "C" void UnloadBindGroupLayout(DescribedBindGroupLayout* bglayout){
     free(bglayout->entries);
-    wgpuBindGroupLayoutRelease(bglayout->layout);
+    wgpuBindGroupLayoutRelease((WGPUBindGroupLayout)bglayout->layout);
 }
 void UniformAccessor::operator=(DescribedBuffer* buf){
     SetBindgroupStorageBuffer(bindgroup, index, buf);

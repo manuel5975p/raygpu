@@ -566,18 +566,18 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     
 
 
-    BindResourceDescriptor uniforms[4] = {
-        BindResourceDescriptor{uniform_buffer, 64, 0, readonly, format_or_sample_type(0)},
-        BindResourceDescriptor{texture2d, 0, 1      , readonly, format_or_sample_type(0)},
-        BindResourceDescriptor{texture_sampler, 0, 2        , readonly, format_or_sample_type(0)},
-        BindResourceDescriptor{storage_buffer, 64, 3, readonly, format_or_sample_type(0)}
+    ResourceTypeDescriptor uniforms[4] = {
+        ResourceTypeDescriptor{uniform_buffer, 64, 0, readonly, format_or_sample_type(0)},
+        ResourceTypeDescriptor{texture2d, 0, 1      , readonly, format_or_sample_type(0)},
+        ResourceTypeDescriptor{texture_sampler, 0, 2, readonly, format_or_sample_type(0)},
+        ResourceTypeDescriptor{storage_buffer, 64, 3, readonly, format_or_sample_type(0)}
     };
 
     AttributeAndResidence attrs[4] = {
-        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 0 * sizeof(float), 0}, 0, WGPUVertexStepMode_Vertex, true},
-        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x2, 3 * sizeof(float), 1}, 0, WGPUVertexStepMode_Vertex, true},
-        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x3, 5 * sizeof(float), 2}, 0, WGPUVertexStepMode_Vertex, true},
-        AttributeAndResidence{WGPUVertexAttribute{WGPUVertexFormat_Float32x4, 8 * sizeof(float), 3}, 0, WGPUVertexStepMode_Vertex, true},
+        AttributeAndResidence{VertexAttribute{VertexFormat_Float32x3, 0 * sizeof(float), 0}, 0, VertexStepMode_Vertex, true},
+        AttributeAndResidence{VertexAttribute{VertexFormat_Float32x2, 3 * sizeof(float), 1}, 0, VertexStepMode_Vertex, true},
+        AttributeAndResidence{VertexAttribute{VertexFormat_Float32x3, 5 * sizeof(float), 2}, 0, VertexStepMode_Vertex, true},
+        AttributeAndResidence{VertexAttribute{VertexFormat_Float32x4, 8 * sizeof(float), 3}, 0, VertexStepMode_Vertex, true},
     };
     
     //arraySetter(shaderInputs.per_vertex_sizes, {3,2,4});
@@ -595,7 +595,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
                                   (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
                                   1
     );
-    init_full_renderstate(g_wgpustate.rstate, shaderSource, attrs, 4, uniforms, sizeof(uniforms) / sizeof(BindResourceDescriptor), colorTexture.view, g_wgpustate.mainWindowRenderTarget.depth.view);
+    init_full_renderstate(g_wgpustate.rstate, shaderSource, attrs, 4, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), colorTexture.view, g_wgpustate.mainWindowRenderTarget.depth.view);
     TRACELOG(LOG_INFO, "Renderstate inited");
     g_wgpustate.rstate->renderExtentX = width;
     g_wgpustate.rstate->renderExtentY = height;

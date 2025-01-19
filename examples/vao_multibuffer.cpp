@@ -73,19 +73,19 @@ int main(){
     DescribedBuffer* posc2 = GenBuffer(colors, sizeof(colors));
     VertexArray* vao = LoadVertexArray();
 
-    VertexAttribPointer(vao, posb, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(vao, posu, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(vao, posn, 2, WGPUVertexFormat_Float32x3, 0, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(vao, posc, 3, WGPUVertexFormat_Float32x4, 0, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(vao, posb2, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(vao, posu2, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(vao, posn, 2, WGPUVertexFormat_Float32x3, 0, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(vao, posc2, 3, WGPUVertexFormat_Float32x4, 0, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, posb,  0, VertexFormat_Float32x2, 0, VertexStepMode_Vertex);
+    VertexAttribPointer(vao, posu,  1, VertexFormat_Float32x2, 0, VertexStepMode_Vertex);
+    VertexAttribPointer(vao, posn,  2, VertexFormat_Float32x3, 0, VertexStepMode_Vertex);
+    VertexAttribPointer(vao, posc,  3, VertexFormat_Float32x4, 0, VertexStepMode_Vertex);
+    VertexAttribPointer(vao, posb2, 0, VertexFormat_Float32x2, 0, VertexStepMode_Vertex);
+    VertexAttribPointer(vao, posu2, 1, VertexFormat_Float32x2, 0, VertexStepMode_Vertex);
+    VertexAttribPointer(vao, posn,  2, VertexFormat_Float32x3, 0, VertexStepMode_Vertex);
+    VertexAttribPointer(vao, posc2, 3, VertexFormat_Float32x4, 0, VertexStepMode_Vertex);
 
     RenderSettings settings zeroinit;
 
     settings.depthTest = 1;
-    settings.depthCompare = WGPUCompareFunction_LessEqual;
+    settings.depthCompare = Compare_LessEqual;
 
     //DescribedPipeline* pl = LoadPipelineEx(source, nullptr, 0, nullptr, 0, settings);
     //DescribedPipeline* pl = DefaultPipeline();
