@@ -550,7 +550,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         SubWindow glfwWin = InitWindow_SDL2(width, height, title);
         #endif
         g_wgpustate.window = (GLFWwindow*)glfwWin.handle;
-        g_wgpustate.surface = wgpu::Surface(g_wgpustate.createdSubwindows[glfwWin.handle].surface.surface);
+        g_wgpustate.surface = wgpu::Surface((WGPUSurface)g_wgpustate.createdSubwindows[glfwWin.handle].surface.surface);
         #endif
         
 
@@ -1171,8 +1171,14 @@ extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t newWidth, uint32_t
     fsurface->frameBuffer.depth.width = newWidth;
     fsurface->frameBuffer.depth.height = newHeight;
     WGPUTextureFormat format = g_wgpustate.frameBufferFormat;
-    fsurface->surfaceConfig.viewFormats = &format;
-    wgpuSurfaceConfigure(fsurface->surface, &fsurface->surfaceConfig);
+    WGPUSurfaceConfiguration wsconfig{};
+    wsconfig.format = g_wgpustate.frameBufferFormat;
+    wsconfig.viewFormatCount = 1;
+    wsconfig.viewFormats = &g_wgpustate.frameBufferFormat;
+    wsconfig.alphaMode = WGPUCompositeAlphaMode_Opaque;
+    wsconfig.presentMode = (WGPUPresentMode)fsurface->surfaceConfig.presentMode;
+    wsconfig.usage = WGPUTextureUsage_CopySrc | WGPUTextureUsage_RenderAttachment;
+    wgpuSurfaceConfigure((WGPUSurface)fsurface->surface, &wsconfig);
     //UnloadTexture(fsurface->frameBuffer.texture);
     //fsurface->frameBuffer.texture = Texture zeroinit;
     UnloadTexture(fsurface->frameBuffer.colorMultisample);
@@ -1194,7 +1200,7 @@ extern "C" void GetNewTexture(FullSurface* fsurface){
     }
     else{
         WGPUSurfaceTexture surfaceTexture;
-        wgpuSurfaceGetCurrentTexture(fsurface->surface, &surfaceTexture);
+        wgpuSurfaceGetCurrentTexture((WGPUSurface)fsurface->surface, &surfaceTexture);
         fsurface->frameBuffer.texture.id = surfaceTexture.texture;
         fsurface->frameBuffer.texture.width = wgpuTextureGetWidth(surfaceTexture.texture);
         fsurface->frameBuffer.texture.height = wgpuTextureGetHeight(surfaceTexture.texture);

@@ -39,7 +39,7 @@ static inline uint64_t ROT_BYTES(uint64_t V, uint8_t C) {
 typedef struct vertex{
     Vector3 pos;
     Vector2 uv ;
-    Vector3 normal ;
+    Vector3 normal;
     Vector4 col;
 }vertex;
 
@@ -62,7 +62,7 @@ typedef enum PixelFormat{
     RGBA32F = WGPUTextureFormat_RGBA32Float,
 
     GRAYSCALE = 0x100000, //No WGPU_ equivalent
-    RGB8      = 0x100001,
+    RGB8      = 0x100001, //No WGPU_ equivalent
 }PixelFormat;
 
 typedef struct Image{
@@ -77,7 +77,7 @@ typedef struct Image{
 #ifndef MAX_MIP_LEVELS
 #define MAX_MIP_LEVELS 16
 #endif
-typedef struct Texture{
+typedef struct Texture2D{
     WGPUTexture id;
     WGPUTextureView view;
     WGPUTextureView mipViews[MAX_MIP_LEVELS];
@@ -87,7 +87,8 @@ typedef struct Texture{
     uint32_t sampleCount;
     uint32_t mipmaps;
 
-}Texture;
+}Texture2D;
+typedef Texture2D Texture;
 
 typedef struct Texture3D{
     WGPUTexture id;
@@ -97,7 +98,6 @@ typedef struct Texture3D{
     uint32_t sampleCount;
 }Texture3D;
 
-typedef Texture Texture2D;
 
 typedef struct Rectangle {
     float x, y, width, height;
@@ -125,6 +125,7 @@ typedef struct DescribedComputePass{
     WGPUComputePassEncoder cpEncoder;
     WGPUComputePassDescriptor desc;
 }DescribedComputepass;
+
 EXTERN_C_BEGIN
     WGPUInstance GetInstance(cwoid);
     WGPUAdapter  GetAdapter (cwoid);
@@ -606,6 +607,23 @@ typedef enum {
     MOUSE_BUTTON_BACK    = 6,       // Mouse button back (advanced mouse device)
 } MouseButton;
 
+typedef enum SurfacePresentMode{
+    PresentMode_Fifo = 0x00000001,
+    PresentMode_FifoRelaxed = 0x00000002,
+    PresentMode_Immediate = 0x00000003,
+    PresentMode_Mailbox = 0x00000004,
+    PresentMode_Force32 = 0x7FFFFFFF
+} SurfacePresentMode;
+
+// Unified Surface Configuration Structure
+typedef struct SurfaceConfiguration {
+    void* device;                   // Device that surface belongs to (WPGUDevice or VkDevice)
+    uint32_t width;                 // Width of the rendering surface
+    uint32_t height;                // Height of the rendering surface
+    WGPUTextureFormat format;       // Pixel format of the surface
+    SurfacePresentMode presentMode; // Present mode for image presentation
+} SurfaceConfiguration;
+
 
 typedef struct AttributeAndResidence{
     VertexAttribute attr;
@@ -615,10 +633,11 @@ typedef struct AttributeAndResidence{
 }AttributeAndResidence;
 
 typedef struct FullSurface{
-    WGPUSurface surface;
-    WGPUSurfaceConfiguration surfaceConfig;
+    void* surface;
+    SurfaceConfiguration surfaceConfig;
     RenderTexture frameBuffer;
 }FullSurface;
+
 typedef struct SubWindow{
     void* handle;
     FullSurface surface;
@@ -718,8 +737,10 @@ EXTERN_C_BEGIN
     SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* title);
     SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char* title);
     void CloseSubWindow(SubWindow subWindow);
+    FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t height);
     void ResizeSurface(FullSurface* fsurface, uint32_t width, uint32_t height);
     void GetNewTexture(FullSurface* fsurface);
+    void PresentSurface(FullSurface* fsurface);
     uint32_t GetScreenWidth (cwoid);                             //Window width
     uint32_t GetScreenHeight(cwoid);                             //Window height
     uint32_t GetMonitorWidth (cwoid);                            //Monitor height

@@ -72,15 +72,15 @@ typedef struct ResourceDescriptor {
 } ResourceDescriptor;
 
 typedef enum CompareFunction{
-    Compare_Undefined = 0x00000000,
-    Compare_Never = 0x00000001,
-    Compare_Less = 0x00000002,
-    Compare_Equal = 0x00000003,
-    Compare_LessEqual = 0x00000004,
-    Compare_Greater = 0x00000005,
-    Compare_NotEqual = 0x00000006,
-    Compare_GreaterEqual = 0x00000007,
-    Compare_Always = 0x00000008
+    CompareFunction_Undefined = 0x00000000,
+    CompareFunction_Never = 0x00000001,
+    CompareFunction_Less = 0x00000002,
+    CompareFunction_Equal = 0x00000003,
+    CompareFunction_LessEqual = 0x00000004,
+    CompareFunction_Greater = 0x00000005,
+    CompareFunction_NotEqual = 0x00000006,
+    CompareFunction_GreaterEqual = 0x00000007,
+    CompareFunction_Always = 0x00000008
 }CompareFunction;
 
 typedef enum BlendFactor {

@@ -730,7 +730,7 @@ RenderSettings GetDefaultSettings(){
     ret.faceCull = 1;
     ret.frontFace = FrontFace_CCW;
     ret.depthTest = 1;
-    ret.depthCompare = Compare_LessEqual;
+    ret.depthCompare = CompareFunction_LessEqual;
     ret.sampleCount = (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
 
     ret.blendFactorSrcAlpha = BlendFactor_One;
