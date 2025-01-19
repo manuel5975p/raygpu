@@ -2128,11 +2128,43 @@ extern "C" void BeginWindowMode(SubWindow sw){
     //g_wgpustate.currentDefaultRenderTarget = sw.frameBuffer;
     //BeginRenderpass();
 }
+void PresentSurface(FullSurface* fsurface){
+    wgpuSurfacePresent((WGPUSurface)fsurface->surface);
+}
+extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t height){
+    FullSurface ret{};
+    ret.surface = (WGPUSurface)nsurface;
+    negotiateSurfaceFormatAndPresentMode(*((const wgpu::Surface*)&nsurface));
+    WGPUSurfaceCapabilities capa{};
+    WGPUAdapter adapter = GetAdapter();
+
+    wgpuSurfaceGetCapabilities((WGPUSurface)ret.surface, adapter, &capa);
+    WGPUSurfaceConfiguration config{};
+    if (g_wgpustate.windowFlags & FLAG_VSYNC_LOWLATENCY_HINT) {
+        config.presentMode = (WGPUPresentMode)(((g_wgpustate.unthrottled_PresentMode == wgpu::PresentMode::Mailbox) ? g_wgpustate.unthrottled_PresentMode : g_wgpustate.throttled_PresentMode));
+    } else if (g_wgpustate.windowFlags & FLAG_VSYNC_HINT) {
+        config.presentMode = (WGPUPresentMode)g_wgpustate.throttled_PresentMode;
+    } else {
+        config.presentMode = (WGPUPresentMode)g_wgpustate.unthrottled_PresentMode;
+    }
+    TRACELOG(LOG_INFO, "Initialized SDL2 window with surface %s", presentModeSpellingTable.at(config.presentMode).c_str());
+    config.alphaMode = WGPUCompositeAlphaMode_Opaque;
+    config.format = g_wgpustate.frameBufferFormat;
+    config.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
+    config.width = width;
+    config.height = height;
+    config.viewFormats = &config.format;
+    config.viewFormatCount = 1;
+    config.device = GetDevice();
+    ret.frameBuffer = LoadRenderTexture(width, height);
+    wgpuSurfaceConfigure((WGPUSurface)ret.surface, &config);
+    return ret;
+}
 extern "C" void EndWindowMode(){
     //EndRenderpass();
     EndTextureMode();
     //g_wgpustate.currentDefaultRenderTarget = g_wgpustate.mainWindowRenderTarget;
-    wgpuSurfacePresent(g_wgpustate.activeSubWindow.surface.surface);
+    PresentSurface(&g_wgpustate.activeSubWindow.surface);
     auto& ipstate = g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()];
     std::copy(ipstate.keydown.begin(), ipstate.keydown.end(), ipstate.keydownPrevious.begin());
     ipstate.mousePosPrevious = ipstate.mousePos;

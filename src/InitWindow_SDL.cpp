@@ -165,45 +165,15 @@ extern "C" SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char
     SDL_SetWindowResizable(window, SDL_bool(g_wgpustate.windowFlags & FLAG_WINDOW_RESIZABLE));
     if(g_wgpustate.windowFlags & FLAG_FULLSCREEN_MODE)
         SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
-    ret.surface.surface = SDL_GetWGPUSurface(GetInstance(), window);
-    negotiateSurfaceFormatAndPresentMode(*((const wgpu::Surface*)&ret.surface.surface));
-    WGPUSurfaceCapabilities capa{};
-    //wgpu::SurfaceCapabilities cxxcapa;
-    WGPUAdapter adapter = GetAdapter();
-    // std::cout << surf.Get() << "\n";
-    //wgpu::Surface(csurf).GetCapabilities(GetCXXAdapter(), &cxxcapa);
 
-    wgpuSurfaceGetCapabilities(ret.surface.surface, adapter, &capa);
-    //std::cout << capa.presentModeCount << "\n";
-    //for(uint32_t i = 0;i < capa.presentModeCount;i++){
-    //    std::cout << "Sdl supports " << presentModeSpellingTable.at(capa.presentModes[i]) << std::endl;
-    //}
-    WGPUSurfaceConfiguration config{};
-    if (g_wgpustate.windowFlags & FLAG_VSYNC_LOWLATENCY_HINT) {
-        config.presentMode = (WGPUPresentMode)(((g_wgpustate.unthrottled_PresentMode == wgpu::PresentMode::Mailbox) ? g_wgpustate.unthrottled_PresentMode : g_wgpustate.throttled_PresentMode));
-    } else if (g_wgpustate.windowFlags & FLAG_VSYNC_HINT) {
-        config.presentMode = (WGPUPresentMode)g_wgpustate.throttled_PresentMode;
-    } else {
-        config.presentMode = (WGPUPresentMode)g_wgpustate.unthrottled_PresentMode;
-    }
-    TRACELOG(LOG_INFO, "Initialized SDL2 window with surface %s", presentModeSpellingTable.at(config.presentMode).c_str());
-    config.alphaMode = WGPUCompositeAlphaMode_Opaque;
-    config.format = g_wgpustate.frameBufferFormat;
-    config.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
-    config.width = width;
-    config.height = height;
-    config.viewFormats = &config.format;
-    config.viewFormatCount = 1;
-    config.device = GetDevice();
-    wgpuSurfaceConfigure(ret.surface.surface, &config);
-    // surf.Configure(&config);
-    // wgpu::SurfaceTexture tex;
-    // surf.Present();
-    // std::cout << SDL_GetCurrentVideoDriver() << "\n";
+    
     ret.handle = window;
-    ret.surface.frameBuffer = LoadRenderTexture(width, height);
 
-    ret.surface.surfaceConfig = config;
+    
+    WGPUSurface surface = SDL_GetWGPUSurface(GetInstance(), window);
+    ret.surface = CreateSurface(surface, width, height);
+    ret.handle = window;
+
     g_wgpustate.createdSubwindows[ret.handle] = ret;
     return ret;
 }
@@ -213,16 +183,9 @@ SubWindow OpenSubWindow_SDL2(uint32_t width, uint32_t height, const char* title)
     WGPUInstance inst = GetInstance();
     WGPUSurfaceCapabilities capabilities zeroinit;
     ret.handle = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, 0);
-    ret.surface.surface = SDL_GetWGPUSurface(inst, (SDL_Window*)ret.handle);
-    wgpuSurfaceGetCapabilities(ret.surface.surface, GetAdapter(), &capabilities);
-    ret.surface.surfaceConfig.device = GetDevice();
-    ret.surface.surfaceConfig.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
-    ret.surface.surfaceConfig.format = g_wgpustate.frameBufferFormat;
-    ret.surface.surfaceConfig.presentMode = (WGPUPresentMode)g_wgpustate.unthrottled_PresentMode;
-    ret.surface.surfaceConfig.width = width;
-    ret.surface.surfaceConfig.height = height;
-    wgpuSurfaceConfigure(ret.surface.surface, &ret.surface.surfaceConfig);
-    ret.surface.frameBuffer = LoadRenderTexture(ret.surface.surfaceConfig.width, ret.surface.surfaceConfig.height);
+    WGPUSurface surface = SDL_GetWGPUSurface(inst, (SDL_Window*)ret.handle);
+    
+    ret.surface = CreateSurface(surface, width, height);
     g_wgpustate.createdSubwindows[ret.handle] = ret;
     g_wgpustate.input_map[(GLFWwindow*)ret.handle];
     //setupGLFWCallbacks((GLFWwindow*)ret.handle);

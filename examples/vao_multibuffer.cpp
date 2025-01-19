@@ -85,7 +85,7 @@ int main(){
     RenderSettings settings zeroinit;
 
     settings.depthTest = 1;
-    settings.depthCompare = Compare_LessEqual;
+    settings.depthCompare = CompareFunction_LessEqual;
 
     //DescribedPipeline* pl = LoadPipelineEx(source, nullptr, 0, nullptr, 0, settings);
     //DescribedPipeline* pl = DefaultPipeline();
