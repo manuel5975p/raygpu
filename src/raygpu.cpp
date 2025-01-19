@@ -172,6 +172,29 @@ extern "C" void VertexAttribPointer(VertexArray* array, DescribedBuffer* buffer,
 void BindVertexArray(VertexArray* va){
     BindPipelineVertexArray(GetActivePipeline(), va);
 }
+
+
+
+extern "C" void RenderPassSetIndexBuffer(DescribedRenderpass* drp, DescribedBuffer* buffer, WGPUIndexFormat format, uint64_t offset){
+    wgpuRenderPassEncoderSetIndexBuffer((WGPURenderPassEncoder)drp->rpEncoder, (WGPUBuffer)buffer->buffer, format, offset, buffer->size);
+}
+void RenderPassSetVertexBuffer(DescribedRenderpass* drp, uint32_t slot, DescribedBuffer* buffer, uint64_t offset){
+    wgpuRenderPassEncoderSetVertexBuffer((WGPURenderPassEncoder)drp->rpEncoder, slot, (WGPUBuffer)buffer->buffer, offset, buffer->size);
+}
+void RenderPassSetBindGroup(DescribedRenderpass* drp, uint32_t group, DescribedBindGroup* bindgroup){
+    wgpuRenderPassEncoderSetBindGroup((WGPURenderPassEncoder)drp->rpEncoder, group, (WGPUBindGroup)GetWGPUBindGroup(bindgroup), 0, nullptr);
+}
+void ComputePassSetBindGroup(DescribedComputepass* drp, uint32_t group, DescribedBindGroup* bindgroup){
+    wgpuComputePassEncoderSetBindGroup((WGPUComputePassEncoder)drp->cpEncoder, group, (WGPUBindGroup)GetWGPUBindGroup(bindgroup), 0, nullptr);
+}
+void RenderPassDraw        (DescribedRenderpass* drp, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance){
+    wgpuRenderPassEncoderDraw((WGPURenderPassEncoder)drp->rpEncoder, vertexCount, instanceCount, firstVertex, firstInstance);
+}
+void RenderPassDrawIndexed (DescribedRenderpass* drp, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t baseVertex, uint32_t firstInstance){
+    wgpuRenderPassEncoderDrawIndexed((WGPURenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
+}
+
+
 extern "C" void BindPipelineVertexArray(DescribedPipeline* pipeline, VertexArray* va){
     PreparePipeline(pipeline, va);
     // Iterate over each buffer
@@ -193,11 +216,10 @@ extern "C" void BindPipelineVertexArray(DescribedPipeline* pipeline, VertexArray
         if(shouldBind){
             auto& bufferPair = va->buffers[i];
             // Bind the buffer
-            wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 
+            RenderPassSetVertexBuffer(&g_wgpustate.rstate->renderpass, 
                                                 i, 
-                                                bufferPair.first->buffer, 
-                                                0, 
-                                                bufferPair.first->descriptor.size);
+                                                bufferPair.first, 
+                                                0);
         } else {
             TRACELOG(LOG_DEBUG, "Buffer slot %u not bound (no enabled attributes use it).", i);
         }
@@ -214,39 +236,37 @@ extern "C" void DisableVertexAttribArray(VertexArray* array, uint32_t attribLoca
 }
 extern "C" void DrawArrays(WGPUPrimitiveTopology drawMode, uint32_t vertexCount){
     BindPipeline(GetActivePipeline(), drawMode);
-    auto& rp = g_wgpustate.rstate->renderpass.rpEncoder;
+
     if(g_wgpustate.rstate->activePipeline->bindGroup.needsUpdate){
-        wgpuRenderPassEncoderSetBindGroup(g_wgpustate.rstate->activeRenderpass->rpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&g_wgpustate.rstate->activePipeline->bindGroup), 0, nullptr);
+        RenderPassSetBindGroup(g_wgpustate.rstate->activeRenderpass, 0, &g_wgpustate.rstate->activePipeline->bindGroup);
     }
-    wgpuRenderPassEncoderDraw(rp, vertexCount, 1, 0, 0);
+    RenderPassDraw(g_wgpustate.rstate->activeRenderpass, vertexCount, 1, 0, 0);
 }
 extern "C" void DrawArraysIndexed(WGPUPrimitiveTopology drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount){
     BindPipeline(GetActivePipeline(), drawMode);
     //PreparePipeline(GetActivePipeline(), VertexArray *va)
     //TRACELOG(LOG_INFO, "a oooo");
-    auto& rp = g_wgpustate.rstate->renderpass.rpEncoder;
+    //auto& rp = g_wgpustate.rstate->renderpass.rpEncoder;  
     if(g_wgpustate.rstate->activePipeline->bindGroup.needsUpdate){
-        wgpuRenderPassEncoderSetBindGroup(g_wgpustate.rstate->activeRenderpass->rpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&g_wgpustate.rstate->activePipeline->bindGroup), 0, nullptr);
+        RenderPassSetBindGroup(g_wgpustate.rstate->activeRenderpass, 0, &g_wgpustate.rstate->activePipeline->bindGroup);
     }
-    wgpuRenderPassEncoderSetIndexBuffer(rp, indexBuffer.buffer, WGPUIndexFormat_Uint32, 0, indexBuffer.descriptor.size);
-    wgpuRenderPassEncoderDrawIndexed(rp, vertexCount, 1, 0, 0, 0);
+    RenderPassSetIndexBuffer(g_wgpustate.rstate->activeRenderpass, &indexBuffer, WGPUIndexFormat_Uint32, 0);
+    RenderPassDrawIndexed(g_wgpustate.rstate->activeRenderpass, vertexCount, 1, 0, 0, 0);
 }
 extern "C" void DrawArraysIndexedInstanced(WGPUPrimitiveTopology drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount, uint32_t instanceCount){
     BindPipeline(GetActivePipeline(), drawMode);
-    auto& rp = g_wgpustate.rstate->renderpass.rpEncoder;
     if(g_wgpustate.rstate->activePipeline->bindGroup.needsUpdate){
-        wgpuRenderPassEncoderSetBindGroup(g_wgpustate.rstate->activeRenderpass->rpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&g_wgpustate.rstate->activePipeline->bindGroup), 0, nullptr);
+        RenderPassSetBindGroup(g_wgpustate.rstate->activeRenderpass, 0, &g_wgpustate.rstate->activePipeline->bindGroup);
     }
-    wgpuRenderPassEncoderSetIndexBuffer(rp, indexBuffer.buffer, WGPUIndexFormat_Uint32, 0, indexBuffer.descriptor.size);
-    wgpuRenderPassEncoderDrawIndexed(rp, vertexCount, instanceCount, 0, 0, 0);
+    RenderPassSetIndexBuffer(g_wgpustate.rstate->activeRenderpass, &indexBuffer, WGPUIndexFormat_Uint32, 0);
+    RenderPassDrawIndexed(g_wgpustate.rstate->activeRenderpass, vertexCount, instanceCount, 0, 0, 0);
 }
 extern "C" void DrawArraysInstanced(WGPUPrimitiveTopology drawMode, uint32_t vertexCount, uint32_t instanceCount){
     BindPipeline(GetActivePipeline(), drawMode);
-    auto& rp = g_wgpustate.rstate->renderpass.rpEncoder;
     if(g_wgpustate.rstate->activePipeline->bindGroup.needsUpdate){
-        wgpuRenderPassEncoderSetBindGroup(g_wgpustate.rstate->activeRenderpass->rpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&g_wgpustate.rstate->activePipeline->bindGroup), 0, nullptr);
+        RenderPassSetBindGroup(g_wgpustate.rstate->activeRenderpass, 0, &g_wgpustate.rstate->activePipeline->bindGroup);
     }
-    wgpuRenderPassEncoderDraw(rp, vertexCount, instanceCount, 0, 0);
+    RenderPassDraw(g_wgpustate.rstate->activeRenderpass, vertexCount, instanceCount, 0, 0);
 }
 WGPUInstance GetInstance(){
     return g_wgpustate.instance.Get();
@@ -297,7 +317,7 @@ void drawCurrentBatch(){
         allocated_via_pool = true;
         vbo = g_wgpustate.smallBufferPool.back();
         g_wgpustate.smallBufferPool.pop_back();
-        wgpuQueueWriteBuffer(GetQueue(), vbo->buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
+        wgpuQueueWriteBuffer(GetQueue(), (WGPUBuffer)vbo->buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
     }
     else{
         vbo = GenBuffer(vboptr_base, vertexCount * sizeof(vertex));
@@ -348,7 +368,7 @@ void drawCurrentBatch(){
         case RL_QUADS:{
             const size_t quadCount = vertexCount / 4;
             
-            if(g_wgpustate.quadindicesCache->descriptor.size < 6 * quadCount * sizeof(uint32_t)){
+            if(g_wgpustate.quadindicesCache->size < 6 * quadCount * sizeof(uint32_t)){
                 std::vector<uint32_t> indices(6 * quadCount);
                 for(size_t i = 0;i < quadCount;i++){
                     indices[i * 6 + 0] = (i * 4 + 0);
@@ -420,7 +440,7 @@ WGPUBuffer GetMatrixBuffer(){
 void adaptRenderPass(DescribedRenderpass* drp, RenderSettings settings){
     drp->settings = settings;
     //drp->renderPassDesc.colorAttachments = settings.depthTest ? drp->rca : nullptr;
-    drp->renderPassDesc.depthStencilAttachment = settings.depthTest ? drp->dsa : nullptr;
+    //drp->renderPassDesc.depthStencilAttachment = settings.depthTest ? drp->dsa : nullptr;
 }
 extern "C" void BeginPipelineMode(DescribedPipeline* pipeline){
     drawCurrentBatch();
@@ -480,31 +500,31 @@ extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology 
     switch(drawMode){
         case WGPUPrimitiveTopology_TriangleList:
         //std::cout << "Binding: " <<  pipeline->pipeline << "\n";
-        wgpuRenderPassEncoderSetPipeline (g_wgpustate.rstate->renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleList);
+        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_wgpustate.rstate->renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleList);
         break;
         case WGPUPrimitiveTopology_TriangleStrip:
-        wgpuRenderPassEncoderSetPipeline (g_wgpustate.rstate->renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleStrip);
+        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_wgpustate.rstate->renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleStrip);
         break;
         case WGPUPrimitiveTopology_LineList:
-        wgpuRenderPassEncoderSetPipeline (g_wgpustate.rstate->renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_LineList);
+        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_wgpustate.rstate->renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_LineList);
         break;
         case WGPUPrimitiveTopology_PointList:
-        wgpuRenderPassEncoderSetPipeline (g_wgpustate.rstate->renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_PointList);
+        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_wgpustate.rstate->renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_PointList);
         break;
         default:
             assert(false && "Unsupported Drawmode");
             abort();
     }
     //pipeline->lastUsedAs = drawMode;
-    wgpuRenderPassEncoderSetBindGroup (g_wgpustate.rstate->renderpass.rpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
+    wgpuRenderPassEncoderSetBindGroup ((WGPURenderPassEncoder)g_wgpustate.rstate->renderpass.rpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
 
 }
 extern "C" void BindComputePipeline(DescribedComputePipeline* pipeline){
-    wgpuComputePassEncoderSetPipeline (g_wgpustate.rstate->computepass.cpEncoder, pipeline->pipeline);
-    wgpuComputePassEncoderSetBindGroup(g_wgpustate.rstate->computepass.cpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
+    wgpuComputePassEncoderSetPipeline ((WGPUComputePassEncoder)g_wgpustate.rstate->computepass.cpEncoder, (WGPUComputePipeline)pipeline->pipeline);
+    wgpuComputePassEncoderSetBindGroup((WGPUComputePassEncoder)g_wgpustate.rstate->computepass.cpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
 }
 extern "C" void CopyBufferToBuffer(DescribedBuffer* source, DescribedBuffer* dest, size_t count){
-    wgpuCommandEncoderCopyBufferToBuffer(g_wgpustate.rstate->computepass.cmdEncoder, source->buffer, 0, dest->buffer, 0, count);
+    wgpuCommandEncoderCopyBufferToBuffer((WGPUCommandEncoder)g_wgpustate.rstate->computepass.cmdEncoder, (WGPUBuffer)source->buffer, 0, (WGPUBuffer)dest->buffer, 0, count);
 }
 WGPUBuffer intermediary = 0;
 extern "C" void CopyTextureToTexture(Texture source, Texture dest){
@@ -521,7 +541,7 @@ extern "C" void CopyTextureToTexture(Texture source, Texture dest){
     }
     
     WGPUImageCopyTexture src zeroinit;
-    src.texture = source.id;
+    src.texture = (WGPUTexture)source.id;
     src.aspect = WGPUTextureAspect_All;
     src.mipLevel = 0;
     src.origin = WGPUOrigin3D{0, 0, 0};
@@ -533,7 +553,7 @@ extern "C" void CopyTextureToTexture(Texture source, Texture dest){
     bdst.layout.offset = 0;
 
     WGPUImageCopyTexture tdst zeroinit;
-    tdst.texture = dest.id;
+    tdst.texture = (WGPUTexture)dest.id;
     tdst.aspect = WGPUTextureAspect_All;
     tdst.mipLevel = 0;
     tdst.origin = WGPUOrigin3D{0, 0, 0};
@@ -543,8 +563,8 @@ extern "C" void CopyTextureToTexture(Texture source, Texture dest){
     copySize.height = source.height;
     copySize.depthOrArrayLayers = 1;
     
-    wgpuCommandEncoderCopyTextureToBuffer(g_wgpustate.rstate->computepass.cmdEncoder, &src, &bdst, &copySize);
-    wgpuCommandEncoderCopyBufferToTexture(g_wgpustate.rstate->computepass.cmdEncoder, &bdst, &tdst, &copySize);
+    wgpuCommandEncoderCopyTextureToBuffer((WGPUCommandEncoder)g_wgpustate.rstate->computepass.cmdEncoder, &src, &bdst, &copySize);
+    wgpuCommandEncoderCopyBufferToTexture((WGPUCommandEncoder)g_wgpustate.rstate->computepass.cmdEncoder, &bdst, &tdst, &copySize);
     
     //Doesnt work unfortunately:
     //wgpuCommandEncoderCopyTextureToTexture(g_wgpustate.rstate->computepass.cmdEncoder, &src, &dst, &copySize);
@@ -563,31 +583,62 @@ void BeginRenderpassEx(DescribedRenderpass* renderPass){
     desc.label = STRVIEW("another cmdencoder");
     
     renderPass->cmdEncoder = wgpuDeviceCreateCommandEncoder(GetDevice(), &desc);
+
+    WGPURenderPassDescriptor renderPassDesc zeroinit;
+    renderPassDesc.colorAttachmentCount = 1;
+    
+    WGPURenderPassColorAttachment colorAttachment zeroinit;
+    WGPURenderPassDepthStencilAttachment depthAttachment zeroinit;
     if(g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].colorMultisample.view){
-        renderPass->rca->view = g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].colorMultisample.view;
-        renderPass->rca->resolveTarget = g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.view;
+        colorAttachment.view = (WGPUTextureView)g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].colorMultisample.view;
+        colorAttachment.resolveTarget = (WGPUTextureView)g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.view;
     }
     else{
-        renderPass->rca->view = g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.view;
-        renderPass->rca->resolveTarget = nullptr;
+        colorAttachment.view = (WGPUTextureView)g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.view;
+        colorAttachment.resolveTarget = nullptr;
     }
-    renderPass->dsa->view = g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].depth.view;
-    renderPass->rpEncoder = wgpuCommandEncoderBeginRenderPass(renderPass->cmdEncoder, &renderPass->renderPassDesc);
+
+
+    
+    colorAttachment.loadOp  = (WGPULoadOp)renderPass->colorLoadOp;
+    colorAttachment.storeOp = (WGPUStoreOp)renderPass->colorStoreOp;
+    colorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+    colorAttachment.clearValue = WGPUColor{
+        renderPass->colorClear.r,
+        renderPass->colorClear.g,
+        renderPass->colorClear.b,
+        renderPass->colorClear.a,
+    };
+
+    depthAttachment.view = (WGPUTextureView)g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].depth.view;
+    depthAttachment.depthLoadOp  = (WGPULoadOp)renderPass->depthLoadOp;
+    depthAttachment.depthStoreOp = (WGPUStoreOp)renderPass->depthStoreOp;
+    depthAttachment.depthClearValue = 1.0f;
+    depthAttachment.depthReadOnly = false;
+    depthAttachment.stencilLoadOp = WGPULoadOp_Undefined;
+    depthAttachment.stencilStoreOp = WGPUStoreOp_Undefined;
+
+    renderPassDesc.colorAttachmentCount = 1;
+    renderPassDesc.colorAttachments = &colorAttachment;
+    renderPassDesc.depthStencilAttachment = &depthAttachment;
+    
+    
+    renderPass->rpEncoder = wgpuCommandEncoderBeginRenderPass((WGPUCommandEncoder)renderPass->cmdEncoder, &renderPassDesc);
     g_wgpustate.rstate->activeRenderpass = renderPass;
 }
 
 void EndRenderpassEx(DescribedRenderpass* renderPass){
     drawCurrentBatch();
-    wgpuRenderPassEncoderEnd(renderPass->rpEncoder);
+    wgpuRenderPassEncoderEnd((WGPURenderPassEncoder)renderPass->rpEncoder);
     g_wgpustate.rstate->activeRenderpass = nullptr;
     auto re = renderPass->rpEncoder;
     renderPass->rpEncoder = 0;
     WGPUCommandBufferDescriptor cmdBufferDescriptor{};
     cmdBufferDescriptor.label = STRVIEW("CB");
-    WGPUCommandBuffer command = wgpuCommandEncoderFinish(renderPass->cmdEncoder, &cmdBufferDescriptor);
-    wgpuQueueSubmit(GetQueue(), 1, &command);
-    wgpuRenderPassEncoderRelease(re);
-    wgpuCommandEncoderRelease(renderPass->cmdEncoder);
+    WGPUCommandBuffer command = wgpuCommandEncoderFinish((WGPUCommandEncoder)renderPass->cmdEncoder, &cmdBufferDescriptor);
+    wgpuQueueSubmit((WGPUQueue)GetQueue(), 1, &command);
+    wgpuRenderPassEncoderRelease((WGPURenderPassEncoder)re);
+    wgpuCommandEncoderRelease((WGPUCommandEncoder)renderPass->cmdEncoder);
     wgpuCommandBufferRelease(command);
 }
 void BeginRenderpass(cwoid){
@@ -602,7 +653,7 @@ extern "C" void ClearBackground(Color clearColor){
     if(rpActive){
         EndRenderpassEx(g_wgpustate.rstate->activeRenderpass);
     }
-    g_wgpustate.rstate->clearPass.rca->clearValue = WGPUColor{clearColor.r / 255.0, clearColor.g / 255.0, clearColor.b / 255.0, clearColor.a / 255.0};
+    g_wgpustate.rstate->clearPass.colorClear = DColor{clearColor.r / 255.0, clearColor.g / 255.0, clearColor.b / 255.0, clearColor.a / 255.0};
     BeginRenderpassEx(&g_wgpustate.rstate->clearPass);
     EndRenderpassEx(&g_wgpustate.rstate->clearPass);
     if(rpActive){
@@ -614,10 +665,10 @@ void BeginComputepass(){
     BeginComputepassEx(&g_wgpustate.rstate->computepass);
 }
 void DispatchCompute(uint32_t x, uint32_t y, uint32_t z){
-    wgpuComputePassEncoderDispatchWorkgroups(g_wgpustate.rstate->computepass.cpEncoder, x, y, z);
+    wgpuComputePassEncoderDispatchWorkgroups((WGPUComputePassEncoder)g_wgpustate.rstate->computepass.cpEncoder, x, y, z);
 }
 void ComputepassEndOnlyComputing(cwoid){
-    wgpuComputePassEncoderEnd(g_wgpustate.rstate->computepass.cpEncoder);
+    wgpuComputePassEncoderEnd((WGPUComputePassEncoder)g_wgpustate.rstate->computepass.cpEncoder);
     g_wgpustate.rstate->computepass.cpEncoder = nullptr;
 }
 void EndComputepass(){
@@ -625,12 +676,14 @@ void EndComputepass(){
 }
 void BeginComputepassEx(DescribedComputepass* computePass){
     computePass->cmdEncoder = wgpuDeviceCreateCommandEncoder(GetDevice(), nullptr);
-    g_wgpustate.rstate->computepass.cpEncoder = wgpuCommandEncoderBeginComputePass(g_wgpustate.rstate->computepass.cmdEncoder, &g_wgpustate.rstate->computepass.desc);
+    WGPUComputePassDescriptor desc{};
+    desc.label = STRVIEW("ComputePass");
+    g_wgpustate.rstate->computepass.cpEncoder = wgpuCommandEncoderBeginComputePass((WGPUCommandEncoder)g_wgpustate.rstate->computepass.cmdEncoder, &desc);
 
 }
 void EndComputepassEx(DescribedComputepass* computePass){
     if(computePass->cpEncoder){
-        wgpuComputePassEncoderEnd(computePass->cpEncoder);
+        wgpuComputePassEncoderEnd((WGPUComputePassEncoder)computePass->cpEncoder);
         computePass->cpEncoder = 0;
     }
     
@@ -639,10 +692,10 @@ void EndComputepassEx(DescribedComputepass* computePass){
 
     WGPUCommandBufferDescriptor cmdBufferDescriptor{};
     cmdBufferDescriptor.label = STRVIEW("CB");
-    WGPUCommandBuffer command = wgpuCommandEncoderFinish(computePass->cmdEncoder, &cmdBufferDescriptor);
+    WGPUCommandBuffer command = wgpuCommandEncoderFinish((WGPUCommandEncoder)computePass->cmdEncoder, &cmdBufferDescriptor);
     wgpuQueueSubmit(GetQueue(), 1, &command);
     wgpuCommandBufferRelease(command);
-    wgpuCommandEncoderRelease(computePass->cmdEncoder);
+    wgpuCommandEncoderRelease((WGPUCommandEncoder)computePass->cmdEncoder);
 }
 #ifdef __EMSCRIPTEN__
 typedef void (*FrameCallback)(void);
@@ -756,7 +809,7 @@ void EndDrawing(){
         EndRenderpassEx(g_wgpustate.rstate->activeRenderpass);
     }
     if(g_wgpustate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
-        Image img = LoadImageFromTextureEx(GetActiveColorTarget(), 0);
+        Image img = LoadImageFromTextureEx((WGPUTexture)GetActiveColorTarget(), 0);
         if (img.format != BGRA8 && img.format != RGBA8) {
             // Handle unsupported formats or convert as necessary
             fprintf(stderr, "Unsupported pixel format for FFmpeg export.\n");
@@ -770,7 +823,7 @@ void EndDrawing(){
         size_t totalSize = img.rowStrideInBytes * img.height;
 
         // Write the image data to stdout (FFmpeg should be reading from stdin)
-        size_t fmtsize = GetPixelSizeInBytes((WGPUTextureFormat)img.format);
+        size_t fmtsize = GetPixelSizeInBytes(img.format);
         char offset[1];
         //fwrite(offset, 1, 1, stdout);
         for(size_t i = 0;i < img.height;i++){
@@ -790,8 +843,8 @@ void EndDrawing(){
     if(g_wgpustate.grst->recording){
         uint64_t stmp = NanoTime();
         if(stmp - g_wgpustate.grst->lastFrameTimestamp > g_wgpustate.grst->delayInCentiseconds * 10000000ull){
-            g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.format = g_wgpustate.frameBufferFormat;
-            Texture fbCopy = LoadTextureEx(g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.width, g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.height, g_wgpustate.frameBufferFormat, false);
+            g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.format = (PixelFormat)g_wgpustate.frameBufferFormat;
+            Texture fbCopy = LoadTextureEx(g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.width, g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.height, (PixelFormat)g_wgpustate.frameBufferFormat, false);
             BeginComputepass();
             ComputepassEndOnlyComputing();
             CopyTextureToTexture(g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture, fbCopy);
@@ -800,7 +853,7 @@ void EndDrawing(){
             int recordingTextX = GetScreenWidth() - MeasureText("Recording", 30);
             DrawText("Recording", recordingTextX, 5, 30, Color{255,40,40,255});
             EndRenderpass();
-            addScreenshot(g_wgpustate.grst, fbCopy.id);
+            addScreenshot(g_wgpustate.grst, (WGPUTexture)fbCopy.id);
             UnloadTexture(fbCopy);
             g_wgpustate.grst->lastFrameTimestamp = stmp;
         }
@@ -904,7 +957,7 @@ uint32_t RoundUpToNextMultipleOf16(uint32_t x) {
 
 Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t miplevel){
     
-    size_t formatSize = GetPixelSizeInBytes(wgpuTextureGetFormat(tex));
+    size_t formatSize = GetPixelSizeInBytes((PixelFormat)wgpuTextureGetFormat(tex));
     uint32_t width = wgpuTextureGetWidth(tex);
     uint32_t height = wgpuTextureGetHeight(tex);
     Image ret {
@@ -1046,7 +1099,7 @@ void FormatImage_Impl(const Image& source, Image& dest){
     }
 }
 void ImageFormat(Image* img, PixelFormat newFormat){
-    uint32_t psize = GetPixelSizeInBytes((WGPUTextureFormat)newFormat);
+    uint32_t psize = GetPixelSizeInBytes(newFormat);
     Image newimg zeroinit;
     newimg.format = newFormat;
     newimg.width = img->width;
@@ -1084,14 +1137,14 @@ void UnloadImageColors(Color* cols){
 Image LoadImageFromTexture(Texture tex){
     //#ifndef __EMSCRIPTEN__
     //auto& device = g_wgpustate.device;
-    return LoadImageFromTextureEx(tex.id, 0);
+    return LoadImageFromTextureEx((WGPUTexture)tex.id, 0);
     //#else
     //std::cerr << "LoadImageFromTexture not supported on web\n";
     //return Image{};
     //#endif
 }
 void TakeScreenshot(const char* filename){
-    Image img = LoadImageFromTextureEx(g_wgpustate.mainWindowRenderTarget.texture.id, 0);
+    Image img = LoadImageFromTextureEx((WGPUTexture)g_wgpustate.mainWindowRenderTarget.texture.id, 0);
     SaveImage(img, filename);
     UnloadImage(img);
 }
@@ -1132,7 +1185,7 @@ Texture LoadTextureFromImage(Image img){
     vdesc.mipLevelCount = 1;
         
     WGPUImageCopyTexture destination{};
-    destination.texture = ret.id;
+    destination.texture = (WGPUTexture)ret.id;
     destination.mipLevel = 0;
     destination.origin = { 0, 0, 0 }; // equivalent of the offset argument of Queue::writeBuffer
     destination.aspect = WGPUTextureAspect_All; // only relevant for depth/Stencil textures
@@ -1142,7 +1195,7 @@ Texture LoadTextureFromImage(Image img){
     source.rowsPerImage = img.height;
     //wgpuQueueWriteTexture()
     wgpuQueueWriteTexture(GetQueue(), &destination, altdata ? altdata : img.data, 4 * img.width * img.height, &source, &desc.size);
-    ret.view = wgpuTextureCreateView(ret.id, &vdesc);
+    ret.view = wgpuTextureCreateView((WGPUTexture)ret.id, &vdesc);
     ret.width = img.width;
     ret.height = img.height;
     if(altdata)free(altdata);
@@ -1251,10 +1304,10 @@ void DrawFPS(int posX, int posY){
 #endif
     return wgpuDeviceCreateShaderModule(GetDevice(), &shaderDesc);
 }*/
-Texture3D LoadTexture3DEx(uint32_t width, uint32_t height, uint32_t depth, WGPUTextureFormat format){
+extern "C" Texture3D LoadTexture3DEx(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format){
     return LoadTexture3DPro(width, height, depth, format, WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_StorageBinding, 1);
 }
-Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, WGPUTextureFormat format, WGPUTextureUsage usage, uint32_t sampleCount){
+extern "C" Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format, WGPUTextureUsage usage, uint32_t sampleCount){
     Texture3D ret zeroinit;
     ret.width = width;
     ret.height = height;
@@ -1267,7 +1320,7 @@ Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, WGPU
     tDesc.size = {width, height, depth};
     tDesc.mipLevelCount = 1;
     tDesc.sampleCount = sampleCount;
-    tDesc.format = format;
+    tDesc.format = (WGPUTextureFormat)format;
     tDesc.usage  = usage;
     tDesc.viewFormatCount = 1;
     tDesc.viewFormats = &tDesc.format;
@@ -1282,7 +1335,7 @@ Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, WGPU
     textureViewDesc.format = tDesc.format;
 
     ret.id = wgpuDeviceCreateTexture(GetDevice(), &tDesc);
-    ret.view = wgpuTextureCreateView(ret.id, &textureViewDesc);
+    ret.view = wgpuTextureCreateView((WGPUTexture)ret.id, &textureViewDesc);
     
     return ret;
 }
@@ -1308,37 +1361,37 @@ void GenTextureMipmaps(Texture2D* tex){
     BeginComputepass();
     
     for(int i = 0;i < tex->mipmaps - 1;i++){
-        SetBindgroupTextureView(&cpl->bindGroup, 0, tex->mipViews[i    ]);
-        SetBindgroupTextureView(&cpl->bindGroup, 1, tex->mipViews[i + 1]);
+        SetBindgroupTextureView(&cpl->bindGroup, 0, (WGPUTextureView)tex->mipViews[i    ]);
+        SetBindgroupTextureView(&cpl->bindGroup, 1, (WGPUTextureView)tex->mipViews[i + 1]);
         if(i == 0){
             BindComputePipeline(cpl);
         }
-        wgpuComputePassEncoderSetBindGroup (g_wgpustate.rstate->computepass.cpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&cpl->bindGroup), 0, 0);
+        ComputePassSetBindGroup(&g_wgpustate.rstate->computepass, 0, &cpl->bindGroup);
         uint32_t divisor = (1 << i) * 8;
         DispatchCompute((tex->width + divisor - 1) & -(divisor) / 8, (tex->height + divisor - 1) & -(divisor) / 8, 1);
     }
     EndComputepass();
 }
-Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage, uint32_t sampleCount, uint32_t mipmaps){
+extern "C" Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat format, WGPUTextureUsage usage, uint32_t sampleCount, uint32_t mipmaps){
     WGPUTextureDescriptor tDesc{};
     tDesc.dimension = WGPUTextureDimension_2D;
     tDesc.size = {width, height, 1u};
     tDesc.mipLevelCount = mipmaps;
     tDesc.sampleCount = sampleCount;
-    tDesc.format = format;
+    tDesc.format = (WGPUTextureFormat)format;
     tDesc.usage  = usage;
     tDesc.viewFormatCount = 1;
     tDesc.viewFormats = &tDesc.format;
 
     WGPUTextureViewDescriptor textureViewDesc{};
     char potlabel[128]; 
-    if(format == WGPUTextureFormat_Depth24Plus){
+    if(format == Depth24){
         int len = snprintf(potlabel, 128, "Depftex %d x %d", width, height);
         textureViewDesc.label.data = potlabel;
         textureViewDesc.label.length = len;
     }
     textureViewDesc.usage = usage;
-    textureViewDesc.aspect = ((format == WGPUTextureFormat_Depth24Plus) ? WGPUTextureAspect_DepthOnly : WGPUTextureAspect_All);
+    textureViewDesc.aspect = ((format == Depth24) ? WGPUTextureAspect_DepthOnly : WGPUTextureAspect_All);
     textureViewDesc.baseArrayLayer = 0;
     textureViewDesc.arrayLayerCount = 1;
     textureViewDesc.baseMipLevel = 0;
@@ -1347,7 +1400,7 @@ Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format
     textureViewDesc.format = tDesc.format;
     Texture ret zeroinit;
     ret.id = wgpuDeviceCreateTexture(GetDevice(), &tDesc);
-    ret.view = wgpuTextureCreateView(ret.id, &textureViewDesc);
+    ret.view = wgpuTextureCreateView((WGPUTexture)ret.id, &textureViewDesc);
     ret.format = format;
     ret.width = width;
     ret.height = height;
@@ -1357,12 +1410,12 @@ Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format
         for(uint32_t i = 0;i < mipmaps;i++){
             textureViewDesc.baseMipLevel = i;
             textureViewDesc.mipLevelCount = 1;
-            ret.mipViews[i] = wgpuTextureCreateView(ret.id, &textureViewDesc);
+            ret.mipViews[i] = wgpuTextureCreateView((WGPUTexture)ret.id, &textureViewDesc);
         }
     }
     return ret;
 }
-Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format, bool to_be_used_as_rendertarget){
+extern "C" Texture LoadTextureEx(uint32_t width, uint32_t height, PixelFormat format, bool to_be_used_as_rendertarget){
     return LoadTexturePro(width, height, format, (WGPUTextureUsage_RenderAttachment * to_be_used_as_rendertarget) | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 1, 1);
 }
 Texture LoadTexture(const char* filename){
@@ -1372,17 +1425,17 @@ Texture LoadTexture(const char* filename){
     return tex;
 }
 Texture LoadBlankTexture(uint32_t width, uint32_t height){
-    return LoadTextureEx(width, height, WGPUTextureFormat_RGBA8Unorm, true);
+    return LoadTextureEx(width, height, RGBA8, true);
 }
 
 Texture LoadDepthTexture(uint32_t width, uint32_t height){
-    return LoadTextureEx(width, height, WGPUTextureFormat_Depth24Plus, true);
+    return LoadTextureEx(width, height, Depth24, true);
 }
-RenderTexture LoadRenderTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat colorFormat, uint32_t sampleCount){
+RenderTexture LoadRenderTextureEx(uint32_t width, uint32_t height, PixelFormat colorFormat, uint32_t sampleCount){
     RenderTexture ret{
         .texture = LoadTextureEx(width, height, colorFormat, true),
         .colorMultisample = Texture{}, 
-        .depth = LoadTexturePro(width, height, WGPUTextureFormat_Depth24Plus, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, sampleCount, 1)
+        .depth = LoadTexturePro(width, height, Depth24, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, sampleCount, 1)
     };
     if(sampleCount > 1){
         ret.colorMultisample = LoadTexturePro(width, height, colorFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, sampleCount, 1);
@@ -1391,18 +1444,18 @@ RenderTexture LoadRenderTextureEx(uint32_t width, uint32_t height, WGPUTextureFo
 }
 RenderTexture LoadRenderTexture(uint32_t width, uint32_t height){
     RenderTexture ret{
-        .texture = LoadTextureEx(width, height, g_wgpustate.frameBufferFormat, true),
+        .texture = LoadTextureEx(width, height, (PixelFormat)g_wgpustate.frameBufferFormat, true),
         .colorMultisample = Texture{}, 
-        .depth = LoadTexturePro(width, height, WGPUTextureFormat_Depth24Plus, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1, 1)
+        .depth = LoadTexturePro(width, height, Depth24, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1, 1)
     };
     if(g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT){
-        ret.colorMultisample = LoadTexturePro(width, height, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4, 1);
+        ret.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4, 1);
     }
     return ret;
 }
 void UpdateTexture(Texture tex, void* data){
     WGPUImageCopyTexture destination{};
-    destination.texture = tex.id;
+    destination.texture = (WGPUTexture)tex.id;
     destination.aspect = WGPUTextureAspect_All;
     destination.mipLevel = 0;
     destination.origin = WGPUOrigin3D{0,0,0};
@@ -1449,27 +1502,26 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     //settings.depthCompare = WGPUCompareFunction_LessEqual;
     //settings.optionalDepthTexture = d;
     //settings.sampleCount = (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
-    state->computepass = DescribedComputepass{};
+    //state->computepass = DescribedComputepass{};
     state->renderpass = LoadRenderpassEx(c, d, settings);
-    state->renderpass.renderPassDesc.label = STRVIEW("g_wgpustate::render_pass");
+    //state->renderpass.renderPassDesc.label = STRVIEW("g_wgpustate::render_pass");
     state->clearPass = LoadRenderpassEx(c, d, settings);
-    state->clearPass.renderPassDesc.label = STRVIEW("g_wgpustate::clear_pass");
-    if(state->clearPass.dsa){
-        state->clearPass.dsa->depthClearValue = 1.0;
-        state->clearPass.dsa->depthLoadOp = WGPULoadOp_Clear;
-        state->clearPass.dsa->depthStoreOp = WGPUStoreOp_Store;
-    }
-
-    state->clearPass.rca->clearValue = WGPUColor{1.0, 0.4, 0.2, 1.0};
-    state->clearPass.rca->loadOp = WGPULoadOp_Clear;
-    state->clearPass.rca->storeOp = WGPUStoreOp_Store;
-    state->activeRenderpass = nullptr;
-
+    //state->clearPass.renderPassDesc.label = STRVIEW("g_wgpustate::clear_pass");
+    //if(state->clearPass.dsa){
+    //state->clearPass.depthClearValue = 1.0;
+    state->clearPass.colorLoadOp  = LoadOp_Clear;
+    state->clearPass.colorStoreOp = StoreOp_Store;
+    state->clearPass.depthLoadOp  = LoadOp_Clear;
+    state->clearPass.depthStoreOp = StoreOp_Store;
+    //}
+    //state->clearPass.rca->clearValue = WGPUColor{1.0, 0.4, 0.2, 1.0};
+    //state->clearPass.rca->loadOp = WGPULoadOp_Clear;
+    //state->clearPass.rca->storeOp = WGPUStoreOp_Store;
+    //state->activeRenderpass = nullptr;
     state->defaultPipeline = LoadPipelineEx(shaderSource, attribs, attribCount, uniforms, uniform_count, settings);
-    
     state->activePipeline = state->defaultPipeline;
     g_wgpustate.quadindicesCache = callocnew(DescribedBuffer);    //WGPUBufferDescriptor vbmdesc{};
-    g_wgpustate.quadindicesCache->descriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
+    g_wgpustate.quadindicesCache->usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
     //vbmdesc.mappedAtCreation = true;
     //vbmdesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_MapWrite;
     //vbmdesc.size = (1 << 22) * sizeof(vertex);
@@ -1584,14 +1636,14 @@ void SetBindgroupUniformBuffer (DescribedBindGroup* bg, uint32_t index, Describe
     ResourceDescriptor entry{};
     entry.binding = index;
     entry.buffer = buffer->buffer;
-    entry.size = buffer->descriptor.size;
+    entry.size = buffer->size;
     UpdateBindGroupEntry(bg, index, entry);
 }
 void SetBindgroupStorageBuffer (DescribedBindGroup* bg, uint32_t index, DescribedBuffer* buffer){
     ResourceDescriptor entry{};
     entry.binding = index;
     entry.buffer = buffer->buffer;
-    entry.size = buffer->descriptor.size;
+    entry.size = buffer->size;
     UpdateBindGroupEntry(bg, index, entry);
 }
 void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size){
@@ -1682,33 +1734,42 @@ extern "C" void SetPipelineSampler(DescribedPipeline* pl, uint32_t index, Descri
 }
 
 void ResizeBuffer(DescribedBuffer* buffer, size_t newSize){
-    if(newSize == buffer->descriptor.size)return;
+    if(newSize == buffer->size)return;
 
     DescribedBuffer newbuffer{};
-    newbuffer.descriptor = buffer->descriptor;
-    newbuffer.descriptor.size = newSize;
-    
-    newbuffer.buffer = wgpuDeviceCreateBuffer(GetDevice(), &newbuffer.descriptor);
-    wgpuBufferRelease(buffer->buffer);
+    newbuffer.usage = buffer->usage;
+    newbuffer.size = newSize;
+    WGPUBufferDescriptor desc zeroinit;
+    desc.usage = newbuffer.usage;
+    desc.size = newbuffer.size;
+    desc.mappedAtCreation = false;
+
+    newbuffer.buffer = wgpuDeviceCreateBuffer(GetDevice(), &desc);
+    wgpuBufferRelease((WGPUBuffer)buffer->buffer);
     *buffer = newbuffer;
 }
 void ResizeBufferAndConserve(DescribedBuffer* buffer, size_t newSize){
-    if(newSize == buffer->descriptor.size)return;
+    if(newSize == buffer->size)return;
 
-    size_t smaller = std::min<uint32_t>(newSize, buffer->descriptor.size);
+    size_t smaller = std::min<uint32_t>(newSize, buffer->size);
     DescribedBuffer newbuffer{};
-    newbuffer.descriptor = buffer->descriptor;
-    newbuffer.descriptor.size = newSize;
-    newbuffer.buffer = wgpuDeviceCreateBuffer(GetDevice(), &newbuffer.descriptor);
+
+    newbuffer.usage = buffer->usage;
+    newbuffer.size = newSize;
+    WGPUBufferDescriptor desc zeroinit;
+    desc.usage = newbuffer.usage;
+    desc.size = newbuffer.size;
+    desc.mappedAtCreation = false;
+    newbuffer.buffer = wgpuDeviceCreateBuffer(GetDevice(), &desc);
     WGPUCommandEncoderDescriptor edesc{};
     WGPUCommandBufferDescriptor bdesc{};
     auto enc = wgpuDeviceCreateCommandEncoder(GetDevice(), &edesc);
-    wgpuCommandEncoderCopyBufferToBuffer(enc, buffer->buffer, 0, newbuffer.buffer, 0, smaller);
+    wgpuCommandEncoderCopyBufferToBuffer(enc, (WGPUBuffer)buffer->buffer, 0, (WGPUBuffer)newbuffer.buffer, 0, smaller);
     auto buf = wgpuCommandEncoderFinish(enc, &bdesc);
     wgpuQueueSubmit(GetQueue(), 1, &buf);
     wgpuCommandEncoderRelease(enc);
     wgpuCommandBufferRelease(buf);
-    wgpuBufferRelease(buffer->buffer);
+    wgpuBufferRelease((WGPUBuffer)buffer->buffer);
     *buffer = newbuffer;
 }
 
@@ -1739,28 +1800,34 @@ WGPURenderPassDepthStencilAttachment* defaultDSA(WGPUTextureView depth){
 }
 extern "C" DescribedRenderpass LoadRenderpassEx(WGPUTextureView color, WGPUTextureView depth, RenderSettings settings){
     DescribedRenderpass ret{};
-    ret.settings = settings;
-    ret.renderPassDesc = WGPURenderPassDescriptor{};
-    ret.rca = (WGPURenderPassColorAttachment*)calloc(1, sizeof(WGPURenderPassColorAttachment));
-    ret.rca->view = color;
-    ret.rca->depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
-    #ifdef __EMSCRIPTEN__
-    ret.rca->depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
-    #endif
-    //std::cout << rca.depthSlice << "\n";
-    ret.rca->resolveTarget = nullptr;
-    ret.rca->loadOp =  WGPULoadOp_Load;
-    ret.rca->storeOp = WGPUStoreOp_Store;
-    ret.rca->clearValue = WGPUColor{ 0.01, 0.01, 0.2, 1.0 };
-    ret.renderPassDesc.colorAttachmentCount = 1;
-    ret.renderPassDesc.colorAttachments = ret.rca;
-    // We now add a depth/stencil attachment, if desired:
-    ret.dsa = nullptr;
-    if(settings.depthTest){
-        ret.dsa = defaultDSA(depth);
-    }
-    ret.renderPassDesc.depthStencilAttachment = ret.dsa;
-    ret.renderPassDesc.timestampWrites = nullptr;
+    
+    ret.colorClear = DColor{0,0,0,0};
+    ret.colorLoadOp = LoadOp_Load;
+    ret.colorStoreOp = StoreOp_Store;
+    ret.depthLoadOp = LoadOp_Load;
+    ret.depthStoreOp = StoreOp_Store;
+    //ret.settings = settings;
+    //ret.renderPassDesc = WGPURenderPassDescriptor{};
+    //ret.rca = (WGPURenderPassColorAttachment*)calloc(1, sizeof(WGPURenderPassColorAttachment));
+    //ret.rca->view = color;
+    //ret.rca->depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+    //#ifdef __EMSCRIPTEN__
+    //ret.rca->depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+    //#endif
+    ////std::cout << rca.depthSlice << "\n";
+    //ret.rca->resolveTarget = nullptr;
+    //ret.rca->loadOp =  WGPULoadOp_Load;
+    //ret.rca->storeOp = WGPUStoreOp_Store;
+    //ret.rca->clearValue = WGPUColor{ 0.01, 0.01, 0.2, 1.0 };
+    //ret.renderPassDesc.colorAttachmentCount = 1;
+    //ret.renderPassDesc.colorAttachments = ret.rca;
+    //// We now add a depth/stencil attachment, if desired:
+    //ret.dsa = nullptr;
+    //if(settings.depthTest){
+    //    ret.dsa = defaultDSA(depth);
+    //}
+    //ret.renderPassDesc.depthStencilAttachment = ret.dsa;
+    //ret.renderPassDesc.timestampWrites = nullptr;
     return ret;
 }
 inline bool operator==(const RenderSettings& a, const RenderSettings& b){
@@ -1783,38 +1850,51 @@ inline bool operator==(const RenderSettings& a, const RenderSettings& b){
     }
 }*/
 void UnloadRenderpass(DescribedRenderpass rp){
-    if(rp.rca)free(rp.rca); //Should not happen
-    rp.rca = nullptr;
+    //if(rp.rca)free(rp.rca); //Should not happen
+    //rp.rca = nullptr;
 
-    if(rp.dsa)free(rp.dsa);
-    rp.dsa = nullptr;
+    //if(rp.dsa)free(rp.dsa);
+    //rp.dsa = nullptr;
 }
 extern "C" DescribedRenderpass LoadRenderpass(WGPUTextureView color, WGPUTextureView depth){
     return LoadRenderpassEx(color, depth, GetDefaultSettings());
 }
 DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode mipmapFilter, float maxAnisotropy){
     DescribedSampler ret zeroinit;
-    ret.desc.magFilter    = (WGPUFilterMode)fmode;
-    ret.desc.minFilter    = (WGPUFilterMode)fmode;
-    ret.desc.mipmapFilter = (WGPUMipmapFilterMode)fmode;
-    ret.desc.compare      = WGPUCompareFunction_Undefined;
-    ret.desc.lodMinClamp  = 0.0f;
-    ret.desc.lodMaxClamp  = 10.0f;
-    ret.desc.maxAnisotropy = maxAnisotropy;
-    ret.desc.addressModeU = (WGPUAddressMode)amode;
-    ret.desc.addressModeV = (WGPUAddressMode)amode;
-    ret.desc.addressModeW = (WGPUAddressMode)amode;
-    ret.sampler = wgpuDeviceCreateSampler(GetDevice(), &ret.desc);
+    ret.magFilter    = fmode;
+    ret.minFilter    = fmode;
+    ret.mipmapFilter = fmode;
+    ret.compare      = CompareFunction_Undefined;
+    ret.lodMinClamp  = 0.0f;
+    ret.lodMaxClamp  = 10.0f;
+    ret.maxAnisotropy = maxAnisotropy;
+    ret.addressModeU = amode;
+    ret.addressModeV = amode;
+    ret.addressModeW = amode;
+
+    WGPUSamplerDescriptor sdesc{};
+    sdesc.magFilter    = (WGPUFilterMode)fmode;
+    sdesc.minFilter    = (WGPUFilterMode)fmode;
+    sdesc.mipmapFilter = (WGPUMipmapFilterMode)fmode;
+    sdesc.compare      = WGPUCompareFunction_Undefined;
+    sdesc.lodMinClamp  = 0.0f;
+    sdesc.lodMaxClamp  = 10.0f;
+    sdesc.maxAnisotropy = maxAnisotropy;
+    sdesc.addressModeU = (WGPUAddressMode)amode;
+    sdesc.addressModeV = (WGPUAddressMode)amode;
+    sdesc.addressModeW = (WGPUAddressMode)amode;
+
+    ret.sampler = wgpuDeviceCreateSampler(GetDevice(), &sdesc);
     return ret;
 }
 DescribedSampler LoadSampler(addressMode amode, filterMode fmode){
     return LoadSamplerEx(amode, fmode, fmode, 1.0f);
 }
 void UnloadSampler(DescribedSampler sampler){
-    wgpuSamplerRelease(sampler.sampler);
+    wgpuSamplerRelease((WGPUSampler)sampler.sampler);
 }
 
-WGPUTexture GetActiveColorTarget(){
+NativeImageHandle GetActiveColorTarget(){
     return g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.id;
 }
 
@@ -1922,16 +2002,16 @@ extern "C" Image LoadImage(const char* filename){
 void UnloadTexture(Texture tex){
     for(uint32_t i = 0;i < tex.mipmaps;i++){
         if(tex.mipViews[i]){
-            wgpuTextureViewRelease(tex.mipViews[i]);
+            wgpuTextureViewRelease((WGPUTextureView)tex.mipViews[i]);
             tex.mipViews[i] = nullptr;
         }
     }
     if(tex.view){
-        wgpuTextureViewRelease(tex.view);
+        wgpuTextureViewRelease((WGPUTextureView)tex.view);
         tex.view = nullptr;
     }
     if(tex.id){
-        wgpuTextureRelease(tex.id);
+        wgpuTextureRelease((WGPUTexture)tex.id);
         tex.id = nullptr;
     }
     
@@ -2147,7 +2227,7 @@ extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t he
     } else {
         config.presentMode = (WGPUPresentMode)g_wgpustate.unthrottled_PresentMode;
     }
-    TRACELOG(LOG_INFO, "Initialized SDL2 window with surface %s", presentModeSpellingTable.at(config.presentMode).c_str());
+    TRACELOG(LOG_INFO, "Initialized surface with %s", presentModeSpellingTable.at(config.presentMode).c_str());
     config.alphaMode = WGPUCompositeAlphaMode_Opaque;
     config.format = g_wgpustate.frameBufferFormat;
     config.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
@@ -2210,55 +2290,59 @@ extern "C" void EndWindowMode(){
 
 extern "C" StagingBuffer GenStagingBuffer(size_t size, WGPUBufferUsage usage){
     StagingBuffer ret{};
-    ret.mappable.descriptor = WGPUBufferDescriptor{
+    WGPUBufferDescriptor descriptor1 = WGPUBufferDescriptor{
         .nextInChain = nullptr,
         .label = WGPUStringView{},
         .usage = WGPUBufferUsage_MapWrite | WGPUBufferUsage_CopySrc,
         .size = size,
         .mappedAtCreation = true
     };
-    ret.gpuUsable.descriptor = WGPUBufferDescriptor{
+    WGPUBufferDescriptor descriptor2 = WGPUBufferDescriptor{
         .nextInChain = nullptr,
         .label = WGPUStringView{},
         .usage = usage,
         .size = size,
         .mappedAtCreation = false
     };
-    ret.gpuUsable.buffer = wgpuDeviceCreateBuffer(GetDevice(), &ret.gpuUsable.descriptor);
-    ret.mappable.buffer = wgpuDeviceCreateBuffer(GetDevice(), &ret.mappable.descriptor);
-    ret.map = wgpuBufferGetMappedRange(ret.mappable.buffer, 0, size);
+    ret.gpuUsable.buffer = wgpuDeviceCreateBuffer(GetDevice(), &descriptor1);
+    ret.mappable.buffer = wgpuDeviceCreateBuffer(GetDevice(), &descriptor2);
+    ret.map = wgpuBufferGetMappedRange((WGPUBuffer)ret.mappable.buffer, 0, size);
     return ret;
 }
 void RecreateStagingBuffer(StagingBuffer* buffer){
-    wgpuBufferRelease(buffer->gpuUsable.buffer);
-    buffer->gpuUsable.buffer = wgpuDeviceCreateBuffer(GetDevice(), &buffer->gpuUsable.descriptor);
+    wgpuBufferRelease((WGPUBuffer)buffer->gpuUsable.buffer);
+    WGPUBufferDescriptor gpudesc{};
+    gpudesc.size = buffer->gpuUsable.size;
+    gpudesc.usage = buffer->gpuUsable.usage;
+    buffer->gpuUsable.buffer = wgpuDeviceCreateBuffer(GetDevice(), &gpudesc);
 }
 
 void UpdateStagingBuffer(StagingBuffer* buffer){
-    wgpuBufferUnmap(buffer->mappable.buffer);
+    wgpuBufferUnmap((WGPUBuffer)buffer->mappable.buffer);
     WGPUCommandEncoderDescriptor arg{};
     WGPUCommandBufferDescriptor arg2{};
     WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder(GetDevice(), &arg);
-    wgpuCommandEncoderCopyBufferToBuffer(enc, buffer->mappable.buffer, 0, buffer->gpuUsable.buffer, 0,buffer->mappable.descriptor.size);
+
+    wgpuCommandEncoderCopyBufferToBuffer(enc, (WGPUBuffer)buffer->mappable.buffer, 0, (WGPUBuffer)buffer->gpuUsable.buffer, 0,buffer->mappable.size);
     WGPUCommandBuffer buf = wgpuCommandEncoderFinish(enc, &arg2);
     wgpuQueueSubmit(GetQueue(), 1, &buf);
     
-    wgpu::Buffer b(buffer->mappable.buffer);
+    wgpu::Buffer b((WGPUBuffer)buffer->mappable.buffer);
     WGPUFuture f = b.MapAsync(wgpu::MapMode::Write, 0, b.GetSize(), wgpu::CallbackMode::WaitAnyOnly, [](wgpu::MapAsyncStatus status, wgpu::StringView message){});
     wgpuCommandEncoderRelease(enc);
     wgpuCommandBufferRelease(buf);
     WGPUFutureWaitInfo winfo{f, 0};
     wgpuInstanceWaitAny(g_wgpustate.instance.Get(), 1, &winfo, UINT64_MAX);
     buffer->mappable.buffer = b.MoveToCHandle();
-    buffer->map = (vertex*)wgpuBufferGetMappedRange(buffer->mappable.buffer, 0, buffer->mappable.descriptor.size);
+    buffer->map = (vertex*)wgpuBufferGetMappedRange((WGPUBuffer)buffer->mappable.buffer, 0, buffer->mappable.size);
 }
 //StagingBuffer MapStagingBuffer(size_t size, WGPUBufferUsage usage){
 //
 //}
 void UnloadStagingBuffer(StagingBuffer* buf){
-    wgpuBufferRelease(buf->gpuUsable.buffer);
-    wgpuBufferUnmap(buf->mappable.buffer);
-    wgpuBufferRelease(buf->mappable.buffer);
+    wgpuBufferRelease((WGPUBuffer)buf->gpuUsable.buffer);
+    wgpuBufferUnmap  ((WGPUBuffer)buf->mappable.buffer);
+    wgpuBufferRelease((WGPUBuffer)buf->mappable.buffer);
 }
 int GetRandomValue(int min, int max){
     int w = (max - min);
@@ -2267,12 +2351,15 @@ int GetRandomValue(int min, int max){
 }
 extern "C" DescribedBuffer* GenBufferEx(const void* data, size_t size, WGPUBufferUsage usage){
     DescribedBuffer* ret = callocnew(DescribedBuffer);
-    ret->descriptor.size = size;
-    ret->descriptor.mappedAtCreation = false;
-    ret->descriptor.usage = usage;
-    ret->buffer = wgpuDeviceCreateBuffer(GetDevice(), &ret->descriptor);
+    WGPUBufferDescriptor descriptor{};
+    descriptor.size = size;
+    descriptor.mappedAtCreation = false;
+    descriptor.usage = usage;
+    ret->buffer = wgpuDeviceCreateBuffer(GetDevice(), &descriptor);
+    ret->size = size;
+    ret->usage = usage;
     if(data != nullptr){
-        wgpuQueueWriteBuffer(GetQueue(), ret->buffer, 0, data, size);
+        wgpuQueueWriteBuffer(GetQueue(), (WGPUBuffer)ret->buffer, 0, data, size);
     }
     return ret;
 }
@@ -2289,20 +2376,24 @@ DescribedBuffer* GenStorageBuffer(const void* data, size_t size){
     return GenBufferEx(data, size, WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage);
 }
 void UnloadBuffer(DescribedBuffer* buffer){
-    wgpuBufferRelease(buffer->buffer);
+    wgpuBufferRelease((WGPUBuffer)buffer->buffer);
     free(buffer);
 }
 
 extern "C" void BufferData(DescribedBuffer* buffer, const void* data, size_t size){
-    if(buffer->descriptor.size >= size){
-        wgpuQueueWriteBuffer(GetQueue(), buffer->buffer, 0, data, size);
+    if(buffer->size >= size){
+        wgpuQueueWriteBuffer(GetQueue(), (WGPUBuffer)buffer->buffer, 0, data, size);
     }
     else{
         if(buffer->buffer)
-            wgpuBufferRelease(buffer->buffer);
-        buffer->descriptor.size = size;
-        buffer->buffer = wgpuDeviceCreateBuffer(GetDevice(), &(buffer->descriptor));
-        wgpuQueueWriteBuffer(GetQueue(), buffer->buffer, 0, data, size);
+            wgpuBufferRelease((WGPUBuffer)buffer->buffer);
+        WGPUBufferDescriptor nbdesc{};
+        nbdesc.size = size;
+        nbdesc.usage = buffer->usage;
+
+        buffer->buffer = wgpuDeviceCreateBuffer(GetDevice(), &nbdesc);
+        buffer->size = size;
+        wgpuQueueWriteBuffer(GetQueue(), (WGPUBuffer)buffer->buffer, 0, data, size);
     }
 }
 extern "C" void SetTargetFPS(int fps){
