@@ -34,7 +34,7 @@
  * 
  * @return VertexBufferLayoutSet 
  */
-VertexBufferLayoutSet getBufferLayoutRepresentation(const AttributeAndResidence* attributes, const uint32_t number_of_attribs, uint32_t number_of_buffers){
+inline VertexBufferLayoutSet getBufferLayoutRepresentation(const AttributeAndResidence* attributes, const uint32_t number_of_attribs, uint32_t number_of_buffers){
     std::vector<std::vector<VertexAttribute>> buffer_to_attributes(number_of_buffers);
     VertexAttribute* attributePool = (VertexAttribute*   )std::calloc(number_of_attribs, sizeof(VertexAttribute));
     VertexBufferLayout* vbLayouts  = (VertexBufferLayout*)std::calloc(number_of_buffers, sizeof(VertexBufferLayout));
@@ -68,7 +68,7 @@ VertexBufferLayoutSet getBufferLayoutRepresentation(const AttributeAndResidence*
     };
     return ret;
 }
-VertexBufferLayoutSet getBufferLayoutRepresentation(const AttributeAndResidence* attributes, const uint32_t number_of_attribs){
+inline VertexBufferLayoutSet getBufferLayoutRepresentation(const AttributeAndResidence* attributes, const uint32_t number_of_attribs){
     uint32_t maxslot = 0;
     for(size_t i = 0;i < number_of_attribs;i++){
         maxslot = std::max(maxslot, attributes[i].bufferSlot);

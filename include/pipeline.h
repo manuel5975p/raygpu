@@ -195,6 +195,14 @@ typedef enum VertexStepMode {
 
 
 //TODO: Stencil attachment
+/**
+ * @brief This struct handles the settings that GL handles with global functions
+ * 
+ * GL_DEPTH_TEST
+ * GL_BLEND
+ * GL_CULL_FACE
+ * 
+ */
 typedef struct RenderSettings{
     bool depthTest;
     bool faceCull;
@@ -360,7 +368,7 @@ typedef struct DescribedComputePipeline{
 typedef struct VertexArray VertexArray;
 EXTERN_C_BEGIN
     inline void UsePipeline(WGPURenderPassEncoder rpEncoder, DescribedPipeline pl){
-        wgpuRenderPassEncoderSetPipeline(rpEncoder, pl.quartet.pipeline_TriangleList);
+        wgpuRenderPassEncoderSetPipeline(rpEncoder, (WGPURenderPipeline)pl.quartet.pipeline_TriangleList);
     }
     
 
@@ -369,7 +377,7 @@ EXTERN_C_BEGIN
     
 
     DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const ResourceDescriptor* entries, size_t entryCount);
-    WGPUBindGroup GetWGPUBindGroup(DescribedBindGroup* bg);
+    NativeBindgroupHandle GetWGPUBindGroup(DescribedBindGroup* bg);
     
     void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry);
     void UpdateBindGroup(DescribedBindGroup* bg);
