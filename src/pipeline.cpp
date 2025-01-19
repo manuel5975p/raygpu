@@ -663,7 +663,7 @@ DescribedComputePipeline* LoadComputePipeline(const char* shaderCode){
 DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount){
     auto bindmap = getBindings(shaderCode);
     DescribedComputePipeline* ret = callocnew(DescribedComputePipeline);
-    WGPUComputePipelineDescriptor& desc = ret->desc;
+    WGPUComputePipelineDescriptor desc{};
     WGPUPipelineLayoutDescriptor pldesc{};
     pldesc.bindGroupLayoutCount = 1;
     ret->bglayout = LoadBindGroupLayout(uniforms, uniformCount, true);
@@ -674,7 +674,7 @@ DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const Re
     desc.compute.module = (WGPUShaderModule)ret->shaderModule.shaderModule;
     desc.compute.entryPoint = STRVIEW("compute_main");
     desc.layout = playout;
-    ret->pipeline = wgpuDeviceCreateComputePipeline(GetDevice(), &ret->desc);
+    ret->pipeline = wgpuDeviceCreateComputePipeline(GetDevice(), &desc);
     std::vector<ResourceDescriptor> bge(uniformCount);
     for(uint32_t i = 0;i < bge.size();i++){
         bge[i] = ResourceDescriptor{};

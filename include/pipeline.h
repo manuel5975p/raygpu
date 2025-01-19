@@ -34,10 +34,16 @@ typedef void* NativeBindgroupLayoutHandle;
 typedef void* NativeBindgroupHandle;
 typedef void* NativePipelineLayoutHandle;
 typedef void* NativeRenderPipelineHandle;
+typedef void* NativeComputePipelineHandle;
+typedef void* NativeSurfaceHandle;
+typedef void* NativeSwapchainHandle;
 typedef void* NativeBufferHandle;
 typedef void* NativeSamplerHandle;
 typedef void* NativeImageHandle;
 typedef void* NativeImageViewHandle;
+typedef void* NativeCommandEncoderHandle;
+typedef void* NativeRenderPassEncoderHandle;
+typedef void* NativeComputePassEncoderHandle;
 
 typedef enum uniform_type{
     uniform_buffer, storage_buffer, texture2d, storage_texture2d, texture_sampler, texture3d, storage_texture3d
@@ -355,8 +361,8 @@ struct UniformAccessor{
 };
 #endif
 typedef struct DescribedComputePipeline{
-    WGPUComputePipelineDescriptor desc;
-    WGPUComputePipeline pipeline;
+    NativeComputePipelineHandle pipeline;
+    NativePipelineLayoutHandle layout;
     DescribedBindGroupLayout bglayout;
     DescribedBindGroup bindGroup;
     DescribedShaderModule shaderModule;

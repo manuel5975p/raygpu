@@ -584,18 +584,18 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     //arraySetter(shaderInputs.uniform_minsizes, {64, 0, 0, 0});
     //uarraySetter(shaderInputs.uniform_types, {uniform_buffer, texture2d, sampler, storage_buffer});
     
-    auto colorTexture = LoadTextureEx(width, height, g_wgpustate.frameBufferFormat, true);
+    auto colorTexture = LoadTextureEx(width, height, (PixelFormat)g_wgpustate.frameBufferFormat, true);
     //g_wgpustate.mainWindowRenderTarget.texture = colorTexture;
     if(g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT)
-        g_wgpustate.mainWindowRenderTarget.colorMultisample = LoadTexturePro(width, height, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4, 1);
+        g_wgpustate.mainWindowRenderTarget.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4, 1);
     g_wgpustate.mainWindowRenderTarget.depth = LoadTexturePro(width,
                                   height, 
-                                  WGPUTextureFormat_Depth24Plus, 
+                                  Depth24, 
                                   WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
                                   (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
                                   1
     );
-    init_full_renderstate(g_wgpustate.rstate, shaderSource, attrs, 4, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), colorTexture.view, g_wgpustate.mainWindowRenderTarget.depth.view);
+    init_full_renderstate(g_wgpustate.rstate, shaderSource, attrs, 4, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), (WGPUTextureView)colorTexture.view, (WGPUTextureView)g_wgpustate.mainWindowRenderTarget.depth.view);
     TRACELOG(LOG_INFO, "Renderstate inited");
     g_wgpustate.rstate->renderExtentX = width;
     g_wgpustate.rstate->renderExtentY = height;
@@ -954,7 +954,23 @@ const char* TextureFormatName(WGPUTextureFormat fmt){
     }
     return it->second.c_str();
 }
-extern "C" size_t GetPixelSizeInBytes(WGPUTextureFormat format) {
+extern "C" size_t GetPixelSizeInBytes(PixelFormat format) {
+    switch(format){
+        case PixelFormat::BGRA8:
+        case PixelFormat::RGBA8:
+        return 4;
+        case PixelFormat::RGBA16F:
+        return 8;
+        case PixelFormat::RGBA32F:
+        return 16;
+
+        case PixelFormat::GRAYSCALE:
+        return 2;
+        case PixelFormat::RGB8:
+        case PixelFormat::Depth24:
+        return 3;
+    }
+    /*
     switch (format) {
         case WGPUTextureFormat_Undefined:
             return 0;
@@ -1159,7 +1175,7 @@ extern "C" size_t GetPixelSizeInBytes(WGPUTextureFormat format) {
         default:
             // Unknown format
             return 0;
-    }
+    }*/
 }
 extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t newWidth, uint32_t newHeight){
     fsurface->surfaceConfig.width = newWidth;
@@ -1184,11 +1200,11 @@ extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t newWidth, uint32_t
     UnloadTexture(fsurface->frameBuffer.colorMultisample);
     UnloadTexture(fsurface->frameBuffer.depth);
     if(g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT){
-        fsurface->frameBuffer.colorMultisample = LoadTexturePro(newWidth, newHeight, g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4, 1);
+        fsurface->frameBuffer.colorMultisample = LoadTexturePro(newWidth, newHeight, (PixelFormat)g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4, 1);
     }
     fsurface->frameBuffer.depth = LoadTexturePro(newWidth,
                            newHeight, 
-                           WGPUTextureFormat_Depth24Plus, 
+                           Depth24, 
                            WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
                            (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
                            1

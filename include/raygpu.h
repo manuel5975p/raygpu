@@ -59,7 +59,9 @@ struct RGBA32FColor{
 typedef enum PixelFormat{
     RGBA8   = WGPUTextureFormat_RGBA8Unorm,
     BGRA8   = WGPUTextureFormat_BGRA8Unorm,
+    RGBA16F = WGPUTextureFormat_RGBA16Float,
     RGBA32F = WGPUTextureFormat_RGBA32Float,
+    Depth24 = WGPUTextureFormat_Depth24Plus,
 
     GRAYSCALE = 0x100000, //No WGPU_ equivalent
     RGB8      = 0x100001, //No WGPU_ equivalent
@@ -78,12 +80,12 @@ typedef struct Image{
 #define MAX_MIP_LEVELS 16
 #endif
 typedef struct Texture2D{
-    WGPUTexture id;
-    WGPUTextureView view;
-    WGPUTextureView mipViews[MAX_MIP_LEVELS];
+    NativeImageHandle id;
+    NativeImageViewHandle view;
+    NativeImageViewHandle mipViews[MAX_MIP_LEVELS];
     
     uint32_t width, height;
-    WGPUTextureFormat format;
+    PixelFormat format;
     uint32_t sampleCount;
     uint32_t mipmaps;
 
@@ -91,10 +93,10 @@ typedef struct Texture2D{
 typedef Texture2D Texture;
 
 typedef struct Texture3D{
-    WGPUTexture id;
-    WGPUTextureView view;
+    NativeImageHandle id;
+    NativeImageViewHandle view;
     uint32_t width, height, depth;
-    WGPUTextureFormat format;
+    PixelFormat format;
     uint32_t sampleCount;
 }Texture3D;
 
@@ -108,22 +110,42 @@ typedef struct RenderTexture{
     Texture colorMultisample;
     Texture depth;
 }RenderTexture;
+typedef enum LoadOp {
+    LoadOp_Undefined = 0x00000000,
+    LoadOp_Load = 0x00000001,
+    LoadOp_Clear = 0x00000002,
+    LoadOp_ExpandResolveTexture = 0x00050003,
+    LoadOp_Force32 = 0x7FFFFFFF
+} LoadOp;
 
-
-
+typedef enum StoreOp {
+    StoreOp_Undefined = 0x00000000,
+    StoreOp_Store = 0x00000001,
+    StoreOp_Discard = 0x00000002,
+    StoreOp_Force32 = 0x7FFFFFFF
+} StoreOp;
+typedef struct DColor{
+    double r,g,b,a;
+}DColor;
 typedef struct DescribedRenderpass{
     RenderSettings settings;
-    WGPURenderPassDescriptor renderPassDesc;
-    WGPURenderPassColorAttachment* rca;
-    WGPURenderPassDepthStencilAttachment* dsa;
-    WGPUCommandEncoder cmdEncoder;
-    WGPURenderPassEncoder rpEncoder; //Only non-null when in renderpass
+    
+    LoadOp  colorLoadOp;
+    StoreOp colorStoreOp;
+    LoadOp  depthLoadOp;
+    StoreOp depthStoreOp;
+    DColor colorClear;
+
+    RenderTexture renderTarget;
+
+    NativeCommandEncoderHandle cmdEncoder;
+    NativeRenderPassEncoderHandle rpEncoder;
 }DescribedRenderpass;
 
 typedef struct DescribedComputePass{
-    WGPUCommandEncoder cmdEncoder;
-    WGPUComputePassEncoder cpEncoder;
-    WGPUComputePassDescriptor desc;
+    NativeCommandEncoderHandle cmdEncoder;
+    NativeComputePassEncoderHandle cpEncoder;
+    //WGPUComputePassDescriptor desc; <-- By omitting this we lose timestampwrites
 }DescribedComputepass;
 
 EXTERN_C_BEGIN
@@ -144,13 +166,33 @@ EXTERN_C_END
 
 
 typedef struct DescribedBuffer{
-    WGPUBufferDescriptor descriptor;
-    WGPUBuffer buffer;
+    WGPUBufferUsage usage;
+    uint64_t size;
+    NativeBufferHandle buffer;
 }DescribedBuffer;
 
+typedef enum filterMode{
+    nearest = WGPUFilterMode_Nearest,
+    linear = WGPUFilterMode_Linear,
+}filterMode;
+
+typedef enum adressMode{
+    repeat = WGPUAddressMode_Repeat, clampToEdge = WGPUAddressMode_ClampToEdge, mirrorRepeat = WGPUAddressMode_MirrorRepeat,
+}addressMode;
+
 typedef struct DescribedSampler{
-    WGPUSampler sampler;
-    WGPUSamplerDescriptor desc;
+    NativeSamplerHandle sampler;
+    addressMode addressModeU;
+    addressMode addressModeV;
+    addressMode addressModeW;
+    filterMode magFilter;
+    filterMode minFilter;
+    filterMode mipmapFilter;
+    
+    float lodMinClamp;
+    float lodMaxClamp;
+    CompareFunction compare;
+    uint16_t maxAnisotropy;
 }DescribedSampler;
 
 typedef struct StagingBuffer{
@@ -351,13 +393,7 @@ typedef enum WindowFlag{
     FLAG_WINDOW_RESIZABLE       = 0x00000004,
     FLAG_FULLSCREEN_MODE        = 0x00000002,   // Set to run program in fullscreen
 } WindowFlag;
-typedef enum filterMode{
-    nearest = WGPUFilterMode_Nearest,
-    linear = WGPUFilterMode_Linear,
-}filterMode;
-typedef enum adressMode{
-    repeat = WGPUAddressMode_Repeat, clampToEdge = WGPUAddressMode_ClampToEdge, mirrorRepeat = WGPUAddressMode_MirrorRepeat,
-}addressMode;
+
 typedef enum {
     KEY_NULL            = 0,        // Key: NULL, used for no key pressed
     // Alphanumeric keys
@@ -902,7 +938,7 @@ EXTERN_C_BEGIN
     DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode mipmapFilter, float maxAnisotropy);
     void UnloadSampler(DescribedSampler sampler);
 
-    WGPUTexture GetActiveColorTarget(cwoid);
+    NativeImageHandle GetActiveColorTarget(cwoid);
     void* GetActiveWindowHandle(cwoid);
     Texture LoadTextureFromImage(Image img);
     void ImageFormat(Image* img, PixelFormat newFormat);
@@ -1047,15 +1083,16 @@ EXTERN_C_BEGIN
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
     RenderTexture LoadRenderTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat colorFormat, uint32_t sampleCount);
     const char* TextureFormatName(WGPUTextureFormat fmt);
-    size_t GetPixelSizeInBytes(WGPUTextureFormat format);
+    size_t GetPixelSizeInBytes(PixelFormat format);
+    
     Texture LoadBlankTexture(uint32_t width, uint32_t height);
     Texture LoadTexture(const char* filename);
     Texture LoadDepthTexture(uint32_t width, uint32_t height);
-    Texture LoadTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat format, bool to_be_used_as_rendertarget);
-    Texture LoadTexturePro(uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage, uint32_t sampleCount, uint32_t mipmaps);
+    Texture LoadTextureEx(uint32_t width, uint32_t height,  PixelFormat format, bool to_be_used_as_rendertarget);
+    Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat format, WGPUTextureUsage usage, uint32_t sampleCount, uint32_t mipmaps);
     void GenTextureMipmaps(Texture2D* tex);
-    Texture3D LoadTexture3DEx(uint32_t width, uint32_t height, uint32_t depth, WGPUTextureFormat format);
-    Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, WGPUTextureFormat format, WGPUTextureUsage usage, uint32_t sampleCount);
+    Texture3D LoadTexture3DEx(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format);
+    Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format, WGPUTextureUsage usage, uint32_t sampleCount);
     
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
     void UpdateTexture(Texture tex, void* data);
@@ -1078,6 +1115,14 @@ EXTERN_C_BEGIN
     void BindVertexBuffer(const DescribedBuffer* buffer);
 
     DescribedPipeline* GetActivePipeline(cwoid);
+
+    void RenderPassSetIndexBuffer (DescribedRenderpass* drp, DescribedBuffer* buffer, WGPUIndexFormat format, uint64_t offset);
+    void RenderPassSetVertexBuffer(DescribedRenderpass* drp, uint32_t slot, DescribedBuffer* buffer, uint64_t offset);
+    void RenderPassSetBindGroup   (DescribedRenderpass* drp, uint32_t group, DescribedBindGroup* buffer);
+    void ComputePassSetBindGroup  (DescribedComputepass* drp, uint32_t group, DescribedBindGroup* buffer);
+
+    void RenderPassDraw        (DescribedRenderpass* drp, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance);
+    void RenderPassDrawIndexed (DescribedRenderpass* drp, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t baseVertex, uint32_t firstInstance);
 
     uint32_t GetUniformLocation(DescribedPipeline* pl, const char* uniformName);
     uint32_t GetUniformLocationCompute(DescribedComputePipeline* pl, const char* uniformName);

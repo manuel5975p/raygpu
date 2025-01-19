@@ -173,7 +173,7 @@ extern "C" SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char
     WGPUSurface surface = SDL_GetWGPUSurface(GetInstance(), window);
     ret.surface = CreateSurface(surface, width, height);
     ret.handle = window;
-
+    
     g_wgpustate.createdSubwindows[ret.handle] = ret;
     return ret;
 }
