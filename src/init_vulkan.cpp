@@ -84,6 +84,52 @@ struct SwapChainSupportDetails {
     std::vector<VkPresentModeKHR> presentModes;
 };
 
+void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+        if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
+            throw std::runtime_error("failed to begin recording command buffer!");
+        }
+
+        VkRenderPassBeginInfo renderPassInfo{};
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        renderPassInfo.renderPass = renderPass;
+        renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
+        renderPassInfo.renderArea.offset = {0, 0};
+        renderPassInfo.renderArea.extent = swapChainExtent;
+
+        VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+        renderPassInfo.clearValueCount = 1;
+        renderPassInfo.pClearValues = &clearColor;
+
+        vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+            /*vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+            VkViewport viewport{};
+            viewport.x = 0.0f;
+            viewport.y = 0.0f;
+            viewport.width = (float) swapChainExtent.width;
+            viewport.height = (float) swapChainExtent.height;
+            viewport.minDepth = 0.0f;
+            viewport.maxDepth = 1.0f;
+            vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+            VkRect2D scissor{};
+            scissor.offset = {0, 0};
+            scissor.extent = swapChainExtent;
+            vkCmdSetScissor(commandBuffer, 0, 1, &scissor);*/
+
+            vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
+        vkCmdEndRenderPass(commandBuffer);
+
+        if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+            throw std::runtime_error("failed to record command buffer!");
+        }
+    }
+
 // Function to initialize GLFW and create a window
 GLFWwindow* initWindow(uint32_t width, uint32_t height, const char* title) {
     if (!glfwInit()) {
@@ -412,7 +458,7 @@ void createImageViews() {
         }
     }
 
-    std::cout << "Successfully created image views\n";
+    std::cout << "Successfully created swapchain image views\n";
 }
 
 // Function to create a staging buffer (example usage)
@@ -537,7 +583,34 @@ void mainLoop(GLFWwindow* window) {
         uint32_t imageIndex;
         VkResult res = vkAcquireNextImageKHR(g_vulkanstate.device, g_vulkanstate.swapchain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
         if(res == VK_SUCCESS){
-            std::cout << "Successfully got image" << std::endl;
+            std::cout << "Successfully got image: " << imageIndex << "\n";
+        }
+        
+        //VkCommandPoolCreateInfo cpinfo{};
+        //cpinfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        //cpinfo.queueFamilyIndex = g_vulkanstate.graphicsFamily;
+        //VkCommandPool cpool;
+        //vkCreateCommandPool(g_vulkanstate.device, &cpinfo, nullptr, &cpool);
+        //VkCommandBufferAllocateInfo cbinfo{};
+        //cbinfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        //cbinfo.commandBufferCount = 1;
+        //cbinfo.commandPool = cpool;
+        //VkCommandBuffer cmdbuffer;
+        //vkAllocateCommandBuffers(g_vulkanstate.device, &cbinfo, &cmdbuffer);
+        //VkCommandBufferBeginInfo binfo{};
+        //binfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        //vkBeginCommandBuffer(cmdbuffer, &binfo);
+        //vkEndCommandBuffer(cmdbuffer);
+        VkPresentInfoKHR pinfo{};
+        pinfo.pImageIndices = &imageIndex;
+        VkResult results;
+        pinfo.pResults = &results;
+        pinfo.pSwapchains = &g_vulkanstate.swapchain;
+        pinfo.swapchainCount = 1;
+        pinfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        VkResult presentResult = vkQueuePresentKHR(g_vulkanstate.presentQueue, &pinfo);
+        if(presentResult == VK_SUCCESS){
+            std::cout << "Sucessfully presented the image\n";
         }
         break;
     }
