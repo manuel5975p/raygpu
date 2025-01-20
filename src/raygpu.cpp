@@ -2236,6 +2236,13 @@ extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t he
     config.viewFormats = &config.format;
     config.viewFormatCount = 1;
     config.device = GetDevice();
+
+    ret.surfaceConfig.presentMode = (SurfacePresentMode)config.presentMode;
+    ret.surfaceConfig.device = (void*)config.device;
+    ret.surfaceConfig.width = config.width;
+    ret.surfaceConfig.height = config.width;
+    ret.surfaceConfig.format = config.format;
+    
     ret.frameBuffer = LoadRenderTexture(width, height);
     wgpuSurfaceConfigure((WGPUSurface)ret.surface, &config);
     return ret;

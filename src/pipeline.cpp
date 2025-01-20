@@ -407,6 +407,7 @@ extern "C" void UpdatePipeline(DescribedPipeline* pl){
     
     pipelineDesc.primitive.frontFace = (WGPUFrontFace)settings.frontFace;
     pipelineDesc.primitive.cullMode = settings.faceCull ? WGPUCullMode_Back : WGPUCullMode_None;
+    pipelineDesc.primitive.cullMode = WGPUCullMode_None;
     if(pl->vertexLayout.layouts->attributeCount != 0){
         pipelineDesc.primitive.topology = WGPUPrimitiveTopology_PointList;
         pl->quartet.pipeline_PointList = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipelineDesc);

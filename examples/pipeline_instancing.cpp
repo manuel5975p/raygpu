@@ -27,7 +27,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     return in.color;
 })";
-float size = 1.0f / 200;
+float size = 1.0f / 32;
 float qsize = size * 0.8f;
 float positions[8] = {
     0,0,
@@ -45,7 +45,20 @@ DescribedBuffer* posb;
 DescribedBuffer* poso;
 DescribedBuffer* posc;
 VertexArray*     vao;
-
+void mainloop(){
+    for(size_t i = 0;i < offsets.size();i++){
+        offsets[i] += velocities[i] * 0.1f * std::min(GetFrameTime(), 0.01f);
+    }
+    BufferData(poso, offsets.data(), offsets.size() * sizeof(Vector2));
+    BeginDrawing();
+    ClearBackground(BLANK);
+    BeginPipelineMode(pl);
+    BindPipelineVertexArray(pl, vao);
+    DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, *ibo, 6, offsets.size());
+    EndPipelineMode();
+    DrawFPS(0, 0);
+    EndDrawing();
+}
 int main(){
     SetConfigFlags(FLAG_VSYNC_LOWLATENCY_HINT);
     //SetConfigFlags(FLAG_MSAA_4X_HINT);
@@ -64,37 +77,21 @@ int main(){
     posc = GenBuffer(colors.data(), colors.size() * sizeof(uint32_t));
     vao = LoadVertexArray();
 
-    VertexAttribPointer(vao, posb, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(vao, poso, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Instance);
-    VertexAttribPointer(vao, posc, 2, WGPUVertexFormat_Uint32, 0, WGPUVertexStepMode_Instance);
+    VertexAttribPointer(vao, posb, 0, VertexFormat_Float32x2, 0, VertexStepMode_Vertex);
+    VertexAttribPointer(vao, poso, 1, VertexFormat_Float32x2, 0, VertexStepMode_Instance);
+    VertexAttribPointer(vao, posc, 2, VertexFormat_Uint32, 0, VertexStepMode_Instance);
 
     
     uint32_t trifanIndices[6] = {0,1,2,0,2,3};
     ibo = GenIndexBuffer(trifanIndices, sizeof(trifanIndices));
     pl = LoadPipelineForVAO(source, vao);
-    auto mainloop = [&]{
-        for(size_t i = 0;i < offsets.size();i++){
-            offsets[i] += velocities[i] * 0.1f * std::min(GetFrameTime(), 0.01f);
-        }
-        BufferData(poso, offsets.data(), offsets.size() * sizeof(Vector2));
-        BeginDrawing();
-        ClearBackground(BLANK);
-        BeginPipelineMode(pl);
-        BindPipelineVertexArray(pl, vao);
-        DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, *ibo, 6, offsets.size());
-        EndPipelineMode();
-        DrawFPS(0, 0);
-        EndDrawing();
-    };
-    using mainloop_type = decltype(mainloop);
-    auto mainloopCaller = [](void* x){
-        (*((decltype(mainloop)*)x))();
-    };
+    
+    
     #ifndef __EMSCRIPTEN__
     while(!WindowShouldClose()){
         mainloop();
     }
     #else
-    emscripten_set_main_loop_arg(mainloopCaller, (void*)&mainloop, 0, 0);
+    emscripten_set_main_loopmainloop, 0, 0);
     #endif
 }
