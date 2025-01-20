@@ -98,7 +98,7 @@ int main(cwoid){
     cube = GenMeshCube(3.f,3.f,3.f);
     //assert(cube.ibo.buffer == 0);
     pl = Relayout(DefaultPipeline(), cube.vao);
-    checkersHDR = LoadTextureEx(9, 9, WGPUTextureFormat_RGBA16Float, false);
+    checkersHDR = LoadTextureEx(9, 9, RGBA16F, false);
 
     checkers = LoadTextureFromImage(GenImageChecker(RED, DARKBLUE, 100, 100, 4));
     IEEE_FP16 checkersHDRData[81 * 4];
