@@ -235,5 +235,8 @@ if(EMSCRIPTEN)
 endif()
 
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/examples")
+add_executable(init_vulkan "${CMAKE_CURRENT_LIST_DIR}/src/init_vulkan.cpp")
+target_link_libraries(init_vulkan PUBLIC vulkan glfw)
+target_include_directories(init_vulkan PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 #add_executable(reference_sample "src/reference_sample.cpp")
 #target_link_libraries(reference_sample PUBLIC webgpu_dawn webgpu_cpp dawn_wgpu_utils dawn_internal_config dawn::dawn_glfw glfw raygpu)

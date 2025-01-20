@@ -1326,7 +1326,7 @@ extern "C" Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t 
     tDesc.viewFormats = &tDesc.format;
     
     WGPUTextureViewDescriptor textureViewDesc zeroinit;
-    textureViewDesc.aspect = ((format == WGPUTextureFormat_Depth24Plus) ? WGPUTextureAspect_DepthOnly : WGPUTextureAspect_All);
+    textureViewDesc.aspect = ((format == Depth24) ? WGPUTextureAspect_DepthOnly : WGPUTextureAspect_All);
     textureViewDesc.baseArrayLayer = 0;
     textureViewDesc.arrayLayerCount = 1;
     textureViewDesc.baseMipLevel = 0;

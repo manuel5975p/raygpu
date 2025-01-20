@@ -38,6 +38,7 @@ typedef void* NativeComputePipelineHandle;
 typedef void* NativeSurfaceHandle;
 typedef void* NativeSwapchainHandle;
 typedef void* NativeBufferHandle;
+typedef void* NativeMemoryHandle;
 typedef void* NativeSamplerHandle;
 typedef void* NativeImageHandle;
 typedef void* NativeImageViewHandle;
