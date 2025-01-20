@@ -1188,6 +1188,9 @@ extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t newWidth, uint32_t
     fsurface->frameBuffer.depth.height = newHeight;
     WGPUTextureFormat format = g_wgpustate.frameBufferFormat;
     WGPUSurfaceConfiguration wsconfig{};
+    wsconfig.device = (WGPUDevice)fsurface->surfaceConfig.device;
+    wsconfig.width = newWidth;
+    wsconfig.height = newHeight;
     wsconfig.format = g_wgpustate.frameBufferFormat;
     wsconfig.viewFormatCount = 1;
     wsconfig.viewFormats = &g_wgpustate.frameBufferFormat;
@@ -1195,6 +1198,8 @@ extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t newWidth, uint32_t
     wsconfig.presentMode = (WGPUPresentMode)fsurface->surfaceConfig.presentMode;
     wsconfig.usage = WGPUTextureUsage_CopySrc | WGPUTextureUsage_RenderAttachment;
     wgpuSurfaceConfigure((WGPUSurface)fsurface->surface, &wsconfig);
+    fsurface->surfaceConfig.width = newWidth;
+    fsurface->surfaceConfig.height = newHeight;
     //UnloadTexture(fsurface->frameBuffer.texture);
     //fsurface->frameBuffer.texture = Texture zeroinit;
     UnloadTexture(fsurface->frameBuffer.colorMultisample);
