@@ -105,8 +105,188 @@ std::vector<char> readFile(const std::string& filename) {
     file.close();
     return buffer;
 }
+VkImage createVkImageFromRGBA8(
+    VkDevice device,
+    VkPhysicalDevice physicalDevice,
+    VkCommandPool commandPool,
+    VkQueue queue,
+    const uint8_t* data,
+    uint32_t width,
+    uint32_t height,
+    VkDeviceMemory& imageMemory)
+{
+    // Lambda to find suitable memory type
+    auto findMemoryType = [&](uint32_t typeFilter, VkMemoryPropertyFlags properties) -> uint32_t {
+        VkPhysicalDeviceMemoryProperties memProps;
+        vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProps);
+        for(uint32_t i = 0; i < memProps.memoryTypeCount; i++)
+            if((typeFilter & (1 << i)) && (memProps.memoryTypes[i].propertyFlags & properties) == properties)
+                return i;
+        throw std::runtime_error("Failed to find suitable memory type!");
+    };
 
+    // Create staging buffer
+    VkBufferCreateInfo bufferInfo = {};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = width * height * 4;
+    bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
+    VkBuffer stagingBuffer;
+    if (vkCreateBuffer(device, &bufferInfo, nullptr, &stagingBuffer) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create staging buffer!");
+
+    VkMemoryRequirements memReq;
+    vkGetBufferMemoryRequirements(device, stagingBuffer, &memReq);
+
+    VkMemoryAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memReq.size;
+    allocInfo.memoryTypeIndex = findMemoryType(memReq.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    VkDeviceMemory stagingMemory;
+    if (vkAllocateMemory(device, &allocInfo, nullptr, &stagingMemory) != VK_SUCCESS)
+        throw std::runtime_error("Failed to allocate staging buffer memory!");
+
+    vkBindBufferMemory(device, stagingBuffer, stagingMemory, 0);
+
+    // Map and copy data to staging buffer
+    void* mapped;
+    vkMapMemory(device, stagingMemory, 0, bufferInfo.size, 0, &mapped);
+    std::memcpy(mapped, data, static_cast<size_t>(bufferInfo.size));
+    vkUnmapMemory(device, stagingMemory);
+
+    // Create image
+    VkImageCreateInfo imageInfo = {};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.extent = { width, height, 1 };
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+
+    VkImage image;
+    if (vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create image!");
+
+    vkGetImageMemoryRequirements(device, image, &memReq);
+
+    allocInfo.allocationSize = memReq.size;
+    allocInfo.memoryTypeIndex = findMemoryType(memReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    if (vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS)
+        throw std::runtime_error("Failed to allocate image memory!");
+
+    vkBindImageMemory(device, image, imageMemory, 0);
+
+    // Begin command buffer
+    VkCommandBufferAllocateInfo cmdAllocInfo = {};
+    cmdAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    cmdAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    cmdAllocInfo.commandPool = commandPool;
+    cmdAllocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer cmdBuffer;
+    vkAllocateCommandBuffers(device, &cmdAllocInfo, &cmdBuffer);
+
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(cmdBuffer, &beginInfo);
+
+    // Transition image layout to TRANSFER_DST_OPTIMAL
+    VkImageMemoryBarrier barrier = {};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = image;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.levelCount = barrier.subresourceRange.layerCount = 1;
+    barrier.srcAccessMask = 0;
+    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+    vkCmdPipelineBarrier(
+        cmdBuffer,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+        0,
+        0, nullptr,
+        0, nullptr,
+        1, &barrier
+    );
+
+    // Copy buffer to image
+    VkBufferImageCopy region = {};
+    region.bufferOffset = 0;
+    region.bufferRowLength = region.bufferImageHeight = 0;
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.layerCount = 1;
+    region.imageExtent = { width, height, 1 };
+
+    vkCmdCopyBufferToImage(
+        cmdBuffer,
+        stagingBuffer,
+        image,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        1,
+        &region
+    );
+
+    // Transition image layout to SHADER_READ_ONLY_OPTIMAL
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+    vkCmdPipelineBarrier(
+        cmdBuffer,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        0,
+        0, nullptr,
+        0, nullptr,
+        1, &barrier
+    );
+
+    vkEndCommandBuffer(cmdBuffer);
+
+    // Submit command buffer
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &cmdBuffer;
+
+    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(queue);
+
+    // Cleanup staging resources
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingMemory, nullptr);
+
+    return image;
+}
+VkDescriptorSet LoadBindGroup_VK(){
+    VkDescriptorPoolCreateInfo poold{};
+    poold.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poold.poolSizeCount = 1;
+    VkDescriptorPoolSize size{};
+    size.descriptorCount = 1000;
+    size.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    poold.pPoolSizes = &size;
+    VkDescriptorPool pl;
+
+    //vkCreateImage(VkDevice device, const VkImageCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkImage *pImage)
+    //vkGetDeviceImageMemoryRequirements(VkDevice device, const VkDeviceImageMemoryRequirements *pInfo, VkMemoryRequirements2 *pMemoryRequirements)
+    VkDescriptorSetAllocateInfo ai{};
+    
+    //vkAllocateDescriptorSets(VkDevice device, const VkDescriptorSetAllocateInfo *pAllocateInfo, VkDescriptorSet *pDescriptorSets)
+}
 void createGraphicsPipeline(){
     VkShaderModuleCreateInfo vcinfo{};
     VkShaderModuleCreateInfo fcinfo{};
@@ -116,22 +296,60 @@ void createGraphicsPipeline(){
     vcinfo.pCode = (uint32_t*)vssource.data();
     vcinfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     VkShaderModule vertm{};
-    vkCreateShaderModule(g_vulkanstate.device, &vcinfo, nullptr, &vertm);
+    VkResult vmcres = vkCreateShaderModule(g_vulkanstate.device, &vcinfo, nullptr, &vertm);
     fcinfo.codeSize = fssource.size();
     fcinfo.pCode = (uint32_t*)fssource.data();
     fcinfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     VkShaderModule fragm{};
-    vkCreateShaderModule(g_vulkanstate.device, &fcinfo, nullptr, &fragm);
+    VkResult fmcres = vkCreateShaderModule(g_vulkanstate.device, &fcinfo, nullptr, &fragm);
+    if(vmcres == VK_SUCCESS && fmcres == VK_SUCCESS){
+        std::cout << "Successfully created both shader modules" << std::endl;
+    }
     VkPipelineDynamicStateCreateInfo dynamicState{};
-    std::vector<uint32_t> dynamicStates{VK_DYNAMIC_STATE_BLEND_CONSTANTS};
+    VkDynamicState a;
+    std::vector<VkDynamicState> dynamicStates{VK_DYNAMIC_STATE_BLEND_CONSTANTS};
+
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
     dynamicState.pDynamicStates = dynamicStates.data();
 
     VkGraphicsPipelineCreateInfo pldesc{};
+    pldesc.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 
-    pldesc.v
-        
+    VkPipelineVertexInputStateCreateInfo vertexInputState{};
+    vertexInputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    
+    VkPipelineShaderStageCreateInfo vsstage{};
+    vsstage.module = vertm;
+    vsstage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vsstage.pName = "main";
+    
+    VkPipelineShaderStageCreateInfo fsstage{};
+    fsstage.module = fragm;
+    fsstage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    fsstage.pName = "main";
+    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachment.blendEnable = VK_FALSE;
+    
+    VkPipelineColorBlendStateCreateInfo colorBlending{};
+    colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorBlending.logicOpEnable = VK_FALSE;
+    colorBlending.logicOp = VK_LOGIC_OP_COPY;
+    colorBlending.attachmentCount = 1;
+    colorBlending.pAttachments = &colorBlendAttachment;
+    colorBlending.blendConstants[0] = 0.0f;
+    colorBlending.blendConstants[1] = 0.0f;
+    colorBlending.blendConstants[2] = 0.0f;
+    colorBlending.blendConstants[3] = 0.0f;
+
+    pldesc.pColorBlendState = &colorBlending;
+
+
+    pldesc.pVertexInputState = &vertexInputState;
+    //if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
+    //    throw std::runtime_error("failed to create graphics pipeline!");
+    //}
 
 }
 void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
@@ -650,6 +868,7 @@ void initVulkan(GLFWwindow *window) {
     createSwapChain(window, width, height);
     createRenderPass();
     createImageViews(width, height);
+    createGraphicsPipeline();
     createStagingBuffer();
 }
 
