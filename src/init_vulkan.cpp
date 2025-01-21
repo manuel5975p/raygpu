@@ -8,6 +8,7 @@
 #include <set>
 #include <stdexcept>
 #include <vector>
+#include <format>
 #include <raygpu.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -45,6 +46,7 @@ inline uint64_t nanoTime() {
     using namespace chrono;
     return duration_cast<nanoseconds>(high_resolution_clock::now().time_since_epoch()).count();
 }
+uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 // Global Vulkan state structure
 struct VulkanState {
     VkInstance instance = VK_NULL_HANDLE;
@@ -72,18 +74,53 @@ struct VulkanState {
     std::vector<VkImage> swapchainImages;
     std::vector<VkImageView> swapchainImageViews;
     std::vector<VkFramebuffer> swapchainImageFramebuffers;
+
+    VkBuffer vbuffer; 
 } g_vulkanstate;
 
 // Function to find a suitable memory type
+VkBuffer createVertexBuffer() {
+    VkBuffer vertexBuffer{};
+    std::vector<float> vertices{0,0,0,1,0,0,0,1,0};
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = sizeof(float) * vertices.size();
+    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateBuffer(g_vulkanstate.device, &bufferInfo, nullptr, &vertexBuffer) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create vertex buffer!");
+    }
+    VkDeviceMemory vertexBufferMemory;
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(g_vulkanstate.device, vertexBuffer, &memRequirements);
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if (vkAllocateMemory(g_vulkanstate.device, &allocInfo, nullptr, &vertexBufferMemory) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate vertex buffer memory!");
+    }
+    vkBindBufferMemory(g_vulkanstate.device, vertexBuffer, vertexBufferMemory, 0);
+    void* data;
+    vkMapMemory(g_vulkanstate.device, vertexBufferMemory, 0, bufferInfo.size, 0, &data);
+    memcpy(data, vertices.data(), (size_t) bufferInfo.size);
+    vkUnmapMemory(g_vulkanstate.device, vertexBufferMemory);
+    return vertexBuffer;
+}
 uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
     VkPhysicalDeviceMemoryProperties memProperties;
     vkGetPhysicalDeviceMemoryProperties(g_vulkanstate.physicalDevice, &memProperties);
-
+    //std::cout << std::endl;
+    //for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+    //    std::cout << "type: " << memProperties.memoryTypes[i].propertyFlags << "\n";
+    //}
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
         if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
             return i;
         }
     }
+    //std::cout << std::endl;
 
     throw std::runtime_error("Failed to find suitable memory type!");
 }
@@ -326,8 +363,19 @@ void createGraphicsPipeline() {
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = 0;
-    vertexInputInfo.vertexAttributeDescriptionCount = 0;
+    VkVertexInputBindingDescription vbd{};
+    VkVertexInputAttributeDescription vad{};
+    vbd.binding = 0;
+    vbd.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    vbd.stride = 12;
+    vad.binding = 0;
+    vad.format = VK_FORMAT_R32G32B32_SFLOAT;
+    vad.location = 0;
+    vad.offset = 0;
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.vertexAttributeDescriptionCount = 1;
+    vertexInputInfo.pVertexAttributeDescriptions = &vad;
+    vertexInputInfo.pVertexBindingDescriptions = &vbd;
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -339,7 +387,7 @@ void createGraphicsPipeline() {
     viewportState.viewportCount = 1;
     viewportState.scissorCount = 1;
     VkRect2D scissor{0, 0, g_vulkanstate.swapchainExtent.width, g_vulkanstate.swapchainExtent.height};
-    VkViewport fullView{0, 0, (float)g_vulkanstate.swapchainExtent.width, (float)g_vulkanstate.swapchainExtent.height, 0.0f, 1.0f};
+    VkViewport fullView{0, ((float)g_vulkanstate.swapchainExtent.height), (float)g_vulkanstate.swapchainExtent.width, -((float)g_vulkanstate.swapchainExtent.height), 0.0f, 1.0f};
     viewportState.pScissors = &scissor;
     viewportState.pViewports = &fullView;
 
@@ -349,8 +397,8 @@ void createGraphicsPipeline() {
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizer.cullMode = VK_CULL_MODE_NONE;
+    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
 
     VkPipelineMultisampleStateCreateInfo multisampling{};
@@ -372,7 +420,7 @@ void createGraphicsPipeline() {
     colorBlending.blendConstants[1] = 0.0f;
     colorBlending.blendConstants[2] = 0.0f;
     colorBlending.blendConstants[3] = 0.0f;
-
+    
     std::vector<VkDynamicState> dynamicStates = {VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY, VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
     VkPipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -434,7 +482,7 @@ void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
 
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, g_vulkanstate.graphicsPipeline);
-    vkCmdSetPrimitiveTopology(commandBuffer, VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
+    vkCmdSetPrimitiveTopology(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN);
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
@@ -448,7 +496,8 @@ void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
     scissor.offset = VkOffset2D{int(g_vulkanstate.swapchainExtent.width / 2.5f), int(g_vulkanstate.swapchainExtent.height / 2.5f)};
     scissor.extent = g_vulkanstate.swapchainExtent;
     //vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-
+    VkDeviceSize offsets{};
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &g_vulkanstate.vbuffer, &offsets);
     vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);
@@ -465,7 +514,7 @@ GLFWwindow *initWindow(uint32_t width, uint32_t height, const char *title) {
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // We don't want OpenGL
-    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE); // We don't want OpenGL
+    //glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE); // We don't want OpenGL
     GLFWwindow *window = glfwCreateWindow(width, height, title, nullptr, nullptr);
     
     if (!window) {
@@ -537,9 +586,9 @@ void createInstance() {
     
 
     // (Optional) Enable validation layers here if needed
-
-    if (vkCreateInstance(&createInfo, nullptr, &g_vulkanstate.instance) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create Vulkan instance!");
+    VkResult instanceCreation = vkCreateInstance(&createInfo, nullptr, &g_vulkanstate.instance);
+    if (instanceCreation != VK_SUCCESS) {
+        throw std::runtime_error(std::string("Failed to create Vulkan instance : ") + std::to_string(instanceCreation));
     } else {
         std::cout << "Successfully created Vulkan instance\n";
     }
@@ -906,19 +955,21 @@ void createLogicalDevice() {
     };
 
     // Specify device features
-    VkPhysicalDeviceExtendedDynamicStateFeaturesEXT features{};
-    VkPhysicalDeviceExtendedDynamicState2FeaturesEXT features3{};
-    features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT;
-    features.extendedDynamicState = VK_TRUE;
+    VkPhysicalDeviceFeatures2 features{};
+    features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+
+    VkPhysicalDeviceExtendedDynamicState3PropertiesEXT props{};
+    props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_PROPERTIES_EXT;
+    props.dynamicPrimitiveTopologyUnrestricted = VK_TRUE;
     
     
     VkPhysicalDeviceFeatures deviceFeatures{};
-    // Enable any desired device features here
 
-    // Create device create info
+
     VkDeviceCreateInfo createInfo{};
-    createInfo.pNext = &features;
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    //createInfo.pNext = &features;
+    //features.pNext = &props;
 
     createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
     createInfo.pQueueCreateInfos = queueCreateInfos.data();
@@ -1014,8 +1065,10 @@ void mainLoop(GLFWwindow *window) {
         vkCreateFence(device, &fenceInfo, nullptr, &inFlightFence) != VK_SUCCESS) {
         throw std::runtime_error("failed to create synchronization objects for a frame!");
     }
+    g_vulkanstate.vbuffer = createVertexBuffer();
     uint64_t framecount = 0;
     uint64_t stamp = nanoTime();
+
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         auto &swapChain = g_vulkanstate.swapchain;
@@ -1070,6 +1123,8 @@ void mainLoop(GLFWwindow *window) {
         }
         // break;
     }
+    exit(0);
+    vkQueueWaitIdle(g_vulkanstate.graphicsQueue);
 }
 
 // Function to clean up Vulkan and GLFW resources
