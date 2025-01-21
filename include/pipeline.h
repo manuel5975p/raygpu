@@ -192,11 +192,11 @@ typedef enum VertexFormat {
     VertexFormat_Unorm8x4BGRA = 0x00000029,
     VertexFormat_Force32 = 0x7FFFFFFF
 } VertexFormat;
+
 typedef enum VertexStepMode {
-    VertexStepMode_VertexBufferNotUsed = 0x00000000,
-    VertexStepMode_Undefined = 0x00000001,
-    VertexStepMode_Vertex = 0x00000002,
-    VertexStepMode_Instance = 0x00000003,
+    VertexStepMode_None = WGPUVertexStepMode_Undefined,
+    VertexStepMode_Vertex = WGPUVertexStepMode_Vertex,
+    VertexStepMode_Instance = WGPUVertexStepMode_Instance,
     VertexStepMode_Force32 = 0x7FFFFFFF
 } VertexStepMode;
 
