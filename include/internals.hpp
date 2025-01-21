@@ -40,12 +40,12 @@ inline VertexBufferLayoutSet getBufferLayoutRepresentation(const AttributeAndRes
     VertexBufferLayout* vbLayouts  = (VertexBufferLayout*)std::calloc(number_of_buffers, sizeof(VertexBufferLayout));
 
     std::vector<uint32_t> strides  (number_of_buffers, 0);
-    std::vector<VertexStepMode> stepmodes(number_of_buffers, VertexStepMode_VertexBufferNotUsed);
+    std::vector<VertexStepMode> stepmodes(number_of_buffers, VertexStepMode_None);
     std::vector<uint32_t> attrIndex(number_of_buffers, 0);
     for(size_t i = 0;i < number_of_attribs;i++){
         buffer_to_attributes[attributes[i].bufferSlot].push_back(attributes[i].attr);
         strides[attributes[i].bufferSlot] += attributeSize(attributes[i].attr.format);
-        if(stepmodes[attributes[i].bufferSlot] != VertexStepMode_VertexBufferNotUsed && stepmodes[attributes[i].bufferSlot] != attributes[i].stepMode){
+        if(stepmodes[attributes[i].bufferSlot] != VertexStepMode_None && stepmodes[attributes[i].bufferSlot] != attributes[i].stepMode){
             TRACELOG(LOG_ERROR, "Conflicting stepmodes");
         }
         stepmodes[attributes[i].bufferSlot] = attributes[i].stepMode;
