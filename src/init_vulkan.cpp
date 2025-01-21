@@ -1,15 +1,21 @@
-#include <iostream>
-#include <set>
-#include <vector>
-#include <stdexcept>
-#include <cstdlib>
-#include <cstring>
 #include <algorithm>
 #include <cassert>
-
+#include <chrono>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
+#include <fstream>
+#include <set>
+#include <stdexcept>
+#include <vector>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+inline uint64_t nanoTime() {
+    using namespace std;
+    using namespace chrono;
+    return duration_cast<nanoseconds>(high_resolution_clock::now().time_since_epoch()).count();
+}
 // Global Vulkan state structure
 struct VulkanState {
     VkInstance instance = VK_NULL_HANDLE;
@@ -32,7 +38,7 @@ struct VulkanState {
 
     VkRenderPass renderPass;
 
-    VkExtent2D swapchainExtent = { 0, 0 };
+    VkExtent2D swapchainExtent = {0, 0};
     std::vector<VkImage> swapchainImages;
     std::vector<VkImageView> swapchainImageViews;
     std::vector<VkFramebuffer> swapchainImageFramebuffers;
@@ -44,8 +50,7 @@ uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
     vkGetPhysicalDeviceMemoryProperties(g_vulkanstate.physicalDevice, &memProperties);
 
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-        if ((typeFilter & (1 << i)) &&
-            (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
             return i;
         }
     }
@@ -54,8 +59,7 @@ uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
 }
 
 // Function to create a Vulkan buffer
-void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
-                 VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
+void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer &buffer, VkDeviceMemory &bufferMemory) {
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferInfo.size = size;
@@ -87,61 +91,102 @@ struct SwapChainSupportDetails {
     std::vector<VkSurfaceFormatKHR> formats;
     std::vector<VkPresentModeKHR> presentModes;
 };
+std::vector<char> readFile(const std::string& filename) {
+    std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
-void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
-        VkCommandBufferBeginInfo beginInfo{};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-        if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
-            throw std::runtime_error("failed to begin recording command buffer!");
-        }
-
-        VkRenderPassBeginInfo renderPassInfo{};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass = g_vulkanstate.renderPass;
-        renderPassInfo.framebuffer = g_vulkanstate.swapchainImageFramebuffers[imageIndex];
-        renderPassInfo.renderArea.offset = {0, 0};
-        renderPassInfo.renderArea.extent = VkExtent2D{1000, 800};
-
-        VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-        renderPassInfo.clearValueCount = 1;
-        renderPassInfo.pClearValues = &clearColor;
-
-        vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-            /*vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-
-            VkViewport viewport{};
-            viewport.x = 0.0f;
-            viewport.y = 0.0f;
-            viewport.width = (float) swapChainExtent.width;
-            viewport.height = (float) swapChainExtent.height;
-            viewport.minDepth = 0.0f;
-            viewport.maxDepth = 1.0f;
-            vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-
-            VkRect2D scissor{};
-            scissor.offset = {0, 0};
-            scissor.extent = swapChainExtent;
-            vkCmdSetScissor(commandBuffer, 0, 1, &scissor);*/
-
-            //vkCmdDraw(commandBuffer, 3, 1, 0, 0);
-
-        vkCmdEndRenderPass(commandBuffer);
-
-        if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
-            throw std::runtime_error("failed to record command buffer!");
-        }
+    if (!file.is_open()) {
+        throw std::runtime_error("failed to open file!");
     }
 
+    size_t fileSize = (size_t) file.tellg();
+    std::vector<char> buffer(fileSize);
+    file.seekg(0);
+    file.read(buffer.data(), fileSize);
+    file.close();
+    return buffer;
+}
+
+
+void createGraphicsPipeline(){
+    VkShaderModuleCreateInfo vcinfo{};
+    VkShaderModuleCreateInfo fcinfo{};
+    auto vssource = readFile("../resources/hvk.vert.spv");
+    auto fssource = readFile("../resources/hvk.frag.spv");
+    vcinfo.codeSize = vssource.size();
+    vcinfo.pCode = (uint32_t*)vssource.data();
+    vcinfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    VkShaderModule vertm{};
+    vkCreateShaderModule(g_vulkanstate.device, &vcinfo, nullptr, &vertm);
+    fcinfo.codeSize = fssource.size();
+    fcinfo.pCode = (uint32_t*)fssource.data();
+    fcinfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    VkShaderModule fragm{};
+    vkCreateShaderModule(g_vulkanstate.device, &fcinfo, nullptr, &fragm);
+    VkPipelineDynamicStateCreateInfo dynamicState{};
+    std::vector<uint32_t> dynamicStates{VK_DYNAMIC_STATE_BLEND_CONSTANTS};
+    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+    dynamicState.pDynamicStates = dynamicStates.data();
+
+    VkGraphicsPipelineCreateInfo pldesc{};
+
+    pldesc.v
+        
+
+}
+void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
+        throw std::runtime_error("failed to begin recording command buffer!");
+    }
+
+    VkRenderPassBeginInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = g_vulkanstate.renderPass;
+    renderPassInfo.framebuffer = g_vulkanstate.swapchainImageFramebuffers[imageIndex];
+    renderPassInfo.renderArea.offset = {0, 0};
+    renderPassInfo.renderArea.extent = VkExtent2D{1000, 800};
+
+    VkClearValue clearColor = {{{0.0f, 1.0f, 0.0f, 1.0f}}};
+    renderPassInfo.clearValueCount = 1;
+    renderPassInfo.pClearValues = &clearColor;
+
+    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    /*vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = (float) swapChainExtent.width;
+    viewport.height = (float) swapChainExtent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent = swapChainExtent;
+    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);*/
+
+    // vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
+    vkCmdEndRenderPass(commandBuffer);
+
+    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+        throw std::runtime_error("failed to record command buffer!");
+    }
+}
+
 // Function to initialize GLFW and create a window
-GLFWwindow* initWindow(uint32_t width, uint32_t height, const char* title) {
+GLFWwindow *initWindow(uint32_t width, uint32_t height, const char *title) {
     if (!glfwInit()) {
         throw std::runtime_error("Failed to initialize GLFW!");
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // We don't want OpenGL
-    GLFWwindow* window = glfwCreateWindow(width, height, title, nullptr, nullptr);
+    GLFWwindow *window = glfwCreateWindow(width, height, title, nullptr, nullptr);
     if (!window) {
         throw std::runtime_error("Failed to create GLFW window!");
     }
@@ -152,7 +197,7 @@ GLFWwindow* initWindow(uint32_t width, uint32_t height, const char* title) {
 // Function to create Vulkan instance
 void createInstance() {
     uint32_t requiredGLFWExtensions = 0;
-    const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&requiredGLFWExtensions);
+    const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&requiredGLFWExtensions);
 
     if (!glfwExtensions) {
         throw std::runtime_error("Failed to get GLFW required extensions!");
@@ -166,32 +211,31 @@ void createInstance() {
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.apiVersion = VK_API_VERSION_1_0;
 
-
     uint32_t layerCount = 0;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
     std::vector<VkLayerProperties> availableLayers(layerCount);
     vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
-    std::vector<const char*> validationLayers;
-    for (const auto& layer : availableLayers) {
-        //std::cout << "\t" << layer.layerName << " : " << layer.description << "\n";
-        if(std::string(layer.layerName).find("validat") != std::string::npos){
+    std::vector<const char *> validationLayers;
+    for (const auto &layer : availableLayers) {
+        // std::cout << "\t" << layer.layerName << " : " << layer.description << "\n";
+        if (std::string(layer.layerName).find("validat") != std::string::npos) {
             std::cout << "\t[DEBUG]: Selecting layer " << layer.layerName << std::endl;
             validationLayers.push_back(layer.layerName);
         }
     }
 
     VkInstanceCreateInfo createInfo{};
-    
+
     createInfo.enabledLayerCount = validationLayers.size();
     createInfo.ppEnabledLayerNames = validationLayers.data();
-    
+
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
 
     // Copy GLFW extensions to a vector
-    std::vector<const char*> extensions(glfwExtensions, glfwExtensions + requiredGLFWExtensions);
+    std::vector<const char *> extensions(glfwExtensions, glfwExtensions + requiredGLFWExtensions);
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
 
@@ -205,7 +249,7 @@ void createInstance() {
 }
 
 // Function to create window surface
-void createSurface(GLFWwindow* window) {
+void createSurface(GLFWwindow *window) {
     if (glfwCreateWindowSurface(g_vulkanstate.instance, window, nullptr, &g_vulkanstate.surface) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create window surface!");
     } else {
@@ -225,29 +269,30 @@ void pickPhysicalDevice() {
     std::vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(g_vulkanstate.instance, &deviceCount, devices.data());
 
-    // Select the first discrete GPU
-    for (const auto& device : devices) {
+    for (const auto &device : devices) {
         VkPhysicalDeviceProperties props;
         vkGetPhysicalDeviceProperties(device, &props);
         std::cout << "Found device: " << props.deviceName << "\n";
+    }
+    for (const auto &device : devices) {
+        VkPhysicalDeviceProperties props;
+        vkGetPhysicalDeviceProperties(device, &props);
         if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
             g_vulkanstate.physicalDevice = device;
             goto picked;
         }
     }
-    for (const auto& device : devices) {
+    for (const auto &device : devices) {
         VkPhysicalDeviceProperties props;
         vkGetPhysicalDeviceProperties(device, &props);
-        std::cout << "Found device: " << props.deviceName << "\n";
         if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) {
             g_vulkanstate.physicalDevice = device;
             goto picked;
         }
     }
-    for (const auto& device : devices) {
+    for (const auto &device : devices) {
         VkPhysicalDeviceProperties props;
         vkGetPhysicalDeviceProperties(device, &props);
-        std::cout << "Found device: " << props.deviceName << "\n";
         if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU) {
             g_vulkanstate.physicalDevice = device;
             goto picked;
@@ -271,7 +316,7 @@ void findQueueFamilies() {
 
     // Iterate through each queue family and check for the desired capabilities
     for (uint32_t i = 0; i < queueFamilies.size(); i++) {
-        const auto& queueFamily = queueFamilies[i];
+        const auto &queueFamily = queueFamilies[i];
 
         // Check for graphics support
         if ((queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) && g_vulkanstate.graphicsFamily == UINT32_MAX) {
@@ -291,9 +336,7 @@ void findQueueFamilies() {
         }
 
         // If all families are found, no need to continue
-        if (g_vulkanstate.graphicsFamily != UINT32_MAX &&
-            g_vulkanstate.presentFamily != UINT32_MAX &&
-            g_vulkanstate.computeFamily != UINT32_MAX) {
+        if (g_vulkanstate.graphicsFamily != UINT32_MAX && g_vulkanstate.presentFamily != UINT32_MAX && g_vulkanstate.computeFamily != UINT32_MAX) {
             break;
         }
     }
@@ -331,10 +374,9 @@ SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device, VkSurface
 }
 
 // Function to choose the best surface format
-VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
-    for (const auto& availableFormat : availableFormats) {
-        if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB &&
-            availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats) {
+    for (const auto &availableFormat : availableFormats) {
+        if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
             return availableFormat;
         }
     }
@@ -344,8 +386,8 @@ VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>
 }
 
 // Function to choose the best present mode
-VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) {
-    for (const auto& availablePresentMode : availablePresentModes) {
+VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availablePresentModes) {
+    for (const auto &availablePresentMode : availablePresentModes) {
         if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
             return availablePresentMode;
         }
@@ -356,27 +398,22 @@ VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& avai
 }
 
 // Function to choose the swap extent (resolution)
-VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, GLFWwindow* window) {
+VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities, GLFWwindow *window) {
     if (capabilities.currentExtent.width != UINT32_MAX) {
         return capabilities.currentExtent;
     } else {
         int width, height;
         glfwGetFramebufferSize(window, &width, &height);
 
-        VkExtent2D actualExtent = {
-            static_cast<uint32_t>(width),
-            static_cast<uint32_t>(height)
-        };
+        VkExtent2D actualExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
 
-        actualExtent.width = std::max(capabilities.minImageExtent.width,
-            std::min(capabilities.maxImageExtent.width, actualExtent.width));
-        actualExtent.height = std::max(capabilities.minImageExtent.height,
-            std::min(capabilities.maxImageExtent.height, actualExtent.height));
+        actualExtent.width = std::max(capabilities.minImageExtent.width, std::min(capabilities.maxImageExtent.width, actualExtent.width));
+        actualExtent.height = std::max(capabilities.minImageExtent.height, std::min(capabilities.maxImageExtent.height, actualExtent.height));
 
         return actualExtent;
     }
 }
-void createRenderPass(){
+void createRenderPass() {
     VkAttachmentDescription colorAttachment{};
     colorAttachment.format = g_vulkanstate.swapchainImageFormat;
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -401,13 +438,12 @@ void createRenderPass(){
     renderPassInfo.subpassCount = 1;
     renderPassInfo.pSubpasses = &subpass;
 
-
     if (vkCreateRenderPass(g_vulkanstate.device, &renderPassInfo, nullptr, &g_vulkanstate.renderPass) != VK_SUCCESS) {
         throw std::runtime_error("failed to create render pass!");
     }
 }
 // Function to create the swapchain
-void createSwapChain(GLFWwindow* window, uint32_t width, uint32_t height) {
+void createSwapChain(GLFWwindow *window, uint32_t width, uint32_t height) {
     SwapChainSupportDetails swapChainSupport = querySwapChainSupport(g_vulkanstate.physicalDevice, g_vulkanstate.surface);
 
     VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
@@ -415,8 +451,7 @@ void createSwapChain(GLFWwindow* window, uint32_t width, uint32_t height) {
     VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities, window);
 
     uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
-    if (swapChainSupport.capabilities.maxImageCount > 0 &&
-        imageCount > swapChainSupport.capabilities.maxImageCount) {
+    if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
         imageCount = swapChainSupport.capabilities.maxImageCount;
     }
 
@@ -432,7 +467,7 @@ void createSwapChain(GLFWwindow* window, uint32_t width, uint32_t height) {
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
     // Queue family indices
-    uint32_t queueFamilyIndices[] = { g_vulkanstate.graphicsFamily, g_vulkanstate.presentFamily };
+    uint32_t queueFamilyIndices[] = {g_vulkanstate.graphicsFamily, g_vulkanstate.presentFamily};
 
     if (g_vulkanstate.graphicsFamily != g_vulkanstate.presentFamily) {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
@@ -440,8 +475,8 @@ void createSwapChain(GLFWwindow* window, uint32_t width, uint32_t height) {
         createInfo.pQueueFamilyIndices = queueFamilyIndices;
     } else {
         createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        createInfo.queueFamilyIndexCount = 0;      // Optional
-        createInfo.pQueueFamilyIndices = nullptr;  // Optional
+        createInfo.queueFamilyIndexCount = 0;     // Optional
+        createInfo.pQueueFamilyIndices = nullptr; // Optional
     }
 
     createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
@@ -461,7 +496,7 @@ void createSwapChain(GLFWwindow* window, uint32_t width, uint32_t height) {
     vkGetSwapchainImagesKHR(g_vulkanstate.device, g_vulkanstate.swapchain, &imageCount, nullptr);
     g_vulkanstate.swapchainImages.resize(imageCount);
     vkGetSwapchainImagesKHR(g_vulkanstate.device, g_vulkanstate.swapchain, &imageCount, g_vulkanstate.swapchainImages.data());
-    
+
     g_vulkanstate.swapchainImageFormat = surfaceFormat.format;
     g_vulkanstate.swapchainExtent = extent;
 }
@@ -491,7 +526,7 @@ void createImageViews(uint32_t width, uint32_t height) {
         }
     }
     g_vulkanstate.swapchainImageFramebuffers.resize(g_vulkanstate.swapchainImageViews.size());
-    for(size_t i = 0;i < g_vulkanstate.swapchainImageViews.size();i++){
+    for (size_t i = 0; i < g_vulkanstate.swapchainImageViews.size(); i++) {
         VkFramebufferCreateInfo fbcinfo{};
         fbcinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         fbcinfo.attachmentCount = 1;
@@ -517,7 +552,7 @@ void createStagingBuffer() {
     createBuffer(1000, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, memoryProperties, stagingBuffer, stagingBufferMemory);
 
     // Map and unmap memory (example)
-    void* mappedData;
+    void *mappedData;
     vkMapMemory(g_vulkanstate.device, stagingBufferMemory, 0, 1000, 0, &mappedData);
     // If you have data to copy, use memcpy here
     // memcpy(mappedData, data, size);
@@ -532,7 +567,7 @@ void createLogicalDevice() {
     findQueueFamilies();
 
     // Collect unique queue families
-    std::set<uint32_t> uniqueQueueFamilies;// = { g_vulkanstate.graphicsFamily, g_vulkanstate.presentFamily };
+    std::set<uint32_t> uniqueQueueFamilies; // = { g_vulkanstate.graphicsFamily, g_vulkanstate.presentFamily };
 
     uniqueQueueFamilies.insert(g_vulkanstate.computeFamily);
     uniqueQueueFamilies.insert(g_vulkanstate.graphicsFamily);
@@ -555,7 +590,7 @@ void createLogicalDevice() {
     }
 
     // Specify device extensions
-    std::vector<const char*> deviceExtensions = {
+    std::vector<const char *> deviceExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
         // Add other required extensions here
     };
@@ -567,15 +602,15 @@ void createLogicalDevice() {
     // Create device create info
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    
+
     createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
     createInfo.pQueueCreateInfos = queueCreateInfos.data();
-    
+
     createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
     createInfo.ppEnabledExtensionNames = deviceExtensions.data();
-    
+
     createInfo.pEnabledFeatures = &deviceFeatures;
-    
+
     // (Optional) Enable validation layers for device-specific debugging
 
     if (vkCreateDevice(g_vulkanstate.physicalDevice, &createInfo, nullptr, &g_vulkanstate.device) != VK_SUCCESS) {
@@ -588,8 +623,7 @@ void createLogicalDevice() {
     vkGetDeviceQueue(g_vulkanstate.device, g_vulkanstate.graphicsFamily, 0, &g_vulkanstate.graphicsQueue);
     vkGetDeviceQueue(g_vulkanstate.device, g_vulkanstate.presentFamily, 0, &g_vulkanstate.presentQueue);
 
-    if (g_vulkanstate.computeFamily != g_vulkanstate.graphicsFamily &&
-        g_vulkanstate.computeFamily != g_vulkanstate.presentFamily) {
+    if (g_vulkanstate.computeFamily != g_vulkanstate.graphicsFamily && g_vulkanstate.computeFamily != g_vulkanstate.presentFamily) {
         vkGetDeviceQueue(g_vulkanstate.device, g_vulkanstate.computeFamily, 0, &g_vulkanstate.computeQueue);
     } else {
         // If compute family is same as graphics or present, assign accordingly
@@ -600,13 +634,13 @@ void createLogicalDevice() {
         }
     }
     //__builtin_dump_struct(&g_vulkanstate, printf);
-    //std::cin.get();
+    // std::cin.get();
 
     std::cout << "Successfully retrieved queues\n";
 }
 
 // Function to initialize Vulkan (all setup steps)
-void initVulkan(GLFWwindow* window) {
+void initVulkan(GLFWwindow *window) {
     createInstance();
     createSurface(window);
     pickPhysicalDevice();
@@ -620,88 +654,108 @@ void initVulkan(GLFWwindow* window) {
 }
 
 // Function to run the main event loop
-void mainLoop(GLFWwindow* window) {
+void mainLoop(GLFWwindow *window) {
     VkSemaphoreCreateInfo sci{};
     sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     VkSemaphore imageAvailableSemaphore;
+    VkSemaphore renderFinishedSemaphore;
+    VkFence inFlightFence;
     VkResult scr = vkCreateSemaphore(g_vulkanstate.device, &sci, nullptr, &imageAvailableSemaphore);
-    if(scr != VK_SUCCESS){
+    if (scr != VK_SUCCESS) {
         std::exit(1);
     }
+    auto &device = g_vulkanstate.device;
+
+    VkCommandPoolCreateInfo poolInfo{};
+    VkCommandPool commandPool{};
+    VkCommandBuffer commandBuffer{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    poolInfo.queueFamilyIndex = g_vulkanstate.graphicsFamily;
+    if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create command pool!");
+    }
+
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = commandPool;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = 1;
+    if (vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate command buffers!");
+    }
+
+    VkSemaphoreCreateInfo semaphoreInfo{};
+    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    VkFenceCreateInfo fenceInfo{};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphore) != VK_SUCCESS || vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphore) != VK_SUCCESS ||
+        vkCreateFence(device, &fenceInfo, nullptr, &inFlightFence) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create synchronization objects for a frame!");
+    }
+    uint64_t framecount = 0;
+    uint64_t stamp = nanoTime();
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
+        auto &swapChain = g_vulkanstate.swapchain;
+        vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
+        vkResetFences(device, 1, &inFlightFence);
+
         uint32_t imageIndex;
-        VkResult res = vkAcquireNextImageKHR(g_vulkanstate.device, g_vulkanstate.swapchain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
-        if(res == VK_SUCCESS){
-            std::cout << "Successfully got image: " << imageIndex << "\n";
+        vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+
+        vkResetCommandBuffer(commandBuffer, /*VkCommandBufferResetFlagBits*/ 0);
+        recordCommandBuffer(commandBuffer, imageIndex);
+
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+        VkSemaphore waitSemaphores[] = {imageAvailableSemaphore};
+        VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores = waitSemaphores;
+        submitInfo.pWaitDstStageMask = waitStages;
+
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &commandBuffer;
+
+        VkSemaphore signalSemaphores[] = {renderFinishedSemaphore};
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = signalSemaphores;
+
+        if (vkQueueSubmit(g_vulkanstate.graphicsQueue, 1, &submitInfo, inFlightFence) != VK_SUCCESS) {
+            throw std::runtime_error("failed to submit draw command buffer!");
         }
-        
-        VkCommandPoolCreateInfo cpinfo{};
-        cpinfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        cpinfo.queueFamilyIndex = g_vulkanstate.graphicsFamily;
-        VkCommandPool cpool;
-        vkCreateCommandPool(g_vulkanstate.device, &cpinfo, nullptr, &cpool);
-        VkCommandBufferAllocateInfo cbinfo{};
-        cbinfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        cbinfo.commandBufferCount = 1;
-        cbinfo.commandPool = cpool;
-        VkCommandBuffer cmdbuffer;
-        vkAllocateCommandBuffers(g_vulkanstate.device, &cbinfo, &cmdbuffer);
-        VkCommandBufferBeginInfo binfo{};
-        binfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        //vkBeginCommandBuffer(cmdbuffer, &binfo);
-        //vkEndCommandBuffer(cmdbuffer);
-        VkSemaphoreCreateInfo sci{};
-        sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-        VkSemaphore semafor;
-        vkCreateSemaphore(g_vulkanstate.device, &sci, nullptr, &semafor);
-        VkPresentInfoKHR pinfo{};
-        pinfo.pImageIndices = &imageIndex;
-        VkResult results;
-        pinfo.pResults = &results;
-        pinfo.pSwapchains = &g_vulkanstate.swapchain;
-        pinfo.swapchainCount = 1;
-        pinfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-        
 
-        recordCommandBuffer(cmdbuffer, imageIndex);
-        VkSubmitInfo sin{};
-        sin.commandBufferCount = 1;
-        sin.pCommandBuffers = &cmdbuffer;
-        //sin.signalSemaphoreCount = 1;
-        //sin.pSignalSemaphores = &semafor;
-        pinfo.waitSemaphoreCount = 1;
-        pinfo.pWaitSemaphores = &imageAvailableSemaphore;
-        sin.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        VkFenceCreateInfo fcrinfo{};
-        fcrinfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-        VkFence fence{};
-        vkCreateFence(g_vulkanstate.device, &fcrinfo, nullptr, &fence);
+        VkPresentInfoKHR presentInfo{};
+        presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
-        VkResult qsr = vkQueueSubmit(g_vulkanstate.graphicsQueue, 1, &sin, fence);
-        VkResult wfr = vkWaitForFences(g_vulkanstate.device, 1, &fence, VK_TRUE, ~0ull);
+        presentInfo.waitSemaphoreCount = 1;
+        presentInfo.pWaitSemaphores = signalSemaphores;
 
-        //std::cout << qsr << ", " << wfr << std::endl;
-        //std::cin.get();
-        VkResult presentResult = vkQueuePresentKHR(g_vulkanstate.presentQueue, &pinfo);
-        VkSemaphoreWaitInfo winfo{};
-        winfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
-        winfo.pSemaphores = &imageAvailableSemaphore;
-        winfo.semaphoreCount = 1;
-        uint64_t sleepvalue = ~0ull;
-        winfo.pValues = &sleepvalue;
-        winfo.flags = VK_SEMAPHORE_WAIT_ANY_BIT;
-        //vkWaitSemaphores(g_vulkanstate.device, &winfo, ~0ull);
-        if(presentResult == VK_SUCCESS){
-            std::cout << "Sucessfully presented the image\n";
+        VkSwapchainKHR swapChains[] = {swapChain};
+        presentInfo.swapchainCount = 1;
+        presentInfo.pSwapchains = swapChains;
+
+        presentInfo.pImageIndices = &imageIndex;
+
+        VkResult res = vkQueuePresentKHR(g_vulkanstate.presentQueue, &presentInfo);
+        ++framecount;
+        uint64_t stmp = nanoTime();
+        if (stmp - stamp > 1000000000) {
+            std::cout << framecount << std::endl;
+            stamp = stmp;
+            framecount = 0;
         }
-        std::cin.get();
-        //break;
+        // break;
     }
 }
 
 // Function to clean up Vulkan and GLFW resources
-void cleanup(GLFWwindow* window) {
+void cleanup(GLFWwindow *window) {
     // Cleanup swapchain image views
     for (auto imageView : g_vulkanstate.swapchainImageViews) {
         vkDestroyImageView(g_vulkanstate.device, imageView, nullptr);
@@ -738,7 +792,7 @@ void cleanup(GLFWwindow* window) {
 
 // Entry point
 int main() {
-    GLFWwindow* window = nullptr;
+    GLFWwindow *window = nullptr;
 
     try {
         // Initialize window
@@ -752,7 +806,7 @@ int main() {
 
         // Cleanup resources
         cleanup(window);
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         std::cerr << e.what() << std::endl;
         if (window) {
             glfwDestroyWindow(window);
