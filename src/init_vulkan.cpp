@@ -29,9 +29,13 @@ struct VulkanState {
     VkSurfaceKHR surface = VK_NULL_HANDLE;
     VkSwapchainKHR swapchain = VK_NULL_HANDLE;
     VkFormat swapchainImageFormat = VK_FORMAT_UNDEFINED;
+
+    VkRenderPass renderPass;
+
     VkExtent2D swapchainExtent = { 0, 0 };
     std::vector<VkImage> swapchainImages;
     std::vector<VkImageView> swapchainImageViews;
+    std::vector<VkFramebuffer> swapchainImageFramebuffers;
 } g_vulkanstate;
 
 // Function to find a suitable memory type
@@ -94,10 +98,10 @@ void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
 
         VkRenderPassBeginInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass = renderPass;
-        renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
+        renderPassInfo.renderPass = g_vulkanstate.renderPass;
+        renderPassInfo.framebuffer = g_vulkanstate.swapchainImageFramebuffers[imageIndex];
         renderPassInfo.renderArea.offset = {0, 0};
-        renderPassInfo.renderArea.extent = swapChainExtent;
+        renderPassInfo.renderArea.extent = VkExtent2D{1000, 800};
 
         VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
         renderPassInfo.clearValueCount = 1;
@@ -121,7 +125,7 @@ void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
             scissor.extent = swapChainExtent;
             vkCmdSetScissor(commandBuffer, 0, 1, &scissor);*/
 
-            vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+            //vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 
         vkCmdEndRenderPass(commandBuffer);
 
@@ -372,9 +376,38 @@ VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, GLFWwi
         return actualExtent;
     }
 }
+void createRenderPass(){
+    VkAttachmentDescription colorAttachment{};
+    colorAttachment.format = g_vulkanstate.swapchainImageFormat;
+    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
+    VkAttachmentReference colorAttachmentRef{};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachmentRef;
+    VkRenderPassCreateInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassInfo.attachmentCount = 1;
+    renderPassInfo.pAttachments = &colorAttachment;
+    renderPassInfo.subpassCount = 1;
+    renderPassInfo.pSubpasses = &subpass;
+
+
+    if (vkCreateRenderPass(g_vulkanstate.device, &renderPassInfo, nullptr, &g_vulkanstate.renderPass) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create render pass!");
+    }
+}
 // Function to create the swapchain
-void createSwapChain(GLFWwindow* window) {
+void createSwapChain(GLFWwindow* window, uint32_t width, uint32_t height) {
     SwapChainSupportDetails swapChainSupport = querySwapChainSupport(g_vulkanstate.physicalDevice, g_vulkanstate.surface);
 
     VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
@@ -428,13 +461,13 @@ void createSwapChain(GLFWwindow* window) {
     vkGetSwapchainImagesKHR(g_vulkanstate.device, g_vulkanstate.swapchain, &imageCount, nullptr);
     g_vulkanstate.swapchainImages.resize(imageCount);
     vkGetSwapchainImagesKHR(g_vulkanstate.device, g_vulkanstate.swapchain, &imageCount, g_vulkanstate.swapchainImages.data());
-
+    
     g_vulkanstate.swapchainImageFormat = surfaceFormat.format;
     g_vulkanstate.swapchainExtent = extent;
 }
 
 // Function to create image views for the swapchain images
-void createImageViews() {
+void createImageViews(uint32_t width, uint32_t height) {
     g_vulkanstate.swapchainImageViews.resize(g_vulkanstate.swapchainImages.size());
 
     for (size_t i = 0; i < g_vulkanstate.swapchainImages.size(); i++) {
@@ -455,6 +488,20 @@ void createImageViews() {
 
         if (vkCreateImageView(g_vulkanstate.device, &createInfo, nullptr, &g_vulkanstate.swapchainImageViews[i]) != VK_SUCCESS) {
             throw std::runtime_error("Failed to create image views!");
+        }
+    }
+    g_vulkanstate.swapchainImageFramebuffers.resize(g_vulkanstate.swapchainImageViews.size());
+    for(size_t i = 0;i < g_vulkanstate.swapchainImageViews.size();i++){
+        VkFramebufferCreateInfo fbcinfo{};
+        fbcinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        fbcinfo.attachmentCount = 1;
+        fbcinfo.pAttachments = &g_vulkanstate.swapchainImageViews[i];
+        fbcinfo.width = width;
+        fbcinfo.height = height;
+        fbcinfo.renderPass = g_vulkanstate.renderPass;
+        fbcinfo.layers = 1;
+        if (vkCreateFramebuffer(g_vulkanstate.device, &fbcinfo, nullptr, &g_vulkanstate.swapchainImageFramebuffers[i]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create framebuffer!");
         }
     }
 
@@ -564,8 +611,11 @@ void initVulkan(GLFWwindow* window) {
     createSurface(window);
     pickPhysicalDevice();
     createLogicalDevice();
-    createSwapChain(window);
-    createImageViews();
+    int width, height;
+    glfwGetWindowSize(window, &width, &height);
+    createSwapChain(window, width, height);
+    createRenderPass();
+    createImageViews(width, height);
     createStagingBuffer();
 }
 
@@ -586,21 +636,25 @@ void mainLoop(GLFWwindow* window) {
             std::cout << "Successfully got image: " << imageIndex << "\n";
         }
         
-        //VkCommandPoolCreateInfo cpinfo{};
-        //cpinfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        //cpinfo.queueFamilyIndex = g_vulkanstate.graphicsFamily;
-        //VkCommandPool cpool;
-        //vkCreateCommandPool(g_vulkanstate.device, &cpinfo, nullptr, &cpool);
-        //VkCommandBufferAllocateInfo cbinfo{};
-        //cbinfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        //cbinfo.commandBufferCount = 1;
-        //cbinfo.commandPool = cpool;
-        //VkCommandBuffer cmdbuffer;
-        //vkAllocateCommandBuffers(g_vulkanstate.device, &cbinfo, &cmdbuffer);
-        //VkCommandBufferBeginInfo binfo{};
-        //binfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        VkCommandPoolCreateInfo cpinfo{};
+        cpinfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        cpinfo.queueFamilyIndex = g_vulkanstate.graphicsFamily;
+        VkCommandPool cpool;
+        vkCreateCommandPool(g_vulkanstate.device, &cpinfo, nullptr, &cpool);
+        VkCommandBufferAllocateInfo cbinfo{};
+        cbinfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        cbinfo.commandBufferCount = 1;
+        cbinfo.commandPool = cpool;
+        VkCommandBuffer cmdbuffer;
+        vkAllocateCommandBuffers(g_vulkanstate.device, &cbinfo, &cmdbuffer);
+        VkCommandBufferBeginInfo binfo{};
+        binfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         //vkBeginCommandBuffer(cmdbuffer, &binfo);
         //vkEndCommandBuffer(cmdbuffer);
+        VkSemaphoreCreateInfo sci{};
+        sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+        VkSemaphore semafor;
+        vkCreateSemaphore(g_vulkanstate.device, &sci, nullptr, &semafor);
         VkPresentInfoKHR pinfo{};
         pinfo.pImageIndices = &imageIndex;
         VkResult results;
@@ -608,11 +662,41 @@ void mainLoop(GLFWwindow* window) {
         pinfo.pSwapchains = &g_vulkanstate.swapchain;
         pinfo.swapchainCount = 1;
         pinfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        
+
+        recordCommandBuffer(cmdbuffer, imageIndex);
+        VkSubmitInfo sin{};
+        sin.commandBufferCount = 1;
+        sin.pCommandBuffers = &cmdbuffer;
+        //sin.signalSemaphoreCount = 1;
+        //sin.pSignalSemaphores = &semafor;
+        pinfo.waitSemaphoreCount = 1;
+        pinfo.pWaitSemaphores = &imageAvailableSemaphore;
+        sin.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        VkFenceCreateInfo fcrinfo{};
+        fcrinfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        VkFence fence{};
+        vkCreateFence(g_vulkanstate.device, &fcrinfo, nullptr, &fence);
+
+        VkResult qsr = vkQueueSubmit(g_vulkanstate.graphicsQueue, 1, &sin, fence);
+        VkResult wfr = vkWaitForFences(g_vulkanstate.device, 1, &fence, VK_TRUE, ~0ull);
+
+        //std::cout << qsr << ", " << wfr << std::endl;
+        //std::cin.get();
         VkResult presentResult = vkQueuePresentKHR(g_vulkanstate.presentQueue, &pinfo);
+        VkSemaphoreWaitInfo winfo{};
+        winfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
+        winfo.pSemaphores = &imageAvailableSemaphore;
+        winfo.semaphoreCount = 1;
+        uint64_t sleepvalue = ~0ull;
+        winfo.pValues = &sleepvalue;
+        winfo.flags = VK_SEMAPHORE_WAIT_ANY_BIT;
+        //vkWaitSemaphores(g_vulkanstate.device, &winfo, ~0ull);
         if(presentResult == VK_SUCCESS){
             std::cout << "Sucessfully presented the image\n";
         }
-        break;
+        std::cin.get();
+        //break;
     }
 }
 
