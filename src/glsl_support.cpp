@@ -15,9 +15,10 @@
 bool glslang_initialized = false;
 std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char *vs, const char *fs) {
 
-    if (!glslang_initialized)
+    if (!glslang_initialized){
         glslang::InitializeProcess();
-    
+        glslang_initialized = true;
+    }
 
     glslang::TShader shader(EShLangVertex);
     glslang::TShader fragshader(EShLangFragment);

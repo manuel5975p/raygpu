@@ -10,11 +10,134 @@
 #include <vector>
 #include <format>
 #include <raygpu.h>
+#include <small_vector.hpp>
+#include <glslang/SPIRV/GlslangToSpv.h>
+#include <glslang/Public/ShaderLang.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+constexpr char vsSource[] = R"(#version 450
+
+layout(location = 0) in vec3 inPos;
+layout(location = 0) out vec3 fragColor;
+
+vec2 positions[3] = vec2[](
+    vec2(0.0, -0.5),
+    vec2(0.5, 0.5),
+    vec2(-0.5, 0.5)
+);
+
+vec3 colors[3] = vec3[](
+    vec3(1.0, 0.0, 0.0),
+    vec3(0.0, 1.0, 0.0),
+    vec3(0.0, 0.0, 1.0)
+);
+
+void main() {
+    gl_Position = vec4(inPos, 1.0f);//vec4(positions[gl_VertexIndex], 0.0, 1.0);
+    fragColor = colors[gl_VertexIndex];
+}
+)";
+constexpr char fsSource[] = R"(#version 450
+#extension GL_EXT_samplerless_texture_functions: enable
+layout(location = 0) in vec3 fragColor;
+layout(binding = 0) uniform texture2D texture0;
+layout(location = 0) out vec4 outColor;
+
+void main() {
+    outColor = texelFetch(texture0, ivec2(0,0), 0);
+    //outColor = vec4(fragColor, 1.0);
+})";
 
 
+
+
+bool glslang_initialized = false;
+
+std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char *vs, const char *fs) {
+
+    if (!glslang_initialized)
+        glslang::InitializeProcess();
+    
+
+    glslang::TShader shader(EShLangVertex);
+    glslang::TShader fragshader(EShLangFragment);
+    const char *shaderStrings[2];
+    shaderStrings[0] = vs;//shaderCode.c_str();
+    shaderStrings[1] = fs;//fragCode.c_str();
+    shader.setStrings(shaderStrings, 1);
+    fragshader.setStrings(shaderStrings + 1, 1);
+    int ver = 430;
+    // Set shader version and other options
+    shader.setEnvInput(glslang::EShSourceGlsl, EShLangVertex, glslang::EShClientOpenGL, ver);
+    shader.setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
+    shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
+
+    fragshader.setEnvInput(glslang::EShSourceGlsl, EShLangVertex, glslang::EShClientOpenGL, ver);
+    fragshader.setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
+    fragshader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
+    
+    // Define resources (required for some shaders)
+    TBuiltInResource Resources = {};
+    Resources.limits.generalUniformIndexing = true;
+    Resources.limits.generalVariableIndexing = true;
+    
+    // Initialize Resources with default values or customize as needed
+    // For simplicity, we'll use the default initialization here
+
+    EShMessages messages = (EShMessages)(EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules);
+
+    // Parse the shader
+    shader.setAutoMapLocations(false);
+    if (!shader.parse(&Resources, ver, ECoreProfile, false, false, messages)) {
+        //std::cerr << "Error\n";
+        fprintf(stderr, "Vertex GLSL Parsing Failed: %s", shader.getInfoLog());
+        exit(0);
+    }
+    fragshader.setAutoMapLocations(false);
+    if (!fragshader.parse(&Resources, ver, ECoreProfile, false, false, messages)) {
+        fprintf(stderr, "Fragment GLSL Parsing Failed: %s", fragshader.getInfoLog());
+        exit(0);
+        //std::cerr << "Error\n";
+        //TRACELOG(LOG_ERROR, "Fragment GLSL Parsing Failed: %s", fragshader.getInfoLog());
+    }
+
+    // Link the program
+    glslang::TProgram program;
+    program.addShader(&shader);
+    program.addShader(&fragshader);
+    program.link(messages);
+    //if (!program.link(messages)) {
+    //    std::cerr << "GLSL Linking Failed:\n" << program.getInfoLog() << std::endl;
+    //}
+
+    // Retrieve the intermediate representation
+    //program.buildReflection();
+    //int uniformCount = program.getNumUniformVariables();
+
+    //std::cout << uniformCount << "\n";
+    //glslang::TIntermediate *vertexIntermediate   = shader.getIntermediate();
+    //glslang::TIntermediate *fragmentIntermediate = fragshader.getIntermediate();
+
+    glslang::TIntermediate *vertexIntermediate = program.getIntermediate(EShLanguage(EShLangVertex));
+    glslang::TIntermediate *fragmentIntermediate = program.getIntermediate(EShLanguage(EShLangFragment));
+    if (!vertexIntermediate) {
+        std::cerr << "Failed to get intermediate representation for vertex" << std::endl;
+    }
+    if (!fragmentIntermediate) {
+        std::cerr << "Failed to get intermediate representation for fragment" << std::endl;
+    }
+    
+
+    // Convert to SPIR-V
+    std::vector<uint32_t> spirvV, spirvF;
+    glslang::SpvOptions opt;
+    opt.disableOptimizer = false;
+    glslang::GlslangToSpv(*vertexIntermediate, spirvV, &opt);
+    glslang::GlslangToSpv(*fragmentIntermediate, spirvF, &opt);
+
+    return {spirvV, spirvF};
+}
 
 void BeginRenderpassEx_Vk(DescribedRenderpass* renderPass){
     VkCommandBuffer cmd = (VkCommandBuffer)renderPass->cmdEncoder;
@@ -73,6 +196,7 @@ struct VulkanState {
 
     VkRenderPass renderPass;
     VkPipeline graphicsPipeline;
+    VkPipelineLayout graphicsPipelineLayout;
 
     VkExtent2D swapchainExtent = {0, 0};
     std::vector<VkImage> swapchainImages;
@@ -83,6 +207,47 @@ struct VulkanState {
 } g_vulkanstate;
 
 
+DescribedBindGroupLayout* LoadBindGroupLayout_Vk(const ResourceTypeDescriptor* descs, uint32_t uniformCount){
+    DescribedBindGroupLayout* ret = callocnew(DescribedBindGroupLayout);
+    VkDescriptorSetLayout layout{};
+    VkDescriptorSetLayoutCreateInfo lci{};
+    lci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    lci.bindingCount = uniformCount;
+    gch::small_vector<VkDescriptorSetLayoutBinding, 8> entries(uniformCount);
+    lci.pBindings = entries.data();
+    for(uint32_t i = 0;i < uniformCount;i++){
+        switch(descs[i].type){
+            case storage_texture2d:{
+                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            }break;
+            case storage_texture3d:{
+                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            }break;
+            case storage_buffer:{
+                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            }break;
+            case uniform_buffer:{
+                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            }break;
+            case texture2d:{
+                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+            }break;
+            case texture3d:{
+                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+            }break;
+            case texture_sampler:{
+                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+            }break;
+        }
+        entries[i].binding = descs[i].location;
+        entries[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    }
+    ret->entries = (ResourceTypeDescriptor*)std::calloc(uniformCount, sizeof(ResourceTypeDescriptor));
+    ret->entryCount = uniformCount;
+    std::memcpy(ret->entries, descs, uniformCount * sizeof(ResourceTypeDescriptor));
+    VkResult createResult = vkCreateDescriptorSetLayout(g_vulkanstate.device, &lci, nullptr, (VkDescriptorSetLayout*)&ret->layout);
+    return ret;
+}
 
 DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsage usage){
     VkBufferUsageFlagBits vusage = toVulkanBufferUsage(usage);
@@ -149,6 +314,57 @@ VkBuffer createVertexBuffer() {
     vkUnmapMemory(g_vulkanstate.device, vertexBufferMemory);
     return vertexBuffer;
 }
+VkDescriptorSetLayout loadBindGroupLayout(){
+    VkDescriptorSetLayout ret{};
+    VkDescriptorSetLayoutCreateInfo reti{};
+    VkDescriptorSetLayoutBinding tex0b{};
+    tex0b.binding = 0;
+    tex0b.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    tex0b.descriptorCount = 1;
+    tex0b.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    reti.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    reti.bindingCount = 1;
+    reti.pBindings = &tex0b;
+    vkCreateDescriptorSetLayout(g_vulkanstate.device, &reti, nullptr, &ret);
+    return ret;
+}
+VkDescriptorSet loadBindGroup(VkDescriptorSetLayout layout, Texture tex){
+    VkDescriptorPool descriptorPool{};
+    VkDescriptorPoolCreateInfo pci{};
+    pci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pci.poolSizeCount = 1;
+    pci.maxSets = 1;
+    VkDescriptorPoolSize size{};
+    size.type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    size.descriptorCount = 1;
+    pci.pPoolSizes = &size;
+    vkCreateDescriptorPool(g_vulkanstate.device, &pci, nullptr, &descriptorPool);
+    VkDescriptorSet ret{};
+    VkDescriptorSetAllocateInfo reti{};
+    reti.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    reti.descriptorSetCount = 1;
+    reti.descriptorPool = descriptorPool;
+    reti.pSetLayouts = &layout;
+    VkResult ur = vkAllocateDescriptorSets(g_vulkanstate.device, &reti, &ret);
+    if(ur == VK_SUCCESS){;
+        std::cout << "Successfully allocated desciptor set\n";
+    }
+    else{
+        throw "sdjfhjskd\n";
+    }    
+    VkWriteDescriptorSet s{};
+    s.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    VkDescriptorImageInfo imageinfo{};
+    imageinfo.imageView = (VkImageView)tex.view;
+    imageinfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    s.dstSet = ret;
+    s.dstBinding = 0;
+    s.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    s.pImageInfo = &imageinfo;
+    s.descriptorCount = 1;
+    vkUpdateDescriptorSets(g_vulkanstate.device, 1, &s, 0, nullptr);
+    return ret;
+}
 uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
     VkPhysicalDeviceMemoryProperties memProperties;
     vkGetPhysicalDeviceMemoryProperties(g_vulkanstate.physicalDevice, &memProperties);
@@ -213,8 +429,10 @@ std::vector<char> readFile(const std::string &filename) {
     file.close();
     return buffer;
 }
-VkImage createVkImageFromRGBA8(VkDevice device, VkPhysicalDevice physicalDevice, VkCommandPool commandPool, VkQueue queue, const uint8_t *data, uint32_t width, uint32_t height, VkDeviceMemory &imageMemory) {
+std::pair<VkImage, VkDeviceMemory> createVkImageFromRGBA8(VkDevice device, VkPhysicalDevice physicalDevice, VkCommandPool commandPool, VkQueue queue, const uint8_t *data, uint32_t width, uint32_t height) {
     // Lambda to find suitable memory type
+    VkDeviceMemory imageMemory{};
+
     auto findMemoryType = [&](uint32_t typeFilter, VkMemoryPropertyFlags properties) -> uint32_t {
         VkPhysicalDeviceMemoryProperties memProps;
         vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProps);
@@ -340,36 +558,74 @@ VkImage createVkImageFromRGBA8(VkDevice device, VkPhysicalDevice physicalDevice,
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &cmdBuffer;
 
-    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+    VkResult resQs = vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+    if(resQs != VK_SUCCESS){
+        throw std::runtime_error("ass");
+    }
     vkQueueWaitIdle(queue);
 
+    
     // Cleanup staging resources
     vkDestroyBuffer(device, stagingBuffer, nullptr);
     vkFreeMemory(device, stagingMemory, nullptr);
 
-    return image;
+    return {image, imageMemory};
 }
-VkDescriptorSet LoadBindGroup_VK() {
-    VkDescriptorPoolCreateInfo poold{};
-    poold.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poold.poolSizeCount = 1;
-    VkDescriptorPoolSize size{};
-    size.descriptorCount = 1000;
-    size.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    poold.pPoolSizes = &size;
-    VkDescriptorPool pl;
+Texture LoadTextureFromImage(Image img){
+    Texture ret{};
 
-    // vkCreateImage(VkDevice device, const VkImageCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkImage *pImage)
-    // vkGetDeviceImageMemoryRequirements(VkDevice device, const VkDeviceImageMemoryRequirements *pInfo, VkMemoryRequirements2 *pMemoryRequirements)
-    VkDescriptorSetAllocateInfo ai{};
+    if(img.format == RGBA8){
+        VkCommandPoolCreateInfo pci{};
+        pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        pci.queueFamilyIndex = g_vulkanstate.graphicsFamily;
+        pci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+        VkCommandPool cpool{};
 
-    // vkAllocateDescriptorSets(VkDevice device, const VkDescriptorSetAllocateInfo *pAllocateInfo, VkDescriptorSet *pDescriptorSets)
-    return nullptr;
+        vkCreateCommandPool(g_vulkanstate.device, &pci, nullptr, &cpool);
+        //VkCommandBufferAllocateInfo cai{};
+        //cai.commandBufferCount = 1;
+        //cai.commandPool = cpool;
+        //cai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        //VkCommandBuffer cbuffer{};
+        //vkAllocateCommandBuffers(g_vulkanstate.device, &cai, &cbuffer);
+        std::pair<VkImage, VkDeviceMemory> ld = createVkImageFromRGBA8(g_vulkanstate.device, g_vulkanstate.physicalDevice, cpool, g_vulkanstate.computeQueue, (uint8_t*)img.data, img.width, img.height);
+        ret.width = img.width;
+        ret.height = img.height;
+        ret.mipmaps = 1;
+        ret.sampleCount = 1;
+        ret.id = ld.first;
+        VkImageViewCreateInfo vci{};
+        vci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        vci.format = VK_FORMAT_R8G8B8A8_UNORM;
+        vci.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        vci.image = (VkImage)ret.id;
+        vci.flags = 0;
+        vci.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        vci.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        vci.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        vci.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        
+        vci.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        vci.subresourceRange.baseMipLevel = 0;
+        vci.subresourceRange.levelCount = 1;
+        vci.subresourceRange.baseArrayLayer = 0;
+        vci.subresourceRange.layerCount = 1;
+
+        VkResult iwc = vkCreateImageView(g_vulkanstate.device, &vci, nullptr, (VkImageView*)(&ret.view));
+        if(iwc != VK_SUCCESS){
+            throw 234234;
+        }
+        else{
+            std::cout << "Successfully created image view\n";
+        }
+        vkDestroyCommandPool(g_vulkanstate.device, cpool, nullptr);
+    }
+    return ret;
 }
-VkShaderModule createShaderModule(const std::vector<char>& code) {
+VkShaderModule createShaderModule(const std::vector<uint32_t>& code) {
         VkShaderModuleCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        createInfo.codeSize = code.size();
+        createInfo.codeSize = code.size() * sizeof(uint32_t);
         createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
         VkShaderModule shaderModule;
@@ -379,14 +635,15 @@ VkShaderModule createShaderModule(const std::vector<char>& code) {
         }
 
         return shaderModule;
-    }
-void createGraphicsPipeline() {
+}
+void createGraphicsPipeline(VkDescriptorSetLayout setLayout) {
     VkShaderModuleCreateInfo vcinfo{};
     VkShaderModuleCreateInfo fcinfo{};
-    auto vssource = readFile("../resources/hvk.vert.spv");
-    auto fssource = readFile("../resources/hvk.frag.spv");
-    VkShaderModule vertShaderModule = createShaderModule(vssource);
-    VkShaderModule fragShaderModule = createShaderModule(fssource);
+    //auto vsSpirv = readFile("../resources/hvk.vert.spv");
+    //auto fsSpirv = readFile("../resources/hvk.frag.spv");
+    auto [vsSpirv, fsSpirv] = glsl_to_spirv(vsSource, fsSource);
+    VkShaderModule vertShaderModule = createShaderModule(vsSpirv);
+    VkShaderModule fragShaderModule = createShaderModule(fsSpirv);
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -471,7 +728,8 @@ void createGraphicsPipeline() {
     
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 0;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &setLayout;
     pipelineLayoutInfo.pushConstantRangeCount = 0;
     VkPipelineLayout pipelineLayout{};
     VkPipeline graphicsPipeline{};
@@ -501,7 +759,9 @@ void createGraphicsPipeline() {
         std::cout << "Successfully initialized graphics pipeline\n";
     }
     g_vulkanstate.graphicsPipeline = graphicsPipeline;
+    g_vulkanstate.graphicsPipelineLayout = pipelineLayout;
 }
+VkDescriptorSet set;
 void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -520,9 +780,9 @@ void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
     VkClearValue clearColor = {{{0.0f, 1.0f, 0.0f, 1.0f}}};
     renderPassInfo.clearValueCount = 1;
     renderPassInfo.pClearValues = &clearColor;
-
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, g_vulkanstate.graphicsPipeline);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, g_vulkanstate.graphicsPipelineLayout, 0, 1, &set, 0, nullptr);
     vkCmdSetPrimitiveTopology(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN);
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -1049,6 +1309,7 @@ void createLogicalDevice() {
 }
 
 // Function to initialize Vulkan (all setup steps)
+VkDescriptorSetLayout layout;
 void initVulkan(GLFWwindow *window) {
     createInstance();
     createSurface(window);
@@ -1059,12 +1320,24 @@ void initVulkan(GLFWwindow *window) {
     createSwapChain(window, width, height);
     createRenderPass();
     createImageViews(width, height);
-    createGraphicsPipeline();
+    layout = loadBindGroupLayout();
+    createGraphicsPipeline(layout);
     createStagingBuffer();
 }
-
+Texture goof{};
 // Function to run the main event loop
 void mainLoop(GLFWwindow *window) {
+    uint8_t data[4] = {255,0,0,255};
+    Image img{};
+    img.data = data;
+    img.format = RGBA8;
+    img.width = 1;
+    img.height = 1;
+    img.mipmaps = 1;
+    img.rowStrideInBytes = 4;
+    goof = LoadTextureFromImage(img);
+    
+    set = loadBindGroup(layout, goof);
     VkSemaphoreCreateInfo sci{};
     sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     VkSemaphore imageAvailableSemaphore;
@@ -1204,21 +1477,16 @@ void cleanup(GLFWwindow *window) {
     glfwTerminate();
 }
 
-// Entry point
 int main() {
     GLFWwindow *window = nullptr;
 
     try {
-        // Initialize window
         window = initWindow(1000, 800, "Völken");
 
-        // Initialize Vulkan
         initVulkan(window);
 
-        // Run the main loop
         mainLoop(window);
 
-        // Cleanup resources
         cleanup(window);
     } catch (const std::exception &e) {
         std::cerr << e.what() << std::endl;
