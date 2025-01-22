@@ -12,6 +12,10 @@
 #include <raygpu.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+
+
+
+
 void BeginRenderpassEx_Vk(DescribedRenderpass* renderPass){
     VkCommandBuffer cmd = (VkCommandBuffer)renderPass->cmdEncoder;
     vkResetCommandBuffer(cmd, 0);
@@ -78,6 +82,43 @@ struct VulkanState {
     VkBuffer vbuffer; 
 } g_vulkanstate;
 
+
+
+DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsage usage){
+    VkBufferUsageFlagBits vusage = toVulkanBufferUsage(usage);
+    DescribedBuffer* ret = callocnew(DescribedBuffer);
+    VkBuffer vertexBuffer{};
+
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = size;
+    bufferInfo.usage = vusage;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateBuffer(g_vulkanstate.device, &bufferInfo, nullptr, &vertexBuffer) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create vertex buffer!");
+    }
+    VkDeviceMemory vertexBufferMemory;
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(g_vulkanstate.device, vertexBuffer, &memRequirements);
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if (vkAllocateMemory(g_vulkanstate.device, &allocInfo, nullptr, &vertexBufferMemory) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate vertex buffer memory!");
+    }
+    vkBindBufferMemory(g_vulkanstate.device, vertexBuffer, vertexBufferMemory, 0);
+    void* mapdata;
+    vkMapMemory(g_vulkanstate.device, vertexBufferMemory, 0, bufferInfo.size, 0, &mapdata);
+    memcpy(mapdata, data, (size_t)bufferInfo.size);
+    vkUnmapMemory(g_vulkanstate.device, vertexBufferMemory);
+    ret->buffer = vertexBuffer;
+    ret->vkMemory = vertexBufferMemory;
+    ret->size = bufferInfo.size;
+    ret->usage = usage;
+    return ret;
+}
 // Function to find a suitable memory type
 VkBuffer createVertexBuffer() {
     VkBuffer vertexBuffer{};
