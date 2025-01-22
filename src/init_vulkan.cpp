@@ -45,7 +45,8 @@ layout(binding = 0) uniform texture2D texture0;
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    outColor = texelFetch(texture0, ivec2(0,0), 0);
+    outColor = 0.3f * texelFetch(texture0, ivec2(0,0), 0);
+    outColor.y += gl_FragCoord.x * 0.001f;
     //outColor = vec4(fragColor, 1.0);
 })";
 
@@ -56,9 +57,10 @@ bool glslang_initialized = false;
 
 std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char *vs, const char *fs) {
 
-    if (!glslang_initialized)
+    if (!glslang_initialized){
         glslang::InitializeProcess();
-    
+        glslang_initialized = true;
+    }
 
     glslang::TShader shader(EShLangVertex);
     glslang::TShader fragshader(EShLangFragment);
@@ -67,13 +69,13 @@ std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char
     shaderStrings[1] = fs;//fragCode.c_str();
     shader.setStrings(shaderStrings, 1);
     fragshader.setStrings(shaderStrings + 1, 1);
-    int ver = 430;
+    int ver = 450;
     // Set shader version and other options
     shader.setEnvInput(glslang::EShSourceGlsl, EShLangVertex, glslang::EShClientOpenGL, ver);
     shader.setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
     shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
 
-    fragshader.setEnvInput(glslang::EShSourceGlsl, EShLangVertex, glslang::EShClientOpenGL, ver);
+    fragshader.setEnvInput(glslang::EShSourceGlsl, EShLangFragment, glslang::EShClientOpenGL, ver);
     fragshader.setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
     fragshader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
     
@@ -81,6 +83,7 @@ std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char
     TBuiltInResource Resources = {};
     Resources.limits.generalUniformIndexing = true;
     Resources.limits.generalVariableIndexing = true;
+    Resources.maxDrawBuffers = true;
     
     // Initialize Resources with default values or customize as needed
     // For simplicity, we'll use the default initialization here
@@ -107,15 +110,17 @@ std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char
     program.addShader(&shader);
     program.addShader(&fragshader);
     program.link(messages);
-    //if (!program.link(messages)) {
-    //    std::cerr << "GLSL Linking Failed:\n" << program.getInfoLog() << std::endl;
-    //}
+    ///if (!program.link(messages)) {
+    ///    std::cerr << "GLSL Linking Failed: " << program.getInfoLog() << std::endl;
+    ///}
 
     // Retrieve the intermediate representation
-    //program.buildReflection();
-    //int uniformCount = program.getNumUniformVariables();
-
-    //std::cout << uniformCount << "\n";
+    program.buildReflection();
+    int uniformCount = program.getNumUniformVariables();
+    std::cout << program.getUniformName(0) << "\n";
+    std::cout << program.getUniformType(0) << "\n";
+    
+    std::cout << uniformCount << " uniforms\n";
     //glslang::TIntermediate *vertexIntermediate   = shader.getIntermediate();
     //glslang::TIntermediate *fragmentIntermediate = fragshader.getIntermediate();
 
@@ -205,7 +210,31 @@ struct VulkanState {
 
     VkBuffer vbuffer; 
 } g_vulkanstate;
-
+inline VkDescriptorType toVk(uniform_type type){
+    switch(type){
+        case storage_texture2d:{
+            return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        }break;
+        case storage_texture3d:{
+            return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        }break;
+        case storage_buffer:{
+            return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        }break;
+        case uniform_buffer:{
+            return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        }break;
+        case texture2d:{
+            return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        }break;
+        case texture3d:{
+            return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        }break;
+        case texture_sampler:{
+            return VK_DESCRIPTOR_TYPE_SAMPLER;
+        }break;
+    }
+}
 
 DescribedBindGroupLayout* LoadBindGroupLayout_Vk(const ResourceTypeDescriptor* descs, uint32_t uniformCount){
     DescribedBindGroupLayout* ret = callocnew(DescribedBindGroupLayout);
@@ -246,6 +275,45 @@ DescribedBindGroupLayout* LoadBindGroupLayout_Vk(const ResourceTypeDescriptor* d
     ret->entryCount = uniformCount;
     std::memcpy(ret->entries, descs, uniformCount * sizeof(ResourceTypeDescriptor));
     VkResult createResult = vkCreateDescriptorSetLayout(g_vulkanstate.device, &lci, nullptr, (VkDescriptorSetLayout*)&ret->layout);
+    return ret;
+}
+DescribedBindGroup* LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, const ResourceDescriptor* resources, uint32_t count){
+    DescribedBindGroup* ret = callocnew(DescribedBindGroup);
+    VkDescriptorPool dpool{};
+    VkDescriptorSet dset{};
+    VkDescriptorPoolCreateInfo dpci{};
+    dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    std::unordered_map<VkDescriptorType, uint32_t> counts;
+    for(uint32_t i = 0;i < layout->entryCount;i++){
+        ++counts[toVk(layout->entries[i].type)];
+    }
+    std::vector<VkDescriptorPoolSize> sizes;
+    sizes.reserve(counts.size());
+    for(const auto& [t, s] : counts){
+        sizes.push_back(VkDescriptorPoolSize{.type = t, .descriptorCount = s});
+    }
+
+    dpci.poolSizeCount = sizes.size();
+    dpci.pPoolSizes = sizes.data();
+    vkCreateDescriptorPool(g_vulkanstate.device, &dpci, nullptr, &dpool);
+    
+    VkDescriptorSetAllocateInfo dsai{};
+    dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    dsai.descriptorPool = dpool;
+    dsai.descriptorSetCount = 1;
+    dsai.pSetLayouts = (VkDescriptorSetLayout*)&layout->layout;
+    vkAllocateDescriptorSets(g_vulkanstate.device, &dsai, &dset);
+    ret->layout = layout->layout;
+    ret->bindGroup = dset;
+    ret->entries = (ResourceDescriptor*)std::calloc(count, sizeof(ResourceDescriptor));
+    ret->entryCount = count;
+    std::memcpy(ret->entries, resources, count * sizeof(ResourceDescriptor));
+    ret->needsUpdate = true;
+    VkWriteDescriptorSet write{};
+    VkCopyDescriptorSet copy{};
+    write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
+    vkUpdateDescriptorSets(g_vulkanstate.device, 1, &write, count, &copy);
     return ret;
 }
 
