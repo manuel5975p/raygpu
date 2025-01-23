@@ -35,7 +35,7 @@
 
 
 //#define SUPPORT_WGPU_BACKEND 1
-//#define SUPPORT_VULKAN_BACKEND 1
+#define SUPPORT_VULKAN_BACKEND 1
 #ifdef __cplusplus
 #include <cstdint>
 using std::uint64_t;
@@ -202,21 +202,31 @@ typedef enum VertexStepMode {
 
 typedef uint64_t BufferUsage;
 #ifdef __cplusplus
-#define constexpr_or_staticconst constexpr
+constexpr BufferUsage BufferUsage_None = 0x0000000000000000;
+constexpr BufferUsage BufferUsage_MapRead = 0x0000000000000001;
+constexpr BufferUsage BufferUsage_MapWrite = 0x0000000000000002;
+constexpr BufferUsage BufferUsage_CopySrc = 0x0000000000000004;
+constexpr BufferUsage BufferUsage_CopyDst = 0x0000000000000008;
+constexpr BufferUsage BufferUsage_Index = 0x0000000000000010;
+constexpr BufferUsage BufferUsage_Vertex = 0x0000000000000020;
+constexpr BufferUsage BufferUsage_Uniform = 0x0000000000000040;
+constexpr BufferUsage BufferUsage_Storage = 0x0000000000000080;
+constexpr BufferUsage BufferUsage_Indirect = 0x0000000000000100;
+constexpr BufferUsage BufferUsage_QueryResolve = 0x0000000000000200;
 #else
-#define constexpr_or_staticconst static const
+#define BufferUsage_None 0x0000000000000000
+#define BufferUsage_MapRead 0x0000000000000001
+#define BufferUsage_MapWrite 0x0000000000000002
+#define BufferUsage_CopySrc 0x0000000000000004
+#define BufferUsage_CopyDst 0x0000000000000008
+#define BufferUsage_Index 0x0000000000000010
+#define BufferUsage_Vertex 0x0000000000000020
+#define BufferUsage_Uniform 0x0000000000000040
+#define BufferUsage_Storage 0x0000000000000080
+#define BufferUsage_Indirect 0x0000000000000100
+#define BufferUsage_QueryResolve 0x0000000000000200
+
 #endif
-constexpr_or_staticconst BufferUsage BufferUsage_None = 0x0000000000000000;
-constexpr_or_staticconst BufferUsage BufferUsage_MapRead = 0x0000000000000001;
-constexpr_or_staticconst BufferUsage BufferUsage_MapWrite = 0x0000000000000002;
-constexpr_or_staticconst BufferUsage BufferUsage_CopySrc = 0x0000000000000004;
-constexpr_or_staticconst BufferUsage BufferUsage_CopyDst = 0x0000000000000008;
-constexpr_or_staticconst BufferUsage BufferUsage_Index = 0x0000000000000010;
-constexpr_or_staticconst BufferUsage BufferUsage_Vertex = 0x0000000000000020;
-constexpr_or_staticconst BufferUsage BufferUsage_Uniform = 0x0000000000000040;
-constexpr_or_staticconst BufferUsage BufferUsage_Storage = 0x0000000000000080;
-constexpr_or_staticconst BufferUsage BufferUsage_Indirect = 0x0000000000000100;
-constexpr_or_staticconst BufferUsage BufferUsage_QueryResolve = 0x0000000000000200;
 
 typedef enum TextureUsage{
     TextureUsage_None = 0x0000000000000000,
@@ -255,9 +265,10 @@ static inline VkImageUsageFlags toVulkanTextureUsage(TextureUsage usage) {
         TextureUsage_TransientAttachment,
         TextureUsage_StorageAttachment
     };
-
+    const uint32_t nFlags = sizeof(allFlags) / sizeof(TextureUsage);
     // Iterate through each flag and map accordingly
-    for (const auto& flag : allFlags) {
+    for (uint32_t i = 0;i < nFlags;i++) {
+        uint32_t flag = allFlags[i];
         if (usage & flag) {
             switch (flag) {
                 case TextureUsage_CopySrc:

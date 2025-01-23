@@ -54,15 +54,15 @@ void UploadMesh(Mesh *mesh, bool dynamic){
     }
     if(mesh->vbos == nullptr){
         mesh->vbos = (DescribedBuffer**)calloc(4 + 2 * int(mesh->boneWeights || mesh->boneIds), sizeof(DescribedBuffer*));
-        mesh->vbos[0] = GenBuffer(mesh->vertices , mesh->vertexCount * sizeof(float  ) * 3);
-        mesh->vbos[1] = GenBuffer(mesh->texcoords, mesh->vertexCount * sizeof(float  ) * 2);
-        mesh->vbos[2] = GenBuffer(mesh->normals  , mesh->vertexCount * sizeof(float  ) * 3);
-        mesh->vbos[3] = GenBuffer(mesh->colors   , mesh->vertexCount * sizeof(uint8_t) * 4);
+        mesh->vbos[0] = GenVertexBuffer(mesh->vertices , mesh->vertexCount * sizeof(float  ) * 3);
+        mesh->vbos[1] = GenVertexBuffer(mesh->texcoords, mesh->vertexCount * sizeof(float  ) * 2);
+        mesh->vbos[2] = GenVertexBuffer(mesh->normals  , mesh->vertexCount * sizeof(float  ) * 3);
+        mesh->vbos[3] = GenVertexBuffer(mesh->colors   , mesh->vertexCount * sizeof(uint8_t) * 4);
         if(mesh->boneWeights){
-            mesh->vbos[4] = GenBuffer(mesh->boneWeights, mesh->vertexCount * sizeof(float) * 4);
+            mesh->vbos[4] = GenVertexBuffer(mesh->boneWeights, mesh->vertexCount * sizeof(float) * 4);
         }
         if(mesh->boneIds){ //TODO: Maybe change this to uint32_t
-            mesh->vbos[5] = GenBuffer(mesh->boneIds, mesh->vertexCount * sizeof(float) * 4);
+            mesh->vbos[5] = GenVertexBuffer(mesh->boneIds, mesh->vertexCount * sizeof(float) * 4);
         }
 
         if(mesh->indices){

@@ -603,7 +603,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
 
     LoadFontDefault();
     for(size_t i = 0;i < 512;i++){
-        g_wgpustate.smallBufferPool.push_back(GenBuffer(nullptr, sizeof(vertex) * 32));
+        g_wgpustate.smallBufferPool.push_back(GenVertexBuffer(nullptr, sizeof(vertex) * 32));
     }
     WGPUCommandEncoderDescriptor cedesc{};
     cedesc.label = STRVIEW("Global Command Encoder");

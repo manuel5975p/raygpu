@@ -320,7 +320,7 @@ void drawCurrentBatch(){
         wgpuQueueWriteBuffer(GetQueue(), (WGPUBuffer)vbo->buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
     }
     else{
-        vbo = GenBuffer(vboptr_base, vertexCount * sizeof(vertex));
+        vbo = GenVertexBuffer(vboptr_base, vertexCount * sizeof(vertex));
     }
 
     BufferData(vbo, vboptr_base, vertexCount * sizeof(vertex));
@@ -1530,7 +1530,7 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     vboptr_base = nullptr;
     //vboptr = (vertex*)wgpuBufferGetMappedRange(vbomap.buffer, 0, vbmdesc.size);
     vboptr = (vertex*)calloc(10000, sizeof(vertex));
-    renderBatchVBO = GenBuffer(nullptr, 10000 * sizeof(vertex));
+    renderBatchVBO = GenVertexBuffer(nullptr, 10000 * sizeof(vertex));
     
     renderBatchVAO = LoadVertexArray();
     VertexAttribPointer(renderBatchVAO, renderBatchVBO, 0, VertexFormat_Float32x3, 0 * sizeof(float), VertexStepMode_Vertex);
@@ -2370,7 +2370,7 @@ extern "C" DescribedBuffer* GenBufferEx(const void* data, size_t size, WGPUBuffe
     }
     return ret;
 }
-extern "C" DescribedBuffer* GenBuffer(const void* data, size_t size){
+extern "C" DescribedBuffer* GenVertexBuffer(const void* data, size_t size){
     return GenBufferEx(data, size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex);
 }
 DescribedBuffer* GenIndexBuffer(const void* data, size_t size){

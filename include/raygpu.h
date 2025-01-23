@@ -1099,7 +1099,7 @@ EXTERN_C_BEGIN
     DescribedBuffer* GenUniformBuffer(const void* data, size_t size);
     DescribedBuffer* GenStorageBuffer(const void* data, size_t size);
     DescribedBuffer* GenIndexBuffer(const void* data, size_t size);
-    DescribedBuffer* GenBuffer(const void* data, size_t size);
+    DescribedBuffer* GenVertexBuffer(const void* data, size_t size);
     DescribedBuffer* GenBufferEx(const void* data, size_t size, BufferUsage usage);
     void UnloadBuffer(DescribedBuffer* buffer);
     void BufferData(DescribedBuffer* buffer, const void* data, size_t size);

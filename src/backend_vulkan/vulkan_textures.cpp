@@ -258,6 +258,9 @@ std::pair<VkImage, VkDeviceMemory> CreateVkImage(VkDevice device, VkPhysicalDevi
     if(format == VK_FORMAT_D24_UNORM_S8_UINT || format == VK_FORMAT_D32_SFLOAT){
         usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
     }
+    if(format == g_vulkanstate.swapchainImageFormat){
+        usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    }
     
     VkImage image = CreateImage(device, width, height, format, usage, imageMemory);
     
