@@ -33,13 +33,15 @@ std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char
     shader.setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
     shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
 
-    fragshader.setEnvInput(glslang::EShSourceGlsl, EShLangVertex, glslang::EShClientOpenGL, ver);
+    fragshader.setEnvInput(glslang::EShSourceGlsl, EShLangFragment, glslang::EShClientOpenGL, ver);
     fragshader.setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
     fragshader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
     // Define resources (required for some shaders)
     TBuiltInResource Resources = {};
-    // Initialize Resources with default values or customize as needed
-    // For simplicity, we'll use the default initialization here
+
+    Resources.limits.generalUniformIndexing = true;
+    Resources.limits.generalVariableIndexing = true;
+    Resources.maxDrawBuffers = true;
 
     EShMessages messages = (EShMessages)(EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules);
 

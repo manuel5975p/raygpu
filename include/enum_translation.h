@@ -28,6 +28,8 @@
 
 #ifndef ENUM_HEADER_H
 #define ENUM_HEADER_H
+//#define SUPPORT_WGPU_BACKEND 1
+//#define SUPPORT_VULKAN_BACKEND 1
 #if SUPPORT_WGPU_BACKEND == 1
 #include <webgpu/webgpu.h>
 #endif
@@ -35,6 +37,18 @@
 #include <vulkan/vulkan.h>
 #endif
 // ------------------------- Enum Definitions -------------------------
+
+typedef enum uniform_type{
+    uniform_buffer, storage_buffer, texture2d, storage_texture2d, texture_sampler, texture3d, storage_texture3d
+}uniform_type;
+
+typedef enum access_type{
+    readonly, readwrite, writeonly
+}access_type;
+
+typedef enum format_or_sample_type{
+    sample_f32, sample_u32, format_r32float, format_r32uint, format_rgba8unorm, format_rgba32float
+}format_or_sample_type;
 
 typedef enum filterMode {
     filter_nearest = 0x1,
@@ -186,9 +200,112 @@ typedef enum BufferUsage {
     BufferUsage_QueryResolve = 0x0000000000000200,
 } BufferUsage;
 
+typedef enum TextureUsage{
+    TextureUsage_None = 0x0000000000000000,
+    TextureUsage_CopySrc = 0x0000000000000001,
+    TextureUsage_CopyDst = 0x0000000000000002,
+    TextureUsage_TextureBinding = 0x0000000000000004,
+    TextureUsage_StorageBinding = 0x0000000000000008,
+    TextureUsage_RenderAttachment = 0x0000000000000010,
+    TextureUsage_TransientAttachment = 0x0000000000000020,
+    TextureUsage_StorageAttachment = 0x0000000000000040,
+}TextureUsage;
+
 // -------------------- Vulkan Translation Functions --------------------
 
 #if SUPPORT_VULKAN_BACKEND == 1
+
+
+
+
+/**
+ * @brief Translates custom TextureUsage flags to Vulkan's VkImageUsageFlags.
+ *
+ * @param usage The TextureUsage bitmask to translate.
+ * @return VkImageUsageFlags The corresponding Vulkan image usage flags.
+ */
+static inline VkImageUsageFlags toVulkanTextureUsage(TextureUsage usage) {
+    VkImageUsageFlags vkUsage = 0;
+
+    // Array of all possible TextureUsage flags
+    const TextureUsage allFlags[] = {
+        TextureUsage_CopySrc,
+        TextureUsage_CopyDst,
+        TextureUsage_TextureBinding,
+        TextureUsage_StorageBinding,
+        TextureUsage_RenderAttachment,
+        TextureUsage_TransientAttachment,
+        TextureUsage_StorageAttachment
+    };
+
+    // Iterate through each flag and map accordingly
+    for (const auto& flag : allFlags) {
+        if (usage & flag) {
+            switch (flag) {
+                case TextureUsage_CopySrc:
+                    vkUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+                    break;
+                case TextureUsage_CopyDst:
+                    vkUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+                    break;
+                case TextureUsage_TextureBinding:
+                    vkUsage |= VK_IMAGE_USAGE_SAMPLED_BIT;
+                    break;
+                case TextureUsage_StorageBinding:
+                    vkUsage |= VK_IMAGE_USAGE_STORAGE_BIT;
+                    break;
+                case TextureUsage_RenderAttachment:
+                    vkUsage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+                    break;
+                case TextureUsage_TransientAttachment:
+                    vkUsage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+                    break;
+                case TextureUsage_StorageAttachment:
+                    vkUsage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    return vkUsage;
+}
+
+
+
+/**
+ * @brief This function does not have an equivalent in WebGPU
+ * 
+ * @param type 
+ * @return VkDescriptorType 
+ */
+static inline VkDescriptorType toVulkanResourceType(uniform_type type){
+    switch(type){
+        case storage_texture2d:{
+            return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        }
+        case storage_texture3d:{
+            return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        }
+        case storage_buffer:{
+            return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        }
+        case uniform_buffer:{
+            return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        }
+        case texture2d:{
+            return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        }
+        case texture3d:{
+            return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        }
+        case texture_sampler:{
+            return VK_DESCRIPTOR_TYPE_SAMPLER;
+        }
+    }
+}
+
 
 static inline VkBufferUsageFlagBits toVulkanBufferUsage(BufferUsage busg){
     const VkBufferUsageFlagBits zero = (VkBufferUsageFlagBits)0u;
@@ -476,7 +593,59 @@ static inline VkVertexInputRate toVulkanVertexStepMode(VertexStepMode vsm){
 // -------------------- WebGPU Translation Functions --------------------
 
 #if SUPPORT_WGPU_BACKEND == 1
+/**
+ * @brief Translates custom TextureUsage flags to WebGPU's WGPUTextureUsage flags.
+ *
+ * @param usage The TextureUsage bitmask to translate.
+ * @return WGPUTextureUsage The corresponding WebGPU texture usage flags.
+ */
+static inline WGPUTextureUsage toWebGPUTextureUsage(TextureUsage usage) {
+    WGPUTextureUsage wgpuUsage = 0;
 
+    // Array of all possible TextureUsage flags
+    const TextureUsage allFlags[] = {
+        TextureUsage_CopySrc,
+        TextureUsage_CopyDst,
+        TextureUsage_TextureBinding,
+        TextureUsage_StorageBinding,
+        TextureUsage_RenderAttachment,
+        TextureUsage_TransientAttachment,
+        TextureUsage_StorageAttachment
+    };
+
+    // Iterate through each flag and map accordingly
+    for (const auto& flag : allFlags) {
+        if (usage & flag) {
+            switch (flag) {
+                case TextureUsage_CopySrc:
+                    wgpuUsage |= WGPUTextureUsage_CopySrc;
+                    break;
+                case TextureUsage_CopyDst:
+                    wgpuUsage |= WGPUTextureUsage_CopyDst;
+                    break;
+                case TextureUsage_TextureBinding:
+                    wgpuUsage |= WGPUTextureUsage_TextureBinding;
+                    break;
+                case TextureUsage_StorageBinding:
+                    wgpuUsage |= WGPUTextureUsage_StorageBinding;
+                    break;
+                case TextureUsage_RenderAttachment:
+                    wgpuUsage |= WGPUTextureUsage_RenderAttachment;
+                    break;
+                case TextureUsage_TransientAttachment:
+                    wgpuUsage |= WGPUTextureUsage_TransientAttachment;
+                    break;
+                case TextureUsage_StorageAttachment:
+                    wgpuUsage |= WGPUTextureUsage_StorageAttachment;
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    return wgpuUsage;
+}
 // Translation function for filterMode to WGPUFilterMode
 static inline WGPUFilterMode toWebGPUFilterMode(filterMode fm){
     switch (fm){

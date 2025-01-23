@@ -1081,7 +1081,7 @@ EXTERN_C_BEGIN
     Texture LoadTexture(const char* filename);
     Texture LoadDepthTexture(uint32_t width, uint32_t height);
     Texture LoadTextureEx(uint32_t width, uint32_t height,  PixelFormat format, bool to_be_used_as_rendertarget);
-    Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat format, WGPUTextureUsage usage, uint32_t sampleCount, uint32_t mipmaps);
+    Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat format, int usage, uint32_t sampleCount, uint32_t mipmaps);
     void GenTextureMipmaps(Texture2D* tex);
     Texture3D LoadTexture3DEx(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format);
     Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format, WGPUTextureUsage usage, uint32_t sampleCount);
