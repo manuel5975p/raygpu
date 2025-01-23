@@ -105,6 +105,8 @@ typedef struct RenderSettings{
     FrontFace frontFace;
 
 }RenderSettings;
+
+
 /**
  * @brief This function determines compatibility between RenderSettings
  * @details 

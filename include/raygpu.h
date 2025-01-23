@@ -172,15 +172,6 @@ typedef struct DescribedBuffer{
     VULKAN_BACKEND_ONLY NativeMemoryHandle vkMemory;
 }DescribedBuffer;
 
-typedef enum filterMode{
-    nearest = WGPUFilterMode_Nearest,
-    linear = WGPUFilterMode_Linear,
-}filterMode;
-
-typedef enum adressMode{
-    repeat = WGPUAddressMode_Repeat, clampToEdge = WGPUAddressMode_ClampToEdge, mirrorRepeat = WGPUAddressMode_MirrorRepeat,
-}addressMode;
-
 typedef struct DescribedSampler{
     NativeSamplerHandle sampler;
     addressMode addressModeU;
