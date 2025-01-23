@@ -214,28 +214,68 @@ inline VkDescriptorType toVk(uniform_type type){
     switch(type){
         case storage_texture2d:{
             return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        }break;
+        }
         case storage_texture3d:{
             return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        }break;
+        }
         case storage_buffer:{
             return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        }break;
+        }
         case uniform_buffer:{
             return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        }break;
+        }
         case texture2d:{
             return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        }break;
+        }
         case texture3d:{
             return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        }break;
+        }
         case texture_sampler:{
             return VK_DESCRIPTOR_TYPE_SAMPLER;
-        }break;
+        }
     }
 }
 
+DescribedSampler LoadSampler_Vk(addressMode amode, filterMode fmode, filterMode mipmapFilter, float maxAnisotropy){
+    auto vkamode = [](addressMode a){
+        switch(a){
+            case addressMode::clampToEdge:
+                return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            case addressMode::mirrorRepeat:
+                return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+            case addressMode::repeat:
+                return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        }
+    };
+    DescribedSampler ret{};// = callocnew(DescribedSampler);
+    VkSamplerCreateInfo sci{};
+    sci.compareEnable = VK_FALSE;
+    sci.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    sci.addressModeU = vkamode(amode);
+    sci.addressModeV = vkamode(amode);
+    sci.addressModeW = vkamode(amode);
+    
+    sci.mipmapMode = ((fmode == linear) ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST);
+
+    sci.anisotropyEnable = false;
+    sci.maxAnisotropy = maxAnisotropy;
+    sci.magFilter = ((fmode == linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
+    sci.minFilter = ((fmode == linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
+
+    ret.magFilter = fmode;
+    ret.minFilter = fmode;
+    ret.addressModeU = amode;
+    ret.addressModeV = amode;
+    ret.addressModeW = amode;
+    ret.maxAnisotropy = maxAnisotropy;
+    ret.minFilter = mipmapFilter;
+    ret.compare = CompareFunction_Undefined;//huh??
+    VkResult scr = vkCreateSampler(g_vulkanstate.device, &sci, nullptr, (VkSampler*)&ret.sampler);
+    if(scr != VK_SUCCESS){
+        throw std::runtime_error("Sampler creation failed: " + std::to_string(scr));
+    }
+    return ret;
+}
 DescribedBindGroupLayout* LoadBindGroupLayout_Vk(const ResourceTypeDescriptor* descs, uint32_t uniformCount){
     DescribedBindGroupLayout* ret = callocnew(DescribedBindGroupLayout);
     VkDescriptorSetLayout layout{};
@@ -309,11 +349,35 @@ DescribedBindGroup* LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, con
     ret->entryCount = count;
     std::memcpy(ret->entries, resources, count * sizeof(ResourceDescriptor));
     ret->needsUpdate = true;
-    VkWriteDescriptorSet write{};
+    gch::small_vector<VkWriteDescriptorSet> writes(count, VkWriteDescriptorSet{});
+    gch::small_vector<VkDescriptorBufferInfo> bufferInfos(count, VkDescriptorBufferInfo{});
+    gch::small_vector<VkDescriptorImageInfo> imageInfos(count, VkDescriptorImageInfo{});
     VkCopyDescriptorSet copy{};
-    write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
-    vkUpdateDescriptorSets(g_vulkanstate.device, 1, &write, count, &copy);
+    for(uint32_t i = 0;i < count;i++){
+        writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[i].dstBinding = resources[i].binding;
+        writes[i].descriptorType = toVk(layout->entries[i].type);
+        writes[i].descriptorCount = 1;
+        if(layout->entries[i].type == uniform_buffer || layout->entries->type == storage_buffer){
+            bufferInfos[i].buffer = (VkBuffer)resources[i].buffer;
+            bufferInfos[i].offset = resources[i].offset;
+            bufferInfos[i].range = resources[i].size;
+            writes[i].pBufferInfo = bufferInfos.data() + i;
+        }
+
+        if(layout->entries[i].type == texture2d){
+            imageInfos[i].imageView = (VkImageView)resources[i].textureView;
+            imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            writes[i].pImageInfo = imageInfos.data() + i;
+        }
+
+        if(layout->entries[i].type == texture_sampler){
+            imageInfos[i].sampler = (VkSampler)resources[i].sampler;
+        }
+    }
+
+    vkUpdateDescriptorSets(g_vulkanstate.device, writes.size(), writes.data(), 0, nullptr);//count, &copy);
     return ret;
 }
 
@@ -414,7 +478,7 @@ VkDescriptorSet loadBindGroup(VkDescriptorSetLayout layout, Texture tex){
     reti.descriptorPool = descriptorPool;
     reti.pSetLayouts = &layout;
     VkResult ur = vkAllocateDescriptorSets(g_vulkanstate.device, &reti, &ret);
-    if(ur == VK_SUCCESS){;
+    if(ur == VK_SUCCESS){
         std::cout << "Successfully allocated desciptor set\n";
     }
     else{
@@ -684,26 +748,24 @@ Texture LoadTextureFromImage(Image img){
             throw 234234;
         }
         else{
-            std::cout << "Successfully created image view\n";
+            std::cout << "Successfully created loaded texture and image view\n";
         }
         vkDestroyCommandPool(g_vulkanstate.device, cpool, nullptr);
     }
     return ret;
 }
 VkShaderModule createShaderModule(const std::vector<uint32_t>& code) {
-        VkShaderModuleCreateInfo createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        createInfo.codeSize = code.size() * sizeof(uint32_t);
-        createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
-
-        VkShaderModule shaderModule;
-
-        if (vkCreateShaderModule(g_vulkanstate.device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create shader module!");
-        }
-
-        return shaderModule;
+    VkShaderModuleCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createInfo.codeSize = code.size() * sizeof(uint32_t);
+    createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+    VkShaderModule shaderModule;
+    if (vkCreateShaderModule(g_vulkanstate.device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create shader module!");
+    }
+    return shaderModule;
 }
+
 void createGraphicsPipeline(VkDescriptorSetLayout setLayout) {
     VkShaderModuleCreateInfo vcinfo{};
     VkShaderModuleCreateInfo fcinfo{};
@@ -1404,7 +1466,7 @@ void mainLoop(GLFWwindow *window) {
     img.mipmaps = 1;
     img.rowStrideInBytes = 4;
     goof = LoadTextureFromImage(img);
-    
+    DescribedSampler sampler = LoadSampler_Vk(repeat, linear, linear, 10.0f);
     set = loadBindGroup(layout, goof);
     VkSemaphoreCreateInfo sci{};
     sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
