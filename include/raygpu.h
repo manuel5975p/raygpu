@@ -62,6 +62,7 @@ typedef enum PixelFormat{
     RGBA16F = WGPUTextureFormat_RGBA16Float,
     RGBA32F = WGPUTextureFormat_RGBA32Float,
     Depth24 = WGPUTextureFormat_Depth24Plus,
+    Depth32 = WGPUTextureFormat_Depth32Float,
 
     GRAYSCALE = 0x100000, //No WGPU_ equivalent
     RGB8      = 0x100001, //No WGPU_ equivalent
@@ -1089,17 +1090,17 @@ EXTERN_C_BEGIN
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
     void UpdateTexture(Texture tex, void* data);
 
-    StagingBuffer GenStagingBuffer(size_t size, WGPUBufferUsage usage);
+    StagingBuffer GenStagingBuffer(size_t size, BufferUsage usage);
     void UpdateStagingBuffer(StagingBuffer* buffer);
     void RecreateStagingBuffer(StagingBuffer* buffer);
-    void MapStagingBuffer(size_t size, WGPUBufferUsage usage);
+    void MapStagingBuffer(size_t size, BufferUsage usage);
     void UnloadStagingBuffer(StagingBuffer* buf);
     
     DescribedBuffer* GenUniformBuffer(const void* data, size_t size);
     DescribedBuffer* GenStorageBuffer(const void* data, size_t size);
     DescribedBuffer* GenIndexBuffer(const void* data, size_t size);
     DescribedBuffer* GenBuffer(const void* data, size_t size);
-    DescribedBuffer* GenBufferEx(const void* data, size_t size, WGPUBufferUsage usage);
+    DescribedBuffer* GenBufferEx(const void* data, size_t size, BufferUsage usage);
     void UnloadBuffer(DescribedBuffer* buffer);
     void BufferData(DescribedBuffer* buffer, const void* data, size_t size);
     void ResizeBuffer(DescribedBuffer* buffer, size_t newSize);

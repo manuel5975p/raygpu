@@ -2295,7 +2295,7 @@ extern "C" void EndWindowMode(){
     
 }
 
-extern "C" StagingBuffer GenStagingBuffer(size_t size, WGPUBufferUsage usage){
+extern "C" StagingBuffer GenStagingBuffer(size_t size, BufferUsage usage){
     StagingBuffer ret{};
     WGPUBufferDescriptor descriptor1 = WGPUBufferDescriptor{
         .nextInChain = nullptr,

@@ -23,13 +23,27 @@
  */
 
 
-
-
-
 #ifndef ENUM_HEADER_H
 #define ENUM_HEADER_H
+
+
+
+
+
+
+
+
+
 //#define SUPPORT_WGPU_BACKEND 1
 //#define SUPPORT_VULKAN_BACKEND 1
+#ifdef __cplusplus
+#include <cstdint>
+using std::uint64_t;
+using std::uint32_t;
+#else
+#include <stdint.h>
+#endif
+
 #if SUPPORT_WGPU_BACKEND == 1
 #include <webgpu/webgpu.h>
 #endif
@@ -186,19 +200,23 @@ typedef enum VertexStepMode {
     VertexStepMode_Force32 = 0x7FFFFFFF
 } VertexStepMode;
 
-typedef enum BufferUsage {
-    BufferUsage_None = 0x0000000000000000,
-    BufferUsage_MapRead = 0x0000000000000001,
-    BufferUsage_MapWrite = 0x0000000000000002,
-    BufferUsage_CopySrc = 0x0000000000000004,
-    BufferUsage_CopyDst = 0x0000000000000008,
-    BufferUsage_Index = 0x0000000000000010,
-    BufferUsage_Vertex = 0x0000000000000020,
-    BufferUsage_Uniform = 0x0000000000000040,
-    BufferUsage_Storage = 0x0000000000000080,
-    BufferUsage_Indirect = 0x0000000000000100,
-    BufferUsage_QueryResolve = 0x0000000000000200,
-} BufferUsage;
+typedef uint64_t BufferUsage;
+#ifdef __cplusplus
+#define constexpr_or_staticconst constexpr
+#else
+#define constexpr_or_staticconst static const
+#endif
+constexpr_or_staticconst BufferUsage BufferUsage_None = 0x0000000000000000;
+constexpr_or_staticconst BufferUsage BufferUsage_MapRead = 0x0000000000000001;
+constexpr_or_staticconst BufferUsage BufferUsage_MapWrite = 0x0000000000000002;
+constexpr_or_staticconst BufferUsage BufferUsage_CopySrc = 0x0000000000000004;
+constexpr_or_staticconst BufferUsage BufferUsage_CopyDst = 0x0000000000000008;
+constexpr_or_staticconst BufferUsage BufferUsage_Index = 0x0000000000000010;
+constexpr_or_staticconst BufferUsage BufferUsage_Vertex = 0x0000000000000020;
+constexpr_or_staticconst BufferUsage BufferUsage_Uniform = 0x0000000000000040;
+constexpr_or_staticconst BufferUsage BufferUsage_Storage = 0x0000000000000080;
+constexpr_or_staticconst BufferUsage BufferUsage_Indirect = 0x0000000000000100;
+constexpr_or_staticconst BufferUsage BufferUsage_QueryResolve = 0x0000000000000200;
 
 typedef enum TextureUsage{
     TextureUsage_None = 0x0000000000000000,
@@ -306,31 +324,55 @@ static inline VkDescriptorType toVulkanResourceType(uniform_type type){
     }
 }
 
+static inline VkBufferUsageFlags toVulkanBufferUsage(BufferUsage busg) {
+    VkBufferUsageFlags usage = 0;
 
-static inline VkBufferUsageFlagBits toVulkanBufferUsage(BufferUsage busg){
-    const VkBufferUsageFlagBits zero = (VkBufferUsageFlagBits)0u;
-    switch (busg){
-        case BufferUsage_CopySrc:
-            return VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-        case BufferUsage_CopyDst:
-            return VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-        case BufferUsage_Vertex:
-            return VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        case BufferUsage_Index:
-            return VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-        case BufferUsage_Uniform:
-            return VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-        case BufferUsage_Storage:
-            return VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-        case BufferUsage_MapRead:
-        case BufferUsage_MapWrite:
-        case BufferUsage_QueryResolve:
-        case BufferUsage_None:
-        case BufferUsage_Indirect:
-            return zero;
-        default:
-            return zero; // Default fallback
+    while (busg != 0) {
+        // Isolate the least significant set bit
+        BufferUsage flag = (busg & (-busg));
+        
+        switch (flag) {
+            case BufferUsage_CopySrc:
+                usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+                break;
+            case BufferUsage_CopyDst:
+                usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+                break;
+            case BufferUsage_Vertex:
+                usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+                break;
+            case BufferUsage_Index:
+                usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+                break;
+            case BufferUsage_Uniform:
+                usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+                break;
+            case BufferUsage_Storage:
+                usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+                break;
+            case BufferUsage_Indirect:
+                usage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+                break;
+            case BufferUsage_MapRead:
+                // Vulkan does not have a direct equivalent for MapRead.
+                // Handle as needed (e.g., log a warning or manage differently).
+                break;
+            case BufferUsage_MapWrite:
+                // Similar to BufferUsage_MapRead.
+                break;
+            case BufferUsage_QueryResolve:
+                // Handle Vulkan-specific flags for query resolve if applicable.
+                break;
+            default:
+                // Handle any unrecognized flags if necessary.
+                break;
+        }
+
+        // Clear the least significant set bit
+        busg &= (busg - 1);
     }
+
+    return usage;
 }
 
 static inline VkFilter toVulkanFilterMode(filterMode fm){
@@ -612,8 +654,7 @@ static inline WGPUTextureUsage toWebGPUTextureUsage(TextureUsage usage) {
         TextureUsage_TransientAttachment,
         TextureUsage_StorageAttachment
     };
-
-    // Iterate through each flag and map accordingly
+    // Iterate through each dflag and map accordingly
     for (const auto& flag : allFlags) {
         if (usage & flag) {
             switch (flag) {
@@ -646,6 +687,56 @@ static inline WGPUTextureUsage toWebGPUTextureUsage(TextureUsage usage) {
 
     return wgpuUsage;
 }
+
+
+static inline WGPUBufferUsage toWebGPUBufferUsage(BufferUsage busg) {
+    WGPUBufferUsage usage = 0;
+
+    while (busg != 0) {
+        BufferUsage flag = (busg & (-busg));
+
+        switch (flag) {
+            case BufferUsage_CopySrc:
+                usage |= WGPUBufferUsage_CopySrc;
+                break;
+            case BufferUsage_CopyDst:
+                usage |= WGPUBufferUsage_CopyDst;
+                break;
+            case BufferUsage_Vertex:
+                usage |= WGPUBufferUsage_Vertex;
+                break;
+            case BufferUsage_Index:
+                usage |= WGPUBufferUsage_Index;
+                break;
+            case BufferUsage_Uniform:
+                usage |= WGPUBufferUsage_Uniform;
+                break;
+            case BufferUsage_Storage:
+                usage |= WGPUBufferUsage_Storage;
+                break;
+            case BufferUsage_Indirect:
+                usage |= WGPUBufferUsage_Indirect;
+                break;
+            case BufferUsage_MapRead:
+                break;
+            case BufferUsage_MapWrite:
+                break;
+            case BufferUsage_QueryResolve:
+                break;
+            default:
+                break;
+        }
+
+        busg &= (busg - 1);
+    }
+
+    return usage;
+}
+
+
+
+
+
 // Translation function for filterMode to WGPUFilterMode
 static inline WGPUFilterMode toWebGPUFilterMode(filterMode fm){
     switch (fm){
