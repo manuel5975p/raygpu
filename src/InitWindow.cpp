@@ -629,7 +629,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     samplerDesc.maxAnisotropy = 1;
 
 
-    DescribedSampler sampler = LoadSampler(repeat, linear);
+    DescribedSampler sampler = LoadSampler(repeat, filter_linear);
     g_wgpustate.defaultSampler = sampler;
     SetSampler(2, sampler);
     g_wgpustate.init_timestamp = NanoTime();

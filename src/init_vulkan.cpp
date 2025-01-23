@@ -255,12 +255,12 @@ DescribedSampler LoadSampler_Vk(addressMode amode, filterMode fmode, filterMode 
     sci.addressModeV = vkamode(amode);
     sci.addressModeW = vkamode(amode);
     
-    sci.mipmapMode = ((fmode == linear) ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST);
+    sci.mipmapMode = ((fmode == filter_linear) ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST);
 
     sci.anisotropyEnable = false;
     sci.maxAnisotropy = maxAnisotropy;
-    sci.magFilter = ((fmode == linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
-    sci.minFilter = ((fmode == linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
+    sci.magFilter = ((fmode == filter_linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
+    sci.minFilter = ((fmode == filter_linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
 
     ret.magFilter = fmode;
     ret.minFilter = fmode;
@@ -337,6 +337,9 @@ DescribedBindGroup* LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, con
     dpci.pPoolSizes = sizes.data();
     vkCreateDescriptorPool(g_vulkanstate.device, &dpci, nullptr, &dpool);
     
+    //VkCopyDescriptorSet copy{};
+    //copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
+    
     VkDescriptorSetAllocateInfo dsai{};
     dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     dsai.descriptorPool = dpool;
@@ -352,8 +355,6 @@ DescribedBindGroup* LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, con
     gch::small_vector<VkWriteDescriptorSet> writes(count, VkWriteDescriptorSet{});
     gch::small_vector<VkDescriptorBufferInfo> bufferInfos(count, VkDescriptorBufferInfo{});
     gch::small_vector<VkDescriptorImageInfo> imageInfos(count, VkDescriptorImageInfo{});
-    VkCopyDescriptorSet copy{};
-    copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
     for(uint32_t i = 0;i < count;i++){
         writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writes[i].dstBinding = resources[i].binding;
@@ -1466,7 +1467,7 @@ void mainLoop(GLFWwindow *window) {
     img.mipmaps = 1;
     img.rowStrideInBytes = 4;
     goof = LoadTextureFromImage(img);
-    DescribedSampler sampler = LoadSampler_Vk(repeat, linear, linear, 10.0f);
+    DescribedSampler sampler = LoadSampler_Vk(repeat, filter_linear, filter_linear, 10.0f);
     set = loadBindGroup(layout, goof);
     VkSemaphoreCreateInfo sci{};
     sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
