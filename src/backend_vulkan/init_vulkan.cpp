@@ -17,7 +17,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include "vulkan_internals.hpp"
-
+#include <internals.hpp>
 VulkanState g_vulkanstate;
 
 
@@ -433,17 +433,6 @@ std::vector<char> readFile(const std::string &filename) {
 }
 
 
-VkShaderModule createShaderModule(const std::vector<uint32_t>& code) {
-    VkShaderModuleCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.codeSize = code.size() * sizeof(uint32_t);
-    createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
-    VkShaderModule shaderModule;
-    if (vkCreateShaderModule(g_vulkanstate.device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create shader module!");
-    }
-    return shaderModule;
-}
 
 void createGraphicsPipeline(DescribedBindGroupLayout* setLayout) {
     VkShaderModuleCreateInfo vcinfo{};
@@ -451,8 +440,8 @@ void createGraphicsPipeline(DescribedBindGroupLayout* setLayout) {
     //auto vsSpirv = readFile("../resources/hvk.vert.spv");
     //auto fsSpirv = readFile("../resources/hvk.frag.spv");
     auto [vsSpirv, fsSpirv] = glsl_to_spirv(vsSource, fsSource);
-    VkShaderModule vertShaderModule = createShaderModule(vsSpirv);
-    VkShaderModule fragShaderModule = createShaderModule(fsSpirv);
+    VkShaderModule vertShaderModule = LoadShaderModuleFromSPIRV_Vk(vsSpirv);
+    VkShaderModule fragShaderModule = LoadShaderModuleFromSPIRV_Vk(fsSpirv);
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -542,10 +531,15 @@ void createGraphicsPipeline(DescribedBindGroupLayout* setLayout) {
     colorBlending.blendConstants[2] = 1.0f;
     colorBlending.blendConstants[3] = 1.0f;
     
-    std::vector<VkDynamicState> dynamicStates = {VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY, VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+    std::vector<VkDynamicState> dynamicStates = {
+        VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY, 
+        VK_DYNAMIC_STATE_VERTEX_INPUT_EXT, 
+        VK_DYNAMIC_STATE_VIEWPORT, 
+        VK_DYNAMIC_STATE_SCISSOR
+    };
     VkPipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount = 1; //static_cast<uint32_t>(dynamicStates.size());
+    dynamicState.dynamicStateCount = 2; //static_cast<uint32_t>(dynamicStates.size());
     
     dynamicState.pDynamicStates = dynamicStates.data();
     
@@ -627,11 +621,7 @@ void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, &g_vulkanstate.vbuffer, &offsets);
     vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 
-    vkCmdEndRenderPass(commandBuffer);
-
-    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
-        throw std::runtime_error("failed to record command buffer!");
-    }
+    
 }
 
 // Function to initialize GLFW and create a window
@@ -707,6 +697,7 @@ void createInstance() {
         std::cout << ext.extensionName << ", ";
     }
     std::cout << std::endl;
+    //extensions.push_back(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME);
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
 
@@ -916,8 +907,8 @@ void createRenderPass() {
     colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    VkAttachmentDescription& depthAttachment = attachments[1];
 
+    VkAttachmentDescription& depthAttachment = attachments[1];
     depthAttachment.format = VK_FORMAT_D32_SFLOAT;
     depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -926,6 +917,7 @@ void createRenderPass() {
     depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
 
 
     VkAttachmentReference colorAttachmentRef{};
@@ -1196,9 +1188,23 @@ void initVulkan(GLFWwindow *window) {
 Texture goof{};
 // Function to run the main event loop
 void mainLoop(GLFWwindow *window) {
-    uint8_t data[4] = {255,0,0,255};
+    float posdata[6] = {0,0,1,0,0,1};
+    float offsets[4] = {0,0,0.5,0};
+    VertexArray* vao = LoadVertexArray();
+    DescribedBuffer* vbo = GenBufferEx_Vk(posdata, sizeof(posdata), BufferUsage_Vertex | WGPUBufferUsage_CopyDst);
+    DescribedBuffer* inst_bo = GenBufferEx_Vk(posdata, sizeof(posdata), BufferUsage_Vertex | WGPUBufferUsage_CopyDst);
+    VertexAttribPointer(vao, vbo, 0, VertexFormat_Float32x2, 0, VertexStepMode_Vertex);
+    VertexAttribPointer(vao, inst_bo, 1, VertexFormat_Float32x2, 1, VertexStepMode_Instance);
+
+    VertexBufferLayoutSet layoutset = getBufferLayoutRepresentation(vao->attributes.data(), vao->attributes.size());
+    auto pair_of_dings = genericVertexLayoutSetToVulkan(layoutset);
+    
+    //vkCmdSetVertexInputEXT(VkCommandBuffer commandBuffer, uint32_t vertexBindingDescriptionCount, const VkVertexInputBindingDescription2EXT *pVertexBindingDescriptions, uint32_t vertexAttributeDescriptionCount, const VkVertexInputAttributeDescription2EXT *pVertexAttributeDescriptions)
+    //BindVertexArray(VertexArray *va)
+
     Image img = GenImageChecker(WHITE, BLACK, 100, 100, 10);
     goof = LoadTextureFromImage_Vk(img);
+    
     DescribedSampler sampler = LoadSampler_Vk(repeat, filter_linear, filter_linear, 10.0f);
     //set = loadBindGroup(layout, goof);
 
@@ -1267,7 +1273,13 @@ void mainLoop(GLFWwindow *window) {
 
         vkResetCommandBuffer(commandBuffer, /*VkCommandBufferResetFlagBits*/ 0);
         recordCommandBuffer(commandBuffer, imageIndex);
+        
 
+        vkCmdEndRenderPass(commandBuffer);
+
+        if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+            throw std::runtime_error("failed to record command buffer!");
+        }
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 

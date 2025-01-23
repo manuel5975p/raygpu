@@ -72,9 +72,9 @@ int main(){
             colors.push_back((uint32_t)gen());
         }
     }
-    posb = GenBuffer(positions, sizeof(positions));
-    poso = GenBuffer(offsets.data(), offsets.size() * sizeof(Vector2));
-    posc = GenBuffer(colors.data(), colors.size() * sizeof(uint32_t));
+    posb = GenVertexBuffer(positions, sizeof(positions));
+    poso = GenVertexBuffer(offsets.data(), offsets.size() * sizeof(Vector2));
+    posc = GenVertexBuffer(colors.data(), colors.size() * sizeof(uint32_t));
     vao = LoadVertexArray();
 
     VertexAttribPointer(vao, posb, 0, VertexFormat_Float32x2, 0, VertexStepMode_Vertex);

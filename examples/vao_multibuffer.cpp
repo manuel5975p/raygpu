@@ -63,14 +63,14 @@ int main(){
         .up =       CLITERAL(Vector3){0,1,0},
         .fovy = 1.0f
     };
-    DescribedBuffer* posb = GenBuffer(positions, sizeof(positions));
-    DescribedBuffer* posu = GenBuffer(uvs, sizeof(uvs));
-    DescribedBuffer* posn = GenBuffer(normals, sizeof(normals));
-    DescribedBuffer* posc = GenBuffer(colors, sizeof(colors));
-    DescribedBuffer* posb2 = GenBuffer(positions2, sizeof(positions2));
-    DescribedBuffer* posu2 = GenBuffer(uvs, sizeof(uvs));
-    DescribedBuffer* posn2 = GenBuffer(normals, sizeof(normals));
-    DescribedBuffer* posc2 = GenBuffer(colors, sizeof(colors));
+    DescribedBuffer* posb = GenVertexBuffer(positions, sizeof(positions));
+    DescribedBuffer* posu = GenVertexBuffer(uvs, sizeof(uvs));
+    DescribedBuffer* posn = GenVertexBuffer(normals, sizeof(normals));
+    DescribedBuffer* posc = GenVertexBuffer(colors, sizeof(colors));
+    DescribedBuffer* posb2 = GenVertexBuffer(positions2, sizeof(positions2));
+    DescribedBuffer* posu2 = GenVertexBuffer(uvs, sizeof(uvs));
+    DescribedBuffer* posn2 = GenVertexBuffer(normals, sizeof(normals));
+    DescribedBuffer* posc2 = GenVertexBuffer(colors, sizeof(colors));
     VertexArray* vao = LoadVertexArray();
 
     VertexAttribPointer(vao, posb,  0, VertexFormat_Float32x2, 0, VertexStepMode_Vertex);
