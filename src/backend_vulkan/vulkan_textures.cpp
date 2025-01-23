@@ -12,6 +12,7 @@ VkFormat TranslatePixelFormat(PixelFormat format) {
         case RGBA16F:  return VK_FORMAT_R16G16B16A16_SFLOAT;
         case RGBA32F:  return VK_FORMAT_R32G32B32A32_SFLOAT;
         case Depth24:  return VK_FORMAT_D24_UNORM_S8_UINT;
+        case Depth32:  return VK_FORMAT_D32_SFLOAT;
         case GRAYSCALE: throw std::runtime_error("GRAYSCALE format not supported in Vulkan.");
         case RGB8:      throw std::runtime_error("RGB8 format not supported in Vulkan.");
         default:
@@ -252,11 +253,10 @@ void CopyBufferToImage(VkDevice device, VkCommandPool commandPool, VkQueue queue
 std::pair<VkImage, VkDeviceMemory> CreateVkImage(VkDevice device, VkPhysicalDevice physicalDevice, VkCommandPool commandPool, VkQueue queue, 
                                                 const uint8_t* data, uint32_t width, uint32_t height, VkFormat format, bool hasData) {
     VkDeviceMemory imageMemory;
-    VkImageUsageFlags usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    
     // Adjust usage flags based on format (e.g., depth formats might need different usages)
-    if (format == VK_FORMAT_D24_UNORM_S8_UINT) {
-        usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    VkImageUsageFlags usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    if(format == VK_FORMAT_D24_UNORM_S8_UINT || format == VK_FORMAT_D32_SFLOAT){
+        usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
     }
     
     VkImage image = CreateImage(device, width, height, format, usage, imageMemory);
@@ -327,7 +327,7 @@ extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelForma
     ret.id = image;
     
     VkImageAspectFlags aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
-    if (format == Depth24) {
+    if (format == Depth24 || format == Depth32) {
         aspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
     }
     
@@ -350,10 +350,10 @@ Texture LoadTextureFromImage_Vk(Image img) {
     }
     
     return LoadTexturePro_Vk(
-        img.width, 
-        img.height, 
-        img.format, 
-        (int)TextureUsage_TextureBinding, // Assuming TextureUsage enum exists and has a Sampled option
+        img.width,
+        img.height,
+        img.format,
+        TextureUsage_TextureBinding, // Assuming TextureUsage enum exists and has a Sampled option
         1, // sampleCount
         img.mipmaps > 0 ? img.mipmaps : 1, 
         img.data

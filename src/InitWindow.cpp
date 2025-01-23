@@ -967,8 +967,10 @@ extern "C" size_t GetPixelSizeInBytes(PixelFormat format) {
         case PixelFormat::GRAYSCALE:
         return 2;
         case PixelFormat::RGB8:
-        case PixelFormat::Depth24:
         return 3;
+        case PixelFormat::Depth24:
+        case PixelFormat::Depth32:
+        return 4;
     }
     /*
     switch (format) {

@@ -62,7 +62,7 @@ void main() {
 })";
 
 std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char *vs, const char *fs);
-void BeginRenderpassEx_Vk(DescribedRenderpass* renderPass){
+/*void BeginRenderpassEx_Vk(DescribedRenderpass* renderPass){
     VkCommandBuffer cmd = (VkCommandBuffer)renderPass->cmdEncoder;
     vkResetCommandBuffer(cmd, 0);
     VkCommandBufferBeginInfo binfo{};
@@ -82,10 +82,8 @@ void BeginRenderpassEx_Vk(DescribedRenderpass* renderPass){
     VkFramebufferCreateInfo fbcinfo{};
     VkRenderPassBeginInfo rpinfo{};
     rpinfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+}*/
 
-
-
-}
 //void EndRenderpassEx(DescribedRenderpass *renderPass){ 
 //    vkEndCommandBuffer((VkCommandBuffer)renderPass->cmdEncoder);
 //    
@@ -253,8 +251,8 @@ DescribedBindGroup* LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, con
     return ret;
 }
 
-DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsage usage){
-    VkBufferUsageFlagBits vusage = toVulkanBufferUsage(usage);
+DescribedBuffer* GenBufferEx_Vk(const void *data, size_t size, BufferUsage usage){
+    VkBufferUsageFlags vusage = toVulkanBufferUsage(usage);
     DescribedBuffer* ret = callocnew(DescribedBuffer);
     VkBuffer vertexBuffer{};
 
@@ -510,6 +508,20 @@ void createGraphicsPipeline(DescribedBindGroupLayout* setLayout) {
     rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
 
+
+    VkPipelineDepthStencilStateCreateInfo depthStencil{};
+    depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthStencil.depthTestEnable = VK_TRUE;
+    depthStencil.depthWriteEnable = VK_TRUE;
+    depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+    depthStencil.depthBoundsTestEnable = VK_FALSE;
+    depthStencil.minDepthBounds = 0.0f; // Optional
+    depthStencil.maxDepthBounds = 1.0f; // Optional
+    depthStencil.stencilTestEnable = VK_FALSE;
+    depthStencil.front = {}; // Optional
+    depthStencil.back = {}; // Optional
+
+
     VkPipelineMultisampleStateCreateInfo multisampling{};
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable = VK_FALSE;
@@ -525,10 +537,10 @@ void createGraphicsPipeline(DescribedBindGroupLayout* setLayout) {
     colorBlending.logicOp = VK_LOGIC_OP_COPY;
     colorBlending.attachmentCount = 1;
     colorBlending.pAttachments = &colorBlendAttachment;
-    colorBlending.blendConstants[0] = 0.0f;
-    colorBlending.blendConstants[1] = 0.0f;
-    colorBlending.blendConstants[2] = 0.0f;
-    colorBlending.blendConstants[3] = 0.0f;
+    colorBlending.blendConstants[0] = 1.0f;
+    colorBlending.blendConstants[1] = 1.0f;
+    colorBlending.blendConstants[2] = 1.0f;
+    colorBlending.blendConstants[3] = 1.0f;
     
     std::vector<VkDynamicState> dynamicStates = {VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY, VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
     VkPipelineDynamicStateCreateInfo dynamicState{};
@@ -558,6 +570,7 @@ void createGraphicsPipeline(DescribedBindGroupLayout* setLayout) {
     pipelineInfo.pRasterizationState = &rasterizer;
     pipelineInfo.pMultisampleState = &multisampling;
     pipelineInfo.pColorBlendState = &colorBlending;
+    pipelineInfo.pDepthStencilState = &depthStencil;
     pipelineInfo.pDynamicState = &dynamicState;
     pipelineInfo.layout = pipelineLayout;
     pipelineInfo.renderPass = g_vulkanstate.renderPass;
@@ -588,9 +601,11 @@ void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
     renderPassInfo.renderArea.offset = {0, 0};
     renderPassInfo.renderArea.extent = g_vulkanstate.swapchainExtent;
 
-    VkClearValue clearColor = {{{0.0f, 1.0f, 0.0f, 1.0f}}};
-    renderPassInfo.clearValueCount = 1;
-    renderPassInfo.pClearValues = &clearColor;
+    VkClearValue clearvalues[2];
+    clearvalues[0].color = VkClearColorValue{0.0f, 1.0f, 0.0f, 1.0f};
+    clearvalues[1].depthStencil = VkClearDepthStencilValue{1.0f, 0u};
+    renderPassInfo.clearValueCount = 2;
+    renderPassInfo.pClearValues = clearvalues;
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, g_vulkanstate.graphicsPipeline);
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, g_vulkanstate.graphicsPipelineLayout, 0, 1, (VkDescriptorSet*)(&set->bindGroup), 0, nullptr);
@@ -858,6 +873,11 @@ VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>
 // Function to choose the best present mode
 VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availablePresentModes) {
     for (const auto &availablePresentMode : availablePresentModes) {
+        if (availablePresentMode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
+            return availablePresentMode;
+        }
+    }
+    for (const auto &availablePresentMode : availablePresentModes) {
         if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
             return availablePresentMode;
         }
@@ -884,7 +904,10 @@ VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities, GLFWwi
     }
 }
 void createRenderPass() {
-    VkAttachmentDescription colorAttachment{};
+    VkAttachmentDescription attachments[2] = {};
+
+    VkAttachmentDescription& colorAttachment = attachments[0];
+    colorAttachment = VkAttachmentDescription{};
     colorAttachment.format = g_vulkanstate.swapchainImageFormat;
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -893,20 +916,40 @@ void createRenderPass() {
     colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    VkAttachmentDescription& depthAttachment = attachments[1];
+
+    depthAttachment.format = VK_FORMAT_D32_SFLOAT;
+    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
 
     VkAttachmentReference colorAttachmentRef{};
     colorAttachmentRef.attachment = 0;
     colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+
+    VkAttachmentReference depthAttachmentRef{};
+    depthAttachmentRef.attachment = 1;
+    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
     VkSubpassDescription subpass{};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorAttachmentRef;
+    subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
     VkRenderPassCreateInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderPassInfo.attachmentCount = 1;
-    renderPassInfo.pAttachments = &colorAttachment;
+    renderPassInfo.attachmentCount = 2;
+    renderPassInfo.pAttachments = attachments;
     renderPassInfo.subpassCount = 1;
     renderPassInfo.pSubpasses = &subpass;
+    
 
     if (vkCreateRenderPass(g_vulkanstate.device, &renderPassInfo, nullptr, &g_vulkanstate.renderPass) != VK_SUCCESS) {
         throw std::runtime_error("failed to create render pass!");
@@ -999,14 +1042,21 @@ void createImageViews(uint32_t width, uint32_t height) {
     g_vulkanstate.swapchainImageFramebuffers.resize(g_vulkanstate.swapchainImageViews.size());
 
     for (size_t i = 0; i < g_vulkanstate.swapchainImageViews.size(); i++) {
+        Texture depthTexture = LoadTexturePro_Vk(width, height, Depth32, WGPUTextureUsage_RenderAttachment, 1, 1);
+        std::array<VkImageView, 2> attachments{
+            g_vulkanstate.swapchainImageViews[i],
+            (VkImageView)depthTexture.view
+        };
+
         VkFramebufferCreateInfo fbcinfo{};
         fbcinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        fbcinfo.attachmentCount = 1;
-        fbcinfo.pAttachments = &g_vulkanstate.swapchainImageViews[i];
+        fbcinfo.attachmentCount = 2;
+        fbcinfo.pAttachments = attachments.data();
         fbcinfo.width = width;
         fbcinfo.height = height;
         fbcinfo.renderPass = g_vulkanstate.renderPass;
         fbcinfo.layers = 1;
+
         if (vkCreateFramebuffer(g_vulkanstate.device, &fbcinfo, nullptr, &g_vulkanstate.swapchainImageFramebuffers[i]) != VK_SUCCESS) {
             throw std::runtime_error("failed to create framebuffer!");
         }
@@ -1307,7 +1357,7 @@ int main() {
         window = initWindow(1000, 800, "Völken");
 
         initVulkan(window);
-
+        
         mainLoop(window);
 
         cleanup(window);
