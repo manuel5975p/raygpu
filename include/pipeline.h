@@ -47,17 +47,7 @@ typedef void* NativeCommandEncoderHandle;
 typedef void* NativeRenderPassEncoderHandle;
 typedef void* NativeComputePassEncoderHandle;
 
-typedef enum uniform_type{
-    uniform_buffer, storage_buffer, texture2d, storage_texture2d, texture_sampler, texture3d, storage_texture3d
-}uniform_type;
 
-typedef enum access_type{
-    readonly, readwrite, writeonly
-}access_type;
-
-typedef enum format_or_sample_type{
-    sample_f32, sample_u32, format_r32float, format_r32uint, format_rgba8unorm, format_rgba32float
-}format_or_sample_type;
 
 typedef struct ResourceTypeDescriptor{
     uniform_type type;

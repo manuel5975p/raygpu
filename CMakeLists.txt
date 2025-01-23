@@ -235,7 +235,11 @@ if(EMSCRIPTEN)
 endif()
 
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/examples")
-add_executable(init_vulkan "${CMAKE_CURRENT_LIST_DIR}/src/init_vulkan.cpp")
+add_executable(init_vulkan 
+    "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/init_vulkan.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/vulkan_textures.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/vulkan_descriptors.cpp"
+)
 target_link_libraries(init_vulkan PUBLIC vulkan glfw raygpu glslang)
 target_include_directories(init_vulkan PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include" "${CMAKE_CURRENT_LIST_DIR}/external")
 #add_executable(reference_sample "src/reference_sample.cpp")

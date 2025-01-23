@@ -86,6 +86,7 @@ void mainloop(void){
     EndDrawing();
 }
 int main(cwoid){
+    SetConfigFlags(FLAG_VSYNC_HINT);
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(1200, 800, "VAO");
     //SetTargetFPS(300);
@@ -103,7 +104,7 @@ int main(cwoid){
     checkers = LoadTextureFromImage(GenImageChecker(RED, DARKBLUE, 100, 100, 4));
     IEEE_FP16 checkersHDRData[81 * 4];
     for(size_t i = 0;i < 81;i++){
-        checkersHDRData[4 * i + 0] = (i & 1) ? float_to_fp16(.0f) : float_to_fp16(0.5f);
+        checkersHDRData[4 * i + 0] = (i & 1) ? float_to_fp16(1.0f) : float_to_fp16(1.5f);
         checkersHDRData[4 * i + 1] = (i & 1) ? float_to_fp16(0.0f) : float_to_fp16(0.0f);
         checkersHDRData[4 * i + 2] = (i & 1) ? float_to_fp16(0.0f) : float_to_fp16(0.0f);
         checkersHDRData[4 * i + 3] = (i & 1) ? float_to_fp16(1.0f) : float_to_fp16(1.0f);

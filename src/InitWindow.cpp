@@ -587,7 +587,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     auto colorTexture = LoadTextureEx(width, height, (PixelFormat)g_wgpustate.frameBufferFormat, true);
     //g_wgpustate.mainWindowRenderTarget.texture = colorTexture;
     if(g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT)
-        g_wgpustate.mainWindowRenderTarget.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4, 1);
+        g_wgpustate.mainWindowRenderTarget.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_wgpustate.frameBufferFormat, TextureUsage_RenderAttachment | TextureUsage_TextureBinding | TextureUsage_CopyDst | TextureUsage_CopySrc, 4, 1);
     g_wgpustate.mainWindowRenderTarget.depth = LoadTexturePro(width,
                                   height, 
                                   Depth24, 
