@@ -52,9 +52,9 @@ layout(binding = 0) uniform sampler2D sampler0;
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    //outColor = vec4(0,0,0,1);
+    outColor = vec4(0,1,0,1);
     //outColor.xy += gl_FragCoord.xy / 1000.0f;
-    outColor = texelFetch(texture0, ivec2(gl_FragCoord.xy / 10.0f), 0);
+    //outColor = texelFetch(texture0, ivec2(gl_FragCoord.xy / 10.0f), 0);
     //outColor = 0.3f * texelFetch(texture0, ivec2(gl_FragCoord.xy / 100.0f), 0);
     //outColor.y += gl_FragCoord.x * 0.001f;
     //outColor = vec4(fragColor, 1.0);
@@ -211,13 +211,17 @@ DescribedBuffer* GenBufferEx_Vk(const void *data, size_t size, BufferUsage usage
     vkMapMemory(g_vulkanstate.device, vertexBufferMemory, 0, bufferInfo.size, 0, &mapdata);
     memcpy(mapdata, data, (size_t)bufferInfo.size);
     vkUnmapMemory(g_vulkanstate.device, vertexBufferMemory);
-    ret->buffer = callocnew(BufferHandleImpl);
+    ret->buffer = callocnewpp(BufferHandleImpl);
     ((BufferHandle)ret->buffer)->buffer = vertexBuffer;
     ((BufferHandle)ret->buffer)->memory = vertexBufferMemory;
     ((BufferHandle)ret->buffer)->refCount = 1;
-
+    //vkMapMemory(g_vulkanstate.device, vertexBufferMemory, 0, size, void **ppData)
     ret->size = bufferInfo.size;
     ret->usage = usage;
+    void* mdata;
+    vkMapMemory(g_vulkanstate.device, vertexBufferMemory, 0, bufferInfo.size, 0, &mdata);
+    memcpy(mdata, data, (size_t)bufferInfo.size);
+    vkUnmapMemory(g_vulkanstate.device, vertexBufferMemory);
     return ret;
 }
 // Function to find a suitable memory type
@@ -1126,6 +1130,7 @@ void mainLoop(GLFWwindow *window) {
     float offsets[4] = {0,0,0.5,0};
     VertexArray* vao = LoadVertexArray();
     DescribedBuffer* vbo = GenBufferEx_Vk(posdata, sizeof(posdata), BufferUsage_Vertex | WGPUBufferUsage_CopyDst);
+    
     DescribedBuffer* inst_bo = GenBufferEx_Vk(posdata, sizeof(posdata), BufferUsage_Vertex | WGPUBufferUsage_CopyDst);
     VertexAttribPointer(vao, vbo, 0, VertexFormat_Float32x2, 0, VertexStepMode_Vertex);
     VertexAttribPointer(vao, inst_bo, 1, VertexFormat_Float32x2, 0, VertexStepMode_Instance);
@@ -1214,19 +1219,20 @@ void mainLoop(GLFWwindow *window) {
         vkResetCommandBuffer(commandBuffer, /*VkCommandBufferResetFlagBits*/ 0);
         BeginRenderPass_Vk(commandBuffer, renderpass, g_vulkanstate.swapchainImageFramebuffers[imageIndex]);
         //recordCommandBuffer(commandBuffer, imageIndex);
-        //vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipeline)dpl->quartet.pipeline_TriangleList);
-        //vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipelineLayout)dpl->layout.layout, 0, 1, (VkDescriptorSet*)&dpl->bindGroup, 0, 0);
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipeline)dpl->quartet.pipeline_TriangleList);
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipelineLayout)dpl->layout.layout, 0, 1, &((DescriptorSetHandle)set.bindGroup)->set, 0, 0);
         //vkCmdSetPrimitiveTopology(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-        //vkCmdBindVertexBuffers(commandBuffer, 0, 1, (VkBuffer*)&vbo->buffer, &noell);
-        //vkCmdBindVertexBuffers(commandBuffer, 1, 1, (VkBuffer*)&inst_bo->buffer, &noell);
-        //vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+        
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &((BufferHandle)vbo->buffer)->buffer, &noell);
+        vkCmdBindVertexBuffers(commandBuffer, 1, 1, &((BufferHandle)inst_bo->buffer)->buffer, &noell);
+        vkCmdDraw(commandBuffer, 3, 1, 0, 0);
         //vkCmdEndRenderPass(commandBuffer);
         EndRenderPass_Vk(commandBuffer, renderpass, imageAvailableSemaphore);
 
         VkPresentInfoKHR presentInfo{};
         presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
-        presentInfo.waitSemaphoreCount = 2;
+        presentInfo.waitSemaphoreCount = 1;
         VkSemaphore waiton[2] = {
             renderpass.signalSemaphore,
             imageAvailableSemaphore

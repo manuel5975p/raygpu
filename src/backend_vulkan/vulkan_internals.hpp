@@ -203,14 +203,16 @@ inline RenderPassEncoderHandle BeginRenderPass_Vk(VkCommandBuffer cbuffer, FullV
 inline void EndRenderPass_Vk(VkCommandBuffer cbuffer, FullVkRenderPass rp, VkSemaphore imageAvailableSemaphore){
     vkCmdEndRenderPass(cbuffer);
     vkEndCommandBuffer(cbuffer);
+    VkPipelineStageFlags stageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     VkSubmitInfo sinfo{};
     sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     sinfo.commandBufferCount = 1;
     sinfo.pCommandBuffers = &cbuffer;
-    sinfo.waitSemaphoreCount = 0;
+    sinfo.waitSemaphoreCount = 1;
+    sinfo.pWaitSemaphores = &imageAvailableSemaphore;
+    sinfo.pWaitDstStageMask = &stageMask;
     sinfo.signalSemaphoreCount = 1;
     sinfo.pSignalSemaphores = &rp.signalSemaphore;
-    sinf
     VkFence fence{};
     VkFenceCreateInfo finfo{};
     finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
