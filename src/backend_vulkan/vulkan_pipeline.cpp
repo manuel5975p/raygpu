@@ -163,6 +163,87 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     
-    vkCreateGraphicsPipelines(g_vulkanstate.device, nullptr, 1, &pipelineInfo, nullptr, (VkPipeline*)&ret->quartet.pipeline_TriangleList);
+    if(VK_SUCCESS != vkCreateGraphicsPipelines(g_vulkanstate.device, nullptr, 1, &pipelineInfo, nullptr, (VkPipeline*)&ret->quartet.pipeline_TriangleList) != VK_SUCCESS){
+        throw std::runtime_error("Pipeline creation failed");
+    }
+    ret->layout.layout = pipelineLayout;
+    
     return ret;
+}
+
+
+DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, const ResourceDescriptor* resources, uint32_t count){
+    DescribedBindGroup ret{};
+    VkDescriptorPool dpool{};
+    VkDescriptorSet dset{};
+    VkDescriptorPoolCreateInfo dpci{};
+    dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    std::unordered_map<VkDescriptorType, uint32_t> counts;
+    for(uint32_t i = 0;i < layout->entryCount;i++){
+        ++counts[toVulkanResourceType(layout->entries[i].type)];
+    }
+    std::vector<VkDescriptorPoolSize> sizes;
+    sizes.reserve(counts.size());
+    for(const auto& [t, s] : counts){
+        sizes.push_back(VkDescriptorPoolSize{.type = t, .descriptorCount = s});
+    }
+
+    dpci.poolSizeCount = sizes.size();
+    dpci.pPoolSizes = sizes.data();
+    dpci.maxSets = 1;
+    vkCreateDescriptorPool(g_vulkanstate.device, &dpci, nullptr, &dpool);
+    
+    //VkCopyDescriptorSet copy{};
+    //copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
+    
+    VkDescriptorSetAllocateInfo dsai{};
+    dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    dsai.descriptorPool = dpool;
+    dsai.descriptorSetCount = 1;
+    dsai.pSetLayouts = (VkDescriptorSetLayout*)&layout->layout;
+    vkAllocateDescriptorSets(g_vulkanstate.device, &dsai, &dset);
+    ret.layout = layout->layout;
+    ret.bindGroup = dset;
+    ret.entries = (ResourceDescriptor*)std::calloc(count, sizeof(ResourceDescriptor));
+    ret.entryCount = count;
+    std::memcpy(ret.entries, resources, count * sizeof(ResourceDescriptor));
+    small_vector<VkWriteDescriptorSet> writes(count, VkWriteDescriptorSet{});
+    small_vector<VkDescriptorBufferInfo> bufferInfos(count, VkDescriptorBufferInfo{});
+    small_vector<VkDescriptorImageInfo> imageInfos(count, VkDescriptorImageInfo{});
+    for(uint32_t i = 0;i < count;i++){
+        writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        uint32_t binding = resources[i].binding;
+        writes[i].dstBinding = binding;
+        writes[i].dstSet = dset;
+        writes[i].descriptorType = toVulkanResourceType(layout->entries[i].type);
+        writes[i].descriptorCount = 1;
+        if(layout->entries[i].type == uniform_buffer || layout->entries->type == storage_buffer){
+            bufferInfos[i].buffer = (VkBuffer)resources[i].buffer;
+            bufferInfos[i].offset = resources[i].offset;
+            bufferInfos[i].range = resources[i].size;
+            writes[i].pBufferInfo = bufferInfos.data() + i;
+        }
+
+        if(layout->entries[i].type == texture2d || layout->entries[i].type == texture3d){
+            imageInfos[i].imageView = (VkImageView)resources[i].textureView;
+            imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            writes[i].pImageInfo = imageInfos.data() + i;
+        }
+
+        if(layout->entries[i].type == texture_sampler){
+            VkSampler vksampler = (VkSampler)resources[i].sampler;
+            imageInfos[i].sampler = vksampler;
+            writes[i].pImageInfo = imageInfos.data() + i;
+        }
+    }
+
+    vkUpdateDescriptorSets(g_vulkanstate.device, writes.size(), writes.data(), 0, nullptr);//count, &copy);
+    ret.needsUpdate = false;
+    return ret;
+}
+
+void SetBindGroupTexture_Vk(DescribedBindGroup* bg, uint32_t binding, Texture tex){
+    //TODO: actually, one would need to iterate entries to find out where .binding == binding
+
+    bg->entries[binding].
 }

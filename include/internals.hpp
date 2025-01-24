@@ -29,6 +29,11 @@
 #define INTERNALS_HPP_INCLUDED
 #include <raygpu.h>
 #include <algorithm>
+#include <vector>
+
+template<typename T>
+using small_vector = std::vector<T>;
+
 /**
  * @brief Get the Buffer Layout representation compatible with WebGPU or Vulkan
  * 

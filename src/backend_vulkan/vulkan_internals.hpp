@@ -76,6 +76,7 @@ struct VulkanState {
 
 struct FullVkRenderPass{
     VkRenderPass renderPass;
+    VkSemaphore signalSemaphore;
 };
 inline FullVkRenderPass LoadRenderPass(RenderSettings settings){
     FullVkRenderPass ret{};
@@ -122,6 +123,10 @@ inline FullVkRenderPass LoadRenderPass(RenderSettings settings){
 
     rpci.pSubpasses = &subpass;
     vkCreateRenderPass(g_vulkanstate.device, &rpci, nullptr, &ret.renderPass);
+
+    VkSemaphoreCreateInfo si{};
+    si.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    vkCreateSemaphore(g_vulkanstate.device, &si, nullptr, &ret.signalSemaphore);
     return ret;
 }
 
@@ -133,6 +138,29 @@ inline void BeginRenderPass_Vk(VkCommandBuffer cbuffer, FullVkRenderPass rp){
     VkSubpassContents scontents{};
     
     vkCmdBeginRenderPass(cbuffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
+}
+inline void EndRenderPass_Vk(VkCommandBuffer cbuffer, FullVkRenderPass rp){
+    vkCmdEndRenderPass(cbuffer);
+    VkSubmitInfo sinfo{};
+    sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    sinfo.commandBufferCount = 1;
+    sinfo.pCommandBuffers = &cbuffer;
+    sinfo.waitSemaphoreCount = 0;
+    sinfo.signalSemaphoreCount = 0;
+    //sinfo.pSignalSemaphores = &rp.signalSemaphore;
+    VkFence fence{};
+    VkFenceCreateInfo finfo{};
+    finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    if(vkCreateFence(g_vulkanstate.device, &finfo, nullptr, &fence) != VK_SUCCESS){
+        throw std::runtime_error("Could not create fence");
+    }
+    if(vkQueueSubmit(g_vulkanstate.graphicsQueue, 1, &sinfo, fence) != VK_SUCCESS){
+        throw std::runtime_error("Could not submit commandbuffer");
+    }
+    if(vkWaitForFences(g_vulkanstate.device, 1, &fence, VK_TRUE, 100000000) != VK_SUCCESS){
+        throw std::runtime_error("Could not wait for fence");
+    }
+    vkDestroyFence(g_vulkanstate.device, fence, nullptr);
 }
 
 extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelFormat format, int usage, uint32_t sampleCount, uint32_t mipmaps, const void* data = nullptr);
