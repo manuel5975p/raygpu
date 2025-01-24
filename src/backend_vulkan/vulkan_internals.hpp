@@ -38,10 +38,10 @@ inline std::pair<std::vector<VkVertexInputAttributeDescription>, std::vector<VkV
     return ret;
 }
 
-struct VertexAndFragmentShaderModule{
+typedef struct VertexAndFragmentShaderModule{
     VkShaderModule vModule;
     VkShaderModule fModule;
-};
+}VertexAndFragmentShaderModule;
 
 struct VulkanState {
     VkInstance instance = VK_NULL_HANDLE;
@@ -137,7 +137,7 @@ inline void BeginRenderPass_Vk(VkCommandBuffer cbuffer, FullVkRenderPass rp){
 
 extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelFormat format, int usage, uint32_t sampleCount, uint32_t mipmaps, const void* data = nullptr);
 extern "C" Texture LoadTextureFromImage_Vk(Image img);
-extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* code, size_t codeSizeInBytes);
-
-
+extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vscode, size_t vscodeSizeInBytes, const uint32_t* fscode, size_t fscodeSizeInBytes);
+extern "C" DescribedBindGroupLayout LoadBindGroupLayout_Vk(const ResourceTypeDescriptor* descs, uint32_t uniformCount);
+extern "C" DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSource, const VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
 #endif
