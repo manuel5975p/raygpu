@@ -170,7 +170,6 @@ typedef struct DescribedBuffer{
     WGPUBufferUsage usage;
     uint64_t size;
     NativeBufferHandle buffer;
-    VULKAN_BACKEND_ONLY NativeMemoryHandle vkMemory;
 }DescribedBuffer;
 
 typedef struct DescribedSampler{

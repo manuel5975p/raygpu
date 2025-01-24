@@ -3,6 +3,7 @@
 
 #define STRVIEW(X) WGPUStringView{X, sizeof(X) - 1}
 #define callocnew(X) ((X*)calloc(1, (sizeof(X))))
+#define callocnewpp(X) new (std::calloc(1, sizeof(X))) X
 #ifdef __cplusplus
 #define zeroinit {}
 #define CLITERAL(X) X

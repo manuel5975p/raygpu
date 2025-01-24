@@ -18,15 +18,13 @@ extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vs
     fscreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     fscreateInfo.codeSize = fscodeSizeInBytes;
     fscreateInfo.pCode = reinterpret_cast<const uint32_t*>(fscode);
-    
-
 
 
     ret.shaderModule = callocnew(VertexAndFragmentShaderModule);
-    if (vkCreateShaderModule(g_vulkanstate.device, &vscreateInfo, nullptr, &((VertexAndFragmentShaderModule*)ret.shaderModule)->vModule) != VK_SUCCESS) {
+    if (vkCreateShaderModule(g_vulkanstate.device, &vscreateInfo, nullptr, &((VertexAndFragmentShaderModule)ret.shaderModule)->vModule) != VK_SUCCESS) {
         throw std::runtime_error("failed to create vertex shader module!");
     }
-    if (vkCreateShaderModule(g_vulkanstate.device, &fscreateInfo, nullptr, &((VertexAndFragmentShaderModule*)ret.shaderModule)->fModule) != VK_SUCCESS) {
+    if (vkCreateShaderModule(g_vulkanstate.device, &fscreateInfo, nullptr, &((VertexAndFragmentShaderModule)ret.shaderModule)->fModule) != VK_SUCCESS) {
         throw std::runtime_error("failed to create fragment shader module!");
     }
 
@@ -44,13 +42,13 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertShaderStageInfo.module = ((VertexAndFragmentShaderModule*)ret->sh.shaderModule)->vModule;
+    vertShaderStageInfo.module = ((VertexAndFragmentShaderModule)ret->sh.shaderModule)->vModule;
     vertShaderStageInfo.pName = "main";
 
     VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
     fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragShaderStageInfo.module = ((VertexAndFragmentShaderModule*)ret->sh.shaderModule)->fModule;
+    fragShaderStageInfo.module = ((VertexAndFragmentShaderModule)ret->sh.shaderModule)->fModule;
     fragShaderStageInfo.pName = "main";
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
@@ -131,9 +129,9 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
     };
     VkPipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount = 1; //static_cast<uint32_t>(dynamicStates.size());
+    dynamicState.dynamicStateCount = 0; //static_cast<uint32_t>(dynamicStates.size());
     
-    dynamicState.pDynamicStates = dynamicStates.data();
+    dynamicState.pDynamicStates = nullptr;//dynamicStates.data();
     
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -162,7 +160,7 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
     pipelineInfo.renderPass = g_vulkanstate.renderPass;
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
-    
+
     if(VK_SUCCESS != vkCreateGraphicsPipelines(g_vulkanstate.device, nullptr, 1, &pipelineInfo, nullptr, (VkPipeline*)&ret->quartet.pipeline_TriangleList) != VK_SUCCESS){
         throw std::runtime_error("Pipeline creation failed");
     }
@@ -202,8 +200,13 @@ DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, cons
     dsai.descriptorSetCount = 1;
     dsai.pSetLayouts = (VkDescriptorSetLayout*)&layout->layout;
     vkAllocateDescriptorSets(g_vulkanstate.device, &dsai, &dset);
-    ret.layout = layout->layout;
-    ret.bindGroup = dset;
+    
+    ret.layout = layout;
+    ret.bindGroup = callocnewpp(DescriptorSetHandleImpl);
+
+    ((DescriptorSetHandle)ret.bindGroup)->pool = dpool;
+    ((DescriptorSetHandle)ret.bindGroup)->set = dset;
+
     ret.entries = (ResourceDescriptor*)std::calloc(count, sizeof(ResourceDescriptor));
     ret.entryCount = count;
     std::memcpy(ret.entries, resources, count * sizeof(ResourceDescriptor));
@@ -241,9 +244,73 @@ DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, cons
     ret.needsUpdate = false;
     return ret;
 }
+/*
+void UpdateBindGroup_Vk(DescribedBindGroup* bg){
+    if(bg->needsUpdate == false)return;
+    uint32_t count = bg->entryCount;
+    small_vector<VkWriteDescriptorSet> writes(count, VkWriteDescriptorSet{});
+    small_vector<VkDescriptorBufferInfo> bufferInfos(count, VkDescriptorBufferInfo{});
+    small_vector<VkDescriptorImageInfo> imageInfos(count, VkDescriptorImageInfo{});
+    for(uint32_t i = 0;i < count;i++){
+        writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        uint32_t binding = bg->entries[i].binding;
+        writes[i].dstBinding = binding;
+        writes[i].dstSet = ((DescriptorSetHandle)bg->bindGroup)->set;
+        writes[i].descriptorType = toVulkanResourceType(bg->layout->entries[i].type);
+        writes[i].descriptorCount = 1;
 
+        if(layout->entries[i].type == uniform_buffer || layout->entries->type == storage_buffer){
+            bufferInfos[i].buffer = (VkBuffer)resources[i].buffer;
+            bufferInfos[i].offset = resources[i].offset;
+            bufferInfos[i].range = resources[i].size;
+            writes[i].pBufferInfo = bufferInfos.data() + i;
+        }
+
+        if(layout->entries[i].type == texture2d || layout->entries[i].type == texture3d){
+            imageInfos[i].imageView = (VkImageView)resources[i].textureView;
+            imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            writes[i].pImageInfo = imageInfos.data() + i;
+        }
+
+        if(layout->entries[i].type == texture_sampler){
+            VkSampler vksampler = (VkSampler)resources[i].sampler;
+            imageInfos[i].sampler = vksampler;
+            writes[i].pImageInfo = imageInfos.data() + i;
+        }
+    }
+    bg->needsUpdate = false;
+}
+*/
+
+
+//TODO: actually, one would need to iterate entries to find out where .binding == binding
 void SetBindGroupTexture_Vk(DescribedBindGroup* bg, uint32_t binding, Texture tex){
-    //TODO: actually, one would need to iterate entries to find out where .binding == binding
 
-    bg->entries[binding].
+    bg->entries[binding].textureView = tex.view;
+    if(bg->bindGroup){
+        ReleaseDescriptorSet((DescriptorSetHandle)bg->bindGroup);
+        bg->bindGroup = nullptr;
+    }
+    bg->needsUpdate = true;
+}
+void SetBindGroupBuffer_Vk(DescribedBindGroup* bg, uint32_t binding, DescribedBuffer* buf){
+    
+    //TODO: actually, one would need to iterate entries to find out where .binding == binding
+    bg->entries[binding].buffer = buf->buffer;
+    if(bg->bindGroup){
+        ReleaseDescriptorSet((DescriptorSetHandle)bg->bindGroup);
+        bg->bindGroup = nullptr;
+    }
+    bg->needsUpdate = true;
+}
+void SetBindGroupSampler_Vk(DescribedBindGroup* bg, uint32_t binding, DescribedSampler buf){
+    
+    //TODO: actually, one would need to iterate entries to find out where .binding == binding
+    bg->entries[binding].sampler = buf.sampler;
+
+    if(bg->bindGroup){
+        ReleaseDescriptorSet((DescriptorSetHandle)bg->bindGroup);
+        bg->bindGroup = nullptr;
+    }
+    bg->needsUpdate = true;
 }
