@@ -122,7 +122,7 @@ typedef struct DescribedBindGroupLayout{
 typedef struct DescribedBindGroup{
     //Cached handles
     NativeBindgroupHandle bindGroup;
-    NativeBindgroupLayoutHandle layout;
+    const DescribedBindGroupLayout* layout;
     int needsUpdate; //Cached handles valid?
 
     //Description: entryCount and actual entries

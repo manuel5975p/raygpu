@@ -778,7 +778,7 @@ extern "C" DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bgla
     ret.entries = (ResourceDescriptor*)std::calloc(entryCount, sizeof(ResourceDescriptor));
     std::memcpy(ret.entries, entries, entryCount * sizeof(ResourceDescriptor));
     ret.entryCount = entryCount;
-    ret.layout = bglayout->layout;
+    ret.layout = bglayout;
 
     ret.needsUpdate = true;
     ret.descriptorHash = 0;

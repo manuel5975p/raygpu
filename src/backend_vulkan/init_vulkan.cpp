@@ -211,8 +211,11 @@ DescribedBuffer* GenBufferEx_Vk(const void *data, size_t size, BufferUsage usage
     vkMapMemory(g_vulkanstate.device, vertexBufferMemory, 0, bufferInfo.size, 0, &mapdata);
     memcpy(mapdata, data, (size_t)bufferInfo.size);
     vkUnmapMemory(g_vulkanstate.device, vertexBufferMemory);
-    ret->buffer = vertexBuffer;
-    ret->vkMemory = vertexBufferMemory;
+    ret->buffer = callocnew(BufferHandleImpl);
+    ((BufferHandle)ret->buffer)->buffer = vertexBuffer;
+    ((BufferHandle)ret->buffer)->memory = vertexBufferMemory;
+    ((BufferHandle)ret->buffer)->refCount = 1;
+
     ret->size = bufferInfo.size;
     ret->usage = usage;
     return ret;
@@ -1198,53 +1201,37 @@ void mainLoop(GLFWwindow *window) {
     uint64_t framecount = 0;
     uint64_t stamp = nanoTime();
     uint64_t noell = 0;
+    FullVkRenderPass renderpass = LoadRenderPass(GetDefaultSettings());
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         auto &swapChain = g_vulkanstate.swapchain;
-        vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
-        vkResetFences(device, 1, &inFlightFence);
+        //vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
+        //vkResetFences(device, 1, &inFlightFence);
 
         uint32_t imageIndex;
         vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
 
         vkResetCommandBuffer(commandBuffer, /*VkCommandBufferResetFlagBits*/ 0);
-        recordCommandBuffer(commandBuffer, imageIndex);
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipeline)dpl->quartet.pipeline_TriangleList);
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipelineLayout)dpl->layout.layout, 0, 1, (VkDescriptorSet*)&dpl->bindGroup, 0, 0);
-        vkCmdSetPrimitiveTopology(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, (VkBuffer*)&vbo->buffer, &noell);
-        vkCmdBindVertexBuffers(commandBuffer, 1, 1, (VkBuffer*)&inst_bo->buffer, &noell);
-        vkCmdDraw(commandBuffer, 3, 1, 0, 0);
-        vkCmdEndRenderPass(commandBuffer);
-
-        if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
-            throw std::runtime_error("failed to record command buffer!");
-        }
-        VkSubmitInfo submitInfo{};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-        VkSemaphore waitSemaphores[] = {imageAvailableSemaphore};
-        VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-        submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = waitSemaphores;
-        submitInfo.pWaitDstStageMask = waitStages;
-
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &commandBuffer;
-
-        VkSemaphore signalSemaphores[] = {renderFinishedSemaphore};
-        submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = signalSemaphores;
-
-        if (vkQueueSubmit(g_vulkanstate.graphicsQueue, 1, &submitInfo, inFlightFence) != VK_SUCCESS) {
-            throw std::runtime_error("failed to submit draw command buffer!");
-        }
+        BeginRenderPass_Vk(commandBuffer, renderpass, g_vulkanstate.swapchainImageFramebuffers[imageIndex]);
+        //recordCommandBuffer(commandBuffer, imageIndex);
+        //vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipeline)dpl->quartet.pipeline_TriangleList);
+        //vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipelineLayout)dpl->layout.layout, 0, 1, (VkDescriptorSet*)&dpl->bindGroup, 0, 0);
+        //vkCmdSetPrimitiveTopology(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+        //vkCmdBindVertexBuffers(commandBuffer, 0, 1, (VkBuffer*)&vbo->buffer, &noell);
+        //vkCmdBindVertexBuffers(commandBuffer, 1, 1, (VkBuffer*)&inst_bo->buffer, &noell);
+        //vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+        //vkCmdEndRenderPass(commandBuffer);
+        EndRenderPass_Vk(commandBuffer, renderpass, imageAvailableSemaphore);
 
         VkPresentInfoKHR presentInfo{};
         presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
-        presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores = signalSemaphores;
+        presentInfo.waitSemaphoreCount = 2;
+        VkSemaphore waiton[2] = {
+            renderpass.signalSemaphore,
+            imageAvailableSemaphore
+        };
+        presentInfo.pWaitSemaphores = waiton;
 
         VkSwapchainKHR swapChains[] = {swapChain};
         presentInfo.swapchainCount = 1;

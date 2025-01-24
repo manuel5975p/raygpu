@@ -1,5 +1,6 @@
 #ifndef VULKAN_INTERNALS_HPP
 #define VULKAN_INTERNALS_HPP
+#include "small_vector.hpp"
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <utility>
@@ -37,11 +38,55 @@ inline std::pair<std::vector<VkVertexInputAttributeDescription>, std::vector<VkV
     }
     return ret;
 }
+struct VertexAndFragmentShaderModuleImpl;
+struct DescriptorSetHandleImpl;
+struct BufferHandleImpl;
+struct RenderPassEncoderHandleImpl;
+struct CommandBufferHandleImpl;
 
-typedef struct VertexAndFragmentShaderModule{
+typedef VertexAndFragmentShaderModuleImpl* VertexAndFragmentShaderModule;
+typedef DescriptorSetHandleImpl* DescriptorSetHandle;
+typedef BufferHandleImpl* BufferHandle;
+typedef RenderPassEncoderHandleImpl* RenderPassEncoderHandle;
+typedef CommandBufferHandleImpl* CommmandBufferHandle;
+using refcount_type = uint32_t;
+typedef struct VertexAndFragmentShaderModuleImpl{
     VkShaderModule vModule;
     VkShaderModule fModule;
-}VertexAndFragmentShaderModule;
+}VertexAndFragmentShaderModuleImpl;
+
+typedef struct DescriptorSetHandleImpl{
+    VkDescriptorSet set;
+    VkDescriptorPool pool;
+    refcount_type refCount;
+}DescriptorSetHandleImpl;
+
+typedef struct BufferHandleImpl{
+    VkBuffer buffer;
+    VkDeviceMemory memory;
+    refcount_type refCount;
+}BufferHandleImpl;
+
+typedef struct RenderPassEncoderHandleImpl{
+    VkCommandBuffer cmdBuffer;
+    small_vector<BufferHandle> referencedBuffers;
+    small_vector<DescriptorSetHandle> referencedDescriptorSets;
+    refcount_type refCount;
+}RenderPassEncoderHandleImpl;
+
+typedef struct CommandBufferHandleImpl{
+    small_vector<RenderPassEncoderHandle> referencedRPs;
+    VkCommandBuffer buffer;
+    VkCommandPool pool;
+}CommandBufferHandleImpl;
+
+
+void ReleaseCommandBuffer(CommmandBufferHandle commandBuffer);
+void ReleaseRenderPassEncoder(RenderPassEncoderHandle rpenc);
+void ReleaseBuffer(BufferHandle commandBuffer);
+void ReleaseDescriptorSet(DescriptorSetHandle commandBuffer);
+
+
 
 struct VulkanState {
     VkInstance instance = VK_NULL_HANDLE;
@@ -112,16 +157,17 @@ inline FullVkRenderPass LoadRenderPass(RenderSettings settings){
     
     VkAttachmentReference ca{};
     ca.attachment = 0;
-    ca.layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    ca.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     VkAttachmentReference da{};
-    ca.attachment = 1;
-    ca.layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    da.attachment = 1;
+    da.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &ca;
     subpass.pDepthStencilAttachment = &da;
 
     rpci.pSubpasses = &subpass;
+    rpci.subpassCount = 1;
     vkCreateRenderPass(g_vulkanstate.device, &rpci, nullptr, &ret.renderPass);
 
     VkSemaphoreCreateInfo si{};
@@ -130,24 +176,41 @@ inline FullVkRenderPass LoadRenderPass(RenderSettings settings){
     return ret;
 }
 
-inline void BeginRenderPass_Vk(VkCommandBuffer cbuffer, FullVkRenderPass rp){
+inline RenderPassEncoderHandle BeginRenderPass_Vk(VkCommandBuffer cbuffer, FullVkRenderPass rp, VkFramebuffer fb){
+    RenderPassEncoderHandle ret = callocnewpp(RenderPassEncoderHandleImpl);
+    VkCommandBufferBeginInfo bbi{};
+    bbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     VkRenderPassBeginInfo rpbi{};
+    VkClearValue clearvalues[2] = {};
+    clearvalues[0].color = VkClearColorValue{};
+    clearvalues[0].color.float32[0] = 1.0f;
+    clearvalues[1].depthStencil = VkClearDepthStencilValue{};
+    clearvalues[1].depthStencil.depth = 1.0f;
     rpbi.renderPass = rp.renderPass;
     rpbi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    rpbi.clearValueCount = 2;
+    rpbi.pClearValues = clearvalues;
+    rpbi.framebuffer = fb;
+    rpbi.renderArea.extent.width = 1000;
+    rpbi.renderArea.extent.height = 800;
 
     VkSubpassContents scontents{};
-    
+    vkBeginCommandBuffer(cbuffer, &bbi);
     vkCmdBeginRenderPass(cbuffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
+    ret->cmdBuffer = cbuffer;
+    return ret;
 }
-inline void EndRenderPass_Vk(VkCommandBuffer cbuffer, FullVkRenderPass rp){
+inline void EndRenderPass_Vk(VkCommandBuffer cbuffer, FullVkRenderPass rp, VkSemaphore imageAvailableSemaphore){
     vkCmdEndRenderPass(cbuffer);
+    vkEndCommandBuffer(cbuffer);
     VkSubmitInfo sinfo{};
     sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     sinfo.commandBufferCount = 1;
     sinfo.pCommandBuffers = &cbuffer;
     sinfo.waitSemaphoreCount = 0;
-    sinfo.signalSemaphoreCount = 0;
-    //sinfo.pSignalSemaphores = &rp.signalSemaphore;
+    sinfo.signalSemaphoreCount = 1;
+    sinfo.pSignalSemaphores = &rp.signalSemaphore;
+    sinf
     VkFence fence{};
     VkFenceCreateInfo finfo{};
     finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -157,7 +220,7 @@ inline void EndRenderPass_Vk(VkCommandBuffer cbuffer, FullVkRenderPass rp){
     if(vkQueueSubmit(g_vulkanstate.graphicsQueue, 1, &sinfo, fence) != VK_SUCCESS){
         throw std::runtime_error("Could not submit commandbuffer");
     }
-    if(vkWaitForFences(g_vulkanstate.device, 1, &fence, VK_TRUE, 100000000) != VK_SUCCESS){
+    if(vkWaitForFences(g_vulkanstate.device, 1, &fence, VK_TRUE, ~0) != VK_SUCCESS){
         throw std::runtime_error("Could not wait for fence");
     }
     vkDestroyFence(g_vulkanstate.device, fence, nullptr);
@@ -168,4 +231,5 @@ extern "C" Texture LoadTextureFromImage_Vk(Image img);
 extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vscode, size_t vscodeSizeInBytes, const uint32_t* fscode, size_t fscodeSizeInBytes);
 extern "C" DescribedBindGroupLayout LoadBindGroupLayout_Vk(const ResourceTypeDescriptor* descs, uint32_t uniformCount);
 extern "C" DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSource, const VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
+extern "C" DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, const ResourceDescriptor* resources, uint32_t count);
 #endif
