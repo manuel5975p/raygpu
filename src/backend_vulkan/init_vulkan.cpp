@@ -21,11 +21,10 @@
 VulkanState g_vulkanstate;
 
 
-template<typename T>
-using small_vector = std::vector<T>;
 constexpr char vsSource[] = R"(#version 450
 
-layout(location = 0) in vec3 inPos;
+layout(location = 0) in vec2 inPos;
+layout(location = 1) in vec2 inOff;
 layout(location = 0) out vec3 fragColor;
 
 vec2 positions[3] = vec2[](
@@ -41,7 +40,7 @@ vec3 colors[3] = vec3[](
 );
 
 void main() {
-    gl_Position = vec4(inPos, 1.0f);//vec4(positions[gl_VertexIndex], 0.0, 1.0);
+    gl_Position = vec4(inPos, 0.0f, 1.0f);//vec4(positions[gl_VertexIndex], 0.0, 1.0);
     fragColor = colors[gl_VertexIndex];
 }
 )";
@@ -181,75 +180,6 @@ DescribedBindGroupLayout LoadBindGroupLayout_Vk(const ResourceTypeDescriptor* de
     std::memcpy(ret->entries, descs, uniformCount * sizeof(ResourceTypeDescriptor));
     VkResult createResult = vkCreateDescriptorSetLayout(g_vulkanstate.device, &lci, nullptr, (VkDescriptorSetLayout*)&ret->layout);
     return retv;
-}
-DescribedBindGroup* LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, const ResourceDescriptor* resources, uint32_t count){
-    DescribedBindGroup* ret = callocnew(DescribedBindGroup);
-    VkDescriptorPool dpool{};
-    VkDescriptorSet dset{};
-    VkDescriptorPoolCreateInfo dpci{};
-    dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    std::unordered_map<VkDescriptorType, uint32_t> counts;
-    for(uint32_t i = 0;i < layout->entryCount;i++){
-        ++counts[toVulkanResourceType(layout->entries[i].type)];
-    }
-    std::vector<VkDescriptorPoolSize> sizes;
-    sizes.reserve(counts.size());
-    for(const auto& [t, s] : counts){
-        sizes.push_back(VkDescriptorPoolSize{.type = t, .descriptorCount = s});
-    }
-
-    dpci.poolSizeCount = sizes.size();
-    dpci.pPoolSizes = sizes.data();
-    dpci.maxSets = 1;
-    vkCreateDescriptorPool(g_vulkanstate.device, &dpci, nullptr, &dpool);
-    
-    //VkCopyDescriptorSet copy{};
-    //copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
-    
-    VkDescriptorSetAllocateInfo dsai{};
-    dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    dsai.descriptorPool = dpool;
-    dsai.descriptorSetCount = 1;
-    dsai.pSetLayouts = (VkDescriptorSetLayout*)&layout->layout;
-    vkAllocateDescriptorSets(g_vulkanstate.device, &dsai, &dset);
-    ret->layout = layout->layout;
-    ret->bindGroup = dset;
-    ret->entries = (ResourceDescriptor*)std::calloc(count, sizeof(ResourceDescriptor));
-    ret->entryCount = count;
-    std::memcpy(ret->entries, resources, count * sizeof(ResourceDescriptor));
-    ret->needsUpdate = true;
-    small_vector<VkWriteDescriptorSet> writes(count, VkWriteDescriptorSet{});
-    small_vector<VkDescriptorBufferInfo> bufferInfos(count, VkDescriptorBufferInfo{});
-    small_vector<VkDescriptorImageInfo> imageInfos(count, VkDescriptorImageInfo{});
-    for(uint32_t i = 0;i < count;i++){
-        writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        uint32_t binding = resources[i].binding;
-        writes[i].dstBinding = binding;
-        writes[i].dstSet = dset;
-        writes[i].descriptorType = toVulkanResourceType(layout->entries[i].type);
-        writes[i].descriptorCount = 1;
-        if(layout->entries[i].type == uniform_buffer || layout->entries->type == storage_buffer){
-            bufferInfos[i].buffer = (VkBuffer)resources[i].buffer;
-            bufferInfos[i].offset = resources[i].offset;
-            bufferInfos[i].range = resources[i].size;
-            writes[i].pBufferInfo = bufferInfos.data() + i;
-        }
-
-        if(layout->entries[i].type == texture2d){
-            imageInfos[i].imageView = (VkImageView)resources[i].textureView;
-            imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            writes[i].pImageInfo = imageInfos.data() + i;
-        }
-
-        if(layout->entries[i].type == texture_sampler){
-            VkSampler vksampler = (VkSampler)resources[i].sampler;
-            imageInfos[i].sampler = vksampler;
-            writes[i].pImageInfo = imageInfos.data() + i;
-        }
-    }
-
-    vkUpdateDescriptorSets(g_vulkanstate.device, writes.size(), writes.data(), 0, nullptr);//count, &copy);
-    return ret;
 }
 
 DescribedBuffer* GenBufferEx_Vk(const void *data, size_t size, BufferUsage usage){
@@ -434,7 +364,7 @@ std::vector<char> readFile(const std::string &filename) {
 }
 
 
-
+/*
 void createGraphicsPipeline(DescribedBindGroupLayout* setLayout) {
     VkShaderModuleCreateInfo vcinfo{};
     VkShaderModuleCreateInfo fcinfo{};
@@ -539,7 +469,7 @@ void createGraphicsPipeline(DescribedBindGroupLayout* setLayout) {
     };
     VkPipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount = 1; //static_cast<uint32_t>(dynamicStates.size());
+    dynamicState.dynamicStateCount = 0; //static_cast<uint32_t>(dynamicStates.size());
     
     dynamicState.pDynamicStates = dynamicStates.data();
     
@@ -578,8 +508,9 @@ void createGraphicsPipeline(DescribedBindGroupLayout* setLayout) {
     }
     g_vulkanstate.graphicsPipeline = graphicsPipeline;
     g_vulkanstate.graphicsPipelineLayout = pipelineLayout;
-}
-DescribedBindGroup* set{};
+}*/
+
+DescribedBindGroup set{};
 void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -601,9 +532,9 @@ void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
     renderPassInfo.clearValueCount = 2;
     renderPassInfo.pClearValues = clearvalues;
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, g_vulkanstate.graphicsPipeline);
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, g_vulkanstate.graphicsPipelineLayout, 0, 1, (VkDescriptorSet*)(&set->bindGroup), 0, nullptr);
-    vkCmdSetPrimitiveTopology(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN);
+    //vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, g_vulkanstate.graphicsPipeline);
+    //vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, g_vulkanstate.graphicsPipelineLayout, 0, 1, (VkDescriptorSet*)(&set->bindGroup), 0, nullptr);
+    //vkCmdSetPrimitiveTopology(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN);
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
@@ -618,8 +549,8 @@ void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
     scissor.extent = g_vulkanstate.swapchainExtent;
     //vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
     VkDeviceSize offsets{};
-    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &g_vulkanstate.vbuffer, &offsets);
-    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+    //vkCmdBindVertexBuffers(commandBuffer, 0, 1, &g_vulkanstate.vbuffer, &offsets);
+    //vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 
     
 }
@@ -1182,7 +1113,7 @@ void initVulkan(GLFWwindow *window) {
 
     layout = LoadBindGroupLayout_Vk(types, 2);
 
-    createGraphicsPipeline(&layout);
+    //createGraphicsPipeline(&layout);
     createStagingBuffer();
 }
 Texture goof{};
@@ -1279,6 +1210,8 @@ void mainLoop(GLFWwindow *window) {
         vkResetCommandBuffer(commandBuffer, /*VkCommandBufferResetFlagBits*/ 0);
         recordCommandBuffer(commandBuffer, imageIndex);
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipeline)dpl->quartet.pipeline_TriangleList);
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipelineLayout)dpl->layout.layout, 0, 1, (VkDescriptorSet*)&dpl->bindGroup, 0, 0);
+        vkCmdSetPrimitiveTopology(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, (VkBuffer*)&vbo->buffer, &noell);
         vkCmdBindVertexBuffers(commandBuffer, 1, 1, (VkBuffer*)&inst_bo->buffer, &noell);
         vkCmdDraw(commandBuffer, 3, 1, 0, 0);
