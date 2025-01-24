@@ -26,6 +26,8 @@
 
 
 
+#include "tint/lang/wgsl/ast/identifier.h"
+#include "tint/lang/wgsl/ast/module.h"
 #if SUPPORT_GLSL_PARSER == 1
 #include <SPIRV/GlslangToSpv.h>
 #include <glslang/Public/ShaderLang.h>
@@ -128,9 +130,8 @@ extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     tint::wgsl::writer::ProgramOptions prgoptions{};
     prgoptions.allowed_features.extensions.insert(tint::wgsl::Extension::kClipDistances);
     //options.allowed_features.features;
-    auto resultV = tint::spirv::reader::Read(spirvV);
-    auto resultF = tint::spirv::reader::Read(spirvF);
-    
+    tint::Program resultV = tint::spirv::reader::Read(spirvV);
+    tint::Program resultF = tint::spirv::reader::Read(spirvF);
     //std::cout << resultV << "\n";
     tint::ast::transform::Renamer ren;
     
@@ -145,17 +146,16 @@ extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     tint::ast::transform::DataMap imputF{};
     tint::ast::transform::Renamer::Config datF;
     tint::ast::transform::Renamer::Config datV;
-
     std::vector<std::string> scrambleInFragment;
-    for(auto& gvar : resultF.AST().GlobalVariables()){
+    for(const tint::ast::Variable* gvar : resultF.AST().GlobalVariables()){
         std::string name = gvar->name->symbol.Name();
-        if(gvar->As<tint::ast::Var>() && gvar->As<tint::ast::Var>()->declared_address_space){
-            if(gvar->As<tint::ast::Var>()->declared_address_space->As<tint::ast::IdentifierExpression>()){
-                if(gvar->As<tint::ast::Var>()->declared_address_space->As<tint::ast::IdentifierExpression>()->identifier->symbol.Name() == "private"){
-                    scrambleInFragment.push_back(name);
-                }
-            }
-        }
+        //if(gvar->As<tint::ast::Variable>() && gvar->As<tint::ast::Var>()->declared_address_space){
+        //    if(gvar->As<tint::ast::Variable>()->declared_address_space->As<tint::ast::IdentifierExpression>()){
+        //        if(gvar->As<tint::ast::Variable>()->declared_address_space->As<tint::ast::IdentifierExpression>()->identifier->symbol.Name() == "private"){
+        //            scrambleInFragment.push_back(name);
+        //        }
+        //    }
+        //}
     }
     resultV.Symbols().Foreach([&](tint::Symbol x){
         std::regex m("main");

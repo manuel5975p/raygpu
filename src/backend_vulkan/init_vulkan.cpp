@@ -138,8 +138,9 @@ DescribedSampler LoadSampler_Vk(addressMode amode, filterMode fmode, filterMode 
     }
     return ret;
 }
-DescribedBindGroupLayout* LoadBindGroupLayout_Vk(const ResourceTypeDescriptor* descs, uint32_t uniformCount){
-    DescribedBindGroupLayout* ret = callocnew(DescribedBindGroupLayout);
+DescribedBindGroupLayout LoadBindGroupLayout_Vk(const ResourceTypeDescriptor* descs, uint32_t uniformCount){
+    DescribedBindGroupLayout retv{};
+    DescribedBindGroupLayout* ret = &retv;
     VkDescriptorSetLayout layout{};
     VkDescriptorSetLayoutCreateInfo lci{};
     lci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -179,7 +180,7 @@ DescribedBindGroupLayout* LoadBindGroupLayout_Vk(const ResourceTypeDescriptor* d
     ret->entryCount = uniformCount;
     std::memcpy(ret->entries, descs, uniformCount * sizeof(ResourceTypeDescriptor));
     VkResult createResult = vkCreateDescriptorSetLayout(g_vulkanstate.device, &lci, nullptr, (VkDescriptorSetLayout*)&ret->layout);
-    return ret;
+    return retv;
 }
 DescribedBindGroup* LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, const ResourceDescriptor* resources, uint32_t count){
     DescribedBindGroup* ret = callocnew(DescribedBindGroup);
@@ -440,19 +441,18 @@ void createGraphicsPipeline(DescribedBindGroupLayout* setLayout) {
     //auto vsSpirv = readFile("../resources/hvk.vert.spv");
     //auto fsSpirv = readFile("../resources/hvk.frag.spv");
     auto [vsSpirv, fsSpirv] = glsl_to_spirv(vsSource, fsSource);
-    VkShaderModule vertShaderModule = LoadShaderModuleFromSPIRV_Vk(vsSpirv);
-    VkShaderModule fragShaderModule = LoadShaderModuleFromSPIRV_Vk(fsSpirv);
+    DescribedShaderModule shaderModule = LoadShaderModuleFromSPIRV_Vk(vsSpirv.data(), vsSpirv.size() * sizeof(uint32_t), fsSpirv.data(), fsSpirv.size() * sizeof(uint32_t));
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertShaderStageInfo.module = vertShaderModule;
+    vertShaderStageInfo.module = ((VertexAndFragmentShaderModule*)shaderModule.shaderModule)->vModule;
     vertShaderStageInfo.pName = "main";
 
     VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
     fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragShaderStageInfo.module = fragShaderModule;
+    fragShaderStageInfo.module = ((VertexAndFragmentShaderModule*)shaderModule.shaderModule)->fModule;
     fragShaderStageInfo.pName = "main";
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
@@ -539,7 +539,7 @@ void createGraphicsPipeline(DescribedBindGroupLayout* setLayout) {
     };
     VkPipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount = 2; //static_cast<uint32_t>(dynamicStates.size());
+    dynamicState.dynamicStateCount = 1; //static_cast<uint32_t>(dynamicStates.size());
     
     dynamicState.pDynamicStates = dynamicStates.data();
     
@@ -1163,7 +1163,7 @@ void createLogicalDevice() {
 }
 
 // Function to initialize Vulkan (all setup steps)
-DescribedBindGroupLayout* layout;
+DescribedBindGroupLayout layout;
 void initVulkan(GLFWwindow *window) {
     createInstance();
     createSurface(window);
@@ -1182,7 +1182,7 @@ void initVulkan(GLFWwindow *window) {
 
     layout = LoadBindGroupLayout_Vk(types, 2);
 
-    createGraphicsPipeline(layout);
+    createGraphicsPipeline(&layout);
     createStagingBuffer();
 }
 Texture goof{};
@@ -1194,11 +1194,10 @@ void mainLoop(GLFWwindow *window) {
     DescribedBuffer* vbo = GenBufferEx_Vk(posdata, sizeof(posdata), BufferUsage_Vertex | WGPUBufferUsage_CopyDst);
     DescribedBuffer* inst_bo = GenBufferEx_Vk(posdata, sizeof(posdata), BufferUsage_Vertex | WGPUBufferUsage_CopyDst);
     VertexAttribPointer(vao, vbo, 0, VertexFormat_Float32x2, 0, VertexStepMode_Vertex);
-    VertexAttribPointer(vao, inst_bo, 1, VertexFormat_Float32x2, 1, VertexStepMode_Instance);
+    VertexAttribPointer(vao, inst_bo, 1, VertexFormat_Float32x2, 0, VertexStepMode_Instance);
 
-    VertexBufferLayoutSet layoutset = getBufferLayoutRepresentation(vao->attributes.data(), vao->attributes.size());
-    auto pair_of_dings = genericVertexLayoutSetToVulkan(layoutset);
-    
+    //VertexBufferLayoutSet layoutset = getBufferLayoutRepresentation(vao->attributes.data(), vao->attributes.size());
+    //auto pair_of_dings = genericVertexLayoutSetToVulkan(layoutset);
     //vkCmdSetVertexInputEXT(VkCommandBuffer commandBuffer, uint32_t vertexBindingDescriptionCount, const VkVertexInputBindingDescription2EXT *pVertexBindingDescriptions, uint32_t vertexAttributeDescriptionCount, const VkVertexInputAttributeDescription2EXT *pVertexAttributeDescriptions)
     //BindVertexArray(VertexArray *va)
 
@@ -1208,6 +1207,11 @@ void mainLoop(GLFWwindow *window) {
     DescribedSampler sampler = LoadSampler_Vk(repeat, filter_linear, filter_linear, 10.0f);
     //set = loadBindGroup(layout, goof);
 
+    ResourceTypeDescriptor types[2] = {};
+    types[0].type = texture2d;
+    types[0].location = 0;
+    types[1].type = texture_sampler;
+    types[1].location = 1;
 
     ResourceDescriptor textureandsampler[2] = {};
 
@@ -1215,8 +1219,9 @@ void mainLoop(GLFWwindow *window) {
     textureandsampler[0].binding = 0;
     textureandsampler[1].sampler = sampler.sampler;
     textureandsampler[1].binding = 1;
+    DescribedPipeline* dpl = LoadPipelineForVAO_Vk(vsSource, fsSource, vao, types, 2, GetDefaultSettings());
 
-    set = LoadBindGroup_Vk(layout, textureandsampler, 2);
+    set = LoadBindGroup_Vk(&layout, textureandsampler, 2);
     VkSemaphoreCreateInfo sci{};
     sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     VkSemaphore imageAvailableSemaphore;
@@ -1261,7 +1266,7 @@ void mainLoop(GLFWwindow *window) {
     g_vulkanstate.vbuffer = createVertexBuffer();
     uint64_t framecount = 0;
     uint64_t stamp = nanoTime();
-
+    uint64_t noell = 0;
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         auto &swapChain = g_vulkanstate.swapchain;
@@ -1273,8 +1278,10 @@ void mainLoop(GLFWwindow *window) {
 
         vkResetCommandBuffer(commandBuffer, /*VkCommandBufferResetFlagBits*/ 0);
         recordCommandBuffer(commandBuffer, imageIndex);
-        
-
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipeline)dpl->quartet.pipeline_TriangleList);
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, (VkBuffer*)&vbo->buffer, &noell);
+        vkCmdBindVertexBuffers(commandBuffer, 1, 1, (VkBuffer*)&inst_bo->buffer, &noell);
+        vkCmdDraw(commandBuffer, 3, 1, 0, 0);
         vkCmdEndRenderPass(commandBuffer);
 
         if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
