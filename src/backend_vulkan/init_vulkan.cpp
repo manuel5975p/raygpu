@@ -40,7 +40,7 @@ vec3 colors[3] = vec3[](
 );
 
 void main() {
-    gl_Position = vec4(inPos, 0.0f, 1.0f);//vec4(positions[gl_VertexIndex], 0.0, 1.0);
+    gl_Position = vec4(inPos + inOff, 0.0f, 1.0f);//vec4(positions[gl_VertexIndex], 0.0, 1.0);
     fragColor = colors[gl_VertexIndex];
 }
 )";
@@ -52,9 +52,9 @@ layout(binding = 0) uniform sampler2D sampler0;
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    outColor = vec4(0,1,0,1);
+    //outColor = vec4(0,1,0,1);
     //outColor.xy += gl_FragCoord.xy / 1000.0f;
-    //outColor = texelFetch(texture0, ivec2(gl_FragCoord.xy / 10.0f), 0);
+    outColor = texelFetch(texture0, ivec2(gl_FragCoord.xy / 10.0f), 0);
     //outColor = 0.3f * texelFetch(texture0, ivec2(gl_FragCoord.xy / 100.0f), 0);
     //outColor.y += gl_FragCoord.x * 0.001f;
     //outColor = vec4(fragColor, 1.0);
@@ -611,7 +611,7 @@ void createInstance() {
         // std::cout << "\t" << layer.layerName << " : " << layer.description << "\n";
         if (std::string(layer.layerName).find("validat") != std::string::npos) {
             std::cout << "\t[DEBUG]: Selecting layer " << layer.layerName << std::endl;
-            validationLayers.push_back(layer.layerName);
+            //validationLayers.push_back(layer.layerName);
         }
     }
 
@@ -1127,11 +1127,10 @@ Texture goof{};
 // Function to run the main event loop
 void mainLoop(GLFWwindow *window) {
     float posdata[6] = {0,0,1,0,0,1};
-    float offsets[4] = {0,0,0.5,0};
+    float offsets[4] = {0,0,0.3,0};
     VertexArray* vao = LoadVertexArray();
     DescribedBuffer* vbo = GenBufferEx_Vk(posdata, sizeof(posdata), BufferUsage_Vertex | WGPUBufferUsage_CopyDst);
-    
-    DescribedBuffer* inst_bo = GenBufferEx_Vk(posdata, sizeof(posdata), BufferUsage_Vertex | WGPUBufferUsage_CopyDst);
+    DescribedBuffer* inst_bo = GenBufferEx_Vk(offsets, sizeof(offsets), BufferUsage_Vertex | WGPUBufferUsage_CopyDst);
     VertexAttribPointer(vao, vbo, 0, VertexFormat_Float32x2, 0, VertexStepMode_Vertex);
     VertexAttribPointer(vao, inst_bo, 1, VertexFormat_Float32x2, 0, VertexStepMode_Instance);
 
@@ -1225,7 +1224,7 @@ void mainLoop(GLFWwindow *window) {
         
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, &((BufferHandle)vbo->buffer)->buffer, &noell);
         vkCmdBindVertexBuffers(commandBuffer, 1, 1, &((BufferHandle)inst_bo->buffer)->buffer, &noell);
-        vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+        vkCmdDraw(commandBuffer, 3, 2, 0, 0);
         //vkCmdEndRenderPass(commandBuffer);
         EndRenderPass_Vk(commandBuffer, renderpass, imageAvailableSemaphore);
 
