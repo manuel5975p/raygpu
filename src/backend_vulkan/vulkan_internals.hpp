@@ -34,6 +34,7 @@ inline std::pair<std::vector<VkVertexInputAttributeDescription>, std::vector<VkV
     bufferLayouts.resize(vls.number_of_buffers);
     for(uint32_t i = 0;i < vls.number_of_buffers;i++){
         bufferLayouts[i].binding = i;
+        bufferLayouts[i].stride = vls.layouts[i].arrayStride;
         bufferLayouts[i].inputRate = toVulkanVertexStepMode(vls.layouts[i].stepMode);
     }
     return ret;
@@ -71,6 +72,7 @@ typedef struct RenderPassEncoderHandleImpl{
     VkCommandBuffer cmdBuffer;
     small_vector<BufferHandle> referencedBuffers;
     small_vector<DescriptorSetHandle> referencedDescriptorSets;
+    VkPipelineLayout lastLayout;
     refcount_type refCount;
 }RenderPassEncoderHandleImpl;
 
@@ -86,7 +88,10 @@ void ReleaseRenderPassEncoder(RenderPassEncoderHandle rpenc);
 void ReleaseBuffer(BufferHandle commandBuffer);
 void ReleaseDescriptorSet(DescriptorSetHandle commandBuffer);
 
-
+void RenderpassEncoderDraw(RenderPassEncoderHandle rpe, uint32_t vertices, uint32_t instances, uint32_t firstvertex, uint32_t firstinstance);
+void RenderpassEncoderDrawIndexed(RenderPassEncoderHandle rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t firstinstance);
+void RenderPassDescriptorBindDescriptorSet(RenderPassEncoderHandle rpe, uint32_t group, DescriptorSetHandle dset);
+void RenderPassDescriptorBindPipeline(RenderPassEncoderHandle rpe, uint32_t group, DescribedPipeline* pipeline);
 
 struct VulkanState {
     VkInstance instance = VK_NULL_HANDLE;
@@ -234,4 +239,6 @@ extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vs
 extern "C" DescribedBindGroupLayout LoadBindGroupLayout_Vk(const ResourceTypeDescriptor* descs, uint32_t uniformCount);
 extern "C" DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSource, const VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
 extern "C" DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, const ResourceDescriptor* resources, uint32_t count);
+extern "C" void RenderPassDescriptorBindIndexBuffer(RenderPassEncoderHandle rpe, BufferHandle buffer, VkDeviceSize offset, VkIndexType indexType);
+extern "C" void RenderPassDescriptorBindVertexBuffer(RenderPassEncoderHandle rpe, uint32_t binding, BufferHandle buffer, VkDeviceSize offset);
 #endif
