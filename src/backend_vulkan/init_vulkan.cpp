@@ -611,7 +611,7 @@ void createInstance() {
         // std::cout << "\t" << layer.layerName << " : " << layer.description << "\n";
         if (std::string(layer.layerName).find("validat") != std::string::npos) {
             std::cout << "\t[DEBUG]: Selecting layer " << layer.layerName << std::endl;
-            //validationLayers.push_back(layer.layerName);
+            validationLayers.push_back(layer.layerName);
         }
     }
 
@@ -1123,11 +1123,12 @@ void initVulkan(GLFWwindow *window) {
     //createGraphicsPipeline(&layout);
     createStagingBuffer();
 }
-Texture goof{};
+Texture bwite{};
+Texture rgreen{};
 // Function to run the main event loop
 void mainLoop(GLFWwindow *window) {
     float posdata[6] = {0,0,1,0,0,1};
-    float offsets[4] = {0,0,0.3,0};
+    float offsets[4] = {-0.4f,-0.3,0.3,.2f};
     VertexArray* vao = LoadVertexArray();
     DescribedBuffer* vbo = GenBufferEx_Vk(posdata, sizeof(posdata), BufferUsage_Vertex | WGPUBufferUsage_CopyDst);
     DescribedBuffer* inst_bo = GenBufferEx_Vk(offsets, sizeof(offsets), BufferUsage_Vertex | WGPUBufferUsage_CopyDst);
@@ -1140,7 +1141,9 @@ void mainLoop(GLFWwindow *window) {
     //BindVertexArray(VertexArray *va)
 
     Image img = GenImageChecker(WHITE, BLACK, 100, 100, 10);
-    goof = LoadTextureFromImage_Vk(img);
+    bwite = LoadTextureFromImage_Vk(img);
+    img = GenImageChecker(RED, GREEN, 100, 100, 10);
+    rgreen = LoadTextureFromImage_Vk(img);
     
     DescribedSampler sampler = LoadSampler_Vk(repeat, filter_linear, filter_linear, 10.0f);
     //set = loadBindGroup(layout, goof);
@@ -1153,13 +1156,14 @@ void mainLoop(GLFWwindow *window) {
 
     ResourceDescriptor textureandsampler[2] = {};
 
-    textureandsampler[0].textureView = goof.view;
+    textureandsampler[0].textureView = rgreen.view;
     textureandsampler[0].binding = 0;
     textureandsampler[1].sampler = sampler.sampler;
     textureandsampler[1].binding = 1;
     DescribedPipeline* dpl = LoadPipelineForVAO_Vk(vsSource, fsSource, vao, types, 2, GetDefaultSettings());
 
     set = LoadBindGroup_Vk(&layout, textureandsampler, 2);
+    
     VkSemaphoreCreateInfo sci{};
     sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     VkSemaphore imageAvailableSemaphore;
@@ -1206,28 +1210,40 @@ void mainLoop(GLFWwindow *window) {
     uint64_t stamp = nanoTime();
     uint64_t noell = 0;
     FullVkRenderPass renderpass = LoadRenderPass(GetDefaultSettings());
+    vkResetFences(device, 1, &inFlightFence);
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         auto &swapChain = g_vulkanstate.swapchain;
-        //vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
-        //vkResetFences(device, 1, &inFlightFence);
+        
 
         uint32_t imageIndex;
         vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
 
         vkResetCommandBuffer(commandBuffer, /*VkCommandBufferResetFlagBits*/ 0);
-        BeginRenderPass_Vk(commandBuffer, renderpass, g_vulkanstate.swapchainImageFramebuffers[imageIndex]);
-        //recordCommandBuffer(commandBuffer, imageIndex);
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipeline)dpl->quartet.pipeline_TriangleList);
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipelineLayout)dpl->layout.layout, 0, 1, &((DescriptorSetHandle)set.bindGroup)->set, 0, 0);
-        //vkCmdSetPrimitiveTopology(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
         
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &((BufferHandle)vbo->buffer)->buffer, &noell);
-        vkCmdBindVertexBuffers(commandBuffer, 1, 1, &((BufferHandle)inst_bo->buffer)->buffer, &noell);
-        vkCmdDraw(commandBuffer, 3, 2, 0, 0);
+        RenderPassEncoderHandle encoder = BeginRenderPass_Vk(commandBuffer, renderpass, g_vulkanstate.swapchainImageFramebuffers[imageIndex]);
+        //recordCommandBuffer(commandBuffer, imageIndex);
+        SetBindgroupTexture_Vk(&set, 0, bwite);
+        UpdateBindGroup_Vk(&set);
+        wgvkRenderPassEncoderBindPipeline(encoder, dpl);
+        wgvkRenderPassEncoderBindDescriptorSet(encoder, 0, (DescriptorSetHandle)set.bindGroup);
+        
+        //vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipelineLayout)dpl->layout.layout, 0, 1, &((DescriptorSetHandle)set.bindGroup)->set, 0, 0);
+        //vkCmdSetPrimitiveTopology(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+        wgvkRenderPassEncoderBindVertexBuffer(encoder, 0, (BufferHandle)vbo->buffer, 0);
+        wgvkRenderPassEncoderBindVertexBuffer(encoder, 1, (BufferHandle)inst_bo->buffer, 0);
+        wgvkRenderpassEncoderDraw(encoder, 3, 1, 0, 0);
+        SetBindgroupTexture_Vk(&set, 0, rgreen);
+        UpdateBindGroup_Vk(&set);
+        wgvkRenderPassEncoderBindDescriptorSet(encoder, 0, (DescriptorSetHandle)set.bindGroup);
+        wgvkRenderpassEncoderDraw(encoder, 3, 1, 0, 1);
         //vkCmdEndRenderPass(commandBuffer);
-        EndRenderPass_Vk(commandBuffer, renderpass, imageAvailableSemaphore);
-
+        EndRenderPass_Vk(commandBuffer, renderpass, imageAvailableSemaphore, inFlightFence);
+        //std::cout << ((BufferHandle)vbo->buffer)->refCount << "\n";
+        vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
+        vkResetFences(device, 1, &inFlightFence);
+        wgvkReleaseRenderPassEncoder(encoder);
+        //std::cout << ((BufferHandle)vbo->buffer)->refCount << "\n";
         VkPresentInfoKHR presentInfo{};
         presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
@@ -1254,8 +1270,9 @@ void mainLoop(GLFWwindow *window) {
         }
         // break;
     }
-    exit(0);
     vkQueueWaitIdle(g_vulkanstate.graphicsQueue);
+    if(true)
+        exit(0);
 }
 
 // Function to clean up Vulkan and GLFW resources

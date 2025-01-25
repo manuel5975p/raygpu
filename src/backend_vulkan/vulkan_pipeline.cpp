@@ -169,13 +169,56 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
     return ret;
 }
 
+extern "C" void UpdateBindGroupEntry_Vk(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry){
+    if(index >= bg->entryCount){
+        TRACELOG(LOG_WARNING, "Trying to set entry %d on a BindGroup with only %d entries", (int)index, (int)bg->entryCount);
+        //return;
+    }
+    auto& newpuffer = entry.buffer;
+    auto& newtexture = entry.textureView;
+    if(newtexture && bg->entries[index].textureView == newtexture){
+        //return;
+    }
+    uint64_t oldHash = bg->descriptorHash;
+    
+    if(bg->releaseOnClear & (1 << index)){
+        //donotcache = true;
+        if(bg->entries[index].buffer){
+            wgvkReleaseBuffer((BufferHandle)bg->entries[index].buffer);
+        }
+        else if(bg->entries[index].textureView){
+            //Todo: currently not the case anyway, but this is nadinöf
+            //vkDestroyImageView((VkImageView)bg->entries[index].textureView);
+        }
+        else if(bg->entries[index].sampler){
+            //wgpuSamplerRelease((WGPUSampler)bg->entries[index].sampler);
+        }
+        bg->releaseOnClear &= ~(1 << index);
+    }
+    bg->entries[index] = entry;
+    //bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
 
+    //TODO don't release and recreate here or find something better
+    if(true /*|| donotcache*/){
+        if(bg->bindGroup)
+            wgvkReleaseDescriptorSet((DescriptorSetHandle)bg->bindGroup);
+        bg->bindGroup = nullptr;
+    }
+    //else if(!bg->needsUpdate && bg->bindGroup){
+    //    g_wgpustate.bindGroupPool[oldHash] = bg->bindGroup;
+    //    bg->bindGroup = nullptr;
+    //}
+    bg->needsUpdate = true;
+    
+    //bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
+}
 DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, const ResourceDescriptor* resources, uint32_t count){
     DescribedBindGroup ret{};
     VkDescriptorPool dpool{};
     VkDescriptorSet dset{};
     VkDescriptorPoolCreateInfo dpci{};
     dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    dpci.flags |= VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
     std::unordered_map<VkDescriptorType, uint32_t> counts;
     for(uint32_t i = 0;i < layout->entryCount;i++){
         ++counts[toVulkanResourceType(layout->entries[i].type)];
@@ -203,6 +246,7 @@ DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, cons
     
     ret.layout = layout;
     ret.bindGroup = callocnewpp(DescriptorSetHandleImpl);
+    ((DescriptorSetHandle)ret.bindGroup)->refCount = 1;
 
     ((DescriptorSetHandle)ret.bindGroup)->pool = dpool;
     ((DescriptorSetHandle)ret.bindGroup)->set = dset;
@@ -234,7 +278,7 @@ DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, cons
         }
 
         if(layout->entries[i].type == texture_sampler){
-            VkSampler vksampler = (VkSampler)resources[i].sampler;
+            VkSampler vksampler = (VkSampler)ret.entries[i].sampler;
             imageInfos[i].sampler = vksampler;
             writes[i].pImageInfo = imageInfos.data() + i;
         }
@@ -244,13 +288,47 @@ DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, cons
     ret.needsUpdate = false;
     return ret;
 }
-/*
+
 void UpdateBindGroup_Vk(DescribedBindGroup* bg){
+    const auto* layout = bg->layout;
     if(bg->needsUpdate == false)return;
+    bg->bindGroup = callocnewpp(DescriptorSetHandleImpl);
+    VkDescriptorPoolCreateInfo dpci{};
+    dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    dpci.flags |= VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    std::unordered_map<VkDescriptorType, uint32_t> counts;
+    for(uint32_t i = 0;i < layout->entryCount;i++){
+        ++counts[toVulkanResourceType(layout->entries[i].type)];
+    }
+    std::vector<VkDescriptorPoolSize> sizes;
+    sizes.reserve(counts.size());
+    for(const auto& [t, s] : counts){
+        sizes.push_back(VkDescriptorPoolSize{.type = t, .descriptorCount = s});
+    }
+
+    dpci.poolSizeCount = sizes.size();
+    dpci.pPoolSizes = sizes.data();
+    dpci.maxSets = 1;
+    vkCreateDescriptorPool(g_vulkanstate.device, &dpci, nullptr, &((DescriptorSetHandle)bg->bindGroup)->pool);
+    
+    //VkCopyDescriptorSet copy{};
+    //copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
+    
+    VkDescriptorSetAllocateInfo dsai{};
+    dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    dsai.descriptorPool = ((DescriptorSetHandle)bg->bindGroup)->pool;
+    dsai.descriptorSetCount = 1;
+    dsai.pSetLayouts = (VkDescriptorSetLayout*)&layout->layout;
+    vkAllocateDescriptorSets(g_vulkanstate.device, &dsai, &((DescriptorSetHandle)bg->bindGroup)->set);
+
+
+
     uint32_t count = bg->entryCount;
     small_vector<VkWriteDescriptorSet> writes(count, VkWriteDescriptorSet{});
     small_vector<VkDescriptorBufferInfo> bufferInfos(count, VkDescriptorBufferInfo{});
     small_vector<VkDescriptorImageInfo> imageInfos(count, VkDescriptorImageInfo{});
+    
+    ((DescriptorSetHandle)bg->bindGroup)->refCount = 1;
     for(uint32_t i = 0;i < count;i++){
         writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         uint32_t binding = bg->entries[i].binding;
@@ -260,27 +338,27 @@ void UpdateBindGroup_Vk(DescribedBindGroup* bg){
         writes[i].descriptorCount = 1;
 
         if(layout->entries[i].type == uniform_buffer || layout->entries->type == storage_buffer){
-            bufferInfos[i].buffer = (VkBuffer)resources[i].buffer;
-            bufferInfos[i].offset = resources[i].offset;
-            bufferInfos[i].range = resources[i].size;
+            bufferInfos[i].buffer = ((BufferHandle)bg->entries[i].buffer)->buffer;
+            bufferInfos[i].offset = bg->entries[i].offset;
+            bufferInfos[i].range =  bg->entries[i].size;
             writes[i].pBufferInfo = bufferInfos.data() + i;
         }
 
         if(layout->entries[i].type == texture2d || layout->entries[i].type == texture3d){
-            imageInfos[i].imageView = (VkImageView)resources[i].textureView;
+            imageInfos[i].imageView = (VkImageView)(bg->entries[i].textureView);
             imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             writes[i].pImageInfo = imageInfos.data() + i;
         }
 
         if(layout->entries[i].type == texture_sampler){
-            VkSampler vksampler = (VkSampler)resources[i].sampler;
+            VkSampler vksampler = (VkSampler)bg->entries[i].sampler;
             imageInfos[i].sampler = vksampler;
             writes[i].pImageInfo = imageInfos.data() + i;
         }
     }
+    vkUpdateDescriptorSets(g_vulkanstate.device, writes.size(), writes.data(), 0, nullptr);
     bg->needsUpdate = false;
 }
-*/
 
 
 //TODO: actually, one would need to iterate entries to find out where .binding == binding
@@ -288,7 +366,7 @@ void SetBindGroupTexture_Vk(DescribedBindGroup* bg, uint32_t binding, Texture te
 
     bg->entries[binding].textureView = tex.view;
     if(bg->bindGroup){
-        ReleaseDescriptorSet((DescriptorSetHandle)bg->bindGroup);
+        wgvkReleaseDescriptorSet((DescriptorSetHandle)bg->bindGroup);
         bg->bindGroup = nullptr;
     }
     bg->needsUpdate = true;
@@ -298,7 +376,7 @@ void SetBindGroupBuffer_Vk(DescribedBindGroup* bg, uint32_t binding, DescribedBu
     //TODO: actually, one would need to iterate entries to find out where .binding == binding
     bg->entries[binding].buffer = buf->buffer;
     if(bg->bindGroup){
-        ReleaseDescriptorSet((DescriptorSetHandle)bg->bindGroup);
+        wgvkReleaseDescriptorSet((DescriptorSetHandle)bg->bindGroup);
         bg->bindGroup = nullptr;
     }
     bg->needsUpdate = true;
@@ -309,7 +387,7 @@ void SetBindGroupSampler_Vk(DescribedBindGroup* bg, uint32_t binding, DescribedS
     bg->entries[binding].sampler = buf.sampler;
 
     if(bg->bindGroup){
-        ReleaseDescriptorSet((DescriptorSetHandle)bg->bindGroup);
+        wgvkReleaseDescriptorSet((DescriptorSetHandle)bg->bindGroup);
         bg->bindGroup = nullptr;
     }
     bg->needsUpdate = true;
