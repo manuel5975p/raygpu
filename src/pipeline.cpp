@@ -763,7 +763,7 @@ extern "C" void UnloadPipeline(DescribedPipeline* pl){
     free(pl->colorTarget);
     free(pl->depthStencilState);*/
 }
-uint64_t bgEntryHash(const ResourceDescriptor& bge){
+inline uint64_t bgEntryHash(const ResourceDescriptor& bge){
     const uint32_t rotation = (bge.binding * 7) & 63;
     uint64_t value = ROT_BYTES((uint64_t)bge.buffer, rotation);
     value ^= ROT_BYTES((uint64_t)bge.textureView, rotation);

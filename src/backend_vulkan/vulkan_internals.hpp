@@ -1,6 +1,7 @@
 #ifndef VULKAN_INTERNALS_HPP
 #define VULKAN_INTERNALS_HPP
 #include "small_vector.hpp"
+#include <unordered_set>
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <utility>
@@ -51,6 +52,9 @@ typedef BufferHandleImpl* BufferHandle;
 typedef RenderPassEncoderHandleImpl* RenderPassEncoderHandle;
 typedef CommandBufferHandleImpl* CommmandBufferHandle;
 using refcount_type = uint32_t;
+template<typename T>
+using ref_holder = std::unordered_set<T>;
+
 typedef struct VertexAndFragmentShaderModuleImpl{
     VkShaderModule vModule;
     VkShaderModule fModule;
@@ -70,28 +74,20 @@ typedef struct BufferHandleImpl{
 
 typedef struct RenderPassEncoderHandleImpl{
     VkCommandBuffer cmdBuffer;
-    small_vector<BufferHandle> referencedBuffers;
-    small_vector<DescriptorSetHandle> referencedDescriptorSets;
+    ref_holder<BufferHandle> referencedBuffers;
+    ref_holder<DescriptorSetHandle> referencedDescriptorSets;
     VkPipelineLayout lastLayout;
     refcount_type refCount;
 }RenderPassEncoderHandleImpl;
 
 typedef struct CommandBufferHandleImpl{
-    small_vector<RenderPassEncoderHandle> referencedRPs;
+    ref_holder<RenderPassEncoderHandle> referencedRPs;
     VkCommandBuffer buffer;
     VkCommandPool pool;
 }CommandBufferHandleImpl;
 
 
-void ReleaseCommandBuffer(CommmandBufferHandle commandBuffer);
-void ReleaseRenderPassEncoder(RenderPassEncoderHandle rpenc);
-void ReleaseBuffer(BufferHandle commandBuffer);
-void ReleaseDescriptorSet(DescriptorSetHandle commandBuffer);
 
-void RenderpassEncoderDraw(RenderPassEncoderHandle rpe, uint32_t vertices, uint32_t instances, uint32_t firstvertex, uint32_t firstinstance);
-void RenderpassEncoderDrawIndexed(RenderPassEncoderHandle rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t firstinstance);
-void RenderPassDescriptorBindDescriptorSet(RenderPassEncoderHandle rpe, uint32_t group, DescriptorSetHandle dset);
-void RenderPassDescriptorBindPipeline(RenderPassEncoderHandle rpe, uint32_t group, DescribedPipeline* pipeline);
 
 struct VulkanState {
     VkInstance instance = VK_NULL_HANDLE;
@@ -203,9 +199,10 @@ inline RenderPassEncoderHandle BeginRenderPass_Vk(VkCommandBuffer cbuffer, FullV
     vkBeginCommandBuffer(cbuffer, &bbi);
     vkCmdBeginRenderPass(cbuffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
     ret->cmdBuffer = cbuffer;
+    ret->refCount = 1;
     return ret;
 }
-inline void EndRenderPass_Vk(VkCommandBuffer cbuffer, FullVkRenderPass rp, VkSemaphore imageAvailableSemaphore){
+inline void EndRenderPass_Vk(VkCommandBuffer cbuffer, FullVkRenderPass rp, VkSemaphore imageAvailableSemaphore, VkFence renderFinishedFence){
     vkCmdEndRenderPass(cbuffer);
     vkEndCommandBuffer(cbuffer);
     VkPipelineStageFlags stageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
@@ -218,27 +215,61 @@ inline void EndRenderPass_Vk(VkCommandBuffer cbuffer, FullVkRenderPass rp, VkSem
     sinfo.pWaitDstStageMask = &stageMask;
     sinfo.signalSemaphoreCount = 1;
     sinfo.pSignalSemaphores = &rp.signalSemaphore;
-    VkFence fence{};
-    VkFenceCreateInfo finfo{};
-    finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    if(vkCreateFence(g_vulkanstate.device, &finfo, nullptr, &fence) != VK_SUCCESS){
-        throw std::runtime_error("Could not create fence");
-    }
-    if(vkQueueSubmit(g_vulkanstate.graphicsQueue, 1, &sinfo, fence) != VK_SUCCESS){
+    //VkFence fence{};
+    //VkFenceCreateInfo finfo{};
+    //finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    //if(vkCreateFence(g_vulkanstate.device, &finfo, nullptr, &fence) != VK_SUCCESS){
+    //    throw std::runtime_error("Could not create fence");
+    //}
+    if(vkQueueSubmit(g_vulkanstate.graphicsQueue, 1, &sinfo, renderFinishedFence) != VK_SUCCESS){
         throw std::runtime_error("Could not submit commandbuffer");
     }
-    if(vkWaitForFences(g_vulkanstate.device, 1, &fence, VK_TRUE, ~0) != VK_SUCCESS){
-        throw std::runtime_error("Could not wait for fence");
-    }
-    vkDestroyFence(g_vulkanstate.device, fence, nullptr);
-}
-
+    //if(vkWaitForFences(g_vulkanstate.device, 1, &fence, VK_TRUE, ~0) != VK_SUCCESS){
+    //    throw std::runtime_error("Could not wait for fence");
+    //}
+    //vkDestroyFence(g_vulkanstate.device, fence, nullptr);
+}//
 extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelFormat format, int usage, uint32_t sampleCount, uint32_t mipmaps, const void* data = nullptr);
 extern "C" Texture LoadTextureFromImage_Vk(Image img);
 extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vscode, size_t vscodeSizeInBytes, const uint32_t* fscode, size_t fscodeSizeInBytes);
 extern "C" DescribedBindGroupLayout LoadBindGroupLayout_Vk(const ResourceTypeDescriptor* descs, uint32_t uniformCount);
 extern "C" DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSource, const VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
 extern "C" DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, const ResourceDescriptor* resources, uint32_t count);
-extern "C" void RenderPassDescriptorBindIndexBuffer(RenderPassEncoderHandle rpe, BufferHandle buffer, VkDeviceSize offset, VkIndexType indexType);
-extern "C" void RenderPassDescriptorBindVertexBuffer(RenderPassEncoderHandle rpe, uint32_t binding, BufferHandle buffer, VkDeviceSize offset);
+extern "C" void UpdateBindGroup_Vk(DescribedBindGroup* bg);
+
+
+//wgvk I guess
+extern "C" void wgvkReleaseCommandBuffer(CommmandBufferHandle commandBuffer);
+extern "C" void wgvkReleaseRenderPassEncoder(RenderPassEncoderHandle rpenc);
+extern "C" void wgvkReleaseBuffer(BufferHandle commandBuffer);
+extern "C" void wgvkReleaseDescriptorSet(DescriptorSetHandle commandBuffer);
+
+extern "C" void wgvkRenderpassEncoderDraw(RenderPassEncoderHandle rpe, uint32_t vertices, uint32_t instances, uint32_t firstvertex, uint32_t firstinstance);
+extern "C" void wgvkRenderpassEncoderDrawIndexed(RenderPassEncoderHandle rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t firstinstance);
+extern "C" void wgvkRenderPassEncoderBindDescriptorSet(RenderPassEncoderHandle rpe, uint32_t group, DescriptorSetHandle dset);
+extern "C" void wgvkRenderPassEncoderBindPipeline(RenderPassEncoderHandle rpe, DescribedPipeline* pipeline);
+extern "C" void wgvkRenderPassEncoderBindIndexBuffer(RenderPassEncoderHandle rpe, BufferHandle buffer, VkDeviceSize offset, VkIndexType indexType);
+extern "C" void wgvkRenderPassEncoderBindVertexBuffer(RenderPassEncoderHandle rpe, uint32_t binding, BufferHandle buffer, VkDeviceSize offset);
+
+extern "C" void UpdateBindGroupEntry_Vk(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry);
+
+
+
+
+
+
+static inline void SetBindgroupTexture_Vk(DescribedBindGroup* bg, uint32_t index, Texture tex){
+    ResourceDescriptor entry{};
+    entry.binding = index;
+    entry.textureView = tex.view;
+    
+    UpdateBindGroupEntry_Vk(bg, index, entry);
+}
+
+
+
+
+
+
+
 #endif
