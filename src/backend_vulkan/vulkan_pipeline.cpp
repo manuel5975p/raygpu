@@ -39,6 +39,7 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
     
     ret->sh = LoadShaderModuleFromSPIRV_Vk(spirV.data(), spirV.size() * 4, spirF.data(), spirF.size() * 4);
 
+    // Shader Stage Setup
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -53,6 +54,7 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
+    // Vertex Input Setup
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     VertexBufferLayoutSet vls = getBufferLayoutRepresentation(vao->attributes.data(), vao->attributes.size());
@@ -63,36 +65,55 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
     vertexInputInfo.pVertexAttributeDescriptions = vad.data();
     vertexInputInfo.pVertexBindingDescriptions = vbd.data();
 
+    // Input Assembly Setup
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 
+    // Viewport and Scissor Setup
     VkPipelineViewportStateCreateInfo viewportState{};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewportState.viewportCount = 1;
     viewportState.scissorCount = 1;
     VkRect2D scissor{0, 0, g_vulkanstate.swapchainExtent.width, g_vulkanstate.swapchainExtent.height};
-    VkViewport fullView{0, ((float)g_vulkanstate.swapchainExtent.height), (float)g_vulkanstate.swapchainExtent.width, -((float)g_vulkanstate.swapchainExtent.height), 0.0f, 1.0f};
+    VkViewport fullView{
+        0.0f, 
+        (float)g_vulkanstate.swapchainExtent.height, 
+        (float)g_vulkanstate.swapchainExtent.width, 
+        -(float)g_vulkanstate.swapchainExtent.height, 
+        0.0f, 
+        1.0f
+    };
     viewportState.pScissors = &scissor;
     viewportState.pViewports = &fullView;
 
+    // Rasterization State Setup
     VkPipelineRasterizationStateCreateInfo rasterizer{};
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_NONE;
-    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+
+    // Incorporate face culling from RenderSettings
+    if (settings.faceCull) {
+        rasterizer.cullMode = VK_CULL_MODE_BACK_BIT; // You can make this configurable
+    } else {
+        rasterizer.cullMode = VK_CULL_MODE_NONE;
+    }
+
+    // Set front face based on RenderSettings
+    rasterizer.frontFace = toVulkanFrontFace(settings.frontFace);
+
     rasterizer.depthBiasEnable = VK_FALSE;
 
-
+    // Depth Stencil State Setup
     VkPipelineDepthStencilStateCreateInfo depthStencil{};
     depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depthStencil.depthTestEnable = VK_TRUE;
-    depthStencil.depthWriteEnable = VK_TRUE;
-    depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+    depthStencil.depthTestEnable = settings.depthTest ? VK_TRUE : VK_FALSE;
+    depthStencil.depthWriteEnable = settings.depthTest ? VK_TRUE : VK_FALSE;
+    depthStencil.depthCompareOp = toVulkanCompareFunction((CompareFunction)settings.depthCompare);
     depthStencil.depthBoundsTestEnable = VK_FALSE;
     depthStencil.minDepthBounds = 0.0f; // Optional
     depthStencil.maxDepthBounds = 1.0f; // Optional
@@ -100,16 +121,53 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
     depthStencil.front = {}; // Optional
     depthStencil.back = {}; // Optional
 
-
+    // Multisampling State Setup
     VkPipelineMultisampleStateCreateInfo multisampling{};
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable = VK_FALSE;
-    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    
+    // Map sampleCount from RenderSettings to VkSampleCountFlagBits
+    switch (settings.sampleCount) {
+        case 1: multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT; break;
+        case 2: multisampling.rasterizationSamples = VK_SAMPLE_COUNT_2_BIT; break;
+        case 4: multisampling.rasterizationSamples = VK_SAMPLE_COUNT_4_BIT; break;
+        case 8: multisampling.rasterizationSamples = VK_SAMPLE_COUNT_8_BIT; break;
+        case 16: multisampling.rasterizationSamples = VK_SAMPLE_COUNT_16_BIT; break;
+        case 32: multisampling.rasterizationSamples = VK_SAMPLE_COUNT_32_BIT; break;
+        case 64: multisampling.rasterizationSamples = VK_SAMPLE_COUNT_64_BIT; break;
+        default: multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT; break;
+    }
 
+    // Color Blend Attachment Setup
     VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable = VK_FALSE;
+    colorBlendAttachment.colorWriteMask = 
+        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | 
+        VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    
+    // Enable blending based on whether blend operations are set
+    bool blendingEnabled = 
+        settings.blendOperationAlpha != BlendOperation_Add || 
+        settings.blendFactorSrcAlpha != BlendFactor_One ||
+        settings.blendFactorDstAlpha != BlendFactor_Zero ||
+        settings.blendOperationColor != BlendOperation_Add ||
+        settings.blendFactorSrcColor != BlendFactor_One ||
+        settings.blendFactorDstColor != BlendFactor_Zero;
 
+    colorBlendAttachment.blendEnable = blendingEnabled ? VK_TRUE : VK_FALSE;
+
+    if (blendingEnabled) {
+        // Configure blending for color
+        colorBlendAttachment.srcColorBlendFactor = toVulkanBlendFactor(settings.blendFactorSrcColor);
+        colorBlendAttachment.dstColorBlendFactor = toVulkanBlendFactor(settings.blendFactorDstColor);
+        colorBlendAttachment.colorBlendOp =        toVulkanBlendOperation(settings.blendOperationColor);
+        
+        // Configure blending for alpha
+        colorBlendAttachment.srcAlphaBlendFactor = toVulkanBlendFactor(settings.blendFactorSrcAlpha);
+        colorBlendAttachment.dstAlphaBlendFactor = toVulkanBlendFactor(settings.blendFactorDstAlpha);
+        colorBlendAttachment.alphaBlendOp =        toVulkanBlendOperation(settings.blendOperationAlpha);
+    }
+
+    // Color Blending State Setup
     VkPipelineColorBlendStateCreateInfo colorBlending{};
     colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     colorBlending.logicOpEnable = VK_FALSE;
@@ -121,29 +179,34 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
     colorBlending.blendConstants[2] = 1.0f;
     colorBlending.blendConstants[3] = 1.0f;
     
+    // Dynamic State Setup (optional based on RenderSettings)
     std::vector<VkDynamicState> dynamicStates = {
+        VK_DYNAMIC_STATE_VIEWPORT, 
         VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY, 
         VK_DYNAMIC_STATE_VERTEX_INPUT_EXT, 
-        VK_DYNAMIC_STATE_VIEWPORT, 
         VK_DYNAMIC_STATE_SCISSOR
     };
     VkPipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount = 0; //static_cast<uint32_t>(dynamicStates.size());
     
-    dynamicState.pDynamicStates = nullptr;//dynamicStates.data();
+    // You can make dynamic states configurable via RenderSettings if needed
+    dynamicState.dynamicStateCount = static_cast<uint32_t>(0);
+    dynamicState.pDynamicStates = dynamicStates.data();
     
+    // Pipeline Layout Setup
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = 1;
     pipelineLayoutInfo.pSetLayouts = (VkDescriptorSetLayout*)&(ret->bglayout.layout);
     pipelineLayoutInfo.pushConstantRangeCount = 0;
-    VkPipelineLayout pipelineLayout{};
-    VkPipeline graphicsPipeline{};
+    pipelineLayoutInfo.pPushConstantRanges = nullptr;
+    
+    VkPipelineLayout pipelineLayout;
     if (vkCreatePipelineLayout(g_vulkanstate.device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create pipeline layout!");
     }
-        
+    
+    // Graphics Pipeline Creation
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.stageCount = 2;
@@ -153,17 +216,25 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
     pipelineInfo.pViewportState = &viewportState;
     pipelineInfo.pRasterizationState = &rasterizer;
     pipelineInfo.pMultisampleState = &multisampling;
+    pipelineInfo.pDepthStencilState = settings.depthTest ? &depthStencil : nullptr; // Enable depth stencil if needed
     pipelineInfo.pColorBlendState = &colorBlending;
-    pipelineInfo.pDepthStencilState = &depthStencil;
     pipelineInfo.pDynamicState = &dynamicState;
     pipelineInfo.layout = pipelineLayout;
     pipelineInfo.renderPass = g_vulkanstate.renderPass;
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-    if(VK_SUCCESS != vkCreateGraphicsPipelines(g_vulkanstate.device, nullptr, 1, &pipelineInfo, nullptr, (VkPipeline*)&ret->quartet.pipeline_TriangleList) != VK_SUCCESS){
+    if (vkCreateGraphicsPipelines(
+            g_vulkanstate.device, 
+            VK_NULL_HANDLE, 
+            1, 
+            &pipelineInfo, 
+            nullptr, 
+            (VkPipeline*)&ret->quartet.pipeline_TriangleList
+        ) != VK_SUCCESS) {
         throw std::runtime_error("Pipeline creation failed");
     }
+
     ret->layout.layout = pipelineLayout;
     
     return ret;
