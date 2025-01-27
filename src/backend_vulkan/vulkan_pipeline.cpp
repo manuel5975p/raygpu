@@ -76,12 +76,12 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewportState.viewportCount = 1;
     viewportState.scissorCount = 1;
-    VkRect2D scissor{0, 0, g_vulkanstate.swapchainExtent.width, g_vulkanstate.swapchainExtent.height};
+    VkRect2D scissor{0, 0, g_vulkanstate.surface.width, g_vulkanstate.surface.height};
     VkViewport fullView{
         0.0f, 
-        (float)g_vulkanstate.swapchainExtent.height, 
-        (float)g_vulkanstate.swapchainExtent.width, 
-        -(float)g_vulkanstate.swapchainExtent.height, 
+        (float)g_vulkanstate. surface.height, 
+        (float)g_vulkanstate. surface.width, 
+        -(float)g_vulkanstate.surface.height, 
         0.0f, 
         1.0f
     };
