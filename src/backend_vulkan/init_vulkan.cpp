@@ -17,7 +17,7 @@
 
 #include "vulkan_internals.hpp"
 #include <internals.hpp>
-VulkanState g_vulkanstate;
+VulkanState g_vulkanstate{};
 
 
 constexpr char vsSource[] = R"(#version 450
@@ -513,49 +513,6 @@ void createGraphicsPipeline(DescribedBindGroupLayout* setLayout) {
 }*/
 
 DescribedBindGroup set{};
-void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
-        throw std::runtime_error("failed to begin recording command buffer!");
-    }
-
-    VkRenderPassBeginInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = g_vulkanstate.renderPass;
-    renderPassInfo.framebuffer = g_vulkanstate.swapchainImageFramebuffers[imageIndex];
-    renderPassInfo.renderArea.offset = {0, 0};
-    renderPassInfo.renderArea.extent = g_vulkanstate.swapchainExtent;
-
-    VkClearValue clearvalues[2];
-    clearvalues[0].color = VkClearColorValue{0.0f, 1.0f, 0.0f, 1.0f};
-    clearvalues[1].depthStencil = VkClearDepthStencilValue{1.0f, 0u};
-    renderPassInfo.clearValueCount = 2;
-    renderPassInfo.pClearValues = clearvalues;
-    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-    //vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, g_vulkanstate.graphicsPipeline);
-    //vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, g_vulkanstate.graphicsPipelineLayout, 0, 1, (VkDescriptorSet*)(&set->bindGroup), 0, nullptr);
-    //vkCmdSetPrimitiveTopology(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN);
-    VkViewport viewport{};
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = (float) g_vulkanstate.swapchainExtent.width;
-    viewport.height = (float) g_vulkanstate.swapchainExtent.height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    //vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-
-    VkRect2D scissor{};
-    scissor.offset = VkOffset2D{int(g_vulkanstate.swapchainExtent.width / 2.5f), int(g_vulkanstate.swapchainExtent.height / 2.5f)};
-    scissor.extent = g_vulkanstate.swapchainExtent;
-    //vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-    VkDeviceSize offsets{};
-    //vkCmdBindVertexBuffers(commandBuffer, 0, 1, &g_vulkanstate.vbuffer, &offsets);
-    //vkCmdDraw(commandBuffer, 3, 1, 0, 0);
-
-    
-}
 
 // Function to initialize GLFW and create a window
 GLFWwindow *initWindow(uint32_t width, uint32_t height, const char *title) {
@@ -648,14 +605,7 @@ void createInstance() {
 
 }
 
-// Function to create window surface
-void createSurface(GLFWwindow *window) {
-    if (glfwCreateWindowSurface(g_vulkanstate.instance, window, nullptr, &g_vulkanstate.surface) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create window surface!");
-    } else {
-        std::cout << "Successfully created window surface\n";
-    }
-}
+
 
 // Function to pick a suitable physical device (GPU)
 void pickPhysicalDevice() {
@@ -733,8 +683,8 @@ void findQueueFamilies() {
         }
 
         // Check for presentation support
-        VkBool32 presentSupport = false;
-        vkGetPhysicalDeviceSurfaceSupportKHR(g_vulkanstate.physicalDevice, i, g_vulkanstate.surface, &presentSupport);
+        VkBool32 presentSupport = (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT);
+        //vkGetPhysicalDeviceSurfaceSupportKHR(g_vulkanstate.physicalDevice, i, g_vulkanstate.surface.surface, &presentSupport);
         if (presentSupport && g_vulkanstate.presentFamily == UINT32_MAX) {
             g_vulkanstate.presentFamily = i;
         }
@@ -751,7 +701,7 @@ void findQueueFamilies() {
     }
 
     // Validate that at least graphics and present families are found
-    if (g_vulkanstate.graphicsFamily == UINT32_MAX || g_vulkanstate.presentFamily == UINT32_MAX) {
+    if (g_vulkanstate.graphicsFamily == UINT32_MAX /*|| g_vulkanstate.presentFamily == UINT32_MAX*/) {
         throw std::runtime_error("Failed to find required queue families!");
     }
 }
@@ -763,7 +713,7 @@ void createRenderPass() {
 
     VkAttachmentDescription& colorAttachment = attachments[0];
     colorAttachment = VkAttachmentDescription{};
-    colorAttachment.format = g_vulkanstate.swapchainImageFormat;
+    colorAttachment.format = g_vulkanstate.surface.swapchainImageFormat;
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -811,115 +761,7 @@ void createRenderPass() {
         throw std::runtime_error("failed to create render pass!");
     }
 }
-// Function to create the swapchain
-void createSwapChain(GLFWwindow *window, uint32_t width, uint32_t height) {
-    SwapChainSupportDetails swapChainSupport = querySwapChainSupport(g_vulkanstate.physicalDevice, g_vulkanstate.surface);
 
-    VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
-    VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
-    VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities, window);
-
-    uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
-    if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
-        imageCount = swapChainSupport.capabilities.maxImageCount;
-    }
-
-    VkSwapchainCreateInfoKHR createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    createInfo.surface = g_vulkanstate.surface;
-
-    createInfo.minImageCount = imageCount;
-    createInfo.imageFormat = surfaceFormat.format;
-    createInfo.imageColorSpace = surfaceFormat.colorSpace;
-    createInfo.imageExtent = extent;
-    createInfo.imageArrayLayers = 1; // For stereoscopic 3D applications
-    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-
-    // Queue family indices
-    uint32_t queueFamilyIndices[] = {g_vulkanstate.graphicsFamily, g_vulkanstate.presentFamily};
-
-    if (g_vulkanstate.graphicsFamily != g_vulkanstate.presentFamily) {
-        createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-        createInfo.queueFamilyIndexCount = 2;
-        createInfo.pQueueFamilyIndices = queueFamilyIndices;
-    } else {
-        createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        createInfo.queueFamilyIndexCount = 0;     // Optional
-        createInfo.pQueueFamilyIndices = nullptr; // Optional
-    }
-
-    createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
-    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    createInfo.presentMode = presentMode;
-    createInfo.clipped = VK_TRUE;
-
-    createInfo.oldSwapchain = VK_NULL_HANDLE;
-
-    if (vkCreateSwapchainKHR(g_vulkanstate.device, &createInfo, nullptr, &g_vulkanstate.swapchain) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create swap chain!");
-    } else {
-        std::cout << "Successfully created swap chain\n";
-    }
-
-    // Retrieve swapchain images
-    vkGetSwapchainImagesKHR(g_vulkanstate.device, g_vulkanstate.swapchain, &imageCount, nullptr);
-    g_vulkanstate.swapchainImages.resize(imageCount);
-    vkGetSwapchainImagesKHR(g_vulkanstate.device, g_vulkanstate.swapchain, &imageCount, g_vulkanstate.swapchainImages.data());
-
-    g_vulkanstate.swapchainImageFormat = surfaceFormat.format;
-    g_vulkanstate.swapchainExtent = extent;
-}
-
-// Function to create image views for the swapchain images
-void createImageViews(uint32_t width, uint32_t height) {
-    g_vulkanstate.swapchainImageViews.resize(g_vulkanstate.swapchainImages.size());
-
-    for (size_t i = 0; i < g_vulkanstate.swapchainImages.size(); i++) {
-        VkImageViewCreateInfo createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        createInfo.image = g_vulkanstate.swapchainImages[i];
-        createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        createInfo.format = g_vulkanstate.swapchainImageFormat;
-        createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-        
-        createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        createInfo.subresourceRange.baseMipLevel = 0;
-        createInfo.subresourceRange.levelCount = 1;
-        createInfo.subresourceRange.baseArrayLayer = 0;
-        createInfo.subresourceRange.layerCount = 1;
-
-        if (vkCreateImageView(g_vulkanstate.device, &createInfo, nullptr, &g_vulkanstate.swapchainImageViews[i]) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create image views!");
-        }
-    }
-    g_vulkanstate.swapchainImageFramebuffers.resize(g_vulkanstate.swapchainImageViews.size());
-
-    for (size_t i = 0; i < g_vulkanstate.swapchainImageViews.size(); i++) {
-        Texture depthTexture = LoadTexturePro_Vk(width, height, Depth32, WGPUTextureUsage_RenderAttachment, 1, 1);
-        std::array<VkImageView, 2> attachments{
-            g_vulkanstate.swapchainImageViews[i],
-            (VkImageView)depthTexture.view
-        };
-
-        VkFramebufferCreateInfo fbcinfo{};
-        fbcinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        fbcinfo.attachmentCount = 2;
-        fbcinfo.pAttachments = attachments.data();
-        fbcinfo.width = width;
-        fbcinfo.height = height;
-        fbcinfo.renderPass = g_vulkanstate.renderPass;
-        fbcinfo.layers = 1;
-
-        if (vkCreateFramebuffer(g_vulkanstate.device, &fbcinfo, nullptr, &g_vulkanstate.swapchainImageFramebuffers[i]) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create framebuffer!");
-        }
-    }
-
-    std::cout << "Successfully created swapchain image views\n";
-}
 
 // Function to create a staging buffer (example usage)
 void createStagingBuffer() {
@@ -1030,14 +872,16 @@ void createLogicalDevice() {
 DescribedBindGroupLayout layout;
 void initVulkan(GLFWwindow *window) {
     createInstance();
-    createSurface(window);
     pickPhysicalDevice();
     createLogicalDevice();
-    int width, height;
-    glfwGetWindowSize(window, &width, &height);
-    createSwapChain(window, width, height);
+    //createSurface(window);
+    //int width, height;
+    //glfwGetWindowSize(window, &width, &height);
+    g_vulkanstate.surface = LoadSurface(window);
+    std::cerr << "Surface created???\n";
+    //createSwapChain(window, width, height);
     createRenderPass();
-    createImageViews(width, height);
+    //createImageViews(width, height);
     ResourceTypeDescriptor types[2] = {};
     types[0].type = texture2d;
     types[0].location = 0;
@@ -1136,18 +980,33 @@ void mainLoop(GLFWwindow *window) {
     uint64_t stamp = nanoTime();
     uint64_t noell = 0;
     FullVkRenderPass renderpass = LoadRenderPass(GetDefaultSettings());
+    Texture depthTex = LoadTexturePro_Vk(g_vulkanstate.surface.width, g_vulkanstate.surface.height, Depth32, TextureUsage_RenderAttachment, 1, 1);
     vkResetFences(device, 1, &inFlightFence);
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
-        auto &swapChain = g_vulkanstate.swapchain;
+        auto &swapChain = g_vulkanstate.surface.swapchain;
         
 
         uint32_t imageIndex;
         vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
 
         vkResetCommandBuffer(commandBuffer, /*VkCommandBufferResetFlagBits*/ 0);
-        
-        RenderPassEncoderHandle encoder = BeginRenderPass_Vk(commandBuffer, renderpass, g_vulkanstate.swapchainImageFramebuffers[imageIndex]);
+        //TODO: Unload
+        VkFramebuffer imgfb{};
+        VkFramebufferCreateInfo fbci{};
+        fbci.renderPass = g_vulkanstate.renderPass;
+        fbci.layers = 1;
+        fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        fbci.width = g_vulkanstate.surface.width;
+        fbci.height = g_vulkanstate.surface.height;
+        fbci.attachmentCount = 2;
+        VkImageView fbimages[2] = {
+            g_vulkanstate.surface.imageViews[imageIndex],
+            (VkImageView)depthTex.view
+        };
+        fbci.pAttachments = fbimages;
+        vkCreateFramebuffer(g_vulkanstate.device, &fbci, nullptr, &imgfb);
+        RenderPassEncoderHandle encoder = BeginRenderPass_Vk(commandBuffer, renderpass, imgfb);
         //recordCommandBuffer(commandBuffer, imageIndex);
         SetBindgroupTexture_Vk(&set, 0, bwite);
         UpdateBindGroup_Vk(&set);
@@ -1205,29 +1064,29 @@ void mainLoop(GLFWwindow *window) {
 // Function to clean up Vulkan and GLFW resources
 void cleanup(GLFWwindow *window) {
     // Cleanup swapchain image views
-    for (auto imageView : g_vulkanstate.swapchainImageViews) {
-        vkDestroyImageView(g_vulkanstate.device, imageView, nullptr);
-    }
-
-    // Destroy swapchain
-    if (g_vulkanstate.swapchain != VK_NULL_HANDLE) {
-        vkDestroySwapchainKHR(g_vulkanstate.device, g_vulkanstate.swapchain, nullptr);
-    }
-
-    // Destroy surface
-    if (g_vulkanstate.surface != VK_NULL_HANDLE) {
-        vkDestroySurfaceKHR(g_vulkanstate.instance, g_vulkanstate.surface, nullptr);
-    }
-
-    // Destroy device
-    if (g_vulkanstate.device != VK_NULL_HANDLE) {
-        vkDestroyDevice(g_vulkanstate.device, nullptr);
-    }
-
-    // Destroy instance
-    if (g_vulkanstate.instance != VK_NULL_HANDLE) {
-        vkDestroyInstance(g_vulkanstate.instance, nullptr);
-    }
+    //for (auto imageView : g_vulkanstate.swapchainImageViews) {
+    //    vkDestroyImageView(g_vulkanstate.device, imageView, nullptr);
+    //}
+//
+    //// Destroy swapchain
+    //if (g_vulkanstate.swapchain != VK_NULL_HANDLE) {
+    //    vkDestroySwapchainKHR(g_vulkanstate.device, g_vulkanstate.swapchain, nullptr);
+    //}
+//
+    //// Destroy surface
+    //if (g_vulkanstate.surface != VK_NULL_HANDLE) {
+    //    vkDestroySurfaceKHR(g_vulkanstate.instance, g_vulkanstate.surface, nullptr);
+    //}
+//
+    //// Destroy device
+    //if (g_vulkanstate.device != VK_NULL_HANDLE) {
+    //    vkDestroyDevice(g_vulkanstate.device, nullptr);
+    //}
+//
+    //// Destroy instance
+    //if (g_vulkanstate.instance != VK_NULL_HANDLE) {
+    //    vkDestroyInstance(g_vulkanstate.instance, nullptr);
+    //}
 
     // Destroy window
     if (window) {

@@ -92,6 +92,7 @@ struct WGVKSurface{
     VkSurfaceKHR surface;
     VkSwapchainKHR swapchain;
     uint32_t imagecount;
+    uint32_t width, height;
     VkFormat swapchainImageFormat;
     VkImage* images;
     VkImageView* imageViews;
@@ -216,7 +217,8 @@ inline WGVKSurface LoadSurface(GLFWwindow* window){
     VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
     VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;//chooseSwapPresentMode(swapChainSupport.presentModes);
     VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities, window);
-
+    ret.width = extent.width;
+    ret.height = extent.height;
     uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
     if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
         imageCount = swapChainSupport.capabilities.maxImageCount;
@@ -228,6 +230,7 @@ inline WGVKSurface LoadSurface(GLFWwindow* window){
 
     createInfo.minImageCount = imageCount;
     createInfo.imageFormat = surfaceFormat.format;
+    ret.swapchainImageFormat = surfaceFormat.format;
     createInfo.imageColorSpace = surfaceFormat.colorSpace;
     createInfo.imageExtent = extent;
     createInfo.imageArrayLayers = 1; // For stereoscopic 3D applications
@@ -307,7 +310,7 @@ inline FullVkRenderPass LoadRenderPass(RenderSettings settings){
 
     VkAttachmentDescription& colorAttachment = attachments[0];
     colorAttachment = VkAttachmentDescription{};
-    colorAttachment.format = g_vulkanstate.swapchainImageFormat;
+    colorAttachment.format = g_vulkanstate.surface.swapchainImageFormat;
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
