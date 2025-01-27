@@ -274,7 +274,7 @@ void InitWGPU(webgpu_cxx_state* sample){
         sample->adapter.GetFeatures(&features);
         std::string featuresString;
         for(size_t i = 0; i < features.featureCount;i++){
-            featuresString += featureSpellingTable.at((WGPUFeatureName)features.features[i]);
+            featuresString += featureSpellingTable.contains((WGPUFeatureName)features.features[i]) ? featureSpellingTable.at((WGPUFeatureName)features.features[i]) : "<unknown feature>";
             if(i < features.featureCount - 1)featuresString += ", ";
         }
         TRACELOG(LOG_INFO, "Features supported: %s ", featuresString.c_str());
@@ -675,7 +675,7 @@ Vector2 GetTouchPosition(int index){
     #elif defined(MAIN_WINDOW_SDL2)
     return GetTouchPosition_SDL2(index);
     #else
-    return 0;
+    return Vector2{0, 0};
     #endif
 }
 int GetTouchPointCount(cwoid){

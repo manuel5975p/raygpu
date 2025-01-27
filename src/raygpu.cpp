@@ -306,7 +306,7 @@ wgpu::Surface&  GetCXXSurface (){
 }
 
 
-__attribute__((weak)) void drawCurrentBatch(){
+void drawCurrentBatch(){
     size_t vertexCount = vboptr - vboptr_base;
     //std::cout << "vcoun = " << vertexCount << "\n";
     if(vertexCount == 0)return;

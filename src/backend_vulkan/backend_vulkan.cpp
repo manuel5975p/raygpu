@@ -1,4 +1,4 @@
 #include "vulkan_internals.hpp"
-void drawCurrentBatch(){
+void dsdfrawCurrentBatch(){
     
 }
