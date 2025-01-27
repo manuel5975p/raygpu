@@ -31,15 +31,14 @@ extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vs
     return ret;
 }
 
-DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSource, const VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
-    DescribedPipeline* ret = callocnew(DescribedPipeline);
-    ret->settings = settings;
-    ret->bglayout = LoadBindGroupLayout_Vk(uniforms, uniformCount);
-    auto [spirV, spirF] = glsl_to_spirv(vsSource, fsSource);
-    
-    ret->sh = LoadShaderModuleFromSPIRV_Vk(spirV.data(), spirV.size() * 4, spirF.data(), spirF.size() * 4);
-
+void UpdatePipeline_Vk(DescribedPipeline* ret, const VertexArray* vao){
     // Shader Stage Setup
+    auto it = ret->createdPipelines->pipelines.find(vao->attributes);
+    if(it != ret->createdPipelines->pipelines.end()){
+        ret->quartet = it->second;
+        return;
+    }
+    auto& settings = ret->settings;
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -194,17 +193,7 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
     dynamicState.pDynamicStates = dynamicStates.data();
     
     // Pipeline Layout Setup
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 1;
-    pipelineLayoutInfo.pSetLayouts = (VkDescriptorSetLayout*)&(ret->bglayout.layout);
-    pipelineLayoutInfo.pushConstantRangeCount = 0;
-    pipelineLayoutInfo.pPushConstantRanges = nullptr;
     
-    VkPipelineLayout pipelineLayout;
-    if (vkCreatePipelineLayout(g_vulkanstate.device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create pipeline layout!");
-    }
     
     // Graphics Pipeline Creation
     VkGraphicsPipelineCreateInfo pipelineInfo{};
@@ -219,23 +208,51 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
     pipelineInfo.pDepthStencilState = settings.depthTest ? &depthStencil : nullptr; // Enable depth stencil if needed
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
-    pipelineInfo.layout = pipelineLayout;
+    pipelineInfo.layout = (VkPipelineLayout)ret->layout.layout;
     pipelineInfo.renderPass = g_vulkanstate.renderPass;
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-    if (vkCreateGraphicsPipelines(
-            g_vulkanstate.device, 
-            VK_NULL_HANDLE, 
-            1, 
-            &pipelineInfo, 
-            nullptr, 
-            (VkPipeline*)&ret->quartet.pipeline_TriangleList
-        ) != VK_SUCCESS) {
-        throw std::runtime_error("Pipeline creation failed");
+    if (vkCreateGraphicsPipelines(g_vulkanstate.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&ret->quartet.pipeline_TriangleList) != VK_SUCCESS) {
+        throw std::runtime_error("Trianglelist pipiline creation failed");
+    }
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+    if (vkCreateGraphicsPipelines(g_vulkanstate.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&ret->quartet.pipeline_TriangleStrip) != VK_SUCCESS) {
+        throw std::runtime_error("Trianglelist pipiline creation failed");
+    }
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+    if (vkCreateGraphicsPipelines(g_vulkanstate.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&ret->quartet.pipeline_LineList) != VK_SUCCESS) {
+        throw std::runtime_error("Trianglelist pipiline creation failed");
+    }
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+    if (vkCreateGraphicsPipelines(g_vulkanstate.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&ret->quartet.pipeline_PointList) != VK_SUCCESS) {
+        throw std::runtime_error("Trianglelist pipiline creation failed");
+    }
+    ret->createdPipelines->pipelines[vao->attributes] = ret->quartet;
+}
+
+
+DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSource, const VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
+    DescribedPipeline* ret = callocnew(DescribedPipeline);
+    ret->settings = settings;
+    ret->createdPipelines = callocnewpp(VertexStateToPipelineMap);
+    ret->bglayout = LoadBindGroupLayout_Vk(uniforms, uniformCount);
+    auto [spirV, spirF] = glsl_to_spirv(vsSource, fsSource);
+    
+    ret->sh = LoadShaderModuleFromSPIRV_Vk(spirV.data(), spirV.size() * 4, spirF.data(), spirF.size() * 4);
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = (VkDescriptorSetLayout*)&(ret->bglayout.layout);
+    pipelineLayoutInfo.pushConstantRangeCount = 0;
+    pipelineLayoutInfo.pPushConstantRanges = nullptr;
+    
+    if (vkCreatePipelineLayout(g_vulkanstate.device, &pipelineLayoutInfo, nullptr, (VkPipelineLayout*)&ret->layout.layout) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create pipeline layout!");
     }
 
-    ret->layout.layout = pipelineLayout;
+    UpdatePipeline_Vk(ret, vao);    
     
     return ret;
 }
