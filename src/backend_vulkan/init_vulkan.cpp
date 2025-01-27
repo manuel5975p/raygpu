@@ -529,7 +529,7 @@ GLFWwindow *initWindow(uint32_t width, uint32_t height, const char *title) {
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     //glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     GLFWwindow *window = glfwCreateWindow(width, height, title, nullptr, nullptr);
-    glfwSetWindowPos(window, 1500, 2100);
+    //glfwSetWindowPos(window, 1500, 2100);
     glfwSetWindowSizeCallback(window, ResizeCallback_Vk);
     //glfwSetWindowSize(window, width + 100, height + 100);
     if (!window) {

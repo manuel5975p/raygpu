@@ -239,6 +239,7 @@ add_executable(init_vulkan
     "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/init_vulkan.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/vulkan_textures.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/vulkan_pipeline.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/backend_vulkan.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/wgvk.cpp"
 )
 target_link_libraries(init_vulkan PUBLIC vulkan glfw raygpu glslang)
