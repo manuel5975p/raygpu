@@ -47,12 +47,15 @@ struct DescriptorSetHandleImpl;
 struct BufferHandleImpl;
 struct RenderPassEncoderHandleImpl;
 struct CommandBufferHandleImpl;
+struct ImageHandleImpl;
 
 typedef VertexAndFragmentShaderModuleImpl* VertexAndFragmentShaderModule;
 typedef DescriptorSetHandleImpl* DescriptorSetHandle;
 typedef BufferHandleImpl* BufferHandle;
 typedef RenderPassEncoderHandleImpl* RenderPassEncoderHandle;
 typedef CommandBufferHandleImpl* CommmandBufferHandle;
+typedef ImageHandleImpl* ImageHandle;
+
 using refcount_type = uint32_t;
 template<typename T>
 using ref_holder = std::unordered_set<T>;
@@ -88,12 +91,18 @@ typedef struct CommandBufferHandleImpl{
     VkCommandPool pool;
 }CommandBufferHandleImpl;
 
+typedef struct ImageHandleImpl{
+    VkImage image;
+    VkDeviceMemory memory;
+}ImageHandleImpl;
+
 struct WGVKSurface{
     VkSurfaceKHR surface;
     VkSwapchainKHR swapchain;
     uint32_t imagecount;
     uint32_t width, height;
     VkFormat swapchainImageFormat;
+    VkColorSpaceKHR swapchainColorSpace;
     VkImage* images;
     VkImageView* imageViews;
     VkFramebuffer* framebuffers;
@@ -231,6 +240,8 @@ inline WGVKSurface LoadSurface(GLFWwindow* window){
     createInfo.minImageCount = imageCount;
     createInfo.imageFormat = surfaceFormat.format;
     ret.swapchainImageFormat = surfaceFormat.format;
+    ret.swapchainColorSpace = surfaceFormat.colorSpace;
+
     createInfo.imageColorSpace = surfaceFormat.colorSpace;
     createInfo.imageExtent = extent;
     createInfo.imageArrayLayers = 1; // For stereoscopic 3D applications
@@ -297,6 +308,83 @@ inline WGVKSurface LoadSurface(GLFWwindow* window){
     return ret;
 }
 
+inline void ResizeSurface_wgvk(WGVKSurface* surface, uint32_t width, uint32_t height){
+    auto& device = g_vulkanstate.device;
+    vkDeviceWaitIdle(device);
+    for (uint32_t i = 0; i < surface->imagecount; i++) {
+        vkDestroyImageView(device, surface->imageViews[i], nullptr);
+    }
+    std::free(surface->framebuffers);
+    std::free(surface->imageViews);
+    std::free(surface->images);
+    vkDestroySwapchainKHR(device, surface->swapchain, nullptr);
+    SwapChainSupportDetails swapChainSupport = querySwapChainSupport(g_vulkanstate.physicalDevice, surface->surface);
+    VkSwapchainCreateInfoKHR createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    createInfo.surface = surface->surface;
+
+    createInfo.minImageCount = surface->imagecount;
+    createInfo.imageFormat = surface->swapchainImageFormat;
+    surface->width = width;
+    surface->height = height;
+    VkExtent2D newExtent{width, height};
+    createInfo.imageExtent = newExtent;
+    createInfo.imageArrayLayers = 1; // For stereoscopic 3D applications
+    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+    // Queue family indices
+    uint32_t queueFamilyIndices[] = {g_vulkanstate.graphicsFamily, g_vulkanstate.presentFamily};
+
+    if (g_vulkanstate.graphicsFamily != g_vulkanstate.presentFamily) {
+        createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        createInfo.queueFamilyIndexCount = 2;
+        createInfo.pQueueFamilyIndices = queueFamilyIndices;
+    } else {
+        createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        createInfo.queueFamilyIndexCount = 0;     // Optional
+        createInfo.pQueueFamilyIndices = nullptr; // Optional
+    }
+
+    createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
+    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    createInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR; 
+    createInfo.clipped = VK_TRUE;
+
+    if (vkCreateSwapchainKHR(g_vulkanstate.device, &createInfo, nullptr, &(surface->swapchain)) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create swap chain!");
+    } else {
+        std::cout << "Successfully created swap chain\n";
+    }
+
+    vkGetSwapchainImagesKHR(g_vulkanstate.device, surface->swapchain, &surface->imagecount, nullptr);
+    surface->images = (VkImage*)std::calloc(surface->imagecount, sizeof(VkImage));
+    surface->imageViews = (VkImageView*)std::calloc(surface->imagecount, sizeof(VkImageView));
+
+    vkGetSwapchainImagesKHR(g_vulkanstate.device, surface->swapchain, &surface->imagecount, surface->images);
+
+    surface->imageViews = (VkImageView*)std::calloc(surface->imagecount, sizeof(VkImageView));
+    for (uint32_t i = 0; i < surface->imagecount; i++) {
+        VkImageViewCreateInfo viewInfo{};
+        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewInfo.image = surface->images[i];
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.format = surface->swapchainImageFormat;
+        viewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        viewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        viewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        viewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        viewInfo.subresourceRange.baseMipLevel = 0;
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.subresourceRange.baseArrayLayer = 0;
+        viewInfo.subresourceRange.layerCount = 1;
+
+        if (vkCreateImageView(device, &viewInfo, nullptr, &surface->imageViews[i]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create image views!");
+        }
+    }
+
+}
 
 struct FullVkRenderPass{
     VkRenderPass renderPass;
@@ -370,10 +458,9 @@ inline RenderPassEncoderHandle BeginRenderPass_Vk(VkCommandBuffer cbuffer, FullV
     rpbi.clearValueCount = 2;
     rpbi.pClearValues = clearvalues;
     rpbi.framebuffer = fb;
-    rpbi.renderArea.extent.width = 1000;
-    rpbi.renderArea.extent.height = 800;
+    rpbi.renderArea.extent.width = g_vulkanstate.surface.width;
+    rpbi.renderArea.extent.height = g_vulkanstate.surface.height;
 
-    VkSubpassContents scontents{};
     vkBeginCommandBuffer(cbuffer, &bbi);
     vkCmdBeginRenderPass(cbuffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
     ret->cmdBuffer = cbuffer;
@@ -409,12 +496,12 @@ inline void EndRenderPass_Vk(VkCommandBuffer cbuffer, FullVkRenderPass rp, VkSem
 }//
 extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelFormat format, int usage, uint32_t sampleCount, uint32_t mipmaps, const void* data = nullptr);
 extern "C" Texture LoadTextureFromImage_Vk(Image img);
+void UnloadTexture_Vk(Texture tex);
 extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vscode, size_t vscodeSizeInBytes, const uint32_t* fscode, size_t fscodeSizeInBytes);
 extern "C" DescribedBindGroupLayout LoadBindGroupLayout_Vk(const ResourceTypeDescriptor* descs, uint32_t uniformCount);
 extern "C" DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSource, const VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
 extern "C" DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, const ResourceDescriptor* resources, uint32_t count);
 extern "C" void UpdateBindGroup_Vk(DescribedBindGroup* bg);
-
 
 //wgvk I guess
 extern "C" void wgvkReleaseCommandBuffer(CommmandBufferHandle commandBuffer);
@@ -443,7 +530,11 @@ static inline void SetBindgroupTexture_Vk(DescribedBindGroup* bg, uint32_t index
     
     UpdateBindGroupEntry_Vk(bg, index, entry);
 }
-
+static inline void BindVertexArray_Vk(RenderPassEncoderHandle rpenc, VertexArray* vao){
+    for(uint32_t i = 0;i < vao->buffers.size();i++){
+        wgvkRenderPassEncoderBindVertexBuffer(rpenc, i, (BufferHandle)vao->buffers[i].first->buffer, 0);
+    }
+}
 
 
 

@@ -51,9 +51,9 @@ layout(binding = 0) uniform sampler2D sampler0;
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    //outColor = vec4(0,1,0,1);
+    outColor = vec4(0,1,0,1);
     //outColor.xy += gl_FragCoord.xy / 1000.0f;
-    outColor = texelFetch(texture0, ivec2(gl_FragCoord.xy / 10.0f), 0);
+    outColor = texelFetch(texture0, ivec2(gl_FragCoord.xy / 40.0f), 0);
     //outColor = 0.3f * texelFetch(texture0, ivec2(gl_FragCoord.xy / 100.0f), 0);
     //outColor.y += gl_FragCoord.x * 0.001f;
     //outColor = vec4(fragColor, 1.0);
@@ -513,17 +513,25 @@ void createGraphicsPipeline(DescribedBindGroupLayout* setLayout) {
 }*/
 
 DescribedBindGroup set{};
-
+void createRenderPass();
 // Function to initialize GLFW and create a window
+void ResizeCallback_Vk(GLFWwindow* win, int width, int height){
+    //std::cout << std::format("Resized to {} x {}\n", width, height) << std::flush;
+    ResizeSurface_wgvk(&g_vulkanstate.surface, uint32_t(width), uint32_t(height));
+    //createRenderPass();
+}
 GLFWwindow *initWindow(uint32_t width, uint32_t height, const char *title) {
     if (!glfwInit()) {
         throw std::runtime_error("Failed to initialize GLFW!");
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // We don't want OpenGL
-    //glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE); // We don't want OpenGL
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+    //glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     GLFWwindow *window = glfwCreateWindow(width, height, title, nullptr, nullptr);
-    
+    glfwSetWindowPos(window, 1500, 2100);
+    glfwSetWindowSizeCallback(window, ResizeCallback_Vk);
+    //glfwSetWindowSize(window, width + 100, height + 100);
     if (!window) {
         throw std::runtime_error("Failed to create GLFW window!");
     }
@@ -538,7 +546,7 @@ GLFWwindow *initWindow(uint32_t width, uint32_t height, const char *title) {
 // Function to create Vulkan instance
 void createInstance() {
     uint32_t requiredGLFWExtensions = 0;
-    const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&requiredGLFWExtensions);
+    const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&requiredGLFWExtensions);
 
     if (!glfwExtensions) {
         throw std::runtime_error("Failed to get GLFW required extensions!");
@@ -683,7 +691,8 @@ void findQueueFamilies() {
         }
 
         // Check for presentation support
-        VkBool32 presentSupport = (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT);
+        
+        VkBool32 presentSupport = glfwGetPhysicalDevicePresentationSupport(g_vulkanstate.instance, g_vulkanstate.physicalDevice, i) ? VK_TRUE : VK_FALSE;
         //vkGetPhysicalDeviceSurfaceSupportKHR(g_vulkanstate.physicalDevice, i, g_vulkanstate.surface.surface, &presentSupport);
         if (presentSupport && g_vulkanstate.presentFamily == UINT32_MAX) {
             g_vulkanstate.presentFamily = i;
@@ -878,7 +887,7 @@ void initVulkan(GLFWwindow *window) {
     //int width, height;
     //glfwGetWindowSize(window, &width, &height);
     g_vulkanstate.surface = LoadSurface(window);
-    std::cerr << "Surface created???\n";
+    std::cerr << "Surface created?\n";
     //createSwapChain(window, width, height);
     createRenderPass();
     //createImageViews(width, height);
@@ -988,8 +997,10 @@ void mainLoop(GLFWwindow *window) {
         
 
         uint32_t imageIndex;
-        vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
-
+        VkResult acquireResult = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+        if(acquireResult != VK_SUCCESS){
+            std::cerr << "acquireResult is " << acquireResult << std::endl;
+        }
         vkResetCommandBuffer(commandBuffer, /*VkCommandBufferResetFlagBits*/ 0);
         //TODO: Unload
         VkFramebuffer imgfb{};
@@ -1000,6 +1011,10 @@ void mainLoop(GLFWwindow *window) {
         fbci.width = g_vulkanstate.surface.width;
         fbci.height = g_vulkanstate.surface.height;
         fbci.attachmentCount = 2;
+        if(depthTex.width != g_vulkanstate.surface.width || depthTex.height != g_vulkanstate.surface.height){
+            UnloadTexture_Vk(depthTex);
+            depthTex = LoadTexturePro_Vk(g_vulkanstate.surface.width, g_vulkanstate.surface.height, Depth32, TextureUsage_RenderAttachment, 1, 1);
+        }
         VkImageView fbimages[2] = {
             g_vulkanstate.surface.imageViews[imageIndex],
             (VkImageView)depthTex.view
@@ -1007,6 +1022,17 @@ void mainLoop(GLFWwindow *window) {
         fbci.pAttachments = fbimages;
         vkCreateFramebuffer(g_vulkanstate.device, &fbci, nullptr, &imgfb);
         RenderPassEncoderHandle encoder = BeginRenderPass_Vk(commandBuffer, renderpass, imgfb);
+        VkViewport viewport{
+            0.0f, 
+            (float) g_vulkanstate.surface.height, 
+            (float) g_vulkanstate.surface.width, 
+            -(float)g_vulkanstate.surface.height, 
+            0.0f, 
+            1.0f
+        };
+        vkCmdSetViewport(encoder->cmdBuffer, 0, 1, &viewport);
+        VkRect2D scissorRect{.offset = {0,0}, .extent = {g_vulkanstate.surface.width, g_vulkanstate.surface.height}};
+        vkCmdSetScissor(encoder->cmdBuffer, 0, 1, &scissorRect);
         //recordCommandBuffer(commandBuffer, imageIndex);
         SetBindgroupTexture_Vk(&set, 0, bwite);
         UpdateBindGroup_Vk(&set);
@@ -1015,8 +1041,9 @@ void mainLoop(GLFWwindow *window) {
         
         //vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipelineLayout)dpl->layout.layout, 0, 1, &((DescriptorSetHandle)set.bindGroup)->set, 0, 0);
         //vkCmdSetPrimitiveTopology(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-        wgvkRenderPassEncoderBindVertexBuffer(encoder, 0, (BufferHandle)vbo->buffer, 0);
-        wgvkRenderPassEncoderBindVertexBuffer(encoder, 1, (BufferHandle)inst_bo->buffer, 0);
+        BindVertexArray_Vk(encoder, vao);
+        //wgvkRenderPassEncoderBindVertexBuffer(encoder, 0, (BufferHandle)vbo->buffer, 0);
+        //wgvkRenderPassEncoderBindVertexBuffer(encoder, 1, (BufferHandle)inst_bo->buffer, 0);
         wgvkRenderpassEncoderDraw(encoder, 3, 1, 0, 0);
         SetBindgroupTexture_Vk(&set, 0, rgreen);
         UpdateBindGroup_Vk(&set);
@@ -1046,7 +1073,12 @@ void mainLoop(GLFWwindow *window) {
 
         presentInfo.pImageIndices = &imageIndex;
 
-        VkResult res = vkQueuePresentKHR(g_vulkanstate.presentQueue, &presentInfo);
+        VkResult presentRes = vkQueuePresentKHR(g_vulkanstate.presentQueue, &presentInfo);
+        if(presentRes != VK_SUCCESS){
+            std::cerr << "presentRes is " << presentRes << std::endl;
+        }
+        vkDestroyFramebuffer(g_vulkanstate.device, imgfb, nullptr);
+        vkDeviceWaitIdle(g_vulkanstate.device);
         ++framecount;
         uint64_t stmp = nanoTime();
         if (stmp - stamp > 1000000000) {
@@ -1101,7 +1133,7 @@ int main() {
     GLFWwindow *window = nullptr;
 
     try {
-        window = initWindow(1000, 800, "Völken");
+        window = initWindow(400, 300, "Völken");
 
         initVulkan(window);
         

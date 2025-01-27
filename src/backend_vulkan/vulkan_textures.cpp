@@ -5,7 +5,7 @@
 #include <iostream>
 
 // Utility function to translate PixelFormat to VkFormat
-VkFormat TranslatePixelFormat(PixelFormat format) {
+VkFormat toVulkanPixelFormat(PixelFormat format) {
     switch (format) {
         case RGBA8:    return VK_FORMAT_R8G8B8A8_UNORM;
         case BGRA8:    return VK_FORMAT_B8G8R8A8_UNORM;
@@ -68,7 +68,9 @@ VkBuffer CreateBuffer(VkDevice device, VkDeviceSize size, VkBufferUsageFlags usa
 }
 
 // Function to create a Vulkan image
-VkImage CreateImage(VkDevice device, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, VkDeviceMemory& imageMemory) {
+ImageHandle CreateImage(VkDevice device, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, VkDeviceMemory& imageMemory) {
+    ImageHandle ret = callocnew(ImageHandleImpl);
+
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -102,8 +104,9 @@ VkImage CreateImage(VkDevice device, uint32_t width, uint32_t height, VkFormat f
         throw std::runtime_error("Failed to allocate image memory!");
     
     vkBindImageMemory(device, image, imageMemory, 0);
-    
-    return image;
+    ret->image = image;
+    ret->memory = imageMemory;
+    return ret;
 }
 
 // Function to create an image view
@@ -250,7 +253,7 @@ void CopyBufferToImage(VkDevice device, VkCommandPool commandPool, VkQueue queue
 }
 
 // Main function to create Vulkan image from RGBA8 data or as empty
-std::pair<VkImage, VkDeviceMemory> CreateVkImage(VkDevice device, VkPhysicalDevice physicalDevice, VkCommandPool commandPool, VkQueue queue, 
+ImageHandle CreateVkImage(VkDevice device, VkPhysicalDevice physicalDevice, VkCommandPool commandPool, VkQueue queue, 
                                                 const uint8_t* data, uint32_t width, uint32_t height, VkFormat format, bool hasData) {
     VkDeviceMemory imageMemory;
     // Adjust usage flags based on format (e.g., depth formats might need different usages)
@@ -262,7 +265,7 @@ std::pair<VkImage, VkDeviceMemory> CreateVkImage(VkDevice device, VkPhysicalDevi
         usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     }
     
-    VkImage image = CreateImage(device, width, height, format, usage, imageMemory);
+    ImageHandle image = CreateImage(device, width, height, format, usage, imageMemory);
     
     if (hasData && data != nullptr) {
         // Create staging buffer
@@ -278,27 +281,27 @@ std::pair<VkImage, VkDeviceMemory> CreateVkImage(VkDevice device, VkPhysicalDevi
         vkUnmapMemory(device, stagingMemory);
         
         // Transition image layout to TRANSFER_DST_OPTIMAL
-        TransitionImageLayout(device, commandPool, queue, image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        TransitionImageLayout(device, commandPool, queue, image->image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
         
         // Copy buffer to image
-        CopyBufferToImage(device, commandPool, queue, stagingBuffer, image, width, height);
+        CopyBufferToImage(device, commandPool, queue, stagingBuffer, image->image, width, height);
         
         // Transition image layout to SHADER_READ_ONLY_OPTIMAL
-        TransitionImageLayout(device, commandPool, queue, image, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        TransitionImageLayout(device, commandPool, queue, image->image, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         
         // Cleanup staging resources
         vkDestroyBuffer(device, stagingBuffer, nullptr);
         vkFreeMemory(device, stagingMemory, nullptr);
     }
     
-    return { image, imageMemory };
+    return image;
 }
 
 // Generalized LoadTexturePro function
 extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelFormat format, int usage, uint32_t sampleCount, uint32_t mipmaps, const void* data) {
     Texture ret{};
     
-    VkFormat vkFormat = TranslatePixelFormat(format);
+    VkFormat vkFormat = toVulkanPixelFormat(format);
     
     VkCommandPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -311,7 +314,7 @@ extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelForma
     
     bool hasData = (data != nullptr);
     
-    auto [image, imageMemory] = CreateVkImage(
+    ImageHandle image = CreateVkImage(
         g_vulkanstate.device, 
         g_vulkanstate.physicalDevice, 
         commandPool, 
@@ -334,7 +337,7 @@ extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelForma
         aspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
     }
     
-    ret.view = CreateImageView(g_vulkanstate.device, image, vkFormat, aspectFlags);
+    ret.view = CreateImageView(g_vulkanstate.device, image->image, vkFormat, aspectFlags);
     
     // Handle mipmaps if necessary (not implemented here)
     // For simplicity, only base mip level is created. Extend as needed.
@@ -344,6 +347,14 @@ extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelForma
     vkDestroyCommandPool(g_vulkanstate.device, commandPool, nullptr);
     
     return ret;
+}
+
+void UnloadTexture_Vk(Texture tex){
+    vkDestroyImageView(g_vulkanstate.device, (VkImageView)tex.view, nullptr);
+
+    ImageHandle handle = (ImageHandle)tex.id;
+    vkDestroyImage(g_vulkanstate.device, handle->image, nullptr);
+    vkFreeMemory(g_vulkanstate.device, handle->memory, nullptr);
 }
 
 // Updated LoadTextureFromImage_Vk function using LoadTexturePro
