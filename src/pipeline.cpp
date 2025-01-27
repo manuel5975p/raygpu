@@ -865,7 +865,7 @@ extern "C" void UpdateBindGroup(DescribedBindGroup* bg){
             }
             desc.entries = aswgpu.data();
             desc.entryCount = aswgpu.size();
-            desc.layout = (WGPUBindGroupLayout)bg->layout;
+            desc.layout = (WGPUBindGroupLayout)bg->layout->layout;
             bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &desc);
         }
         bg->needsUpdate = false;

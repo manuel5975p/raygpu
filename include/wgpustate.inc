@@ -21,10 +21,10 @@ struct window_input_state{
     std::deque<int> charQueue;
 };
 struct wgpustate{
-    wgpu::Instance instance;
-    wgpu::Adapter adapter;
-    wgpu::Device device;
-    wgpu::Queue queue;
+    wgpu::Instance instance{};
+    wgpu::Adapter adapter{};
+    wgpu::Device device{};
+    wgpu::Queue queue{};
 
     wgpu::PresentMode unthrottled_PresentMode;
     wgpu::PresentMode throttled_PresentMode;
