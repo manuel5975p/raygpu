@@ -1,6 +1,7 @@
 #include <vector>
 #include <mutex>
 #include <unordered_map>
+#include <map>
 #include <deque>
 #include <array>
 struct window_input_state{
@@ -30,7 +31,6 @@ struct wgpustate{
     wgpu::PresentMode throttled_PresentMode;
 
     GLFWwindow* window;
-    wgpu::Surface surface;
     uint32_t width, height;
 
     WGPUTextureFormat frameBufferFormat;
@@ -39,8 +39,8 @@ struct wgpustate{
     std::vector<DescribedBuffer*> smallBufferPool;
     std::vector<DescribedBuffer*> smallBufferRecyclingBin;
 
-    std::unordered_map<uint64_t, WGPUBindGroup> bindGroupPool;
-    std::unordered_map<uint64_t, WGPUBindGroup> bindGroupRecyclingBin;
+    //std::unordered_map<uint64_t, WGPUBindGroup> bindGroupPool;
+    //std::unordered_map<uint64_t, WGPUBindGroup> bindGroupRecyclingBin;
 
     DescribedBuffer* identityMatrix;
     DescribedSampler defaultSampler;
@@ -75,7 +75,8 @@ struct wgpustate{
     std::mutex drawmutex;
     GIFRecordState* grst;
 
-    std::unordered_map<void*, SubWindow> createdSubwindows;
+    SubWindow* mainWindow{};
+    std::map<void*, SubWindow> createdSubwindows;
     SubWindow activeSubWindow{};
 
     bool closeFlag = false;

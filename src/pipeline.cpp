@@ -844,11 +844,12 @@ extern "C" void UpdateBindGroup(DescribedBindGroup* bg){
     //std::cout << "Updating bindgroup with " << bg->desc.entryCount << " entries" << std::endl;
     //std::cout << "Updating bindgroup with " << bg->desc.entries[1].binding << " entries" << std::endl;
     if(bg->needsUpdate){
-        auto it = g_wgpustate.bindGroupPool.find(bg->descriptorHash);
-        if(it != g_wgpustate.bindGroupPool.end()){
-            bg->bindGroup = it->second;
-        }
-        else{
+        //auto it = g_wgpustate.bindGroupPool.find(bg->descriptorHash);
+        //if(it != g_wgpustate.bindGroupPool.end()){
+        //    bg->bindGroup = it->second;
+        //}
+        //else
+        {
             //TRACELOG(LOG_WARNING, "a ooo, create bind grupp");
             //__builtin_dump_struct(&(bg->desc), printf);
             //for(size_t i = 0;i < bg->desc.entryCount;i++)

@@ -76,7 +76,7 @@ int main(){
     poso = GenVertexBuffer(offsets.data(), offsets.size() * sizeof(Vector2));
     posc = GenVertexBuffer(colors.data(), colors.size() * sizeof(uint32_t));
     vao = LoadVertexArray();
-
+    
     VertexAttribPointer(vao, posb, 0, VertexFormat_Float32x2, 0, VertexStepMode_Vertex);
     VertexAttribPointer(vao, poso, 1, VertexFormat_Float32x2, 0, VertexStepMode_Instance);
     VertexAttribPointer(vao, posc, 2, VertexFormat_Uint32, 0, VertexStepMode_Instance);
