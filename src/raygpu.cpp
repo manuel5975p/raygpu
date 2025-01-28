@@ -287,7 +287,7 @@ WGPUAdapter GetAdapter(){
     return g_wgpustate.adapter.Get();
 }
 WGPUSurface GetSurface(){
-    return g_wgpustate.surface.Get();
+    return (WGPUSurface)g_wgpustate.mainWindow->surface.surface;
 }
 wgpu::Instance& GetCXXInstance(){
     return g_wgpustate.instance;
@@ -302,11 +302,11 @@ wgpu::Queue&    GetCXXQueue   (){
     return g_wgpustate.queue;
 }
 wgpu::Surface&  GetCXXSurface (){
-    return g_wgpustate.surface;
+    return *((wgpu::Surface*)&g_wgpustate.mainWindow->surface.surface);
 }
 
 
-void drawCurrentBatch(){
+__attribute__((weak)) void drawCurrentBatch(){
     size_t vertexCount = vboptr - vboptr_base;
     //std::cout << "vcoun = " << vertexCount << "\n";
     if(vertexCount == 0)return;
@@ -873,7 +873,7 @@ void EndDrawing(){
     
     if(!(g_wgpustate.windowFlags & FLAG_HEADLESS)){
         #ifndef __EMSCRIPTEN__
-        g_wgpustate.surface.Present();
+        PresentSurface(&g_wgpustate.mainWindow->surface);
         #endif
     }
     

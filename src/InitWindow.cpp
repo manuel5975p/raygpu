@@ -544,13 +544,15 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     if(!(g_wgpustate.windowFlags & FLAG_HEADLESS)){
         #if SUPPORT_GLFW == 1 || SUPPORT_SDL2 == 1
         #ifdef MAIN_WINDOW_GLFW
-        SubWindow glfwWin = InitWindow_GLFW(width, height, title);
+        SubWindow createdWindow = InitWindow_GLFW(width, height, title);
         #else
         Initialize_SDL2();
-        SubWindow glfwWin = InitWindow_SDL2(width, height, title);
+        SubWindow createdWindow = InitWindow_SDL2(width, height, title);
         #endif
-        g_wgpustate.window = (GLFWwindow*)glfwWin.handle;
-        g_wgpustate.surface = wgpu::Surface((WGPUSurface)g_wgpustate.createdSubwindows[glfwWin.handle].surface.surface);
+        g_wgpustate.window = (GLFWwindow*)createdWindow.handle;
+        auto it = g_wgpustate.createdSubwindows.find(g_wgpustate.window);
+        g_wgpustate.mainWindow = &it->second;
+        //g_wgpustate.surface = wgpu::Surface((WGPUSurface)g_wgpustate.createdSubwindows[glfwWin.handle].surface.surface);
         #endif
         
 

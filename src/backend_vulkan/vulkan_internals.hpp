@@ -502,6 +502,7 @@ extern "C" DescribedBindGroupLayout LoadBindGroupLayout_Vk(const ResourceTypeDes
 extern "C" DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSource, const VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
 extern "C" DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, const ResourceDescriptor* resources, uint32_t count);
 extern "C" void UpdateBindGroup_Vk(DescribedBindGroup* bg);
+extern "C" DescribedBuffer* GenBufferEx_Vk(const void *data, size_t size, BufferUsage usage);
 
 //wgvk I guess
 extern "C" void wgvkReleaseCommandBuffer(CommmandBufferHandle commandBuffer);

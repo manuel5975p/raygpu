@@ -39,6 +39,7 @@ vec3 colors[3] = vec3[](
 );
 
 void main() {
+    gl_PointSize = 1.0f;
     gl_Position = vec4(inPos + inOff, 0.0f, 1.0f);//vec4(positions[gl_VertexIndex], 0.0, 1.0);
     fragColor = colors[gl_VertexIndex];
 }
@@ -206,10 +207,12 @@ DescribedBuffer* GenBufferEx_Vk(const void *data, size_t size, BufferUsage usage
         throw std::runtime_error("failed to allocate vertex buffer memory!");
     }
     vkBindBufferMemory(g_vulkanstate.device, vertexBuffer, vertexBufferMemory, 0);
-    void* mapdata;
-    vkMapMemory(g_vulkanstate.device, vertexBufferMemory, 0, bufferInfo.size, 0, &mapdata);
-    memcpy(mapdata, data, (size_t)bufferInfo.size);
-    vkUnmapMemory(g_vulkanstate.device, vertexBufferMemory);
+    if(data != nullptr){
+        void* mapdata;
+        vkMapMemory(g_vulkanstate.device, vertexBufferMemory, 0, bufferInfo.size, 0, &mapdata);
+        memcpy(mapdata, data, (size_t)bufferInfo.size);
+        vkUnmapMemory(g_vulkanstate.device, vertexBufferMemory);
+    }
     ret->buffer = callocnewpp(BufferHandleImpl);
     ((BufferHandle)ret->buffer)->buffer = vertexBuffer;
     ((BufferHandle)ret->buffer)->memory = vertexBufferMemory;
@@ -217,10 +220,11 @@ DescribedBuffer* GenBufferEx_Vk(const void *data, size_t size, BufferUsage usage
     //vkMapMemory(g_vulkanstate.device, vertexBufferMemory, 0, size, void **ppData)
     ret->size = bufferInfo.size;
     ret->usage = usage;
-    void* mdata;
-    vkMapMemory(g_vulkanstate.device, vertexBufferMemory, 0, bufferInfo.size, 0, &mdata);
-    memcpy(mdata, data, (size_t)bufferInfo.size);
-    vkUnmapMemory(g_vulkanstate.device, vertexBufferMemory);
+
+    //void* mdata;
+    //vkMapMemory(g_vulkanstate.device, vertexBufferMemory, 0, bufferInfo.size, 0, &mdata);
+    //memcpy(mdata, data, (size_t)bufferInfo.size);
+    //vkUnmapMemory(g_vulkanstate.device, vertexBufferMemory);
     return ret;
 }
 // Function to find a suitable memory type
@@ -913,7 +917,13 @@ void mainLoop(GLFWwindow *window) {
     DescribedBuffer* inst_bo = GenBufferEx_Vk(offsets, sizeof(offsets), BufferUsage_Vertex | WGPUBufferUsage_CopyDst);
     VertexAttribPointer(vao, vbo, 0, VertexFormat_Float32x2, 0, VertexStepMode_Vertex);
     VertexAttribPointer(vao, inst_bo, 1, VertexFormat_Float32x2, 0, VertexStepMode_Instance);
-
+    renderBatchVBO = GenBufferEx_Vk(nullptr, 10000 * sizeof(vertex), BufferUsage_Vertex | BufferUsage_CopyDst);
+    
+    renderBatchVAO = LoadVertexArray();
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 0, VertexFormat_Float32x3, 0 * sizeof(float), VertexStepMode_Vertex);
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 1, VertexFormat_Float32x2, 3 * sizeof(float), VertexStepMode_Vertex);
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 2, VertexFormat_Float32x3, 5 * sizeof(float), VertexStepMode_Vertex);
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 3, VertexFormat_Unorm8x4,  8 * sizeof(float), VertexStepMode_Vertex);
     //VertexBufferLayoutSet layoutset = getBufferLayoutRepresentation(vao->attributes.data(), vao->attributes.size());
     //auto pair_of_dings = genericVertexLayoutSetToVulkan(layoutset);
     //vkCmdSetVertexInputEXT(VkCommandBuffer commandBuffer, uint32_t vertexBindingDescriptionCount, const VkVertexInputBindingDescription2EXT *pVertexBindingDescriptions, uint32_t vertexAttributeDescriptionCount, const VkVertexInputAttributeDescription2EXT *pVertexAttributeDescriptions)
