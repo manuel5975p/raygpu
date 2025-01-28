@@ -745,7 +745,7 @@ RenderSettings GetDefaultSettings(){
     return ret;
 }
 DescribedPipeline* DefaultPipeline(){
-    return g_renderstate.rstate->defaultPipeline;
+    return g_renderstate.defaultPipeline;
 }
 extern "C" void UnloadPipeline(DescribedPipeline* pl){
     

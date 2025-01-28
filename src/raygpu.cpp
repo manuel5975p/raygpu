@@ -247,7 +247,7 @@ extern "C" void DrawArraysIndexed(WGPUPrimitiveTopology drawMode, DescribedBuffe
     BindPipeline(GetActivePipeline(), drawMode);
     //PreparePipeline(GetActivePipeline(), VertexArray *va)
     //TRACELOG(LOG_INFO, "a oooo");
-    //auto& rp = g_renderstate.rstate->renderpass.rpEncoder;  
+    //auto& rp = g_renderstate.renderpass.rpEncoder;  
     if(GetActivePipeline()->bindGroup.needsUpdate){
         RenderPassSetBindGroup(GetActiveRenderPass(), 0, &GetActivePipeline()->bindGroup);
     }
@@ -336,9 +336,9 @@ __attribute__((weak)) void drawCurrentBatch(){
             BindPipeline(GetActivePipeline(), WGPUPrimitiveTopology_LineList);
             BindPipelineVertexArray(GetActivePipeline(), renderBatchVAO);
             DrawArrays(WGPUPrimitiveTopology_LineList, vertexCount);
-            //wgpuRenderPassEncoderSetBindGroup(g_renderstate.rstate->renderpass.rpEncoder, 0, GetWGPUBindGroup(&GetActivePipeline()->bindGroup), 0, 0);
-            //wgpuRenderPassEncoderSetVertexBuffer(g_renderstate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, wgpuBufferGetSize(vbo.buffer));
-            //wgpuRenderPassEncoderDraw(g_renderstate.rstate->renderpass.rpEncoder, vertexCount, 1, 0, 0);
+            //wgpuRenderPassEncoderSetBindGroup(g_renderstate.renderpass.rpEncoder, 0, GetWGPUBindGroup(&GetActivePipeline()->bindGroup), 0, 0);
+            //wgpuRenderPassEncoderSetVertexBuffer(g_renderstate.renderpass.rpEncoder, 0, vbo.buffer, 0, wgpuBufferGetSize(vbo.buffer));
+            //wgpuRenderPassEncoderDraw(g_renderstate.renderpass.rpEncoder, vertexCount, 1, 0, 0);
             
             GetActivePipeline()->bindGroup.needsUpdate = true;
         }break;
@@ -356,9 +356,9 @@ __attribute__((weak)) void drawCurrentBatch(){
             DrawArrays(WGPUPrimitiveTopology_TriangleList, vertexCount);
             //abort();
             //vboptr = vboptr_base;
-            //BindPipeline(g_renderstate.rstate->activePipeline, WGPUPrimitiveTopology_TriangleList);
-            //wgpuRenderPassEncoderSetVertexBuffer(g_renderstate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, wgpuBufferGetSize(vbo.buffer));
-            //wgpuRenderPassEncoderDraw(g_renderstate.rstate->renderpass.rpEncoder, vertexCount, 1, 0, 0);
+            //BindPipeline(g_renderstate.activePipeline, WGPUPrimitiveTopology_TriangleList);
+            //wgpuRenderPassEncoderSetVertexBuffer(g_renderstate.renderpass.rpEncoder, 0, vbo.buffer, 0, wgpuBufferGetSize(vbo.buffer));
+            //wgpuRenderPassEncoderDraw(g_renderstate.renderpass.rpEncoder, vertexCount, 1, 0, 0);
             //if(!allocated_via_pool){
             //    wgpuBufferRelease(vbo.buffer);
             //}
@@ -386,16 +386,16 @@ __attribute__((weak)) void drawCurrentBatch(){
                 //g_renderstate.quadindicesCache = GenBufferEx(indices.data(), 6 * quadCount * sizeof(uint32_t), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index);
             }
             const DescribedBuffer* ibuf = g_renderstate.quadindicesCache;
-            //BindPipeline(g_renderstate.rstate->activePipeline, WGPUPrimitiveTopology_TriangleList);
-            //g_renderstate.rstate->activePipeline
+            //BindPipeline(g_renderstate.activePipeline, WGPUPrimitiveTopology_TriangleList);
+            //g_renderstate.activePipeline
             BindPipelineVertexArray(GetActivePipeline(), renderBatchVAO);
             DrawArraysIndexed(WGPUPrimitiveTopology_TriangleList, *ibuf, quadCount * 6);
 
             //wgpuQueueWriteBuffer(GetQueue(), vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
             
-            //wgpuRenderPassEncoderSetVertexBuffer(g_renderstate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, vertexCount * sizeof(vertex));
-            //wgpuRenderPassEncoderSetIndexBuffer (g_renderstate.rstate->renderpass.rpEncoder, ibuf.buffer, WGPUIndexFormat_Uint32, 0, quadCount * 6 * sizeof(uint32_t));
-            //wgpuRenderPassEncoderDrawIndexed    (g_renderstate.rstate->renderpass.rpEncoder, quadCount * 6, 1, 0, 0, 0);
+            //wgpuRenderPassEncoderSetVertexBuffer(g_renderstate.renderpass.rpEncoder, 0, vbo.buffer, 0, vertexCount * sizeof(vertex));
+            //wgpuRenderPassEncoderSetIndexBuffer (g_renderstate.renderpass.rpEncoder, ibuf.buffer, WGPUIndexFormat_Uint32, 0, quadCount * 6 * sizeof(uint32_t));
+            //wgpuRenderPassEncoderDrawIndexed    (g_renderstate.renderpass.rpEncoder, quadCount * 6, 1, 0, 0, 0);
             
             //if(!allocated_via_pool){
             //    wgpuBufferRelease(vbo.buffer);
@@ -445,12 +445,12 @@ void adaptRenderPass(DescribedRenderpass* drp, RenderSettings settings){
 }
 extern "C" void BeginPipelineMode(DescribedPipeline* pipeline){
     drawCurrentBatch();
-    if(!RenderSettingsComptatible(pipeline->settings, g_renderstate.rstate->renderpass.settings)){
+    if(!RenderSettingsComptatible(pipeline->settings, g_renderstate.renderpass.settings)){
         EndRenderpass();
-        adaptRenderPass(&g_renderstate.rstate->renderpass, pipeline->settings);
+        adaptRenderPass(&g_renderstate.renderpass, pipeline->settings);
         BeginRenderpass();
     }
-    g_renderstate.rstate->activePipeline = pipeline;
+    g_renderstate.activePipeline = pipeline;
     uint32_t location = GetUniformLocation(pipeline, RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION_VIEW);
     if(location != LOCATION_NOT_FOUND){
         SetUniformBufferData(location, &g_renderstate.matrixStack[g_renderstate.stackPosition], sizeof(Matrix));
@@ -459,18 +459,18 @@ extern "C" void BeginPipelineMode(DescribedPipeline* pipeline){
 }
 extern "C" void EndPipelineMode(){
     drawCurrentBatch();
-    if(!RenderSettingsComptatible(g_renderstate.rstate->defaultPipeline->settings, g_renderstate.rstate->renderpass.settings)){
+    if(!RenderSettingsComptatible(g_renderstate.defaultPipeline->settings, g_renderstate.renderpass.settings)){
         EndRenderpass();
-        adaptRenderPass(&g_renderstate.rstate->renderpass, g_renderstate.rstate->defaultPipeline->settings);
+        adaptRenderPass(&g_renderstate.renderpass, g_renderstate.defaultPipeline->settings);
         BeginRenderpass();
     }
-    g_renderstate.rstate->activePipeline = g_renderstate.rstate->defaultPipeline;
-    //BindPipeline(g_renderstate.rstate->activePipeline, g_renderstate.rstate->activePipeline->lastUsedAs);
+    g_renderstate.activePipeline = g_renderstate.defaultPipeline;
+    //BindPipeline(g_renderstate.activePipeline, g_renderstate.activePipeline->lastUsedAs);
 }
 extern "C" void BeginMode2D(Camera2D camera){
     drawCurrentBatch();
     Matrix mat = GetCameraMatrix2D(camera);
-    mat = MatrixMultiply(ScreenMatrix(g_renderstate.rstate->renderExtentX, g_renderstate.rstate->renderExtentY), mat);
+    mat = MatrixMultiply(ScreenMatrix(g_renderstate.renderExtentX, g_renderstate.renderExtentY), mat);
     PushMatrix();
     SetMatrix(mat);
     SetUniformBufferData(0, &mat, sizeof(Matrix));
@@ -478,13 +478,13 @@ extern "C" void BeginMode2D(Camera2D camera){
 extern "C" void EndMode2D(){
     drawCurrentBatch();
     PopMatrix();
-    //g_renderstate.activeScreenMatrix = ScreenMatrix(g_renderstate.rstate->renderExtentX, g_renderstate.rstate->renderExtentY);
+    //g_renderstate.activeScreenMatrix = ScreenMatrix(g_renderstate.renderExtentX, g_renderstate.renderExtentY);
     
     SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
 }
 void BeginMode3D(Camera3D camera){
     drawCurrentBatch();
-    Matrix mat = GetCameraMatrix3D(camera, float(g_renderstate.rstate->renderExtentX) / g_renderstate.rstate->renderExtentY);
+    Matrix mat = GetCameraMatrix3D(camera, float(g_renderstate.renderExtentX) / g_renderstate.renderExtentY);
     //g_renderstate.activeScreenMatrix = mat;
     PushMatrix();
     SetMatrix(mat);
@@ -493,7 +493,7 @@ void BeginMode3D(Camera3D camera){
 void EndMode3D(){
     drawCurrentBatch();
     
-    //g_renderstate.activeScreenMatrix = ScreenMatrix(g_renderstate.rstate->renderExtentX, g_renderstate.rstate->renderExtentY);
+    //g_renderstate.activeScreenMatrix = ScreenMatrix(g_renderstate.renderExtentX, g_renderstate.renderExtentY);
     PopMatrix();
     SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
 }
@@ -501,31 +501,31 @@ extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology 
     switch(drawMode){
         case WGPUPrimitiveTopology_TriangleList:
         //std::cout << "Binding: " <<  pipeline->pipeline << "\n";
-        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.rstate->renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleList);
+        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleList);
         break;
         case WGPUPrimitiveTopology_TriangleStrip:
-        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.rstate->renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleStrip);
+        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleStrip);
         break;
         case WGPUPrimitiveTopology_LineList:
-        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.rstate->renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_LineList);
+        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_LineList);
         break;
         case WGPUPrimitiveTopology_PointList:
-        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.rstate->renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_PointList);
+        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_PointList);
         break;
         default:
             assert(false && "Unsupported Drawmode");
             abort();
     }
     //pipeline->lastUsedAs = drawMode;
-    wgpuRenderPassEncoderSetBindGroup ((WGPURenderPassEncoder)g_renderstate.rstate->renderpass.rpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
+    wgpuRenderPassEncoderSetBindGroup ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
 
 }
 extern "C" void BindComputePipeline(DescribedComputePipeline* pipeline){
-    wgpuComputePassEncoderSetPipeline ((WGPUComputePassEncoder)g_renderstate.rstate->computepass.cpEncoder, (WGPUComputePipeline)pipeline->pipeline);
-    wgpuComputePassEncoderSetBindGroup((WGPUComputePassEncoder)g_renderstate.rstate->computepass.cpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
+    wgpuComputePassEncoderSetPipeline ((WGPUComputePassEncoder)g_renderstate.computepass.cpEncoder, (WGPUComputePipeline)pipeline->pipeline);
+    wgpuComputePassEncoderSetBindGroup((WGPUComputePassEncoder)g_renderstate.computepass.cpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
 }
 extern "C" void CopyBufferToBuffer(DescribedBuffer* source, DescribedBuffer* dest, size_t count){
-    wgpuCommandEncoderCopyBufferToBuffer((WGPUCommandEncoder)g_renderstate.rstate->computepass.cmdEncoder, (WGPUBuffer)source->buffer, 0, (WGPUBuffer)dest->buffer, 0, count);
+    wgpuCommandEncoderCopyBufferToBuffer((WGPUCommandEncoder)g_renderstate.computepass.cmdEncoder, (WGPUBuffer)source->buffer, 0, (WGPUBuffer)dest->buffer, 0, count);
 }
 WGPUBuffer intermediary = 0;
 extern "C" void CopyTextureToTexture(Texture source, Texture dest){
@@ -564,11 +564,11 @@ extern "C" void CopyTextureToTexture(Texture source, Texture dest){
     copySize.height = source.height;
     copySize.depthOrArrayLayers = 1;
     
-    wgpuCommandEncoderCopyTextureToBuffer((WGPUCommandEncoder)g_renderstate.rstate->computepass.cmdEncoder, &src, &bdst, &copySize);
-    wgpuCommandEncoderCopyBufferToTexture((WGPUCommandEncoder)g_renderstate.rstate->computepass.cmdEncoder, &bdst, &tdst, &copySize);
+    wgpuCommandEncoderCopyTextureToBuffer((WGPUCommandEncoder)g_renderstate.computepass.cmdEncoder, &src, &bdst, &copySize);
+    wgpuCommandEncoderCopyBufferToTexture((WGPUCommandEncoder)g_renderstate.computepass.cmdEncoder, &bdst, &tdst, &copySize);
     
     //Doesnt work unfortunately:
-    //wgpuCommandEncoderCopyTextureToTexture(g_renderstate.rstate->computepass.cmdEncoder, &src, &dst, &copySize);
+    //wgpuCommandEncoderCopyTextureToTexture(g_renderstate.computepass.cmdEncoder, &src, &dst, &copySize);
     
     //wgpuBufferRelease(intermediary);
 }
@@ -625,13 +625,13 @@ void BeginRenderpassEx(DescribedRenderpass* renderPass){
     
     
     renderPass->rpEncoder = wgpuCommandEncoderBeginRenderPass((WGPUCommandEncoder)renderPass->cmdEncoder, &renderPassDesc);
-    g_renderstate.rstate->activeRenderpass = renderPass;
+    g_renderstate.activeRenderpass = renderPass;
 }
 
 void EndRenderpassEx(DescribedRenderpass* renderPass){
     drawCurrentBatch();
     wgpuRenderPassEncoderEnd((WGPURenderPassEncoder)renderPass->rpEncoder);
-    g_renderstate.rstate->activeRenderpass = nullptr;
+    g_renderstate.activeRenderpass = nullptr;
     auto re = renderPass->rpEncoder;
     renderPass->rpEncoder = 0;
     WGPUCommandBufferDescriptor cmdBufferDescriptor{};
@@ -643,43 +643,43 @@ void EndRenderpassEx(DescribedRenderpass* renderPass){
     wgpuCommandBufferRelease(command);
 }
 void BeginRenderpass(cwoid){
-    BeginRenderpassEx(&g_renderstate.rstate->renderpass);
+    BeginRenderpassEx(&g_renderstate.renderpass);
 }
 void EndRenderpass(cwoid){
-    EndRenderpassEx(&g_renderstate.rstate->renderpass);
+    EndRenderpassEx(&g_renderstate.renderpass);
 }
 extern "C" void ClearBackground(Color clearColor){
     bool rpActive = GetActiveRenderPass() != nullptr;
     DescribedRenderpass* backup = GetActiveRenderPass();
     if(rpActive){
-        EndRenderpassEx(g_renderstate.rstate->activeRenderpass);
+        EndRenderpassEx(g_renderstate.activeRenderpass);
     }
-    g_renderstate.rstate->clearPass.colorClear = DColor{clearColor.r / 255.0, clearColor.g / 255.0, clearColor.b / 255.0, clearColor.a / 255.0};
-    BeginRenderpassEx(&g_renderstate.rstate->clearPass);
-    EndRenderpassEx(&g_renderstate.rstate->clearPass);
+    g_renderstate.clearPass.colorClear = DColor{clearColor.r / 255.0, clearColor.g / 255.0, clearColor.b / 255.0, clearColor.a / 255.0};
+    BeginRenderpassEx(&g_renderstate.clearPass);
+    EndRenderpassEx(&g_renderstate.clearPass);
     if(rpActive){
         BeginRenderpassEx(backup);
     }
 
 }
 void BeginComputepass(){
-    BeginComputepassEx(&g_renderstate.rstate->computepass);
+    BeginComputepassEx(&g_renderstate.computepass);
 }
 void DispatchCompute(uint32_t x, uint32_t y, uint32_t z){
-    wgpuComputePassEncoderDispatchWorkgroups((WGPUComputePassEncoder)g_renderstate.rstate->computepass.cpEncoder, x, y, z);
+    wgpuComputePassEncoderDispatchWorkgroups((WGPUComputePassEncoder)g_renderstate.computepass.cpEncoder, x, y, z);
 }
 void ComputepassEndOnlyComputing(cwoid){
-    wgpuComputePassEncoderEnd((WGPUComputePassEncoder)g_renderstate.rstate->computepass.cpEncoder);
-    g_renderstate.rstate->computepass.cpEncoder = nullptr;
+    wgpuComputePassEncoderEnd((WGPUComputePassEncoder)g_renderstate.computepass.cpEncoder);
+    g_renderstate.computepass.cpEncoder = nullptr;
 }
 void EndComputepass(){
-    EndComputepassEx(&g_renderstate.rstate->computepass);
+    EndComputepassEx(&g_renderstate.computepass);
 }
 void BeginComputepassEx(DescribedComputepass* computePass){
     computePass->cmdEncoder = wgpuDeviceCreateCommandEncoder(GetDevice(), nullptr);
     WGPUComputePassDescriptor desc{};
     desc.label = STRVIEW("ComputePass");
-    g_renderstate.rstate->computepass.cpEncoder = wgpuCommandEncoderBeginComputePass((WGPUCommandEncoder)g_renderstate.rstate->computepass.cmdEncoder, &desc);
+    g_renderstate.computepass.cpEncoder = wgpuCommandEncoderBeginComputePass((WGPUCommandEncoder)g_renderstate.computepass.cmdEncoder, &desc);
 
 }
 void EndComputepassEx(DescribedComputepass* computePass){
@@ -689,7 +689,7 @@ void EndComputepassEx(DescribedComputepass* computePass){
     }
     
     //TODO
-    g_renderstate.rstate->activeComputepass = nullptr;
+    g_renderstate.activeComputepass = nullptr;
 
     WGPUCommandBufferDescriptor cmdBufferDescriptor{};
     cmdBufferDescriptor.label = STRVIEW("CB");
@@ -776,9 +776,9 @@ void BeginDrawing(){
         
 
         //g_renderstate.drawmutex.lock();
-        g_renderstate.rstate->renderExtentX = g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer.texture.width;
+        g_renderstate.renderExtentX = g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer.texture.width;
         g_renderstate.width = g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer.texture.width;
-        g_renderstate.rstate->renderExtentY = g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer.texture.height;
+        g_renderstate.renderExtentY = g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer.texture.height;
         g_renderstate.height = g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer.texture.height;
         //std::cout << g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer.depth.width << std::endl;
         GetNewTexture(&g_renderstate.createdSubwindows[g_renderstate.window].surface);
@@ -786,9 +786,9 @@ void BeginDrawing(){
         g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition] = g_renderstate.mainWindowRenderTarget;
         //__builtin_dump_struct(&(g_renderstate.mainWindowRenderTarget.depth), printf);
     }
-    BeginRenderpassEx(&g_renderstate.rstate->renderpass);
+    BeginRenderpassEx(&g_renderstate.renderpass);
     //SetUniformBuffer(0, g_renderstate.defaultScreenMatrix);
-    SetMatrix(ScreenMatrix(g_renderstate.rstate->renderExtentX, g_renderstate.rstate->renderExtentY));
+    SetMatrix(ScreenMatrix(g_renderstate.renderExtentX, g_renderstate.renderExtentY));
     SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
     
     if(IsKeyPressed(KEY_F2) && (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL) || true)){
@@ -799,15 +799,15 @@ void BeginDrawing(){
             StartGIFRecording();
         }
     }
-    //EndRenderPass(&g_renderstate.rstate->clearPass);
-    //BeginRenderPass(&g_renderstate.rstate->renderpass);
+    //EndRenderPass(&g_renderstate.clearPass);
+    //BeginRenderPass(&g_renderstate.renderpass);
     //UseNoTexture();
     //updateBindGroup(g_renderstate.rstate);
 }
 void EndDrawing(){
-    if(g_renderstate.rstate->activeRenderpass){
+    if(g_renderstate.activeRenderpass){
         drawCurrentBatch();
-        EndRenderpassEx(g_renderstate.rstate->activeRenderpass);
+        EndRenderpassEx(g_renderstate.activeRenderpass);
     }
     if(g_renderstate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
         Image img = LoadImageFromTextureEx((WGPUTexture)GetActiveColorTarget(), 0);
@@ -933,9 +933,9 @@ void rlBegin(draw_mode mode){
     
     if(current_drawmode != mode){
         drawCurrentBatch();
-        //assert(g_renderstate.rstate->activeRenderPass == &g_renderstate.rstate->renderpass);
-        //EndRenderpassEx(&g_renderstate.rstate->renderpass);
-        //BeginRenderpassEx(&g_renderstate.rstate->renderpass);
+        //assert(g_renderstate.activeRenderPass == &g_renderstate.renderpass);
+        //EndRenderpassEx(&g_renderstate.renderpass);
+        //BeginRenderpassEx(&g_renderstate.renderpass);
     }
     if(mode == RL_LINES){ //TODO: Fix this, why is this required? Check core_msaa and comment this out to trigger a bug
         SetTexture(1, g_renderstate.whitePixel);
@@ -1367,7 +1367,7 @@ void GenTextureMipmaps(Texture2D* tex){
         if(i == 0){
             BindComputePipeline(cpl);
         }
-        ComputePassSetBindGroup(&g_renderstate.rstate->computepass, 0, &cpl->bindGroup);
+        ComputePassSetBindGroup(&g_renderstate.computepass, 0, &cpl->bindGroup);
         uint32_t divisor = (1 << i) * 8;
         DispatchCompute((tex->width + divisor - 1) & -(divisor) / 8, (tex->height + divisor - 1) & -(divisor) / 8, 1);
     }
@@ -1492,127 +1492,10 @@ inline WGPUVertexFormat f32format(uint32_t s){
     __builtin_unreachable();
 }
 DescribedRenderpass* GetActiveRenderPass(){
-    return g_renderstate.rstate->activeRenderpass;
+    return g_renderstate.activeRenderpass;
 }
 DescribedPipeline* GetActivePipeline(){
-    return g_renderstate.rstate->activePipeline;
-}
-void init_full_renderstate(full_renderstate* state, const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniform_count, WGPUTextureView c, WGPUTextureView d){
-    //state->shader = sh;
-    state->color = c;
-    state->depth = d;
-    RenderSettings settings = GetDefaultSettings();
-    //settings.depthTest = 1;
-    //settings.depthCompare = WGPUCompareFunction_LessEqual;
-    //settings.optionalDepthTexture = d;
-    //settings.sampleCount = (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
-    //state->computepass = DescribedComputepass{};
-    state->renderpass = LoadRenderpassEx(c, d, settings);
-    //state->renderpass.renderPassDesc.label = STRVIEW("g_renderstate::render_pass");
-    state->clearPass = LoadRenderpassEx(c, d, settings);
-    //state->clearPass.renderPassDesc.label = STRVIEW("g_renderstate::clear_pass");
-    //if(state->clearPass.dsa){
-    //state->clearPass.depthClearValue = 1.0;
-    state->clearPass.colorLoadOp  = LoadOp_Clear;
-    state->clearPass.colorStoreOp = StoreOp_Store;
-    state->clearPass.depthLoadOp  = LoadOp_Clear;
-    state->clearPass.depthStoreOp = StoreOp_Store;
-    //}
-    //state->clearPass.rca->clearValue = WGPUColor{1.0, 0.4, 0.2, 1.0};
-    //state->clearPass.rca->loadOp = WGPULoadOp_Clear;
-    //state->clearPass.rca->storeOp = WGPUStoreOp_Store;
-    //state->activeRenderpass = nullptr;
-    state->defaultPipeline = LoadPipelineEx(shaderSource, attribs, attribCount, uniforms, uniform_count, settings);
-    state->activePipeline = state->defaultPipeline;
-    g_renderstate.quadindicesCache = callocnew(DescribedBuffer);    //WGPUBufferDescriptor vbmdesc{};
-    g_renderstate.quadindicesCache->usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
-    //vbmdesc.mappedAtCreation = true;
-    //vbmdesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_MapWrite;
-    //vbmdesc.size = (1 << 22) * sizeof(vertex);
-    //vbomap.buffer = wgpuDeviceCreateBuffer(GetDevice(), &vbmdesc);
-    //vbomap.descriptor = vbmdesc;
-    vboptr_base = nullptr;
-    //vboptr = (vertex*)wgpuBufferGetMappedRange(vbomap.buffer, 0, vbmdesc.size);
-    vboptr = (vertex*)calloc(10000, sizeof(vertex));
-    renderBatchVBO = GenVertexBuffer(nullptr, 10000 * sizeof(vertex));
-    
-    renderBatchVAO = LoadVertexArray();
-    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 0, VertexFormat_Float32x3, 0 * sizeof(float), VertexStepMode_Vertex);
-    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 1, VertexFormat_Float32x2, 3 * sizeof(float), VertexStepMode_Vertex);
-    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 2, VertexFormat_Float32x3, 5 * sizeof(float), VertexStepMode_Vertex);
-    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 3, VertexFormat_Float32x4, 8 * sizeof(float), VertexStepMode_Vertex);
-    vboptr_base = vboptr;
-    //state->defaultPipeline->lastUsedAs = WGPUPrimitiveTopology_TriangleList;
-    //std::cout << "VBO Punkter: " << vboptr << "\n";
-    //std::cout << "Mapped: " << vboptr <<"\n";
-    //exit(0);
-    /*{
-        std::vector<WGPUBindGroupLayoutEntry> blayouts(shader_inputs.uniform_count);
-        state->pipeline.bglayout = DescribedBindGroupLayout{};
-        std::memset(blayouts.data(), 0, blayouts.size() * sizeof(WGPUBindGroupLayoutEntry));
-        for(size_t i = 0;i < shader_inputs.uniform_count;i++){
-            blayouts[i].binding = i;
-            switch(shader_inputs.uniform_types[i]){
-                case uniform_buffer:
-                    blayouts[i].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
-                    blayouts[i].buffer.type = WGPUBufferBindingType_Uniform;
-                    blayouts[i].buffer.minBindingSize = shader_inputs.uniform_minsizes[i];
-                break;
-                case storage_buffer:{
-                    blayouts[i].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
-                    blayouts[i].buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-                    blayouts[i].buffer.minBindingSize = 0;
-                }
-                break;
-                case texture2d:
-                    blayouts[i].visibility = WGPUShaderStage_Fragment;
-                    blayouts[i].texture.sampleType = WGPUTextureSampleType_Float;
-                    blayouts[i].texture.viewDimension = WGPUTextureViewDimension_2D;
-                break;
-                case sampler:
-                    blayouts[i].visibility = WGPUShaderStage_Fragment;
-                    blayouts[i].sampler.type = WGPUSamplerBindingType_Filtering;
-                break;
-                default:break;
-            }
-        }
-        state->pipeline.bglayout.descriptor.entryCount = shader_inputs.uniform_count;
-        state->pipeline.bglayout.descriptor.entries = blayouts.data();
-        state->pipeline.bglayout.descriptor.label = STRVIEW("GlobalRenderState_BindGroupLayout");
-        state->pipeline.bglayout.layout = wgpuDeviceCreateBindGroupLayout(g_renderstate.device, &state->pipeline.bglayout.descriptor);
-    }*/
-    
-    //state->bg = 0;
-    //std::memset(state->bgEntries, 0, 8 * sizeof(WGPUBindGroupEntry));
-    /*{
-        uint32_t offset = 0;
-        //assert(vattribute_sizes.size() <= 8);
-        for(uint32_t i = 0;i < shader_inputs.per_vertex_count;i++){
-            state->attribs[i].shaderLocation = i;
-            state->attribs[i].format = f32format(shader_inputs.per_vertex_sizes[i]);
-            state->attribs[i].offset = offset * sizeof(float);
-            offset += shader_inputs.per_vertex_sizes[i];
-        }
-        state->vlayout.attributeCount = shader_inputs.per_vertex_count;
-        state->vlayout.attributes = state->attribs;
-        state->vlayout.arrayStride = sizeof(vertex);
-        state->vlayout.stepMode = WGPUVertexStepMode_Vertex;  
-        updatePipeline(state, RL_TRIANGLES);
-    }*/
-
-    //WGPUBindGroupEntry hacc[8] = {};
-    //memset(hacc, 0, sizeof(hacc));
-    //for(uint32_t i = 0;i < 8;i++){
-    //    hacc[i] = WGPUBindGroupEntry{};
-    //    hacc[i].binding = i;
-    //    hacc[i].buffer = 0;
-    //}
-    //state->pipeline.bindGroup = LoadBindGroup(&state->pipeline, hacc, 4);
-    //state->currentBindGroup.entries = (WGPUBindGroupEntry*)calloc(8, sizeof(WGPUBindGroupEntry));// = LoadBindGroup(&state->pipeline, nullptr, 0);
-    //state->currentBindGroup.desc.entries = state->currentBindGroup.entries;
-    //state->currentBindGroup.desc.entryCount = 4;
-    //state->currentBindGroup.desc.layout = state->pipeline.bglayout.layout;
-    
+    return g_renderstate.activePipeline;
 }
 
 void SetTexture                   (uint32_t index, Texture tex){
@@ -1802,7 +1685,7 @@ WGPURenderPassDepthStencilAttachment* defaultDSA(WGPUTextureView depth){
     dsa->stencilReadOnly = true;
     return dsa;
 }
-extern "C" DescribedRenderpass LoadRenderpassEx(WGPUTextureView color, WGPUTextureView depth, RenderSettings settings){
+extern "C" DescribedRenderpass LoadRenderpassEx(RenderSettings settings){
     DescribedRenderpass ret{};
     
     ret.colorClear = DColor{0,0,0,0};
@@ -1860,8 +1743,8 @@ void UnloadRenderpass(DescribedRenderpass rp){
     //if(rp.dsa)free(rp.dsa);
     //rp.dsa = nullptr;
 }
-extern "C" DescribedRenderpass LoadRenderpass(WGPUTextureView color, WGPUTextureView depth){
-    return LoadRenderpassEx(color, depth, GetDefaultSettings());
+extern "C" DescribedRenderpass LoadRenderpass(){
+    return LoadRenderpassEx(GetDefaultSettings());
 }
 DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode mipmapFilter, float maxAnisotropy){
     DescribedSampler ret zeroinit;
@@ -1904,9 +1787,9 @@ NativeImageHandle GetActiveColorTarget(){
 
 /*void setTargetTextures(full_renderstate* state, WGPUTextureView c, WGPUTextureView cms, WGPUTextureView d){
     DescribedRenderpass* restart = nullptr;
-    if(g_renderstate.rstate->activeRenderpass){
-        restart = g_renderstate.rstate->activeRenderpass;
-        EndRenderpassEx(g_renderstate.rstate->activeRenderpass);
+    if(g_renderstate.activeRenderpass){
+        restart = g_renderstate.activeRenderpass;
+        EndRenderpassEx(g_renderstate.activeRenderpass);
     }
     state->color = c;
     state->depth = d;
@@ -2110,13 +1993,13 @@ void UseTexture(Texture tex){
     if(texture0loc == LOCATION_NOT_FOUND){
         return;
     }
-    if(g_renderstate.rstate->activePipeline->bindGroup.entries[texture0loc].textureView == tex.view)return;
+    if(g_renderstate.activePipeline->bindGroup.entries[texture0loc].textureView == tex.view)return;
     drawCurrentBatch();
     SetTexture(texture0loc, tex);
     //WGPUBindGroupEntry entry{};
     //entry.binding = 1;
     //entry.textureView = tex.view;
-    //UpdateBindGroupEntry(&g_renderstate.rstate->currentPipeline->bindGroup, 1, entry);
+    //UpdateBindGroupEntry(&g_renderstate.currentPipeline->bindGroup, 1, entry);
     //if(g_renderstate.activeTexture.tex != tex.tex){
     //    drawCurrentBatch();
     //    g_renderstate.activeTexture = tex;
@@ -2127,7 +2010,7 @@ void UseTexture(Texture tex){
 void UseNoTexture(){
     uint32_t textureLocation = GetUniformLocation(GetActivePipeline(), RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE0);
     if(textureLocation != LOCATION_NOT_FOUND){
-        if(g_renderstate.rstate->activePipeline->bindGroup.entries[textureLocation].textureView == g_renderstate.whitePixel.view)return;
+        if(g_renderstate.activePipeline->bindGroup.entries[textureLocation].textureView == g_renderstate.whitePixel.view)return;
         drawCurrentBatch();
         SetTexture(textureLocation, g_renderstate.whitePixel);
         //uint32_t samplerLocation = GetUniformLocation(GetActivePipeline(), "texSampler");
@@ -2137,7 +2020,7 @@ void UseNoTexture(){
     //WGPUBindGroupEntry entry{};
     //entry.binding = 1;
     //entry.textureView = g_renderstate.whitePixel.view;
-    //UpdateBindGroupEntry(&g_renderstate.rstate->currentPipeline->bindGroup, 1, entry);
+    //UpdateBindGroupEntry(&g_renderstate.currentPipeline->bindGroup, 1, entry);
     //if(g_renderstate.activeTexture.tex != g_renderstate.whitePixel.tex){
     //    drawCurrentBatch();
     //    setStateTexture(g_renderstate.rstate, 1, g_renderstate.whitePixel);
@@ -2166,12 +2049,12 @@ void executeRenderpass(callable&& c){
 void BeginTextureMode(RenderTexture rtex){
     ++g_renderstate.renderTargetStackPosition;
     g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition] = rtex;
-    g_renderstate.rstate->renderExtentX = rtex.texture.width;
-    g_renderstate.rstate->renderExtentY = rtex.texture.height;
-    //std::cout << std::format("{} x {}\n", g_renderstate.rstate->renderExtentX, g_renderstate.rstate->renderExtentY);
+    g_renderstate.renderExtentX = rtex.texture.width;
+    g_renderstate.renderExtentY = rtex.texture.height;
+    //std::cout << std::format("{} x {}\n", g_renderstate.renderExtentX, g_renderstate.renderExtentY);
     //setTargetTextures(g_renderstate.rstate, rtex.texture.view, rtex.colorMultisample.view, rtex.depth.view);
     PushMatrix();
-    Matrix mat = ScreenMatrix(g_renderstate.rstate->renderExtentX, g_renderstate.rstate->renderExtentY);
+    Matrix mat = ScreenMatrix(g_renderstate.renderExtentX, g_renderstate.renderExtentY);
     SetMatrix(mat);
     SetUniformBufferData(0, &mat, sizeof(Matrix));
     BeginRenderpass();
@@ -2186,9 +2069,9 @@ void EndTextureMode(){
     //                g_renderstate.currentDefaultRenderTarget.colorMultisample.view,
     //                g_renderstate.currentDefaultRenderTarget.depth.view);
     --g_renderstate.renderTargetStackPosition;
-    g_renderstate.rstate->renderExtentX = g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.width;
-    g_renderstate.rstate->renderExtentY = g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.height;
-    Matrix mat = ScreenMatrix(g_renderstate.rstate->renderExtentX, g_renderstate.rstate->renderExtentY);
+    g_renderstate.renderExtentX = g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.width;
+    g_renderstate.renderExtentY = g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.height;
+    Matrix mat = ScreenMatrix(g_renderstate.renderExtentX, g_renderstate.renderExtentY);
     //SetUniformBuffer(0, g_renderstate.defaultScreenMatrix);
     PopMatrix();
     SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
@@ -2271,8 +2154,8 @@ extern "C" void EndWindowMode(){
 
     //Bad implementation:
     /*drawCurrentBatch();
-    g_renderstate.rstate->renderExtentX = GetScreenWidth();
-    g_renderstate.rstate->renderExtentY = GetScreenHeight();
+    g_renderstate.renderExtentX = GetScreenWidth();
+    g_renderstate.renderExtentY = GetScreenHeight();
     auto state = g_renderstate.rstate;
     auto& c = g_renderstate.currentScreenTextureView;
     auto& cms = colorMultisample.view; 

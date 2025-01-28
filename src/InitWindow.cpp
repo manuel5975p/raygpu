@@ -499,7 +499,7 @@ void negotiateSurfaceFormatAndPresentMode(const wgpu::Surface& surf){
 
 void* InitWindow(uint32_t width, uint32_t height, const char* title){
     #if FORCE_HEADLESS == 1
-    g_wgpustate.windowFlags |= FLAG_HEADLESS;
+    g_renderstate.windowFlags |= FLAG_HEADLESS;
     #endif
     if(g_renderstate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
         if(IsATerminal(stdout)){
@@ -529,7 +529,6 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     TraceLog(LOG_INFO, "Loaded whitepixel texture");
 
     //DescribedShaderModule tShader = LoadShaderModuleFromMemory(shaderSource);
-    g_renderstate.rstate = new full_renderstate;
     
     Matrix identity = MatrixIdentity();
     g_renderstate.identityMatrix = GenStorageBuffer(&identity, sizeof(Matrix));
@@ -590,26 +589,56 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     //g_wgpustate.mainWindowRenderTarget.texture = colorTexture;
     if(g_renderstate.windowFlags & FLAG_MSAA_4X_HINT)
         g_renderstate.mainWindowRenderTarget.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_renderstate.frameBufferFormat, TextureUsage_RenderAttachment | TextureUsage_TextureBinding | TextureUsage_CopyDst | TextureUsage_CopySrc, 4, 1);
-    g_renderstate.mainWindowRenderTarget.depth = LoadTexturePro(width,
+    auto depthTexture = LoadTexturePro(width,
                                   height, 
                                   Depth24, 
                                   WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
                                   (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
                                   1
     );
-    init_full_renderstate(g_renderstate.rstate, shaderSource, attrs, 4, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), (WGPUTextureView)colorTexture.view, (WGPUTextureView)g_renderstate.mainWindowRenderTarget.depth.view);
+    g_renderstate.mainWindowRenderTarget.depth = depthTexture;
+    //init_full_renderstate(g_renderstate.rstate, shaderSource, attrs, 4, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), (WGPUTextureView)colorTexture.view, (WGPUTextureView)g_renderstate.mainWindowRenderTarget.depth.view);
     TRACELOG(LOG_INFO, "Renderstate inited");
-    g_renderstate.rstate->renderExtentX = width;
-    g_renderstate.rstate->renderExtentY = height;
+    g_renderstate.renderExtentX = width;
+    g_renderstate.renderExtentY = height;
     
 
     LoadFontDefault();
     for(size_t i = 0;i < 512;i++){
         g_renderstate.smallBufferPool.push_back(GenVertexBuffer(nullptr, sizeof(vertex) * 32));
     }
-    WGPUCommandEncoderDescriptor cedesc{};
-    cedesc.label = STRVIEW("Global Command Encoder");
-    g_renderstate.rstate->renderpass.cmdEncoder = wgpuDeviceCreateCommandEncoder(g_wgpustate.device.Get(), &cedesc);
+
+    vboptr = (vertex*)std::calloc(10000, sizeof(vertex));
+    renderBatchVBO = GenVertexBuffer(nullptr, 10000 * sizeof(vertex));
+    
+    renderBatchVAO = LoadVertexArray();
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 0, VertexFormat_Float32x3, 0 * sizeof(float), VertexStepMode_Vertex);
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 1, VertexFormat_Float32x2, 3 * sizeof(float), VertexStepMode_Vertex);
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 2, VertexFormat_Float32x3, 5 * sizeof(float), VertexStepMode_Vertex);
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 3, VertexFormat_Float32x4, 8 * sizeof(float), VertexStepMode_Vertex);
+    vboptr_base = vboptr;
+
+
+    g_renderstate.renderpass = LoadRenderpassEx(GetDefaultSettings());
+
+    g_renderstate.clearPass = LoadRenderpassEx(GetDefaultSettings());
+
+    g_renderstate.clearPass.colorLoadOp  = LoadOp_Clear;
+    g_renderstate.clearPass.colorStoreOp = StoreOp_Store;
+    g_renderstate.clearPass.depthLoadOp  = LoadOp_Clear;
+    g_renderstate.clearPass.depthStoreOp = StoreOp_Store;
+    //}
+    //state->clearPass.rca->clearValue = WGPUColor{1.0, 0.4, 0.2, 1.0};
+    //state->clearPass.rca->loadOp = WGPULoadOp_Clear;
+    //state->clearPass.rca->storeOp = WGPUStoreOp_Store;
+    //state->activeRenderpass = nullptr;
+    g_renderstate.defaultPipeline = LoadPipelineForVAOEx(shaderSource, renderBatchVAO, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), GetDefaultSettings());
+    g_renderstate.activePipeline = g_renderstate.defaultPipeline;
+    g_renderstate.quadindicesCache = callocnew(DescribedBuffer);    //WGPUBufferDescriptor vbmdesc{};
+    g_renderstate.quadindicesCache->usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
+    //WGPUCommandEncoderDescriptor cedesc{};
+    //cedesc.label = STRVIEW("Global Command Encoder");
+    //g_renderstate.renderpass.cmdEncoder = wgpuDeviceCreateCommandEncoder(g_wgpustate.device.Get(), &cedesc);
     Matrix m = ScreenMatrix(width, height);
     static_assert(sizeof(Matrix) == 64, "non 4 byte floats? or what");
     //g_wgpustate.defaultScreenMatrix = GenUniformBuffer(&m, sizeof(Matrix));
