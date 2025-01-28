@@ -47,6 +47,7 @@ extern "C" void ToggleFullscreenImpl(cwoid);
 #ifdef __EMSCRIPTEN__
 #endif  // __EMSCRIPTEN__
 wgpustate g_wgpustate{};
+renderstate g_renderstate{};
 
 wgpu::Buffer readtex zeroinit;
 volatile bool waitflag = false;
@@ -178,19 +179,19 @@ void BindVertexArray(VertexArray* va){
 extern "C" void RenderPassSetIndexBuffer(DescribedRenderpass* drp, DescribedBuffer* buffer, WGPUIndexFormat format, uint64_t offset){
     wgpuRenderPassEncoderSetIndexBuffer((WGPURenderPassEncoder)drp->rpEncoder, (WGPUBuffer)buffer->buffer, format, offset, buffer->size);
 }
-void RenderPassSetVertexBuffer(DescribedRenderpass* drp, uint32_t slot, DescribedBuffer* buffer, uint64_t offset){
+extern "C" void RenderPassSetVertexBuffer(DescribedRenderpass* drp, uint32_t slot, DescribedBuffer* buffer, uint64_t offset){
     wgpuRenderPassEncoderSetVertexBuffer((WGPURenderPassEncoder)drp->rpEncoder, slot, (WGPUBuffer)buffer->buffer, offset, buffer->size);
 }
-void RenderPassSetBindGroup(DescribedRenderpass* drp, uint32_t group, DescribedBindGroup* bindgroup){
+extern "C" void RenderPassSetBindGroup(DescribedRenderpass* drp, uint32_t group, DescribedBindGroup* bindgroup){
     wgpuRenderPassEncoderSetBindGroup((WGPURenderPassEncoder)drp->rpEncoder, group, (WGPUBindGroup)GetWGPUBindGroup(bindgroup), 0, nullptr);
 }
-void ComputePassSetBindGroup(DescribedComputepass* drp, uint32_t group, DescribedBindGroup* bindgroup){
+extern "C" void ComputePassSetBindGroup(DescribedComputepass* drp, uint32_t group, DescribedBindGroup* bindgroup){
     wgpuComputePassEncoderSetBindGroup((WGPUComputePassEncoder)drp->cpEncoder, group, (WGPUBindGroup)GetWGPUBindGroup(bindgroup), 0, nullptr);
 }
-void RenderPassDraw        (DescribedRenderpass* drp, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance){
+extern "C" void RenderPassDraw        (DescribedRenderpass* drp, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance){
     wgpuRenderPassEncoderDraw((WGPURenderPassEncoder)drp->rpEncoder, vertexCount, instanceCount, firstVertex, firstInstance);
 }
-void RenderPassDrawIndexed (DescribedRenderpass* drp, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t baseVertex, uint32_t firstInstance){
+extern "C" void RenderPassDrawIndexed (DescribedRenderpass* drp, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t baseVertex, uint32_t firstInstance){
     wgpuRenderPassEncoderDrawIndexed((WGPURenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
 }
 
@@ -237,8 +238,8 @@ extern "C" void DisableVertexAttribArray(VertexArray* array, uint32_t attribLoca
 extern "C" void DrawArrays(WGPUPrimitiveTopology drawMode, uint32_t vertexCount){
     BindPipeline(GetActivePipeline(), drawMode);
 
-    if(g_wgpustate.rstate->activePipeline->bindGroup.needsUpdate){
-        RenderPassSetBindGroup(g_wgpustate.rstate->activeRenderpass, 0, &g_wgpustate.rstate->activePipeline->bindGroup);
+    if(GetActivePipeline()->bindGroup.needsUpdate){
+        RenderPassSetBindGroup(GetActiveRenderPass()->activeRenderpass, 0, &g_wgpustate.rstate->activePipeline->bindGroup);
     }
     RenderPassDraw(g_wgpustate.rstate->activeRenderpass, vertexCount, 1, 0, 0);
 }
@@ -247,8 +248,8 @@ extern "C" void DrawArraysIndexed(WGPUPrimitiveTopology drawMode, DescribedBuffe
     //PreparePipeline(GetActivePipeline(), VertexArray *va)
     //TRACELOG(LOG_INFO, "a oooo");
     //auto& rp = g_wgpustate.rstate->renderpass.rpEncoder;  
-    if(g_wgpustate.rstate->activePipeline->bindGroup.needsUpdate){
-        RenderPassSetBindGroup(g_wgpustate.rstate->activeRenderpass, 0, &g_wgpustate.rstate->activePipeline->bindGroup);
+    if(GetActivePipeline()->bindGroup.needsUpdate){
+        RenderPassSetBindGroup(GetActiveRenderPass(), 0, &g_wgpustate.rstate->activePipeline->bindGroup);
     }
     RenderPassSetIndexBuffer(g_wgpustate.rstate->activeRenderpass, &indexBuffer, WGPUIndexFormat_Uint32, 0);
     RenderPassDrawIndexed(g_wgpustate.rstate->activeRenderpass, vertexCount, 1, 0, 0, 0);
@@ -275,10 +276,10 @@ WGPUDevice GetDevice(){
     return g_wgpustate.device.Get();
 }
 Texture GetDepthTexture(){
-    return g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].depth;
+    return g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].depth;
 }
 Texture GetMultisampleColorTarget(){
-    return g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].colorMultisample;
+    return g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].colorMultisample;
 }
 WGPUQueue GetQueue(){
     return g_wgpustate.queue.Get();
@@ -1490,8 +1491,11 @@ inline WGPUVertexFormat f32format(uint32_t s){
     }
     __builtin_unreachable();
 }
+DescribedRenderpass* GetActiveRenderPass(){
+    return g_renderstate.rstate->activeRenderpass;
+}
 DescribedPipeline* GetActivePipeline(){
-    return g_wgpustate.rstate->activePipeline;
+    return g_renderstate.rstate->activePipeline;
 }
 void init_full_renderstate(full_renderstate* state, const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniform_count, WGPUTextureView c, WGPUTextureView d){
     //state->shader = sh;
@@ -2241,7 +2245,7 @@ extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t he
     ret.surfaceConfig.device = (void*)config.device;
     ret.surfaceConfig.width = config.width;
     ret.surfaceConfig.height = config.width;
-    ret.surfaceConfig.format = config.format;
+    ret.surfaceConfig.format = (PixelFormat)config.format;
     
     ret.frameBuffer = LoadRenderTexture(width, height);
     wgpuSurfaceConfigure((WGPUSurface)ret.surface, &config);

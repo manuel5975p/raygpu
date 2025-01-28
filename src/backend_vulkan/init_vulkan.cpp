@@ -181,7 +181,11 @@ DescribedBindGroupLayout LoadBindGroupLayout_Vk(const ResourceTypeDescriptor* de
     VkResult createResult = vkCreateDescriptorSetLayout(g_vulkanstate.device, &lci, nullptr, (VkDescriptorSetLayout*)&ret->layout);
     return retv;
 }
-
+extern "C" void UnloadBuffer_Vk(DescribedBuffer* buf){
+    BufferHandle handle = (BufferHandle)buf->buffer;
+    wgvkReleaseBuffer(handle);
+    std::free(buf);
+}
 DescribedBuffer* GenBufferEx_Vk(const void *data, size_t size, BufferUsage usage){
     VkBufferUsageFlags vusage = toVulkanBufferUsage(usage);
     DescribedBuffer* ret = callocnew(DescribedBuffer);
