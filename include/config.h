@@ -15,7 +15,7 @@
 #ifndef SUPPORT_GLFW
     #define SUPPORT_GLFW 0
 #endif
-#if SUPPORT_SDL2 == 0 && SUPPORT_GLFW == 0
+#if SUPPORT_SDL3 == 0 && SUPPORT_SDL2 == 0 && SUPPORT_GLFW == 0
     #define FORCE_HEADLESS 1
 #endif
 

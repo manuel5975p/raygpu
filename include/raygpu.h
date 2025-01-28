@@ -889,8 +889,8 @@ EXTERN_C_BEGIN
     Texture GetMultisampleColorTarget(cwoid);
 
 
-    DescribedRenderpass LoadRenderpass(WGPUTextureView color, WGPUTextureView depth);
-    DescribedRenderpass LoadRenderpassEx(WGPUTextureView color, WGPUTextureView depth, RenderSettings settings);
+    DescribedRenderpass LoadRenderpass(cwoid);
+    DescribedRenderpass LoadRenderpassEx(RenderSettings settings);
     //void UpdateRenderpass(DescribedRenderpass* rp, RenderSettings newSettings);
     void UnloadRenderpass(DescribedRenderpass rp);
     
@@ -1300,23 +1300,7 @@ EXTERN_C_BEGIN
         return 0;
     }
 EXTERN_C_END
-typedef struct full_renderstate{
-    WGPUShaderModule shader;
-    WGPUTextureView color;
-    WGPUTextureView depth;
 
-    DescribedPipeline* defaultPipeline;
-    DescribedPipeline* activePipeline;
-
-    DescribedRenderpass clearPass;
-    DescribedRenderpass renderpass;
-    DescribedComputepass computepass;
-    DescribedRenderpass* activeRenderpass;
-    DescribedComputepass* activeComputepass;
-
-    uint32_t renderExtentX; // Dimensions of the current viewport
-    uint32_t renderExtentY; // Required for camera function
-}full_renderstate;
 typedef struct wgpustate wgpustate;
 typedef struct renderstate renderstate;
 extern wgpustate g_wgpustate;

@@ -35,8 +35,19 @@ struct renderstate{
     uint32_t width, height;
 
     WGPUTextureFormat frameBufferFormat;
-    full_renderstate* rstate;
+
+    DescribedPipeline* defaultPipeline;
+    DescribedPipeline* activePipeline;
+
+    DescribedRenderpass clearPass;
+    DescribedRenderpass renderpass;
+    DescribedComputepass computepass;
+    DescribedRenderpass* activeRenderpass;
+    DescribedComputepass* activeComputepass;
     
+    uint32_t renderExtentX; // Dimensions of the current viewport
+    uint32_t renderExtentY; // Required for camera function
+
     std::vector<DescribedBuffer*> smallBufferPool;
     std::vector<DescribedBuffer*> smallBufferRecyclingBin;
 

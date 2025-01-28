@@ -314,6 +314,7 @@ inline void wgvkSurfaceConfigure(WGVKSurface* surface, uint32_t width, uint32_t 
     vkDeviceWaitIdle(device);
     for (uint32_t i = 0; i < surface->imagecount; i++) {
         vkDestroyImageView(device, surface->imageViews[i], nullptr);
+        vkDestroyImage(device, surface->images[i], nullptr);
     }
     std::free(surface->framebuffers);
     std::free(surface->imageViews);
