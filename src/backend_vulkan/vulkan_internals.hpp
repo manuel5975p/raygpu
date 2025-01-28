@@ -308,7 +308,8 @@ inline WGVKSurface LoadSurface(GLFWwindow* window){
     return ret;
 }
 
-inline void ResizeSurface_wgvk(WGVKSurface* surface, uint32_t width, uint32_t height){
+inline void wgvkSurfaceConfigure(WGVKSurface* surface, uint32_t width, uint32_t height){
+    SurfaceConfiguration config{};
     auto& device = g_vulkanstate.device;
     vkDeviceWaitIdle(device);
     for (uint32_t i = 0; i < surface->imagecount; i++) {

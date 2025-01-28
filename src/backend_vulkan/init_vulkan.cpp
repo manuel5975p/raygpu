@@ -525,7 +525,7 @@ void createRenderPass();
 // Function to initialize GLFW and create a window
 void ResizeCallback_Vk(GLFWwindow* win, int width, int height){
     //std::cout << std::format("Resized to {} x {}\n", width, height) << std::flush;
-    ResizeSurface_wgvk(&g_vulkanstate.surface, uint32_t(width), uint32_t(height));
+    wgvkSurfaceConfigure(&g_vulkanstate.surface, uint32_t(width), uint32_t(height));
     //createRenderPass();
 }
 GLFWwindow *initWindow(uint32_t width, uint32_t height, const char *title) {

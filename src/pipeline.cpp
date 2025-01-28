@@ -380,7 +380,7 @@ extern "C" void UpdatePipeline(DescribedPipeline* pl){
     blendState.alpha.operation = (WGPUBlendOperation)settings.blendOperationAlpha;
     WGPUColorTargetState colorTarget{};
 
-    colorTarget.format = g_wgpustate.frameBufferFormat;
+    colorTarget.format = g_renderstate.frameBufferFormat;
     colorTarget.blend = &blendState;
     colorTarget.writeMask = WGPUColorWriteMask_All;
     fragmentState.targetCount = 1;
@@ -519,7 +519,7 @@ RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, const std::ve
     blendState.alpha.operation = (WGPUBlendOperation)settings.blendOperationAlpha;
     WGPUColorTargetState colorTarget{};
 
-    colorTarget.format = g_wgpustate.frameBufferFormat;
+    colorTarget.format = g_renderstate.frameBufferFormat;
     colorTarget.blend = &blendState;
     colorTarget.writeMask = WGPUColorWriteMask_All;
     fragmentState.targetCount = 1;
@@ -724,7 +724,7 @@ Shader LoadShaderFromMemory(const char *vertexSource, const char *fragmentSource
     return shader;
 }
 Texture GetDefaultTexture(cwoid){
-    return g_wgpustate.whitePixel;
+    return g_renderstate.whitePixel;
 }
 RenderSettings GetDefaultSettings(){
     RenderSettings ret zeroinit;
@@ -732,7 +732,7 @@ RenderSettings GetDefaultSettings(){
     ret.frontFace = FrontFace_CCW;
     ret.depthTest = 1;
     ret.depthCompare = CompareFunction_LessEqual;
-    ret.sampleCount = (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
+    ret.sampleCount = (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
 
     ret.blendFactorSrcAlpha = BlendFactor_One;
     ret.blendFactorDstAlpha = BlendFactor_OneMinusSrcAlpha;
@@ -745,7 +745,7 @@ RenderSettings GetDefaultSettings(){
     return ret;
 }
 DescribedPipeline* DefaultPipeline(){
-    return g_wgpustate.rstate->defaultPipeline;
+    return g_renderstate.rstate->defaultPipeline;
 }
 extern "C" void UnloadPipeline(DescribedPipeline* pl){
     

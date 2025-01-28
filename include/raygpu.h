@@ -1106,6 +1106,7 @@ EXTERN_C_BEGIN
     void ResizeBufferAndConserve(DescribedBuffer* buffer, size_t newSize);
     void BindVertexBuffer(const DescribedBuffer* buffer);
 
+    DescribedRenderpass* GetActiveRenderPass(cwoid);
     DescribedPipeline* GetActivePipeline(cwoid);
 
     void RenderPassSetIndexBuffer (DescribedRenderpass* drp, DescribedBuffer* buffer, WGPUIndexFormat format, uint64_t offset);
