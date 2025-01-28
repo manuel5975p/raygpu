@@ -648,7 +648,7 @@ typedef struct SurfaceConfiguration {
     void* device;                   // Device that surface belongs to (WPGUDevice or VkDevice)
     uint32_t width;                 // Width of the rendering surface
     uint32_t height;                // Height of the rendering surface
-    WGPUTextureFormat format;       // Pixel format of the surface
+    PixelFormat format;             // Pixel format of the surface
     SurfacePresentMode presentMode; // Present mode for image presentation
 } SurfaceConfiguration;
 
@@ -1317,7 +1317,9 @@ typedef struct full_renderstate{
     uint32_t renderExtentY; // Required for camera function
 }full_renderstate;
 typedef struct wgpustate wgpustate;
+typedef struct renderstate renderstate;
 extern wgpustate g_wgpustate;
+extern renderstate g_renderstate;
 #ifdef __cplusplus
 extern const std::unordered_map<WGPUTextureFormat, std::string> textureFormatSpellingTable;
 extern const std::unordered_map<WGPUPresentMode, std::string> presentModeSpellingTable;

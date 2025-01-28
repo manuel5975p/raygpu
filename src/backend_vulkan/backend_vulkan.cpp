@@ -20,4 +20,5 @@ void drawCurrentBatch(){
         return;
     }
     DescribedBuffer* vbo = GenBufferEx_Vk(vboptr_base, vertexCount * sizeof(vertex), BufferUsage_Vertex | BufferUsage_CopyDst);
+    UnloadBuffer(vbo);
 }

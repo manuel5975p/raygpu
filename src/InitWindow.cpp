@@ -136,12 +136,12 @@ void PollEvents(){
     #endif
 }
 void* GetActiveWindowHandle(){
-    if(g_wgpustate.activeSubWindow.handle)return g_wgpustate.activeSubWindow.handle;
-    return g_wgpustate.window;
+    if(g_renderstate.activeSubWindow.handle)return g_renderstate.activeSubWindow.handle;
+    return g_renderstate.window;
 }
 bool WindowShouldClose(cwoid){
     #ifdef MAIN_WINDOW_SDL2
-    return g_wgpustate.closeFlag;
+    return g_renderstate.closeFlag;
     #elif defined(MAIN_WINDOW_GLFW)
     return WindowShouldClose_GLFW(g_wgpustate.window);
     #else
@@ -461,13 +461,13 @@ void negotiateSurfaceFormatAndPresentMode(const wgpu::Surface& surf){
             break;
         }
     }
-    g_wgpustate.frameBufferFormat = (WGPUTextureFormat)selectedFormat;
+    g_renderstate.frameBufferFormat = (WGPUTextureFormat)selectedFormat;
     if(format_index == capabilities.formatCount){
         TRACELOG(LOG_WARNING, "No RGBA8 / BGRA8 Unorm framebuffer format found, colors might be off"); 
-        g_wgpustate.frameBufferFormat = (WGPUTextureFormat)selectedFormat;
+        g_renderstate.frameBufferFormat = (WGPUTextureFormat)selectedFormat;
     }
     
-    TRACELOG(LOG_INFO, "Selected surface format %s", textureFormatSpellingTable.at((WGPUTextureFormat)g_wgpustate.frameBufferFormat).c_str());
+    TRACELOG(LOG_INFO, "Selected surface format %s", textureFormatSpellingTable.at((WGPUTextureFormat)g_renderstate.frameBufferFormat).c_str());
     
     //TRACELOG(LOG_INFO, "Selected present mode %s", presentModeSpellingTable.at((WGPUPresentMode)g_wgpustate.presentMode).c_str());
 }
@@ -501,7 +501,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     #if FORCE_HEADLESS == 1
     g_wgpustate.windowFlags |= FLAG_HEADLESS;
     #endif
-    if(g_wgpustate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
+    if(g_renderstate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
         if(IsATerminal(stdout)){
             TRACELOG(LOG_ERROR, "Refusing to pipe video output to terminal");
             TRACELOG(LOG_ERROR, "Try <program> | ffmpeg -y -f rawvideo -pix_fmt rgba -s %ux%u -r 60 -i - -vf format=yuv420p out.mp4", width, height);
@@ -515,33 +515,33 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         working_dir += '/';
     }
     TRACELOG(LOG_INFO, "Working directory: %s", working_dir.c_str());
-    g_wgpustate.last_timestamps[0] = NanoTime();
+    g_renderstate.last_timestamps[0] = NanoTime();
     webgpu_cxx_state wg_init;
     InitWGPU(&wg_init);
     g_wgpustate.instance = std::move(wg_init.instance);
     g_wgpustate.adapter  = std::move(wg_init.adapter );
     g_wgpustate.device   = std::move(wg_init.device  );
     g_wgpustate.queue    = std::move(wg_init.queue   );
-    g_wgpustate.width = width;
-    g_wgpustate.height = height;
+    g_renderstate.width = width;
+    g_renderstate.height = height;
     
-    g_wgpustate.whitePixel = LoadTextureFromImage(GenImageChecker(Color{255,255,255,255}, Color{255,255,255,255}, 1, 1, 0));
+    g_renderstate.whitePixel = LoadTextureFromImage(GenImageChecker(Color{255,255,255,255}, Color{255,255,255,255}, 1, 1, 0));
     TraceLog(LOG_INFO, "Loaded whitepixel texture");
 
     //DescribedShaderModule tShader = LoadShaderModuleFromMemory(shaderSource);
-    g_wgpustate.rstate = new full_renderstate;
+    g_renderstate.rstate = new full_renderstate;
     
     Matrix identity = MatrixIdentity();
-    g_wgpustate.identityMatrix = GenStorageBuffer(&identity, sizeof(Matrix));
+    g_renderstate.identityMatrix = GenStorageBuffer(&identity, sizeof(Matrix));
 
-    g_wgpustate.grst = (GIFRecordState*)calloc(1, 160);
+    g_renderstate.grst = (GIFRecordState*)calloc(1, 160);
 
 
 
     
 
     //void* window = nullptr;
-    if(!(g_wgpustate.windowFlags & FLAG_HEADLESS)){
+    if(!(g_renderstate.windowFlags & FLAG_HEADLESS)){
         #if SUPPORT_GLFW == 1 || SUPPORT_SDL2 == 1
         #ifdef MAIN_WINDOW_GLFW
         SubWindow createdWindow = InitWindow_GLFW(width, height, title);
@@ -549,9 +549,9 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         Initialize_SDL2();
         SubWindow createdWindow = InitWindow_SDL2(width, height, title);
         #endif
-        g_wgpustate.window = (GLFWwindow*)createdWindow.handle;
-        auto it = g_wgpustate.createdSubwindows.find(g_wgpustate.window);
-        g_wgpustate.mainWindow = &it->second;
+        g_renderstate.window = (GLFWwindow*)createdWindow.handle;
+        auto it = g_renderstate.createdSubwindows.find(g_renderstate.window);
+        g_renderstate.mainWindow = &it->second;
         //g_wgpustate.surface = wgpu::Surface((WGPUSurface)g_wgpustate.createdSubwindows[glfwWin.handle].surface.surface);
         #endif
         
@@ -563,7 +563,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         
         //std::cout << "Supported Framebuffer Format: 0x" << std::hex << (WGPUTextureFormat)config.format << std::dec << "\n";        
     }else{
-        g_wgpustate.frameBufferFormat = WGPUTextureFormat_BGRA8Unorm;
+        g_renderstate.frameBufferFormat = WGPUTextureFormat_BGRA8Unorm;
     }
     
 
@@ -586,35 +586,35 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     //arraySetter(shaderInputs.uniform_minsizes, {64, 0, 0, 0});
     //uarraySetter(shaderInputs.uniform_types, {uniform_buffer, texture2d, sampler, storage_buffer});
     
-    auto colorTexture = LoadTextureEx(width, height, (PixelFormat)g_wgpustate.frameBufferFormat, true);
+    auto colorTexture = LoadTextureEx(width, height, (PixelFormat)g_renderstate.frameBufferFormat, true);
     //g_wgpustate.mainWindowRenderTarget.texture = colorTexture;
-    if(g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT)
-        g_wgpustate.mainWindowRenderTarget.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_wgpustate.frameBufferFormat, TextureUsage_RenderAttachment | TextureUsage_TextureBinding | TextureUsage_CopyDst | TextureUsage_CopySrc, 4, 1);
-    g_wgpustate.mainWindowRenderTarget.depth = LoadTexturePro(width,
+    if(g_renderstate.windowFlags & FLAG_MSAA_4X_HINT)
+        g_renderstate.mainWindowRenderTarget.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_renderstate.frameBufferFormat, TextureUsage_RenderAttachment | TextureUsage_TextureBinding | TextureUsage_CopyDst | TextureUsage_CopySrc, 4, 1);
+    g_renderstate.mainWindowRenderTarget.depth = LoadTexturePro(width,
                                   height, 
                                   Depth24, 
                                   WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
-                                  (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
+                                  (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
                                   1
     );
-    init_full_renderstate(g_wgpustate.rstate, shaderSource, attrs, 4, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), (WGPUTextureView)colorTexture.view, (WGPUTextureView)g_wgpustate.mainWindowRenderTarget.depth.view);
+    init_full_renderstate(g_renderstate.rstate, shaderSource, attrs, 4, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), (WGPUTextureView)colorTexture.view, (WGPUTextureView)g_renderstate.mainWindowRenderTarget.depth.view);
     TRACELOG(LOG_INFO, "Renderstate inited");
-    g_wgpustate.rstate->renderExtentX = width;
-    g_wgpustate.rstate->renderExtentY = height;
+    g_renderstate.rstate->renderExtentX = width;
+    g_renderstate.rstate->renderExtentY = height;
     
 
     LoadFontDefault();
     for(size_t i = 0;i < 512;i++){
-        g_wgpustate.smallBufferPool.push_back(GenVertexBuffer(nullptr, sizeof(vertex) * 32));
+        g_renderstate.smallBufferPool.push_back(GenVertexBuffer(nullptr, sizeof(vertex) * 32));
     }
     WGPUCommandEncoderDescriptor cedesc{};
     cedesc.label = STRVIEW("Global Command Encoder");
-    g_wgpustate.rstate->renderpass.cmdEncoder = wgpuDeviceCreateCommandEncoder(g_wgpustate.device.Get(), &cedesc);
+    g_renderstate.rstate->renderpass.cmdEncoder = wgpuDeviceCreateCommandEncoder(g_wgpustate.device.Get(), &cedesc);
     Matrix m = ScreenMatrix(width, height);
     static_assert(sizeof(Matrix) == 64, "non 4 byte floats? or what");
     //g_wgpustate.defaultScreenMatrix = GenUniformBuffer(&m, sizeof(Matrix));
     //SetUniformBuffer(0, g_wgpustate.defaultScreenMatrix);
-    SetTexture(1, g_wgpustate.whitePixel);
+    SetTexture(1, g_renderstate.whitePixel);
     Matrix iden = MatrixIdentity();
     SetStorageBufferData(3, &iden, 64);
 
@@ -632,11 +632,11 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
 
 
     DescribedSampler sampler = LoadSampler(repeat, filter_linear);
-    g_wgpustate.defaultSampler = sampler;
+    g_renderstate.defaultSampler = sampler;
     SetSampler(2, sampler);
-    g_wgpustate.init_timestamp = NanoTime();
+    g_renderstate.init_timestamp = NanoTime();
     #ifndef __EMSCRIPTEN__
-    if((g_wgpustate.windowFlags & FLAG_VSYNC_HINT))
+    if((g_renderstate.windowFlags & FLAG_VSYNC_HINT))
         SetTargetFPS(60);
     //if(!(g_wgpustate.windowFlags & FLAG_HEADLESS) && (g_wgpustate.windowFlags & FLAG_VSYNC_HINT)){
     //    auto rate = glfwGetVideoMode(glfwGetPrimaryMonitor())->refreshRate;
@@ -669,7 +669,7 @@ extern "C" void ToggleFullscreenImpl(){
     #endif
 }
 extern "C" void ToggleFullscreen(){
-    g_wgpustate.wantsToggleFullscreen = true;
+    g_renderstate.wantsToggleFullscreen = true;
 }
 Vector2 GetTouchPosition(int index){
     #ifdef MAIN_WINDOW_GLFW
@@ -702,7 +702,7 @@ void SetWindowShouldClose(){
     #ifdef MAIN_WINDOW_GLFW
     return SetWindowShouldClose_GLFW(g_wgpustate.window);
     #elif defined(MAIN_WINDOW_SDL2)
-    g_wgpustate.closeFlag = true;
+    g_renderstate.closeFlag = true;
     #endif
 }
 uint32_t GetMonitorHeight(cwoid){
@@ -1179,6 +1179,7 @@ extern "C" size_t GetPixelSizeInBytes(PixelFormat format) {
             return 0;
     }*/
 }
+
 extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t newWidth, uint32_t newHeight){
     fsurface->surfaceConfig.width = newWidth;
     fsurface->surfaceConfig.height = newHeight;
@@ -1188,14 +1189,14 @@ extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t newWidth, uint32_t
     fsurface->frameBuffer.texture.height = newHeight;
     fsurface->frameBuffer.depth.width = newWidth;
     fsurface->frameBuffer.depth.height = newHeight;
-    WGPUTextureFormat format = g_wgpustate.frameBufferFormat;
+    WGPUTextureFormat format = (WGPUTextureFormat)fsurface->surfaceConfig.format;
     WGPUSurfaceConfiguration wsconfig{};
     wsconfig.device = (WGPUDevice)fsurface->surfaceConfig.device;
     wsconfig.width = newWidth;
     wsconfig.height = newHeight;
-    wsconfig.format = g_wgpustate.frameBufferFormat;
+    wsconfig.format = format;
     wsconfig.viewFormatCount = 1;
-    wsconfig.viewFormats = &g_wgpustate.frameBufferFormat;
+    wsconfig.viewFormats = &format;
     wsconfig.alphaMode = WGPUCompositeAlphaMode_Opaque;
     wsconfig.presentMode = (WGPUPresentMode)fsurface->surfaceConfig.presentMode;
     wsconfig.usage = WGPUTextureUsage_CopySrc | WGPUTextureUsage_RenderAttachment;
@@ -1206,14 +1207,14 @@ extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t newWidth, uint32_t
     //fsurface->frameBuffer.texture = Texture zeroinit;
     UnloadTexture(fsurface->frameBuffer.colorMultisample);
     UnloadTexture(fsurface->frameBuffer.depth);
-    if(g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT){
-        fsurface->frameBuffer.colorMultisample = LoadTexturePro(newWidth, newHeight, (PixelFormat)g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4, 1);
+    if(g_renderstate.windowFlags & FLAG_MSAA_4X_HINT){
+        fsurface->frameBuffer.colorMultisample = LoadTexturePro(newWidth, newHeight, fsurface->surfaceConfig.format, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4, 1);
     }
     fsurface->frameBuffer.depth = LoadTexturePro(newWidth,
                            newHeight, 
                            Depth24, 
                            WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
-                           (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
+                           (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
                            1
     );
 }
