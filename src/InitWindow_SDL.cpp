@@ -1,4 +1,4 @@
-#define Font FontDifferentName
+#define Font FontDifferentName // Avoid X conflicts
 #include <raygpu.h>
 #undef Font
 #include <SDL2/SDL.h>
@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <wgpustate.inc>
 extern wgpustate g_wgpustate;
+extern renderstate g_renderstate;
+
 // #include "dawn/common/Log.h"
 #ifdef DONT_NEED_THIS_RIGHT_NOW
 #include "dawn/common/Platform.h"
@@ -162,8 +164,8 @@ extern "C" SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char
     SubWindow ret{};
     //SDL_SetHint(SDL_HINT_TRACKPAD_IS_TOUCH_ONLY, "1");
     SDL_Window *window = SDL_CreateWindow(title, 100, 100, width, height, 0);
-    SDL_SetWindowResizable(window, SDL_bool(g_wgpustate.windowFlags & FLAG_WINDOW_RESIZABLE));
-    if(g_wgpustate.windowFlags & FLAG_FULLSCREEN_MODE)
+    SDL_SetWindowResizable(window, SDL_bool(g_renderstate.windowFlags & FLAG_WINDOW_RESIZABLE));
+    if(g_renderstate.windowFlags & FLAG_FULLSCREEN_MODE)
         SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
 
     
@@ -174,7 +176,7 @@ extern "C" SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char
     ret.surface = CreateSurface(surface, width, height);
     ret.handle = window;
     
-    g_wgpustate.createdSubwindows[ret.handle] = ret;
+    g_renderstate.createdSubwindows[ret.handle] = ret;
     return ret;
 }
 
@@ -186,35 +188,35 @@ SubWindow OpenSubWindow_SDL2(uint32_t width, uint32_t height, const char* title)
     WGPUSurface surface = SDL_GetWGPUSurface(inst, (SDL_Window*)ret.handle);
     
     ret.surface = CreateSurface(surface, width, height);
-    g_wgpustate.createdSubwindows[ret.handle] = ret;
-    g_wgpustate.input_map[(GLFWwindow*)ret.handle];
+    g_renderstate.createdSubwindows[ret.handle] = ret;
+    g_renderstate.input_map[(GLFWwindow*)ret.handle];
     //setupGLFWCallbacks((GLFWwindow*)ret.handle);
     return ret;
 }
 
 
 void ResizeCallback(SDL_Window* window, int width, int height){
-    //wgpuSurfaceRelease(g_wgpustate.surface);
-    //g_wgpustate.surface = wgpu::glfw::CreateSurfaceForWindow(g_wgpustate.instance, window).MoveToCHandle();
-    //while(!g_wgpustate.drawmutex.try_lock());
-    //g_wgpustate.drawmutex.lock();
+    //wgpuSurfaceRelease(g_renderstate.surface);
+    //g_renderstate.surface = wgpu::glfw::CreateSurfaceForWindow(g_renderstate.instance, window).MoveToCHandle();
+    //while(!g_renderstate.drawmutex.try_lock());
+    //g_renderstate.drawmutex.lock();
     
     TRACELOG(LOG_INFO, "SDL's ResizeCallback called with %d x %d", width, height);
-    ResizeSurface(&g_wgpustate.createdSubwindows[window].surface, width, height);
+    ResizeSurface(&g_renderstate.createdSubwindows[window].surface, width, height);
     
-    //wgpuSurfaceConfigure(g_wgpustate.createdSubwindows[window].surface, (WGPUSurfaceConfiguration*)&config);
-    //TRACELOG(LOG_WARNING, "configured: %llu with extents %u x %u", g_wgpustate.createdSubwindows[window].surface, width, height);
-    //g_wgpustate.surface = wgpu::Surface(g_wgpustate.createdSubwindows[window].surface);
-    if((void*)window == (void*)g_wgpustate.window){
-        g_wgpustate.mainWindowRenderTarget = g_wgpustate.createdSubwindows[window].surface.frameBuffer;
+    //wgpuSurfaceConfigure(g_renderstate.createdSubwindows[window].surface, (WGPUSurfaceConfiguration*)&config);
+    //TRACELOG(LOG_WARNING, "configured: %llu with extents %u x %u", g_renderstate.createdSubwindows[window].surface, width, height);
+    //g_renderstate.surface = wgpu::Surface(g_renderstate.createdSubwindows[window].surface);
+    if((void*)window == (void*)g_renderstate.window){
+        g_renderstate.mainWindowRenderTarget = g_renderstate.createdSubwindows[window].surface.frameBuffer;
     }
     Matrix newcamera = ScreenMatrix(width, height);
-    //BufferData(g_wgpustate.defaultScreenMatrix, &newcamera, sizeof(Matrix));
-    //setTargetTextures(g_wgpustate.rstate, g_wgpustate.rstate->color, g_wgpustate.currentDefaultRenderTarget.colorMultisample.view, g_wgpustate.currentDefaultRenderTarget.depth.view);
-    //updateRenderPassDesc(g_wgpustate.rstate);
+    //BufferData(g_renderstate.defaultScreenMatrix, &newcamera, sizeof(Matrix));
+    //setTargetTextures(g_renderstate.rstate, g_renderstate.rstate->color, g_renderstate.currentDefaultRenderTarget.colorMultisample.view, g_renderstate.currentDefaultRenderTarget.depth.view);
+    //updateRenderPassDesc(g_renderstate.rstate);
     //TODO wtf is this?
-    //g_wgpustate.rstate->renderpass.dsa->view = g_wgpustate.currentDefaultRenderTarget.depth.view;
-    //g_wgpustate.drawmutex.unlock();
+    //g_renderstate.rstate->renderpass.dsa->view = g_renderstate.currentDefaultRenderTarget.depth.view;
+    //g_renderstate.drawmutex.unlock();
 }
 
 int GetTouchX_SDL2(){
@@ -224,13 +226,13 @@ int GetTouchY_SDL2(){
     return 0;
 }
 Vector2 GetTouchPosition_SDL2(int index){
-    if(index < g_wgpustate.input_map[GetActiveWindowHandle()].touchPoints.size()){
-        auto it = g_wgpustate.input_map[GetActiveWindowHandle()].touchPoints.begin();
+    if(index < g_renderstate.input_map[GetActiveWindowHandle()].touchPoints.size()){
+        auto it = g_renderstate.input_map[GetActiveWindowHandle()].touchPoints.begin();
         for(int i = 0;i < index;++i) ++it;
         return it->second;
     }
     else{
-        TRACELOG(LOG_WARNING, "Querying nonexistant touchpoint %d of %d", (int)index, (int)g_wgpustate.input_map[GetActiveWindowHandle()].touchPoints.size());
+        TRACELOG(LOG_WARNING, "Querying nonexistant touchpoint %d of %d", (int)index, (int)g_renderstate.input_map[GetActiveWindowHandle()].touchPoints.size());
         return Vector2{0, 0};
     }
 
@@ -239,59 +241,59 @@ int GetTouchPointId_SDL2(int index){
     return 0;
 }
 int GetTouchPointCount_SDL2(){
-    return g_wgpustate.input_map[GetActiveWindowHandle()].touchPoints.size();
+    return g_renderstate.input_map[GetActiveWindowHandle()].touchPoints.size();
 }
 
 
 void CharCallback(SDL_Window* window, unsigned int codePoint){
-    g_wgpustate.input_map[window].charQueue.push_back((int)codePoint);
+    g_renderstate.input_map[window].charQueue.push_back((int)codePoint);
 }
 void CursorEnterCallback(SDL_Window* window, int entered){
-    g_wgpustate.input_map[window].cursorInWindow = entered;
+    g_renderstate.input_map[window].cursorInWindow = entered;
 }
 void MousePositionCallback(SDL_Window* window, double x, double y){
-    g_wgpustate.input_map[window].mousePos = Vector2{float(x), float(y)};
+    g_renderstate.input_map[window].mousePos = Vector2{float(x), float(y)};
 }
 void KeyUpCallback (SDL_Window* window, int key, int scancode, int mods){
-    g_wgpustate.input_map[window].keydown[key] = 0;
+    g_renderstate.input_map[window].keydown[key] = 0;
     //if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
     //    EndGIFRecording();
     //    glfwSetWindowShouldClose(window, true);
     //}
 }
 void GestureCallback(SDL_Window* window, float zoom, float angle){
-    g_wgpustate.input_map[window].gestureZoomThisFrame *= (1 + zoom);
-    g_wgpustate.input_map[window].gestureAngleThisFrame += angle;
+    g_renderstate.input_map[window].gestureZoomThisFrame *= (1 + zoom);
+    g_renderstate.input_map[window].gestureAngleThisFrame += angle;
 }
 void ScrollCallback(SDL_Window* window, double xoffset, double yoffset){
-    g_wgpustate.input_map[window].scrollThisFrame.x += xoffset;
-    g_wgpustate.input_map[window].scrollThisFrame.y += yoffset;
+    g_renderstate.input_map[window].scrollThisFrame.x += xoffset;
+    g_renderstate.input_map[window].scrollThisFrame.y += yoffset;
 }
 void FingerUpCallback(SDL_Window* window, SDL_FingerID id, float x, float y){
-    g_wgpustate.input_map[window].touchPoints.erase(
-        std::find_if(g_wgpustate.input_map[window].touchPoints.begin(),
-                     g_wgpustate.input_map[window].touchPoints.end(), [id](const std::pair<SDL_FingerID, Vector2> p){
+    g_renderstate.input_map[window].touchPoints.erase(
+        std::find_if(g_renderstate.input_map[window].touchPoints.begin(),
+                     g_renderstate.input_map[window].touchPoints.end(), [id](const std::pair<SDL_FingerID, Vector2> p){
                         return p.first == id;
                      }));
         
 }
 void FingerDownCallback(SDL_Window* window, SDL_FingerID id, float x, float y){
-    g_wgpustate.input_map[window].touchPoints.emplace_back(id, Vector2{x, y});
+    g_renderstate.input_map[window].touchPoints.emplace_back(id, Vector2{x, y});
 }
 void FingerMotionCallback(SDL_Window* window, SDL_FingerID id, float x, float y){
-    auto it = std::find_if(g_wgpustate.input_map[window].touchPoints.begin(),
-                     g_wgpustate.input_map[window].touchPoints.end(), [id](const std::pair<SDL_FingerID, Vector2> p){
+    auto it = std::find_if(g_renderstate.input_map[window].touchPoints.begin(),
+                     g_renderstate.input_map[window].touchPoints.end(), [id](const std::pair<SDL_FingerID, Vector2> p){
                         return p.first == id;
                      });
 
     it->second = Vector2{x, y};
 }
 void KeyDownCallback (SDL_Window* window, int key, int scancode, int mods){
-    g_wgpustate.input_map[window].keydown[key] = 1;
+    g_renderstate.input_map[window].keydown[key] = 1;
     //if(action == GLFW_PRESS){
-    //    g_wgpustate.input_map[window].keydown[key] = 1;
+    //    g_renderstate.input_map[window].keydown[key] = 1;
     //}else if(action == GLFW_RELEASE){
-    //    g_wgpustate.input_map[window].keydown[key] = 0;
+    //    g_renderstate.input_map[window].keydown[key] = 0;
     //}
     //if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
     //    EndGIFRecording();
@@ -301,10 +303,10 @@ void KeyDownCallback (SDL_Window* window, int key, int scancode, int mods){
 
 void MouseButtonCallback(SDL_Window* window, int button, int action){
     if(action == SDL_PRESSED){
-        g_wgpustate.input_map[window].mouseButtonDown[button] = 1;
+        g_renderstate.input_map[window].mouseButtonDown[button] = 1;
     }
     else if(action == SDL_RELEASED){
-        g_wgpustate.input_map[window].mouseButtonDown[button] = 0;
+        g_renderstate.input_map[window].mouseButtonDown[button] = 0;
     }
 }
 
@@ -450,13 +452,13 @@ extern "C" void PollEvents_SDL2() {
         switch (event.type) {
         case SDL_QUIT:{
             SDL_Window *window = SDL_GetWindowFromID(event.window.windowID);
-            g_wgpustate.closeFlag = true;
+            g_renderstate.closeFlag = true;
         }break;
         case SDL_KEYDOWN:{
             SDL_Window *window = SDL_GetWindowFromID(event.key.windowID);
             KeyDownCallback(window, ConvertScancodeToKey(event.key.keysym.scancode), event.key.keysym.scancode, event.key.keysym.mod);
             if(event.key.keysym.scancode == SDL_SCANCODE_ESCAPE){
-                g_wgpustate.closeFlag = true;
+                g_renderstate.closeFlag = true;
             }
         }break;
         case SDL_KEYUP:{
@@ -474,7 +476,7 @@ extern "C" void PollEvents_SDL2() {
             } else if (event.window.event == SDL_WINDOWEVENT_LEAVE) {
                 CursorEnterCallback(window, false);
             } else if(event.window.event == SDL_WINDOWEVENT_CLOSE){
-                g_wgpustate.closeFlag = true;
+                g_renderstate.closeFlag = true;
             }
             // Handle other window events if necessary
         } break;
@@ -562,36 +564,36 @@ uint32_t GetMonitorHeight_SDL2(){
     return dm.h;
 }
 void ToggleFullscreen_SDL2(cwoid){
-    bool alreadyFullscreen = SDL_GetWindowFlags((SDL_Window*)g_wgpustate.window) & SDL_WINDOW_FULLSCREEN;
+    bool alreadyFullscreen = SDL_GetWindowFlags((SDL_Window*)g_renderstate.window) & SDL_WINDOW_FULLSCREEN;
     if(alreadyFullscreen){
         //We need to exit fullscreen
-        g_wgpustate.windowFlags &= ~FLAG_FULLSCREEN_MODE;
-        //SDL_SetWindowResizable((SDL_Window*)g_wgpustate.window, SDL_FALSE);
-        SDL_SetWindowFullscreen((SDL_Window*)g_wgpustate.window, 0);
+        g_renderstate.windowFlags &= ~FLAG_FULLSCREEN_MODE;
+        //SDL_SetWindowResizable((SDL_Window*)g_renderstate.window, SDL_FALSE);
+        SDL_SetWindowFullscreen((SDL_Window*)g_renderstate.window, 0);
 
-        SDL_SetWindowSize((SDL_Window*)g_wgpustate.window, g_wgpustate.input_map[g_wgpustate.window].windowPosition.width, g_wgpustate.input_map[g_wgpustate.window].windowPosition.height);
-        //SDL_SetWindowSize((SDL_Window*)g_wgpustate.window, g_wgpustate.input_map[g_wgpustate.window].windowPosition.width, g_wgpustate.input_map[g_wgpustate.window].windowPosition.height);
-        //SDL_SetWindowSize((SDL_Window*)g_wgpustate.window, g_wgpustate.input_map[g_wgpustate.window].windowPosition.width, g_wgpustate.input_map[g_wgpustate.window].windowPosition.height);
-        //SDL_SetWindowSize((SDL_Window*)g_wgpustate.window, g_wgpustate.input_map[g_wgpustate.window].windowPosition.width, g_wgpustate.input_map[g_wgpustate.window].windowPosition.height);
-        //TRACELOG(LOG_WARNING, "Setting the size to  %d x %d", (int)g_wgpustate.input_map[g_wgpustate.window].windowPosition.width, (int)g_wgpustate.input_map[g_wgpustate.window].windowPosition.height);
+        SDL_SetWindowSize((SDL_Window*)g_renderstate.window, g_renderstate.input_map[g_renderstate.window].windowPosition.width, g_renderstate.input_map[g_renderstate.window].windowPosition.height);
+        //SDL_SetWindowSize((SDL_Window*)g_renderstate.window, g_renderstate.input_map[g_renderstate.window].windowPosition.width, g_renderstate.input_map[g_renderstate.window].windowPosition.height);
+        //SDL_SetWindowSize((SDL_Window*)g_renderstate.window, g_renderstate.input_map[g_renderstate.window].windowPosition.width, g_renderstate.input_map[g_renderstate.window].windowPosition.height);
+        //SDL_SetWindowSize((SDL_Window*)g_renderstate.window, g_renderstate.input_map[g_renderstate.window].windowPosition.width, g_renderstate.input_map[g_renderstate.window].windowPosition.height);
+        //TRACELOG(LOG_WARNING, "Setting the size to  %d x %d", (int)g_renderstate.input_map[g_renderstate.window].windowPosition.width, (int)g_renderstate.input_map[g_renderstate.window].windowPosition.height);
     }
     else{
         //We need to enter fullscreen
         int xpos = 0, ypos = 0;
         int xs, ys;
         #ifndef DAWN_USE_WAYLAND
-        SDL_GetWindowPosition((SDL_Window*)g_wgpustate.window, &xpos, &ypos);
+        SDL_GetWindowPosition((SDL_Window*)g_renderstate.window, &xpos, &ypos);
         #endif
-        SDL_GetWindowSize((SDL_Window*)g_wgpustate.window, &xs, &ys);
-        g_wgpustate.input_map[g_wgpustate.window].windowPosition = Rectangle{float(xpos), float(ypos), float(xs), float(ys)};
-        SDL_SetWindowSize((SDL_Window*)g_wgpustate.window, GetMonitorWidth_SDL2(), GetMonitorHeight_SDL2());
-        SDL_SetWindowFullscreen((SDL_Window*)g_wgpustate.window, SDL_WINDOW_FULLSCREEN);
+        SDL_GetWindowSize((SDL_Window*)g_renderstate.window, &xs, &ys);
+        g_renderstate.input_map[g_renderstate.window].windowPosition = Rectangle{float(xpos), float(ypos), float(xs), float(ys)};
+        SDL_SetWindowSize((SDL_Window*)g_renderstate.window, GetMonitorWidth_SDL2(), GetMonitorHeight_SDL2());
+        SDL_SetWindowFullscreen((SDL_Window*)g_renderstate.window, SDL_WINDOW_FULLSCREEN);
         //int monitorCount = 0;
-        //int monitorIndex = GetCurrentMonitor_GLFW(g_wgpustate.window);
+        //int monitorIndex = GetCurrentMonitor_GLFW(g_renderstate.window);
         //GLFWmonitor **monitors = glfwGetMonitors(&monitorCount);
         //// Use current monitor, so we correctly get the display the window is on
         //GLFWmonitor *monitor = (monitorIndex < monitorCount)? monitors[monitorIndex] : NULL;
         //auto vm = glfwGetVideoMode(monitor);
-        //glfwSetWindowMonitor(g_wgpustate.window, glfwGetPrimaryMonitor(), 0, 0, vm->width, vm->height, vm->refreshRate);
+        //glfwSetWindowMonitor(g_renderstate.window, glfwGetPrimaryMonitor(), 0, 0, vm->width, vm->height, vm->refreshRate);
     }
 }

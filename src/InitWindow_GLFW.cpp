@@ -29,19 +29,19 @@ void setupGLFWCallbacks(GLFWwindow* window);
 void ResizeCallback(GLFWwindow* window, int width, int height){
     
     TRACELOG(LOG_INFO, "SDL's ResizeCallback called with %d x %d", width, height);
-    ResizeSurface(&g_wgpustate.createdSubwindows[window].surface, width, height);
+    ResizeSurface(&g_renderstate.createdSubwindows[window].surface, width, height);
     
-    //wgpuSurfaceConfigure(g_wgpustate.createdSubwindows[window].surface, (WGPUSurfaceConfiguration*)&config);
-    //TRACELOG(LOG_WARNING, "configured: %llu with extents %u x %u", g_wgpustate.createdSubwindows[window].surface, width, height);
-    //g_wgpustate.surface = wgpu::Surface(g_wgpustate.createdSubwindows[window].surface);
-    if((void*)window == (void*)g_wgpustate.window){
-        g_wgpustate.mainWindowRenderTarget = g_wgpustate.createdSubwindows[window].surface.frameBuffer;
+    //wgpuSurfaceConfigure(g_renderstate.createdSubwindows[window].surface, (WGPUSurfaceConfiguration*)&config);
+    //TRACELOG(LOG_WARNING, "configured: %llu with extents %u x %u", g_renderstate.createdSubwindows[window].surface, width, height);
+    //g_renderstate.surface = wgpu::Surface(g_renderstate.createdSubwindows[window].surface);
+    if((void*)window == (void*)g_renderstate.window){
+        g_renderstate.mainWindowRenderTarget = g_renderstate.createdSubwindows[window].surface.frameBuffer;
     }
     Matrix newcamera = ScreenMatrix(width, height);
 }
 void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset){
-    g_wgpustate.input_map[window].scrollThisFrame.x += xoffset;
-    g_wgpustate.input_map[window].scrollThisFrame.y += yoffset;
+    g_renderstate.input_map[window].scrollThisFrame.x += xoffset;
+    g_renderstate.input_map[window].scrollThisFrame.y += yoffset;
 }
 
 
@@ -68,7 +68,7 @@ EM_BOOL EmscriptenWheelCallback(int eventType, const EmscriptenWheelEvent* wheel
 #endif
 
 void cpcallback(GLFWwindow* window, double x, double y){
-    g_wgpustate.input_map[window].mousePos = Vector2{float(x), float(y)};
+    g_renderstate.input_map[window].mousePos = Vector2{float(x), float(y)};
 }
 
 #ifdef __EMSCRIPTEN__
@@ -79,10 +79,10 @@ EM_BOOL EmscriptenMouseCallback(int eventType, const EmscriptenMouseEvent *mouse
 #endif
 void clickcallback(GLFWwindow* window, int button, int action, int mods){
     if(action == GLFW_PRESS){
-        g_wgpustate.input_map[window].mouseButtonDown[button] = 1;
+        g_renderstate.input_map[window].mouseButtonDown[button] = 1;
     }
     else if(action == GLFW_RELEASE){
-        g_wgpustate.input_map[window].mouseButtonDown[button] = 0;
+        g_renderstate.input_map[window].mouseButtonDown[button] = 0;
     }
 }
 #ifdef __EMSCRIPTEN__
@@ -104,18 +104,18 @@ EM_BOOL EmscriptenMouseupClickCallback(int eventType, const EmscriptenMouseEvent
 
 //#ifndef __EMSCRIPTEN__
 void CharCallback(GLFWwindow* window, unsigned int codePoint){
-    g_wgpustate.input_map[window].charQueue.push_back((int)codePoint);
+    g_renderstate.input_map[window].charQueue.push_back((int)codePoint);
 }
 void CursorEnterCallback(GLFWwindow* window, int entered){
-    g_wgpustate.input_map[window].cursorInWindow = entered;
+    g_renderstate.input_map[window].cursorInWindow = entered;
 }
 //#endif
 extern const std::unordered_map<std::string, int> emscriptenToGLFWKeyMap;
 void glfwKeyCallback (GLFWwindow* window, int key, int scancode, int action, int mods){
     if(action == GLFW_PRESS){
-        g_wgpustate.input_map[window].keydown[key] = 1;
+        g_renderstate.input_map[window].keydown[key] = 1;
     }else if(action == GLFW_RELEASE){
-        g_wgpustate.input_map[window].keydown[key] = 0;
+        g_renderstate.input_map[window].keydown[key] = 0;
     }
     if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
         EndGIFRecording();
@@ -133,7 +133,7 @@ EM_BOOL EmscriptenKeydownCallback(int eventType, const EmscriptenKeyboardEvent *
         modifier |= GLFW_MOD_SHIFT;
     if(keyEvent->altKey)
         modifier |= GLFW_MOD_ALT;
-    glfwKeyCallback(g_wgpustate.window, emscriptenToGLFWKeyMap.at(keyEvent->code), emscriptenToGLFWKeyMap.at(keyEvent->code), GLFW_PRESS, modifier);
+    glfwKeyCallback(g_renderstate.window, emscriptenToGLFWKeyMap.at(keyEvent->code), emscriptenToGLFWKeyMap.at(keyEvent->code), GLFW_PRESS, modifier);
     //__builtin_dump_struct(keyEvent, printf);
     //printf("Pressed %u\n", keyEvent->which);
     return 0;
@@ -147,7 +147,7 @@ EM_BOOL EmscriptenKeyupCallback(int eventType, const EmscriptenKeyboardEvent *ke
         modifier |= GLFW_MOD_SHIFT;
     if(keyEvent->altKey)
         modifier |= GLFW_MOD_ALT;
-    glfwKeyCallback(g_wgpustate.window, emscriptenToGLFWKeyMap.at(keyEvent->code), emscriptenToGLFWKeyMap.at(keyEvent->code), GLFW_RELEASE, modifier);
+    glfwKeyCallback(g_renderstate.window, emscriptenToGLFWKeyMap.at(keyEvent->code), emscriptenToGLFWKeyMap.at(keyEvent->code), GLFW_RELEASE, modifier);
     //printf("Released %u\n", keyEvent->which);
     return 1;
 }
@@ -188,7 +188,7 @@ uint32_t GetMonitorHeight_GLFW(cwoid){
     return mode->height;
 }
 void ShowCursor_GLFW(GLFWwindow* window){
-    glfwSetInputMode(g_wgpustate.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    glfwSetInputMode(g_renderstate.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 }
 void HideCursor_GLFW(GLFWwindow* window){
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
@@ -306,7 +306,7 @@ void ToggleFullscreen_GLFW(){
     const bool wasFullscreen = EM_ASM_INT( { if (document.fullscreenElement) return 1; }, 0);
     if (wasFullscreen)
     {
-        if (g_wgpustate.windowFlags & FLAG_FULLSCREEN_MODE) enterFullscreen = false;
+        if (g_renderstate.windowFlags & FLAG_FULLSCREEN_MODE) enterFullscreen = false;
         //else if (CORE.Window.flags & FLAG_BORDERLESS_WINDOWED_MODE) enterFullscreen = true;
         else
         {
@@ -319,7 +319,7 @@ void ToggleFullscreen_GLFW(){
         EM_ASM(document.exitFullscreen(););
 
         //CORE.Window.fullscreen = false;
-        g_wgpustate.windowFlags &= ~FLAG_FULLSCREEN_MODE;
+        g_renderstate.windowFlags &= ~FLAG_FULLSCREEN_MODE;
         //CORE.Window.flags &= ~FLAG_BORDERLESS_WINDOWED_MODE;
     }
     else enterFullscreen = true;
@@ -331,33 +331,33 @@ void ToggleFullscreen_GLFW(){
                 Module.requestFullscreen(false, false);
             }, 100);
         );
-        g_wgpustate.windowFlags |= FLAG_FULLSCREEN_MODE;
+        g_renderstate.windowFlags |= FLAG_FULLSCREEN_MODE;
     }
     TRACELOG(LOG_DEBUG, "Tagu fullscreen");
     #else //Other than emscripten
-    GLFWmonitor* monitor = glfwGetWindowMonitor(g_wgpustate.window);
+    GLFWmonitor* monitor = glfwGetWindowMonitor(g_renderstate.window);
     if(monitor){
         //We need to exit fullscreen
-        g_wgpustate.windowFlags &= ~FLAG_FULLSCREEN_MODE;
-        glfwSetWindowMonitor(g_wgpustate.window, NULL, g_wgpustate.input_map[g_wgpustate.window].windowPosition.x, g_wgpustate.input_map[g_wgpustate.window].windowPosition.y, g_wgpustate.input_map[g_wgpustate.window].windowPosition.width, g_wgpustate.input_map[g_wgpustate.window].windowPosition.height, GLFW_DONT_CARE);
+        g_renderstate.windowFlags &= ~FLAG_FULLSCREEN_MODE;
+        glfwSetWindowMonitor(g_renderstate.window, NULL, g_renderstate.input_map[g_renderstate.window].windowPosition.x, g_renderstate.input_map[g_renderstate.window].windowPosition.y, g_renderstate.input_map[g_renderstate.window].windowPosition.width, g_renderstate.input_map[g_renderstate.window].windowPosition.height, GLFW_DONT_CARE);
     }
     else{
         //We need to enter fullscreen
         int xpos = 0, ypos = 0;
         int xs, ys;
         #ifndef DAWN_USE_WAYLAND
-        glfwGetWindowPos(g_wgpustate.window, &xpos, &ypos);
+        glfwGetWindowPos(g_renderstate.window, &xpos, &ypos);
         #endif
-        glfwGetWindowSize(g_wgpustate.window, &xs, &ys);
-        g_wgpustate.input_map[g_wgpustate.window].windowPosition = Rectangle{float(xpos), float(ypos), float(xs), float(ys)};
+        glfwGetWindowSize(g_renderstate.window, &xs, &ys);
+        g_renderstate.input_map[g_renderstate.window].windowPosition = Rectangle{float(xpos), float(ypos), float(xs), float(ys)};
         int monitorCount = 0;
-        int monitorIndex = GetCurrentMonitor_GLFW(g_wgpustate.window);
+        int monitorIndex = GetCurrentMonitor_GLFW(g_renderstate.window);
         GLFWmonitor **monitors = glfwGetMonitors(&monitorCount);
 
         // Use current monitor, so we correctly get the display the window is on
         GLFWmonitor *monitor = (monitorIndex < monitorCount)? monitors[monitorIndex] : NULL;
         auto vm = glfwGetVideoMode(monitor);
-        glfwSetWindowMonitor(g_wgpustate.window, glfwGetPrimaryMonitor(), 0, 0, vm->width, vm->height, vm->refreshRate);
+        glfwSetWindowMonitor(g_renderstate.window, glfwGetPrimaryMonitor(), 0, 0, vm->width, vm->height, vm->refreshRate);
     }
 
     #endif
@@ -384,10 +384,10 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
 
         // Create the test window with no client API.
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        glfwWindowHint(GLFW_RESIZABLE, (g_wgpustate.windowFlags & FLAG_WINDOW_RESIZABLE) ? GLFW_TRUE : GLFW_FALSE);
+        glfwWindowHint(GLFW_RESIZABLE, (g_renderstate.windowFlags & FLAG_WINDOW_RESIZABLE) ? GLFW_TRUE : GLFW_FALSE);
         //glfwWindowHint(GLFW_REFRESH_RATE, 144);
 
-        if(g_wgpustate.windowFlags & FLAG_FULLSCREEN_MODE){
+        if(g_renderstate.windowFlags & FLAG_FULLSCREEN_MODE){
             mon = glfwGetPrimaryMonitor();
             //std::cout <<glfwGetVideoMode(mon)->refreshRate << std::endl;
             //abort();
@@ -413,35 +413,35 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
 
         wgpu::SurfaceDescriptor surfaceDesc = {};
         surfaceDesc.nextInChain = &canvasDesc;
-        g_wgpustate.surface = g_wgpustate.instance.CreateSurface(&surfaceDesc);
+        g_renderstate.surface = g_wgpustate.instance.CreateSurface(&surfaceDesc);
         negotiateSurfaceFormatAndPresentMode(g_wgpustate.surface);
         ret.surface.surface = g_wgpustate.surface.Get();
         window = glfwCreateWindow(width, height, title, mon, nullptr);
-        g_wgpustate.window = (GLFWwindow*)window;
+        g_renderstate.window = (GLFWwindow*)window;
     #endif
-    ret.surface.surfaceConfig = WGPUSurfaceConfiguration{};
+    ret.surface.surfaceConfig = SurfaceConfiguration{};
 
-    WGPUSurfaceConfiguration& config = ret.surface.surfaceConfig;
-    if(g_wgpustate.windowFlags & FLAG_VSYNC_LOWLATENCY_HINT){
-        config.presentMode = (WGPUPresentMode)(((g_wgpustate.unthrottled_PresentMode == wgpu::PresentMode::Mailbox) ? g_wgpustate.unthrottled_PresentMode : g_wgpustate.throttled_PresentMode));
+    SurfaceConfiguration& config = ret.surface.surfaceConfig;
+    if(g_renderstate.windowFlags & FLAG_VSYNC_LOWLATENCY_HINT){
+        config.presentMode = (SurfacePresentMode)(((g_wgpustate.unthrottled_PresentMode == wgpu::PresentMode::Mailbox) ? g_wgpustate.unthrottled_PresentMode : g_wgpustate.throttled_PresentMode));
     }
-    else if(g_wgpustate.windowFlags & FLAG_VSYNC_HINT){
-        config.presentMode = (WGPUPresentMode)g_wgpustate.throttled_PresentMode;
+    else if(g_renderstate.windowFlags & FLAG_VSYNC_HINT){
+        config.presentMode = (SurfacePresentMode)g_wgpustate.throttled_PresentMode;
     }
     else{
-        config.presentMode = (WGPUPresentMode)g_wgpustate.unthrottled_PresentMode;
+        config.presentMode = (SurfacePresentMode)g_wgpustate.unthrottled_PresentMode;
     }
     TRACELOG(LOG_INFO, "Initialized GLFW window with surface %s", presentModeSpellingTable.at(config.presentMode).c_str());
-    config.alphaMode = WGPUCompositeAlphaMode_Opaque;
-    config.format = g_wgpustate.frameBufferFormat;
-    config.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
+    //config.alphaMode = WGPUCompositeAlphaMode_Opaque;
+    config.format = (PixelFormat)g_renderstate.frameBufferFormat;
+    //config.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
     config.width = width;
     config.height = height;
-    config.viewFormats = &config.format;
-    config.viewFormatCount = 1;
+    //config.viewFormats = &config.format;
+    //config.viewFormatCount = 1;
     config.device = GetDevice();
     TRACELOG(LOG_INFO, "Configuring surface");
-    wgpuSurfaceConfigure(ret.surface.surface, &config);
+    wgpuSurfaceConfigure((WGPUSurface)ret.surface.surface, &config);
     int wposx = 0, wposy = 0;
     #ifndef DAWN_USE_WAYLAND
     glfwGetWindowPos((GLFWwindow*)window, &wposx, &wposy);

@@ -217,7 +217,7 @@ extern "C" void BindPipelineVertexArray(DescribedPipeline* pipeline, VertexArray
         if(shouldBind){
             auto& bufferPair = va->buffers[i];
             // Bind the buffer
-            RenderPassSetVertexBuffer(&g_wgpustate.rstate->renderpass, 
+            RenderPassSetVertexBuffer(GetActiveRenderPass(), 
                                                 i, 
                                                 bufferPair.first, 
                                                 0);
@@ -239,35 +239,35 @@ extern "C" void DrawArrays(WGPUPrimitiveTopology drawMode, uint32_t vertexCount)
     BindPipeline(GetActivePipeline(), drawMode);
 
     if(GetActivePipeline()->bindGroup.needsUpdate){
-        RenderPassSetBindGroup(GetActiveRenderPass()->activeRenderpass, 0, &g_wgpustate.rstate->activePipeline->bindGroup);
+        RenderPassSetBindGroup(GetActiveRenderPass(), 0, &GetActivePipeline()->bindGroup);
     }
-    RenderPassDraw(g_wgpustate.rstate->activeRenderpass, vertexCount, 1, 0, 0);
+    RenderPassDraw(GetActiveRenderPass(), vertexCount, 1, 0, 0);
 }
 extern "C" void DrawArraysIndexed(WGPUPrimitiveTopology drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount){
     BindPipeline(GetActivePipeline(), drawMode);
     //PreparePipeline(GetActivePipeline(), VertexArray *va)
     //TRACELOG(LOG_INFO, "a oooo");
-    //auto& rp = g_wgpustate.rstate->renderpass.rpEncoder;  
+    //auto& rp = g_renderstate.rstate->renderpass.rpEncoder;  
     if(GetActivePipeline()->bindGroup.needsUpdate){
-        RenderPassSetBindGroup(GetActiveRenderPass(), 0, &g_wgpustate.rstate->activePipeline->bindGroup);
+        RenderPassSetBindGroup(GetActiveRenderPass(), 0, &GetActivePipeline()->bindGroup);
     }
-    RenderPassSetIndexBuffer(g_wgpustate.rstate->activeRenderpass, &indexBuffer, WGPUIndexFormat_Uint32, 0);
-    RenderPassDrawIndexed(g_wgpustate.rstate->activeRenderpass, vertexCount, 1, 0, 0, 0);
+    RenderPassSetIndexBuffer(GetActiveRenderPass(), &indexBuffer, WGPUIndexFormat_Uint32, 0);
+    RenderPassDrawIndexed(GetActiveRenderPass(), vertexCount, 1, 0, 0, 0);
 }
 extern "C" void DrawArraysIndexedInstanced(WGPUPrimitiveTopology drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount, uint32_t instanceCount){
     BindPipeline(GetActivePipeline(), drawMode);
-    if(g_wgpustate.rstate->activePipeline->bindGroup.needsUpdate){
-        RenderPassSetBindGroup(g_wgpustate.rstate->activeRenderpass, 0, &g_wgpustate.rstate->activePipeline->bindGroup);
+    if(GetActivePipeline()->bindGroup.needsUpdate){
+        RenderPassSetBindGroup(GetActiveRenderPass(), 0, &GetActivePipeline()->bindGroup);
     }
-    RenderPassSetIndexBuffer(g_wgpustate.rstate->activeRenderpass, &indexBuffer, WGPUIndexFormat_Uint32, 0);
-    RenderPassDrawIndexed(g_wgpustate.rstate->activeRenderpass, vertexCount, instanceCount, 0, 0, 0);
+    RenderPassSetIndexBuffer(GetActiveRenderPass(), &indexBuffer, WGPUIndexFormat_Uint32, 0);
+    RenderPassDrawIndexed(GetActiveRenderPass(), vertexCount, instanceCount, 0, 0, 0);
 }
 extern "C" void DrawArraysInstanced(WGPUPrimitiveTopology drawMode, uint32_t vertexCount, uint32_t instanceCount){
     BindPipeline(GetActivePipeline(), drawMode);
-    if(g_wgpustate.rstate->activePipeline->bindGroup.needsUpdate){
-        RenderPassSetBindGroup(g_wgpustate.rstate->activeRenderpass, 0, &g_wgpustate.rstate->activePipeline->bindGroup);
+    if(GetActivePipeline()->bindGroup.needsUpdate){
+        RenderPassSetBindGroup(GetActiveRenderPass(), 0, &GetActivePipeline()->bindGroup);
     }
-    RenderPassDraw(g_wgpustate.rstate->activeRenderpass, vertexCount, instanceCount, 0, 0);
+    RenderPassDraw(GetActiveRenderPass(), vertexCount, instanceCount, 0, 0);
 }
 WGPUInstance GetInstance(){
     return g_wgpustate.instance.Get();
@@ -288,7 +288,7 @@ WGPUAdapter GetAdapter(){
     return g_wgpustate.adapter.Get();
 }
 WGPUSurface GetSurface(){
-    return (WGPUSurface)g_wgpustate.mainWindow->surface.surface;
+    return (WGPUSurface)g_renderstate.mainWindow->surface.surface;
 }
 wgpu::Instance& GetCXXInstance(){
     return g_wgpustate.instance;
@@ -303,7 +303,7 @@ wgpu::Queue&    GetCXXQueue   (){
     return g_wgpustate.queue;
 }
 wgpu::Surface&  GetCXXSurface (){
-    return *((wgpu::Surface*)&g_wgpustate.mainWindow->surface.surface);
+    return *((wgpu::Surface*)&g_renderstate.mainWindow->surface.surface);
 }
 
 
@@ -314,10 +314,10 @@ __attribute__((weak)) void drawCurrentBatch(){
     
     DescribedBuffer* vbo;
     bool allocated_via_pool = false;
-    if(vertexCount < 32 && !g_wgpustate.smallBufferPool.empty()){
+    if(vertexCount < 32 && !g_renderstate.smallBufferPool.empty()){
         allocated_via_pool = true;
-        vbo = g_wgpustate.smallBufferPool.back();
-        g_wgpustate.smallBufferPool.pop_back();
+        vbo = g_renderstate.smallBufferPool.back();
+        g_renderstate.smallBufferPool.pop_back();
         wgpuQueueWriteBuffer(GetQueue(), (WGPUBuffer)vbo->buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
     }
     else{
@@ -326,50 +326,50 @@ __attribute__((weak)) void drawCurrentBatch(){
 
     BufferData(vbo, vboptr_base, vertexCount * sizeof(vertex));
     renderBatchVAO->buffers.front().first = vbo;
-    SetStorageBuffer(3, g_wgpustate.identityMatrix);
-    UpdateBindGroup(&g_wgpustate.rstate->activePipeline->bindGroup);
+    SetStorageBuffer(3, g_renderstate.identityMatrix);
+    UpdateBindGroup(&GetActivePipeline()->bindGroup);
     switch(current_drawmode){
         case RL_LINES:{
 
             //TODO: Line texturing is currently disable in all DrawLine... functions
-            SetTexture(1, g_wgpustate.whitePixel);
-            BindPipeline(g_wgpustate.rstate->activePipeline, WGPUPrimitiveTopology_LineList);
-            BindPipelineVertexArray(g_wgpustate.rstate->activePipeline, renderBatchVAO);
+            SetTexture(1, g_renderstate.whitePixel);
+            BindPipeline(GetActivePipeline(), WGPUPrimitiveTopology_LineList);
+            BindPipelineVertexArray(GetActivePipeline(), renderBatchVAO);
             DrawArrays(WGPUPrimitiveTopology_LineList, vertexCount);
-            //wgpuRenderPassEncoderSetBindGroup(g_wgpustate.rstate->renderpass.rpEncoder, 0, GetWGPUBindGroup(&g_wgpustate.rstate->activePipeline->bindGroup), 0, 0);
-            //wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, wgpuBufferGetSize(vbo.buffer));
-            //wgpuRenderPassEncoderDraw(g_wgpustate.rstate->renderpass.rpEncoder, vertexCount, 1, 0, 0);
+            //wgpuRenderPassEncoderSetBindGroup(g_renderstate.rstate->renderpass.rpEncoder, 0, GetWGPUBindGroup(&GetActivePipeline()->bindGroup), 0, 0);
+            //wgpuRenderPassEncoderSetVertexBuffer(g_renderstate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, wgpuBufferGetSize(vbo.buffer));
+            //wgpuRenderPassEncoderDraw(g_renderstate.rstate->renderpass.rpEncoder, vertexCount, 1, 0, 0);
             
-            g_wgpustate.rstate->activePipeline->bindGroup.needsUpdate = true;
+            GetActivePipeline()->bindGroup.needsUpdate = true;
         }break;
         case RL_TRIANGLE_STRIP:{
-            BindPipeline(g_wgpustate.rstate->activePipeline, WGPUPrimitiveTopology_TriangleList);
-            BindPipelineVertexArray(g_wgpustate.rstate->activePipeline, renderBatchVAO);
+            BindPipeline(GetActivePipeline(), WGPUPrimitiveTopology_TriangleList);
+            BindPipelineVertexArray(GetActivePipeline(), renderBatchVAO);
             DrawArrays(WGPUPrimitiveTopology_TriangleStrip, vertexCount);
             break;
         }
         
         case RL_TRIANGLES:{
-            //SetTexture(1, g_wgpustate.whitePixel);
-            BindPipeline(g_wgpustate.rstate->activePipeline, WGPUPrimitiveTopology_TriangleList);
-            BindPipelineVertexArray(g_wgpustate.rstate->activePipeline, renderBatchVAO);
+            //SetTexture(1, g_renderstate.whitePixel);
+            BindPipeline(GetActivePipeline(), WGPUPrimitiveTopology_TriangleList);
+            BindPipelineVertexArray(GetActivePipeline(), renderBatchVAO);
             DrawArrays(WGPUPrimitiveTopology_TriangleList, vertexCount);
             //abort();
             //vboptr = vboptr_base;
-            //BindPipeline(g_wgpustate.rstate->activePipeline, WGPUPrimitiveTopology_TriangleList);
-            //wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, wgpuBufferGetSize(vbo.buffer));
-            //wgpuRenderPassEncoderDraw(g_wgpustate.rstate->renderpass.rpEncoder, vertexCount, 1, 0, 0);
+            //BindPipeline(g_renderstate.rstate->activePipeline, WGPUPrimitiveTopology_TriangleList);
+            //wgpuRenderPassEncoderSetVertexBuffer(g_renderstate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, wgpuBufferGetSize(vbo.buffer));
+            //wgpuRenderPassEncoderDraw(g_renderstate.rstate->renderpass.rpEncoder, vertexCount, 1, 0, 0);
             //if(!allocated_via_pool){
             //    wgpuBufferRelease(vbo.buffer);
             //}
             //else{
-            //    g_wgpustate.smallBufferRecyclingBin.push_back(vbo);
+            //    g_renderstate.smallBufferRecyclingBin.push_back(vbo);
             //}
         } break;
         case RL_QUADS:{
             const size_t quadCount = vertexCount / 4;
             
-            if(g_wgpustate.quadindicesCache->size < 6 * quadCount * sizeof(uint32_t)){
+            if(g_renderstate.quadindicesCache->size < 6 * quadCount * sizeof(uint32_t)){
                 std::vector<uint32_t> indices(6 * quadCount);
                 for(size_t i = 0;i < quadCount;i++){
                     indices[i * 6 + 0] = (i * 4 + 0);
@@ -379,29 +379,29 @@ __attribute__((weak)) void drawCurrentBatch(){
                     indices[i * 6 + 4] = (i * 4 + 2);
                     indices[i * 6 + 5] = (i * 4 + 3);
                 }
-                BufferData(g_wgpustate.quadindicesCache, indices.data(), 6 * quadCount * sizeof(uint32_t));
-                //if(g_wgpustate.quadindicesCache->buffer){
-                //    wgpuBufferRelease(g_wgpustate.quadindicesCache->buffer);
+                BufferData(g_renderstate.quadindicesCache, indices.data(), 6 * quadCount * sizeof(uint32_t));
+                //if(g_renderstate.quadindicesCache->buffer){
+                //    wgpuBufferRelease(g_renderstate.quadindicesCache->buffer);
                 //}
-                //g_wgpustate.quadindicesCache = GenBufferEx(indices.data(), 6 * quadCount * sizeof(uint32_t), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index);
+                //g_renderstate.quadindicesCache = GenBufferEx(indices.data(), 6 * quadCount * sizeof(uint32_t), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index);
             }
-            const DescribedBuffer* ibuf = g_wgpustate.quadindicesCache;
-            //BindPipeline(g_wgpustate.rstate->activePipeline, WGPUPrimitiveTopology_TriangleList);
-            //g_wgpustate.rstate->activePipeline
-            BindPipelineVertexArray(g_wgpustate.rstate->activePipeline, renderBatchVAO);
+            const DescribedBuffer* ibuf = g_renderstate.quadindicesCache;
+            //BindPipeline(g_renderstate.rstate->activePipeline, WGPUPrimitiveTopology_TriangleList);
+            //g_renderstate.rstate->activePipeline
+            BindPipelineVertexArray(GetActivePipeline(), renderBatchVAO);
             DrawArraysIndexed(WGPUPrimitiveTopology_TriangleList, *ibuf, quadCount * 6);
 
             //wgpuQueueWriteBuffer(GetQueue(), vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
             
-            //wgpuRenderPassEncoderSetVertexBuffer(g_wgpustate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, vertexCount * sizeof(vertex));
-            //wgpuRenderPassEncoderSetIndexBuffer (g_wgpustate.rstate->renderpass.rpEncoder, ibuf.buffer, WGPUIndexFormat_Uint32, 0, quadCount * 6 * sizeof(uint32_t));
-            //wgpuRenderPassEncoderDrawIndexed    (g_wgpustate.rstate->renderpass.rpEncoder, quadCount * 6, 1, 0, 0, 0);
+            //wgpuRenderPassEncoderSetVertexBuffer(g_renderstate.rstate->renderpass.rpEncoder, 0, vbo.buffer, 0, vertexCount * sizeof(vertex));
+            //wgpuRenderPassEncoderSetIndexBuffer (g_renderstate.rstate->renderpass.rpEncoder, ibuf.buffer, WGPUIndexFormat_Uint32, 0, quadCount * 6 * sizeof(uint32_t));
+            //wgpuRenderPassEncoderDrawIndexed    (g_renderstate.rstate->renderpass.rpEncoder, quadCount * 6, 1, 0, 0, 0);
             
             //if(!allocated_via_pool){
             //    wgpuBufferRelease(vbo.buffer);
             //}
             //else{
-            //    g_wgpustate.smallBufferRecyclingBin.push_back(vbo);
+            //    g_renderstate.smallBufferRecyclingBin.push_back(vbo);
             //}
             
         } break;
@@ -411,32 +411,32 @@ __attribute__((weak)) void drawCurrentBatch(){
         UnloadBuffer(vbo);
     }
     else{
-        g_wgpustate.smallBufferRecyclingBin.push_back(vbo);
+        g_renderstate.smallBufferRecyclingBin.push_back(vbo);
     }
     vboptr = vboptr_base;
 }
 
 void LoadIdentity(cwoid){
-    g_wgpustate.matrixStack[g_wgpustate.stackPosition].first = MatrixIdentity();
+    g_renderstate.matrixStack[g_renderstate.stackPosition].first = MatrixIdentity();
 }
 void PushMatrix(){
-    ++g_wgpustate.stackPosition;
+    ++g_renderstate.stackPosition;
 }
 void PopMatrix(){
-    --g_wgpustate.stackPosition;
+    --g_renderstate.stackPosition;
 }
 Matrix GetMatrix(){
-    return g_wgpustate.matrixStack[g_wgpustate.stackPosition].first;
+    return g_renderstate.matrixStack[g_renderstate.stackPosition].first;
 }
 Matrix* GetMatrixPtr(){
-    return &g_wgpustate.matrixStack[g_wgpustate.stackPosition].first;
+    return &g_renderstate.matrixStack[g_renderstate.stackPosition].first;
 }
 void SetMatrix(Matrix m){
-    g_wgpustate.matrixStack[g_wgpustate.stackPosition].first = m;
+    g_renderstate.matrixStack[g_renderstate.stackPosition].first = m;
 }
 WGPUBuffer GetMatrixBuffer(){
-    wgpuQueueWriteBuffer(GetQueue(), g_wgpustate.matrixStack[g_wgpustate.stackPosition].second, 0, &g_wgpustate.matrixStack[g_wgpustate.stackPosition].first, sizeof(Matrix));
-    return g_wgpustate.matrixStack[g_wgpustate.stackPosition].second;
+    wgpuQueueWriteBuffer(GetQueue(), g_renderstate.matrixStack[g_renderstate.stackPosition].second, 0, &g_renderstate.matrixStack[g_renderstate.stackPosition].first, sizeof(Matrix));
+    return g_renderstate.matrixStack[g_renderstate.stackPosition].second;
 }
 void adaptRenderPass(DescribedRenderpass* drp, RenderSettings settings){
     drp->settings = settings;
@@ -445,32 +445,32 @@ void adaptRenderPass(DescribedRenderpass* drp, RenderSettings settings){
 }
 extern "C" void BeginPipelineMode(DescribedPipeline* pipeline){
     drawCurrentBatch();
-    if(!RenderSettingsComptatible(pipeline->settings, g_wgpustate.rstate->renderpass.settings)){
+    if(!RenderSettingsComptatible(pipeline->settings, g_renderstate.rstate->renderpass.settings)){
         EndRenderpass();
-        adaptRenderPass(&g_wgpustate.rstate->renderpass, pipeline->settings);
+        adaptRenderPass(&g_renderstate.rstate->renderpass, pipeline->settings);
         BeginRenderpass();
     }
-    g_wgpustate.rstate->activePipeline = pipeline;
+    g_renderstate.rstate->activePipeline = pipeline;
     uint32_t location = GetUniformLocation(pipeline, RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION_VIEW);
     if(location != LOCATION_NOT_FOUND){
-        SetUniformBufferData(location, &g_wgpustate.matrixStack[g_wgpustate.stackPosition], sizeof(Matrix));
+        SetUniformBufferData(location, &g_renderstate.matrixStack[g_renderstate.stackPosition], sizeof(Matrix));
     }
     //BindPipeline(pipeline, drawMode);
 }
 extern "C" void EndPipelineMode(){
     drawCurrentBatch();
-    if(!RenderSettingsComptatible(g_wgpustate.rstate->defaultPipeline->settings, g_wgpustate.rstate->renderpass.settings)){
+    if(!RenderSettingsComptatible(g_renderstate.rstate->defaultPipeline->settings, g_renderstate.rstate->renderpass.settings)){
         EndRenderpass();
-        adaptRenderPass(&g_wgpustate.rstate->renderpass, g_wgpustate.rstate->defaultPipeline->settings);
+        adaptRenderPass(&g_renderstate.rstate->renderpass, g_renderstate.rstate->defaultPipeline->settings);
         BeginRenderpass();
     }
-    g_wgpustate.rstate->activePipeline = g_wgpustate.rstate->defaultPipeline;
-    //BindPipeline(g_wgpustate.rstate->activePipeline, g_wgpustate.rstate->activePipeline->lastUsedAs);
+    g_renderstate.rstate->activePipeline = g_renderstate.rstate->defaultPipeline;
+    //BindPipeline(g_renderstate.rstate->activePipeline, g_renderstate.rstate->activePipeline->lastUsedAs);
 }
 extern "C" void BeginMode2D(Camera2D camera){
     drawCurrentBatch();
     Matrix mat = GetCameraMatrix2D(camera);
-    mat = MatrixMultiply(ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY), mat);
+    mat = MatrixMultiply(ScreenMatrix(g_renderstate.rstate->renderExtentX, g_renderstate.rstate->renderExtentY), mat);
     PushMatrix();
     SetMatrix(mat);
     SetUniformBufferData(0, &mat, sizeof(Matrix));
@@ -478,14 +478,14 @@ extern "C" void BeginMode2D(Camera2D camera){
 extern "C" void EndMode2D(){
     drawCurrentBatch();
     PopMatrix();
-    //g_wgpustate.activeScreenMatrix = ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
+    //g_renderstate.activeScreenMatrix = ScreenMatrix(g_renderstate.rstate->renderExtentX, g_renderstate.rstate->renderExtentY);
     
     SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
 }
 void BeginMode3D(Camera3D camera){
     drawCurrentBatch();
-    Matrix mat = GetCameraMatrix3D(camera, float(g_wgpustate.rstate->renderExtentX) / g_wgpustate.rstate->renderExtentY);
-    //g_wgpustate.activeScreenMatrix = mat;
+    Matrix mat = GetCameraMatrix3D(camera, float(g_renderstate.rstate->renderExtentX) / g_renderstate.rstate->renderExtentY);
+    //g_renderstate.activeScreenMatrix = mat;
     PushMatrix();
     SetMatrix(mat);
     SetUniformBufferData(0, &mat, sizeof(Matrix));
@@ -493,7 +493,7 @@ void BeginMode3D(Camera3D camera){
 void EndMode3D(){
     drawCurrentBatch();
     
-    //g_wgpustate.activeScreenMatrix = ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
+    //g_renderstate.activeScreenMatrix = ScreenMatrix(g_renderstate.rstate->renderExtentX, g_renderstate.rstate->renderExtentY);
     PopMatrix();
     SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
 }
@@ -501,31 +501,31 @@ extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology 
     switch(drawMode){
         case WGPUPrimitiveTopology_TriangleList:
         //std::cout << "Binding: " <<  pipeline->pipeline << "\n";
-        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_wgpustate.rstate->renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleList);
+        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.rstate->renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleList);
         break;
         case WGPUPrimitiveTopology_TriangleStrip:
-        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_wgpustate.rstate->renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleStrip);
+        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.rstate->renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleStrip);
         break;
         case WGPUPrimitiveTopology_LineList:
-        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_wgpustate.rstate->renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_LineList);
+        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.rstate->renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_LineList);
         break;
         case WGPUPrimitiveTopology_PointList:
-        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_wgpustate.rstate->renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_PointList);
+        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.rstate->renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_PointList);
         break;
         default:
             assert(false && "Unsupported Drawmode");
             abort();
     }
     //pipeline->lastUsedAs = drawMode;
-    wgpuRenderPassEncoderSetBindGroup ((WGPURenderPassEncoder)g_wgpustate.rstate->renderpass.rpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
+    wgpuRenderPassEncoderSetBindGroup ((WGPURenderPassEncoder)g_renderstate.rstate->renderpass.rpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
 
 }
 extern "C" void BindComputePipeline(DescribedComputePipeline* pipeline){
-    wgpuComputePassEncoderSetPipeline ((WGPUComputePassEncoder)g_wgpustate.rstate->computepass.cpEncoder, (WGPUComputePipeline)pipeline->pipeline);
-    wgpuComputePassEncoderSetBindGroup((WGPUComputePassEncoder)g_wgpustate.rstate->computepass.cpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
+    wgpuComputePassEncoderSetPipeline ((WGPUComputePassEncoder)g_renderstate.rstate->computepass.cpEncoder, (WGPUComputePipeline)pipeline->pipeline);
+    wgpuComputePassEncoderSetBindGroup((WGPUComputePassEncoder)g_renderstate.rstate->computepass.cpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
 }
 extern "C" void CopyBufferToBuffer(DescribedBuffer* source, DescribedBuffer* dest, size_t count){
-    wgpuCommandEncoderCopyBufferToBuffer((WGPUCommandEncoder)g_wgpustate.rstate->computepass.cmdEncoder, (WGPUBuffer)source->buffer, 0, (WGPUBuffer)dest->buffer, 0, count);
+    wgpuCommandEncoderCopyBufferToBuffer((WGPUCommandEncoder)g_renderstate.rstate->computepass.cmdEncoder, (WGPUBuffer)source->buffer, 0, (WGPUBuffer)dest->buffer, 0, count);
 }
 WGPUBuffer intermediary = 0;
 extern "C" void CopyTextureToTexture(Texture source, Texture dest){
@@ -564,19 +564,19 @@ extern "C" void CopyTextureToTexture(Texture source, Texture dest){
     copySize.height = source.height;
     copySize.depthOrArrayLayers = 1;
     
-    wgpuCommandEncoderCopyTextureToBuffer((WGPUCommandEncoder)g_wgpustate.rstate->computepass.cmdEncoder, &src, &bdst, &copySize);
-    wgpuCommandEncoderCopyBufferToTexture((WGPUCommandEncoder)g_wgpustate.rstate->computepass.cmdEncoder, &bdst, &tdst, &copySize);
+    wgpuCommandEncoderCopyTextureToBuffer((WGPUCommandEncoder)g_renderstate.rstate->computepass.cmdEncoder, &src, &bdst, &copySize);
+    wgpuCommandEncoderCopyBufferToTexture((WGPUCommandEncoder)g_renderstate.rstate->computepass.cmdEncoder, &bdst, &tdst, &copySize);
     
     //Doesnt work unfortunately:
-    //wgpuCommandEncoderCopyTextureToTexture(g_wgpustate.rstate->computepass.cmdEncoder, &src, &dst, &copySize);
+    //wgpuCommandEncoderCopyTextureToTexture(g_renderstate.rstate->computepass.cmdEncoder, &src, &dst, &copySize);
     
     //wgpuBufferRelease(intermediary);
 }
 uint32_t GetScreenWidth (cwoid){
-    return g_wgpustate.width;
+    return g_renderstate.width;
 }
 uint32_t GetScreenHeight(cwoid){
-    return g_wgpustate.height;
+    return g_renderstate.height;
 }
 
 void BeginRenderpassEx(DescribedRenderpass* renderPass){
@@ -590,12 +590,12 @@ void BeginRenderpassEx(DescribedRenderpass* renderPass){
     
     WGPURenderPassColorAttachment colorAttachment zeroinit;
     WGPURenderPassDepthStencilAttachment depthAttachment zeroinit;
-    if(g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].colorMultisample.view){
-        colorAttachment.view = (WGPUTextureView)g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].colorMultisample.view;
-        colorAttachment.resolveTarget = (WGPUTextureView)g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.view;
+    if(g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].colorMultisample.view){
+        colorAttachment.view = (WGPUTextureView)g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].colorMultisample.view;
+        colorAttachment.resolveTarget = (WGPUTextureView)g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.view;
     }
     else{
-        colorAttachment.view = (WGPUTextureView)g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.view;
+        colorAttachment.view = (WGPUTextureView)g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.view;
         colorAttachment.resolveTarget = nullptr;
     }
 
@@ -611,7 +611,7 @@ void BeginRenderpassEx(DescribedRenderpass* renderPass){
         renderPass->colorClear.a,
     };
 
-    depthAttachment.view = (WGPUTextureView)g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].depth.view;
+    depthAttachment.view = (WGPUTextureView)g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].depth.view;
     depthAttachment.depthLoadOp  = (WGPULoadOp)renderPass->depthLoadOp;
     depthAttachment.depthStoreOp = (WGPUStoreOp)renderPass->depthStoreOp;
     depthAttachment.depthClearValue = 1.0f;
@@ -625,13 +625,13 @@ void BeginRenderpassEx(DescribedRenderpass* renderPass){
     
     
     renderPass->rpEncoder = wgpuCommandEncoderBeginRenderPass((WGPUCommandEncoder)renderPass->cmdEncoder, &renderPassDesc);
-    g_wgpustate.rstate->activeRenderpass = renderPass;
+    g_renderstate.rstate->activeRenderpass = renderPass;
 }
 
 void EndRenderpassEx(DescribedRenderpass* renderPass){
     drawCurrentBatch();
     wgpuRenderPassEncoderEnd((WGPURenderPassEncoder)renderPass->rpEncoder);
-    g_wgpustate.rstate->activeRenderpass = nullptr;
+    g_renderstate.rstate->activeRenderpass = nullptr;
     auto re = renderPass->rpEncoder;
     renderPass->rpEncoder = 0;
     WGPUCommandBufferDescriptor cmdBufferDescriptor{};
@@ -643,43 +643,43 @@ void EndRenderpassEx(DescribedRenderpass* renderPass){
     wgpuCommandBufferRelease(command);
 }
 void BeginRenderpass(cwoid){
-    BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
+    BeginRenderpassEx(&g_renderstate.rstate->renderpass);
 }
 void EndRenderpass(cwoid){
-    EndRenderpassEx(&g_wgpustate.rstate->renderpass);
+    EndRenderpassEx(&g_renderstate.rstate->renderpass);
 }
 extern "C" void ClearBackground(Color clearColor){
-    bool rpActive = g_wgpustate.rstate->activeRenderpass != nullptr;
-    DescribedRenderpass* backup = g_wgpustate.rstate->activeRenderpass;
+    bool rpActive = GetActiveRenderPass() != nullptr;
+    DescribedRenderpass* backup = GetActiveRenderPass();
     if(rpActive){
-        EndRenderpassEx(g_wgpustate.rstate->activeRenderpass);
+        EndRenderpassEx(g_renderstate.rstate->activeRenderpass);
     }
-    g_wgpustate.rstate->clearPass.colorClear = DColor{clearColor.r / 255.0, clearColor.g / 255.0, clearColor.b / 255.0, clearColor.a / 255.0};
-    BeginRenderpassEx(&g_wgpustate.rstate->clearPass);
-    EndRenderpassEx(&g_wgpustate.rstate->clearPass);
+    g_renderstate.rstate->clearPass.colorClear = DColor{clearColor.r / 255.0, clearColor.g / 255.0, clearColor.b / 255.0, clearColor.a / 255.0};
+    BeginRenderpassEx(&g_renderstate.rstate->clearPass);
+    EndRenderpassEx(&g_renderstate.rstate->clearPass);
     if(rpActive){
         BeginRenderpassEx(backup);
     }
 
 }
 void BeginComputepass(){
-    BeginComputepassEx(&g_wgpustate.rstate->computepass);
+    BeginComputepassEx(&g_renderstate.rstate->computepass);
 }
 void DispatchCompute(uint32_t x, uint32_t y, uint32_t z){
-    wgpuComputePassEncoderDispatchWorkgroups((WGPUComputePassEncoder)g_wgpustate.rstate->computepass.cpEncoder, x, y, z);
+    wgpuComputePassEncoderDispatchWorkgroups((WGPUComputePassEncoder)g_renderstate.rstate->computepass.cpEncoder, x, y, z);
 }
 void ComputepassEndOnlyComputing(cwoid){
-    wgpuComputePassEncoderEnd((WGPUComputePassEncoder)g_wgpustate.rstate->computepass.cpEncoder);
-    g_wgpustate.rstate->computepass.cpEncoder = nullptr;
+    wgpuComputePassEncoderEnd((WGPUComputePassEncoder)g_renderstate.rstate->computepass.cpEncoder);
+    g_renderstate.rstate->computepass.cpEncoder = nullptr;
 }
 void EndComputepass(){
-    EndComputepassEx(&g_wgpustate.rstate->computepass);
+    EndComputepassEx(&g_renderstate.rstate->computepass);
 }
 void BeginComputepassEx(DescribedComputepass* computePass){
     computePass->cmdEncoder = wgpuDeviceCreateCommandEncoder(GetDevice(), nullptr);
     WGPUComputePassDescriptor desc{};
     desc.label = STRVIEW("ComputePass");
-    g_wgpustate.rstate->computepass.cpEncoder = wgpuCommandEncoderBeginComputePass((WGPUCommandEncoder)g_wgpustate.rstate->computepass.cmdEncoder, &desc);
+    g_renderstate.rstate->computepass.cpEncoder = wgpuCommandEncoderBeginComputePass((WGPUCommandEncoder)g_renderstate.rstate->computepass.cmdEncoder, &desc);
 
 }
 void EndComputepassEx(DescribedComputepass* computePass){
@@ -689,7 +689,7 @@ void EndComputepassEx(DescribedComputepass* computePass){
     }
     
     //TODO
-    g_wgpustate.rstate->activeComputepass = nullptr;
+    g_renderstate.rstate->activeComputepass = nullptr;
 
     WGPUCommandBufferDescriptor cmdBufferDescriptor{};
     cmdBufferDescriptor.label = STRVIEW("CB");
@@ -748,9 +748,9 @@ void requestAnimationFrameLoopWithJSPI(void (*callback)(void), int, int){
 RenderTexture headless_rtex;
 void BeginDrawing(){
     
-    ++g_wgpustate.renderTargetStackPosition;
+    ++g_renderstate.renderTargetStackPosition;
     
-    if(g_wgpustate.windowFlags & FLAG_HEADLESS){
+    if(g_renderstate.windowFlags & FLAG_HEADLESS){
         if(headless_rtex.texture.id){
             UnloadTexture(headless_rtex.texture);
         }
@@ -762,54 +762,54 @@ void BeginDrawing(){
         }
 
         headless_rtex = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
-        g_wgpustate.mainWindowRenderTarget = headless_rtex;
-        //setTargetTextures(g_wgpustate.rstate, headless_rtex.texture.view, headless_rtex.colorMultisample.view, headless_rtex.depth.view);
+        g_renderstate.mainWindowRenderTarget = headless_rtex;
+        //setTargetTextures(g_renderstate.rstate, headless_rtex.texture.view, headless_rtex.colorMultisample.view, headless_rtex.depth.view);
 
-        g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition] = headless_rtex;
+        g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition] = headless_rtex;
     }
     else{
         
-        //if(g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.id)
-        //    UnloadTexture(g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture);
-        if(g_wgpustate.createdSubwindows[g_wgpustate.window].surface.frameBuffer.texture.id)
-            UnloadTexture(g_wgpustate.createdSubwindows[g_wgpustate.window].surface.frameBuffer.texture);
+        //if(g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.id)
+        //    UnloadTexture(g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture);
+        if(g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer.texture.id)
+            UnloadTexture(g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer.texture);
         
 
-        //g_wgpustate.drawmutex.lock();
-        g_wgpustate.rstate->renderExtentX = g_wgpustate.createdSubwindows[g_wgpustate.window].surface.frameBuffer.texture.width;
-        g_wgpustate.width = g_wgpustate.createdSubwindows[g_wgpustate.window].surface.frameBuffer.texture.width;
-        g_wgpustate.rstate->renderExtentY = g_wgpustate.createdSubwindows[g_wgpustate.window].surface.frameBuffer.texture.height;
-        g_wgpustate.height = g_wgpustate.createdSubwindows[g_wgpustate.window].surface.frameBuffer.texture.height;
-        //std::cout << g_wgpustate.createdSubwindows[g_wgpustate.window].surface.frameBuffer.depth.width << std::endl;
-        GetNewTexture(&g_wgpustate.createdSubwindows[g_wgpustate.window].surface);
-        g_wgpustate.mainWindowRenderTarget = g_wgpustate.createdSubwindows[g_wgpustate.window].surface.frameBuffer;
-        g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition] = g_wgpustate.mainWindowRenderTarget;
-        //__builtin_dump_struct(&(g_wgpustate.mainWindowRenderTarget.depth), printf);
+        //g_renderstate.drawmutex.lock();
+        g_renderstate.rstate->renderExtentX = g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer.texture.width;
+        g_renderstate.width = g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer.texture.width;
+        g_renderstate.rstate->renderExtentY = g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer.texture.height;
+        g_renderstate.height = g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer.texture.height;
+        //std::cout << g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer.depth.width << std::endl;
+        GetNewTexture(&g_renderstate.createdSubwindows[g_renderstate.window].surface);
+        g_renderstate.mainWindowRenderTarget = g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer;
+        g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition] = g_renderstate.mainWindowRenderTarget;
+        //__builtin_dump_struct(&(g_renderstate.mainWindowRenderTarget.depth), printf);
     }
-    BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
-    //SetUniformBuffer(0, g_wgpustate.defaultScreenMatrix);
-    SetMatrix(ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY));
+    BeginRenderpassEx(&g_renderstate.rstate->renderpass);
+    //SetUniformBuffer(0, g_renderstate.defaultScreenMatrix);
+    SetMatrix(ScreenMatrix(g_renderstate.rstate->renderExtentX, g_renderstate.rstate->renderExtentY));
     SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
     
     if(IsKeyPressed(KEY_F2) && (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL) || true)){
-        if(g_wgpustate.grst->recording){
+        if(g_renderstate.grst->recording){
             EndGIFRecording();
         }
         else{
             StartGIFRecording();
         }
     }
-    //EndRenderPass(&g_wgpustate.rstate->clearPass);
-    //BeginRenderPass(&g_wgpustate.rstate->renderpass);
+    //EndRenderPass(&g_renderstate.rstate->clearPass);
+    //BeginRenderPass(&g_renderstate.rstate->renderpass);
     //UseNoTexture();
-    //updateBindGroup(g_wgpustate.rstate);
+    //updateBindGroup(g_renderstate.rstate);
 }
 void EndDrawing(){
-    if(g_wgpustate.rstate->activeRenderpass){
+    if(g_renderstate.rstate->activeRenderpass){
         drawCurrentBatch();
-        EndRenderpassEx(g_wgpustate.rstate->activeRenderpass);
+        EndRenderpassEx(g_renderstate.rstate->activeRenderpass);
     }
-    if(g_wgpustate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
+    if(g_renderstate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
         Image img = LoadImageFromTextureEx((WGPUTexture)GetActiveColorTarget(), 0);
         if (img.format != BGRA8 && img.format != RGBA8) {
             // Handle unsupported formats or convert as necessary
@@ -841,22 +841,22 @@ void EndDrawing(){
         fflush(stdout);
         UnloadImage(img);
     }
-    if(g_wgpustate.grst->recording){
+    if(g_renderstate.grst->recording){
         uint64_t stmp = NanoTime();
-        if(stmp - g_wgpustate.grst->lastFrameTimestamp > g_wgpustate.grst->delayInCentiseconds * 10000000ull){
-            g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.format = (PixelFormat)g_wgpustate.frameBufferFormat;
-            Texture fbCopy = LoadTextureEx(g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.width, g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.height, (PixelFormat)g_wgpustate.frameBufferFormat, false);
+        if(stmp - g_renderstate.grst->lastFrameTimestamp > g_renderstate.grst->delayInCentiseconds * 10000000ull){
+            g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.format = (PixelFormat)g_renderstate.frameBufferFormat;
+            Texture fbCopy = LoadTextureEx(g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.width, g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.height, (PixelFormat)g_renderstate.frameBufferFormat, false);
             BeginComputepass();
             ComputepassEndOnlyComputing();
-            CopyTextureToTexture(g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture, fbCopy);
+            CopyTextureToTexture(g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture, fbCopy);
             EndComputepass();
             BeginRenderpass();
             int recordingTextX = GetScreenWidth() - MeasureText("Recording", 30);
             DrawText("Recording", recordingTextX, 5, 30, Color{255,40,40,255});
             EndRenderpass();
-            addScreenshot(g_wgpustate.grst, (WGPUTexture)fbCopy.id);
+            addScreenshot(g_renderstate.grst, (WGPUTexture)fbCopy.id);
             UnloadTexture(fbCopy);
-            g_wgpustate.grst->lastFrameTimestamp = stmp;
+            g_renderstate.grst->lastFrameTimestamp = stmp;
         }
         else{
             BeginRenderpass();
@@ -869,54 +869,54 @@ void EndDrawing(){
     }
     
     //WGPUSurfaceTexture surfaceTexture;
-    //wgpuSurfaceGetCurrentTexture(g_wgpustate.surface, &surfaceTexture);
+    //wgpuSurfaceGetCurrentTexture(g_renderstate.surface, &surfaceTexture);
     
     
-    if(!(g_wgpustate.windowFlags & FLAG_HEADLESS)){
+    if(!(g_renderstate.windowFlags & FLAG_HEADLESS)){
         #ifndef __EMSCRIPTEN__
-        PresentSurface(&g_wgpustate.mainWindow->surface);
+        PresentSurface(&g_renderstate.mainWindow->surface);
         #endif
     }
     
-    std::copy(g_wgpustate.smallBufferRecyclingBin.begin(), g_wgpustate.smallBufferRecyclingBin.end(), std::back_inserter(g_wgpustate.smallBufferPool));
-    g_wgpustate.smallBufferRecyclingBin.clear();
-    auto& ipstate = g_wgpustate.input_map[g_wgpustate.window];
+    std::copy(g_renderstate.smallBufferRecyclingBin.begin(), g_renderstate.smallBufferRecyclingBin.end(), std::back_inserter(g_renderstate.smallBufferPool));
+    g_renderstate.smallBufferRecyclingBin.clear();
+    auto& ipstate = g_renderstate.input_map[g_renderstate.window];
     std::copy(ipstate.keydown.begin(), ipstate.keydown.end(), ipstate.keydownPrevious.begin());
     ipstate.mousePosPrevious = ipstate.mousePos;
     ipstate.scrollPreviousFrame = ipstate.scrollThisFrame;
     ipstate.scrollThisFrame = Vector2{0, 0};
     std::copy(ipstate.mouseButtonDown.begin(), ipstate.mouseButtonDown.end(), ipstate.mouseButtonDownPrevious.begin());
-    for(auto& [_, ipstate] : g_wgpustate.input_map){
+    for(auto& [_, ipstate] : g_renderstate.input_map){
         ipstate.charQueue.clear();
         ipstate.gestureAngleThisFrame = 0;
         ipstate.gestureZoomThisFrame = 1;
     }
     PollEvents();
-    if(g_wgpustate.wantsToggleFullscreen){
-        g_wgpustate.wantsToggleFullscreen = false;
+    if(g_renderstate.wantsToggleFullscreen){
+        g_renderstate.wantsToggleFullscreen = false;
         ToggleFullscreenImpl();
     }
-    //if(!(g_wgpustate.windowFlags & FLAG_HEADLESS))
-    //    g_wgpustate.drawmutex.unlock();
+    //if(!(g_renderstate.windowFlags & FLAG_HEADLESS))
+    //    g_renderstate.drawmutex.unlock();
     uint64_t nanosecondsPerFrame = std::floor(1e9 / GetTargetFPS());
     //std::cout << nanosecondsPerFrame << "\n";
-    uint64_t beginframe_stmp = g_wgpustate.last_timestamps[(g_wgpustate.total_frames) % 64];
-    ++g_wgpustate.total_frames;
-    g_wgpustate.last_timestamps[g_wgpustate.total_frames % 64] = NanoTime();
+    uint64_t beginframe_stmp = g_renderstate.last_timestamps[(g_renderstate.total_frames) % 64];
+    ++g_renderstate.total_frames;
+    g_renderstate.last_timestamps[g_renderstate.total_frames % 64] = NanoTime();
     uint64_t elapsed = NanoTime() - beginframe_stmp;
     if(elapsed & (1ull << 63))return;
-    if(!(g_wgpustate.windowFlags & FLAG_VSYNC_HINT) && nanosecondsPerFrame > elapsed && GetTargetFPS() > 0)
+    if(!(g_renderstate.windowFlags & FLAG_VSYNC_HINT) && nanosecondsPerFrame > elapsed && GetTargetFPS() > 0)
         NanoWait(nanosecondsPerFrame - elapsed);
     
-    --g_wgpustate.renderTargetStackPosition;
+    --g_renderstate.renderTargetStackPosition;
     //std::this_thread::sleep_for(std::chrono::milliseconds(100));
 }
 void StartGIFRecording(){
-    startRecording(g_wgpustate.grst, 4);
+    startRecording(g_renderstate.grst, 4);
 }
 void EndGIFRecording(){
     #ifndef __EMSCRIPTEN__
-    if(!g_wgpustate.grst->recording)return;
+    if(!g_renderstate.grst->recording)return;
     char buf[128] = {0};
     for(int i = 1;i < 1000;i++){
         sprintf(buf, "recording%03d.gif", i);
@@ -927,18 +927,18 @@ void EndGIFRecording(){
     #else
     constexpr char buf[] = "gifexport.gif";
     #endif
-    endRecording(g_wgpustate.grst, buf);
+    endRecording(g_renderstate.grst, buf);
 }
 void rlBegin(draw_mode mode){
     
     if(current_drawmode != mode){
         drawCurrentBatch();
-        //assert(g_wgpustate.rstate->activeRenderPass == &g_wgpustate.rstate->renderpass);
-        //EndRenderpassEx(&g_wgpustate.rstate->renderpass);
-        //BeginRenderpassEx(&g_wgpustate.rstate->renderpass);
+        //assert(g_renderstate.rstate->activeRenderPass == &g_renderstate.rstate->renderpass);
+        //EndRenderpassEx(&g_renderstate.rstate->renderpass);
+        //BeginRenderpassEx(&g_renderstate.rstate->renderpass);
     }
     if(mode == RL_LINES){ //TODO: Fix this, why is this required? Check core_msaa and comment this out to trigger a bug
-        SetTexture(1, g_wgpustate.whitePixel);
+        SetTexture(1, g_renderstate.whitePixel);
     }
     current_drawmode = mode;
 }
@@ -1026,9 +1026,9 @@ Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t miplevel){
     
     
     #ifndef __EMSCRIPTEN__
-    g_wgpustate.instance.WaitAny(readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped), 1000000000);
+    GetCXXInstance().WaitAny(readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped), 1000000000);
     #else
-    g_wgpustate.instance.WaitAny(readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped), 1000000000);
+    GetCXXInstance().WaitAny(readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped), 1000000000);
     //readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::AllowSpontaneous, onBuffer2Mapped);
     
     //while(waitflag){
@@ -1038,12 +1038,12 @@ Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t miplevel){
     //wgpu::Future fut = readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped);
     //WGPUFutureWaitInfo winfo{};
     //winfo.future = fut;
-    //wgpuInstanceWaitAny(g_wgpustate.instance, 1, &winfo, 1000000000);
+    //wgpuInstanceWaitAny(g_renderstate.instance, 1, &winfo, 1000000000);
 
     //while(!done){
         //emscripten_sleep(20);
     //}
-    //wgpuInstanceWaitAny(g_wgpustate.instance, 1, &winfo, 1000000000);
+    //wgpuInstanceWaitAny(g_renderstate.instance, 1, &winfo, 1000000000);
     //emscripten_sleep(20);
     #endif
     //wgpuBufferMapAsyncF(readtex, WGPUMapMode_Read, 0, 4 * tex.width * tex.height, onBuffer2Mapped);
@@ -1055,14 +1055,14 @@ Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t miplevel){
         commandEncoderDesc.label = "Command Encode2";
         WGPUCommandEncoder encoder2 = wgpuDeviceCreateCommandEncoder(device, &commandEncoderDesc);
         WGPUCommandBuffer command2 = wgpuCommandEncoderFinish(encoder2, &cmdBufferDescriptor);
-        wgpuQueueSubmit(g_wgpustate.queue, 1, &command2);
+        wgpuQueueSubmit(g_renderstate.queue, 1, &command2);
         wgpuCommandBufferRelease(command);
         #ifdef WEBGPU_BACKEND_DAWN
         wgpuDeviceTick(device);
         #endif
     }
     #ifdef WEBGPU_BACKEND_DAWN
-    wgpuInstanceProcessEvents(g_wgpustate.instance);
+    wgpuInstanceProcessEvents(g_renderstate.instance);
     wgpuDeviceTick(device);
     #endif*/
     //readtex.Destroy();
@@ -1137,7 +1137,7 @@ void UnloadImageColors(Color* cols){
 
 Image LoadImageFromTexture(Texture tex){
     //#ifndef __EMSCRIPTEN__
-    //auto& device = g_wgpustate.device;
+    //auto& device = g_renderstate.device;
     return LoadImageFromTextureEx((WGPUTexture)tex.id, 0);
     //#else
     //std::cerr << "LoadImageFromTexture not supported on web\n";
@@ -1145,7 +1145,7 @@ Image LoadImageFromTexture(Texture tex){
     //#endif
 }
 void TakeScreenshot(const char* filename){
-    Image img = LoadImageFromTextureEx((WGPUTexture)g_wgpustate.mainWindowRenderTarget.texture.id, 0);
+    Image img = LoadImageFromTextureEx((WGPUTexture)g_renderstate.mainWindowRenderTarget.texture.id, 0);
     SaveImage(img, filename);
     UnloadImage(img);
 }
@@ -1204,16 +1204,16 @@ Texture LoadTextureFromImage(Image img){
 }
 
 extern "C" bool IsKeyDown(int key){
-    return g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].keydown[key];
+    return g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].keydown[key];
 }
 extern "C" bool IsKeyPressed(int key){
-    return g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].keydown[key] && !g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].keydownPrevious[key];
+    return g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].keydown[key] && !g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].keydownPrevious[key];
 }
 extern "C" int GetCharPressed(){
     int fc = 0;
-    if(!g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].charQueue.empty()){
-        fc = g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].charQueue.front();
-        g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].charQueue.pop_front();
+    if(!g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].charQueue.empty()){
+        fc = g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].charQueue.front();
+        g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].charQueue.pop_front();
     }
     return fc;
 }
@@ -1225,54 +1225,54 @@ int GetMouseY(cwoid){
 }
 
 float GetGesturePinchZoom(cwoid){
-    return g_wgpustate.input_map[g_wgpustate.window].gestureZoomThisFrame;
+    return g_renderstate.input_map[g_renderstate.window].gestureZoomThisFrame;
 }
 float GetGesturePinchAngle(cwoid){
      
-    return g_wgpustate.input_map[g_wgpustate.window].gestureAngleThisFrame;
+    return g_renderstate.input_map[g_renderstate.window].gestureAngleThisFrame;
 }
 Vector2 GetMousePosition(cwoid){
-    return g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mousePos;
+    return g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mousePos;
 }
 Vector2 GetMouseDelta(cwoid){
-    return Vector2{g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mousePos.x - g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mousePos.x,
-                   g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mousePos.y - g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mousePos.y};
+    return Vector2{g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mousePos.x - g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mousePos.x,
+                   g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mousePos.y - g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mousePos.y};
 }
 float GetMouseWheelMove(void){
-    return g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].scrollPreviousFrame.y;
+    return g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].scrollPreviousFrame.y;
 }
 Vector2 GetMouseWheelMoveV(void){
-    return g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].scrollPreviousFrame;
+    return g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].scrollPreviousFrame;
     //return Vector2{
-    //    (float)(g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].globalScrollX - g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].globalScrollYPrevious),
-    //    (float)(g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].globalScrollY - g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].globalScrollYPrevious)};
+    //    (float)(g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].globalScrollX - g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].globalScrollYPrevious),
+    //    (float)(g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].globalScrollY - g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].globalScrollYPrevious)};
 }
 bool IsMouseButtonPressed(int button){
-    return g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mouseButtonDown[button] && !g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mouseButtonDownPrevious[button];
+    return g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mouseButtonDown[button] && !g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mouseButtonDownPrevious[button];
 }
 bool IsMouseButtonDown(int button){
-    return g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mouseButtonDown[button];
+    return g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mouseButtonDown[button];
 }
 bool IsMouseButtonReleased(int button){
-    return !g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mouseButtonDown[button] && g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mouseButtonDownPrevious[button];
+    return !g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mouseButtonDown[button] && g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].mouseButtonDownPrevious[button];
 }
 bool IsCursorOnScreen(cwoid){
-    return g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()].cursorInWindow;
+    return g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].cursorInWindow;
 }
 
 uint64_t NanoTime(cwoid){
     return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
 }
 double GetTime(cwoid){
-    uint64_t nano_diff = NanoTime() - g_wgpustate.init_timestamp;
+    uint64_t nano_diff = NanoTime() - g_renderstate.init_timestamp;
 
     return double(nano_diff) * 1e-9;
 }
 uint32_t GetFPS(cwoid){
-    auto firstzero = std::find(std::begin(g_wgpustate.last_timestamps), std::end(g_wgpustate.last_timestamps), int64_t(0));
-    auto [minit, maxit] = std::minmax_element(std::begin(g_wgpustate.last_timestamps), firstzero);
-    //TRACELOG(LOG_INFO, "%d : %d", int(minit - std::begin(g_wgpustate.last_timestamps)), int(maxit - std::begin(g_wgpustate.last_timestamps)));
-    return uint32_t(std::round((firstzero - std::begin(g_wgpustate.last_timestamps) - 1.0) * 1.0e9 / (*maxit - *minit)));
+    auto firstzero = std::find(std::begin(g_renderstate.last_timestamps), std::end(g_renderstate.last_timestamps), int64_t(0));
+    auto [minit, maxit] = std::minmax_element(std::begin(g_renderstate.last_timestamps), firstzero);
+    //TRACELOG(LOG_INFO, "%d : %d", int(minit - std::begin(g_renderstate.last_timestamps)), int(maxit - std::begin(g_renderstate.last_timestamps)));
+    return uint32_t(std::round((firstzero - std::begin(g_renderstate.last_timestamps) - 1.0) * 1.0e9 / (*maxit - *minit)));
 }
 void DrawFPS(int posX, int posY){
     char fpstext[128] = {0};
@@ -1367,7 +1367,7 @@ void GenTextureMipmaps(Texture2D* tex){
         if(i == 0){
             BindComputePipeline(cpl);
         }
-        ComputePassSetBindGroup(&g_wgpustate.rstate->computepass, 0, &cpl->bindGroup);
+        ComputePassSetBindGroup(&g_renderstate.rstate->computepass, 0, &cpl->bindGroup);
         uint32_t divisor = (1 << i) * 8;
         DispatchCompute((tex->width + divisor - 1) & -(divisor) / 8, (tex->height + divisor - 1) & -(divisor) / 8, 1);
     }
@@ -1445,12 +1445,12 @@ RenderTexture LoadRenderTextureEx(uint32_t width, uint32_t height, PixelFormat c
 }
 RenderTexture LoadRenderTexture(uint32_t width, uint32_t height){
     RenderTexture ret{
-        .texture = LoadTextureEx(width, height, (PixelFormat)g_wgpustate.frameBufferFormat, true),
+        .texture = LoadTextureEx(width, height, (PixelFormat)g_renderstate.frameBufferFormat, true),
         .colorMultisample = Texture{}, 
-        .depth = LoadTexturePro(width, height, Depth24, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1, 1)
+        .depth = LoadTexturePro(width, height, Depth24, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1, 1)
     };
-    if(g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT){
-        ret.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4, 1);
+    if(g_renderstate.windowFlags & FLAG_MSAA_4X_HINT){
+        ret.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_renderstate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4, 1);
     }
     return ret;
 }
@@ -1505,12 +1505,12 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     //settings.depthTest = 1;
     //settings.depthCompare = WGPUCompareFunction_LessEqual;
     //settings.optionalDepthTexture = d;
-    //settings.sampleCount = (g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
+    //settings.sampleCount = (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
     //state->computepass = DescribedComputepass{};
     state->renderpass = LoadRenderpassEx(c, d, settings);
-    //state->renderpass.renderPassDesc.label = STRVIEW("g_wgpustate::render_pass");
+    //state->renderpass.renderPassDesc.label = STRVIEW("g_renderstate::render_pass");
     state->clearPass = LoadRenderpassEx(c, d, settings);
-    //state->clearPass.renderPassDesc.label = STRVIEW("g_wgpustate::clear_pass");
+    //state->clearPass.renderPassDesc.label = STRVIEW("g_renderstate::clear_pass");
     //if(state->clearPass.dsa){
     //state->clearPass.depthClearValue = 1.0;
     state->clearPass.colorLoadOp  = LoadOp_Clear;
@@ -1524,8 +1524,8 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
     //state->activeRenderpass = nullptr;
     state->defaultPipeline = LoadPipelineEx(shaderSource, attribs, attribCount, uniforms, uniform_count, settings);
     state->activePipeline = state->defaultPipeline;
-    g_wgpustate.quadindicesCache = callocnew(DescribedBuffer);    //WGPUBufferDescriptor vbmdesc{};
-    g_wgpustate.quadindicesCache->usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
+    g_renderstate.quadindicesCache = callocnew(DescribedBuffer);    //WGPUBufferDescriptor vbmdesc{};
+    g_renderstate.quadindicesCache->usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
     //vbmdesc.mappedAtCreation = true;
     //vbmdesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_MapWrite;
     //vbmdesc.size = (1 << 22) * sizeof(vertex);
@@ -1579,7 +1579,7 @@ void init_full_renderstate(full_renderstate* state, const char* shaderSource, co
         state->pipeline.bglayout.descriptor.entryCount = shader_inputs.uniform_count;
         state->pipeline.bglayout.descriptor.entries = blayouts.data();
         state->pipeline.bglayout.descriptor.label = STRVIEW("GlobalRenderState_BindGroupLayout");
-        state->pipeline.bglayout.layout = wgpuDeviceCreateBindGroupLayout(g_wgpustate.device, &state->pipeline.bglayout.descriptor);
+        state->pipeline.bglayout.layout = wgpuDeviceCreateBindGroupLayout(g_renderstate.device, &state->pipeline.bglayout.descriptor);
     }*/
     
     //state->bg = 0;
@@ -1899,23 +1899,23 @@ void UnloadSampler(DescribedSampler sampler){
 }
 
 NativeImageHandle GetActiveColorTarget(){
-    return g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.id;
+    return g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.id;
 }
 
 /*void setTargetTextures(full_renderstate* state, WGPUTextureView c, WGPUTextureView cms, WGPUTextureView d){
     DescribedRenderpass* restart = nullptr;
-    if(g_wgpustate.rstate->activeRenderpass){
-        restart = g_wgpustate.rstate->activeRenderpass;
-        EndRenderpassEx(g_wgpustate.rstate->activeRenderpass);
+    if(g_renderstate.rstate->activeRenderpass){
+        restart = g_renderstate.rstate->activeRenderpass;
+        EndRenderpassEx(g_renderstate.rstate->activeRenderpass);
     }
     state->color = c;
     state->depth = d;
     //LoadTexture
     
     WGPUTextureDescriptor desc{};
-    const bool multisample = g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT;
+    const bool multisample = g_renderstate.windowFlags & FLAG_MSAA_4X_HINT;
     //if(colorMultisample.id == nullptr && multisample){
-    //    colorMultisample = LoadTexturePro(GetScreenWidth(), GetScreenHeight(), g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4);
+    //    colorMultisample = LoadTexturePro(GetScreenWidth(), GetScreenHeight(), g_renderstate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4);
     //}
     state->renderpass.rca->resolveTarget = multisample ? c : nullptr;
     state->renderpass.rca->view = multisample ? cms : c;
@@ -2110,44 +2110,44 @@ void UseTexture(Texture tex){
     if(texture0loc == LOCATION_NOT_FOUND){
         return;
     }
-    if(g_wgpustate.rstate->activePipeline->bindGroup.entries[texture0loc].textureView == tex.view)return;
+    if(g_renderstate.rstate->activePipeline->bindGroup.entries[texture0loc].textureView == tex.view)return;
     drawCurrentBatch();
     SetTexture(texture0loc, tex);
     //WGPUBindGroupEntry entry{};
     //entry.binding = 1;
     //entry.textureView = tex.view;
-    //UpdateBindGroupEntry(&g_wgpustate.rstate->currentPipeline->bindGroup, 1, entry);
-    //if(g_wgpustate.activeTexture.tex != tex.tex){
+    //UpdateBindGroupEntry(&g_renderstate.rstate->currentPipeline->bindGroup, 1, entry);
+    //if(g_renderstate.activeTexture.tex != tex.tex){
     //    drawCurrentBatch();
-    //    g_wgpustate.activeTexture = tex;
-    //    setStateTexture(g_wgpustate.rstate, 1, tex);
+    //    g_renderstate.activeTexture = tex;
+    //    setStateTexture(g_renderstate.rstate, 1, tex);
     //}
     
 }
 void UseNoTexture(){
     uint32_t textureLocation = GetUniformLocation(GetActivePipeline(), RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE0);
     if(textureLocation != LOCATION_NOT_FOUND){
-        if(g_wgpustate.rstate->activePipeline->bindGroup.entries[textureLocation].textureView == g_wgpustate.whitePixel.view)return;
+        if(g_renderstate.rstate->activePipeline->bindGroup.entries[textureLocation].textureView == g_renderstate.whitePixel.view)return;
         drawCurrentBatch();
-        SetTexture(textureLocation, g_wgpustate.whitePixel);
+        SetTexture(textureLocation, g_renderstate.whitePixel);
         //uint32_t samplerLocation = GetUniformLocation(GetActivePipeline(), "texSampler");
         //if(samplerLocation != LOCATION_NOT_FOUND)
-        //    SetSampler(samplerLocation, g_wgpustate.defaultSampler);
+        //    SetSampler(samplerLocation, g_renderstate.defaultSampler);
     }
     //WGPUBindGroupEntry entry{};
     //entry.binding = 1;
-    //entry.textureView = g_wgpustate.whitePixel.view;
-    //UpdateBindGroupEntry(&g_wgpustate.rstate->currentPipeline->bindGroup, 1, entry);
-    //if(g_wgpustate.activeTexture.tex != g_wgpustate.whitePixel.tex){
+    //entry.textureView = g_renderstate.whitePixel.view;
+    //UpdateBindGroupEntry(&g_renderstate.rstate->currentPipeline->bindGroup, 1, entry);
+    //if(g_renderstate.activeTexture.tex != g_renderstate.whitePixel.tex){
     //    drawCurrentBatch();
-    //    setStateTexture(g_wgpustate.rstate, 1, g_wgpustate.whitePixel);
+    //    setStateTexture(g_renderstate.rstate, 1, g_renderstate.whitePixel);
     //}
 }
 /*template<typename callable>
 void executeRenderpass(callable&& c){
     WGPUCommandEncoderDescriptor commandEncoderDesc = {};
     commandEncoderDesc.label = "Command Encoder";
-    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(g_wgpustate.device, &commandEncoderDesc);
+    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(g_renderstate.device, &commandEncoderDesc);
     WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
     wgpuRenderPassEncoderSetPipeline(renderPass, pipeline);
     wgpuRenderPassEncoderSetBindGroup(renderPass, 0, bg, 0, 0);
@@ -2157,21 +2157,21 @@ void executeRenderpass(callable&& c){
     WGPUCommandBufferDescriptor cmdBufferDescriptor{};
     cmdBufferDescriptor.label = "Command buffer";
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &cmdBufferDescriptor);
-    wgpuQueueSubmit(g_wgpustate.queue, 1, &command);
+    wgpuQueueSubmit(g_renderstate.queue, 1, &command);
     wgpuCommandEncoderRelease(encoder);
     wgpuCommandBufferRelease(command);
 }*/
 
 
 void BeginTextureMode(RenderTexture rtex){
-    ++g_wgpustate.renderTargetStackPosition;
-    g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition] = rtex;
-    g_wgpustate.rstate->renderExtentX = rtex.texture.width;
-    g_wgpustate.rstate->renderExtentY = rtex.texture.height;
-    //std::cout << std::format("{} x {}\n", g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
-    //setTargetTextures(g_wgpustate.rstate, rtex.texture.view, rtex.colorMultisample.view, rtex.depth.view);
+    ++g_renderstate.renderTargetStackPosition;
+    g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition] = rtex;
+    g_renderstate.rstate->renderExtentX = rtex.texture.width;
+    g_renderstate.rstate->renderExtentY = rtex.texture.height;
+    //std::cout << std::format("{} x {}\n", g_renderstate.rstate->renderExtentX, g_renderstate.rstate->renderExtentY);
+    //setTargetTextures(g_renderstate.rstate, rtex.texture.view, rtex.colorMultisample.view, rtex.depth.view);
     PushMatrix();
-    Matrix mat = ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
+    Matrix mat = ScreenMatrix(g_renderstate.rstate->renderExtentX, g_renderstate.rstate->renderExtentY);
     SetMatrix(mat);
     SetUniformBufferData(0, &mat, sizeof(Matrix));
     BeginRenderpass();
@@ -2181,35 +2181,35 @@ void EndTextureMode(){
     drawCurrentBatch();
     EndRenderpass();
     
-    //setTargetTextures(g_wgpustate.rstate, 
-    //                g_wgpustate.currentDefaultRenderTarget.texture.view, 
-    //                g_wgpustate.currentDefaultRenderTarget.colorMultisample.view,
-    //                g_wgpustate.currentDefaultRenderTarget.depth.view);
-    --g_wgpustate.renderTargetStackPosition;
-    g_wgpustate.rstate->renderExtentX = g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.width;
-    g_wgpustate.rstate->renderExtentY = g_wgpustate.renderTargetStack[g_wgpustate.renderTargetStackPosition].texture.height;
-    Matrix mat = ScreenMatrix(g_wgpustate.rstate->renderExtentX, g_wgpustate.rstate->renderExtentY);
-    //SetUniformBuffer(0, g_wgpustate.defaultScreenMatrix);
+    //setTargetTextures(g_renderstate.rstate, 
+    //                g_renderstate.currentDefaultRenderTarget.texture.view, 
+    //                g_renderstate.currentDefaultRenderTarget.colorMultisample.view,
+    //                g_renderstate.currentDefaultRenderTarget.depth.view);
+    --g_renderstate.renderTargetStackPosition;
+    g_renderstate.rstate->renderExtentX = g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.width;
+    g_renderstate.rstate->renderExtentY = g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.height;
+    Matrix mat = ScreenMatrix(g_renderstate.rstate->renderExtentX, g_renderstate.rstate->renderExtentY);
+    //SetUniformBuffer(0, g_renderstate.defaultScreenMatrix);
     PopMatrix();
     SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
-    if(g_wgpustate.renderTargetStackPosition >= 0)
+    if(g_renderstate.renderTargetStackPosition >= 0)
         BeginRenderpass();
 }
 extern "C" void BeginWindowMode(SubWindow sw){
-    auto& swref = g_wgpustate.createdSubwindows.at(sw.handle);
-    g_wgpustate.activeSubWindow = sw;
+    auto& swref = g_renderstate.createdSubwindows.at(sw.handle);
+    g_renderstate.activeSubWindow = sw;
     GetNewTexture(&swref.surface);
 
 
     //WGPUTextureView nextTexture = wgpuTextureCreateView(surfaceTexture.texture,nullptr);
-    //wgpuTextureViewRelease(g_wgpustate.activeSubWindow.frameBuffer.color.view);
-    //wgpuTextureRelease(g_wgpustate.activeSubWindow.frameBuffer.color.id);
+    //wgpuTextureViewRelease(g_renderstate.activeSubWindow.frameBuffer.color.view);
+    //wgpuTextureRelease(g_renderstate.activeSubWindow.frameBuffer.color.id);
     //sw.frameBuffer.texture.view = nextTexture;
     //sw.frameBuffer.texture.id = surfaceTexture.texture;
     BeginTextureMode(swref.surface.frameBuffer);
-    //++g_wgpustate.renderTargetStackPosition;
+    //++g_renderstate.renderTargetStackPosition;
     
-    //g_wgpustate.currentDefaultRenderTarget = sw.frameBuffer;
+    //g_renderstate.currentDefaultRenderTarget = sw.frameBuffer;
     //BeginRenderpass();
 }
 void PresentSurface(FullSurface* fsurface){
@@ -2224,16 +2224,18 @@ extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t he
 
     wgpuSurfaceGetCapabilities((WGPUSurface)ret.surface, adapter, &capa);
     WGPUSurfaceConfiguration config{};
-    if (g_wgpustate.windowFlags & FLAG_VSYNC_LOWLATENCY_HINT) {
-        config.presentMode = (WGPUPresentMode)(((g_wgpustate.unthrottled_PresentMode == wgpu::PresentMode::Mailbox) ? g_wgpustate.unthrottled_PresentMode : g_wgpustate.throttled_PresentMode));
-    } else if (g_wgpustate.windowFlags & FLAG_VSYNC_HINT) {
-        config.presentMode = (WGPUPresentMode)g_wgpustate.throttled_PresentMode;
+    WGPUPresentMode thm = (WGPUPresentMode)g_wgpustate.throttled_PresentMode;
+    WGPUPresentMode um = (WGPUPresentMode)g_wgpustate.unthrottled_PresentMode;
+    if (g_renderstate.windowFlags & FLAG_VSYNC_LOWLATENCY_HINT) {
+        config.presentMode = (WGPUPresentMode)(((g_wgpustate.unthrottled_PresentMode == wgpu::PresentMode::Mailbox) ? um : thm));
+    } else if (g_renderstate.windowFlags & FLAG_VSYNC_HINT) {
+        config.presentMode = (WGPUPresentMode)thm;
     } else {
-        config.presentMode = (WGPUPresentMode)g_wgpustate.unthrottled_PresentMode;
+        config.presentMode = (WGPUPresentMode)um;
     }
     TRACELOG(LOG_INFO, "Initialized surface with %s", presentModeSpellingTable.at(config.presentMode).c_str());
     config.alphaMode = WGPUCompositeAlphaMode_Opaque;
-    config.format = g_wgpustate.frameBufferFormat;
+    config.format = g_renderstate.frameBufferFormat;
     config.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
     config.width = width;
     config.height = height;
@@ -2254,25 +2256,25 @@ extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t he
 extern "C" void EndWindowMode(){
     //EndRenderpass();
     EndTextureMode();
-    //g_wgpustate.currentDefaultRenderTarget = g_wgpustate.mainWindowRenderTarget;
-    PresentSurface(&g_wgpustate.activeSubWindow.surface);
-    auto& ipstate = g_wgpustate.input_map[(GLFWwindow*)GetActiveWindowHandle()];
+    //g_renderstate.currentDefaultRenderTarget = g_renderstate.mainWindowRenderTarget;
+    PresentSurface(&g_renderstate.activeSubWindow.surface);
+    auto& ipstate = g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()];
     std::copy(ipstate.keydown.begin(), ipstate.keydown.end(), ipstate.keydownPrevious.begin());
     ipstate.mousePosPrevious = ipstate.mousePos;
     ipstate.scrollPreviousFrame = ipstate.scrollThisFrame;
     ipstate.scrollThisFrame = Vector2{0, 0};
     std::copy(ipstate.mouseButtonDown.begin(), ipstate.mouseButtonDown.end(), ipstate.mouseButtonDownPrevious.begin());
     
-    g_wgpustate.activeSubWindow = SubWindow zeroinit;
+    g_renderstate.activeSubWindow = SubWindow zeroinit;
     
     return;
 
     //Bad implementation:
     /*drawCurrentBatch();
-    g_wgpustate.rstate->renderExtentX = GetScreenWidth();
-    g_wgpustate.rstate->renderExtentY = GetScreenHeight();
-    auto state = g_wgpustate.rstate;
-    auto& c = g_wgpustate.currentScreenTextureView;
+    g_renderstate.rstate->renderExtentX = GetScreenWidth();
+    g_renderstate.rstate->renderExtentY = GetScreenHeight();
+    auto state = g_renderstate.rstate;
+    auto& c = g_renderstate.currentScreenTextureView;
     auto& cms = colorMultisample.view; 
     auto d = depthTexture.view;
     state->color = c;
@@ -2280,9 +2282,9 @@ extern "C" void EndWindowMode(){
     //LoadTexture
     
     WGPUTextureDescriptor desc{};
-    const bool multisample = g_wgpustate.windowFlags & FLAG_MSAA_4X_HINT;
+    const bool multisample = g_renderstate.windowFlags & FLAG_MSAA_4X_HINT;
     //if(colorMultisample.id == nullptr && multisample){
-    //    colorMultisample = LoadTexturePro(GetScreenWidth(), GetScreenHeight(), g_wgpustate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4);
+    //    colorMultisample = LoadTexturePro(GetScreenWidth(), GetScreenHeight(), g_renderstate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4);
     //}
     state->renderpass.rca->resolveTarget = multisample ? c : nullptr;
     state->renderpass.rca->view = multisample ? cms : c;
@@ -2295,7 +2297,7 @@ extern "C" void EndWindowMode(){
     if(state->clearPass.settings.depthTest){
         state->clearPass.dsa->view = d;
     }
-    wgpuSurfacePresent(g_wgpustate.activeSubWindow.surface);*/
+    wgpuSurfacePresent(g_renderstate.activeSubWindow.surface);*/
     
 }
 
@@ -2343,7 +2345,7 @@ void UpdateStagingBuffer(StagingBuffer* buffer){
     wgpuCommandEncoderRelease(enc);
     wgpuCommandBufferRelease(buf);
     WGPUFutureWaitInfo winfo{f, 0};
-    wgpuInstanceWaitAny(g_wgpustate.instance.Get(), 1, &winfo, UINT64_MAX);
+    wgpuInstanceWaitAny(GetInstance(), 1, &winfo, UINT64_MAX);
     buffer->mappable.buffer = b.MoveToCHandle();
     buffer->map = (vertex*)wgpuBufferGetMappedRange((WGPUBuffer)buffer->mappable.buffer, 0, buffer->mappable.size);
 }
@@ -2408,26 +2410,26 @@ extern "C" void BufferData(DescribedBuffer* buffer, const void* data, size_t siz
     }
 }
 extern "C" void SetTargetFPS(int fps){
-    g_wgpustate.targetFPS = fps;
+    g_renderstate.targetFPS = fps;
 }
 extern "C" int GetTargetFPS(){
-    return g_wgpustate.targetFPS;
+    return g_renderstate.targetFPS;
 }
 extern "C" uint64_t GetFrameCount(){
-    return g_wgpustate.total_frames;
+    return g_renderstate.total_frames;
 }
 //TODO: this is bad
 extern "C" float GetFrameTime(){
-    if(g_wgpustate.total_frames <= 1){
+    if(g_renderstate.total_frames <= 1){
         return 0.0f;
     }
-    if(g_wgpustate.last_timestamps[g_wgpustate.total_frames % 64] - g_wgpustate.last_timestamps[(g_wgpustate.total_frames - 1) % 64] < 0){
-        return 1.0e-9f * (g_wgpustate.last_timestamps[(g_wgpustate.total_frames - 1) % 64] - g_wgpustate.last_timestamps[(g_wgpustate.total_frames - 2) % 64]);
+    if(g_renderstate.last_timestamps[g_renderstate.total_frames % 64] - g_renderstate.last_timestamps[(g_renderstate.total_frames - 1) % 64] < 0){
+        return 1.0e-9f * (g_renderstate.last_timestamps[(g_renderstate.total_frames - 1) % 64] - g_renderstate.last_timestamps[(g_renderstate.total_frames - 2) % 64]);
     } 
-    return 1.0e-9f * (g_wgpustate.last_timestamps[g_wgpustate.total_frames % 64] - g_wgpustate.last_timestamps[(g_wgpustate.total_frames - 1) % 64]);
+    return 1.0e-9f * (g_renderstate.last_timestamps[g_renderstate.total_frames % 64] - g_renderstate.last_timestamps[(g_renderstate.total_frames - 1) % 64]);
 }
 extern "C" void SetConfigFlags(int /* enum WindowFlag */ flag){
-    g_wgpustate.windowFlags |= flag;
+    g_renderstate.windowFlags |= flag;
 }
 void NanoWaitImpl(uint64_t stmp){
     for(;;){
