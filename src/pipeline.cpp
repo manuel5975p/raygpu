@@ -332,6 +332,7 @@ void UnloadShaderModule(DescribedShaderModule mod){
     //hmmmmmmmmmmmmmmmmmmmmmmmmmm
     //const shouldn't exist!!1!
     std::free(const_cast<void*>(mod.source));
+    wgpuShaderModuleRelease((WGPUShaderModule)mod.shaderModule);
 }
 extern "C" void UpdatePipeline(DescribedPipeline* pl){
     WGPURenderPipelineDescriptor pipelineDesc zeroinit;
