@@ -6,6 +6,8 @@
 #include <fstream>
 #include <iostream>
 #include <set>
+#include <map>
+#include <unordered_map>
 #include <stdexcept>
 #include <vector>
 #include <format>
@@ -17,6 +19,8 @@
 
 #include "vulkan_internals.hpp"
 #include <internals.hpp>
+#include <wgpustate.inc>
+
 VulkanState g_vulkanstate{};
 
 
@@ -231,37 +235,8 @@ DescribedBuffer* GenBufferEx_Vk(const void *data, size_t size, BufferUsage usage
     //vkUnmapMemory(g_vulkanstate.device, vertexBufferMemory);
     return ret;
 }
-// Function to find a suitable memory type
-VkBuffer createVertexBuffer() {
-    VkBuffer vertexBuffer{};
-    std::vector<float> vertices{-1,-1,0,1,0,0,0,1,0};
-    VkBufferCreateInfo bufferInfo{};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = sizeof(float) * vertices.size();
-    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    if (vkCreateBuffer(g_vulkanstate.device, &bufferInfo, nullptr, &vertexBuffer) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create vertex buffer!");
-    }
-    VkDeviceMemory vertexBufferMemory;
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(g_vulkanstate.device, vertexBuffer, &memRequirements);
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    if (vkAllocateMemory(g_vulkanstate.device, &allocInfo, nullptr, &vertexBufferMemory) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate vertex buffer memory!");
-    }
-    vkBindBufferMemory(g_vulkanstate.device, vertexBuffer, vertexBufferMemory, 0);
-    void* data;
-    vkMapMemory(g_vulkanstate.device, vertexBufferMemory, 0, bufferInfo.size, 0, &data);
-    memcpy(data, vertices.data(), (size_t) bufferInfo.size);
-    vkUnmapMemory(g_vulkanstate.device, vertexBufferMemory);
-    return vertexBuffer;
-}
 VkDescriptorSetLayout loadBindGroupLayout(){
+    
     VkDescriptorSetLayout ret{};
     VkDescriptorSetLayoutCreateInfo reti{};
     VkDescriptorSetLayoutBinding tex0b{};
@@ -374,151 +349,6 @@ std::vector<char> readFile(const std::string &filename) {
 }
 
 
-/*
-void createGraphicsPipeline(DescribedBindGroupLayout* setLayout) {
-    VkShaderModuleCreateInfo vcinfo{};
-    VkShaderModuleCreateInfo fcinfo{};
-    //auto vsSpirv = readFile("../resources/hvk.vert.spv");
-    //auto fsSpirv = readFile("../resources/hvk.frag.spv");
-    auto [vsSpirv, fsSpirv] = glsl_to_spirv(vsSource, fsSource);
-    DescribedShaderModule shaderModule = LoadShaderModuleFromSPIRV_Vk(vsSpirv.data(), vsSpirv.size() * sizeof(uint32_t), fsSpirv.data(), fsSpirv.size() * sizeof(uint32_t));
-
-    VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
-    vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertShaderStageInfo.module = ((VertexAndFragmentShaderModule*)shaderModule.shaderModule)->vModule;
-    vertShaderStageInfo.pName = "main";
-
-    VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
-    fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragShaderStageInfo.module = ((VertexAndFragmentShaderModule*)shaderModule.shaderModule)->fModule;
-    fragShaderStageInfo.pName = "main";
-
-    VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
-
-    VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    VkVertexInputBindingDescription vbd{};
-    VkVertexInputAttributeDescription vad{};
-    vbd.binding = 0;
-    vbd.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-    vbd.stride = 12;
-    vad.binding = 0;
-    vad.format = VK_FORMAT_R32G32B32_SFLOAT;
-    vad.location = 0;
-    vad.offset = 0;
-    vertexInputInfo.vertexBindingDescriptionCount = 1;
-    vertexInputInfo.vertexAttributeDescriptionCount = 1;
-    vertexInputInfo.pVertexAttributeDescriptions = &vad;
-    vertexInputInfo.pVertexBindingDescriptions = &vbd;
-
-    VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
-    inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    inputAssembly.primitiveRestartEnable = VK_FALSE;
-
-    VkPipelineViewportStateCreateInfo viewportState{};
-    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    viewportState.viewportCount = 1;
-    viewportState.scissorCount = 1;
-    VkRect2D scissor{0, 0, g_vulkanstate.swapchainExtent.width, g_vulkanstate.swapchainExtent.height};
-    VkViewport fullView{0, ((float)g_vulkanstate.swapchainExtent.height), (float)g_vulkanstate.swapchainExtent.width, -((float)g_vulkanstate.swapchainExtent.height), 0.0f, 1.0f};
-    viewportState.pScissors = &scissor;
-    viewportState.pViewports = &fullView;
-
-    VkPipelineRasterizationStateCreateInfo rasterizer{};
-    rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    rasterizer.depthClampEnable = VK_FALSE;
-    rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-    rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_NONE;
-    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    rasterizer.depthBiasEnable = VK_FALSE;
-
-
-    VkPipelineDepthStencilStateCreateInfo depthStencil{};
-    depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depthStencil.depthTestEnable = VK_TRUE;
-    depthStencil.depthWriteEnable = VK_TRUE;
-    depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
-    depthStencil.depthBoundsTestEnable = VK_FALSE;
-    depthStencil.minDepthBounds = 0.0f; // Optional
-    depthStencil.maxDepthBounds = 1.0f; // Optional
-    depthStencil.stencilTestEnable = VK_FALSE;
-    depthStencil.front = {}; // Optional
-    depthStencil.back = {}; // Optional
-
-
-    VkPipelineMultisampleStateCreateInfo multisampling{};
-    multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisampling.sampleShadingEnable = VK_FALSE;
-    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
-    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable = VK_FALSE;
-
-    VkPipelineColorBlendStateCreateInfo colorBlending{};
-    colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    colorBlending.logicOpEnable = VK_FALSE;
-    colorBlending.logicOp = VK_LOGIC_OP_COPY;
-    colorBlending.attachmentCount = 1;
-    colorBlending.pAttachments = &colorBlendAttachment;
-    colorBlending.blendConstants[0] = 1.0f;
-    colorBlending.blendConstants[1] = 1.0f;
-    colorBlending.blendConstants[2] = 1.0f;
-    colorBlending.blendConstants[3] = 1.0f;
-    
-    std::vector<VkDynamicState> dynamicStates = {
-        VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY, 
-        VK_DYNAMIC_STATE_VERTEX_INPUT_EXT, 
-        VK_DYNAMIC_STATE_VIEWPORT, 
-        VK_DYNAMIC_STATE_SCISSOR
-    };
-    VkPipelineDynamicStateCreateInfo dynamicState{};
-    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount = 0; //static_cast<uint32_t>(dynamicStates.size());
-    
-    dynamicState.pDynamicStates = dynamicStates.data();
-    
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 1;
-    pipelineLayoutInfo.pSetLayouts = (VkDescriptorSetLayout*)&setLayout->layout;
-    pipelineLayoutInfo.pushConstantRangeCount = 0;
-    VkPipelineLayout pipelineLayout{};
-    VkPipeline graphicsPipeline{};
-    if (vkCreatePipelineLayout(g_vulkanstate.device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create pipeline layout!");
-    }
-        
-    VkGraphicsPipelineCreateInfo pipelineInfo{};
-    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipelineInfo.stageCount = 2;
-    pipelineInfo.pStages = shaderStages;
-    pipelineInfo.pVertexInputState = &vertexInputInfo;
-    pipelineInfo.pInputAssemblyState = &inputAssembly;
-    pipelineInfo.pViewportState = &viewportState;
-    pipelineInfo.pRasterizationState = &rasterizer;
-    pipelineInfo.pMultisampleState = &multisampling;
-    pipelineInfo.pColorBlendState = &colorBlending;
-    pipelineInfo.pDepthStencilState = &depthStencil;
-    pipelineInfo.pDynamicState = &dynamicState;
-    pipelineInfo.layout = pipelineLayout;
-    pipelineInfo.renderPass = g_vulkanstate.renderPass;
-    pipelineInfo.subpass = 0;
-    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
-    if (vkCreateGraphicsPipelines(g_vulkanstate.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create graphics pipeline!");
-    }
-    else{
-        std::cout << "Successfully initialized graphics pipeline\n";
-    }
-    g_vulkanstate.graphicsPipeline = graphicsPipeline;
-    g_vulkanstate.graphicsPipelineLayout = pipelineLayout;
-}*/
 
 DescribedBindGroup set{};
 void createRenderPass();
@@ -552,7 +382,9 @@ GLFWwindow *initWindow(uint32_t width, uint32_t height, const char *title) {
 }
 
 // Function to create Vulkan instance
-void createInstance() {
+VkInstance createInstance() {
+    VkInstance ret{};
+
     uint32_t requiredGLFWExtensions = 0;
     const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&requiredGLFWExtensions);
 
@@ -610,7 +442,7 @@ void createInstance() {
     
 
     // (Optional) Enable validation layers here if needed
-    VkResult instanceCreation = vkCreateInstance(&createInfo, nullptr, &g_vulkanstate.instance);
+    VkResult instanceCreation = vkCreateInstance(&createInfo, nullptr, &ret);
     if (instanceCreation != VK_SUCCESS) {
         throw std::runtime_error(std::string("Failed to create Vulkan instance : ") + std::to_string(instanceCreation));
     } else {
@@ -618,13 +450,13 @@ void createInstance() {
     }
 
     
-
+    return ret;
 }
 
 
 
 // Function to pick a suitable physical device (GPU)
-void pickPhysicalDevice() {
+VkPhysicalDevice pickPhysicalDevice() {
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(g_vulkanstate.instance, &deviceCount, nullptr);
 
@@ -634,7 +466,7 @@ void pickPhysicalDevice() {
 
     std::vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(g_vulkanstate.instance, &deviceCount, devices.data());
-
+    VkPhysicalDevice ret{};
     for (const auto &device : devices) {
         VkPhysicalDeviceProperties props;
         vkGetPhysicalDeviceProperties(device, &props);
@@ -644,7 +476,7 @@ void pickPhysicalDevice() {
         VkPhysicalDeviceProperties props{};
         vkGetPhysicalDeviceProperties(device, &props);
         if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
-            g_vulkanstate.physicalDevice = device;
+            ret = device;
             goto picked;
         }
     }
@@ -652,7 +484,7 @@ void pickPhysicalDevice() {
         VkPhysicalDeviceProperties props;
         vkGetPhysicalDeviceProperties(device, &props);
         if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) {
-            g_vulkanstate.physicalDevice = device;
+            ret = device;
             goto picked;
         }
     }
@@ -660,7 +492,7 @@ void pickPhysicalDevice() {
         VkPhysicalDeviceProperties props;
         vkGetPhysicalDeviceProperties(device, &props);
         if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU) {
-            g_vulkanstate.physicalDevice = device;
+            ret = device;
             goto picked;
         }
     }
@@ -669,21 +501,28 @@ void pickPhysicalDevice() {
         throw std::runtime_error("Failed to find a suitable GPU!");
     }
 picked:
-    VkPhysicalDeviceExtendedDynamicState3PropertiesEXT ext3{};
-    ext3.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_PROPERTIES_EXT;
-    VkPhysicalDeviceProperties2 props2{};
-    props2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-    props2.pNext = &ext3;
-    VkPhysicalDeviceExtendedDynamicState3FeaturesEXT ext{};
-    vkGetPhysicalDeviceProperties2(g_vulkanstate.physicalDevice, &props2);
-    std::cout << "Extended support: " << ext3.dynamicPrimitiveTopologyUnrestricted << "\n";
-    //exit(0);
-    (void)0;
+    return ret;
+    //VkPhysicalDeviceExtendedDynamicState3PropertiesEXT ext3{};
+    //ext3.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_PROPERTIES_EXT;
+    //VkPhysicalDeviceProperties2 props2{};
+    //props2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    //props2.pNext = &ext3;
+    //VkPhysicalDeviceExtendedDynamicState3FeaturesEXT ext{};
+    //vkGetPhysicalDeviceProperties2(g_vulkanstate.physicalDevice, &props2);
+    //std::cout << "Extended support: " << ext3.dynamicPrimitiveTopologyUnrestricted << "\n";
+    //(void)0;
 }
 
 // Function to find queue families
-void findQueueFamilies() {
+
+QueueIndices findQueueFamilies() {
     uint32_t queueFamilyCount = 0;
+    QueueIndices ret{
+        UINT32_MAX,
+        UINT32_MAX,
+        UINT32_MAX,
+        UINT32_MAX
+    };
     vkGetPhysicalDeviceQueueFamilyProperties(g_vulkanstate.physicalDevice, &queueFamilyCount, nullptr);
 
     std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
@@ -695,30 +534,29 @@ void findQueueFamilies() {
 
         // Check for graphics support
         if ((queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) && g_vulkanstate.graphicsFamily == UINT32_MAX) {
-            g_vulkanstate.graphicsFamily = i;
+            ret.graphicsIndex = i;
         }
-
         // Check for presentation support
         
         VkBool32 presentSupport = glfwGetPhysicalDevicePresentationSupport(g_vulkanstate.instance, g_vulkanstate.physicalDevice, i) ? VK_TRUE : VK_FALSE;
         //vkGetPhysicalDeviceSurfaceSupportKHR(g_vulkanstate.physicalDevice, i, g_vulkanstate.surface.surface, &presentSupport);
-        if (presentSupport && g_vulkanstate.presentFamily == UINT32_MAX) {
-            g_vulkanstate.presentFamily = i;
+        if (presentSupport && ret.presentIndex == UINT32_MAX) {
+            ret.presentIndex = i;
         }
 
         // Example: Check for compute support
         if ((queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) && g_vulkanstate.computeFamily == UINT32_MAX) {
-            g_vulkanstate.computeFamily = i;
+            ret.computeIndex = i;
         }
 
         // If all families are found, no need to continue
-        if (g_vulkanstate.graphicsFamily != UINT32_MAX && g_vulkanstate.presentFamily != UINT32_MAX && g_vulkanstate.computeFamily != UINT32_MAX) {
+        if (ret.graphicsIndex != UINT32_MAX && ret.presentIndex != UINT32_MAX && ret.computeIndex != UINT32_MAX) {
             break;
         }
     }
 
     // Validate that at least graphics and present families are found
-    if (g_vulkanstate.graphicsFamily == UINT32_MAX /*|| g_vulkanstate.presentFamily == UINT32_MAX*/) {
+    if (ret.graphicsIndex == UINT32_MAX /*|| g_vulkanstate.presentFamily == UINT32_MAX*/) {
         throw std::runtime_error("Failed to find required queue families!");
     }
 }
@@ -888,7 +726,7 @@ void createLogicalDevice() {
 // Function to initialize Vulkan (all setup steps)
 DescribedBindGroupLayout layout;
 void initVulkan(GLFWwindow *window) {
-    createInstance();
+    g_vulkanstate.instance = createInstance();
     pickPhysicalDevice();
     createLogicalDevice();
     //createSurface(window);
@@ -998,7 +836,7 @@ void mainLoop(GLFWwindow *window) {
         vkCreateFence(device, &fenceInfo, nullptr, &inFlightFence) != VK_SUCCESS) {
         throw std::runtime_error("failed to create synchronization objects for a frame!");
     }
-    g_vulkanstate.vbuffer = createVertexBuffer();
+    
     uint64_t framecount = 0;
     uint64_t stamp = nanoTime();
     uint64_t noell = 0;
