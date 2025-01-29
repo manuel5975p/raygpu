@@ -115,6 +115,21 @@ struct WGVKSurface{
     VkFramebuffer* framebuffers;
 };
 
+//struct WGVKDevice{
+//    VkDevice device;
+//};
+
+struct WGVKQueue{
+    VkQueue graphicsQueue;
+    VkQueue computeQueue;
+    VkQueue transferQueue;
+    VkQueue presentQueue;
+};
+
+struct memory_types{
+    uint32_t deviceLocal;
+    uint32_t hostVisibleCoherent;
+};
 
 struct VulkanState {
     VkInstance instance = VK_NULL_HANDLE;
@@ -130,6 +145,8 @@ struct VulkanState {
     uint32_t graphicsFamily = UINT32_MAX;
     uint32_t presentFamily = UINT32_MAX;
     uint32_t computeFamily = UINT32_MAX; // Example for an additional queue type
+
+    memory_types memoryTypes;
 
     WGVKSurface surface;
 

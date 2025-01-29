@@ -190,51 +190,7 @@ extern "C" void UnloadBuffer_Vk(DescribedBuffer* buf){
     wgvkReleaseBuffer(handle);
     std::free(buf);
 }
-DescribedBuffer* GenBufferEx_Vk(const void *data, size_t size, BufferUsage usage){
-    VkBufferUsageFlags vusage = toVulkanBufferUsage(usage);
-    DescribedBuffer* ret = callocnew(DescribedBuffer);
-    VkBuffer vertexBuffer{};
 
-    VkBufferCreateInfo bufferInfo{};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = size;
-    bufferInfo.usage = vusage;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    if (vkCreateBuffer(g_vulkanstate.device, &bufferInfo, nullptr, &vertexBuffer) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create vertex buffer!");
-    }
-    VkDeviceMemory vertexBufferMemory;
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(g_vulkanstate.device, vertexBuffer, &memRequirements);
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    if (vkAllocateMemory(g_vulkanstate.device, &allocInfo, nullptr, &vertexBufferMemory) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate vertex buffer memory!");
-    }
-    vkBindBufferMemory(g_vulkanstate.device, vertexBuffer, vertexBufferMemory, 0);
-    if(data != nullptr){
-        void* mapdata;
-        vkMapMemory(g_vulkanstate.device, vertexBufferMemory, 0, bufferInfo.size, 0, &mapdata);
-        memcpy(mapdata, data, (size_t)bufferInfo.size);
-        vkUnmapMemory(g_vulkanstate.device, vertexBufferMemory);
-    }
-    ret->buffer = callocnewpp(BufferHandleImpl);
-    ((BufferHandle)ret->buffer)->buffer = vertexBuffer;
-    ((BufferHandle)ret->buffer)->memory = vertexBufferMemory;
-    ((BufferHandle)ret->buffer)->refCount = 1;
-    //vkMapMemory(g_vulkanstate.device, vertexBufferMemory, 0, size, void **ppData)
-    ret->size = bufferInfo.size;
-    ret->usage = usage;
-
-    //void* mdata;
-    //vkMapMemory(g_vulkanstate.device, vertexBufferMemory, 0, bufferInfo.size, 0, &mdata);
-    //memcpy(mdata, data, (size_t)bufferInfo.size);
-    //vkUnmapMemory(g_vulkanstate.device, vertexBufferMemory);
-    return ret;
-}
 VkDescriptorSetLayout loadBindGroupLayout(){
     
     VkDescriptorSetLayout ret{};
@@ -287,21 +243,24 @@ VkDescriptorSet loadBindGroup(VkDescriptorSetLayout layout, Texture tex){
     vkUpdateDescriptorSets(g_vulkanstate.device, 1, &s, 0, nullptr);
     return ret;
 }
-uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(g_vulkanstate.physicalDevice, &memProperties);
+memory_types discoverMemoryTypes(VkPhysicalDevice physicalDevice) {
+    memory_types ret{~0u, ~0u};
+    VkPhysicalDeviceMemoryProperties memProperties{};
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+
     //std::cout << std::endl;
     //for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
     //    std::cout << "type: " << memProperties.memoryTypes[i].propertyFlags << "\n";
     //}
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-            return i;
+        if ((memProperties.memoryTypes[i].propertyFlags & (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) == (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+            ret.hostVisibleCoherent = i;
+        }
+        if((memProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT){
+            ret.deviceLocal = i;
         }
     }
-    //std::cout << std::endl;
-
-    throw std::runtime_error("Failed to find suitable memory type!");
+    return ret;
 }
 
 // Function to create a Vulkan buffer
@@ -533,7 +492,7 @@ QueueIndices findQueueFamilies() {
         const auto &queueFamily = queueFamilies[i];
 
         // Check for graphics support
-        if ((queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) && g_vulkanstate.graphicsFamily == UINT32_MAX) {
+        if ((queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) && ret.graphicsIndex == UINT32_MAX) {
             ret.graphicsIndex = i;
         }
         // Check for presentation support
@@ -545,7 +504,7 @@ QueueIndices findQueueFamilies() {
         }
 
         // Example: Check for compute support
-        if ((queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) && g_vulkanstate.computeFamily == UINT32_MAX) {
+        if ((queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) && ret.computeIndex == UINT32_MAX) {
             ret.computeIndex = i;
         }
 
@@ -556,9 +515,11 @@ QueueIndices findQueueFamilies() {
     }
 
     // Validate that at least graphics and present families are found
-    if (ret.graphicsIndex == UINT32_MAX /*|| g_vulkanstate.presentFamily == UINT32_MAX*/) {
-        throw std::runtime_error("Failed to find required queue families!");
+    if (ret.graphicsIndex == UINT32_MAX) {
+        throw std::runtime_error("Failed to find graphics queue, probably something went wong");
     }
+
+    return ret;
 }
 
 // Function to query swapchain support details
@@ -637,16 +598,16 @@ void createStagingBuffer() {
 }
 
 // Function to create logical device and retrieve queues
-void createLogicalDevice() {
+std::pair<VkDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDevice, QueueIndices indices) {
     // Find queue families
-    findQueueFamilies();
-
+    QueueIndices qind = findQueueFamilies();
+    std::pair<VkDevice, WGVKQueue> ret{};
     // Collect unique queue families
     std::set<uint32_t> uniqueQueueFamilies; // = { g_vulkanstate.graphicsFamily, g_vulkanstate.presentFamily };
 
-    uniqueQueueFamilies.insert(g_vulkanstate.computeFamily);
-    uniqueQueueFamilies.insert(g_vulkanstate.graphicsFamily);
-    uniqueQueueFamilies.insert(g_vulkanstate.presentFamily);
+    uniqueQueueFamilies.insert(indices.computeIndex);
+    uniqueQueueFamilies.insert(indices.graphicsIndex);
+    uniqueQueueFamilies.insert(indices.presentIndex);
 
     // Example: Include computeFamily if it's different
     std::vector<uint32_t> queueFamilies(uniqueQueueFamilies.begin(), uniqueQueueFamilies.end());
@@ -697,38 +658,44 @@ void createLogicalDevice() {
 
     // (Optional) Enable validation layers for device-specific debugging
 
-    if (vkCreateDevice(g_vulkanstate.physicalDevice, &createInfo, nullptr, &g_vulkanstate.device) != VK_SUCCESS) {
+    if (vkCreateDevice(g_vulkanstate.physicalDevice, &createInfo, nullptr, &ret.first) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create logical device!");
     } else {
         std::cout << "Successfully created logical device\n";
     }
 
     // Retrieve and assign queues
-    vkGetDeviceQueue(g_vulkanstate.device, g_vulkanstate.graphicsFamily, 0, &g_vulkanstate.graphicsQueue);
-    vkGetDeviceQueue(g_vulkanstate.device, g_vulkanstate.presentFamily, 0, &g_vulkanstate.presentQueue);
+    vkGetDeviceQueue(g_vulkanstate.device, indices.graphicsIndex, 0, &ret.second.graphicsQueue);
+    vkGetDeviceQueue(g_vulkanstate.device, indices.presentIndex, 0, &ret.second.presentQueue);
 
-    if (g_vulkanstate.computeFamily != g_vulkanstate.graphicsFamily && g_vulkanstate.computeFamily != g_vulkanstate.presentFamily) {
-        vkGetDeviceQueue(g_vulkanstate.device, g_vulkanstate.computeFamily, 0, &g_vulkanstate.computeQueue);
+    if (indices.computeIndex != indices.graphicsIndex && indices.computeIndex != indices.presentIndex) {
+        vkGetDeviceQueue(ret.first, indices.computeIndex, 0, &g_vulkanstate.computeQueue);
     } else {
-        // If compute family is same as graphics or present, assign accordingly
-        if (g_vulkanstate.computeFamily == g_vulkanstate.graphicsFamily) {
-            g_vulkanstate.computeQueue = g_vulkanstate.graphicsQueue;
-        } else if (g_vulkanstate.computeFamily == g_vulkanstate.presentFamily) {
-            g_vulkanstate.computeQueue = g_vulkanstate.presentQueue;
+        // If compute Index is same as graphics or present, assign accordingly
+        if (indices.computeIndex == indices.graphicsIndex) {
+            ret.second.computeQueue = ret.second.graphicsQueue;
+        } else if (indices.computeIndex == indices.presentIndex) {
+            ret.second.computeQueue = ret.second.presentQueue;
         }
     }
     //__builtin_dump_struct(&g_vulkanstate, printf);
     // std::cin.get();
 
     std::cout << "Successfully retrieved queues\n";
+
+    return ret;
 }
 
 // Function to initialize Vulkan (all setup steps)
 DescribedBindGroupLayout layout;
 void initVulkan(GLFWwindow *window) {
     g_vulkanstate.instance = createInstance();
-    pickPhysicalDevice();
-    createLogicalDevice();
+    g_vulkanstate.physicalDevice = pickPhysicalDevice();
+    g_vulkanstate.memoryTypes = discoverMemoryTypes(g_vulkanstate.physicalDevice);
+    QueueIndices queues = findQueueFamilies();
+    auto device_and_queues = createLogicalDevice(g_vulkanstate.physicalDevice, queues);
+    g_vulkanstate.device = device_and_queues.first;
+    g_vulkanstate.queue = device_and_queues.second;
     //createSurface(window);
     //int width, height;
     //glfwGetWindowSize(window, &width, &height);
