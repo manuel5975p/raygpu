@@ -97,7 +97,7 @@ inline uint64_t nanoTime() {
     using namespace chrono;
     return duration_cast<nanoseconds>(high_resolution_clock::now().time_since_epoch()).count();
 }
-uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+
 // Global Vulkan state structure
 
 
@@ -472,6 +472,7 @@ picked:
     //(void)0;
 }
 
+
 // Function to find queue families
 
 QueueIndices findQueueFamilies() {
@@ -502,6 +503,9 @@ QueueIndices findQueueFamilies() {
         if (presentSupport && ret.presentIndex == UINT32_MAX) {
             ret.presentIndex = i;
         }
+        if(queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT){
+            ret.transferIndex = i;
+        }
 
         // Example: Check for compute support
         if ((queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) && ret.computeIndex == UINT32_MAX) {
@@ -509,7 +513,7 @@ QueueIndices findQueueFamilies() {
         }
 
         // If all families are found, no need to continue
-        if (ret.graphicsIndex != UINT32_MAX && ret.presentIndex != UINT32_MAX && ret.computeIndex != UINT32_MAX) {
+        if (ret.graphicsIndex != UINT32_MAX && ret.presentIndex != UINT32_MAX && ret.computeIndex != UINT32_MAX && ret.transferIndex != UINT32_MAX) {
             break;
         }
     }
@@ -665,11 +669,11 @@ std::pair<VkDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDevi
     }
 
     // Retrieve and assign queues
-    vkGetDeviceQueue(g_vulkanstate.device, indices.graphicsIndex, 0, &ret.second.graphicsQueue);
-    vkGetDeviceQueue(g_vulkanstate.device, indices.presentIndex, 0, &ret.second.presentQueue);
+    vkGetDeviceQueue(ret.first, indices.graphicsIndex, 0, &ret.second.graphicsQueue);
+    vkGetDeviceQueue(ret.first, indices.presentIndex, 0, &ret.second.presentQueue);
 
     if (indices.computeIndex != indices.graphicsIndex && indices.computeIndex != indices.presentIndex) {
-        vkGetDeviceQueue(ret.first, indices.computeIndex, 0, &g_vulkanstate.computeQueue);
+        vkGetDeviceQueue(ret.first, indices.computeIndex, 0, &ret.second.computeQueue);
     } else {
         // If compute Index is same as graphics or present, assign accordingly
         if (indices.computeIndex == indices.graphicsIndex) {
@@ -691,8 +695,12 @@ DescribedBindGroupLayout layout;
 void initVulkan(GLFWwindow *window) {
     g_vulkanstate.instance = createInstance();
     g_vulkanstate.physicalDevice = pickPhysicalDevice();
+    vkGetPhysicalDeviceMemoryProperties(g_vulkanstate.physicalDevice, &g_vulkanstate.memProperties);
     g_vulkanstate.memoryTypes = discoverMemoryTypes(g_vulkanstate.physicalDevice);
     QueueIndices queues = findQueueFamilies();
+    g_vulkanstate.graphicsFamily = queues.graphicsIndex;
+    g_vulkanstate.computeFamily = queues.computeIndex;
+    g_vulkanstate.presentFamily = queues.presentIndex;
     auto device_and_queues = createLogicalDevice(g_vulkanstate.physicalDevice, queues);
     g_vulkanstate.device = device_and_queues.first;
     g_vulkanstate.queue = device_and_queues.second;
@@ -892,7 +900,7 @@ void mainLoop(GLFWwindow *window) {
 
         presentInfo.pImageIndices = &imageIndex;
 
-        VkResult presentRes = vkQueuePresentKHR(g_vulkanstate.presentQueue, &presentInfo);
+        VkResult presentRes = vkQueuePresentKHR(g_vulkanstate.queue.presentQueue, &presentInfo);
         if(presentRes != VK_SUCCESS){
             std::cerr << "presentRes is " << presentRes << std::endl;
         }
@@ -907,7 +915,7 @@ void mainLoop(GLFWwindow *window) {
         }
         // break;
     }
-    vkQueueWaitIdle(g_vulkanstate.graphicsQueue);
+    vkQueueWaitIdle(g_vulkanstate.queue.graphicsQueue);
     if(true)
         exit(0);
 }

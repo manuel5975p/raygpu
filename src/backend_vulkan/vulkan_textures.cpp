@@ -318,7 +318,7 @@ extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelForma
         g_vulkanstate.device, 
         g_vulkanstate.physicalDevice, 
         commandPool, 
-        g_vulkanstate.computeQueue, 
+        g_vulkanstate.queue.computeQueue, 
         reinterpret_cast<const uint8_t*>(data), 
         width, 
         height, 
