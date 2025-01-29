@@ -20,6 +20,7 @@ extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vs
     fscreateInfo.pCode = reinterpret_cast<const uint32_t*>(fscode);
 
 
+
     ret.shaderModule = callocnew(VertexAndFragmentShaderModule);
     if (vkCreateShaderModule(g_vulkanstate.device, &vscreateInfo, nullptr, &((VertexAndFragmentShaderModule)ret.shaderModule)->vModule) != VK_SUCCESS) {
         throw std::runtime_error("failed to create vertex shader module!");
@@ -229,6 +230,7 @@ void UpdatePipeline_Vk(DescribedPipeline* ret, const VertexArray* vao){
         throw std::runtime_error("Trianglelist pipiline creation failed");
     }
     ret->createdPipelines->pipelines[vao->attributes] = ret->quartet;
+    
 }
 
 
@@ -251,7 +253,12 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
     if (vkCreatePipelineLayout(g_vulkanstate.device, &pipelineLayoutInfo, nullptr, (VkPipelineLayout*)&ret->layout.layout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create pipeline layout!");
     }
-
+    std::vector<ResourceDescriptor> bge(uniformCount);
+    for(uint32_t i = 0;i < bge.size();i++){
+        bge[i] = ResourceDescriptor{};
+        bge[i].binding = uniforms[i].location;
+    }
+    ret->bindGroup = LoadBindGroup_Vk(&ret->bglayout, bge.data(), bge.size());
     UpdatePipeline_Vk(ret, vao);    
     
     return ret;

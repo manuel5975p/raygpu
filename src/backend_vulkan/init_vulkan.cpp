@@ -704,6 +704,14 @@ void initVulkan(GLFWwindow *window) {
     auto device_and_queues = createLogicalDevice(g_vulkanstate.physicalDevice, queues);
     g_vulkanstate.device = device_and_queues.first;
     g_vulkanstate.queue = device_and_queues.second;
+    
+    ResourceTypeDescriptor types[2] = {};
+    types[0].type = texture2d;
+    types[0].location = 0;
+    types[1].type = texture_sampler;
+    types[1].location = 1;
+
+    g_vulkanstate.defaultPipeline = LoadPipelineForVAO_Vk(vsSource, fsSource, renderBatchVAO, types, 2, GetDefaultSettings());
     //createSurface(window);
     //int width, height;
     //glfwGetWindowSize(window, &width, &height);
@@ -712,13 +720,13 @@ void initVulkan(GLFWwindow *window) {
     //createSwapChain(window, width, height);
     createRenderPass();
     //createImageViews(width, height);
-    ResourceTypeDescriptor types[2] = {};
-    types[0].type = texture2d;
-    types[0].location = 0;
-    types[1].type = texture_sampler;
-    types[1].location = 1;
-
-    layout = LoadBindGroupLayout_Vk(types, 2);
+    //ResourceTypeDescriptor types[2] = {};
+    //types[0].type = texture2d;
+    //types[0].location = 0;
+    //types[1].type = texture_sampler;
+    //types[1].location = 1;
+//
+    //layout = LoadBindGroupLayout_Vk(types, 2);
 
     //createGraphicsPipeline(&layout);
     createStagingBuffer();
@@ -754,11 +762,7 @@ void mainLoop(GLFWwindow *window) {
     DescribedSampler sampler = LoadSampler_Vk(repeat, filter_linear, filter_linear, 10.0f);
     //set = loadBindGroup(layout, goof);
 
-    ResourceTypeDescriptor types[2] = {};
-    types[0].type = texture2d;
-    types[0].location = 0;
-    types[1].type = texture_sampler;
-    types[1].location = 1;
+    
 
     ResourceDescriptor textureandsampler[2] = {};
 
@@ -766,8 +770,7 @@ void mainLoop(GLFWwindow *window) {
     textureandsampler[0].binding = 0;
     textureandsampler[1].sampler = sampler.sampler;
     textureandsampler[1].binding = 1;
-    DescribedPipeline* dpl = LoadPipelineForVAO_Vk(vsSource, fsSource, vao, types, 2, GetDefaultSettings());
-
+    
     set = LoadBindGroup_Vk(&layout, textureandsampler, 2);
     
     VkSemaphoreCreateInfo sci{};
@@ -863,7 +866,7 @@ void mainLoop(GLFWwindow *window) {
         //recordCommandBuffer(commandBuffer, imageIndex);
         SetBindgroupTexture_Vk(&set, 0, bwite);
         UpdateBindGroup_Vk(&set);
-        wgvkRenderPassEncoderBindPipeline(encoder, dpl);
+        wgvkRenderPassEncoderBindPipeline(encoder, g_vulkanstate.defaultPipeline);
         wgvkRenderPassEncoderBindDescriptorSet(encoder, 0, (DescriptorSetHandle)set.bindGroup);
         
         //vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipelineLayout)dpl->layout.layout, 0, 1, &((DescriptorSetHandle)set.bindGroup)->set, 0, 0);

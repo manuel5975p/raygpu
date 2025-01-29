@@ -157,6 +157,7 @@ struct VulkanState {
     VkPipeline graphicsPipeline;
     VkPipelineLayout graphicsPipelineLayout;
 
+    DescribedPipeline* defaultPipeline{};
     //VkExtent2D swapchainExtent = {0, 0};
     //std::vector<VkImage> swapchainImages;
     //std::vector<VkImageView> swapchainImageViews;
