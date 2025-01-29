@@ -134,12 +134,15 @@ struct memory_types{
 struct VulkanState {
     VkInstance instance = VK_NULL_HANDLE;
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+    VkPhysicalDeviceMemoryProperties memProperties;
+
     VkDevice device = VK_NULL_HANDLE;
+    WGVKQueue queue;
 
     // Separate queues for clarity
-    VkQueue graphicsQueue = VK_NULL_HANDLE;
-    VkQueue presentQueue = VK_NULL_HANDLE;
-    VkQueue computeQueue = VK_NULL_HANDLE; // Example for an additional queue type
+    //VkQueue graphicsQueue = VK_NULL_HANDLE;
+    //VkQueue presentQueue = VK_NULL_HANDLE;
+    //VkQueue computeQueue = VK_NULL_HANDLE; // Example for an additional queue type
 
     // Separate queue family indices
     uint32_t graphicsFamily = UINT32_MAX;
@@ -162,6 +165,16 @@ struct VulkanState {
     VkBuffer vbuffer;
 };  extern VulkanState g_vulkanstate; 
 
+static inline uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+    const VkPhysicalDeviceMemoryProperties& memProperties = g_vulkanstate.memProperties;
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+            return i;
+        }
+    }
+    assert(false && "failed to find suitable memory type!");
+    return ~0u;
+}
 
 struct SwapChainSupportDetails {
     VkSurfaceCapabilitiesKHR capabilities;
@@ -512,7 +525,7 @@ inline void EndRenderPass_Vk(VkCommandBuffer cbuffer, FullVkRenderPass rp, VkSem
     //if(vkCreateFence(g_vulkanstate.device, &finfo, nullptr, &fence) != VK_SUCCESS){
     //    throw std::runtime_error("Could not create fence");
     //}
-    if(vkQueueSubmit(g_vulkanstate.graphicsQueue, 1, &sinfo, renderFinishedFence) != VK_SUCCESS){
+    if(vkQueueSubmit(g_vulkanstate.queue.graphicsQueue, 1, &sinfo, renderFinishedFence) != VK_SUCCESS){
         throw std::runtime_error("Could not submit commandbuffer");
     }
     //if(vkWaitForFences(g_vulkanstate.device, 1, &fence, VK_TRUE, ~0) != VK_SUCCESS){
