@@ -42,6 +42,13 @@ inline std::pair<std::vector<VkVertexInputAttributeDescription>, std::vector<VkV
     }
     return ret;
 }
+struct QueueIndices{
+    uint32_t graphicsIndex;
+    uint32_t computeIndex;
+    uint32_t transferIndex;
+    uint32_t presentIndex;
+};
+
 struct VertexAndFragmentShaderModuleImpl;
 struct DescriptorSetHandleImpl;
 struct BufferHandleImpl;
