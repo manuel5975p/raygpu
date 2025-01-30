@@ -89,6 +89,7 @@ typedef struct RenderPassEncoderHandleImpl{
     ref_holder<BufferHandle> referencedBuffers;
     ref_holder<DescriptorSetHandle> referencedDescriptorSets;
     VkPipelineLayout lastLayout;
+    VkFramebuffer frameBuffer;
     refcount_type refCount;
 }RenderPassEncoderHandleImpl;
 
@@ -103,7 +104,7 @@ typedef struct ImageHandleImpl{
     VkDeviceMemory memory;
 }ImageHandleImpl;
 
-struct WGVKSurface{
+struct WGVKSurfaceImpl{
     VkSurfaceKHR surface;
     VkSwapchainKHR swapchain;
     uint32_t imagecount;
@@ -114,6 +115,7 @@ struct WGVKSurface{
     VkImageView* imageViews;
     VkFramebuffer* framebuffers;
 };
+typedef WGVKSurfaceImpl* WGVKSurface;
 
 //struct WGVKDevice{
 //    VkDevice device;
@@ -151,7 +153,7 @@ struct VulkanState {
 
     memory_types memoryTypes;
 
-    WGVKSurface surface;
+    FullSurface surface;
 
     VkRenderPass renderPass;
     VkPipeline graphicsPipeline;
@@ -253,8 +255,10 @@ inline VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities,
         return actualExtent;
     }
 }
-inline WGVKSurface LoadSurface(GLFWwindow* window){
-    WGVKSurface ret{};
+inline FullSurface LoadSurface(GLFWwindow* window, SurfaceConfiguration config){
+    FullSurface retf{};
+    WGVKSurface retp = callocnew(WGVKSurfaceImpl);
+    auto& ret = *retp;
     if(glfwCreateWindowSurface(g_vulkanstate.instance, window, nullptr, &ret.surface) != VK_SUCCESS){
         throw std::runtime_error("could not create surface");
     }
@@ -342,10 +346,14 @@ inline WGVKSurface LoadSurface(GLFWwindow* window){
     }
 
     ret.swapchainImageFormat = surfaceFormat.format;
-    return ret;
+    retf.surface = retp;
+    retf.surfaceConfig = config;
+    retf.frameBuffer.depth = LoadTexturePro_Vk(extent.width, extent.height, Depth32, TextureUsage_RenderAttachment, 1, 1);
+    
+    return retf;
 }
 
-inline void wgvkSurfaceConfigure(WGVKSurface* surface, uint32_t width, uint32_t height){
+inline void wgvkSurfaceConfigure(WGVKSurfaceImpl* surface, uint32_t width, uint32_t height){
     SurfaceConfiguration config{};
     auto& device = g_vulkanstate.device;
     vkDeviceWaitIdle(device);
@@ -482,7 +490,9 @@ inline FullVkRenderPass LoadRenderPass(RenderSettings settings){
     return ret;
 }
 
-static inline void BeginRenderpassEx_Vk(DescribedRenderpass *renderPass){
+static inline void BeginRenderpassEx_Vk(DescribedRenderpass *renderPass, RenderTexture rtex){
+
+    RenderPassEncoderHandle ret = callocnewpp(RenderPassEncoderHandleImpl);
 
     VkCommandBufferBeginInfo bbi{};
     bbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -499,6 +509,20 @@ static inline void BeginRenderpassEx_Vk(DescribedRenderpass *renderPass){
 
     vkResetCommandBuffer((VkCommandBuffer)renderPass->cmdEncoder, 0);
     rpbi.renderPass = g_vulkanstate.renderPass;
+    VkFramebufferCreateInfo fbci{};
+    fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    VkImageView fbAttachments[2] = {
+        (VkImageView)rtex.texture.view,
+        (VkImageView)rtex.depth.view,
+    };
+    fbci.pAttachments = fbAttachments;
+    fbci.attachmentCount = 2;
+    fbci.width = rtex.texture.width;
+    fbci.height = rtex.texture.height;
+    fbci.layers = 1;
+    VkFramebuffer rahmePuffer = 0;
+    vkCreateFramebuffer(g_vulkanstate.device, &fbci, nullptr, &rahmePuffer);
+    rpbi.framebuffer = rahmePuffer;
     //renderPass->renderTarget
 }
 static inline RenderPassEncoderHandle BeginRenderPass_Vk(VkCommandBuffer cbuffer, FullVkRenderPass rp, VkFramebuffer fb){
