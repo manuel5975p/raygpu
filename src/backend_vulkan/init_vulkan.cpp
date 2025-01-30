@@ -704,7 +704,11 @@ void initVulkan(GLFWwindow *window) {
     auto device_and_queues = createLogicalDevice(g_vulkanstate.physicalDevice, queues);
     g_vulkanstate.device = device_and_queues.first;
     g_vulkanstate.queue = device_and_queues.second;
-    g_vulkanstate.surface = LoadSurface(window);
+
+
+    SurfaceConfiguration config{};
+    config.presentMode = PresentMode_Fifo;
+    g_vulkanstate.surface = LoadSurface(window, config);
     createRenderPass();
     
     ResourceTypeDescriptor types[2] = {};
