@@ -1685,13 +1685,14 @@ WGPURenderPassDepthStencilAttachment* defaultDSA(WGPUTextureView depth){
     dsa->stencilReadOnly = true;
     return dsa;
 }
-extern "C" DescribedRenderpass LoadRenderpassEx(RenderSettings settings){
+extern "C" DescribedRenderpass LoadRenderpassEx(RenderSettings settings, bool colorClear, DColor colorClearValue, bool depthClear, float depthClearValue){
     DescribedRenderpass ret{};
     
-    ret.colorClear = DColor{0,0,0,0};
-    ret.colorLoadOp = LoadOp_Load;
+    ret.colorClear = colorClearValue;
+    ret.depthClear = depthClearValue;
+    ret.colorLoadOp = colorClear ? LoadOp_Clear : LoadOp_Load;
     ret.colorStoreOp = StoreOp_Store;
-    ret.depthLoadOp = LoadOp_Load;
+    ret.depthLoadOp = depthClear ? LoadOp_Clear : LoadOp_Load;
     ret.depthStoreOp = StoreOp_Store;
     //ret.settings = settings;
     //ret.renderPassDesc = WGPURenderPassDescriptor{};
@@ -1743,9 +1744,7 @@ void UnloadRenderpass(DescribedRenderpass rp){
     //if(rp.dsa)free(rp.dsa);
     //rp.dsa = nullptr;
 }
-extern "C" DescribedRenderpass LoadRenderpass(){
-    return LoadRenderpassEx(GetDefaultSettings());
-}
+
 DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode mipmapFilter, float maxAnisotropy){
     DescribedSampler ret zeroinit;
     ret.magFilter    = fmode;

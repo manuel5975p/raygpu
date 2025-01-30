@@ -163,7 +163,6 @@ struct VulkanState {
     //std::vector<VkImageView> swapchainImageViews;
     //std::vector<VkFramebuffer> swapchainImageFramebuffers;
 
-    VkBuffer vbuffer;
 };  extern VulkanState g_vulkanstate; 
 
 static inline uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
@@ -483,7 +482,27 @@ inline FullVkRenderPass LoadRenderPass(RenderSettings settings){
     return ret;
 }
 
-inline RenderPassEncoderHandle BeginRenderPass_Vk(VkCommandBuffer cbuffer, FullVkRenderPass rp, VkFramebuffer fb){
+static inline void BeginRenderpassEx_Vk(DescribedRenderpass *renderPass){
+
+    VkCommandBufferBeginInfo bbi{};
+    bbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    VkRenderPassBeginInfo rpbi{};
+    VkClearValue clearvalues[2] = {};
+    clearvalues[0].color = VkClearColorValue{};
+    clearvalues[0].color.float32[0] = (float)renderPass->colorClear.r;
+    clearvalues[0].color.float32[1] = (float)renderPass->colorClear.g;
+    clearvalues[0].color.float32[2] = (float)renderPass->colorClear.b;
+    clearvalues[0].color.float32[3] = (float)renderPass->colorClear.a;
+
+    clearvalues[1].depthStencil = VkClearDepthStencilValue{};
+    clearvalues[1].depthStencil.depth = (float)renderPass->depthClear;
+
+    vkResetCommandBuffer((VkCommandBuffer)renderPass->cmdEncoder, 0);
+    rpbi.renderPass = g_vulkanstate.renderPass;
+    //renderPass->renderTarget
+}
+static inline RenderPassEncoderHandle BeginRenderPass_Vk(VkCommandBuffer cbuffer, FullVkRenderPass rp, VkFramebuffer fb){
+
     RenderPassEncoderHandle ret = callocnewpp(RenderPassEncoderHandleImpl);
     VkCommandBufferBeginInfo bbi{};
     bbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;

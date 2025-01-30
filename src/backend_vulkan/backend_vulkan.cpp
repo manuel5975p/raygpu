@@ -1,3 +1,5 @@
+#include <raygpu.h>
+#include <wgpustate.inc>
 #include "vulkan_internals.hpp"
 
 void BufferData_Vk(DescribedBuffer* buffer, void* data, size_t size){
@@ -20,7 +22,12 @@ void drawCurrentBatch(){
         return;
     }
     DescribedBuffer* vbo = GenBufferEx_Vk(vboptr_base, vertexCount * sizeof(vertex), BufferUsage_Vertex | BufferUsage_CopyDst);
+    
+    //wgvkRenderPassEncoderBindVertexBuffer(, uint32_t binding, BufferHandle buffer, VkDeviceSize offset)
+    
+    
     UnloadBuffer(vbo);
+    vboptr = vboptr_base;
 }
 
 DescribedBuffer* GenBufferEx_Vk(const void *data, size_t size, BufferUsage usage){
