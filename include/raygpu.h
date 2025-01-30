@@ -136,6 +136,7 @@ typedef struct DescribedRenderpass{
     LoadOp  depthLoadOp;
     StoreOp depthStoreOp;
     DColor colorClear;
+    float depthClear;
 
     RenderTexture renderTarget;
 
@@ -889,8 +890,7 @@ EXTERN_C_BEGIN
     Texture GetMultisampleColorTarget(cwoid);
 
 
-    DescribedRenderpass LoadRenderpass(cwoid);
-    DescribedRenderpass LoadRenderpassEx(RenderSettings settings);
+    DescribedRenderpass LoadRenderpassEx(RenderSettings settings, bool colorClear, DColor colorClearValue, bool depthClear, float depthClearValue);
     //void UpdateRenderpass(DescribedRenderpass* rp, RenderSettings newSettings);
     void UnloadRenderpass(DescribedRenderpass rp);
     

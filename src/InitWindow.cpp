@@ -609,6 +609,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     }
 
     vboptr = (vertex*)std::calloc(10000, sizeof(vertex));
+    vboptr_base = vboptr;
     renderBatchVBO = GenVertexBuffer(nullptr, 10000 * sizeof(vertex));
     
     renderBatchVAO = LoadVertexArray();
@@ -616,17 +617,11 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     VertexAttribPointer(renderBatchVAO, renderBatchVBO, 1, VertexFormat_Float32x2, 3 * sizeof(float), VertexStepMode_Vertex);
     VertexAttribPointer(renderBatchVAO, renderBatchVBO, 2, VertexFormat_Float32x3, 5 * sizeof(float), VertexStepMode_Vertex);
     VertexAttribPointer(renderBatchVAO, renderBatchVBO, 3, VertexFormat_Float32x4, 8 * sizeof(float), VertexStepMode_Vertex);
-    vboptr_base = vboptr;
 
 
-    g_renderstate.renderpass = LoadRenderpassEx(GetDefaultSettings());
+    g_renderstate.renderpass = LoadRenderpassEx(GetDefaultSettings(), false, DColor{}, false, 0.0f);
 
-    g_renderstate.clearPass = LoadRenderpassEx(GetDefaultSettings());
-
-    g_renderstate.clearPass.colorLoadOp  = LoadOp_Clear;
-    g_renderstate.clearPass.colorStoreOp = StoreOp_Store;
-    g_renderstate.clearPass.depthLoadOp  = LoadOp_Clear;
-    g_renderstate.clearPass.depthStoreOp = StoreOp_Store;
+    g_renderstate.clearPass = LoadRenderpassEx(GetDefaultSettings(), true, DColor{0,0,0,1}, true, 1.0f);
     //}
     //state->clearPass.rca->clearValue = WGPUColor{1.0, 0.4, 0.2, 1.0};
     //state->clearPass.rca->loadOp = WGPULoadOp_Clear;

@@ -310,7 +310,6 @@ std::vector<char> readFile(const std::string &filename) {
 
 
 DescribedBindGroup set{};
-void createRenderPass();
 // Function to initialize GLFW and create a window
 void ResizeCallback_Vk(GLFWwindow* win, int width, int height){
     //std::cout << std::format("Resized to {} x {}\n", width, height) << std::flush;
@@ -583,6 +582,8 @@ void createRenderPass() {
 }
 
 
+
+
 // Function to create a staging buffer (example usage)
 void createStagingBuffer() {
     VkBuffer stagingBuffer;
@@ -723,7 +724,8 @@ void initVulkan(GLFWwindow *window) {
     //createSurface(window);
     //int width, height;
     //glfwGetWindowSize(window, &width, &height);
-    
+    vboptr = (vertex*)std::calloc(10000, sizeof(vertex));
+    vboptr_base = vboptr;
     std::cerr << "Surface created?\n";
     //createSwapChain(window, width, height);
     //createRenderPass();
@@ -867,10 +869,7 @@ void mainLoop(GLFWwindow *window) {
         vkCmdSetViewport(encoder->cmdBuffer, 0, 1, &viewport);
         VkRect2D scissorRect{.offset = {0,0}, .extent = {g_vulkanstate.surface.width, g_vulkanstate.surface.height}};
         vkCmdSetScissor(encoder->cmdBuffer, 0, 1, &scissorRect);
-        rlVertex2f(0, 0);
-        rlVertex2f(1, 0);
-        rlVertex2f(0, 1);
-        drawCurrentBatch();
+        
         //recordCommandBuffer(commandBuffer, imageIndex);
         //SetBindgroupTexture_Vk(&set, 0, bwite);
         //UpdateBindGroup_Vk(&set);
@@ -888,7 +887,10 @@ void mainLoop(GLFWwindow *window) {
         //UpdateBindGroup_Vk(&set);
         wgvkRenderPassEncoderBindDescriptorSet(encoder, 0, (DescriptorSetHandle)g_vulkanstate.defaultPipeline->bindGroup.bindGroup);
         wgvkRenderpassEncoderDraw(encoder, 3, 1, 0, 1);
-
+        rlVertex2f(0, 0);
+        rlVertex2f(1, 0);
+        rlVertex2f(0, 1);
+        drawCurrentBatch();
         //vkCmdEndRenderPass(commandBuffer);
         EndRenderPass_Vk(commandBuffer, renderpass, imageAvailableSemaphore, inFlightFence);
         //std::cout << ((BufferHandle)vbo->buffer)->refCount << "\n";
