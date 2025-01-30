@@ -564,7 +564,13 @@ extern "C" void UpdateBindGroupEntry_Vk(DescribedBindGroup* bg, size_t index, Re
 
 
 
-
+static inline void SetBindgroupSampler_Vk(DescribedBindGroup* bg, uint32_t index, DescribedSampler smp){
+    ResourceDescriptor entry{};
+    entry.binding = index;
+    entry.sampler = smp.sampler;
+    
+    UpdateBindGroupEntry_Vk(bg, index, entry);
+}
 static inline void SetBindgroupTexture_Vk(DescribedBindGroup* bg, uint32_t index, Texture tex){
     ResourceDescriptor entry{};
     entry.binding = index;
