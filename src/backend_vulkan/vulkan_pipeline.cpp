@@ -258,6 +258,7 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
         bge[i] = ResourceDescriptor{};
         bge[i].binding = uniforms[i].location;
     }
+    ret->bglayout = LoadBindGroupLayout_Vk(uniforms, uniformCount);
     ret->bindGroup = LoadBindGroup_Vk(&ret->bglayout, bge.data(), bge.size());
     UpdatePipeline_Vk(ret, vao);    
     

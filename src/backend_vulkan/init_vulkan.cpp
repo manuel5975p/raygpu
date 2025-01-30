@@ -690,8 +690,7 @@ std::pair<VkDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDevi
     return ret;
 }
 
-// Function to initialize Vulkan (all setup steps)
-DescribedBindGroupLayout layout;
+// Function to initialize Vulkan (all setup steps)  
 void initVulkan(GLFWwindow *window) {
     g_vulkanstate.instance = createInstance();
     g_vulkanstate.physicalDevice = pickPhysicalDevice();
@@ -704,6 +703,8 @@ void initVulkan(GLFWwindow *window) {
     auto device_and_queues = createLogicalDevice(g_vulkanstate.physicalDevice, queues);
     g_vulkanstate.device = device_and_queues.first;
     g_vulkanstate.queue = device_and_queues.second;
+    g_vulkanstate.surface = LoadSurface(window);
+    createRenderPass();
     
     ResourceTypeDescriptor types[2] = {};
     types[0].type = texture2d;
@@ -711,14 +712,21 @@ void initVulkan(GLFWwindow *window) {
     types[1].type = texture_sampler;
     types[1].location = 1;
 
+    renderBatchVBO = GenBufferEx_Vk(nullptr, 10000 * sizeof(vertex), BufferUsage_Vertex | BufferUsage_CopyDst);
+    renderBatchVAO = LoadVertexArray();
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 0, VertexFormat_Float32x3, 0 * sizeof(float), VertexStepMode_Vertex);
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 1, VertexFormat_Float32x2, 3 * sizeof(float), VertexStepMode_Vertex);
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 2, VertexFormat_Float32x3, 5 * sizeof(float), VertexStepMode_Vertex);
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 3, VertexFormat_Unorm8x4,  8 * sizeof(float), VertexStepMode_Vertex);
+    
     g_vulkanstate.defaultPipeline = LoadPipelineForVAO_Vk(vsSource, fsSource, renderBatchVAO, types, 2, GetDefaultSettings());
     //createSurface(window);
     //int width, height;
     //glfwGetWindowSize(window, &width, &height);
-    g_vulkanstate.surface = LoadSurface(window);
+    
     std::cerr << "Surface created?\n";
     //createSwapChain(window, width, height);
-    createRenderPass();
+    //createRenderPass();
     //createImageViews(width, height);
     //ResourceTypeDescriptor types[2] = {};
     //types[0].type = texture2d;
@@ -742,13 +750,7 @@ void mainLoop(GLFWwindow *window) {
     DescribedBuffer* inst_bo = GenBufferEx_Vk(offsets, sizeof(offsets), BufferUsage_Vertex | WGPUBufferUsage_CopyDst);
     VertexAttribPointer(vao, vbo, 0, VertexFormat_Float32x2, 0, VertexStepMode_Vertex);
     VertexAttribPointer(vao, inst_bo, 1, VertexFormat_Float32x2, 0, VertexStepMode_Instance);
-    renderBatchVBO = GenBufferEx_Vk(nullptr, 10000 * sizeof(vertex), BufferUsage_Vertex | BufferUsage_CopyDst);
     
-    renderBatchVAO = LoadVertexArray();
-    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 0, VertexFormat_Float32x3, 0 * sizeof(float), VertexStepMode_Vertex);
-    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 1, VertexFormat_Float32x2, 3 * sizeof(float), VertexStepMode_Vertex);
-    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 2, VertexFormat_Float32x3, 5 * sizeof(float), VertexStepMode_Vertex);
-    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 3, VertexFormat_Unorm8x4,  8 * sizeof(float), VertexStepMode_Vertex);
     //VertexBufferLayoutSet layoutset = getBufferLayoutRepresentation(vao->attributes.data(), vao->attributes.size());
     //auto pair_of_dings = genericVertexLayoutSetToVulkan(layoutset);
     //vkCmdSetVertexInputEXT(VkCommandBuffer commandBuffer, uint32_t vertexBindingDescriptionCount, const VkVertexInputBindingDescription2EXT *pVertexBindingDescriptions, uint32_t vertexAttributeDescriptionCount, const VkVertexInputAttributeDescription2EXT *pVertexAttributeDescriptions)
@@ -771,7 +773,9 @@ void mainLoop(GLFWwindow *window) {
     textureandsampler[1].sampler = sampler.sampler;
     textureandsampler[1].binding = 1;
     
-    set = LoadBindGroup_Vk(&layout, textureandsampler, 2);
+    SetBindgroupTexture_Vk(&g_vulkanstate.defaultPipeline->bindGroup, 0, rgreen);
+    SetBindgroupSampler_Vk(&g_vulkanstate.defaultPipeline->bindGroup, 1, sampler);
+    //set = LoadBindGroup_Vk(&layout, textureandsampler, 2);
     
     VkSemaphoreCreateInfo sci{};
     sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -863,11 +867,16 @@ void mainLoop(GLFWwindow *window) {
         vkCmdSetViewport(encoder->cmdBuffer, 0, 1, &viewport);
         VkRect2D scissorRect{.offset = {0,0}, .extent = {g_vulkanstate.surface.width, g_vulkanstate.surface.height}};
         vkCmdSetScissor(encoder->cmdBuffer, 0, 1, &scissorRect);
+        rlVertex2f(0, 0);
+        rlVertex2f(1, 0);
+        rlVertex2f(0, 1);
+        drawCurrentBatch();
         //recordCommandBuffer(commandBuffer, imageIndex);
-        SetBindgroupTexture_Vk(&set, 0, bwite);
-        UpdateBindGroup_Vk(&set);
+        //SetBindgroupTexture_Vk(&set, 0, bwite);
+        //UpdateBindGroup_Vk(&set);
         wgvkRenderPassEncoderBindPipeline(encoder, g_vulkanstate.defaultPipeline);
-        wgvkRenderPassEncoderBindDescriptorSet(encoder, 0, (DescriptorSetHandle)set.bindGroup);
+        UpdateBindGroup_Vk(&g_vulkanstate.defaultPipeline->bindGroup);
+        wgvkRenderPassEncoderBindDescriptorSet(encoder, 0, (DescriptorSetHandle)g_vulkanstate.defaultPipeline->bindGroup.bindGroup);
         
         //vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipelineLayout)dpl->layout.layout, 0, 1, &((DescriptorSetHandle)set.bindGroup)->set, 0, 0);
         //vkCmdSetPrimitiveTopology(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
@@ -875,9 +884,9 @@ void mainLoop(GLFWwindow *window) {
         //wgvkRenderPassEncoderBindVertexBuffer(encoder, 0, (BufferHandle)vbo->buffer, 0);
         //wgvkRenderPassEncoderBindVertexBuffer(encoder, 1, (BufferHandle)inst_bo->buffer, 0);
         wgvkRenderpassEncoderDraw(encoder, 3, 1, 0, 0);
-        SetBindgroupTexture_Vk(&set, 0, rgreen);
-        UpdateBindGroup_Vk(&set);
-        wgvkRenderPassEncoderBindDescriptorSet(encoder, 0, (DescriptorSetHandle)set.bindGroup);
+        //SetBindgroupTexture_Vk(&set, 0, rgreen);
+        //UpdateBindGroup_Vk(&set);
+        wgvkRenderPassEncoderBindDescriptorSet(encoder, 0, (DescriptorSetHandle)g_vulkanstate.defaultPipeline->bindGroup.bindGroup);
         wgvkRenderpassEncoderDraw(encoder, 3, 1, 0, 1);
 
         //vkCmdEndRenderPass(commandBuffer);
