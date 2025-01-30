@@ -349,38 +349,38 @@ DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, cons
     ret.entries = (ResourceDescriptor*)std::calloc(count, sizeof(ResourceDescriptor));
     ret.entryCount = count;
     std::memcpy(ret.entries, resources, count * sizeof(ResourceDescriptor));
-    small_vector<VkWriteDescriptorSet> writes(count, VkWriteDescriptorSet{});
-    small_vector<VkDescriptorBufferInfo> bufferInfos(count, VkDescriptorBufferInfo{});
-    small_vector<VkDescriptorImageInfo> imageInfos(count, VkDescriptorImageInfo{});
-    for(uint32_t i = 0;i < count;i++){
-        writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        uint32_t binding = resources[i].binding;
-        writes[i].dstBinding = binding;
-        writes[i].dstSet = dset;
-        writes[i].descriptorType = toVulkanResourceType(layout->entries[i].type);
-        writes[i].descriptorCount = 1;
-        if(layout->entries[i].type == uniform_buffer || layout->entries->type == storage_buffer){
-            bufferInfos[i].buffer = (VkBuffer)resources[i].buffer;
-            bufferInfos[i].offset = resources[i].offset;
-            bufferInfos[i].range = resources[i].size;
-            writes[i].pBufferInfo = bufferInfos.data() + i;
-        }
-
-        if(layout->entries[i].type == texture2d || layout->entries[i].type == texture3d){
-            imageInfos[i].imageView = (VkImageView)resources[i].textureView;
-            imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            writes[i].pImageInfo = imageInfos.data() + i;
-        }
-
-        if(layout->entries[i].type == texture_sampler){
-            VkSampler vksampler = (VkSampler)ret.entries[i].sampler;
-            imageInfos[i].sampler = vksampler;
-            writes[i].pImageInfo = imageInfos.data() + i;
-        }
-    }
-
-    vkUpdateDescriptorSets(g_vulkanstate.device, writes.size(), writes.data(), 0, nullptr);//count, &copy);
-    ret.needsUpdate = false;
+    //small_vector<VkWriteDescriptorSet> writes(count, VkWriteDescriptorSet{});
+    //small_vector<VkDescriptorBufferInfo> bufferInfos(count, VkDescriptorBufferInfo{});
+    //small_vector<VkDescriptorImageInfo> imageInfos(count, VkDescriptorImageInfo{});
+    //for(uint32_t i = 0;i < count;i++){
+    //    writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    //    uint32_t binding = resources[i].binding;
+    //    writes[i].dstBinding = binding;
+    //    writes[i].dstSet = dset;
+    //    writes[i].descriptorType = toVulkanResourceType(layout->entries[i].type);
+    //    writes[i].descriptorCount = 1;
+    //    if(layout->entries[i].type == uniform_buffer || layout->entries->type == storage_buffer){
+    //        bufferInfos[i].buffer = (VkBuffer)resources[i].buffer;
+    //        bufferInfos[i].offset = resources[i].offset;
+    //        bufferInfos[i].range = resources[i].size;
+    //        writes[i].pBufferInfo = bufferInfos.data() + i;
+    //    }
+//
+    //    if(layout->entries[i].type == texture2d || layout->entries[i].type == texture3d){
+    //        imageInfos[i].imageView = (VkImageView)resources[i].textureView;
+    //        imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    //        writes[i].pImageInfo = imageInfos.data() + i;
+    //    }
+//
+    //    if(layout->entries[i].type == texture_sampler){
+    //        VkSampler vksampler = (VkSampler)ret.entries[i].sampler;
+    //        imageInfos[i].sampler = vksampler;
+    //        writes[i].pImageInfo = imageInfos.data() + i;
+    //    }
+    //}
+//
+    //vkUpdateDescriptorSets(g_vulkanstate.device, writes.size(), writes.data(), 0, nullptr);//count, &copy);
+    ret.needsUpdate = true;
     return ret;
 }
 
