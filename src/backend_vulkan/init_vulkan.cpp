@@ -841,10 +841,12 @@ void mainLoop(GLFWwindow *window) {
         GetNewTexture(&g_vulkanstate.surface);
 
         uint32_t imageIndex;
-        VkResult acquireResult = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
-        if(acquireResult != VK_SUCCESS){
-            std::cerr << "acquireResult is " << acquireResult << std::endl;
-        }
+        
+        //VkResult acquireResult = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+        //if(acquireResult != VK_SUCCESS){
+        //    std::cerr << "acquireResult is " << acquireResult << std::endl;
+        //}
+        
         vkResetCommandBuffer(commandBuffer, /*VkCommandBufferResetFlagBits*/ 0);
         //TODO: Unload
         VkFramebuffer imgfb{};
@@ -855,27 +857,27 @@ void mainLoop(GLFWwindow *window) {
         fbci.width = wgs->width;
         fbci.height = wgs->height;
         fbci.attachmentCount = 2;
-        if(depthTex.width != wgs->width || depthTex.height != g_vulkanstate.surface.height){
-            UnloadTexture_Vk(depthTex);
-            depthTex = LoadTexturePro_Vk(g_vulkanstate.surface.width, g_vulkanstate.surface.height, Depth32, TextureUsage_RenderAttachment, 1, 1);
-        }
+        //if(depthTex.width != wgs->width || depthTex.height != g_vulkanstate.surface.height){
+        //    UnloadTexture_Vk(depthTex);
+        //    depthTex = LoadTexturePro_Vk(g_vulkanstate.surface.width, g_vulkanstate.surface.height, Depth32, TextureUsage_RenderAttachment, 1, 1);
+        //}
         VkImageView fbimages[2] = {
-            g_vulkanstate.surface.imageViews[imageIndex],
-            (VkImageView)depthTex.view
+            (VkImageView)g_vulkanstate.surface.frameBuffer.texture.view,
+            (VkImageView)g_vulkanstate.surface.frameBuffer.depth.view
         };
         fbci.pAttachments = fbimages;
         vkCreateFramebuffer(g_vulkanstate.device, &fbci, nullptr, &imgfb);
         RenderPassEncoderHandle encoder = BeginRenderPass_Vk(commandBuffer, renderpass, imgfb);
         VkViewport viewport{
             0.0f, 
-            (float) g_vulkanstate.surface.height, 
-            (float) g_vulkanstate.surface.width, 
-            -(float)g_vulkanstate.surface.height, 
+            (float) g_vulkanstate.surface.surfaceConfig.height, 
+            (float) g_vulkanstate.surface.surfaceConfig.width, 
+            -(float)g_vulkanstate.surface.surfaceConfig.height, 
             0.0f, 
             1.0f
         };
         vkCmdSetViewport(encoder->cmdBuffer, 0, 1, &viewport);
-        VkRect2D scissorRect{.offset = {0,0}, .extent = {g_vulkanstate.surface.width, g_vulkanstate.surface.height}};
+        VkRect2D scissorRect{.offset = {0,0}, .extent = {g_vulkanstate.surface.surfaceConfig.width, g_vulkanstate.surface.surfaceConfig.height}};
         vkCmdSetScissor(encoder->cmdBuffer, 0, 1, &scissorRect);
         
         //recordCommandBuffer(commandBuffer, imageIndex);

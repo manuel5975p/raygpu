@@ -348,6 +348,9 @@ inline FullSurface LoadSurface(GLFWwindow* window, SurfaceConfiguration config){
 
     ret.swapchainImageFormat = surfaceFormat.format;
     retf.surface = retp;
+
+    config.format = fromVulkanPixelFormat(ret.swapchainImageFormat);
+    
     retf.surfaceConfig = config;
     retf.frameBuffer.depth = LoadTexturePro_Vk(extent.width, extent.height, Depth32, TextureUsage_RenderAttachment, 1, 1, nullptr);
     

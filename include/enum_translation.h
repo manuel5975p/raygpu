@@ -37,6 +37,8 @@ using std::uint64_t;
 #include <stdint.h>
 #endif
 
+#include <macros_and_constants.h>
+
 #if SUPPORT_WGPU_BACKEND == 1
 #include <webgpu/webgpu.h>
 #endif
@@ -356,7 +358,23 @@ static inline VkFilter toVulkanFilterMode(filterMode fm) {
         return VK_FILTER_NEAREST; // Default fallback
     }
 }
-
+static inline PixelFormat fromVulkanPixelFormat(VkFormat format) {
+    switch (format) {
+        case VK_FORMAT_R8G8B8A8_UNORM:
+            return RGBA8;
+        case VK_FORMAT_B8G8R8A8_UNORM:
+            return BGRA8;
+        case VK_FORMAT_R16G16B16A16_SFLOAT:
+            return RGBA16F;
+        case VK_FORMAT_R32G32B32A32_SFLOAT:
+            return RGBA32F;
+        case VK_FORMAT_D24_UNORM_S8_UINT:
+            return Depth24;
+        case VK_FORMAT_D32_SFLOAT:
+            return Depth32;
+        default: __builtin_unreachable();
+    }
+}
 static inline VkFormat toVulkanPixelFormat(PixelFormat format) {
     switch (format) {
     case RGBA8:
@@ -380,6 +398,7 @@ static inline VkFormat toVulkanPixelFormat(PixelFormat format) {
     default:
         __builtin_unreachable();
     }
+    return (VkFormat)0;
 }
 
 static inline VkSamplerAddressMode toVulkanAddressMode(addressMode am) {
