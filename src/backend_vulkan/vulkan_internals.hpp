@@ -177,6 +177,7 @@ static inline uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags
     assert(false && "failed to find suitable memory type!");
     return ~0u;
 }
+extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelFormat format, int usage, uint32_t sampleCount, uint32_t mipmaps, const void* data);
 
 struct SwapChainSupportDetails {
     VkSurfaceCapabilitiesKHR capabilities;
@@ -348,13 +349,12 @@ inline FullSurface LoadSurface(GLFWwindow* window, SurfaceConfiguration config){
     ret.swapchainImageFormat = surfaceFormat.format;
     retf.surface = retp;
     retf.surfaceConfig = config;
-    retf.frameBuffer.depth = LoadTexturePro_Vk(extent.width, extent.height, Depth32, TextureUsage_RenderAttachment, 1, 1);
+    retf.frameBuffer.depth = LoadTexturePro_Vk(extent.width, extent.height, Depth32, TextureUsage_RenderAttachment, 1, 1, nullptr);
     
     return retf;
 }
 
-inline void wgvkSurfaceConfigure(WGVKSurfaceImpl* surface, uint32_t width, uint32_t height){
-    SurfaceConfiguration config{};
+inline void wgvkSurfaceConfigure(WGVKSurfaceImpl* surface, const SurfaceConfiguration* config){
     auto& device = g_vulkanstate.device;
     vkDeviceWaitIdle(device);
     for (uint32_t i = 0; i < surface->imagecount; i++) {
@@ -372,9 +372,9 @@ inline void wgvkSurfaceConfigure(WGVKSurfaceImpl* surface, uint32_t width, uint3
 
     createInfo.minImageCount = surface->imagecount;
     createInfo.imageFormat = surface->swapchainImageFormat;
-    surface->width = width;
-    surface->height = height;
-    VkExtent2D newExtent{width, height};
+    surface->width = config->width;
+    surface->height = config->height;
+    VkExtent2D newExtent{config->width, config->height};
     createInfo.imageExtent = newExtent;
     createInfo.imageArrayLayers = 1; // For stereoscopic 3D applications
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -445,7 +445,7 @@ inline FullVkRenderPass LoadRenderPass(RenderSettings settings){
 
     VkAttachmentDescription& colorAttachment = attachments[0];
     colorAttachment = VkAttachmentDescription{};
-    colorAttachment.format = g_vulkanstate.surface.swapchainImageFormat;
+    colorAttachment.format = toVulkanPixelFormat(g_vulkanstate.surface.surfaceConfig.format);
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -541,8 +541,8 @@ static inline RenderPassEncoderHandle BeginRenderPass_Vk(VkCommandBuffer cbuffer
     rpbi.clearValueCount = 2;
     rpbi.pClearValues = clearvalues;
     rpbi.framebuffer = fb;
-    rpbi.renderArea.extent.width = g_vulkanstate.surface.width;
-    rpbi.renderArea.extent.height = g_vulkanstate.surface.height;
+    rpbi.renderArea.extent.width = g_vulkanstate.surface.surfaceConfig.width;
+    rpbi.renderArea.extent.height = g_vulkanstate.surface.surfaceConfig.height;
 
     vkBeginCommandBuffer(cbuffer, &bbi);
     vkCmdBeginRenderPass(cbuffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);

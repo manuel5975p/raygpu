@@ -5,20 +5,7 @@
 #include <iostream>
 
 // Utility function to translate PixelFormat to VkFormat
-VkFormat toVulkanPixelFormat(PixelFormat format) {
-    switch (format) {
-        case RGBA8:    return VK_FORMAT_R8G8B8A8_UNORM;
-        case BGRA8:    return VK_FORMAT_B8G8R8A8_UNORM;
-        case RGBA16F:  return VK_FORMAT_R16G16B16A16_SFLOAT;
-        case RGBA32F:  return VK_FORMAT_R32G32B32A32_SFLOAT;
-        case Depth24:  return VK_FORMAT_D24_UNORM_S8_UINT;
-        case Depth32:  return VK_FORMAT_D32_SFLOAT;
-        case GRAYSCALE: throw std::runtime_error("GRAYSCALE format not supported in Vulkan.");
-        case RGB8:      throw std::runtime_error("RGB8 format not supported in Vulkan.");
-        default:
-            throw std::runtime_error("Unsupported PixelFormat.");
-    }
-}
+
 
 // Function to find a suitable memory type
 uint32_t FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties) {
@@ -261,7 +248,7 @@ ImageHandle CreateVkImage(VkDevice device, VkPhysicalDevice physicalDevice, VkCo
     if(format == VK_FORMAT_D24_UNORM_S8_UINT || format == VK_FORMAT_D32_SFLOAT){
         usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
     }
-    if(format == g_vulkanstate.surface.swapchainImageFormat){
+    if(format == toVulkanPixelFormat(g_vulkanstate.surface.surfaceConfig.format)){
         usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     }
     
