@@ -224,7 +224,7 @@ typedef enum TextureUsage {
  * @param usage The TextureUsage bitmask to translate.
  * @return VkImageUsageFlags The corresponding Vulkan image usage flags.
  */
-static inline VkImageUsageFlags toVulkanTextureUsage(TextureUsage usage) {
+static inline VkImageUsageFlags toVulkanTextureUsage(TextureUsage usage, PixelFormat format) {
     VkImageUsageFlags vkUsage = 0;
 
     // Array of all possible TextureUsage flags
@@ -248,13 +248,17 @@ static inline VkImageUsageFlags toVulkanTextureUsage(TextureUsage usage) {
                 vkUsage |= VK_IMAGE_USAGE_STORAGE_BIT;
                 break;
             case TextureUsage_RenderAttachment:
-                vkUsage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+                if(format == Depth24 || format == Depth32){
+                    vkUsage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+                }else{
+                    vkUsage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+                }
                 break;
             case TextureUsage_TransientAttachment:
                 vkUsage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
                 break;
             case TextureUsage_StorageAttachment:
-                vkUsage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+                vkUsage |= VK_IMAGE_USAGE_STORAGE_BIT;
                 break;
             default:
                 break;
