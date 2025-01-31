@@ -87,9 +87,10 @@ ImageHandle CreateImage(VkDevice device, uint32_t width, uint32_t height, VkForm
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
     );
     
-    if (vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS)
+    if (vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS){
         throw std::runtime_error("Failed to allocate image memory!");
-    
+        abort();
+    }
     vkBindImageMemory(device, image, imageMemory, 0);
     ret->image = image;
     ret->memory = imageMemory;
@@ -241,16 +242,10 @@ void CopyBufferToImage(VkDevice device, VkCommandPool commandPool, VkQueue queue
 
 // Main function to create Vulkan image from RGBA8 data or as empty
 ImageHandle CreateVkImage(VkDevice device, VkPhysicalDevice physicalDevice, VkCommandPool commandPool, VkQueue queue, 
-                                                const uint8_t* data, uint32_t width, uint32_t height, VkFormat format, bool hasData) {
+                                                const uint8_t* data, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, bool hasData) {
     VkDeviceMemory imageMemory;
     // Adjust usage flags based on format (e.g., depth formats might need different usages)
-    VkImageUsageFlags usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    if(format == VK_FORMAT_D24_UNORM_S8_UINT || format == VK_FORMAT_D32_SFLOAT){
-        usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    }
-    if(format == toVulkanPixelFormat(g_vulkanstate.surface.surfaceConfig.format)){
-        usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    }
+    
     
     ImageHandle image = CreateImage(device, width, height, format, usage, imageMemory);
     
@@ -302,14 +297,15 @@ extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelForma
     bool hasData = (data != nullptr);
     
     ImageHandle image = CreateVkImage(
-        g_vulkanstate.device, 
+        g_vulkanstate.device,
         g_vulkanstate.physicalDevice, 
         commandPool, 
         g_vulkanstate.queue.computeQueue, 
         reinterpret_cast<const uint8_t*>(data), 
         width, 
         height, 
-        vkFormat, 
+        vkFormat,
+        usage,
         hasData
     );
     

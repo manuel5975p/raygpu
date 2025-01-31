@@ -76,12 +76,12 @@ void UpdatePipeline_Vk(DescribedPipeline* ret, const VertexArray* vao){
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewportState.viewportCount = 1;
     viewportState.scissorCount = 1;
-    VkRect2D scissor{0, 0, g_vulkanstate.surface.width, g_vulkanstate.surface.height};
+    VkRect2D scissor{0, 0, g_vulkanstate.surface.surfaceConfig.width, g_vulkanstate.surface.surfaceConfig.height};
     VkViewport fullView{
         0.0f, 
-        (float)g_vulkanstate. surface.height, 
-        (float)g_vulkanstate. surface.width, 
-        -(float)g_vulkanstate.surface.height, 
+        (float)g_vulkanstate. surface.surfaceConfig.height, 
+        (float)g_vulkanstate. surface.surfaceConfig.width, 
+        -((float)g_vulkanstate.surface.surfaceConfig.height), 
         0.0f, 
         1.0f
     };
