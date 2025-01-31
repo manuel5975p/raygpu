@@ -312,8 +312,11 @@ std::vector<char> readFile(const std::string &filename) {
 DescribedBindGroup set{};
 // Function to initialize GLFW and create a window
 void ResizeCallback_Vk(GLFWwindow* win, int width, int height){
+    
     //std::cout << std::format("Resized to {} x {}\n", width, height) << std::flush;
-    wgvkSurfaceConfigure(&g_vulkanstate.surface, uint32_t(width), uint32_t(height));
+    g_vulkanstate.surface.surfaceConfig.width = width;
+    g_vulkanstate.surface.surfaceConfig.height = height;
+    wgvkSurfaceConfigure((WGVKSurface)g_vulkanstate.surface.surface, &g_vulkanstate.surface.surfaceConfig);
     //createRenderPass();
 }
 GLFWwindow *initWindow(uint32_t width, uint32_t height, const char *title) {
@@ -532,7 +535,7 @@ void createRenderPass() {
 
     VkAttachmentDescription& colorAttachment = attachments[0];
     colorAttachment = VkAttachmentDescription{};
-    colorAttachment.format = g_vulkanstate.surface.swapchainImageFormat;
+    colorAttachment.format = toVulkanPixelFormat(g_vulkanstate.surface.surfaceConfig.format);
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -829,12 +832,13 @@ void mainLoop(GLFWwindow *window) {
     uint64_t stamp = nanoTime();
     uint64_t noell = 0;
     FullVkRenderPass renderpass = LoadRenderPass(GetDefaultSettings());
-    Texture depthTex = LoadTexturePro_Vk(g_vulkanstate.surface.width, g_vulkanstate.surface.height, Depth32, TextureUsage_RenderAttachment, 1, 1);
+    Texture depthTex = LoadTexturePro_Vk(g_vulkanstate.surface.surfaceConfig.width, g_vulkanstate.surface.surfaceConfig.height, Depth32, TextureUsage_RenderAttachment, 1, 1);
     vkResetFences(device, 1, &inFlightFence);
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
-        auto &swapChain = g_vulkanstate.surface.swapchain;
-        
+        WGVKSurface wgs = ((WGVKSurface)g_vulkanstate.surface.surface);
+        auto &swapChain = ((WGVKSurface)g_vulkanstate.surface.surface)->swapchain;
+        GetNewTexture(&g_vulkanstate.surface);
 
         uint32_t imageIndex;
         VkResult acquireResult = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
@@ -848,10 +852,10 @@ void mainLoop(GLFWwindow *window) {
         fbci.renderPass = g_vulkanstate.renderPass;
         fbci.layers = 1;
         fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        fbci.width = g_vulkanstate.surface.width;
-        fbci.height = g_vulkanstate.surface.height;
+        fbci.width = wgs->width;
+        fbci.height = wgs->height;
         fbci.attachmentCount = 2;
-        if(depthTex.width != g_vulkanstate.surface.width || depthTex.height != g_vulkanstate.surface.height){
+        if(depthTex.width != wgs->width || depthTex.height != g_vulkanstate.surface.height){
             UnloadTexture_Vk(depthTex);
             depthTex = LoadTexturePro_Vk(g_vulkanstate.surface.width, g_vulkanstate.surface.height, Depth32, TextureUsage_RenderAttachment, 1, 1);
         }

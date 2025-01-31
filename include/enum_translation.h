@@ -1,18 +1,18 @@
 /*
  * MIT License
- * 
+ *
  * Copyright (c) 2025 @manuel5975p
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -22,25 +22,18 @@
  * SOFTWARE.
  */
 
-
 #ifndef ENUM_HEADER_H
 #define ENUM_HEADER_H
 
-
-
-
-
-
-
-
-
-//#define SUPPORT_WGPU_BACKEND 1
+#define SUPPORT_WGPU_BACKEND 1
 #define SUPPORT_VULKAN_BACKEND 1
 #ifdef __cplusplus
+#include <cassert>
 #include <cstdint>
-using std::uint64_t;
 using std::uint32_t;
+using std::uint64_t;
 #else
+#include <assert.h>
 #include <stdint.h>
 #endif
 
@@ -52,17 +45,11 @@ using std::uint32_t;
 #endif
 // ------------------------- Enum Definitions -------------------------
 
-typedef enum uniform_type{
-    uniform_buffer, storage_buffer, texture2d, storage_texture2d, texture_sampler, texture3d, storage_texture3d
-}uniform_type;
+typedef enum uniform_type { uniform_buffer, storage_buffer, texture2d, storage_texture2d, texture_sampler, texture3d, storage_texture3d } uniform_type;
 
-typedef enum access_type{
-    readonly, readwrite, writeonly
-}access_type;
+typedef enum access_type { readonly, readwrite, writeonly } access_type;
 
-typedef enum format_or_sample_type{
-    sample_f32, sample_u32, format_r32float, format_r32uint, format_rgba8unorm, format_rgba32float
-}format_or_sample_type;
+typedef enum format_or_sample_type { sample_f32, sample_u32, format_r32float, format_r32uint, format_rgba8unorm, format_rgba32float } format_or_sample_type;
 
 typedef enum filterMode {
     filter_nearest = 0x1,
@@ -70,10 +57,22 @@ typedef enum filterMode {
 } filterMode;
 
 typedef enum addressMode {
-    clampToEdge = 0x1, 
-    repeat = 0x2, 
+    clampToEdge = 0x1,
+    repeat = 0x2,
     mirrorRepeat = 0x3,
 } addressMode;
+
+typedef enum PixelFormat {
+    RGBA8 = WGPUTextureFormat_RGBA8Unorm,
+    BGRA8 = WGPUTextureFormat_BGRA8Unorm,
+    RGBA16F = WGPUTextureFormat_RGBA16Float,
+    RGBA32F = WGPUTextureFormat_RGBA32Float,
+    Depth24 = WGPUTextureFormat_Depth24Plus,
+    Depth32 = WGPUTextureFormat_Depth32Float,
+
+    GRAYSCALE = 0x100000, // No WGPU_ equivalent
+    RGB8 = 0x100001,      // No WGPU_ equivalent
+} PixelFormat;
 
 typedef enum CompareFunction {
     CompareFunction_Undefined = 0x00000000,
@@ -119,34 +118,13 @@ typedef enum BlendOperation {
     BlendOperation_Force32 = 0x7FFFFFFF
 } BlendOperation;
 
-typedef enum TFilterMode {
-    TFilterMode_Undefined = 0x00000000,
-    TFilterMode_Nearest = 0x00000001,
-    TFilterMode_Linear = 0x00000002,
-    TFilterMode_Force32 = 0x7FFFFFFF
-} TFilterMode;
+typedef enum TFilterMode { TFilterMode_Undefined = 0x00000000, TFilterMode_Nearest = 0x00000001, TFilterMode_Linear = 0x00000002, TFilterMode_Force32 = 0x7FFFFFFF } TFilterMode;
 
-typedef enum FrontFace {
-    FrontFace_Undefined = 0x00000000,
-    FrontFace_CCW = 0x00000001,
-    FrontFace_CW = 0x00000002,
-    FrontFace_Force32 = 0x7FFFFFFF
-} FrontFace;
+typedef enum FrontFace { FrontFace_Undefined = 0x00000000, FrontFace_CCW = 0x00000001, FrontFace_CW = 0x00000002, FrontFace_Force32 = 0x7FFFFFFF } FrontFace;
 
-typedef enum IndexFormat {
-    IndexFormat_Undefined = 0x00000000,
-    IndexFormat_Uint16 = 0x00000001,
-    IndexFormat_Uint32 = 0x00000002,
-    IndexFormat_Force32 = 0x7FFFFFFF
-} IndexFormat;
+typedef enum IndexFormat { IndexFormat_Undefined = 0x00000000, IndexFormat_Uint16 = 0x00000001, IndexFormat_Uint32 = 0x00000002, IndexFormat_Force32 = 0x7FFFFFFF } IndexFormat;
 
-typedef enum LoadOperation {
-    LoadOperation_Undefined = 0x00000000,
-    LoadOperation_Load = 0x00000001,
-    LoadOperation_Clear = 0x00000002,
-    LoadOperation_ExpandResolveTexture = 0x00050003,
-    LoadOperation_Force32 = 0x7FFFFFFF
-} LoadOperation;
+typedef enum LoadOperation { LoadOperation_Undefined = 0x00000000, LoadOperation_Load = 0x00000001, LoadOperation_Clear = 0x00000002, LoadOperation_ExpandResolveTexture = 0x00050003, LoadOperation_Force32 = 0x7FFFFFFF } LoadOperation;
 
 typedef enum VertexFormat {
     VertexFormat_Uint8 = 0x00000001,
@@ -193,12 +171,7 @@ typedef enum VertexFormat {
     VertexFormat_Force32 = 0x7FFFFFFF
 } VertexFormat;
 
-typedef enum VertexStepMode {
-    VertexStepMode_None = 0x0,
-    VertexStepMode_Vertex = 0x1,
-    VertexStepMode_Instance = 0x2,
-    VertexStepMode_Force32 = 0x7FFFFFFF
-} VertexStepMode;
+typedef enum VertexStepMode { VertexStepMode_None = 0x0, VertexStepMode_Vertex = 0x1, VertexStepMode_Instance = 0x2, VertexStepMode_Force32 = 0x7FFFFFFF } VertexStepMode;
 
 typedef uint64_t BufferUsage;
 #ifdef __cplusplus
@@ -228,7 +201,7 @@ constexpr BufferUsage BufferUsage_QueryResolve = 0x0000000000000200;
 
 #endif
 
-typedef enum TextureUsage{
+typedef enum TextureUsage {
     TextureUsage_None = 0x0000000000000000,
     TextureUsage_CopySrc = 0x0000000000000001,
     TextureUsage_CopyDst = 0x0000000000000002,
@@ -237,14 +210,11 @@ typedef enum TextureUsage{
     TextureUsage_RenderAttachment = 0x0000000000000010,
     TextureUsage_TransientAttachment = 0x0000000000000020,
     TextureUsage_StorageAttachment = 0x0000000000000040,
-}TextureUsage;
+} TextureUsage;
 
 // -------------------- Vulkan Translation Functions --------------------
 
 #if SUPPORT_VULKAN_BACKEND == 1
-
-
-
 
 /**
  * @brief Translates custom TextureUsage flags to Vulkan's VkImageUsageFlags.
@@ -256,44 +226,36 @@ static inline VkImageUsageFlags toVulkanTextureUsage(TextureUsage usage) {
     VkImageUsageFlags vkUsage = 0;
 
     // Array of all possible TextureUsage flags
-    const TextureUsage allFlags[] = {
-        TextureUsage_CopySrc,
-        TextureUsage_CopyDst,
-        TextureUsage_TextureBinding,
-        TextureUsage_StorageBinding,
-        TextureUsage_RenderAttachment,
-        TextureUsage_TransientAttachment,
-        TextureUsage_StorageAttachment
-    };
+    const TextureUsage allFlags[] = {TextureUsage_CopySrc, TextureUsage_CopyDst, TextureUsage_TextureBinding, TextureUsage_StorageBinding, TextureUsage_RenderAttachment, TextureUsage_TransientAttachment, TextureUsage_StorageAttachment};
     const uint32_t nFlags = sizeof(allFlags) / sizeof(TextureUsage);
     // Iterate through each flag and map accordingly
-    for (uint32_t i = 0;i < nFlags;i++) {
+    for (uint32_t i = 0; i < nFlags; i++) {
         uint32_t flag = allFlags[i];
         if (usage & flag) {
             switch (flag) {
-                case TextureUsage_CopySrc:
-                    vkUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-                    break;
-                case TextureUsage_CopyDst:
-                    vkUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-                    break;
-                case TextureUsage_TextureBinding:
-                    vkUsage |= VK_IMAGE_USAGE_SAMPLED_BIT;
-                    break;
-                case TextureUsage_StorageBinding:
-                    vkUsage |= VK_IMAGE_USAGE_STORAGE_BIT;
-                    break;
-                case TextureUsage_RenderAttachment:
-                    vkUsage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-                    break;
-                case TextureUsage_TransientAttachment:
-                    vkUsage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
-                    break;
-                case TextureUsage_StorageAttachment:
-                    vkUsage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-                    break;
-                default:
-                    break;
+            case TextureUsage_CopySrc:
+                vkUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+                break;
+            case TextureUsage_CopyDst:
+                vkUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+                break;
+            case TextureUsage_TextureBinding:
+                vkUsage |= VK_IMAGE_USAGE_SAMPLED_BIT;
+                break;
+            case TextureUsage_StorageBinding:
+                vkUsage |= VK_IMAGE_USAGE_STORAGE_BIT;
+                break;
+            case TextureUsage_RenderAttachment:
+                vkUsage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+                break;
+            case TextureUsage_TransientAttachment:
+                vkUsage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+                break;
+            case TextureUsage_StorageAttachment:
+                vkUsage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+                break;
+            default:
+                break;
             }
         }
     }
@@ -301,37 +263,35 @@ static inline VkImageUsageFlags toVulkanTextureUsage(TextureUsage usage) {
     return vkUsage;
 }
 
-
-
 /**
  * @brief This function does not have an equivalent in WebGPU
- * 
- * @param type 
- * @return VkDescriptorType 
+ *
+ * @param type
+ * @return VkDescriptorType
  */
-static inline VkDescriptorType toVulkanResourceType(uniform_type type){
-    switch(type){
-        case storage_texture2d:{
-            return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        }
-        case storage_texture3d:{
-            return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        }
-        case storage_buffer:{
-            return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        }
-        case uniform_buffer:{
-            return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        }
-        case texture2d:{
-            return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        }
-        case texture3d:{
-            return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        }
-        case texture_sampler:{
-            return VK_DESCRIPTOR_TYPE_SAMPLER;
-        }
+static inline VkDescriptorType toVulkanResourceType(uniform_type type) {
+    switch (type) {
+    case storage_texture2d: {
+        return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    }
+    case storage_texture3d: {
+        return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    }
+    case storage_buffer: {
+        return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    }
+    case uniform_buffer: {
+        return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    }
+    case texture2d: {
+        return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    }
+    case texture3d: {
+        return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    }
+    case texture_sampler: {
+        return VK_DESCRIPTOR_TYPE_SAMPLER;
+    }
     }
 }
 
@@ -341,42 +301,42 @@ static inline VkBufferUsageFlags toVulkanBufferUsage(BufferUsage busg) {
     while (busg != 0) {
         // Isolate the least significant set bit
         BufferUsage flag = (busg & (-busg));
-        
+
         switch (flag) {
-            case BufferUsage_CopySrc:
-                usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-                break;
-            case BufferUsage_CopyDst:
-                usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-                break;
-            case BufferUsage_Vertex:
-                usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-                break;
-            case BufferUsage_Index:
-                usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-                break;
-            case BufferUsage_Uniform:
-                usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-                break;
-            case BufferUsage_Storage:
-                usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-                break;
-            case BufferUsage_Indirect:
-                usage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
-                break;
-            case BufferUsage_MapRead:
-                // Vulkan does not have a direct equivalent for MapRead.
-                // Handle as needed (e.g., log a warning or manage differently).
-                break;
-            case BufferUsage_MapWrite:
-                // Similar to BufferUsage_MapRead.
-                break;
-            case BufferUsage_QueryResolve:
-                // Handle Vulkan-specific flags for query resolve if applicable.
-                break;
-            default:
-                // Handle any unrecognized flags if necessary.
-                break;
+        case BufferUsage_CopySrc:
+            usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            break;
+        case BufferUsage_CopyDst:
+            usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+            break;
+        case BufferUsage_Vertex:
+            usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+            break;
+        case BufferUsage_Index:
+            usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+            break;
+        case BufferUsage_Uniform:
+            usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+            break;
+        case BufferUsage_Storage:
+            usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+            break;
+        case BufferUsage_Indirect:
+            usage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+            break;
+        case BufferUsage_MapRead:
+            // Vulkan does not have a direct equivalent for MapRead.
+            // Handle as needed (e.g., log a warning or manage differently).
+            break;
+        case BufferUsage_MapWrite:
+            // Similar to BufferUsage_MapRead.
+            break;
+        case BufferUsage_QueryResolve:
+            // Handle Vulkan-specific flags for query resolve if applicable.
+            break;
+        default:
+            // Handle any unrecognized flags if necessary.
+            break;
         }
 
         // Clear the least significant set bit
@@ -386,258 +346,283 @@ static inline VkBufferUsageFlags toVulkanBufferUsage(BufferUsage busg) {
     return usage;
 }
 
-static inline VkFilter toVulkanFilterMode(filterMode fm){
-    switch (fm){
-        case filter_nearest:
-            return VK_FILTER_NEAREST;
-        case filter_linear:
-            return VK_FILTER_LINEAR;
-        default:
-            return VK_FILTER_NEAREST; // Default fallback
+static inline VkFilter toVulkanFilterMode(filterMode fm) {
+    switch (fm) {
+    case filter_nearest:
+        return VK_FILTER_NEAREST;
+    case filter_linear:
+        return VK_FILTER_LINEAR;
+    default:
+        return VK_FILTER_NEAREST; // Default fallback
     }
 }
 
-static inline VkSamplerAddressMode toVulkanAddressMode(addressMode am){
-    switch (am){
-        case clampToEdge:
-            return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        case repeat:
-            return VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        case mirrorRepeat:
-            return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
-        default:
-            return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE; // Default fallback
+static inline VkFormat toVulkanPixelFormat(PixelFormat format) {
+    switch (format) {
+    case RGBA8:
+        return VK_FORMAT_R8G8B8A8_UNORM;
+    case BGRA8:
+        return VK_FORMAT_B8G8R8A8_UNORM;
+    case RGBA16F:
+        return VK_FORMAT_R16G16B16A16_SFLOAT;
+    case RGBA32F:
+        return VK_FORMAT_R32G32B32A32_SFLOAT;
+    case Depth24:
+        return VK_FORMAT_D24_UNORM_S8_UINT;
+    case Depth32:
+        return VK_FORMAT_D32_SFLOAT;
+    case GRAYSCALE:
+        assert(0 && "GRAYSCALE format not supported in Vulkan.");
+        break;
+    case RGB8:
+        assert(0 && "RGB8 format not supported in Vulkan.");
+        break;
+    default:
+        __builtin_unreachable();
     }
 }
 
-static inline VkCompareOp toVulkanCompareFunction(CompareFunction cf){
-    switch (cf){
-        case CompareFunction_Never:
-            return VK_COMPARE_OP_NEVER;
-        case CompareFunction_Less:
-            return VK_COMPARE_OP_LESS;
-        case CompareFunction_Equal:
-            return VK_COMPARE_OP_EQUAL;
-        case CompareFunction_LessEqual:
-            return VK_COMPARE_OP_LESS_OR_EQUAL;
-        case CompareFunction_Greater:
-            return VK_COMPARE_OP_GREATER;
-        case CompareFunction_NotEqual:
-            return VK_COMPARE_OP_NOT_EQUAL;
-        case CompareFunction_GreaterEqual:
-            return VK_COMPARE_OP_GREATER_OR_EQUAL;
-        case CompareFunction_Always:
-            return VK_COMPARE_OP_ALWAYS;
-        default:
-            return VK_COMPARE_OP_ALWAYS; // Default fallback
+static inline VkSamplerAddressMode toVulkanAddressMode(addressMode am) {
+    switch (am) {
+    case clampToEdge:
+        return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    case repeat:
+        return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    case mirrorRepeat:
+        return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+    default:
+        return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE; // Default fallback
     }
 }
 
-static inline VkBlendFactor toVulkanBlendFactor(BlendFactor bf){
-    switch (bf){
-        case BlendFactor_Zero:
-            return VK_BLEND_FACTOR_ZERO;
-        case BlendFactor_One:
-            return VK_BLEND_FACTOR_ONE;
-        case BlendFactor_Src:
-            return VK_BLEND_FACTOR_SRC_COLOR;
-        case BlendFactor_OneMinusSrc:
-            return VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
-        case BlendFactor_SrcAlpha:
-            return VK_BLEND_FACTOR_SRC_ALPHA;
-        case BlendFactor_OneMinusSrcAlpha:
-            return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-        case BlendFactor_Dst:
-            return VK_BLEND_FACTOR_DST_COLOR;
-        case BlendFactor_OneMinusDst:
-            return VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
-        case BlendFactor_DstAlpha:
-            return VK_BLEND_FACTOR_DST_ALPHA;
-        case BlendFactor_OneMinusDstAlpha:
-            return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
-        case BlendFactor_SrcAlphaSaturated:
-            return VK_BLEND_FACTOR_SRC_ALPHA_SATURATE;
-        case BlendFactor_Constant:
-            return VK_BLEND_FACTOR_CONSTANT_COLOR;
-        case BlendFactor_OneMinusConstant:
-            return VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR;
-        case BlendFactor_Src1:
-            return VK_BLEND_FACTOR_SRC1_COLOR;
-        case BlendFactor_OneMinusSrc1:
-            return VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR;
-        case BlendFactor_Src1Alpha:
-            return VK_BLEND_FACTOR_SRC1_ALPHA;
-        case BlendFactor_OneMinusSrc1Alpha:
-            return VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA;
-        default:
-            return VK_BLEND_FACTOR_ONE; // Default fallback
+static inline VkCompareOp toVulkanCompareFunction(CompareFunction cf) {
+    switch (cf) {
+    case CompareFunction_Never:
+        return VK_COMPARE_OP_NEVER;
+    case CompareFunction_Less:
+        return VK_COMPARE_OP_LESS;
+    case CompareFunction_Equal:
+        return VK_COMPARE_OP_EQUAL;
+    case CompareFunction_LessEqual:
+        return VK_COMPARE_OP_LESS_OR_EQUAL;
+    case CompareFunction_Greater:
+        return VK_COMPARE_OP_GREATER;
+    case CompareFunction_NotEqual:
+        return VK_COMPARE_OP_NOT_EQUAL;
+    case CompareFunction_GreaterEqual:
+        return VK_COMPARE_OP_GREATER_OR_EQUAL;
+    case CompareFunction_Always:
+        return VK_COMPARE_OP_ALWAYS;
+    default:
+        return VK_COMPARE_OP_ALWAYS; // Default fallback
     }
 }
 
-static inline VkBlendOp toVulkanBlendOperation(BlendOperation bo){
-    switch (bo){
-        case BlendOperation_Add:
-            return VK_BLEND_OP_ADD;
-        case BlendOperation_Subtract:
-            return VK_BLEND_OP_SUBTRACT;
-        case BlendOperation_ReverseSubtract:
-            return VK_BLEND_OP_REVERSE_SUBTRACT;
-        case BlendOperation_Min:
-            return VK_BLEND_OP_MIN;
-        case BlendOperation_Max:
-            return VK_BLEND_OP_MAX;
-        default:
-            return VK_BLEND_OP_ADD; // Default fallback
+static inline VkBlendFactor toVulkanBlendFactor(BlendFactor bf) {
+    switch (bf) {
+    case BlendFactor_Zero:
+        return VK_BLEND_FACTOR_ZERO;
+    case BlendFactor_One:
+        return VK_BLEND_FACTOR_ONE;
+    case BlendFactor_Src:
+        return VK_BLEND_FACTOR_SRC_COLOR;
+    case BlendFactor_OneMinusSrc:
+        return VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+    case BlendFactor_SrcAlpha:
+        return VK_BLEND_FACTOR_SRC_ALPHA;
+    case BlendFactor_OneMinusSrcAlpha:
+        return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    case BlendFactor_Dst:
+        return VK_BLEND_FACTOR_DST_COLOR;
+    case BlendFactor_OneMinusDst:
+        return VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+    case BlendFactor_DstAlpha:
+        return VK_BLEND_FACTOR_DST_ALPHA;
+    case BlendFactor_OneMinusDstAlpha:
+        return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+    case BlendFactor_SrcAlphaSaturated:
+        return VK_BLEND_FACTOR_SRC_ALPHA_SATURATE;
+    case BlendFactor_Constant:
+        return VK_BLEND_FACTOR_CONSTANT_COLOR;
+    case BlendFactor_OneMinusConstant:
+        return VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR;
+    case BlendFactor_Src1:
+        return VK_BLEND_FACTOR_SRC1_COLOR;
+    case BlendFactor_OneMinusSrc1:
+        return VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR;
+    case BlendFactor_Src1Alpha:
+        return VK_BLEND_FACTOR_SRC1_ALPHA;
+    case BlendFactor_OneMinusSrc1Alpha:
+        return VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA;
+    default:
+        return VK_BLEND_FACTOR_ONE; // Default fallback
     }
 }
 
-static inline VkFilter toVulkanTFilterMode(TFilterMode tfm){
-    switch (tfm){
-        case TFilterMode_Nearest:
-            return VK_FILTER_NEAREST;
-        case TFilterMode_Linear:
-            return VK_FILTER_LINEAR;
-        default:
-            return VK_FILTER_NEAREST; // Default fallback
+static inline VkBlendOp toVulkanBlendOperation(BlendOperation bo) {
+    switch (bo) {
+    case BlendOperation_Add:
+        return VK_BLEND_OP_ADD;
+    case BlendOperation_Subtract:
+        return VK_BLEND_OP_SUBTRACT;
+    case BlendOperation_ReverseSubtract:
+        return VK_BLEND_OP_REVERSE_SUBTRACT;
+    case BlendOperation_Min:
+        return VK_BLEND_OP_MIN;
+    case BlendOperation_Max:
+        return VK_BLEND_OP_MAX;
+    default:
+        return VK_BLEND_OP_ADD; // Default fallback
     }
 }
 
-static inline VkFrontFace toVulkanFrontFace(FrontFace ff){
-    switch (ff){
-        case FrontFace_CCW:
-            return VK_FRONT_FACE_COUNTER_CLOCKWISE;
-        case FrontFace_CW:
-            return VK_FRONT_FACE_CLOCKWISE;
-        default:
-            return VK_FRONT_FACE_COUNTER_CLOCKWISE; // Default fallback
+static inline VkFilter toVulkanTFilterMode(TFilterMode tfm) {
+    switch (tfm) {
+    case TFilterMode_Nearest:
+        return VK_FILTER_NEAREST;
+    case TFilterMode_Linear:
+        return VK_FILTER_LINEAR;
+    default:
+        return VK_FILTER_NEAREST; // Default fallback
     }
 }
 
-static inline VkIndexType toVulkanIndexFormat(IndexFormat ifmt){
-    switch (ifmt){
-        case IndexFormat_Uint16:
-            return VK_INDEX_TYPE_UINT16;
-        case IndexFormat_Uint32:
-            return VK_INDEX_TYPE_UINT32;
-        default:
-            return VK_INDEX_TYPE_UINT16; // Default fallback
+static inline VkFrontFace toVulkanFrontFace(FrontFace ff) {
+    switch (ff) {
+    case FrontFace_CCW:
+        return VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    case FrontFace_CW:
+        return VK_FRONT_FACE_CLOCKWISE;
+    default:
+        return VK_FRONT_FACE_COUNTER_CLOCKWISE; // Default fallback
     }
 }
 
-static inline VkAttachmentLoadOp toVulkanLoadOperation(LoadOperation lop){
-    switch (lop){
-        case LoadOperation_Load:
-            return VK_ATTACHMENT_LOAD_OP_LOAD;
-        case LoadOperation_Clear:
-            return VK_ATTACHMENT_LOAD_OP_CLEAR;
-        case LoadOperation_ExpandResolveTexture:
-            // Vulkan does not have a direct equivalent; choose appropriate op or handle separately
-            return VK_ATTACHMENT_LOAD_OP_LOAD; // Example fallback
-        default:
-            return VK_ATTACHMENT_LOAD_OP_LOAD; // Default fallback
+static inline VkIndexType toVulkanIndexFormat(IndexFormat ifmt) {
+    switch (ifmt) {
+    case IndexFormat_Uint16:
+        return VK_INDEX_TYPE_UINT16;
+    case IndexFormat_Uint32:
+        return VK_INDEX_TYPE_UINT32;
+    default:
+        return VK_INDEX_TYPE_UINT16; // Default fallback
     }
 }
 
-static inline VkFormat toVulkanVertexFormat(VertexFormat vf){
-    switch (vf){
-        case VertexFormat_Uint8:
-            return VK_FORMAT_R8_UINT;
-        case VertexFormat_Uint8x2:
-            return VK_FORMAT_R8G8_UINT;
-        case VertexFormat_Uint8x4:
-            return VK_FORMAT_R8G8B8A8_UINT;
-        case VertexFormat_Sint8:
-            return VK_FORMAT_R8_SINT;
-        case VertexFormat_Sint8x2:
-            return VK_FORMAT_R8G8_SINT;
-        case VertexFormat_Sint8x4:
-            return VK_FORMAT_R8G8B8A8_SINT;
-        case VertexFormat_Unorm8:
-            return VK_FORMAT_R8_UNORM;
-        case VertexFormat_Unorm8x2:
-            return VK_FORMAT_R8G8_UNORM;
-        case VertexFormat_Unorm8x4:
-            return VK_FORMAT_R8G8B8A8_UNORM;
-        case VertexFormat_Snorm8:
-            return VK_FORMAT_R8_SNORM;
-        case VertexFormat_Snorm8x2:
-            return VK_FORMAT_R8G8_SNORM;
-        case VertexFormat_Snorm8x4:
-            return VK_FORMAT_R8G8B8A8_SNORM;
-        case VertexFormat_Uint16:
-            return VK_FORMAT_R16_UINT;
-        case VertexFormat_Uint16x2:
-            return VK_FORMAT_R16G16_UINT;
-        case VertexFormat_Uint16x4:
-            return VK_FORMAT_R16G16B16A16_UINT;
-        case VertexFormat_Sint16:
-            return VK_FORMAT_R16_SINT;
-        case VertexFormat_Sint16x2:
-            return VK_FORMAT_R16G16_SINT;
-        case VertexFormat_Sint16x4:
-            return VK_FORMAT_R16G16B16A16_SINT;
-        case VertexFormat_Unorm16:
-            return VK_FORMAT_R16_UNORM;
-        case VertexFormat_Unorm16x2:
-            return VK_FORMAT_R16G16_UNORM;
-        case VertexFormat_Unorm16x4:
-            return VK_FORMAT_R16G16B16A16_UNORM;
-        case VertexFormat_Snorm16:
-            return VK_FORMAT_R16_SNORM;
-        case VertexFormat_Snorm16x2:
-            return VK_FORMAT_R16G16_SNORM;
-        case VertexFormat_Snorm16x4:
-            return VK_FORMAT_R16G16B16A16_SNORM;
-        case VertexFormat_Float16:
-            return VK_FORMAT_R16_SFLOAT;
-        case VertexFormat_Float16x2:
-            return VK_FORMAT_R16G16_SFLOAT;
-        case VertexFormat_Float16x4:
-            return VK_FORMAT_R16G16B16A16_SFLOAT;
-        case VertexFormat_Float32:
-            return VK_FORMAT_R32_SFLOAT;
-        case VertexFormat_Float32x2:
-            return VK_FORMAT_R32G32_SFLOAT;
-        case VertexFormat_Float32x3:
-            return VK_FORMAT_R32G32B32_SFLOAT;
-        case VertexFormat_Float32x4:
-            return VK_FORMAT_R32G32B32A32_SFLOAT;
-        case VertexFormat_Uint32:
-            return VK_FORMAT_R32_UINT;
-        case VertexFormat_Uint32x2:
-            return VK_FORMAT_R32G32_UINT;
-        case VertexFormat_Uint32x3:
-            return VK_FORMAT_R32G32B32_UINT;
-        case VertexFormat_Uint32x4:
-            return VK_FORMAT_R32G32B32A32_UINT;
-        case VertexFormat_Sint32:
-            return VK_FORMAT_R32_SINT;
-        case VertexFormat_Sint32x2:
-            return VK_FORMAT_R32G32_SINT;
-        case VertexFormat_Sint32x3:
-            return VK_FORMAT_R32G32B32_SINT;
-        case VertexFormat_Sint32x4:
-            return VK_FORMAT_R32G32B32A32_SINT;
-        case VertexFormat_Unorm10_10_10_2:
-            return VK_FORMAT_A2R10G10B10_UNORM_PACK32;
-        case VertexFormat_Unorm8x4BGRA:
-            return VK_FORMAT_B8G8R8A8_UNORM;
-        default:
-            return VK_FORMAT_UNDEFINED; // Default fallback
+static inline VkAttachmentLoadOp toVulkanLoadOperation(LoadOperation lop) {
+    switch (lop) {
+    case LoadOperation_Load:
+        return VK_ATTACHMENT_LOAD_OP_LOAD;
+    case LoadOperation_Clear:
+        return VK_ATTACHMENT_LOAD_OP_CLEAR;
+    case LoadOperation_ExpandResolveTexture:
+        // Vulkan does not have a direct equivalent; choose appropriate op or handle separately
+        return VK_ATTACHMENT_LOAD_OP_LOAD; // Example fallback
+    default:
+        return VK_ATTACHMENT_LOAD_OP_LOAD; // Default fallback
     }
 }
 
-static inline VkVertexInputRate toVulkanVertexStepMode(VertexStepMode vsm){
-    switch (vsm){
-        case VertexStepMode_Vertex:
-            return VK_VERTEX_INPUT_RATE_VERTEX;
-        case VertexStepMode_Instance:
-            return VK_VERTEX_INPUT_RATE_INSTANCE;
-        case VertexStepMode_None:
-            // Vulkan does not have a direct equivalent for 'None'; defaulting to Vertex
-            return VK_VERTEX_INPUT_RATE_VERTEX;
-        default:
-            return VK_VERTEX_INPUT_RATE_VERTEX; // Default fallback
+static inline VkFormat toVulkanVertexFormat(VertexFormat vf) {
+    switch (vf) {
+    case VertexFormat_Uint8:
+        return VK_FORMAT_R8_UINT;
+    case VertexFormat_Uint8x2:
+        return VK_FORMAT_R8G8_UINT;
+    case VertexFormat_Uint8x4:
+        return VK_FORMAT_R8G8B8A8_UINT;
+    case VertexFormat_Sint8:
+        return VK_FORMAT_R8_SINT;
+    case VertexFormat_Sint8x2:
+        return VK_FORMAT_R8G8_SINT;
+    case VertexFormat_Sint8x4:
+        return VK_FORMAT_R8G8B8A8_SINT;
+    case VertexFormat_Unorm8:
+        return VK_FORMAT_R8_UNORM;
+    case VertexFormat_Unorm8x2:
+        return VK_FORMAT_R8G8_UNORM;
+    case VertexFormat_Unorm8x4:
+        return VK_FORMAT_R8G8B8A8_UNORM;
+    case VertexFormat_Snorm8:
+        return VK_FORMAT_R8_SNORM;
+    case VertexFormat_Snorm8x2:
+        return VK_FORMAT_R8G8_SNORM;
+    case VertexFormat_Snorm8x4:
+        return VK_FORMAT_R8G8B8A8_SNORM;
+    case VertexFormat_Uint16:
+        return VK_FORMAT_R16_UINT;
+    case VertexFormat_Uint16x2:
+        return VK_FORMAT_R16G16_UINT;
+    case VertexFormat_Uint16x4:
+        return VK_FORMAT_R16G16B16A16_UINT;
+    case VertexFormat_Sint16:
+        return VK_FORMAT_R16_SINT;
+    case VertexFormat_Sint16x2:
+        return VK_FORMAT_R16G16_SINT;
+    case VertexFormat_Sint16x4:
+        return VK_FORMAT_R16G16B16A16_SINT;
+    case VertexFormat_Unorm16:
+        return VK_FORMAT_R16_UNORM;
+    case VertexFormat_Unorm16x2:
+        return VK_FORMAT_R16G16_UNORM;
+    case VertexFormat_Unorm16x4:
+        return VK_FORMAT_R16G16B16A16_UNORM;
+    case VertexFormat_Snorm16:
+        return VK_FORMAT_R16_SNORM;
+    case VertexFormat_Snorm16x2:
+        return VK_FORMAT_R16G16_SNORM;
+    case VertexFormat_Snorm16x4:
+        return VK_FORMAT_R16G16B16A16_SNORM;
+    case VertexFormat_Float16:
+        return VK_FORMAT_R16_SFLOAT;
+    case VertexFormat_Float16x2:
+        return VK_FORMAT_R16G16_SFLOAT;
+    case VertexFormat_Float16x4:
+        return VK_FORMAT_R16G16B16A16_SFLOAT;
+    case VertexFormat_Float32:
+        return VK_FORMAT_R32_SFLOAT;
+    case VertexFormat_Float32x2:
+        return VK_FORMAT_R32G32_SFLOAT;
+    case VertexFormat_Float32x3:
+        return VK_FORMAT_R32G32B32_SFLOAT;
+    case VertexFormat_Float32x4:
+        return VK_FORMAT_R32G32B32A32_SFLOAT;
+    case VertexFormat_Uint32:
+        return VK_FORMAT_R32_UINT;
+    case VertexFormat_Uint32x2:
+        return VK_FORMAT_R32G32_UINT;
+    case VertexFormat_Uint32x3:
+        return VK_FORMAT_R32G32B32_UINT;
+    case VertexFormat_Uint32x4:
+        return VK_FORMAT_R32G32B32A32_UINT;
+    case VertexFormat_Sint32:
+        return VK_FORMAT_R32_SINT;
+    case VertexFormat_Sint32x2:
+        return VK_FORMAT_R32G32_SINT;
+    case VertexFormat_Sint32x3:
+        return VK_FORMAT_R32G32B32_SINT;
+    case VertexFormat_Sint32x4:
+        return VK_FORMAT_R32G32B32A32_SINT;
+    case VertexFormat_Unorm10_10_10_2:
+        return VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+    case VertexFormat_Unorm8x4BGRA:
+        return VK_FORMAT_B8G8R8A8_UNORM;
+    default:
+        return VK_FORMAT_UNDEFINED; // Default fallback
+    }
+}
+
+static inline VkVertexInputRate toVulkanVertexStepMode(VertexStepMode vsm) {
+    switch (vsm) {
+    case VertexStepMode_Vertex:
+        return VK_VERTEX_INPUT_RATE_VERTEX;
+    case VertexStepMode_Instance:
+        return VK_VERTEX_INPUT_RATE_INSTANCE;
+    case VertexStepMode_None:
+        // Vulkan does not have a direct equivalent for 'None'; defaulting to Vertex
+        return VK_VERTEX_INPUT_RATE_VERTEX;
+    default:
+        return VK_VERTEX_INPUT_RATE_VERTEX; // Default fallback
     }
 }
 
@@ -656,49 +641,41 @@ static inline WGPUTextureUsage toWebGPUTextureUsage(TextureUsage usage) {
     WGPUTextureUsage wgpuUsage = 0;
 
     // Array of all possible TextureUsage flags
-    const TextureUsage allFlags[] = {
-        TextureUsage_CopySrc,
-        TextureUsage_CopyDst,
-        TextureUsage_TextureBinding,
-        TextureUsage_StorageBinding,
-        TextureUsage_RenderAttachment,
-        TextureUsage_TransientAttachment,
-        TextureUsage_StorageAttachment
-    };
+    const TextureUsage allFlags[] = {TextureUsage_CopySrc, TextureUsage_CopyDst, TextureUsage_TextureBinding, TextureUsage_StorageBinding, TextureUsage_RenderAttachment, TextureUsage_TransientAttachment, TextureUsage_StorageAttachment};
     // Iterate through each dflag and map accordingly
-    for (const auto& flag : allFlags) {
-        if (usage & flag) {
-            switch (flag) {
-                case TextureUsage_CopySrc:
-                    wgpuUsage |= WGPUTextureUsage_CopySrc;
-                    break;
-                case TextureUsage_CopyDst:
-                    wgpuUsage |= WGPUTextureUsage_CopyDst;
-                    break;
-                case TextureUsage_TextureBinding:
-                    wgpuUsage |= WGPUTextureUsage_TextureBinding;
-                    break;
-                case TextureUsage_StorageBinding:
-                    wgpuUsage |= WGPUTextureUsage_StorageBinding;
-                    break;
-                case TextureUsage_RenderAttachment:
-                    wgpuUsage |= WGPUTextureUsage_RenderAttachment;
-                    break;
-                case TextureUsage_TransientAttachment:
-                    wgpuUsage |= WGPUTextureUsage_TransientAttachment;
-                    break;
-                case TextureUsage_StorageAttachment:
-                    wgpuUsage |= WGPUTextureUsage_StorageAttachment;
-                    break;
-                default:
-                    break;
-            }
+    uint32_t remainigFlags = usage;
+    while (remainigFlags != 0) {
+        uint32_t flag = remainigFlags & -remainigFlags;
+        switch (flag) {
+        case TextureUsage_CopySrc:
+            wgpuUsage |= WGPUTextureUsage_CopySrc;
+            break;
+        case TextureUsage_CopyDst:
+            wgpuUsage |= WGPUTextureUsage_CopyDst;
+            break;
+        case TextureUsage_TextureBinding:
+            wgpuUsage |= WGPUTextureUsage_TextureBinding;
+            break;
+        case TextureUsage_StorageBinding:
+            wgpuUsage |= WGPUTextureUsage_StorageBinding;
+            break;
+        case TextureUsage_RenderAttachment:
+            wgpuUsage |= WGPUTextureUsage_RenderAttachment;
+            break;
+        case TextureUsage_TransientAttachment:
+            wgpuUsage |= WGPUTextureUsage_TransientAttachment;
+            break;
+        case TextureUsage_StorageAttachment:
+            wgpuUsage |= WGPUTextureUsage_StorageAttachment;
+            break;
+        default:
+            break;
         }
+        remainigFlags = remainigFlags & (remainigFlags - 1);
     }
 
     return wgpuUsage;
 }
-
 
 static inline WGPUBufferUsage toWebGPUBufferUsage(BufferUsage busg) {
     WGPUBufferUsage usage = 0;
@@ -707,35 +684,35 @@ static inline WGPUBufferUsage toWebGPUBufferUsage(BufferUsage busg) {
         BufferUsage flag = (busg & (-busg));
 
         switch (flag) {
-            case BufferUsage_CopySrc:
-                usage |= WGPUBufferUsage_CopySrc;
-                break;
-            case BufferUsage_CopyDst:
-                usage |= WGPUBufferUsage_CopyDst;
-                break;
-            case BufferUsage_Vertex:
-                usage |= WGPUBufferUsage_Vertex;
-                break;
-            case BufferUsage_Index:
-                usage |= WGPUBufferUsage_Index;
-                break;
-            case BufferUsage_Uniform:
-                usage |= WGPUBufferUsage_Uniform;
-                break;
-            case BufferUsage_Storage:
-                usage |= WGPUBufferUsage_Storage;
-                break;
-            case BufferUsage_Indirect:
-                usage |= WGPUBufferUsage_Indirect;
-                break;
-            case BufferUsage_MapRead:
-                break;
-            case BufferUsage_MapWrite:
-                break;
-            case BufferUsage_QueryResolve:
-                break;
-            default:
-                break;
+        case BufferUsage_CopySrc:
+            usage |= WGPUBufferUsage_CopySrc;
+            break;
+        case BufferUsage_CopyDst:
+            usage |= WGPUBufferUsage_CopyDst;
+            break;
+        case BufferUsage_Vertex:
+            usage |= WGPUBufferUsage_Vertex;
+            break;
+        case BufferUsage_Index:
+            usage |= WGPUBufferUsage_Index;
+            break;
+        case BufferUsage_Uniform:
+            usage |= WGPUBufferUsage_Uniform;
+            break;
+        case BufferUsage_Storage:
+            usage |= WGPUBufferUsage_Storage;
+            break;
+        case BufferUsage_Indirect:
+            usage |= WGPUBufferUsage_Indirect;
+            break;
+        case BufferUsage_MapRead:
+            break;
+        case BufferUsage_MapWrite:
+            break;
+        case BufferUsage_QueryResolve:
+            break;
+        default:
+            break;
         }
 
         busg &= (busg - 1);
@@ -744,273 +721,265 @@ static inline WGPUBufferUsage toWebGPUBufferUsage(BufferUsage busg) {
     return usage;
 }
 
-
-
-
-
 // Translation function for filterMode to WGPUFilterMode
-static inline WGPUFilterMode toWebGPUFilterMode(filterMode fm){
-    switch (fm){
-        case filter_nearest:
-            return WGPUFilterMode_Nearest;
-        case filter_linear:
-            return WGPUFilterMode_Linear;
-        default:
-            return WGPUFilterMode_Nearest; // Default fallback
+static inline WGPUFilterMode toWebGPUFilterMode(filterMode fm) {
+    switch (fm) {
+    case filter_nearest:
+        return WGPUFilterMode_Nearest;
+    case filter_linear:
+        return WGPUFilterMode_Linear;
+    default:
+        return WGPUFilterMode_Nearest; // Default fallback
     }
 }
 
 // Translation function for addressMode to WGPUAddressMode
-static inline WGPUAddressMode toWebGPUAddressMode(addressMode am){
-    switch (am){
-        case clampToEdge:
-            return WGPUAddressMode_ClampToEdge;
-        case repeat:
-            return WGPUAddressMode_Repeat;
-        case mirrorRepeat:
-            return WGPUAddressMode_MirrorRepeat;
-        default:
-            return WGPUAddressMode_ClampToEdge; // Default fallback
+static inline WGPUAddressMode toWebGPUAddressMode(addressMode am) {
+    switch (am) {
+    case clampToEdge:
+        return WGPUAddressMode_ClampToEdge;
+    case repeat:
+        return WGPUAddressMode_Repeat;
+    case mirrorRepeat:
+        return WGPUAddressMode_MirrorRepeat;
+    default:
+        return WGPUAddressMode_ClampToEdge; // Default fallback
     }
 }
 
 // Translation function for CompareFunction to WGPUCompareFunction
-static inline WGPUCompareFunction toWebGPUCompareFunction(CompareFunction cf){
-    switch (cf){
-        case CompareFunction_Never:
-            return WGPUCompareFunction_Never;
-        case CompareFunction_Less:
-            return WGPUCompareFunction_Less;
-        case CompareFunction_Equal:
-            return WGPUCompareFunction_Equal;
-        case CompareFunction_LessEqual:
-            return WGPUCompareFunction_LessEqual;
-        case CompareFunction_Greater:
-            return WGPUCompareFunction_Greater;
-        case CompareFunction_NotEqual:
-            return WGPUCompareFunction_NotEqual;
-        case CompareFunction_GreaterEqual:
-            return WGPUCompareFunction_GreaterEqual;
-        case CompareFunction_Always:
-            return WGPUCompareFunction_Always;
-        default:
-            return WGPUCompareFunction_Always; // Default fallback
+static inline WGPUCompareFunction toWebGPUCompareFunction(CompareFunction cf) {
+    switch (cf) {
+    case CompareFunction_Never:
+        return WGPUCompareFunction_Never;
+    case CompareFunction_Less:
+        return WGPUCompareFunction_Less;
+    case CompareFunction_Equal:
+        return WGPUCompareFunction_Equal;
+    case CompareFunction_LessEqual:
+        return WGPUCompareFunction_LessEqual;
+    case CompareFunction_Greater:
+        return WGPUCompareFunction_Greater;
+    case CompareFunction_NotEqual:
+        return WGPUCompareFunction_NotEqual;
+    case CompareFunction_GreaterEqual:
+        return WGPUCompareFunction_GreaterEqual;
+    case CompareFunction_Always:
+        return WGPUCompareFunction_Always;
+    default:
+        return WGPUCompareFunction_Always; // Default fallback
     }
 }
 
 // Translation function for BlendFactor to WGPUBlendFactor
-static inline WGPUBlendFactor toWebGPUBlendFactor(BlendFactor bf){
-    switch (bf){
-        case BlendFactor_Zero:
-            return WGPUBlendFactor_Zero;
-        case BlendFactor_One:
-            return WGPUBlendFactor_One;
-        case BlendFactor_Src:
-            return WGPUBlendFactor_Src;
-        case BlendFactor_OneMinusSrc:
-            return WGPUBlendFactor_OneMinusSrc;
-        case BlendFactor_SrcAlpha:
-            return WGPUBlendFactor_SrcAlpha;
-        case BlendFactor_OneMinusSrcAlpha:
-            return WGPUBlendFactor_OneMinusSrcAlpha;
-        case BlendFactor_Dst:
-            return WGPUBlendFactor_Dst;
-        case BlendFactor_OneMinusDst:
-            return WGPUBlendFactor_OneMinusDst;
-        case BlendFactor_DstAlpha:
-            return WGPUBlendFactor_DstAlpha;
-        case BlendFactor_OneMinusDstAlpha:
-            return WGPUBlendFactor_OneMinusDstAlpha;
-        case BlendFactor_SrcAlphaSaturated:
-            return WGPUBlendFactor_SrcAlphaSaturated;
-        case BlendFactor_Constant:
-            return WGPUBlendFactor_Constant;
-        case BlendFactor_OneMinusConstant:
-            return WGPUBlendFactor_OneMinusConstant;
-        case BlendFactor_Src1:
-            return WGPUBlendFactor_Src1;
-        case BlendFactor_OneMinusSrc1:
-            return WGPUBlendFactor_OneMinusSrc1;
-        case BlendFactor_Src1Alpha:
-            return WGPUBlendFactor_Src1Alpha;
-        case BlendFactor_OneMinusSrc1Alpha:
-            return WGPUBlendFactor_OneMinusSrc1Alpha;
-        default:
-            return WGPUBlendFactor_One; // Default fallback
+static inline WGPUBlendFactor toWebGPUBlendFactor(BlendFactor bf) {
+    switch (bf) {
+    case BlendFactor_Zero:
+        return WGPUBlendFactor_Zero;
+    case BlendFactor_One:
+        return WGPUBlendFactor_One;
+    case BlendFactor_Src:
+        return WGPUBlendFactor_Src;
+    case BlendFactor_OneMinusSrc:
+        return WGPUBlendFactor_OneMinusSrc;
+    case BlendFactor_SrcAlpha:
+        return WGPUBlendFactor_SrcAlpha;
+    case BlendFactor_OneMinusSrcAlpha:
+        return WGPUBlendFactor_OneMinusSrcAlpha;
+    case BlendFactor_Dst:
+        return WGPUBlendFactor_Dst;
+    case BlendFactor_OneMinusDst:
+        return WGPUBlendFactor_OneMinusDst;
+    case BlendFactor_DstAlpha:
+        return WGPUBlendFactor_DstAlpha;
+    case BlendFactor_OneMinusDstAlpha:
+        return WGPUBlendFactor_OneMinusDstAlpha;
+    case BlendFactor_SrcAlphaSaturated:
+        return WGPUBlendFactor_SrcAlphaSaturated;
+    case BlendFactor_Constant:
+        return WGPUBlendFactor_Constant;
+    case BlendFactor_OneMinusConstant:
+        return WGPUBlendFactor_OneMinusConstant;
+    case BlendFactor_Src1:
+        return WGPUBlendFactor_Src1;
+    case BlendFactor_OneMinusSrc1:
+        return WGPUBlendFactor_OneMinusSrc1;
+    case BlendFactor_Src1Alpha:
+        return WGPUBlendFactor_Src1Alpha;
+    case BlendFactor_OneMinusSrc1Alpha:
+        return WGPUBlendFactor_OneMinusSrc1Alpha;
+    default:
+        return WGPUBlendFactor_One; // Default fallback
     }
 }
 
 // Translation function for BlendOperation to WGPUBlendOperation
-static inline WGPUBlendOperation toWebGPUBlendOperation(BlendOperation bo){
-    switch (bo){
-        case BlendOperation_Add:
-            return WGPUBlendOperation_Add;
-        case BlendOperation_Subtract:
-            return WGPUBlendOperation_Subtract;
-        case BlendOperation_ReverseSubtract:
-            return WGPUBlendOperation_ReverseSubtract;
-        case BlendOperation_Min:
-            return WGPUBlendOperation_Min;
-        case BlendOperation_Max:
-            return WGPUBlendOperation_Max;
-        default:
-            return WGPUBlendOperation_Add; // Default fallback
+static inline WGPUBlendOperation toWebGPUBlendOperation(BlendOperation bo) {
+    switch (bo) {
+    case BlendOperation_Add:
+        return WGPUBlendOperation_Add;
+    case BlendOperation_Subtract:
+        return WGPUBlendOperation_Subtract;
+    case BlendOperation_ReverseSubtract:
+        return WGPUBlendOperation_ReverseSubtract;
+    case BlendOperation_Min:
+        return WGPUBlendOperation_Min;
+    case BlendOperation_Max:
+        return WGPUBlendOperation_Max;
+    default:
+        return WGPUBlendOperation_Add; // Default fallback
     }
 }
 
 // Translation function for TFilterMode to WGPUFilterMode
-static inline WGPUFilterMode toWebGPUTFilterMode(TFilterMode tfm){
-    switch (tfm){
-        case TFilterMode_Nearest:
-            return WGPUFilterMode_Nearest;
-        case TFilterMode_Linear:
-            return WGPUFilterMode_Linear;
-        default:
-            return WGPUFilterMode_Nearest; // Default fallback
+static inline WGPUFilterMode toWebGPUTFilterMode(TFilterMode tfm) {
+    switch (tfm) {
+    case TFilterMode_Nearest:
+        return WGPUFilterMode_Nearest;
+    case TFilterMode_Linear:
+        return WGPUFilterMode_Linear;
+    default:
+        return WGPUFilterMode_Nearest; // Default fallback
     }
 }
 
 // Translation function for FrontFace to WGPUFrontFace
-static inline WGPUFrontFace toWebGPUFrontFace(FrontFace ff){
-    switch (ff){
-        case FrontFace_CCW:
-            return WGPUFrontFace_CCW;
-        case FrontFace_CW:
-            return WGPUFrontFace_CW;
-        default:
-            return WGPUFrontFace_CCW; // Default fallback
+static inline WGPUFrontFace toWebGPUFrontFace(FrontFace ff) {
+    switch (ff) {
+    case FrontFace_CCW:
+        return WGPUFrontFace_CCW;
+    case FrontFace_CW:
+        return WGPUFrontFace_CW;
+    default:
+        return WGPUFrontFace_CCW; // Default fallback
     }
 }
 
 // Translation function for IndexFormat to WGPUIndexFormat
-static inline WGPUIndexFormat toWebGPUIndexFormat(IndexFormat ifmt){
-    switch (ifmt){
-        case IndexFormat_Uint16:
-            return WGPUIndexFormat_Uint16;
-        case IndexFormat_Uint32:
-            return WGPUIndexFormat_Uint32;
-        default:
-            return WGPUIndexFormat_Uint16; // Default fallback
+static inline WGPUIndexFormat toWebGPUIndexFormat(IndexFormat ifmt) {
+    switch (ifmt) {
+    case IndexFormat_Uint16:
+        return WGPUIndexFormat_Uint16;
+    case IndexFormat_Uint32:
+        return WGPUIndexFormat_Uint32;
+    default:
+        return WGPUIndexFormat_Uint16; // Default fallback
     }
 }
 
 // Translation function for LoadOperation to WGPULoadOp
-static inline WGPULoadOp toWebGPULoadOperation(LoadOperation lop){
-    switch (lop){
-        case LoadOperation_Load:
-            return WGPULoadOp_Load;
-        case LoadOperation_Clear:
-            return WGPULoadOp_Clear;
-        case LoadOperation_ExpandResolveTexture:
-            // WebGPU does not have a direct equivalent; choose appropriate op or handle separately
-            return WGPULoadOp_Load; // Example fallback
-        default:
-            return WGPULoadOp_Load; // Default fallback
+static inline WGPULoadOp toWebGPULoadOperation(LoadOperation lop) {
+    switch (lop) {
+    case LoadOperation_Load:
+        return WGPULoadOp_Load;
+    case LoadOperation_Clear:
+        return WGPULoadOp_Clear;
+    case LoadOperation_ExpandResolveTexture:
+        // WebGPU does not have a direct equivalent; choose appropriate op or handle separately
+        return WGPULoadOp_Load; // Example fallback
+    default:
+        return WGPULoadOp_Load; // Default fallback
     }
 }
 
 // Translation function for VertexFormat to WGPUVertexFormat
-static inline WGPUVertexFormat toWebGPUVertexFormat(VertexFormat vf){
-    switch (vf){
-        case VertexFormat_Uint8:
-            return WGPUVertexFormat_Uint8;
-        case VertexFormat_Uint8x2:
-            return WGPUVertexFormat_Uint8x2;
-        case VertexFormat_Uint8x4:
-            return WGPUVertexFormat_Uint8x4;
-        case VertexFormat_Sint8:
-            return WGPUVertexFormat_Sint8;
-        case VertexFormat_Sint8x2:
-            return WGPUVertexFormat_Sint8x2;
-        case VertexFormat_Sint8x4:
-            return WGPUVertexFormat_Sint8x4;
-        case VertexFormat_Unorm8:
-            return WGPUVertexFormat_Unorm8;
-        case VertexFormat_Unorm8x2:
-            return WGPUVertexFormat_Unorm8x2;
-        case VertexFormat_Unorm8x4:
-            return WGPUVertexFormat_Unorm8x4;
-        case VertexFormat_Snorm8:
-            return WGPUVertexFormat_Snorm8;
-        case VertexFormat_Snorm8x2:
-            return WGPUVertexFormat_Snorm8x2;
-        case VertexFormat_Snorm8x4:
-            return WGPUVertexFormat_Snorm8x4;
-        case VertexFormat_Uint16:
-            return WGPUVertexFormat_Uint16;
-        case VertexFormat_Uint16x2:
-            return WGPUVertexFormat_Uint16x2;
-        case VertexFormat_Uint16x4:
-            return WGPUVertexFormat_Uint16x4;
-        case VertexFormat_Sint16:
-            return WGPUVertexFormat_Sint16;
-        case VertexFormat_Sint16x2:
-            return WGPUVertexFormat_Sint16x2;
-        case VertexFormat_Sint16x4:
-            return WGPUVertexFormat_Sint16x4;
-        case VertexFormat_Unorm16:
-            return WGPUVertexFormat_Unorm16;
-        case VertexFormat_Unorm16x2:
-            return WGPUVertexFormat_Unorm16x2;
-        case VertexFormat_Unorm16x4:
-            return WGPUVertexFormat_Unorm16x4;
-        case VertexFormat_Snorm16:
-            return WGPUVertexFormat_Snorm16;
-        case VertexFormat_Snorm16x2:
-            return WGPUVertexFormat_Snorm16x2;
-        case VertexFormat_Snorm16x4:
-            return WGPUVertexFormat_Snorm16x4;
-        case VertexFormat_Float16:
-            return WGPUVertexFormat_Float16;
-        case VertexFormat_Float16x2:
-            return WGPUVertexFormat_Float16x2;
-        case VertexFormat_Float16x4:
-            return WGPUVertexFormat_Float16x4;
-        case VertexFormat_Float32:
-            return WGPUVertexFormat_Float32;
-        case VertexFormat_Float32x2:
-            return WGPUVertexFormat_Float32x2;
-        case VertexFormat_Float32x3:
-            return WGPUVertexFormat_Float32x3;
-        case VertexFormat_Float32x4:
-            return WGPUVertexFormat_Float32x4;
-        case VertexFormat_Uint32:
-            return WGPUVertexFormat_Uint32;
-        case VertexFormat_Uint32x2:
-            return WGPUVertexFormat_Uint32x2;
-        case VertexFormat_Uint32x3:
-            return WGPUVertexFormat_Uint32x3;
-        case VertexFormat_Uint32x4:
-            return WGPUVertexFormat_Uint32x4;
-        case VertexFormat_Sint32:
-            return WGPUVertexFormat_Sint32;
-        case VertexFormat_Sint32x2:
-            return WGPUVertexFormat_Sint32x2;
-        case VertexFormat_Sint32x3:
-            return WGPUVertexFormat_Sint32x3;
-        case VertexFormat_Sint32x4:
-            return WGPUVertexFormat_Sint32x4;
-        case VertexFormat_Unorm10_10_10_2:
-            return WGPUVertexFormat_Unorm10x10x10x2;
-        case VertexFormat_Unorm8x4BGRA:
-            return WGPUVertexFormat_Unorm8x8x8x8_BGRA;
-        default:
-            return WGPUVertexFormat_Undefined; // Default fallback
+static inline WGPUVertexFormat toWebGPUVertexFormat(VertexFormat vf) {
+    switch (vf) {
+    case VertexFormat_Uint8:
+        return WGPUVertexFormat_Uint8;
+    case VertexFormat_Uint8x2:
+        return WGPUVertexFormat_Uint8x2;
+    case VertexFormat_Uint8x4:
+        return WGPUVertexFormat_Uint8x4;
+    case VertexFormat_Sint8:
+        return WGPUVertexFormat_Sint8;
+    case VertexFormat_Sint8x2:
+        return WGPUVertexFormat_Sint8x2;
+    case VertexFormat_Sint8x4:
+        return WGPUVertexFormat_Sint8x4;
+    case VertexFormat_Unorm8:
+        return WGPUVertexFormat_Unorm8;
+    case VertexFormat_Unorm8x2:
+        return WGPUVertexFormat_Unorm8x2;
+    case VertexFormat_Unorm8x4:
+        return WGPUVertexFormat_Unorm8x4;
+    case VertexFormat_Snorm8:
+        return WGPUVertexFormat_Snorm8;
+    case VertexFormat_Snorm8x2:
+        return WGPUVertexFormat_Snorm8x2;
+    case VertexFormat_Snorm8x4:
+        return WGPUVertexFormat_Snorm8x4;
+    case VertexFormat_Uint16:
+        return WGPUVertexFormat_Uint16;
+    case VertexFormat_Uint16x2:
+        return WGPUVertexFormat_Uint16x2;
+    case VertexFormat_Uint16x4:
+        return WGPUVertexFormat_Uint16x4;
+    case VertexFormat_Sint16:
+        return WGPUVertexFormat_Sint16;
+    case VertexFormat_Sint16x2:
+        return WGPUVertexFormat_Sint16x2;
+    case VertexFormat_Sint16x4:
+        return WGPUVertexFormat_Sint16x4;
+    case VertexFormat_Unorm16:
+        return WGPUVertexFormat_Unorm16;
+    case VertexFormat_Unorm16x2:
+        return WGPUVertexFormat_Unorm16x2;
+    case VertexFormat_Unorm16x4:
+        return WGPUVertexFormat_Unorm16x4;
+    case VertexFormat_Snorm16:
+        return WGPUVertexFormat_Snorm16;
+    case VertexFormat_Snorm16x2:
+        return WGPUVertexFormat_Snorm16x2;
+    case VertexFormat_Snorm16x4:
+        return WGPUVertexFormat_Snorm16x4;
+    case VertexFormat_Float16:
+        return WGPUVertexFormat_Float16;
+    case VertexFormat_Float16x2:
+        return WGPUVertexFormat_Float16x2;
+    case VertexFormat_Float16x4:
+        return WGPUVertexFormat_Float16x4;
+    case VertexFormat_Float32:
+        return WGPUVertexFormat_Float32;
+    case VertexFormat_Float32x2:
+        return WGPUVertexFormat_Float32x2;
+    case VertexFormat_Float32x3:
+        return WGPUVertexFormat_Float32x3;
+    case VertexFormat_Float32x4:
+        return WGPUVertexFormat_Float32x4;
+    case VertexFormat_Uint32:
+        return WGPUVertexFormat_Uint32;
+    case VertexFormat_Uint32x2:
+        return WGPUVertexFormat_Uint32x2;
+    case VertexFormat_Uint32x3:
+        return WGPUVertexFormat_Uint32x3;
+    case VertexFormat_Uint32x4:
+        return WGPUVertexFormat_Uint32x4;
+    case VertexFormat_Sint32:
+        return WGPUVertexFormat_Sint32;
+    case VertexFormat_Sint32x2:
+        return WGPUVertexFormat_Sint32x2;
+    case VertexFormat_Sint32x3:
+        return WGPUVertexFormat_Sint32x3;
+    case VertexFormat_Sint32x4:
+        return WGPUVertexFormat_Sint32x4;
+    default:
+        return WGPUVertexFormat_Force32; // Default fallback
     }
 }
 
 // Translation function for VertexStepMode to WGPUVertexStepMode
-static inline WGPUVertexStepMode toWebGPUVertexStepMode(VertexStepMode vsm){
-    switch (vsm){
-        case VertexStepMode_Vertex:
-            return WGPUVertexStepMode_Vertex;
-        case VertexStepMode_Instance:
-            return WGPUVertexStepMode_Instance;
-        case VertexStepMode_None:
-            // WebGPU does not have a direct equivalent for 'None'; defaulting to Vertex
-            return WGPUVertexStepMode_Vertex;
-        default:
-            return WGPUVertexStepMode_Vertex; // Default fallback
+static inline WGPUVertexStepMode toWebGPUVertexStepMode(VertexStepMode vsm) {
+    switch (vsm) {
+    case VertexStepMode_Vertex:
+        return WGPUVertexStepMode_Vertex;
+    case VertexStepMode_Instance:
+        return WGPUVertexStepMode_Instance;
+    case VertexStepMode_None:
+        // WebGPU does not have a direct equivalent for 'None'; defaulting to Vertex
+        return WGPUVertexStepMode_Vertex;
+    default:
+        return WGPUVertexStepMode_Vertex; // Default fallback
     }
 }
 
