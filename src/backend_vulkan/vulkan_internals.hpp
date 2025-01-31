@@ -177,7 +177,7 @@ static inline uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags
     assert(false && "failed to find suitable memory type!");
     return ~0u;
 }
-extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelFormat format, int usage, uint32_t sampleCount, uint32_t mipmaps, const void* data);
+extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelFormat format, TextureUsage usage, uint32_t sampleCount, uint32_t mipmaps, const void* data);
 
 struct SwapChainSupportDetails {
     VkSurfaceCapabilitiesKHR capabilities;
@@ -352,6 +352,9 @@ inline FullSurface LoadSurface(GLFWwindow* window, SurfaceConfiguration config){
     config.format = fromVulkanPixelFormat(ret.swapchainImageFormat);
     
     retf.surfaceConfig = config;
+    config.width = extent.width;
+    config.height = extent.height;
+
     retf.frameBuffer.depth = LoadTexturePro_Vk(extent.width, extent.height, Depth32, TextureUsage_RenderAttachment, 1, 1, nullptr);
     
     return retf;
@@ -580,7 +583,7 @@ inline void EndRenderPass_Vk(VkCommandBuffer cbuffer, FullVkRenderPass rp, VkSem
     //}
     //vkDestroyFence(g_vulkanstate.device, fence, nullptr);
 }//
-extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelFormat format, int usage, uint32_t sampleCount, uint32_t mipmaps, const void* data = nullptr);
+extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelFormat format, TextureUsage usage, uint32_t sampleCount, uint32_t mipmaps, const void* data = nullptr);
 extern "C" Texture LoadTextureFromImage_Vk(Image img);
 void UnloadTexture_Vk(Texture tex);
 extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vscode, size_t vscodeSizeInBytes, const uint32_t* fscode, size_t fscodeSizeInBytes);

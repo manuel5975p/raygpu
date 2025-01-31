@@ -280,11 +280,11 @@ ImageHandle CreateVkImage(VkDevice device, VkPhysicalDevice physicalDevice, VkCo
 }
 
 // Generalized LoadTexturePro function
-extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelFormat format, int usage, uint32_t sampleCount, uint32_t mipmaps, const void* data) {
+extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelFormat format, TextureUsage usage, uint32_t sampleCount, uint32_t mipmaps, const void* data) {
     Texture ret{};
     
     VkFormat vkFormat = toVulkanPixelFormat(format);
-    
+    VkImageUsageFlags vkUsage = toVulkanTextureUsage(usage, format);
     VkCommandPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolInfo.queueFamilyIndex = g_vulkanstate.graphicsFamily;
@@ -305,7 +305,7 @@ extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelForma
         width, 
         height, 
         vkFormat,
-        usage,
+        vkUsage,
         hasData
     );
     
