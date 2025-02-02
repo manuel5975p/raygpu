@@ -345,12 +345,12 @@ Texture LoadTextureFromImage_Vk(Image img) {
     if (img.format != RGBA8 && img.format != BGRA8 && img.format != RGBA16F && img.format != RGBA32F && img.format != Depth24) {
         throw std::runtime_error("Unsupported image format.");
     }
-    
+    TextureUsage x;
     return LoadTexturePro_Vk(
         img.width,
         img.height,
         img.format,
-        TextureUsage_TextureBinding, // Assuming TextureUsage enum exists and has a Sampled option
+        TextureUsage_CopyDst | TextureUsage_TextureBinding, // Assuming TextureUsage enum exists and has a Sampled option
         1, // sampleCount
         img.mipmaps > 0 ? img.mipmaps : 1, 
         img.data

@@ -314,9 +314,9 @@ DescribedBindGroup set{};
 void ResizeCallback_Vk(GLFWwindow* win, int width, int height){
     
     //std::cout << std::format("Resized to {} x {}\n", width, height) << std::flush;
-    g_vulkanstate.surface.surfaceConfig.width = width;
-    g_vulkanstate.surface.surfaceConfig.height = height;
-    wgvkSurfaceConfigure((WGVKSurface)g_vulkanstate.surface.surface, &g_vulkanstate.surface.surfaceConfig);
+    
+    
+    ResizeSurface_Vk(&g_vulkanstate.surface, width, height);
     //createRenderPass();
 }
 GLFWwindow *initWindow(uint32_t width, uint32_t height, const char *title) {
@@ -838,9 +838,9 @@ void mainLoop(GLFWwindow *window) {
         glfwPollEvents();
         WGVKSurface wgs = ((WGVKSurface)g_vulkanstate.surface.surface);
         auto &swapChain = ((WGVKSurface)g_vulkanstate.surface.surface)->swapchain;
-        GetNewTexture(&g_vulkanstate.surface);
+        uint32_t imageIndex = GetNewTexture_Vk(&g_vulkanstate.surface, imageAvailableSemaphore);
 
-        uint32_t imageIndex;
+        
         
         //VkResult acquireResult = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
         //if(acquireResult != VK_SUCCESS){
@@ -867,7 +867,7 @@ void mainLoop(GLFWwindow *window) {
         };
         fbci.pAttachments = fbimages;
         vkCreateFramebuffer(g_vulkanstate.device, &fbci, nullptr, &imgfb);
-        RenderPassEncoderHandle encoder = BeginRenderPass_Vk(commandBuffer, renderpass, imgfb);
+        WGVKRenderPassEncoder encoder = BeginRenderPass_Vk(commandBuffer, renderpass, imgfb);
         VkViewport viewport{
             0.0f, 
             (float) g_vulkanstate.surface.surfaceConfig.height, 

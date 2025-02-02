@@ -1,6 +1,6 @@
 #include "vulkan_internals.hpp"
 void wgvkReleaseCommandBuffer(CommmandBufferHandle commandBuffer) { vkFreeCommandBuffers(g_vulkanstate.device, commandBuffer->pool, 1, &commandBuffer->buffer); }
-void wgvkReleaseRenderPassEncoder(RenderPassEncoderHandle rpenc) {
+void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc) {
     --rpenc->refCount;
     if (rpenc->refCount == 0) {
         for (auto x : rpenc->referencedBuffers) {
@@ -28,7 +28,7 @@ void wgvkReleaseDescriptorSet(DescriptorSetHandle dshandle) {
 }
 
 // Implementation of RenderpassEncoderDraw
-void wgvkRenderpassEncoderDraw(RenderPassEncoderHandle rpe, uint32_t vertices, uint32_t instances, uint32_t firstvertex, uint32_t firstinstance) {
+void wgvkRenderpassEncoderDraw(WGVKRenderPassEncoder rpe, uint32_t vertices, uint32_t instances, uint32_t firstvertex, uint32_t firstinstance) {
     assert(rpe != nullptr && "RenderPassEncoderHandle is null");
 
     // Record the draw command into the command buffer
@@ -36,7 +36,7 @@ void wgvkRenderpassEncoderDraw(RenderPassEncoderHandle rpe, uint32_t vertices, u
 }
 
 // Implementation of RenderpassEncoderDrawIndexed
-void wgvkRenderpassEncoderDrawIndexed(RenderPassEncoderHandle rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t firstinstance) {
+void wgvkRenderpassEncoderDrawIndexed(WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t firstinstance) {
     assert(rpe != nullptr && "RenderPassEncoderHandle is null");
 
     // Assuming vertexOffset is 0. Modify if you have a different offset.
@@ -45,12 +45,12 @@ void wgvkRenderpassEncoderDrawIndexed(RenderPassEncoderHandle rpe, uint32_t indi
     // Record the indexed draw command into the command buffer
     vkCmdDrawIndexed(rpe->cmdBuffer, indices, instances, firstindex, vertexOffset, firstinstance);
 }
-void wgvkRenderPassEncoderBindPipeline(RenderPassEncoderHandle rpe, DescribedPipeline *pipeline) { 
+void wgvkRenderPassEncoderBindPipeline(WGVKRenderPassEncoder rpe, DescribedPipeline *pipeline) { 
     rpe->lastLayout = (VkPipelineLayout)pipeline->layout.layout; 
     vkCmdBindPipeline(rpe->cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipeline)pipeline->quartet.pipeline_TriangleList);
 }
 // Implementation of RenderPassDescriptorBindDescriptorSet
-void wgvkRenderPassEncoderBindDescriptorSet(RenderPassEncoderHandle rpe, uint32_t group, DescriptorSetHandle dset) {
+void wgvkRenderPassEncoderBindDescriptorSet(WGVKRenderPassEncoder rpe, uint32_t group, DescriptorSetHandle dset) {
     assert(rpe != nullptr && "RenderPassEncoderHandle is null");
     assert(dset != nullptr && "DescriptorSetHandle is null");
     assert(rpe->lastLayout != VK_NULL_HANDLE && "Pipeline layout is not set");
@@ -70,7 +70,7 @@ void wgvkRenderPassEncoderBindDescriptorSet(RenderPassEncoderHandle rpe, uint32_
         rpe->referencedDescriptorSets.insert(dset);
     }
 }
-void wgvkRenderPassEncoderBindVertexBuffer(RenderPassEncoderHandle rpe, uint32_t binding, BufferHandle buffer, VkDeviceSize offset) {
+void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t binding, BufferHandle buffer, VkDeviceSize offset) {
     assert(rpe != nullptr && "RenderPassEncoderHandle is null");
     assert(buffer != nullptr && "BufferHandle is null");
 
@@ -82,7 +82,7 @@ void wgvkRenderPassEncoderBindVertexBuffer(RenderPassEncoderHandle rpe, uint32_t
         rpe->referencedBuffers.insert(buffer);
     }
 }
-void wgvkRenderPassEncoderBindIndexBuffer(RenderPassEncoderHandle rpe, BufferHandle buffer, VkDeviceSize offset, VkIndexType indexType) {
+void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, BufferHandle buffer, VkDeviceSize offset, VkIndexType indexType) {
     assert(rpe != nullptr && "RenderPassEncoderHandle is null");
     assert(buffer != nullptr && "BufferHandle is null");
 

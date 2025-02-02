@@ -176,6 +176,7 @@ typedef enum VertexFormat {
 typedef enum VertexStepMode { VertexStepMode_None = 0x0, VertexStepMode_Vertex = 0x1, VertexStepMode_Instance = 0x2, VertexStepMode_Force32 = 0x7FFFFFFF } VertexStepMode;
 
 typedef uint64_t BufferUsage;
+typedef uint64_t TextureUsage;
 #ifdef __cplusplus
 constexpr BufferUsage BufferUsage_None = 0x0000000000000000;
 constexpr BufferUsage BufferUsage_MapRead = 0x0000000000000001;
@@ -188,6 +189,16 @@ constexpr BufferUsage BufferUsage_Uniform = 0x0000000000000040;
 constexpr BufferUsage BufferUsage_Storage = 0x0000000000000080;
 constexpr BufferUsage BufferUsage_Indirect = 0x0000000000000100;
 constexpr BufferUsage BufferUsage_QueryResolve = 0x0000000000000200;
+
+constexpr TextureUsage TextureUsage_None = 0x0000000000000000;
+constexpr TextureUsage TextureUsage_CopySrc = 0x0000000000000001;
+constexpr TextureUsage TextureUsage_CopyDst = 0x0000000000000002;
+constexpr TextureUsage TextureUsage_TextureBinding = 0x0000000000000004;
+constexpr TextureUsage TextureUsage_StorageBinding = 0x0000000000000008;
+constexpr TextureUsage TextureUsage_RenderAttachment = 0x0000000000000010;
+constexpr TextureUsage TextureUsage_TransientAttachment = 0x0000000000000020;
+constexpr TextureUsage TextureUsage_StorageAttachment = 0x0000000000000040;
+
 #else
 #define BufferUsage_None 0x0000000000000000
 #define BufferUsage_MapRead 0x0000000000000001
@@ -200,19 +211,16 @@ constexpr BufferUsage BufferUsage_QueryResolve = 0x0000000000000200;
 #define BufferUsage_Storage 0x0000000000000080
 #define BufferUsage_Indirect 0x0000000000000100
 #define BufferUsage_QueryResolve 0x0000000000000200
-
+#define TextureUsage_None 0x0000000000000000
+#define TextureUsage_CopySrc 0x0000000000000001
+#define TextureUsage_CopyDst 0x0000000000000002
+#define TextureUsage_TextureBinding 0x0000000000000004
+#define TextureUsage_StorageBinding 0x0000000000000008
+#define TextureUsage_RenderAttachment 0x0000000000000010
+#define TextureUsage_TransientAttachment 0x0000000000000020
+#define TextureUsage_StorageAttachment 0x0000000000000040
 #endif
 
-typedef enum TextureUsage {
-    TextureUsage_None = 0x0000000000000000,
-    TextureUsage_CopySrc = 0x0000000000000001,
-    TextureUsage_CopyDst = 0x0000000000000002,
-    TextureUsage_TextureBinding = 0x0000000000000004,
-    TextureUsage_StorageBinding = 0x0000000000000008,
-    TextureUsage_RenderAttachment = 0x0000000000000010,
-    TextureUsage_TransientAttachment = 0x0000000000000020,
-    TextureUsage_StorageAttachment = 0x0000000000000040,
-} TextureUsage;
 
 // -------------------- Vulkan Translation Functions --------------------
 
