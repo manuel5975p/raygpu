@@ -502,7 +502,28 @@ inline DescribedRenderpass LoadRenderPass(RenderSettings settings){
     //vkCreateSemaphore(g_vulkanstate.device, &si, nullptr, &ret.signalSemaphore);
     return ret;
 }
-
+static inline VkSemaphore CreateSemaphore(VkSemaphoreCreateFlags flags = 0){
+    VkSemaphoreCreateInfo sci zeroinit;
+    VkSemaphore ret zeroinit;
+    sci.flags = flags;
+    sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    VkResult res = vkCreateSemaphore(g_vulkanstate.device, &sci, nullptr, &ret);
+    if(res != VK_SUCCESS){
+        TRACELOG(LOG_ERROR, "Error creating semaphore");
+    }
+    return ret;
+}
+static inline VkFence CreateFence(VkFenceCreateFlags flags = 0){
+    VkFenceCreateInfo sci zeroinit;
+    VkFence ret zeroinit;
+    sci.flags = flags;
+    sci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    VkResult res = vkCreateFence(g_vulkanstate.device, &sci, nullptr, &ret);
+    if(res != VK_SUCCESS){
+        TRACELOG(LOG_ERROR, "Error creating fence");
+    }
+    return ret;
+}
 static inline void BeginRenderpassEx_Vk(DescribedRenderpass *renderPass, RenderTexture rtex){
 
     WGVKRenderPassEncoder ret = callocnewpp(RenderPassEncoderHandleImpl);
@@ -583,12 +604,12 @@ inline void EndRenderPass_Vk(VkCommandBuffer cbuffer, DescribedRenderpass* rp){
     //if(vkCreateFence(g_vulkanstate.device, &finfo, nullptr, &fence) != VK_SUCCESS){
     //    throw std::runtime_error("Could not create fence");
     //}
-    if(vkQueueSubmit(g_vulkanstate.queue.graphicsQueue, 1, &sinfo, renderFinishedFence) != VK_SUCCESS){
+    if(vkQueueSubmit(g_vulkanstate.queue.graphicsQueue, 1, &sinfo, g_vulkanstate.syncState.renderFinishedFence) != VK_SUCCESS){
         throw std::runtime_error("Could not submit commandbuffer");
     }
-    //if(vkWaitForFences(g_vulkanstate.device, 1, &fence, VK_TRUE, ~0) != VK_SUCCESS){
-    //    throw std::runtime_error("Could not wait for fence");
-    //}
+    if(vkWaitForFences(g_vulkanstate.device, 1, &g_vulkanstate.syncState.renderFinishedFence, VK_TRUE, ~0) != VK_SUCCESS){
+        throw std::runtime_error("Could not wait for fence");
+    }
     //vkDestroyFence(g_vulkanstate.device, fence, nullptr);
 }//
 extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelFormat format, TextureUsage usage, uint32_t sampleCount, uint32_t mipmaps, const void* data = nullptr);
