@@ -98,7 +98,7 @@ void UpdatePipeline_Vk(DescribedPipeline* ret, const VertexArray* vao){
 
     // Incorporate face culling from RenderSettings
     if (settings.faceCull) {
-        rasterizer.cullMode = VK_CULL_MODE_BACK_BIT; // You can make this configurable
+        rasterizer.cullMode = VK_CULL_MODE_NONE;//VK_CULL_MODE_BACK_BIT; // You can make this configurable
     } else {
         rasterizer.cullMode = VK_CULL_MODE_NONE;
     }
