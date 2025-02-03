@@ -121,13 +121,10 @@ set(RG_SOURCES
     "src/windows_stuff.c"
 )
 if(SUPPORT_VULKAN_BACKEND)
-    list(APPEND RG_SOURCES 
-    "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/init_vulkan.cpp"
-    "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/vulkan_textures.cpp"
-    "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/vulkan_pipeline.cpp"
-    "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/backend_vulkan.cpp"
-    "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/wgvk.cpp"
-    )
+    list(APPEND RG_SOURCES "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/vulkan_textures.cpp")
+    list(APPEND RG_SOURCES "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/vulkan_pipeline.cpp")
+    list(APPEND RG_SOURCES "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/backend_vulkan.cpp")
+    list(APPEND RG_SOURCES "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/wgvk.cpp")
 endif()
 if(SUPPORT_WGPU_BACKEND)
     list(APPEND RG_SOURCES "src/backend_wgpu.cpp")
@@ -221,6 +218,10 @@ if(EMSCRIPTEN)
     endif()
     target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
 else()
+if(SUPPORT_VULKAN_BACKEND)
+target_link_libraries(raygpu PUBLIC vulkan webgpu_dawn webgpu_cpp dawn_internal_config)
+
+else()
     target_link_libraries(raygpu PUBLIC
         webgpu_dawn
         webgpu_cpp
@@ -238,6 +239,7 @@ else()
         #dawn::dawn_test_utils
         #dawn::dawn_proc
     )
+endif()
     if(SUPPORT_SDL2)
         target_link_libraries(raygpu PUBLIC SDL2::SDL2)
     endif()
@@ -269,10 +271,6 @@ endif()
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/examples")
 add_executable(init_vulkan 
     "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/init_vulkan.cpp"
-    "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/vulkan_textures.cpp"
-    "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/vulkan_pipeline.cpp"
-    "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/backend_vulkan.cpp"
-    "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/wgvk.cpp"
 )
 target_link_libraries(init_vulkan PUBLIC vulkan glfw raygpu glslang)
 target_include_directories(init_vulkan PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include" "${CMAKE_CURRENT_LIST_DIR}/external")

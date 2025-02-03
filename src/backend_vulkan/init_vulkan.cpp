@@ -21,7 +21,7 @@
 #include <internals.hpp>
 #include <wgpustate.inc>
 
-VulkanState g_vulkanstate{};
+
 
 
 constexpr char vsSource[] = R"(#version 450
