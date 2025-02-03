@@ -314,6 +314,7 @@ extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelForma
     ret.mipmaps = mipmaps;
     ret.sampleCount = sampleCount;
     ret.id = image;
+    ret.format = format;
     
     VkImageAspectFlags aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
     if (format == Depth24 || format == Depth32) {

@@ -132,6 +132,8 @@ typedef struct DescribedRenderpass{
 
     NativeCommandEncoderHandle cmdEncoder;
     NativeRenderPassEncoderHandle rpEncoder;
+
+    void* VkRenderPass;
 }DescribedRenderpass;
 
 typedef struct DescribedComputePass{
