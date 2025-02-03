@@ -325,7 +325,7 @@ void ResizeCallback_Vk(GLFWwindow* win, int width, int height){
     ResizeSurface_Vk(&g_vulkanstate.surface, width, height);
     //createRenderPass();
 }
-GLFWwindow *initWindow(uint32_t width, uint32_t height, const char *title) {
+void* InitWindow(uint32_t width, uint32_t height, const char *title) {
     if (!glfwInit()) {
         throw std::runtime_error("Failed to initialize GLFW!");
     }
@@ -972,7 +972,7 @@ int main() {
     GLFWwindow *window = nullptr;
 
     try {
-        window = initWindow(800, 600, "Völken");
+        window = (GLFWwindow*)InitWindow(800, 600, "Völken");
 
         initVulkan(window);
         
