@@ -5,6 +5,8 @@ set(SUPPORT_WGSL_PARSER ON CACHE BOOL "Support wgsl parsing for uniform and attr
 option(SUPPORT_GLSL_PARSER OFF)
 option(SUPPORT_SDL2 ON)
 option(SUPPORT_GLFW OFF)
+option(SUPPORT_VULKAN_BACKEND ON)
+option(SUPPORT_WGPU_BACKEND OFF)
 #if(EMSCRIPTEN)
 #    set(SUPPORT_SDL2 OFF CACHE BOOL "Support the SDL2 windowing backend" FORCE)
 #endif()
@@ -118,6 +120,18 @@ set(RG_SOURCES
     "src/models.cpp"
     "src/windows_stuff.c"
 )
+if(SUPPORT_VULKAN_BACKEND)
+    list(APPEND RG_SOURCES 
+    "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/init_vulkan.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/vulkan_textures.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/vulkan_pipeline.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/backend_vulkan.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/wgvk.cpp"
+    )
+endif()
+if(SUPPORT_WGPU_BACKEND)
+    list(APPEND RG_SOURCES "src/backend_wgpu.cpp")
+endif()
 if(SUPPORT_SDL2)
     list(APPEND RG_SOURCES "src/InitWindow_SDL2.cpp")
     list(APPEND RG_SOURCES "src/sdl2webgpu.c")

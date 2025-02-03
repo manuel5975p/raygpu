@@ -31,7 +31,25 @@ void drawCurrentBatch(){
     //UnloadBuffer(vbo);
     vboptr = vboptr_base;
 }
-
+void PresentSurface(FullSurface* surface){
+    WGVKSurface wgvksurf = (WGVKSurface)surface->surface;
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.waitSemaphoreCount = 1;
+    VkSemaphore waiton[2] = {
+        g_vulkanstate.syncState.presentSemaphores[0],
+        g_vulkanstate.syncState.imageAvailableSemaphores[0]
+    };
+    presentInfo.pWaitSemaphores = waiton;
+    VkSwapchainKHR swapChains[] = {wgvksurf->swapchain};
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swapChains;
+    presentInfo.pImageIndices = &wgvksurf->activeImageIndex;
+    VkResult presentRes = vkQueuePresentKHR(g_vulkanstate.queue.presentQueue, &presentInfo);
+    if(presentRes != VK_SUCCESS){
+        std::cerr << "presentRes is " << presentRes << std::endl;
+    }
+}
 DescribedBuffer* GenBufferEx_Vk(const void *data, size_t size, BufferUsage usage){
     VkBufferUsageFlags vusage = toVulkanBufferUsage(usage);
     DescribedBuffer* ret = callocnew(DescribedBuffer);
@@ -82,7 +100,7 @@ extern "C" void ResizeSurface_Vk(FullSurface* fsurface, uint32_t width, uint32_t
     g_vulkanstate.surface.surfaceConfig.width = width;
     g_vulkanstate.surface.surfaceConfig.height = height;
     wgvkSurfaceConfigure((WGVKSurface)g_vulkanstate.surface.surface, &g_vulkanstate.surface.surfaceConfig);
-    UnloadTexture_Vk(fsurface->renderTarget.depth);
+    UnloadTexture(fsurface->renderTarget.depth);
     fsurface->renderTarget.depth = LoadTexturePro_Vk(width, height, Depth32, TextureUsage_RenderAttachment, 1, 1, nullptr);
 }
 
