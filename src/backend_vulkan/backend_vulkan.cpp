@@ -26,9 +26,9 @@ void drawCurrentBatch(){
     renderBatchVAO->buffers.front().first = vbo;
     BindVertexArray_Vk((WGVKRenderPassEncoder)g_renderstate.renderpass.rpEncoder, renderBatchVAO);
     //wgvkRenderPassEncoderBindVertexBuffer(, uint32_t binding, BufferHandle buffer, VkDeviceSize offset)
+    wgvkRenderpassEncoderDraw((WGVKRenderPassEncoder)g_renderstate.renderpass.rpEncoder, vertexCount, 1, 0, 0);
     
-    
-    UnloadBuffer(vbo);
+    //UnloadBuffer(vbo);
     vboptr = vboptr_base;
 }
 

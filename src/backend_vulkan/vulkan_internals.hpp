@@ -488,11 +488,11 @@ inline DescribedRenderpass LoadRenderPass(RenderSettings settings){
 
     rpci.pSubpasses = &subpass;
     rpci.subpassCount = 1;
-    vkCreateRenderPass(g_vulkanstate.device, &rpci, nullptr, &ret.renderPass);
+    vkCreateRenderPass(g_vulkanstate.device, &rpci, nullptr, (VkRenderPass*)&ret.VkRenderPass);
 
-    VkSemaphoreCreateInfo si{};
-    si.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    vkCreateSemaphore(g_vulkanstate.device, &si, nullptr, &ret.signalSemaphore);
+    //VkSemaphoreCreateInfo si{};
+    //si.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    //vkCreateSemaphore(g_vulkanstate.device, &si, nullptr, &ret.signalSemaphore);
     return ret;
 }
 
@@ -531,7 +531,7 @@ static inline void BeginRenderpassEx_Vk(DescribedRenderpass *renderPass, RenderT
     rpbi.framebuffer = rahmePuffer;
     //renderPass->renderTarget
 }
-static inline WGVKRenderPassEncoder BeginRenderPass_Vk(VkCommandBuffer cbuffer, FullVkRenderPass rp, VkFramebuffer fb){
+static inline WGVKRenderPassEncoder BeginRenderPass_Vk(VkCommandBuffer cbuffer, DescribedRenderpass* rp, VkFramebuffer fb){
 
     WGVKRenderPassEncoder ret = callocnewpp(RenderPassEncoderHandleImpl);
     VkCommandBufferBeginInfo bbi{};
@@ -542,7 +542,7 @@ static inline WGVKRenderPassEncoder BeginRenderPass_Vk(VkCommandBuffer cbuffer, 
     clearvalues[0].color.float32[0] = 1.0f;
     clearvalues[1].depthStencil = VkClearDepthStencilValue{};
     clearvalues[1].depthStencil.depth = 1.0f;
-    rpbi.renderPass = rp.renderPass;
+    rpbi.renderPass = (VkRenderPass)rp->VkRenderPass;
     rpbi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     rpbi.clearValueCount = 2;
     rpbi.pClearValues = clearvalues;
@@ -554,9 +554,10 @@ static inline WGVKRenderPassEncoder BeginRenderPass_Vk(VkCommandBuffer cbuffer, 
     vkCmdBeginRenderPass(cbuffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
     ret->cmdBuffer = cbuffer;
     ret->refCount = 1;
+    rp->rpEncoder = ret;
     return ret;
 }
-inline void EndRenderPass_Vk(VkCommandBuffer cbuffer, FullVkRenderPass rp, VkSemaphore imageAvailableSemaphore, VkFence renderFinishedFence){
+inline void EndRenderPass_Vk(VkCommandBuffer cbuffer, DescribedRenderpass* rp, VkSemaphore waitSemaphore, VkSemaphore signalSemaphore, VkFence renderFinishedFence){
     vkCmdEndRenderPass(cbuffer);
     vkEndCommandBuffer(cbuffer);
     VkPipelineStageFlags stageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
@@ -565,10 +566,10 @@ inline void EndRenderPass_Vk(VkCommandBuffer cbuffer, FullVkRenderPass rp, VkSem
     sinfo.commandBufferCount = 1;
     sinfo.pCommandBuffers = &cbuffer;
     sinfo.waitSemaphoreCount = 1;
-    sinfo.pWaitSemaphores = &imageAvailableSemaphore;
+    sinfo.pWaitSemaphores = &waitSemaphore;
     sinfo.pWaitDstStageMask = &stageMask;
     sinfo.signalSemaphoreCount = 1;
-    sinfo.pSignalSemaphores = &rp.signalSemaphore;
+    sinfo.pSignalSemaphores = &signalSemaphore;
     //VkFence fence{};
     //VkFenceCreateInfo finfo{};
     //finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
