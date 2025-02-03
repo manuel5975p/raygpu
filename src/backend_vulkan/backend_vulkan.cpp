@@ -23,6 +23,8 @@ void drawCurrentBatch(){
     }
     DescribedBuffer* vbo = GenBufferEx_Vk(vboptr_base, vertexCount * sizeof(vertex), BufferUsage_Vertex | BufferUsage_CopyDst);
     
+    renderBatchVAO->buffers.front().first = vbo;
+    BindVertexArray_Vk((WGVKRenderPassEncoder)g_renderstate.renderpass.rpEncoder, renderBatchVAO);
     //wgvkRenderPassEncoderBindVertexBuffer(, uint32_t binding, BufferHandle buffer, VkDeviceSize offset)
     
     

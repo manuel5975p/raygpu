@@ -443,8 +443,8 @@ struct FullVkRenderPass{
     VkRenderPass renderPass;
     VkSemaphore signalSemaphore;
 };
-inline FullVkRenderPass LoadRenderPass(RenderSettings settings){
-    FullVkRenderPass ret{};
+inline DescribedRenderpass LoadRenderPass(RenderSettings settings){
+    DescribedRenderpass ret{};
     VkRenderPassCreateInfo rpci{};
 
     VkAttachmentDescription attachments[2] = {};
