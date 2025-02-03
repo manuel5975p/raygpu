@@ -32,7 +32,9 @@ layout(location = 2) in vec3 inNormal;
 layout(location = 3) in vec4 inColor;
 layout(location = 0) out vec4 fragColor;
 layout(location = 1) out vec2 fragUV;
-
+layout(std140, binding = 0) uniform Perspective_View {
+    mat4 transform; // 4x4 matrix
+};
 vec2 positions[3] = vec2[](
     vec2(0.0, -0.5),
     vec2(0.5, 0.5),
@@ -47,7 +49,7 @@ vec3 colors[3] = vec3[](
 
 void main() {
     gl_PointSize = 1.0f;
-    gl_Position = vec4(inPos, 1.0f);
+    gl_Position = transform * vec4(inPos, 1.0f);
     //gl_Position = vec4(positions[gl_VertexIndex], 0.0f, 1.0f);
     fragColor = inColor;
     fragUV = inUV;
@@ -56,8 +58,10 @@ void main() {
 constexpr char fsSource[] = R"(#version 450
 //#extension GL_EXT_samplerless_texture_functions: enable
 layout(location = 0) in vec4 fragColor;
-layout(binding = 0) uniform texture2D texture0;
-layout(binding = 1) uniform sampler sampler0;
+
+
+layout(binding = 1) uniform texture2D texture0;
+layout(binding = 2) uniform sampler sampler0;
 layout(location = 0) out vec4 outColor;
 layout(location = 1) in vec2 fragUV;
 
@@ -716,11 +720,13 @@ void initVulkan(GLFWwindow *window) {
     g_vulkanstate.surface = LoadSurface(window, config);
     createRenderPass();
     
-    ResourceTypeDescriptor types[2] = {};
-    types[0].type = texture2d;
+    ResourceTypeDescriptor types[3] = {};
+    types[0].type = uniform_buffer;
     types[0].location = 0;
-    types[1].type = texture_sampler;
+    types[1].type = texture2d;
     types[1].location = 1;
+    types[2].type = texture_sampler;
+    types[2].location = 2;
 
     renderBatchVBO = GenBufferEx_Vk(nullptr, 10000 * sizeof(vertex), BufferUsage_Vertex | BufferUsage_CopyDst);
     renderBatchVAO = LoadVertexArray();
@@ -729,7 +735,7 @@ void initVulkan(GLFWwindow *window) {
     VertexAttribPointer(renderBatchVAO, renderBatchVBO, 2, VertexFormat_Float32x3, 5 * sizeof(float), VertexStepMode_Vertex);
     VertexAttribPointer(renderBatchVAO, renderBatchVBO, 3, VertexFormat_Float32x4,  8 * sizeof(float), VertexStepMode_Vertex);
     
-    g_vulkanstate.defaultPipeline = LoadPipelineForVAO_Vk(vsSource, fsSource, renderBatchVAO, types, 2, GetDefaultSettings());
+    g_vulkanstate.defaultPipeline = LoadPipelineForVAO_Vk(vsSource, fsSource, renderBatchVAO, types, sizeof(types) / sizeof(ResourceTypeDescriptor), GetDefaultSettings());
     //createSurface(window);
     //int width, height;
     //glfwGetWindowSize(window, &width, &height);
@@ -767,40 +773,24 @@ void mainLoop(GLFWwindow *window) {
     //vkCmdSetVertexInputEXT(VkCommandBuffer commandBuffer, uint32_t vertexBindingDescriptionCount, const VkVertexInputBindingDescription2EXT *pVertexBindingDescriptions, uint32_t vertexAttributeDescriptionCount, const VkVertexInputAttributeDescription2EXT *pVertexAttributeDescriptions)
     //BindVertexArray(VertexArray *va)
 
-    Image img = GenImageChecker(BLACK, WHITE, 100, 100, 10);
+    Image img = GenImageChecker(BLACK, WHITE, 100, 100, 20);
     bwite = LoadTextureFromImage_Vk(img);
     img = GenImageChecker(WHITE, WHITE, 100, 100, 10);
     rgreen = LoadTextureFromImage_Vk(img);
     
-    DescribedSampler sampler = LoadSampler_Vk(repeat, filter_linear, filter_linear, 10.0f);
+    DescribedSampler sampler = LoadSampler_Vk(repeat, filter_nearest, filter_nearest, 10.0f);
     //set = loadBindGroup(layout, goof);
+    Matrix iden = MatrixScale(0.5,0.5,0.5);
+    DescribedBuffer* idbuffer = GenBufferEx_Vk(&iden, sizeof(iden), BufferUsage_CopyDst | BufferUsage_Uniform);
 
     
-
-    ResourceDescriptor textureandsampler[2] = {};
-
-    textureandsampler[0].textureView = rgreen.view;
-    textureandsampler[0].binding = 0;
-    textureandsampler[1].sampler = sampler.sampler;
-    textureandsampler[1].binding = 1;
-    
-    SetBindgroupTexture_Vk(&g_vulkanstate.defaultPipeline->bindGroup, 0, bwite);
-    SetBindgroupSampler_Vk(&g_vulkanstate.defaultPipeline->bindGroup, 1, sampler);
+    SetBindgroupUniformBuffer(&g_vulkanstate.defaultPipeline->bindGroup, 0, idbuffer);
+    SetBindgroupTexture(&g_vulkanstate.defaultPipeline->bindGroup, 1, bwite);
+    SetBindgroupSampler(&g_vulkanstate.defaultPipeline->bindGroup, 2, sampler);
     //set = LoadBindGroup_Vk(&layout, textureandsampler, 2);
     
     VkSemaphoreCreateInfo sci{};
     sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    VkSemaphore imageAvailableSemaphore;
-    VkSemaphore renderFinishedSemaphore;
-    VkFence inFlightFence;
-    VkResult scr = vkCreateSemaphore(g_vulkanstate.device, &sci, nullptr, &imageAvailableSemaphore);
-    if (scr != VK_SUCCESS) {
-        std::exit(1);
-    }
-    scr = vkCreateSemaphore(g_vulkanstate.device, &sci, nullptr, &renderFinishedSemaphore);
-    if (scr != VK_SUCCESS) {
-        std::exit(1);
-    }
     auto &device = g_vulkanstate.device;
 
     VkCommandPoolCreateInfo poolInfo{};
@@ -829,24 +819,19 @@ void mainLoop(GLFWwindow *window) {
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphore) != VK_SUCCESS || vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphore) != VK_SUCCESS ||
-        vkCreateFence(device, &fenceInfo, nullptr, &inFlightFence) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create synchronization objects for a frame!");
-    }
     
     uint64_t framecount = 0;
     uint64_t stamp = nanoTime();
     uint64_t noell = 0;
     g_renderstate.renderpass = LoadRenderPass(GetDefaultSettings());
     Texture depthTex = LoadTexturePro_Vk(g_vulkanstate.surface.surfaceConfig.width, g_vulkanstate.surface.surfaceConfig.height, Depth32, TextureUsage_RenderAttachment, 1, 1);
-    vkResetFences(device, 1, &inFlightFence);
 
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         WGVKSurface wgs = ((WGVKSurface)g_vulkanstate.surface.surface);
         auto &swapChain = ((WGVKSurface)g_vulkanstate.surface.surface)->swapchain;
-        uint32_t imageIndex = GetNewTexture_Vk(&g_vulkanstate.surface, imageAvailableSemaphore);
+        uint32_t imageIndex = GetNewTexture_Vk(&g_vulkanstate.surface);
 
         
         
@@ -870,8 +855,8 @@ void mainLoop(GLFWwindow *window) {
         //    depthTex = LoadTexturePro_Vk(g_vulkanstate.surface.width, g_vulkanstate.surface.height, Depth32, TextureUsage_RenderAttachment, 1, 1);
         //}
         VkImageView fbimages[2] = {
-            (VkImageView)g_vulkanstate.surface.frameBuffer.texture.view,
-            (VkImageView)g_vulkanstate.surface.frameBuffer.depth.view
+            (VkImageView)g_vulkanstate.surface.renderTarget.texture.view,
+            (VkImageView)g_vulkanstate.surface.renderTarget.depth.view
         };
         fbci.pAttachments = fbimages;
         vkCreateFramebuffer(g_vulkanstate.device, &fbci, nullptr, &imgfb);
@@ -912,9 +897,15 @@ void mainLoop(GLFWwindow *window) {
         rlVertex2f(1, 0);
         rlTexCoord2f(0, 1);
         rlVertex2f(0, 1);
+        rlTexCoord2f(0, 0);
+        rlVertex2f(-1, 0);
+        rlTexCoord2f(1, 0);
+        rlVertex2f(0, 0);
+        rlTexCoord2f(0, 1);
+        rlVertex2f(-1, 1);
         drawCurrentBatch();
         //vkCmdEndRenderPass(commandBuffer);
-        EndRenderPass_Vk(commandBuffer, &g_renderstate.renderpass, imageAvailableSemaphore, renderFinishedSemaphore, inFlightFence);
+        EndRenderPass_Vk(commandBuffer, &g_renderstate.renderpass);
         //std::cout << ((BufferHandle)vbo->buffer)->refCount << "\n";
         vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
         vkResetFences(device, 1, &inFlightFence);

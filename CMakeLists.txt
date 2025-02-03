@@ -119,7 +119,7 @@ set(RG_SOURCES
     "src/windows_stuff.c"
 )
 if(SUPPORT_SDL2)
-    list(APPEND RG_SOURCES "src/InitWindow_SDL.cpp")
+    list(APPEND RG_SOURCES "src/InitWindow_SDL2.cpp")
     list(APPEND RG_SOURCES "src/sdl2webgpu.c")
 endif()
 if(SUPPORT_SDL3)

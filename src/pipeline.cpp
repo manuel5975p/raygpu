@@ -394,7 +394,7 @@ extern "C" void UpdatePipeline(DescribedPipeline* pl){
         // Each time a fragment is blended into the target, we update the value of the Z-buffer
         // Store the format in a variable as later parts of the code depend on it
         // Deactivate the stencil alltogether
-        WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth24Plus;
+        WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth32Float;
 
         depthStencilState.depthCompare = (WGPUCompareFunction)settings.depthCompare;
         depthStencilState.depthWriteEnabled = WGPUOptionalBool_True;
@@ -533,7 +533,7 @@ RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, const std::ve
         // Each time a fragment is blended into the target, we update the value of the Z-buffer
         // Store the format in a variable as later parts of the code depend on it
         // Deactivate the stencil alltogether
-        WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth24Plus;
+        WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth32Float;
 
         depthStencilState.depthCompare = (WGPUCompareFunction)settings.depthCompare;
         depthStencilState.depthWriteEnabled = WGPUOptionalBool_True;
@@ -791,7 +791,7 @@ extern "C" DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bgla
     //ret.bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &ret.desc);
     return ret;
 }
-extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry){
+__attribute__((weak)) extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry){
     if(index >= bg->entryCount){
         TRACELOG(LOG_WARNING, "Trying to set entry %d on a BindGroup with only %d entries", (int)index, (int)bg->entryCount);
         //return;

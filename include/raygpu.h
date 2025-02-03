@@ -656,7 +656,7 @@ typedef struct AttributeAndResidence{
 typedef struct FullSurface{
     void* surface;
     SurfaceConfiguration surfaceConfig;
-    RenderTexture frameBuffer;
+    RenderTexture renderTarget;
 }FullSurface;
 
 typedef struct SubWindow{

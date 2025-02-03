@@ -591,7 +591,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         g_renderstate.mainWindowRenderTarget.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_renderstate.frameBufferFormat, TextureUsage_RenderAttachment | TextureUsage_TextureBinding | TextureUsage_CopyDst | TextureUsage_CopySrc, 4, 1);
     auto depthTexture = LoadTexturePro(width,
                                   height, 
-                                  Depth24, 
+                                  Depth32, 
                                   WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
                                   (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
                                   1
@@ -1207,12 +1207,12 @@ extern "C" size_t GetPixelSizeInBytes(PixelFormat format) {
 extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t newWidth, uint32_t newHeight){
     fsurface->surfaceConfig.width = newWidth;
     fsurface->surfaceConfig.height = newHeight;
-    fsurface->frameBuffer.colorMultisample.width = newWidth;
-    fsurface->frameBuffer.colorMultisample.height = newHeight;
-    fsurface->frameBuffer.texture.width = newWidth;
-    fsurface->frameBuffer.texture.height = newHeight;
-    fsurface->frameBuffer.depth.width = newWidth;
-    fsurface->frameBuffer.depth.height = newHeight;
+    fsurface->renderTarget.colorMultisample.width = newWidth;
+    fsurface->renderTarget.colorMultisample.height = newHeight;
+    fsurface->renderTarget.texture.width = newWidth;
+    fsurface->renderTarget.texture.height = newHeight;
+    fsurface->renderTarget.depth.width = newWidth;
+    fsurface->renderTarget.depth.height = newHeight;
     WGPUTextureFormat format = (WGPUTextureFormat)fsurface->surfaceConfig.format;
     WGPUSurfaceConfiguration wsconfig{};
     wsconfig.device = (WGPUDevice)fsurface->surfaceConfig.device;
@@ -1229,14 +1229,14 @@ extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t newWidth, uint32_t
     fsurface->surfaceConfig.height = newHeight;
     //UnloadTexture(fsurface->frameBuffer.texture);
     //fsurface->frameBuffer.texture = Texture zeroinit;
-    UnloadTexture(fsurface->frameBuffer.colorMultisample);
-    UnloadTexture(fsurface->frameBuffer.depth);
+    UnloadTexture(fsurface->renderTarget.colorMultisample);
+    UnloadTexture(fsurface->renderTarget.depth);
     if(g_renderstate.windowFlags & FLAG_MSAA_4X_HINT){
-        fsurface->frameBuffer.colorMultisample = LoadTexturePro(newWidth, newHeight, fsurface->surfaceConfig.format, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4, 1);
+        fsurface->renderTarget.colorMultisample = LoadTexturePro(newWidth, newHeight, fsurface->surfaceConfig.format, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4, 1);
     }
-    fsurface->frameBuffer.depth = LoadTexturePro(newWidth,
+    fsurface->renderTarget.depth = LoadTexturePro(newWidth,
                            newHeight, 
-                           Depth24, 
+                           Depth32, 
                            WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
                            (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
                            1
@@ -1249,9 +1249,9 @@ extern "C" void GetNewTexture(FullSurface* fsurface){
     else{
         WGPUSurfaceTexture surfaceTexture;
         wgpuSurfaceGetCurrentTexture((WGPUSurface)fsurface->surface, &surfaceTexture);
-        fsurface->frameBuffer.texture.id = surfaceTexture.texture;
-        fsurface->frameBuffer.texture.width = wgpuTextureGetWidth(surfaceTexture.texture);
-        fsurface->frameBuffer.texture.height = wgpuTextureGetHeight(surfaceTexture.texture);
-        fsurface->frameBuffer.texture.view = wgpuTextureCreateView(surfaceTexture.texture, nullptr);
+        fsurface->renderTarget.texture.id = surfaceTexture.texture;
+        fsurface->renderTarget.texture.width = wgpuTextureGetWidth(surfaceTexture.texture);
+        fsurface->renderTarget.texture.height = wgpuTextureGetHeight(surfaceTexture.texture);
+        fsurface->renderTarget.texture.view = wgpuTextureCreateView(surfaceTexture.texture, nullptr);
     }
 }

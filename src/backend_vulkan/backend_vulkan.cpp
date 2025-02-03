@@ -82,22 +82,23 @@ extern "C" void ResizeSurface_Vk(FullSurface* fsurface, uint32_t width, uint32_t
     g_vulkanstate.surface.surfaceConfig.width = width;
     g_vulkanstate.surface.surfaceConfig.height = height;
     wgvkSurfaceConfigure((WGVKSurface)g_vulkanstate.surface.surface, &g_vulkanstate.surface.surfaceConfig);
-    UnloadTexture_Vk(fsurface->frameBuffer.depth);
-    fsurface->frameBuffer.depth = LoadTexturePro_Vk(width, height, Depth32, TextureUsage_RenderAttachment, 1, 1, nullptr);
+    UnloadTexture_Vk(fsurface->renderTarget.depth);
+    fsurface->renderTarget.depth = LoadTexturePro_Vk(width, height, Depth32, TextureUsage_RenderAttachment, 1, 1, nullptr);
 }
 
-extern "C" uint32_t GetNewTexture_Vk(FullSurface *fsurface, VkSemaphore imageAvailableSemaphore){
+extern "C" void GetNewTexture(FullSurface *fsurface){
 
     uint32_t imageIndex = ~0;
 
     WGVKSurface wgvksurf = ((WGVKSurface)fsurface->surface);
-    VkResult acquireResult = vkAcquireNextImageKHR(g_vulkanstate.device, wgvksurf->swapchain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+    //TODO: Multiple frames in flight, this amounts to replacing 0 with frameCount % 2 or something similar
+    VkResult acquireResult = vkAcquireNextImageKHR(g_vulkanstate.device, wgvksurf->swapchain, UINT64_MAX, g_vulkanstate.syncState.imageAvailableSemaphores[0], VK_NULL_HANDLE, &imageIndex);
     if(acquireResult != VK_SUCCESS){
         std::cerr << "acquireResult is " << acquireResult << std::endl;
     }
     else{
-        fsurface->frameBuffer.texture.id = wgvksurf->images[imageIndex];
-        fsurface->frameBuffer.texture.view = wgvksurf->imageViews[imageIndex];
+        fsurface->renderTarget.texture.id = wgvksurf->images[imageIndex];
+        fsurface->renderTarget.texture.view = wgvksurf->imageViews[imageIndex];
     }
-    return imageIndex;
+    wgvksurf->activeImageIndex = imageIndex;
 }
