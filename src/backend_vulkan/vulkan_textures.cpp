@@ -333,7 +333,7 @@ extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelForma
     return ret;
 }
 
-void UnloadTexture_Vk(Texture tex){
+void UnloadTexture(Texture tex){
     vkDestroyImageView(g_vulkanstate.device, (VkImageView)tex.view, nullptr);
 
     ImageHandle handle = (ImageHandle)tex.id;

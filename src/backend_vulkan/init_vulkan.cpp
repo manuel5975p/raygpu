@@ -714,6 +714,9 @@ void initVulkan(GLFWwindow *window) {
     g_vulkanstate.device = device_and_queues.first;
     g_vulkanstate.queue = device_and_queues.second;
 
+    g_vulkanstate.syncState.imageAvailableSemaphores[0] = CreateSemaphore(0);
+    g_vulkanstate.syncState.presentSemaphores[0] = CreateSemaphore(0);
+    g_vulkanstate.syncState.renderFinishedFence = CreateFence(0);
 
     SurfaceConfiguration config{};
     config.presentMode = PresentMode_Fifo;
@@ -831,7 +834,7 @@ void mainLoop(GLFWwindow *window) {
         glfwPollEvents();
         WGVKSurface wgs = ((WGVKSurface)g_vulkanstate.surface.surface);
         auto &swapChain = ((WGVKSurface)g_vulkanstate.surface.surface)->swapchain;
-        uint32_t imageIndex = GetNewTexture_Vk(&g_vulkanstate.surface);
+        GetNewTexture(&g_vulkanstate.surface);
 
         
         
@@ -907,30 +910,12 @@ void mainLoop(GLFWwindow *window) {
         //vkCmdEndRenderPass(commandBuffer);
         EndRenderPass_Vk(commandBuffer, &g_renderstate.renderpass);
         //std::cout << ((BufferHandle)vbo->buffer)->refCount << "\n";
-        vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
-        vkResetFences(device, 1, &inFlightFence);
+        vkWaitForFences(device, 1, &g_vulkanstate.syncState.renderFinishedFence, VK_TRUE, UINT64_MAX);
+        vkResetFences(device, 1, &g_vulkanstate.syncState.renderFinishedFence);
         wgvkReleaseRenderPassEncoder(encoder);
         //std::cout << ((BufferHandle)vbo->buffer)->refCount << "\n";
-        VkPresentInfoKHR presentInfo{};
-        presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-
-        presentInfo.waitSemaphoreCount = 1;
-        VkSemaphore waiton[2] = {
-            renderFinishedSemaphore,
-            imageAvailableSemaphore
-        };
-        presentInfo.pWaitSemaphores = waiton;
-
-        VkSwapchainKHR swapChains[] = {swapChain};
-        presentInfo.swapchainCount = 1;
-        presentInfo.pSwapchains = swapChains;
-
-        presentInfo.pImageIndices = &imageIndex;
-
-        VkResult presentRes = vkQueuePresentKHR(g_vulkanstate.queue.presentQueue, &presentInfo);
-        if(presentRes != VK_SUCCESS){
-            std::cerr << "presentRes is " << presentRes << std::endl;
-        }
+        
+        PresentSurface(&g_vulkanstate.surface);
         vkDestroyFramebuffer(g_vulkanstate.device, imgfb, nullptr);
         vkDeviceWaitIdle(g_vulkanstate.device);
         ++framecount;

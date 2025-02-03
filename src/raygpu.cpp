@@ -2038,9 +2038,7 @@ extern "C" void BeginWindowMode(SubWindow sw){
     //g_renderstate.currentDefaultRenderTarget = sw.frameBuffer;
     //BeginRenderpass();
 }
-void PresentSurface(FullSurface* fsurface){
-    wgpuSurfacePresent((WGPUSurface)fsurface->surface);
-}
+
 extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t height){
     FullSurface ret{};
     ret.surface = (WGPUSurface)nsurface;

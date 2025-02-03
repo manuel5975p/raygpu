@@ -1242,16 +1242,3 @@ extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t newWidth, uint32_t
                            1
     );
 }
-extern "C" void GetNewTexture(FullSurface* fsurface){
-    if(fsurface->surface == 0){
-        return;
-    }
-    else{
-        WGPUSurfaceTexture surfaceTexture;
-        wgpuSurfaceGetCurrentTexture((WGPUSurface)fsurface->surface, &surfaceTexture);
-        fsurface->renderTarget.texture.id = surfaceTexture.texture;
-        fsurface->renderTarget.texture.width = wgpuTextureGetWidth(surfaceTexture.texture);
-        fsurface->renderTarget.texture.height = wgpuTextureGetHeight(surfaceTexture.texture);
-        fsurface->renderTarget.texture.view = wgpuTextureCreateView(surfaceTexture.texture, nullptr);
-    }
-}

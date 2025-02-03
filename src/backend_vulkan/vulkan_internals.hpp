@@ -614,7 +614,7 @@ inline void EndRenderPass_Vk(VkCommandBuffer cbuffer, DescribedRenderpass* rp){
 }//
 extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelFormat format, TextureUsage usage, uint32_t sampleCount, uint32_t mipmaps, const void* data = nullptr);
 extern "C" Texture LoadTextureFromImage_Vk(Image img);
-void UnloadTexture_Vk(Texture tex);
+extern "C" void UnloadTexture(Texture tex);
 extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vscode, size_t vscodeSizeInBytes, const uint32_t* fscode, size_t fscodeSizeInBytes);
 extern "C" DescribedBindGroupLayout LoadBindGroupLayout_Vk(const ResourceTypeDescriptor* descs, uint32_t uniformCount);
 extern "C" DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSource, const VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
@@ -637,7 +637,7 @@ extern "C" void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, 
 extern "C" void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t binding, BufferHandle buffer, VkDeviceSize offset);
 
 extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry);
-extern "C" uint32_t GetNewTexture_Vk(FullSurface *fsurface);
+extern "C" void GetNewTexture(FullSurface *fsurface);
 extern "C" void ResizeSurface_Vk(FullSurface* fsurface, uint32_t width, uint32_t height);
 
 
