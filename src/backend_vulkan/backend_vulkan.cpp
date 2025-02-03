@@ -2,7 +2,9 @@
 #include <wgpustate.inc>
 #include "vulkan_internals.hpp"
 
-void BufferData_Vk(DescribedBuffer* buffer, void* data, size_t size){
+VulkanState g_vulkanstate{};
+
+void BufferData(DescribedBuffer* buffer, void* data, size_t size){
     if(buffer->size >= size){
         BufferHandle handle = (BufferHandle)buffer->buffer;
         void* udata = 0;
