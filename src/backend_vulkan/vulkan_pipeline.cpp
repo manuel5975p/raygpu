@@ -265,7 +265,7 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
     return ret;
 }
 
-extern "C" void UpdateBindGroupEntry_Vk(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry){
+extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry){
     if(index >= bg->entryCount){
         TRACELOG(LOG_WARNING, "Trying to set entry %d on a BindGroup with only %d entries", (int)index, (int)bg->entryCount);
         //return;

@@ -771,18 +771,18 @@ void BeginDrawing(){
         
         //if(g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.id)
         //    UnloadTexture(g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture);
-        if(g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer.texture.id)
-            UnloadTexture(g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer.texture);
+        if(g_renderstate.createdSubwindows[g_renderstate.window].surface.renderTarget.texture.id)
+            UnloadTexture(g_renderstate.createdSubwindows[g_renderstate.window].surface.renderTarget.texture);
         
 
         //g_renderstate.drawmutex.lock();
-        g_renderstate.renderExtentX = g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer.texture.width;
-        g_renderstate.width = g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer.texture.width;
-        g_renderstate.renderExtentY = g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer.texture.height;
-        g_renderstate.height = g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer.texture.height;
+        g_renderstate.renderExtentX = g_renderstate.createdSubwindows[g_renderstate.window].surface.renderTarget.texture.width;
+        g_renderstate.width = g_renderstate.createdSubwindows[g_renderstate.window].surface.renderTarget.texture.width;
+        g_renderstate.renderExtentY = g_renderstate.createdSubwindows[g_renderstate.window].surface.renderTarget.texture.height;
+        g_renderstate.height = g_renderstate.createdSubwindows[g_renderstate.window].surface.renderTarget.texture.height;
         //std::cout << g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer.depth.width << std::endl;
         GetNewTexture(&g_renderstate.createdSubwindows[g_renderstate.window].surface);
-        g_renderstate.mainWindowRenderTarget = g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer;
+        g_renderstate.mainWindowRenderTarget = g_renderstate.createdSubwindows[g_renderstate.window].surface.renderTarget;
         g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition] = g_renderstate.mainWindowRenderTarget;
         //__builtin_dump_struct(&(g_renderstate.mainWindowRenderTarget.depth), printf);
     }
@@ -1327,7 +1327,7 @@ extern "C" Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t 
     tDesc.viewFormats = &tDesc.format;
     
     WGPUTextureViewDescriptor textureViewDesc zeroinit;
-    textureViewDesc.aspect = ((format == Depth24) ? WGPUTextureAspect_DepthOnly : WGPUTextureAspect_All);
+    textureViewDesc.aspect = ((format == Depth24 || format == Depth32) ? WGPUTextureAspect_DepthOnly : WGPUTextureAspect_All);
     textureViewDesc.baseArrayLayer = 0;
     textureViewDesc.arrayLayerCount = 1;
     textureViewDesc.baseMipLevel = 0;
@@ -1392,7 +1392,7 @@ extern "C" Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat f
         textureViewDesc.label.length = len;
     }
     textureViewDesc.usage = usage;
-    textureViewDesc.aspect = ((format == Depth24) ? WGPUTextureAspect_DepthOnly : WGPUTextureAspect_All);
+    textureViewDesc.aspect = ((format == Depth24 || format == Depth32) ? WGPUTextureAspect_DepthOnly : WGPUTextureAspect_All);
     textureViewDesc.baseArrayLayer = 0;
     textureViewDesc.arrayLayerCount = 1;
     textureViewDesc.baseMipLevel = 0;
@@ -1430,13 +1430,13 @@ Texture LoadBlankTexture(uint32_t width, uint32_t height){
 }
 
 Texture LoadDepthTexture(uint32_t width, uint32_t height){
-    return LoadTextureEx(width, height, Depth24, true);
+    return LoadTextureEx(width, height, Depth32, true);
 }
 RenderTexture LoadRenderTextureEx(uint32_t width, uint32_t height, PixelFormat colorFormat, uint32_t sampleCount){
     RenderTexture ret{
         .texture = LoadTextureEx(width, height, colorFormat, true),
         .colorMultisample = Texture{}, 
-        .depth = LoadTexturePro(width, height, Depth24, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, sampleCount, 1)
+        .depth = LoadTexturePro(width, height, Depth32, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, sampleCount, 1)
     };
     if(sampleCount > 1){
         ret.colorMultisample = LoadTexturePro(width, height, colorFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, sampleCount, 1);
@@ -1447,10 +1447,10 @@ RenderTexture LoadRenderTexture(uint32_t width, uint32_t height){
     RenderTexture ret{
         .texture = LoadTextureEx(width, height, (PixelFormat)g_renderstate.frameBufferFormat, true),
         .colorMultisample = Texture{}, 
-        .depth = LoadTexturePro(width, height, Depth24, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1, 1)
+        .depth = LoadTexturePro(width, height, Depth32, TextureUsage_RenderAttachment | TextureUsage_CopySrc, (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1, 1)
     };
     if(g_renderstate.windowFlags & FLAG_MSAA_4X_HINT){
-        ret.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_renderstate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4, 1);
+        ret.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_renderstate.frameBufferFormat, TextureUsage_RenderAttachment | TextureUsage_CopySrc, 4, 1);
     }
     return ret;
 }
@@ -1885,23 +1885,7 @@ extern "C" Image LoadImage(const char* filename){
     }
     return Image{};
 }
-void UnloadTexture(Texture tex){
-    for(uint32_t i = 0;i < tex.mipmaps;i++){
-        if(tex.mipViews[i]){
-            wgpuTextureViewRelease((WGPUTextureView)tex.mipViews[i]);
-            tex.mipViews[i] = nullptr;
-        }
-    }
-    if(tex.view){
-        wgpuTextureViewRelease((WGPUTextureView)tex.view);
-        tex.view = nullptr;
-    }
-    if(tex.id){
-        wgpuTextureRelease((WGPUTexture)tex.id);
-        tex.id = nullptr;
-    }
-    
-}
+
 void UnloadImage(Image img){
     free(img.data);
     img.data = nullptr;
@@ -1990,60 +1974,23 @@ void SaveImage(Image _img, const char* filepath){
 void UseTexture(Texture tex){
     uint32_t texture0loc = GetUniformLocation(GetActivePipeline(), RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE0);
     if(texture0loc == LOCATION_NOT_FOUND){
-        return;
+        texture0loc = 1;
+        //return;
     }
     if(g_renderstate.activePipeline->bindGroup.entries[texture0loc].textureView == tex.view)return;
     drawCurrentBatch();
     SetTexture(texture0loc, tex);
-    //WGPUBindGroupEntry entry{};
-    //entry.binding = 1;
-    //entry.textureView = tex.view;
-    //UpdateBindGroupEntry(&g_renderstate.currentPipeline->bindGroup, 1, entry);
-    //if(g_renderstate.activeTexture.tex != tex.tex){
-    //    drawCurrentBatch();
-    //    g_renderstate.activeTexture = tex;
-    //    setStateTexture(g_renderstate.rstate, 1, tex);
-    //}
     
 }
 void UseNoTexture(){
     uint32_t textureLocation = GetUniformLocation(GetActivePipeline(), RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE0);
-    if(textureLocation != LOCATION_NOT_FOUND){
-        if(g_renderstate.activePipeline->bindGroup.entries[textureLocation].textureView == g_renderstate.whitePixel.view)return;
-        drawCurrentBatch();
-        SetTexture(textureLocation, g_renderstate.whitePixel);
-        //uint32_t samplerLocation = GetUniformLocation(GetActivePipeline(), "texSampler");
-        //if(samplerLocation != LOCATION_NOT_FOUND)
-        //    SetSampler(samplerLocation, g_renderstate.defaultSampler);
+    if(textureLocation == LOCATION_NOT_FOUND){
+        textureLocation = 1;
     }
-    //WGPUBindGroupEntry entry{};
-    //entry.binding = 1;
-    //entry.textureView = g_renderstate.whitePixel.view;
-    //UpdateBindGroupEntry(&g_renderstate.currentPipeline->bindGroup, 1, entry);
-    //if(g_renderstate.activeTexture.tex != g_renderstate.whitePixel.tex){
-    //    drawCurrentBatch();
-    //    setStateTexture(g_renderstate.rstate, 1, g_renderstate.whitePixel);
-    //}
+    if(g_renderstate.activePipeline->bindGroup.entries[textureLocation].textureView == g_renderstate.whitePixel.view)return;
+    drawCurrentBatch();
+    SetTexture(textureLocation, g_renderstate.whitePixel);
 }
-/*template<typename callable>
-void executeRenderpass(callable&& c){
-    WGPUCommandEncoderDescriptor commandEncoderDesc = {};
-    commandEncoderDesc.label = "Command Encoder";
-    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(g_renderstate.device, &commandEncoderDesc);
-    WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
-    wgpuRenderPassEncoderSetPipeline(renderPass, pipeline);
-    wgpuRenderPassEncoderSetBindGroup(renderPass, 0, bg, 0, 0);
-    wgpuRenderPassEncoderSetVertexBuffer(renderPass, 0, this->vbo, 0, wgpuBufferGetSize(vbo));
-    c(renderPass);
-    wgpuRenderPassEncoderEnd(renderPass);
-    WGPUCommandBufferDescriptor cmdBufferDescriptor{};
-    cmdBufferDescriptor.label = "Command buffer";
-    WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &cmdBufferDescriptor);
-    wgpuQueueSubmit(g_renderstate.queue, 1, &command);
-    wgpuCommandEncoderRelease(encoder);
-    wgpuCommandBufferRelease(command);
-}*/
-
 
 void BeginTextureMode(RenderTexture rtex){
     ++g_renderstate.renderTargetStackPosition;
@@ -2062,11 +2009,7 @@ void BeginTextureMode(RenderTexture rtex){
 void EndTextureMode(){
     drawCurrentBatch();
     EndRenderpass();
-    
-    //setTargetTextures(g_renderstate.rstate, 
-    //                g_renderstate.currentDefaultRenderTarget.texture.view, 
-    //                g_renderstate.currentDefaultRenderTarget.colorMultisample.view,
-    //                g_renderstate.currentDefaultRenderTarget.depth.view);
+
     --g_renderstate.renderTargetStackPosition;
     g_renderstate.renderExtentX = g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.width;
     g_renderstate.renderExtentY = g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.height;
@@ -2074,8 +2017,9 @@ void EndTextureMode(){
     //SetUniformBuffer(0, g_renderstate.defaultScreenMatrix);
     PopMatrix();
     SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
-    if(g_renderstate.renderTargetStackPosition >= 0)
+    if(g_renderstate.renderTargetStackPosition >= 0){
         BeginRenderpass();
+    }
 }
 extern "C" void BeginWindowMode(SubWindow sw){
     auto& swref = g_renderstate.createdSubwindows.at(sw.handle);
@@ -2088,7 +2032,7 @@ extern "C" void BeginWindowMode(SubWindow sw){
     //wgpuTextureRelease(g_renderstate.activeSubWindow.frameBuffer.color.id);
     //sw.frameBuffer.texture.view = nextTexture;
     //sw.frameBuffer.texture.id = surfaceTexture.texture;
-    BeginTextureMode(swref.surface.frameBuffer);
+    BeginTextureMode(swref.surface.renderTarget);
     //++g_renderstate.renderTargetStackPosition;
     
     //g_renderstate.currentDefaultRenderTarget = sw.frameBuffer;
@@ -2131,7 +2075,7 @@ extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t he
     ret.surfaceConfig.height = config.width;
     ret.surfaceConfig.format = (PixelFormat)config.format;
     
-    ret.frameBuffer = LoadRenderTexture(width, height);
+    ret.renderTarget = LoadRenderTexture(width, height);
     wgpuSurfaceConfigure((WGPUSurface)ret.surface, &config);
     return ret;
 }

@@ -208,7 +208,7 @@ void ResizeCallback(SDL_Window* window, int width, int height){
     //TRACELOG(LOG_WARNING, "configured: %llu with extents %u x %u", g_renderstate.createdSubwindows[window].surface, width, height);
     //g_renderstate.surface = wgpu::Surface(g_renderstate.createdSubwindows[window].surface);
     if((void*)window == (void*)g_renderstate.window){
-        g_renderstate.mainWindowRenderTarget = g_renderstate.createdSubwindows[window].surface.frameBuffer;
+        g_renderstate.mainWindowRenderTarget = g_renderstate.createdSubwindows[window].surface.renderTarget;
     }
     Matrix newcamera = ScreenMatrix(width, height);
     //BufferData(g_renderstate.defaultScreenMatrix, &newcamera, sizeof(Matrix));

@@ -108,6 +108,8 @@ struct WGVKSurfaceImpl{
     VkSurfaceKHR surface;
     VkSwapchainKHR swapchain;
     uint32_t imagecount;
+
+    uint32_t activeImageIndex;
     uint32_t width, height;
     VkFormat swapchainImageFormat;
     VkColorSpaceKHR swapchainColorSpace;
@@ -132,7 +134,11 @@ struct memory_types{
     uint32_t deviceLocal;
     uint32_t hostVisibleCoherent;
 };
-
+struct SyncState{
+    VkSemaphore imageAvailableSemaphores[1];
+    VkSemaphore presentSemaphores[1];
+    VkFence renderFinishedFence;
+};
 struct VulkanState {
     VkInstance instance = VK_NULL_HANDLE;
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
@@ -160,6 +166,7 @@ struct VulkanState {
     VkPipelineLayout graphicsPipelineLayout;
 
     DescribedPipeline* defaultPipeline{};
+    SyncState syncState;
     //VkExtent2D swapchainExtent = {0, 0};
     //std::vector<VkImage> swapchainImages;
     //std::vector<VkImageView> swapchainImageViews;
@@ -355,7 +362,7 @@ inline FullSurface LoadSurface(GLFWwindow* window, SurfaceConfiguration config){
     config.height = extent.height;
     retf.surfaceConfig = config;
 
-    retf.frameBuffer.depth = LoadTexturePro_Vk(extent.width, extent.height, Depth32, TextureUsage_RenderAttachment, 1, 1, nullptr);
+    retf.renderTarget.depth = LoadTexturePro_Vk(extent.width, extent.height, Depth32, TextureUsage_RenderAttachment, 1, 1, nullptr);
     
     return retf;
 }
@@ -557,7 +564,7 @@ static inline WGVKRenderPassEncoder BeginRenderPass_Vk(VkCommandBuffer cbuffer, 
     rp->rpEncoder = ret;
     return ret;
 }
-inline void EndRenderPass_Vk(VkCommandBuffer cbuffer, DescribedRenderpass* rp, VkSemaphore waitSemaphore, VkSemaphore signalSemaphore, VkFence renderFinishedFence){
+inline void EndRenderPass_Vk(VkCommandBuffer cbuffer, DescribedRenderpass* rp){
     vkCmdEndRenderPass(cbuffer);
     vkEndCommandBuffer(cbuffer);
     VkPipelineStageFlags stageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
@@ -566,10 +573,10 @@ inline void EndRenderPass_Vk(VkCommandBuffer cbuffer, DescribedRenderpass* rp, V
     sinfo.commandBufferCount = 1;
     sinfo.pCommandBuffers = &cbuffer;
     sinfo.waitSemaphoreCount = 1;
-    sinfo.pWaitSemaphores = &waitSemaphore;
+    sinfo.pWaitSemaphores = g_vulkanstate.syncState.imageAvailableSemaphores;
     sinfo.pWaitDstStageMask = &stageMask;
     sinfo.signalSemaphoreCount = 1;
-    sinfo.pSignalSemaphores = &signalSemaphore;
+    sinfo.pSignalSemaphores = g_vulkanstate.syncState.presentSemaphores;
     //VkFence fence{};
     //VkFenceCreateInfo finfo{};
     //finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -608,8 +615,8 @@ extern "C" void wgvkRenderPassEncoderBindPipeline(WGVKRenderPassEncoder rpe, Des
 extern "C" void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, BufferHandle buffer, VkDeviceSize offset, VkIndexType indexType);
 extern "C" void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t binding, BufferHandle buffer, VkDeviceSize offset);
 
-extern "C" void UpdateBindGroupEntry_Vk(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry);
-extern "C" uint32_t GetNewTexture_Vk(FullSurface *fsurface, VkSemaphore semaphore);
+extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry);
+extern "C" uint32_t GetNewTexture_Vk(FullSurface *fsurface);
 extern "C" void ResizeSurface_Vk(FullSurface* fsurface, uint32_t width, uint32_t height);
 
 
@@ -620,14 +627,14 @@ static inline void SetBindgroupSampler_Vk(DescribedBindGroup* bg, uint32_t index
     entry.binding = index;
     entry.sampler = smp.sampler;
     
-    UpdateBindGroupEntry_Vk(bg, index, entry);
+    UpdateBindGroupEntry(bg, index, entry);
 }
 static inline void SetBindgroupTexture_Vk(DescribedBindGroup* bg, uint32_t index, Texture tex){
     ResourceDescriptor entry{};
     entry.binding = index;
     entry.textureView = tex.view;
     
-    UpdateBindGroupEntry_Vk(bg, index, entry);
+    UpdateBindGroupEntry(bg, index, entry);
 }
 static inline void BindVertexArray_Vk(WGVKRenderPassEncoder rpenc, VertexArray* vao){
     for(uint32_t i = 0;i < vao->buffers.size();i++){
