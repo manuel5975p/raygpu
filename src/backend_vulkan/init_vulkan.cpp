@@ -699,9 +699,7 @@ std::pair<VkDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDevi
 
     return ret;
 }
-
-// Function to initialize Vulkan (all setup steps)  
-void initVulkan(GLFWwindow *window) {
+void InitBackend(){
     g_vulkanstate.instance = createInstance();
     g_vulkanstate.physicalDevice = pickPhysicalDevice();
     vkGetPhysicalDeviceMemoryProperties(g_vulkanstate.physicalDevice, &g_vulkanstate.memProperties);
@@ -718,10 +716,14 @@ void initVulkan(GLFWwindow *window) {
     g_vulkanstate.syncState.presentSemaphores[0] = CreateSemaphore(0);
     g_vulkanstate.syncState.renderFinishedFence = CreateFence(0);
 
+    
+    createRenderPass();
+}
+// Function to initialize Vulkan (all setup steps)  
+void initVulkan(GLFWwindow *window) {
     SurfaceConfiguration config{};
     config.presentMode = PresentMode_Fifo;
     g_vulkanstate.surface = LoadSurface(window, config);
-    createRenderPass();
     
     ResourceTypeDescriptor types[3] = {};
     types[0].type = uniform_buffer;

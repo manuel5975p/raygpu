@@ -1,4 +1,9 @@
 struct renderstate{
+
+
+    SurfacePresentMode unthrottled_PresentMode;
+    SurfacePresentMode throttled_PresentMode;
+
     GLFWwindow* window;
     uint32_t width, height;
 
