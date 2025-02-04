@@ -119,6 +119,12 @@ typedef enum BlendOperation {
     BlendOperation_Max = 0x00000005,
     BlendOperation_Force32 = 0x7FFFFFFF
 } BlendOperation;
+typedef enum SurfacePresentMode{ 
+    PresentMode_Fifo = 0x00000001,
+    PresentMode_FifoRelaxed = 0x00000002,
+    PresentMode_Immediate = 0x00000003,
+    PresentMode_Mailbox = 0x00000004,
+}SurfacePresentMode;
 
 typedef enum TFilterMode { TFilterMode_Undefined = 0x00000000, TFilterMode_Nearest = 0x00000001, TFilterMode_Linear = 0x00000002, TFilterMode_Force32 = 0x7FFFFFFF } TFilterMode;
 
@@ -385,6 +391,33 @@ static inline PixelFormat fromVulkanPixelFormat(VkFormat format) {
         case VK_FORMAT_D32_SFLOAT:
             return Depth32;
         default: __builtin_unreachable();
+    }
+}
+static inline VkPresentModeKHR toVulkanPresentMode(SurfacePresentMode mode){
+    switch(mode){
+        case PresentMode_Fifo:
+            return VK_PRESENT_MODE_FIFO_KHR;
+        case PresentMode_FifoRelaxed:
+            return VK_PRESENT_MODE_FIFO_RELAXED_KHR;
+        case PresentMode_Immediate:
+            return VK_PRESENT_MODE_IMMEDIATE_KHR;
+        case PresentMode_Mailbox:
+            return VK_PRESENT_MODE_MAILBOX_KHR;
+    }
+    return (VkPresentModeKHR)~0;
+}
+static inline SurfacePresentMode fromVulkanPresentMode(VkPresentModeKHR mode){
+    switch(mode){
+        case VK_PRESENT_MODE_FIFO_KHR:
+            return PresentMode_Fifo;
+        case VK_PRESENT_MODE_FIFO_RELAXED_KHR:
+            return PresentMode_FifoRelaxed;
+        case VK_PRESENT_MODE_IMMEDIATE_KHR:
+            return PresentMode_Immediate;
+        case VK_PRESENT_MODE_MAILBOX_KHR:
+            return PresentMode_Mailbox;
+        default:
+            return (SurfacePresentMode)~0;
     }
 }
 static inline VkFormat toVulkanPixelFormat(PixelFormat format) {

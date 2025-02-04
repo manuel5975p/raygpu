@@ -628,14 +628,6 @@ typedef enum {
     MOUSE_BUTTON_BACK    = 6,       // Mouse button back (advanced mouse device)
 } MouseButton;
 
-typedef enum SurfacePresentMode{
-    PresentMode_Fifo = 0x00000001,
-    PresentMode_FifoRelaxed = 0x00000002,
-    PresentMode_Immediate = 0x00000003,
-    PresentMode_Mailbox = 0x00000004,
-    PresentMode_Force32 = 0x7FFFFFFF
-} SurfacePresentMode;
-
 // Unified Surface Configuration Structure
 typedef struct SurfaceConfiguration {
     void* device;                   // Device that surface belongs to (WPGUDevice or VkDevice)
@@ -751,6 +743,7 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
 
 EXTERN_C_BEGIN
     void* InitWindow(uint32_t width, uint32_t height, const char* title);
+    void InitBackend(cwoid);
     void requestAnimationFrameLoopWithJSPI(void (*callback)(void), int /* unused */, int/* unused */);
     void requestAnimationFrameLoopWithJSPIArg(void (*callback)(void*), void* userData, int/* unused */, int/* unused */);
     void SetWindowShouldClose(cwoid);

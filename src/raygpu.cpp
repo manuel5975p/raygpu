@@ -2048,10 +2048,10 @@ extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t he
 
     wgpuSurfaceGetCapabilities((WGPUSurface)ret.surface, adapter, &capa);
     WGPUSurfaceConfiguration config{};
-    WGPUPresentMode thm = (WGPUPresentMode)g_wgpustate.throttled_PresentMode;
-    WGPUPresentMode um = (WGPUPresentMode)g_wgpustate.unthrottled_PresentMode;
+    WGPUPresentMode thm = (WGPUPresentMode)g_renderstate.throttled_PresentMode;
+    WGPUPresentMode um = (WGPUPresentMode)g_renderstate.unthrottled_PresentMode;
     if (g_renderstate.windowFlags & FLAG_VSYNC_LOWLATENCY_HINT) {
-        config.presentMode = (WGPUPresentMode)(((g_wgpustate.unthrottled_PresentMode == wgpu::PresentMode::Mailbox) ? um : thm));
+        config.presentMode = (WGPUPresentMode)(((g_renderstate.unthrottled_PresentMode == PresentMode_Mailbox) ? um : thm));
     } else if (g_renderstate.windowFlags & FLAG_VSYNC_HINT) {
         config.presentMode = (WGPUPresentMode)thm;
     } else {
