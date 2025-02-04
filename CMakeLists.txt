@@ -94,7 +94,8 @@ endif()
 if(SUPPORT_SDL3)
     FetchContent_Declare(
         sdl3fetch
-        URL      https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.2.0.tar.gz
+        #URL      https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.2.0.tar.gz
+        URL      "${CMAKE_CURRENT_LIST_DIR}/../SDL-release-3.2.2.tar.gz"
         DOWNLOAD_EXTRACT_TIMESTAMP True
     )
     FetchContent_MakeAvailable(sdl3fetch)
