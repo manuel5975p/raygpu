@@ -280,7 +280,8 @@ ImageHandle CreateVkImage(VkDevice device, VkPhysicalDevice physicalDevice, VkCo
 }
 
 // Generalized LoadTexturePro function
-extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelFormat format, TextureUsage usage, uint32_t sampleCount, uint32_t mipmaps, const void* data) {
+
+extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFormat format, TextureUsage usage, uint32_t sampleCount, uint32_t mipmaps, void* data) {
     Texture ret{};
     
     VkFormat vkFormat = toVulkanPixelFormat(format);
@@ -294,14 +295,14 @@ extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelForma
     if (vkCreateCommandPool(g_vulkanstate.device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
         throw std::runtime_error("Failed to create command pool!");
     
-    bool hasData = (data != nullptr);
+    bool hasData = data != nullptr;
     
     ImageHandle image = CreateVkImage(
         g_vulkanstate.device,
         g_vulkanstate.physicalDevice, 
         commandPool, 
         g_vulkanstate.queue.computeQueue, 
-        reinterpret_cast<const uint8_t*>(data), 
+        (uint8_t*)data, 
         width, 
         height, 
         vkFormat,
@@ -332,6 +333,9 @@ extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelForma
     
     return ret;
 }
+extern "C" Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat format, TextureUsage usage, uint32_t sampleCount, uint32_t mipmaps){
+    return LoadTexturePro_Data(width, height, format, usage, sampleCount, mipmaps, nullptr);
+}
 
 void UnloadTexture(Texture tex){
     vkDestroyImageView(g_vulkanstate.device, (VkImageView)tex.view, nullptr);
@@ -342,18 +346,31 @@ void UnloadTexture(Texture tex){
 }
 
 // Updated LoadTextureFromImage_Vk function using LoadTexturePro
-Texture LoadTextureFromImage_Vk(Image img) {
-    if (img.format != RGBA8 && img.format != BGRA8 && img.format != RGBA16F && img.format != RGBA32F && img.format != Depth24) {
+Texture LoadTextureFromImage(Image img) {
+    Color* altdata = nullptr;
+    if(img.format == GRAYSCALE){
+        altdata = (Color*)calloc(img.width * img.height, sizeof(Color));
+        for(size_t i = 0;i < img.width * img.height;i++){
+            uint16_t gscv = ((uint16_t*)img.data)[i];
+            ((Color*)altdata)[i].r = gscv & 255;
+            ((Color*)altdata)[i].g = gscv & 255;
+            ((Color*)altdata)[i].b = gscv & 255;
+            ((Color*)altdata)[i].a = gscv >> 8;
+        }
+    }
+    else if (img.format != RGBA8 && img.format != BGRA8 && img.format != RGBA16F && img.format != RGBA32F && img.format != Depth24) {
         throw std::runtime_error("Unsupported image format.");
     }
     TextureUsage x;
-    return LoadTexturePro_Vk(
+    auto ret = LoadTexturePro_Data(
         img.width,
         img.height,
-        img.format,
+        img.format == GRAYSCALE ? RGBA8 : img.format,
         TextureUsage_CopyDst | TextureUsage_TextureBinding, // Assuming TextureUsage enum exists and has a Sampled option
         1, // sampleCount
         img.mipmaps > 0 ? img.mipmaps : 1, 
-        img.data
+        altdata ? altdata : img.data
     );
+    if(altdata)std::free(altdata);
+    return ret;
 }
