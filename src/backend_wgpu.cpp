@@ -399,13 +399,135 @@ void negotiateSurfaceFormatAndPresentMode(const void* SurfaceHandle){
             break;
         }
     }
-    g_renderstate.frameBufferFormat = (WGPUTextureFormat)selectedFormat;
+    g_renderstate.frameBufferFormat = (PixelFormat)selectedFormat;
     if(format_index == capabilities.formatCount){
         TRACELOG(LOG_WARNING, "No RGBA8 / BGRA8 Unorm framebuffer format found, colors might be off"); 
-        g_renderstate.frameBufferFormat = (WGPUTextureFormat)selectedFormat;
+        g_renderstate.frameBufferFormat = (PixelFormat)selectedFormat;
     }
     
     TRACELOG(LOG_INFO, "Selected surface format %s", textureFormatSpellingTable.at((WGPUTextureFormat)g_renderstate.frameBufferFormat).c_str());
     
     //TRACELOG(LOG_INFO, "Selected present mode %s", presentModeSpellingTable.at((WGPUPresentMode)g_wgpustate.presentMode).c_str());
+}
+
+extern "C" DescribedBuffer* GenBufferEx(const void* data, size_t size, WGPUBufferUsage usage){
+    DescribedBuffer* ret = callocnew(DescribedBuffer);
+    WGPUBufferDescriptor descriptor{};
+    descriptor.size = size;
+    descriptor.mappedAtCreation = false;
+    descriptor.usage = usage;
+    ret->buffer = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &descriptor);
+    ret->size = size;
+    ret->usage = usage;
+    if(data != nullptr){
+        wgpuQueueWriteBuffer(GetQueue(), (WGPUBuffer)ret->buffer, 0, data, size);
+    }
+    return ret;
+}
+void* GetInstance(){
+    return g_wgpustate.instance.Get();
+}
+void* GetDevice(){
+    return g_wgpustate.device.Get();
+}
+void* GetAdapter(){
+    return g_wgpustate.adapter.Get();
+}
+
+extern "C" Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat format, TextureUsage usage, uint32_t sampleCount, uint32_t mipmaps){
+    WGPUTextureDescriptor tDesc{};
+    tDesc.dimension = WGPUTextureDimension_2D;
+    tDesc.size = {width, height, 1u};
+    tDesc.mipLevelCount = mipmaps;
+    tDesc.sampleCount = sampleCount;
+    tDesc.format = (WGPUTextureFormat)format;
+    tDesc.usage  = usage;
+    tDesc.viewFormatCount = 1;
+    tDesc.viewFormats = &tDesc.format;
+
+    WGPUTextureViewDescriptor textureViewDesc{};
+    char potlabel[128]; 
+    if(format == Depth24){
+        int len = snprintf(potlabel, 128, "Depftex %d x %d", width, height);
+        textureViewDesc.label.data = potlabel;
+        textureViewDesc.label.length = len;
+    }
+    textureViewDesc.usage = usage;
+    textureViewDesc.aspect = ((format == Depth24 || format == Depth32) ? WGPUTextureAspect_DepthOnly : WGPUTextureAspect_All);
+    textureViewDesc.baseArrayLayer = 0;
+    textureViewDesc.arrayLayerCount = 1;
+    textureViewDesc.baseMipLevel = 0;
+    textureViewDesc.mipLevelCount = mipmaps;
+    textureViewDesc.dimension = WGPUTextureViewDimension_2D;
+    textureViewDesc.format = tDesc.format;
+    Texture ret zeroinit;
+    ret.id = wgpuDeviceCreateTexture((WGPUDevice)GetDevice(), &tDesc);
+    ret.view = wgpuTextureCreateView((WGPUTexture)ret.id, &textureViewDesc);
+    ret.format = format;
+    ret.width = width;
+    ret.height = height;
+    ret.sampleCount = sampleCount;
+    ret.mipmaps = mipmaps;
+    if(mipmaps > 1){
+        for(uint32_t i = 0;i < mipmaps;i++){
+            textureViewDesc.baseMipLevel = i;
+            textureViewDesc.mipLevelCount = 1;
+            ret.mipViews[i] = wgpuTextureCreateView((WGPUTexture)ret.id, &textureViewDesc);
+        }
+    }
+    return ret;
+}
+
+Texture LoadTextureFromImage(Image img){
+    Texture ret zeroinit;
+    ret.sampleCount = 1;
+    Color* altdata = nullptr;
+    if(img.format == GRAYSCALE){
+        altdata = (Color*)calloc(img.width * img.height, sizeof(Color));
+        for(size_t i = 0;i < img.width * img.height;i++){
+            uint16_t gscv = ((uint16_t*)img.data)[i];
+            ((Color*)altdata)[i].r = gscv & 255;
+            ((Color*)altdata)[i].g = gscv & 255;
+            ((Color*)altdata)[i].b = gscv & 255;
+            ((Color*)altdata)[i].a = gscv >> 8;
+        }
+    }
+    WGPUTextureDescriptor desc = {
+        nullptr,
+        WGPUStringView{nullptr, 0},
+        WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc,
+        WGPUTextureDimension_2D,
+        WGPUExtent3D{img.width, img.height, 1},
+        img.format == GRAYSCALE ? WGPUTextureFormat_RGBA8Unorm : (WGPUTextureFormat)img.format,
+        1,1,1,nullptr
+    };
+    WGPUTextureFormat resulting_tf = img.format == GRAYSCALE ? WGPUTextureFormat_RGBA8Unorm : (WGPUTextureFormat)img.format;
+    desc.viewFormats = (WGPUTextureFormat*)&resulting_tf;
+    ret.id = wgpuDeviceCreateTexture((WGPUDevice)GetDevice(), &desc);
+    WGPUTextureViewDescriptor vdesc{};
+    vdesc.arrayLayerCount = 0;
+    vdesc.aspect = WGPUTextureAspect_All;
+    vdesc.format = desc.format;
+    vdesc.dimension = WGPUTextureViewDimension_2D;
+    vdesc.baseArrayLayer = 0;
+    vdesc.arrayLayerCount = 1;
+    vdesc.baseMipLevel = 0;
+    vdesc.mipLevelCount = 1;
+        
+    WGPUImageCopyTexture destination{};
+    destination.texture = (WGPUTexture)ret.id;
+    destination.mipLevel = 0;
+    destination.origin = { 0, 0, 0 }; // equivalent of the offset argument of Queue::writeBuffer
+    destination.aspect = WGPUTextureAspect_All; // only relevant for depth/Stencil textures
+    WGPUTextureDataLayout source{};
+    source.offset = 0;
+    source.bytesPerRow = 4 * img.width;
+    source.rowsPerImage = img.height;
+    //wgpuQueueWriteTexture()
+    wgpuQueueWriteTexture(GetQueue(), &destination, altdata ? altdata : img.data, 4 * img.width * img.height, &source, &desc.size);
+    ret.view = wgpuTextureCreateView((WGPUTexture)ret.id, &vdesc);
+    ret.width = img.width;
+    ret.height = img.height;
+    if(altdata)free(altdata);
+    return ret;
 }

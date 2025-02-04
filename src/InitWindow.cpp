@@ -59,6 +59,59 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 }
 )";
 
+constexpr char vertexSourceGLSL[] = R"(#version 450
+
+// Input attributes.
+layout(location = 0) in vec3 in_position;  // position
+layout(location = 1) in vec2 in_uv;        // texture coordinates
+layout(location = 2) in vec3 in_normal;    // normal (unused)
+layout(location = 3) in vec4 in_color;     // vertex color
+
+// Outputs to fragment shader.
+layout(location = 0) out vec2 frag_uv;
+layout(location = 1) out vec4 frag_color;
+
+// Uniform block for Perspective_View matrix (binding = 0).
+layout(binding = 0) uniform PerspectiveViewBlock {
+    mat4 Perspective_View;
+};
+
+// Storage buffer for model matrices (binding = 3).
+// Note: 'buffer' qualifier makes it a shader storage buffer.
+layout(binding = 3) buffer ModelMatrixBlock {
+    mat4 modelMatrix[];  // Array of model matrices.
+};
+
+void main() {
+    // Compute transformed position using instance-specific model matrix.
+    gl_Position = Perspective_View * modelMatrix[gl_InstanceID] * vec4(in_position, 1.0);
+    frag_uv = in_uv;
+    frag_color = in_color;
+}
+)";
+
+constexpr char fragmentSourceGLSL[] = R"(
+#version 450
+#extension GL_ARB_separate_shader_objects : enable  // Enable separate sampler objects if needed
+
+// Inputs from vertex shader.
+layout(location = 0) in vec2 frag_uv;
+layout(location = 1) in vec4 frag_color;
+
+// Output fragment color.
+layout(location = 0) out vec4 outColor;
+
+// Texture and sampler, bound separately.
+layout(binding = 1) uniform texture2D texture0;  // Texture (binding = 1)
+layout(binding = 2) uniform sampler texSampler;    // Sampler (binding = 2)
+
+void main() {
+    // Sample the texture using the combined sampler.
+    vec4 texColor = texture(sampler2D(texture0, texSampler), frag_uv);
+    outColor = texColor * frag_color;
+}
+)";
+
 
 
 struct full_renderstate;
@@ -121,12 +174,14 @@ bool WindowShouldClose(cwoid){
 
 
 
-
+extern "C" DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSource, const VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
 
 void* InitWindow(uint32_t width, uint32_t height, const char* title){
     #if FORCE_HEADLESS == 1
     g_renderstate.windowFlags |= FLAG_HEADLESS;
     #endif
+    //TODO: fix this, preferrably set correct format in InitWindow_SDL or GLFW
+    g_renderstate.frameBufferFormat = BGRA8;
     if(g_renderstate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
         if(IsATerminal(stdout)){
             TRACELOG(LOG_ERROR, "Refusing to pipe video output to terminal");
@@ -184,7 +239,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         
         //std::cout << "Supported Framebuffer Format: 0x" << std::hex << (WGPUTextureFormat)config.format << std::dec << "\n";        
     }else{
-        g_renderstate.frameBufferFormat = WGPUTextureFormat_BGRA8Unorm;
+        g_renderstate.frameBufferFormat = BGRA8;
     }
     
 
@@ -206,7 +261,6 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     //arraySetter(shaderInputs.per_vertex_sizes, {3,2,4});
     //arraySetter(shaderInputs.uniform_minsizes, {64, 0, 0, 0});
     //uarraySetter(shaderInputs.uniform_types, {uniform_buffer, texture2d, sampler, storage_buffer});
-    
     auto colorTexture = LoadTextureEx(width, height, (PixelFormat)g_renderstate.frameBufferFormat, true);
     //g_wgpustate.mainWindowRenderTarget.texture = colorTexture;
     if(g_renderstate.windowFlags & FLAG_MSAA_4X_HINT)
@@ -249,7 +303,11 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     //state->clearPass.rca->loadOp = WGPULoadOp_Clear;
     //state->clearPass.rca->storeOp = WGPUStoreOp_Store;
     //state->activeRenderpass = nullptr;
+    #if SUPPORT_VULKAN_BACKEND == 1
+    g_renderstate.defaultPipeline = LoadPipelineForVAO_Vk(vertexSourceGLSL, fragmentSourceGLSL, renderBatchVAO, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), GetDefaultSettings());
+    #else
     g_renderstate.defaultPipeline = LoadPipelineForVAOEx(shaderSource, renderBatchVAO, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), GetDefaultSettings());
+    #endif
     g_renderstate.activePipeline = g_renderstate.defaultPipeline;
     g_renderstate.quadindicesCache = callocnew(DescribedBuffer);    //WGPUBufferDescriptor vbmdesc{};
     g_renderstate.quadindicesCache->usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;

@@ -9,8 +9,13 @@
 #include <internals.hpp>
 #define SUPPORT_VULKAN_BACKEND 1
 #include <enum_translation.h>
+#if SUPPORT_GLFW == 1
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#endif
+#if SUPPORT_SDL2
+#include <SDL2/SDL_vulkan.h>
+#endif
 inline std::pair<std::vector<VkVertexInputAttributeDescription>, std::vector<VkVertexInputBindingDescription>> genericVertexLayoutSetToVulkan(const VertexBufferLayoutSet& vls){
     std::pair<std::vector<VkVertexInputAttributeDescription>, std::vector<VkVertexInputBindingDescription>> ret{};
 
@@ -184,7 +189,6 @@ static inline uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags
     assert(false && "failed to find suitable memory type!");
     return ~0u;
 }
-extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelFormat format, TextureUsage usage, uint32_t sampleCount, uint32_t mipmaps, const void* data);
 
 struct SwapChainSupportDetails {
     VkSurfaceCapabilitiesKHR capabilities;
@@ -253,8 +257,11 @@ inline VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities,
         return capabilities.currentExtent;
     } else {
         int width, height;
+        #if SUPPORT_GLFW == 1
         glfwGetFramebufferSize(window, &width, &height);
-
+        #elif SUPPORT_SDL2 == 1
+        SDL_Vulkan_GetDrawableSize((SDL_Window*)window, &width, &height);
+        #endif
         VkExtent2D actualExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
 
         actualExtent.width = std::max(capabilities.minImageExtent.width, std::min(capabilities.maxImageExtent.width, actualExtent.width));
@@ -267,9 +274,16 @@ inline FullSurface LoadSurface(GLFWwindow* window, SurfaceConfiguration config){
     FullSurface retf{};
     WGVKSurface retp = callocnew(WGVKSurfaceImpl);
     auto& ret = *retp;
+    #if SUPPORT_GLFW == 1
     if(glfwCreateWindowSurface(g_vulkanstate.instance, window, nullptr, &ret.surface) != VK_SUCCESS){
         throw std::runtime_error("could not create surface");
     }
+    #elif SUPPORT_SDL2
+    if (!SDL_Vulkan_CreateSurface((SDL_Window*)window, g_vulkanstate.instance, &ret.surface)) {
+        // Retrieve SDL error message and throw an exception
+        throw std::runtime_error("could not create surface: " + std::string(SDL_GetError()));
+    }
+    #endif
     SwapChainSupportDetails swapChainSupport = querySwapChainSupport(g_vulkanstate.physicalDevice, ret.surface);
 
     VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
@@ -362,7 +376,7 @@ inline FullSurface LoadSurface(GLFWwindow* window, SurfaceConfiguration config){
     config.height = extent.height;
     retf.surfaceConfig = config;
 
-    retf.renderTarget.depth = LoadTexturePro_Vk(extent.width, extent.height, Depth32, TextureUsage_RenderAttachment, 1, 1, nullptr);
+    retf.renderTarget.depth = LoadTexturePro(extent.width, extent.height, Depth32, TextureUsage_RenderAttachment, 1, 1);
     
     return retf;
 }
@@ -612,15 +626,15 @@ inline void EndRenderPass_Vk(VkCommandBuffer cbuffer, DescribedRenderpass* rp){
     }
     //vkDestroyFence(g_vulkanstate.device, fence, nullptr);
 }//
-extern "C" Texture LoadTexturePro_Vk(uint32_t width, uint32_t height, PixelFormat format, TextureUsage usage, uint32_t sampleCount, uint32_t mipmaps, const void* data = nullptr);
-extern "C" Texture LoadTextureFromImage_Vk(Image img);
+extern "C" Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat format, TextureUsage usage, uint32_t sampleCount, uint32_t mipmaps);
+extern "C" Texture LoadTextureFromImage(Image img);
 extern "C" void UnloadTexture(Texture tex);
 extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vscode, size_t vscodeSizeInBytes, const uint32_t* fscode, size_t fscodeSizeInBytes);
 extern "C" DescribedBindGroupLayout LoadBindGroupLayout_Vk(const ResourceTypeDescriptor* descs, uint32_t uniformCount);
 extern "C" DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSource, const VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
 extern "C" DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, const ResourceDescriptor* resources, uint32_t count);
 extern "C" void UpdateBindGroup_Vk(DescribedBindGroup* bg);
-extern "C" DescribedBuffer* GenBufferEx_Vk(const void *data, size_t size, BufferUsage usage);
+extern "C" DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsage usage);
 extern "C" void UnloadBuffer_Vk(DescribedBuffer* buf);
 
 //wgvk I guess

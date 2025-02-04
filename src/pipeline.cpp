@@ -124,7 +124,7 @@ inline WGPUTextureSampleType toTextureSampleType(format_or_sample_type fmt){
     }
     bglayoutdesc.entryCount = uniformCount;
     bglayoutdesc.entries = blayouts.data();
-    return wgpuDeviceCreateBindGroupLayout(GetDevice(), &bglayoutdesc);
+    return wgpuDeviceCreateBindGroupLayout((WGPUDevice)GetDevice(), &bglayoutdesc);
 }*/
 
 DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, bool compute){
@@ -190,7 +190,7 @@ DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* unifo
 
     ret.entries = (ResourceTypeDescriptor*)std::calloc(uniformCount, sizeof(ResourceTypeDescriptor));
     std::memcpy(ret.entries, uniforms, uniformCount * sizeof(ResourceTypeDescriptor));
-    ret.layout = wgpuDeviceCreateBindGroupLayout(GetDevice(), &bglayoutdesc);
+    ret.layout = wgpuDeviceCreateBindGroupLayout((WGPUDevice)GetDevice(), &bglayoutdesc);
 
     std::free(blayouts);
     return ret;
@@ -265,7 +265,7 @@ DescribedShaderModule LoadShaderModuleFromSPIRV(const uint32_t* shaderCodeSPIRV,
     WGPUShaderModuleDescriptor shaderDesc zeroinit;
     shaderDesc.nextInChain = &shaderCodeDesc.chain;
     WGPUStringView strv = STRVIEW("spirv_shader");
-    WGPUShaderModule sh = wgpuDeviceCreateShaderModule(GetDevice(), &shaderDesc);
+    WGPUShaderModule sh = wgpuDeviceCreateShaderModule((WGPUDevice)GetDevice(), &shaderDesc);
     DescribedShaderModule ret zeroinit;
     ret.shaderModule = sh;
     ret.source = calloc(codeSizeInBytes / sizeof(uint32_t), sizeof(uint32_t));
@@ -313,7 +313,7 @@ DescribedShaderModule LoadShaderModuleFromMemory(const char* shaderSourceWGSL) {
     shaderDesc.hintCount = 0;
     shaderDesc.hints = nullptr;
     #endif
-    WGPUShaderModule mod = wgpuDeviceCreateShaderModule(GetDevice(), &shaderDesc);
+    WGPUShaderModule mod = wgpuDeviceCreateShaderModule((WGPUDevice)GetDevice(), &shaderDesc);
     DescribedShaderModule ret zeroinit;
     ret.sourceType = sourceTypeWGSL;
     ret.uniformLocations = callocnew(StringToUniformMap);
@@ -381,7 +381,7 @@ extern "C" void UpdatePipeline(DescribedPipeline* pl){
     blendState.alpha.operation = (WGPUBlendOperation)settings.blendOperationAlpha;
     WGPUColorTargetState colorTarget{};
 
-    colorTarget.format = g_renderstate.frameBufferFormat;
+    colorTarget.format = (WGPUTextureFormat)g_renderstate.frameBufferFormat;
     colorTarget.blend = &blendState;
     colorTarget.writeMask = WGPUColorWriteMask_All;
     fragmentState.targetCount = 1;
@@ -411,14 +411,14 @@ extern "C" void UpdatePipeline(DescribedPipeline* pl){
     pipelineDesc.primitive.cullMode = WGPUCullMode_None;
     if(pl->vertexLayout.layouts->attributeCount != 0){
         pipelineDesc.primitive.topology = WGPUPrimitiveTopology_PointList;
-        pl->quartet.pipeline_PointList = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipelineDesc);
+        pl->quartet.pipeline_PointList = wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipelineDesc);
         pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
-        pl->quartet.pipeline_TriangleList = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipelineDesc);
+        pl->quartet.pipeline_TriangleList = wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipelineDesc);
         pipelineDesc.primitive.topology = WGPUPrimitiveTopology_LineList;
-        pl->quartet.pipeline_LineList = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipelineDesc);
+        pl->quartet.pipeline_LineList = wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipelineDesc);
         pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleStrip;
         pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
-        pl->quartet.pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipelineDesc);
+        pl->quartet.pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipelineDesc);
         pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
         pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
     }
@@ -452,7 +452,7 @@ extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const A
 
     layout_descriptor.bindGroupLayoutCount = 1;
     layout_descriptor.bindGroupLayouts = (WGPUBindGroupLayout*) (&ret.bglayout.layout);
-    ret.layout.layout = wgpuDeviceCreatePipelineLayout(GetDevice(), &layout_descriptor);
+    ret.layout.layout = wgpuDeviceCreatePipelineLayout((WGPUDevice)GetDevice(), &layout_descriptor);
     
     UpdatePipeline(retp);
     //TRACELOG(LOG_INFO, "Pipeline with %d attributes and %d uniforms was loaded", attribCount, uniformCount);
@@ -520,7 +520,7 @@ RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, const std::ve
     blendState.alpha.operation = (WGPUBlendOperation)settings.blendOperationAlpha;
     WGPUColorTargetState colorTarget{};
 
-    colorTarget.format = g_renderstate.frameBufferFormat;
+    colorTarget.format = (WGPUTextureFormat)g_renderstate.frameBufferFormat;
     colorTarget.blend = &blendState;
     colorTarget.writeMask = WGPUColorWriteMask_All;
     fragmentState.targetCount = 1;
@@ -550,14 +550,14 @@ RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, const std::ve
     RenderPipelineQuartet quartet;
     //if(attribCount != 0){
     pipelineDesc.primitive.topology = WGPUPrimitiveTopology_PointList;
-    quartet.pipeline_PointList = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipelineDesc);
+    quartet.pipeline_PointList = wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipelineDesc);
     pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
-    quartet.pipeline_TriangleList = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipelineDesc);
+    quartet.pipeline_TriangleList = wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipelineDesc);
     pipelineDesc.primitive.topology = WGPUPrimitiveTopology_LineList;
-    quartet.pipeline_LineList = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipelineDesc);
+    quartet.pipeline_LineList = wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipelineDesc);
     pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleStrip;
     pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
-    quartet.pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipelineDesc);
+    quartet.pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipelineDesc);
     pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
     pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
 
@@ -578,21 +578,21 @@ extern "C" void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va){
     //    wgpuRenderPipelineRelease(pipeline->pipeline_LineList);
 
     pipeline->quartet = plquart;
-    //pipeline->pipeline = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipeline->descriptor);
+    //pipeline->pipeline = wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipeline->descriptor);
     //pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_LineList;
-    //pipeline->pipeline_LineList = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipeline->descriptor);
+    //pipeline->pipeline_LineList = wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipeline->descriptor);
     //pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleStrip;
     //pipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
-    //pipeline->pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline(GetDevice(), &pipeline->descriptor);
+    //pipeline->pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipeline->descriptor);
     //pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
     //pipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
 }
 WGPUBuffer cloneBuffer(WGPUBuffer b, WGPUBufferUsage usage){
-    WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder(GetDevice(), nullptr);
+    WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder((WGPUDevice)GetDevice(), nullptr);
     WGPUBufferDescriptor retd{};
     retd.usage = usage;
     retd.size = wgpuBufferGetSize(b);
-    WGPUBuffer ret = wgpuDeviceCreateBuffer(GetDevice(), &retd);
+    WGPUBuffer ret = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &retd);
     wgpuCommandEncoderCopyBufferToBuffer(enc, b, 0, ret, 0, retd.size);
     WGPUCommandBuffer buffer = wgpuCommandEncoderFinish(enc, nullptr);
     wgpuQueueSubmit(GetQueue(), 1, &buffer);
@@ -671,12 +671,12 @@ DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const Re
     ret->bglayout = LoadBindGroupLayout(uniforms, uniformCount, true);
     pldesc.bindGroupLayoutCount = 1;
     pldesc.bindGroupLayouts = (WGPUBindGroupLayout*) &ret->bglayout.layout;
-    WGPUPipelineLayout playout = wgpuDeviceCreatePipelineLayout(GetDevice(), &pldesc);
+    WGPUPipelineLayout playout = wgpuDeviceCreatePipelineLayout((WGPUDevice)GetDevice(), &pldesc);
     ret->shaderModule = LoadShaderModuleFromMemory(shaderCode);
     desc.compute.module = (WGPUShaderModule)ret->shaderModule.shaderModule;
     desc.compute.entryPoint = STRVIEW("compute_main");
     desc.layout = playout;
-    ret->pipeline = wgpuDeviceCreateComputePipeline(GetDevice(), &desc);
+    ret->pipeline = wgpuDeviceCreateComputePipeline((WGPUDevice)GetDevice(), &desc);
     std::vector<ResourceDescriptor> bge(uniformCount);
     for(uint32_t i = 0;i < bge.size();i++){
         bge[i] = ResourceDescriptor{};
@@ -788,7 +788,7 @@ extern "C" DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bgla
     for(uint32_t i = 0;i < ret.entryCount;i++){
         ret.descriptorHash ^= bgEntryHash(ret.entries[i]);
     }
-    //ret.bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &ret.desc);
+    //ret.bindGroup = wgpuDeviceCreateBindGroup((WGPUDevice)GetDevice(), &ret.desc);
     return ret;
 }
 __attribute__((weak)) extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry){
@@ -833,7 +833,7 @@ __attribute__((weak)) extern "C" void UpdateBindGroupEntry(DescribedBindGroup* b
     //}
     bg->needsUpdate = true;
     
-    //bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
+    //bg->bindGroup = wgpuDeviceCreateBindGroup((WGPUDevice)GetDevice(), &(bg->desc));
 }
 DescribedPipeline* Relayout(DescribedPipeline* pl, VertexArray* vao){
     DescribedPipeline* klon = ClonePipeline(pl);
@@ -868,7 +868,7 @@ extern "C" void UpdateBindGroup(DescribedBindGroup* bg){
             desc.entries = aswgpu.data();
             desc.entryCount = aswgpu.size();
             desc.layout = (WGPUBindGroupLayout)bg->layout->layout;
-            bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &desc);
+            bg->bindGroup = wgpuDeviceCreateBindGroup((WGPUDevice)GetDevice(), &desc);
         }
         bg->needsUpdate = false;
     }
@@ -876,7 +876,7 @@ extern "C" void UpdateBindGroup(DescribedBindGroup* bg){
 NativeBindgroupHandle GetWGPUBindGroup(DescribedBindGroup* bg){
     if(bg->needsUpdate){
         UpdateBindGroup(bg);
-        //bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
+        //bg->bindGroup = wgpuDeviceCreateBindGroup((WGPUDevice)GetDevice(), &(bg->desc));
         //bg->needsUpdate = false;
     }
     return bg->bindGroup;

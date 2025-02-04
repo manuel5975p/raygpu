@@ -7,7 +7,7 @@ struct renderstate{
     GLFWwindow* window;
     uint32_t width, height;
 
-    WGPUTextureFormat frameBufferFormat;
+    PixelFormat frameBufferFormat;
 
     DescribedPipeline* defaultPipeline;
     DescribedPipeline* activePipeline;

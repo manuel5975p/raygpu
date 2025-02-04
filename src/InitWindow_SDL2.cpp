@@ -2,6 +2,7 @@
 #include <raygpu.h>
 #undef Font
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_vulkan.h>
 
 #include <cstdlib>
 #include <iostream>
@@ -171,9 +172,12 @@ extern "C" SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char
     
     ret.handle = window;
 
-    
+    #if SUPPORT_VULKAN_BACKEND == 1
+    //SDL_Vulkan_CreateSurface(window, g_vulkanstat)
+    #else
     WGPUSurface surface = SDL_GetWGPUSurface(GetInstance(), window);
     ret.surface = CreateSurface(surface, width, height);
+    #endif
     ret.handle = window;
     
     g_renderstate.createdSubwindows[ret.handle] = ret;
@@ -182,7 +186,7 @@ extern "C" SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char
 
 SubWindow OpenSubWindow_SDL2(uint32_t width, uint32_t height, const char* title){
     SubWindow ret zeroinit;
-    WGPUInstance inst = GetInstance();
+    WGPUInstance inst = (WGPUInstance)GetInstance();
     WGPUSurfaceCapabilities capabilities zeroinit;
     ret.handle = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, 0);
     WGPUSurface surface = SDL_GetWGPUSurface(inst, (SDL_Window*)ret.handle);
