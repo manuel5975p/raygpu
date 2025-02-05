@@ -745,7 +745,37 @@ void BeginRenderpassEx(DescribedRenderpass* renderPass){
     renderPass->rpEncoder = wgpuCommandEncoderBeginRenderPass((WGPUCommandEncoder)renderPass->cmdEncoder, &renderPassDesc);
     g_renderstate.activeRenderpass = renderPass;
 }
+extern "C" void BufferData(DescribedBuffer* buffer, const void* data, size_t size){
+    if(buffer->size >= size){
+        wgpuQueueWriteBuffer(GetQueue(), (WGPUBuffer)buffer->buffer, 0, data, size);
+    }
+    else{
+        if(buffer->buffer)
+            wgpuBufferRelease((WGPUBuffer)buffer->buffer);
+        WGPUBufferDescriptor nbdesc{};
+        nbdesc.size = size;
+        nbdesc.usage = buffer->usage;
 
+        buffer->buffer = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &nbdesc);
+        buffer->size = size;
+        wgpuQueueWriteBuffer(GetQueue(), (WGPUBuffer)buffer->buffer, 0, data, size);
+    }
+}
+extern "C" void RenderPassSetIndexBuffer(DescribedRenderpass* drp, DescribedBuffer* buffer, IndexFormat format, uint64_t offset){
+    wgpuRenderPassEncoderSetIndexBuffer((WGPURenderPassEncoder)drp->rpEncoder, (WGPUBuffer)buffer->buffer, (WGPUIndexFormat)format, offset, buffer->size);
+}
+extern "C" void RenderPassSetVertexBuffer(DescribedRenderpass* drp, uint32_t slot, DescribedBuffer* buffer, uint64_t offset){
+    wgpuRenderPassEncoderSetVertexBuffer((WGPURenderPassEncoder)drp->rpEncoder, slot, (WGPUBuffer)buffer->buffer, offset, buffer->size);
+}
+extern "C" void RenderPassSetBindGroup(DescribedRenderpass* drp, uint32_t group, DescribedBindGroup* bindgroup){
+    wgpuRenderPassEncoderSetBindGroup((WGPURenderPassEncoder)drp->rpEncoder, group, (WGPUBindGroup)UpdateAndGetNativeBindGroup(bindgroup), 0, nullptr);
+}
+extern "C" void RenderPassDraw        (DescribedRenderpass* drp, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance){
+    wgpuRenderPassEncoderDraw((WGPURenderPassEncoder)drp->rpEncoder, vertexCount, instanceCount, firstVertex, firstInstance);
+}
+extern "C" void RenderPassDrawIndexed (DescribedRenderpass* drp, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t baseVertex, uint32_t firstInstance){
+    wgpuRenderPassEncoderDrawIndexed((WGPURenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
+}
 void EndRenderpassEx(DescribedRenderpass* renderPass){
     drawCurrentBatch();
     wgpuRenderPassEncoderEnd((WGPURenderPassEncoder)renderPass->rpEncoder);

@@ -176,24 +176,11 @@ void BindVertexArray(VertexArray* va){
 
 
 
-extern "C" void RenderPassSetIndexBuffer(DescribedRenderpass* drp, DescribedBuffer* buffer, WGPUIndexFormat format, uint64_t offset){
-    wgpuRenderPassEncoderSetIndexBuffer((WGPURenderPassEncoder)drp->rpEncoder, (WGPUBuffer)buffer->buffer, format, offset, buffer->size);
-}
-extern "C" void RenderPassSetVertexBuffer(DescribedRenderpass* drp, uint32_t slot, DescribedBuffer* buffer, uint64_t offset){
-    wgpuRenderPassEncoderSetVertexBuffer((WGPURenderPassEncoder)drp->rpEncoder, slot, (WGPUBuffer)buffer->buffer, offset, buffer->size);
-}
-extern "C" void RenderPassSetBindGroup(DescribedRenderpass* drp, uint32_t group, DescribedBindGroup* bindgroup){
-    wgpuRenderPassEncoderSetBindGroup((WGPURenderPassEncoder)drp->rpEncoder, group, (WGPUBindGroup)UpdateAndGetNativeBindGroup(bindgroup), 0, nullptr);
-}
+
 extern "C" void ComputePassSetBindGroup(DescribedComputepass* drp, uint32_t group, DescribedBindGroup* bindgroup){
     wgpuComputePassEncoderSetBindGroup((WGPUComputePassEncoder)drp->cpEncoder, group, (WGPUBindGroup)UpdateAndGetNativeBindGroup(bindgroup), 0, nullptr);
 }
-extern "C" void RenderPassDraw        (DescribedRenderpass* drp, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance){
-    wgpuRenderPassEncoderDraw((WGPURenderPassEncoder)drp->rpEncoder, vertexCount, instanceCount, firstVertex, firstInstance);
-}
-extern "C" void RenderPassDrawIndexed (DescribedRenderpass* drp, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t baseVertex, uint32_t firstInstance){
-    wgpuRenderPassEncoderDrawIndexed((WGPURenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
-}
+
 
 
 extern "C" void BindPipelineVertexArray(DescribedPipeline* pipeline, VertexArray* va){
@@ -300,8 +287,7 @@ wgpu::Surface&  GetCXXSurface (){
     return *((wgpu::Surface*)&g_renderstate.mainWindow->surface.surface);
 }
 
-
-__attribute__((weak)) void drawCurrentBatch(){
+void drawCurrentBatch(){
     size_t vertexCount = vboptr - vboptr_base;
     //std::cout << "vcoun = " << vertexCount << "\n";
     if(vertexCount == 0)return;
@@ -1988,22 +1974,7 @@ DescribedBuffer* GenStorageBuffer(const void* data, size_t size){
 }
 
 
-extern "C" void BufferData(DescribedBuffer* buffer, const void* data, size_t size){
-    if(buffer->size >= size){
-        wgpuQueueWriteBuffer(GetQueue(), (WGPUBuffer)buffer->buffer, 0, data, size);
-    }
-    else{
-        if(buffer->buffer)
-            wgpuBufferRelease((WGPUBuffer)buffer->buffer);
-        WGPUBufferDescriptor nbdesc{};
-        nbdesc.size = size;
-        nbdesc.usage = buffer->usage;
 
-        buffer->buffer = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &nbdesc);
-        buffer->size = size;
-        wgpuQueueWriteBuffer(GetQueue(), (WGPUBuffer)buffer->buffer, 0, data, size);
-    }
-}
 extern "C" void SetTargetFPS(int fps){
     g_renderstate.targetFPS = fps;
 }

@@ -1094,7 +1094,7 @@ EXTERN_C_BEGIN
     DescribedRenderpass* GetActiveRenderPass(cwoid);
     DescribedPipeline* GetActivePipeline(cwoid);
 
-    void RenderPassSetIndexBuffer (DescribedRenderpass* drp, DescribedBuffer* buffer, WGPUIndexFormat format, uint64_t offset);
+    void RenderPassSetIndexBuffer (DescribedRenderpass* drp, DescribedBuffer* buffer, IndexFormat format, uint64_t offset);
     void RenderPassSetVertexBuffer(DescribedRenderpass* drp, uint32_t slot, DescribedBuffer* buffer, uint64_t offset);
     void RenderPassSetBindGroup   (DescribedRenderpass* drp, uint32_t group, DescribedBindGroup* buffer);
     void ComputePassSetBindGroup  (DescribedComputepass* drp, uint32_t group, DescribedBindGroup* buffer);

@@ -16,12 +16,15 @@ void BufferData(DescribedBuffer* buffer, void* data, size_t size){
             std::memcpy(data, udata, size);
             vkUnmapMemory(g_vulkanstate.device, handle->memory);
         }
+        else{
+            abort();
+        }
         
         //vkBindBufferMemory()
     }
 }
 
-void drawCurrentBatch(){
+__attribute__((weak)) void drawCurrentBatch(){
     size_t vertexCount = vboptr - vboptr_base;
     if(vertexCount == 0){
         return;
@@ -85,10 +88,12 @@ DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsage usage){
     vkBindBufferMemory(g_vulkanstate.device, vertexBuffer, vertexBufferMemory, 0);
     if(data != nullptr){
         void* mapdata;
-        vkMapMemory(g_vulkanstate.device, vertexBufferMemory, 0, bufferInfo.size, 0, &mapdata);
+        VkResult vkres = vkMapMemory(g_vulkanstate.device, vertexBufferMemory, 0, bufferInfo.size, 0, &mapdata);
+        if(vkres != VK_SUCCESS)abort();
         memcpy(mapdata, data, (size_t)bufferInfo.size);
         vkUnmapMemory(g_vulkanstate.device, vertexBufferMemory);
     }
+
     ret->buffer = callocnewpp(WGVKBufferImpl);
     ((WGVKBuffer)ret->buffer)->buffer = vertexBuffer;
     ((WGVKBuffer)ret->buffer)->memory = vertexBufferMemory;
@@ -438,19 +443,36 @@ void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, cons
     bufferDesc.size = size;
     bufferDesc.usage = BufferUsage_CopyDst | BufferUsage_Uniform;
     WGVKBuffer wgvkBuffer = wgvkDeviceCreateBuffer(g_vulkanstate.device, &bufferDesc);
+    wgvkQueueWriteBuffer(g_vulkanstate.queue, wgvkBuffer, 0, data, size);
     entry.binding = index;
     entry.buffer = wgvkBuffer;
     entry.size = size;
     UpdateBindGroupEntry(bg, index, entry);
     bg->releaseOnClear |= (1 << index);
 }
+extern "C" void BufferData(DescribedBuffer* buffer, const void* data, size_t size){
+    if(buffer->buffer != nullptr && buffer->size >= size){
+        wgvkQueueWriteBuffer(g_vulkanstate.queue, (WGVKBuffer)buffer->buffer, 0, data, size);
+    }
+    else{
+        if(buffer->buffer)
+            wgvkReleaseBuffer((WGVKBuffer)buffer->buffer);
+        BufferDescriptor nbdesc zeroinit;
+        nbdesc.size = size;
+        nbdesc.usage = buffer->usage;
 
+        buffer->buffer = wgvkDeviceCreateBuffer((VkDevice)GetDevice(), &nbdesc);
+        buffer->size = size;
+        wgpuQueueWriteBuffer(GetQueue(), (WGPUBuffer)buffer->buffer, 0, data, size);
+    }
+}
 void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size){
     ResourceDescriptor entry{};
     BufferDescriptor bufferDesc{};
     bufferDesc.size = size;
     bufferDesc.usage = BufferUsage_CopyDst | BufferUsage_Storage;
     WGVKBuffer wgvkBuffer = wgvkDeviceCreateBuffer(g_vulkanstate.device, &bufferDesc);
+    wgvkQueueWriteBuffer(g_vulkanstate.queue, wgvkBuffer, 0, data, size);
     entry.binding = index;
     entry.buffer = wgvkBuffer;
     entry.size = size;
@@ -520,7 +542,24 @@ void createRenderPass() {
         throw std::runtime_error("failed to create render pass!");
     }
 }
-
+extern "C" void RenderPassSetIndexBuffer(DescribedRenderpass* drp, DescribedBuffer* buffer, IndexFormat format, uint64_t offset){
+    wgvkRenderPassEncoderBindIndexBuffer((WGVKRenderPassEncoder)drp->rpEncoder, (WGVKBuffer)buffer->buffer, 0, toVulkanIndexFormat(format));
+    //wgpuRenderPassEncoderSetIndexBuffer((WGPURenderPassEncoder)drp->rpEncoder, (WGPUBuffer)buffer->buffer, format, offset, buffer->size);
+}
+extern "C" void RenderPassSetVertexBuffer(DescribedRenderpass* drp, uint32_t slot, DescribedBuffer* buffer, uint64_t offset){
+    wgvkRenderPassEncoderBindVertexBuffer((WGVKRenderPassEncoder)drp->rpEncoder, slot, (WGVKBuffer)buffer->buffer, offset);
+    //wgpuRenderPassEncoderSetVertexBuffer((WGPURenderPassEncoder)drp->rpEncoder, slot, (WGPUBuffer)buffer->buffer, offset, buffer->size);
+}
+extern "C" void RenderPassSetBindGroup(DescribedRenderpass* drp, uint32_t group, DescribedBindGroup* bindgroup){
+    wgvkRenderPassEncoderBindDescriptorSet((WGVKRenderPassEncoder)drp->rpEncoder, group, (DescriptorSetHandle)bindgroup->bindGroup);
+    //wgpuRenderPassEncoderSetBindGroup((WGPURenderPassEncoder)drp->rpEncoder, group, (WGPUBindGroup)UpdateAndGetNativeBindGroup(bindgroup), 0, nullptr);
+}
+extern "C" void RenderPassDraw        (DescribedRenderpass* drp, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance){
+    wgpuRenderPassEncoderDraw((WGPURenderPassEncoder)drp->rpEncoder, vertexCount, instanceCount, firstVertex, firstInstance);
+}
+extern "C" void RenderPassDrawIndexed (DescribedRenderpass* drp, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t baseVertex, uint32_t firstInstance){
+    wgpuRenderPassEncoderDrawIndexed((WGPURenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
+}
 // Function to create logical device and retrieve queues
 std::pair<VkDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDevice, QueueIndices indices) {
     // Find queue families
