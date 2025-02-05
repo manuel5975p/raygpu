@@ -378,7 +378,7 @@ void mainLoop(GLFWwindow *window) {
         };
         fbci.pAttachments = fbimages;
         vkCreateFramebuffer(g_vulkanstate.device, &fbci, nullptr, &imgfb);
-        WGVKRenderPassEncoder encoder = BeginRenderPass_Vk(commandBuffer, &g_renderstate.renderpass, imgfb);
+        WGVKRenderPassEncoder encoder = nullptr;// = BeginRenderPass_Vk(commandBuffer, &g_renderstate.renderpass, imgfb);
         VkViewport viewport{
             0.0f, 
             (float) g_vulkanstate.surface.surfaceConfig.height, 
@@ -395,7 +395,7 @@ void mainLoop(GLFWwindow *window) {
         //SetBindgroupTexture_Vk(&set, 0, bwite);
         //UpdateBindGroup_Vk(&set);
         wgvkRenderPassEncoderBindPipeline(encoder, g_vulkanstate.defaultPipeline);
-        UpdateBindGroup_Vk(&g_vulkanstate.defaultPipeline->bindGroup);
+        UpdateBindGroup(&g_vulkanstate.defaultPipeline->bindGroup);
         wgvkRenderPassEncoderBindDescriptorSet(encoder, 0, (DescriptorSetHandle)g_vulkanstate.defaultPipeline->bindGroup.bindGroup);
         
         //vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipelineLayout)dpl->layout.layout, 0, 1, &((DescriptorSetHandle)set.bindGroup)->set, 0, 0);

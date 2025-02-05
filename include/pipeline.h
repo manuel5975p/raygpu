@@ -260,7 +260,7 @@ EXTERN_C_BEGIN
     
 
     DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const ResourceDescriptor* entries, size_t entryCount);
-    NativeBindgroupHandle GetWGPUBindGroup(DescribedBindGroup* bg);
+    NativeBindgroupHandle UpdateAndGetNativeBindGroup(DescribedBindGroup* bg);
     
     void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry);
     void UpdateBindGroup(DescribedBindGroup* bg);
