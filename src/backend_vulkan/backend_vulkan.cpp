@@ -29,6 +29,7 @@ void drawCurrentBatch(){
     DescribedBuffer* vbo = GenBufferEx(vboptr_base, vertexCount * sizeof(vertex), BufferUsage_Vertex | BufferUsage_CopyDst);
     
     renderBatchVAO->buffers.front().first = vbo;
+    BindPipeline(GetActivePipeline(), WGPUPrimitiveTopology_TriangleList);
     BindVertexArray_Vk((WGVKRenderPassEncoder)g_renderstate.renderpass.rpEncoder, renderBatchVAO);
     //wgvkRenderPassEncoderBindVertexBuffer(, uint32_t binding, BufferHandle buffer, VkDeviceSize offset)
     wgvkRenderpassEncoderDraw((WGVKRenderPassEncoder)g_renderstate.renderpass.rpEncoder, vertexCount, 1, 0, 0);
@@ -104,9 +105,9 @@ DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsage usage){
 }
 
 extern "C" void ResizeSurface_Vk(FullSurface* fsurface, uint32_t width, uint32_t height){
-    g_vulkanstate.surface.surfaceConfig.width = width;
-    g_vulkanstate.surface.surfaceConfig.height = height;
-    wgvkSurfaceConfigure((WGVKSurface)g_vulkanstate.surface.surface, &g_vulkanstate.surface.surfaceConfig);
+    fsurface->surfaceConfig.width = width;
+    fsurface->surfaceConfig.height = height;
+    wgvkSurfaceConfigure((WGVKSurface)fsurface->surface, &fsurface->surfaceConfig);
     UnloadTexture(fsurface->renderTarget.depth);
     fsurface->renderTarget.depth = LoadTexturePro(width, height, Depth32, TextureUsage_RenderAttachment, 1, 1);
 }
@@ -658,7 +659,7 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     VkRenderPassBeginInfo rpbi{};
     VkClearValue clearvalues[2] = {};
     clearvalues[0].color = VkClearColorValue{};
-    clearvalues[0].color.float32[0] = (float)renderPass->colorClear.r;
+    clearvalues[0].color.float32[0] = (float)renderPass->colorClear.r * 0.0f;
     clearvalues[0].color.float32[1] = (float)renderPass->colorClear.g;
     clearvalues[0].color.float32[2] = (float)renderPass->colorClear.b;
     clearvalues[0].color.float32[3] = (float)renderPass->colorClear.a;
@@ -680,8 +681,9 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
         cbai.commandPool = oof;
         vkAllocateCommandBuffers(g_vulkanstate.device, &cbai, (VkCommandBuffer*)&renderPass->cmdEncoder);
     }
-    
-    vkResetCommandBuffer((VkCommandBuffer)renderPass->cmdEncoder, 0);
+    else{
+        vkResetCommandBuffer((VkCommandBuffer)renderPass->cmdEncoder, 0);
+    }
     rpbi.renderPass = g_vulkanstate.renderPass;
 
     auto rtex = g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition];
@@ -700,13 +702,63 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     VkFramebuffer rahmePuffer = 0;
     vkCreateFramebuffer(g_vulkanstate.device, &fbci, nullptr, &rahmePuffer);
     rpbi.framebuffer = rahmePuffer;
-    renderPass->rpEncoder = BeginRenderPass_Vk((VkCommandBuffer)renderPass->cmdEncoder, renderPass, rahmePuffer);
-}
+    renderPass->rpEncoder = BeginRenderPass_Vk((VkCommandBuffer)renderPass->cmdEncoder, renderPass, rahmePuffer, rtex.texture.width, rtex.texture.height);
+    VkViewport viewport zeroinit;
+    viewport.minDepth = 0;
+    viewport.maxDepth = 1;
+    viewport.x = 0;
+    viewport.y = 0;
+    viewport.width  = fbci.width;
+    viewport.height = fbci.height;
 
+    VkRect2D scissor zeroinit;
+    scissor.offset.x = 0;
+    scissor.offset.y = 0;
+    scissor.extent.width = fbci.width;
+    scissor.extent.height = fbci.height;
+    vkCmdSetViewport((VkCommandBuffer)renderPass->cmdEncoder, 0, 1, &viewport);
+    vkCmdSetScissor((VkCommandBuffer)renderPass->cmdEncoder, 0, 1, &scissor);
+    wgvkRenderPassEncoderBindPipeline((WGVKRenderPassEncoder)renderPass->rpEncoder, g_renderstate.defaultPipeline);
+    g_renderstate.activeRenderpass = renderPass;
+    //UpdateBindGroup_Vk(&g_renderstate.defaultPipeline->bindGroup);
+    //wgvkRenderPassEncoderBindDescriptorSet((WGVKRenderPassEncoder)renderPass->rpEncoder, 0, (DescriptorSetHandle)g_renderstate.defaultPipeline->bindGroup.bindGroup);
+    //rlVertex2f(0, 0);
+    //rlVertex2f(1, 0);
+    //rlVertex2f(0, 1);
+    //drawCurrentBatch();
+    //BindPipeline(g_renderstate.defaultPipeline, WGPUPrimitiveTopology_TriangleList);
+}
+extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode){
+
+    switch(drawMode){
+        case WGPUPrimitiveTopology_TriangleList:
+        //std::cout << "Binding: " <<  pipeline->pipeline << "\n";
+        
+        wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (VkPipeline)pipeline->quartet.pipeline_TriangleList, (VkPipelineLayout)pipeline->layout.layout);
+        break;
+        //case WGPUPrimitiveTopology_TriangleStrip:
+        //wgvkRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleStrip);
+        //break;
+        //case WGPUPrimitiveTopology_LineList:
+        //wgvkRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_LineList);
+        //break;
+        //case WGPUPrimitiveTopology_PointList:
+        //wgvkRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_PointList);
+        //break;
+        default:
+            assert(false && "Unsupported Drawmode");
+            abort();
+    }
+    //pipeline->lastUsedAs = drawMode;
+    wgvkRenderPassEncoderBindDescriptorSet((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, (DescriptorSetHandle)UpdateAndGetNativeBindGroup(&pipeline->bindGroup));
+    //wgvkRenderPassEncoderSetBindGroup ((WGPURenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
+
+}
 extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
     VkCommandBuffer cbuffer = (VkCommandBuffer)rp->cmdEncoder;
     vkCmdEndRenderPass(cbuffer);
     vkEndCommandBuffer(cbuffer);
+    g_renderstate.activeRenderpass = nullptr;
     VkPipelineStageFlags stageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     VkSubmitInfo sinfo{};
     sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -729,5 +781,6 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
     if(vkWaitForFences(g_vulkanstate.device, 1, &g_vulkanstate.syncState.renderFinishedFence, VK_TRUE, ~0) != VK_SUCCESS){
         throw std::runtime_error("Could not wait for fence");
     }
+    vkResetFences(g_vulkanstate.device, 1, &g_vulkanstate.syncState.renderFinishedFence);
     //vkDestroyFence(g_vulkanstate.device, fence, nullptr);
 }

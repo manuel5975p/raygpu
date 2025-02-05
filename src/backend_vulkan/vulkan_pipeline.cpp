@@ -385,10 +385,11 @@ DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, cons
     return ret;
 }
 
-void UpdateBindGroup_Vk(DescribedBindGroup* bg){
+void UpdateBindGroup(DescribedBindGroup* bg){
     const auto* layout = bg->layout;
     if(bg->needsUpdate == false)return;
     bg->bindGroup = callocnewpp(DescriptorSetHandleImpl);
+    DescriptorSetHandle dshandle = (DescriptorSetHandle)bg->bindGroup;
     VkDescriptorPoolCreateInfo dpci{};
     dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     dpci.flags |= VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
@@ -425,6 +426,7 @@ void UpdateBindGroup_Vk(DescribedBindGroup* bg){
     small_vector<VkDescriptorImageInfo> imageInfos(count, VkDescriptorImageInfo{});
     
     ((DescriptorSetHandle)bg->bindGroup)->refCount = 1;
+    auto& l3 = layout->entries[3];
     for(uint32_t i = 0;i < count;i++){
         writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         uint32_t binding = bg->entries[i].binding;
@@ -433,7 +435,7 @@ void UpdateBindGroup_Vk(DescribedBindGroup* bg){
         writes[i].descriptorType = toVulkanResourceType(bg->layout->entries[i].type);
         writes[i].descriptorCount = 1;
 
-        if(layout->entries[i].type == uniform_buffer || layout->entries->type == storage_buffer){
+        if(layout->entries[i].type == uniform_buffer || layout->entries[i].type == storage_buffer){
             bufferInfos[i].buffer = ((WGVKBuffer)bg->entries[i].buffer)->buffer;
             bufferInfos[i].offset = bg->entries[i].offset;
             bufferInfos[i].range =  bg->entries[i].size;

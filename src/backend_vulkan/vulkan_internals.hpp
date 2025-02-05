@@ -548,7 +548,7 @@ static inline VkFence CreateFence(VkFenceCreateFlags flags = 0){
 extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass);
 
 
-static inline WGVKRenderPassEncoder BeginRenderPass_Vk(VkCommandBuffer cbuffer, DescribedRenderpass* rp, VkFramebuffer fb){
+static inline WGVKRenderPassEncoder BeginRenderPass_Vk(VkCommandBuffer cbuffer, DescribedRenderpass* rp, VkFramebuffer fb, uint32_t width, uint32_t height){
 
     WGVKRenderPassEncoder ret = callocnewpp(RenderPassEncoderHandleImpl);
     VkCommandBufferBeginInfo bbi{};
@@ -559,13 +559,14 @@ static inline WGVKRenderPassEncoder BeginRenderPass_Vk(VkCommandBuffer cbuffer, 
     clearvalues[0].color.float32[0] = 1.0f;
     clearvalues[1].depthStencil = VkClearDepthStencilValue{};
     clearvalues[1].depthStencil.depth = 1.0f;
+
     rpbi.renderPass = (VkRenderPass)rp->VkRenderPass;
     rpbi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     rpbi.clearValueCount = 2;
     rpbi.pClearValues = clearvalues;
     rpbi.framebuffer = fb;
-    rpbi.renderArea.extent.width = g_vulkanstate.surface.surfaceConfig.width;
-    rpbi.renderArea.extent.height = g_vulkanstate.surface.surfaceConfig.height;
+    rpbi.renderArea.extent.width = width;//g_vulkanstate.surface.surfaceConfig.width;
+    rpbi.renderArea.extent.height = height;//g_vulkanstate.surface.surfaceConfig.height;
     rpbi.renderPass = g_vulkanstate.renderPass;
 
     vkBeginCommandBuffer(cbuffer, &bbi);
@@ -585,7 +586,7 @@ extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vs
 extern "C" DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* descs, uint32_t uniformCount);
 extern "C" DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSource, const VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
 extern "C" DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, const ResourceDescriptor* resources, uint32_t count);
-extern "C" void UpdateBindGroup_Vk(DescribedBindGroup* bg);
+extern "C" void UpdateBindGroup(DescribedBindGroup* bg);
 extern "C" DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsage usage);
 extern "C" void UnloadBuffer(DescribedBuffer* buf);
 
@@ -604,6 +605,7 @@ extern "C" void wgvkRenderpassEncoderDraw(WGVKRenderPassEncoder rpe, uint32_t ve
 extern "C" void wgvkRenderpassEncoderDrawIndexed(WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t firstinstance);
 extern "C" void wgvkRenderPassEncoderBindDescriptorSet(WGVKRenderPassEncoder rpe, uint32_t group, DescriptorSetHandle dset);
 extern "C" void wgvkRenderPassEncoderBindPipeline(WGVKRenderPassEncoder rpe, DescribedPipeline* pipeline);
+extern "C" void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, VkPipeline pipeline, VkPipelineLayout layout);
 extern "C" void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer buffer, VkDeviceSize offset, VkIndexType indexType);
 extern "C" void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t binding, WGVKBuffer buffer, VkDeviceSize offset);
 

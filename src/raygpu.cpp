@@ -183,10 +183,10 @@ extern "C" void RenderPassSetVertexBuffer(DescribedRenderpass* drp, uint32_t slo
     wgpuRenderPassEncoderSetVertexBuffer((WGPURenderPassEncoder)drp->rpEncoder, slot, (WGPUBuffer)buffer->buffer, offset, buffer->size);
 }
 extern "C" void RenderPassSetBindGroup(DescribedRenderpass* drp, uint32_t group, DescribedBindGroup* bindgroup){
-    wgpuRenderPassEncoderSetBindGroup((WGPURenderPassEncoder)drp->rpEncoder, group, (WGPUBindGroup)GetWGPUBindGroup(bindgroup), 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup((WGPURenderPassEncoder)drp->rpEncoder, group, (WGPUBindGroup)UpdateAndGetNativeBindGroup(bindgroup), 0, nullptr);
 }
 extern "C" void ComputePassSetBindGroup(DescribedComputepass* drp, uint32_t group, DescribedBindGroup* bindgroup){
-    wgpuComputePassEncoderSetBindGroup((WGPUComputePassEncoder)drp->cpEncoder, group, (WGPUBindGroup)GetWGPUBindGroup(bindgroup), 0, nullptr);
+    wgpuComputePassEncoderSetBindGroup((WGPUComputePassEncoder)drp->cpEncoder, group, (WGPUBindGroup)UpdateAndGetNativeBindGroup(bindgroup), 0, nullptr);
 }
 extern "C" void RenderPassDraw        (DescribedRenderpass* drp, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance){
     wgpuRenderPassEncoderDraw((WGPURenderPassEncoder)drp->rpEncoder, vertexCount, instanceCount, firstVertex, firstInstance);
@@ -491,32 +491,10 @@ void EndMode3D(){
     PopMatrix();
     SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
 }
-extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode){
-    switch(drawMode){
-        case WGPUPrimitiveTopology_TriangleList:
-        //std::cout << "Binding: " <<  pipeline->pipeline << "\n";
-        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleList);
-        break;
-        case WGPUPrimitiveTopology_TriangleStrip:
-        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleStrip);
-        break;
-        case WGPUPrimitiveTopology_LineList:
-        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_LineList);
-        break;
-        case WGPUPrimitiveTopology_PointList:
-        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_PointList);
-        break;
-        default:
-            assert(false && "Unsupported Drawmode");
-            abort();
-    }
-    //pipeline->lastUsedAs = drawMode;
-    wgpuRenderPassEncoderSetBindGroup ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
 
-}
 extern "C" void BindComputePipeline(DescribedComputePipeline* pipeline){
     wgpuComputePassEncoderSetPipeline ((WGPUComputePassEncoder)g_renderstate.computepass.cpEncoder, (WGPUComputePipeline)pipeline->pipeline);
-    wgpuComputePassEncoderSetBindGroup((WGPUComputePassEncoder)g_renderstate.computepass.cpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
+    wgpuComputePassEncoderSetBindGroup((WGPUComputePassEncoder)g_renderstate.computepass.cpEncoder, 0, (WGPUBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup), 0, 0);
 }
 extern "C" void CopyBufferToBuffer(DescribedBuffer* source, DescribedBuffer* dest, size_t count){
     wgpuCommandEncoderCopyBufferToBuffer((WGPUCommandEncoder)g_renderstate.computepass.cmdEncoder, (WGPUBuffer)source->buffer, 0, (WGPUBuffer)dest->buffer, 0, count);
@@ -1426,6 +1404,34 @@ extern "C" void SetPipelineTexture(DescribedPipeline* pl, uint32_t index, Textur
 
 extern "C" void SetPipelineSampler(DescribedPipeline* pl, uint32_t index, DescribedSampler sampler){
     SetBindgroupSampler(&pl->bindGroup, index, sampler);
+}
+
+inline uint64_t bgEntryHash(const ResourceDescriptor& bge){
+    const uint32_t rotation = (bge.binding * 7) & 63;
+    uint64_t value = ROT_BYTES((uint64_t)bge.buffer, rotation);
+    value ^= ROT_BYTES((uint64_t)bge.textureView, rotation);
+    value ^= ROT_BYTES((uint64_t)bge.sampler, rotation);
+    value ^= ROT_BYTES((uint64_t)bge.offset, rotation);
+    value ^= ROT_BYTES((uint64_t)bge.size, rotation);
+    return value;
+}
+
+extern "C" DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const ResourceDescriptor* entries, size_t entryCount){
+    DescribedBindGroup ret zeroinit;
+    ret.entries = (ResourceDescriptor*)std::calloc(entryCount, sizeof(ResourceDescriptor));
+    std::memcpy(ret.entries, entries, entryCount * sizeof(ResourceDescriptor));
+    ret.entryCount = entryCount;
+    ret.layout = bglayout;
+
+    ret.needsUpdate = true;
+    ret.descriptorHash = 0;
+
+
+    for(uint32_t i = 0;i < ret.entryCount;i++){
+        ret.descriptorHash ^= bgEntryHash(ret.entries[i]);
+    }
+    //ret.bindGroup = wgpuDeviceCreateBindGroup((WGPUDevice)GetDevice(), &ret.desc);
+    return ret;
 }
 
 void ResizeBuffer(DescribedBuffer* buffer, size_t newSize){

@@ -4,7 +4,7 @@ extern "C" WGVKBuffer wgvkDeviceCreateBuffer(VkDevice device, const BufferDescri
     WGVKBuffer wgvkBuffer = callocnewpp(WGVKBufferImpl);
     wgvkBuffer->refCount = 1;
 
-    VkBufferCreateInfo bufferDesc;
+    VkBufferCreateInfo bufferDesc zeroinit;
     bufferDesc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferDesc.size = desc->size;
     bufferDesc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -92,6 +92,12 @@ void wgvkRenderPassEncoderBindPipeline(WGVKRenderPassEncoder rpe, DescribedPipel
     rpe->lastLayout = (VkPipelineLayout)pipeline->layout.layout; 
     vkCmdBindPipeline(rpe->cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipeline)pipeline->quartet.pipeline_TriangleList);
 }
+
+void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, VkPipeline pipeline, VkPipelineLayout layout) { 
+    rpe->lastLayout = layout; 
+    vkCmdBindPipeline(rpe->cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipeline)pipeline);
+}
+
 // Implementation of RenderPassDescriptorBindDescriptorSet
 void wgvkRenderPassEncoderBindDescriptorSet(WGVKRenderPassEncoder rpe, uint32_t group, DescriptorSetHandle dset) {
     assert(rpe != nullptr && "RenderPassEncoderHandle is null");

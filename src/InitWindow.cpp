@@ -111,6 +111,7 @@ void main() {
     // Sample the texture using the combined sampler.
     vec4 texColor = texture(sampler2D(texture0, texSampler), frag_uv);
     outColor = texColor * frag_color;
+    outColor = vec4(1,1,0,1);
 }
 )";
 
@@ -234,7 +235,6 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         #endif
         
 
-        
         
         
         //#ifndef __EMSCRIPTEN__

@@ -20,6 +20,108 @@ extern "C" void UnloadTexture(Texture tex){
 void PresentSurface(FullSurface* fsurface){
     wgpuSurfacePresent((WGPUSurface)fsurface->surface);
 }
+extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode){
+    switch(drawMode){
+        case WGPUPrimitiveTopology_TriangleList:
+        //std::cout << "Binding: " <<  pipeline->pipeline << "\n";
+        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleList);
+        break;
+        case WGPUPrimitiveTopology_TriangleStrip:
+        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleStrip);
+        break;
+        case WGPUPrimitiveTopology_LineList:
+        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_LineList);
+        break;
+        case WGPUPrimitiveTopology_PointList:
+        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_PointList);
+        break;
+        default:
+            assert(false && "Unsupported Drawmode");
+            abort();
+    }
+    //pipeline->lastUsedAs = drawMode;
+    wgpuRenderPassEncoderSetBindGroup ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, 0, (WGPUBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup), 0, 0);
+}
+
+extern "C" void UpdateBindGroup(DescribedBindGroup* bg){
+    //std::cout << "Updating bindgroup with " << bg->desc.entryCount << " entries" << std::endl;
+    //std::cout << "Updating bindgroup with " << bg->desc.entries[1].binding << " entries" << std::endl;
+    if(bg->needsUpdate){
+        WGPUBindGroupDescriptor desc zeroinit;
+        std::vector<WGPUBindGroupEntry> aswgpu(bg->entryCount);
+        for(uint32_t i = 0;i < bg->entryCount;i++){
+            aswgpu[i].binding = bg->entries[i].binding;
+            aswgpu[i].buffer = (WGPUBuffer)bg->entries[i].buffer;
+            aswgpu[i].offset = bg->entries[i].offset;
+            aswgpu[i].size = bg->entries[i].size;
+            aswgpu[i].sampler = (WGPUSampler)bg->entries[i].sampler;
+            aswgpu[i].textureView = (WGPUTextureView)bg->entries[i].textureView;
+        }
+        desc.entries = aswgpu.data();
+        desc.entryCount = aswgpu.size();
+        desc.layout = (WGPUBindGroupLayout)bg->layout->layout;
+        bg->bindGroup = wgpuDeviceCreateBindGroup((WGPUDevice)GetDevice(), &desc);
+        bg->needsUpdate = false;
+    }
+}
+
+inline uint64_t bgEntryHash(const ResourceDescriptor& bge){
+    const uint32_t rotation = (bge.binding * 7) & 63;
+    uint64_t value = ROT_BYTES((uint64_t)bge.buffer, rotation);
+    value ^= ROT_BYTES((uint64_t)bge.textureView, rotation);
+    value ^= ROT_BYTES((uint64_t)bge.sampler, rotation);
+    value ^= ROT_BYTES((uint64_t)bge.offset, rotation);
+    value ^= ROT_BYTES((uint64_t)bge.size, rotation);
+    return value;
+}
+
+
+extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry){
+    if(index >= bg->entryCount){
+        TRACELOG(LOG_WARNING, "Trying to set entry %d on a BindGroup with only %d entries", (int)index, (int)bg->entryCount);
+        //return;
+    }
+    auto& newpuffer = entry.buffer;
+    auto& newtexture = entry.textureView;
+    if(newtexture && bg->entries[index].textureView == newtexture){
+        //return;
+    }
+    uint64_t oldHash = bg->descriptorHash;
+    bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
+    //bool donotcache = false;
+    if(bg->releaseOnClear & (1 << index)){
+        //donotcache = true;
+        if(bg->entries[index].buffer){
+            wgpuBufferRelease((WGPUBuffer)bg->entries[index].buffer);
+        }
+        else if(bg->entries[index].textureView){
+            //Todo: currently not the case anyway, but this is nadinöf
+            wgpuTextureViewRelease((WGPUTextureView)bg->entries[index].textureView);
+        }
+        else if(bg->entries[index].sampler){
+            wgpuSamplerRelease((WGPUSampler)bg->entries[index].sampler);
+        }
+        bg->releaseOnClear &= ~(1 << index);
+    }
+    bg->entries[index] = entry;
+    bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
+
+    //TODO don't release and recreate here or find something better
+    if(true /*|| donotcache*/){
+        if(bg->bindGroup)
+            wgpuBindGroupRelease((WGPUBindGroup)bg->bindGroup);
+        bg->bindGroup = nullptr;
+    }
+    //else if(!bg->needsUpdate && bg->bindGroup){
+    //    g_wgpustate.bindGroupPool[oldHash] = bg->bindGroup;
+    //    bg->bindGroup = nullptr;
+    //}
+    bg->needsUpdate = true;
+    
+    //bg->bindGroup = wgpuDeviceCreateBindGroup((WGPUDevice)GetDevice(), &(bg->desc));
+}
+
+
 extern "C" void GetNewTexture(FullSurface* fsurface){
     if(fsurface->surface == 0){
         return;
