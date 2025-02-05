@@ -1,4 +1,46 @@
 #include "vulkan_internals.hpp"
+
+extern "C" WGVKBuffer wgvkDeviceCreateBuffer(VkDevice device, const BufferDescriptor* desc){
+    WGVKBuffer wgvkBuffer = callocnewpp(WGVKBufferImpl);
+    wgvkBuffer->refCount = 1;
+
+    VkBufferCreateInfo bufferDesc;
+    bufferDesc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferDesc.size = desc->size;
+    bufferDesc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    bufferDesc.usage = toVulkanBufferUsage(desc->usage);
+    
+    VkResult bufferCreateResult = vkCreateBuffer((VkDevice)GetDevice(), &bufferDesc, nullptr, &wgvkBuffer->buffer);
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(g_vulkanstate.device, wgvkBuffer->buffer, &memRequirements);
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+
+
+    if (vkAllocateMemory(g_vulkanstate.device, &allocInfo, nullptr, &wgvkBuffer->memory) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate vertex buffer memory!");
+    }
+    vkBindBufferMemory(g_vulkanstate.device, wgvkBuffer->buffer, wgvkBuffer->memory, 0);
+    return wgvkBuffer;
+}
+
+extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, void const * data, size_t size){
+    void* mappedMemory = nullptr;
+
+    VkResult result = vkMapMemory(g_vulkanstate.device, buffer->memory, bufferOffset, size, 0, &mappedMemory);
+    
+    if (result == VK_SUCCESS && mappedMemory != nullptr) {
+        // Memory is host mappable: copy data and unmap.
+        std::memcpy(mappedMemory, data, size);
+        vkUnmapMemory(g_vulkanstate.device, buffer->memory);
+        return;
+    }
+    assert(false && "Not yet implemented");
+    
+    abort();
+}
 void wgvkReleaseCommandBuffer(CommmandBufferHandle commandBuffer) { vkFreeCommandBuffers(g_vulkanstate.device, commandBuffer->pool, 1, &commandBuffer->buffer); }
 void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc) {
     --rpenc->refCount;
@@ -12,11 +54,12 @@ void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc) {
         std::free(rpenc);
     }
 }
-void wgvkReleaseBuffer(BufferHandle buffer) {
+void wgvkReleaseBuffer(WGVKBuffer buffer) {
     --buffer->refCount;
     if (buffer->refCount == 0) {
         vkDestroyBuffer(g_vulkanstate.device, buffer->buffer, nullptr);
         vkFreeMemory(g_vulkanstate.device, buffer->memory, nullptr);
+        std::free(buffer);
     }
 }
 void wgvkReleaseDescriptorSet(DescriptorSetHandle dshandle) {
@@ -70,7 +113,7 @@ void wgvkRenderPassEncoderBindDescriptorSet(WGVKRenderPassEncoder rpe, uint32_t 
         rpe->referencedDescriptorSets.insert(dset);
     }
 }
-void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t binding, BufferHandle buffer, VkDeviceSize offset) {
+void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t binding, WGVKBuffer buffer, VkDeviceSize offset) {
     assert(rpe != nullptr && "RenderPassEncoderHandle is null");
     assert(buffer != nullptr && "BufferHandle is null");
 
@@ -82,7 +125,7 @@ void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t b
         rpe->referencedBuffers.insert(buffer);
     }
 }
-void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, BufferHandle buffer, VkDeviceSize offset, VkIndexType indexType) {
+void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer buffer, VkDeviceSize offset, VkIndexType indexType) {
     assert(rpe != nullptr && "RenderPassEncoderHandle is null");
     assert(buffer != nullptr && "BufferHandle is null");
 

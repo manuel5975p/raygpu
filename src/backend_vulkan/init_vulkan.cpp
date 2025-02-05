@@ -107,95 +107,7 @@ inline uint64_t nanoTime() {
 // Global Vulkan state structure
 
 
-DescribedSampler LoadSampler_Vk(addressMode amode, filterMode fmode, filterMode mipmapFilter, float maxAnisotropy){
-    auto vkamode = [](addressMode a){
-        switch(a){
-            case addressMode::clampToEdge:
-                return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-            case addressMode::mirrorRepeat:
-                return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
-            case addressMode::repeat:
-                return VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        }
-    };
-    DescribedSampler ret{};// = callocnew(DescribedSampler);
-    VkSamplerCreateInfo sci{};
-    sci.compareEnable = VK_FALSE;
-    sci.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    sci.addressModeU = vkamode(amode);
-    sci.addressModeV = vkamode(amode);
-    sci.addressModeW = vkamode(amode);
-    
-    sci.mipmapMode = ((fmode == filter_linear) ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST);
 
-    sci.anisotropyEnable = false;
-    sci.maxAnisotropy = maxAnisotropy;
-    sci.magFilter = ((fmode == filter_linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
-    sci.minFilter = ((fmode == filter_linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
-
-    ret.magFilter = fmode;
-    ret.minFilter = fmode;
-    ret.addressModeU = amode;
-    ret.addressModeV = amode;
-    ret.addressModeW = amode;
-    ret.maxAnisotropy = maxAnisotropy;
-    ret.minFilter = mipmapFilter;
-    ret.compare = CompareFunction_Undefined;//huh??
-    VkResult scr = vkCreateSampler(g_vulkanstate.device, &sci, nullptr, (VkSampler*)&ret.sampler);
-    if(scr != VK_SUCCESS){
-        throw std::runtime_error("Sampler creation failed: " + std::to_string(scr));
-    }
-    return ret;
-}
-DescribedBindGroupLayout LoadBindGroupLayout_Vk(const ResourceTypeDescriptor* descs, uint32_t uniformCount){
-    DescribedBindGroupLayout retv{};
-    DescribedBindGroupLayout* ret = &retv;
-    VkDescriptorSetLayout layout{};
-    VkDescriptorSetLayoutCreateInfo lci{};
-    lci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    lci.bindingCount = uniformCount;
-    
-    small_vector<VkDescriptorSetLayoutBinding> entries(uniformCount);
-    lci.pBindings = entries.data();
-    for(uint32_t i = 0;i < uniformCount;i++){
-        switch(descs[i].type){
-            case storage_texture2d:{
-                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-            }break;
-            case storage_texture3d:{
-                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-            }break;
-            case storage_buffer:{
-                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            }break;
-            case uniform_buffer:{
-                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            }break;
-            case texture2d:{
-                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-            }break;
-            case texture3d:{
-                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-            }break;
-            case texture_sampler:{
-                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-            }break;
-        }
-        entries[i].descriptorCount = 1;
-        entries[i].binding = descs[i].location;
-        entries[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-    }
-    ret->entries = (ResourceTypeDescriptor*)std::calloc(uniformCount, sizeof(ResourceTypeDescriptor));
-    ret->entryCount = uniformCount;
-    std::memcpy(ret->entries, descs, uniformCount * sizeof(ResourceTypeDescriptor));
-    VkResult createResult = vkCreateDescriptorSetLayout(g_vulkanstate.device, &lci, nullptr, (VkDescriptorSetLayout*)&ret->layout);
-    return retv;
-}
-extern "C" void UnloadBuffer_Vk(DescribedBuffer* buf){
-    BufferHandle handle = (BufferHandle)buf->buffer;
-    wgvkReleaseBuffer(handle);
-    std::free(buf);
-}
 
 VkDescriptorSetLayout loadBindGroupLayout(){
     
@@ -384,7 +296,7 @@ void mainLoop(GLFWwindow *window) {
     img = GenImageChecker(WHITE, WHITE, 100, 100, 10);
     rgreen = LoadTextureFromImage(img);
     
-    DescribedSampler sampler = LoadSampler_Vk(repeat, filter_nearest, filter_nearest, 10.0f);
+    DescribedSampler sampler = LoadSamplerEx(repeat, filter_nearest, filter_nearest, 10.0f);
     //set = loadBindGroup(layout, goof);
     Matrix iden = MatrixScale(0.5,0.5,0.5);
     DescribedBuffer* idbuffer = GenBufferEx(&iden, sizeof(iden), BufferUsage_CopyDst | BufferUsage_Uniform);
@@ -511,7 +423,7 @@ void mainLoop(GLFWwindow *window) {
         rlVertex2f(-1, 1);
         drawCurrentBatch();
         //vkCmdEndRenderPass(commandBuffer);
-        EndRenderPass_Vk(commandBuffer, &g_renderstate.renderpass);
+        //EndRenderPass(commandBuffer, &g_renderstate.renderpass);
         //std::cout << ((BufferHandle)vbo->buffer)->refCount << "\n";
         vkWaitForFences(device, 1, &g_vulkanstate.syncState.renderFinishedFence, VK_TRUE, UINT64_MAX);
         vkResetFences(device, 1, &g_vulkanstate.syncState.renderFinishedFence);

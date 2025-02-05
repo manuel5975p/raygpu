@@ -477,7 +477,70 @@ extern "C" Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat f
     }
     return ret;
 }
+DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode mipmapFilter, float maxAnisotropy){
+    DescribedSampler ret zeroinit;
+    ret.magFilter    = fmode;
+    ret.minFilter    = fmode;
+    ret.mipmapFilter = fmode;
+    ret.compare      = CompareFunction_Undefined;
+    ret.lodMinClamp  = 0.0f;
+    ret.lodMaxClamp  = 10.0f;
+    ret.maxAnisotropy = maxAnisotropy;
+    ret.addressModeU = amode;
+    ret.addressModeV = amode;
+    ret.addressModeW = amode;
 
+    WGPUSamplerDescriptor sdesc{};
+    sdesc.magFilter    = (WGPUFilterMode)fmode;
+    sdesc.minFilter    = (WGPUFilterMode)fmode;
+    sdesc.mipmapFilter = (WGPUMipmapFilterMode)fmode;
+    sdesc.compare      = WGPUCompareFunction_Undefined;
+    sdesc.lodMinClamp  = 0.0f;
+    sdesc.lodMaxClamp  = 10.0f;
+    sdesc.maxAnisotropy = maxAnisotropy;
+    sdesc.addressModeU = (WGPUAddressMode)amode;
+    sdesc.addressModeV = (WGPUAddressMode)amode;
+    sdesc.addressModeW = (WGPUAddressMode)amode;
+
+    ret.sampler = wgpuDeviceCreateSampler((WGPUDevice)GetDevice(), &sdesc);
+    return ret;
+}
+void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size){
+    ResourceDescriptor entry{};
+    WGPUBufferDescriptor bufferDesc{};
+
+    bufferDesc.size = size;
+    bufferDesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
+    bufferDesc.mappedAtCreation = false;
+    WGPUBuffer uniformBuffer = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &bufferDesc);
+    wgpuQueueWriteBuffer(GetQueue(), uniformBuffer, 0, data, size);
+    entry.binding = index;
+    entry.buffer = uniformBuffer;
+    entry.size = size;
+    UpdateBindGroupEntry(bg, index, entry);
+    bg->releaseOnClear |= (1 << index);
+}
+
+void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size){
+    ResourceDescriptor entry{};
+    WGPUBufferDescriptor bufferDesc{};
+
+    bufferDesc.size = size;
+    bufferDesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
+    bufferDesc.mappedAtCreation = false;
+
+    WGPUBuffer uniformBuffer = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &bufferDesc);
+    wgpuQueueWriteBuffer(GetQueue(), uniformBuffer, 0, data, size);
+    entry.binding = index;
+    entry.buffer = uniformBuffer;
+    entry.size = size;
+    UpdateBindGroupEntry(bg, index, entry);
+    bg->releaseOnClear |= (1 << index);
+}
+void UnloadBuffer(DescribedBuffer* buffer){
+    wgpuBufferRelease((WGPUBuffer)buffer->buffer);
+    free(buffer);
+}
 Texture LoadTextureFromImage(Image img){
     Texture ret zeroinit;
     ret.sampleCount = 1;
@@ -530,4 +593,68 @@ Texture LoadTextureFromImage(Image img){
     ret.height = img.height;
     if(altdata)free(altdata);
     return ret;
+}
+
+void BeginRenderpassEx(DescribedRenderpass* renderPass){
+    WGPUCommandEncoderDescriptor desc{};
+    desc.label = STRVIEW("another cmdencoder");
+    
+    renderPass->cmdEncoder = wgpuDeviceCreateCommandEncoder((WGPUDevice)GetDevice(), &desc);
+
+    WGPURenderPassDescriptor renderPassDesc zeroinit;
+    renderPassDesc.colorAttachmentCount = 1;
+    
+    WGPURenderPassColorAttachment colorAttachment zeroinit;
+    WGPURenderPassDepthStencilAttachment depthAttachment zeroinit;
+    if(g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].colorMultisample.view){
+        colorAttachment.view = (WGPUTextureView)g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].colorMultisample.view;
+        colorAttachment.resolveTarget = (WGPUTextureView)g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.view;
+    }
+    else{
+        colorAttachment.view = (WGPUTextureView)g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.view;
+        colorAttachment.resolveTarget = nullptr;
+    }
+
+
+    
+    colorAttachment.loadOp  = (WGPULoadOp)renderPass->colorLoadOp;
+    colorAttachment.storeOp = (WGPUStoreOp)renderPass->colorStoreOp;
+    colorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+    colorAttachment.clearValue = WGPUColor{
+        renderPass->colorClear.r,
+        renderPass->colorClear.g,
+        renderPass->colorClear.b,
+        renderPass->colorClear.a,
+    };
+
+    depthAttachment.view = (WGPUTextureView)g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].depth.view;
+    depthAttachment.depthLoadOp  = (WGPULoadOp)renderPass->depthLoadOp;
+    depthAttachment.depthStoreOp = (WGPUStoreOp)renderPass->depthStoreOp;
+    depthAttachment.depthClearValue = 1.0f;
+    depthAttachment.depthReadOnly = false;
+    depthAttachment.stencilLoadOp = WGPULoadOp_Undefined;
+    depthAttachment.stencilStoreOp = WGPUStoreOp_Undefined;
+
+    renderPassDesc.colorAttachmentCount = 1;
+    renderPassDesc.colorAttachments = &colorAttachment;
+    renderPassDesc.depthStencilAttachment = &depthAttachment;
+    
+    
+    renderPass->rpEncoder = wgpuCommandEncoderBeginRenderPass((WGPUCommandEncoder)renderPass->cmdEncoder, &renderPassDesc);
+    g_renderstate.activeRenderpass = renderPass;
+}
+
+void EndRenderpassEx(DescribedRenderpass* renderPass){
+    drawCurrentBatch();
+    wgpuRenderPassEncoderEnd((WGPURenderPassEncoder)renderPass->rpEncoder);
+    g_renderstate.activeRenderpass = nullptr;
+    auto re = renderPass->rpEncoder;
+    renderPass->rpEncoder = 0;
+    WGPUCommandBufferDescriptor cmdBufferDescriptor{};
+    cmdBufferDescriptor.label = STRVIEW("CB");
+    WGPUCommandBuffer command = wgpuCommandEncoderFinish((WGPUCommandEncoder)renderPass->cmdEncoder, &cmdBufferDescriptor);
+    wgpuQueueSubmit((WGPUQueue)GetQueue(), 1, &command);
+    wgpuRenderPassEncoderRelease((WGPURenderPassEncoder)re);
+    wgpuCommandEncoderRelease((WGPUCommandEncoder)renderPass->cmdEncoder);
+    wgpuCommandBufferRelease(command);
 }

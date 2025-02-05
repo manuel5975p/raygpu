@@ -25,7 +25,7 @@
 #ifndef ENUM_HEADER_H
 #define ENUM_HEADER_H
 
-#define SUPPORT_WGPU_BACKEND 1
+//#define SUPPORT_WGPU_BACKEND 1
 #define SUPPORT_VULKAN_BACKEND 1
 #ifdef __cplusplus
 #include <cassert>
@@ -65,12 +65,12 @@ typedef enum addressMode {
 } addressMode;
 
 typedef enum PixelFormat {
-    RGBA8 = WGPUTextureFormat_RGBA8Unorm,
-    BGRA8 = WGPUTextureFormat_BGRA8Unorm,
-    RGBA16F = WGPUTextureFormat_RGBA16Float,
-    RGBA32F = WGPUTextureFormat_RGBA32Float,
-    Depth24 = WGPUTextureFormat_Depth24Plus,
-    Depth32 = WGPUTextureFormat_Depth32Float,
+    RGBA8 =   0x18, //WGPUTextureFormat_RGBA8Unorm,
+    BGRA8 =   0x17, //WGPUTextureFormat_BGRA8Unorm,
+    RGBA16F = 0x22, //WGPUTextureFormat_RGBA16Float,
+    RGBA32F = 0x23, //WGPUTextureFormat_RGBA32Float,
+    Depth24 = 0x28, //WGPUTextureFormat_Depth24Plus,
+    Depth32 = 0x2A, //WGPUTextureFormat_Depth32Float,
 
     GRAYSCALE = 0x100000, // No WGPU_ equivalent
     RGB8 = 0x100001,      // No WGPU_ equivalent

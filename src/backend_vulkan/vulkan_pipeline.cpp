@@ -20,8 +20,7 @@ extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vs
     fscreateInfo.pCode = reinterpret_cast<const uint32_t*>(fscode);
 
 
-
-    ret.shaderModule = callocnew(VertexAndFragmentShaderModule);
+    ret.shaderModule = callocnew(VertexAndFragmentShaderModuleImpl);
     if (vkCreateShaderModule(g_vulkanstate.device, &vscreateInfo, nullptr, &((VertexAndFragmentShaderModule)ret.shaderModule)->vModule) != VK_SUCCESS) {
         throw std::runtime_error("failed to create vertex shader module!");
     }
@@ -39,17 +38,18 @@ void UpdatePipeline_Vk(DescribedPipeline* ret, const VertexArray* vao){
         ret->quartet = it->second;
         return;
     }
+    VertexAndFragmentShaderModule vfm = ((VertexAndFragmentShaderModule)ret->sh.shaderModule);
     auto& settings = ret->settings;
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertShaderStageInfo.module = ((VertexAndFragmentShaderModule)ret->sh.shaderModule)->vModule;
+    vertShaderStageInfo.module = vfm->vModule;
     vertShaderStageInfo.pName = "main";
 
     VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
     fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragShaderStageInfo.module = ((VertexAndFragmentShaderModule)ret->sh.shaderModule)->fModule;
+    fragShaderStageInfo.module = vfm->fModule;
     fragShaderStageInfo.pName = "main";
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
@@ -238,7 +238,7 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
     DescribedPipeline* ret = callocnew(DescribedPipeline);
     ret->settings = settings;
     ret->createdPipelines = callocnewpp(VertexStateToPipelineMap);
-    ret->bglayout = LoadBindGroupLayout_Vk(uniforms, uniformCount);
+    ret->bglayout = LoadBindGroupLayout(uniforms, uniformCount);
     auto [spirV, spirF] = glsl_to_spirv(vsSource, fsSource);
     
     ret->sh = LoadShaderModuleFromSPIRV_Vk(spirV.data(), spirV.size() * 4, spirF.data(), spirF.size() * 4);
@@ -258,7 +258,7 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
         bge[i] = ResourceDescriptor{};
         bge[i].binding = uniforms[i].location;
     }
-    ret->bglayout = LoadBindGroupLayout_Vk(uniforms, uniformCount);
+    ret->bglayout = LoadBindGroupLayout(uniforms, uniformCount);
     ret->bindGroup = LoadBindGroup_Vk(&ret->bglayout, bge.data(), bge.size());
     UpdatePipeline_Vk(ret, vao);    
     
@@ -280,7 +280,7 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, Resou
     if(bg->releaseOnClear & (1 << index)){
         //donotcache = true;
         if(bg->entries[index].buffer){
-            wgvkReleaseBuffer((BufferHandle)bg->entries[index].buffer);
+            wgvkReleaseBuffer((WGVKBuffer)bg->entries[index].buffer);
         }
         else if(bg->entries[index].textureView){
             //Todo: currently not the case anyway, but this is nadinöf
@@ -434,7 +434,7 @@ void UpdateBindGroup_Vk(DescribedBindGroup* bg){
         writes[i].descriptorCount = 1;
 
         if(layout->entries[i].type == uniform_buffer || layout->entries->type == storage_buffer){
-            bufferInfos[i].buffer = ((BufferHandle)bg->entries[i].buffer)->buffer;
+            bufferInfos[i].buffer = ((WGVKBuffer)bg->entries[i].buffer)->buffer;
             bufferInfos[i].offset = bg->entries[i].offset;
             bufferInfos[i].range =  bg->entries[i].size;
             writes[i].pBufferInfo = bufferInfos.data() + i;

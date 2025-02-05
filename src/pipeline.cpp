@@ -210,6 +210,7 @@ extern "C" DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, Verte
     return pl;
 }
 uint32_t GetUniformLocation(DescribedPipeline* pl, const char* uniformName){
+    return LOCATION_NOT_FOUND;
     return pl->sh.uniformLocations->GetLocation(uniformName);
 }
 uint32_t GetUniformLocationCompute(DescribedComputePipeline* pl, const char* uniformName){
