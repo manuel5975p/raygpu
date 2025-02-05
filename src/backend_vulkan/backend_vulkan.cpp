@@ -707,9 +707,9 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     viewport.minDepth = 0;
     viewport.maxDepth = 1;
     viewport.x = 0;
-    viewport.y = 0;
+    viewport.y = fbci.height;
     viewport.width  = fbci.width;
-    viewport.height = fbci.height;
+    viewport.height = -((float)fbci.height);
 
     VkRect2D scissor zeroinit;
     scissor.offset.x = 0;
@@ -718,7 +718,7 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     scissor.extent.height = fbci.height;
     vkCmdSetViewport((VkCommandBuffer)renderPass->cmdEncoder, 0, 1, &viewport);
     vkCmdSetScissor((VkCommandBuffer)renderPass->cmdEncoder, 0, 1, &scissor);
-    wgvkRenderPassEncoderBindPipeline((WGVKRenderPassEncoder)renderPass->rpEncoder, g_renderstate.defaultPipeline);
+    //wgvkRenderPassEncoderBindPipeline((WGVKRenderPassEncoder)renderPass->rpEncoder, g_renderstate.defaultPipeline);
     g_renderstate.activeRenderpass = renderPass;
     //UpdateBindGroup_Vk(&g_renderstate.defaultPipeline->bindGroup);
     //wgvkRenderPassEncoderBindDescriptorSet((WGVKRenderPassEncoder)renderPass->rpEncoder, 0, (DescriptorSetHandle)g_renderstate.defaultPipeline->bindGroup.bindGroup);

@@ -87,6 +87,7 @@ void main() {
     
     // Compute transformed position using instance-specific model matrix.
     gl_Position = Perspective_View * modelMatrix[gl_InstanceIndex] * vec4(in_position, 1.0);
+    //gl_Position = vec4(in_position, 1.0);
     frag_uv = in_uv;
     frag_color = in_color;
 }
