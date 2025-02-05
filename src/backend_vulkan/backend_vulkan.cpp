@@ -4,11 +4,12 @@
 #include <wgpustate.inc>
 #include "vulkan_internals.hpp"
 
+
 VulkanState g_vulkanstate{};
 
 void BufferData(DescribedBuffer* buffer, void* data, size_t size){
     if(buffer->size >= size){
-        BufferHandle handle = (BufferHandle)buffer->buffer;
+        WGVKBuffer handle = (WGVKBuffer)buffer->buffer;
         void* udata = 0;
         VkResult mapresult = vkMapMemory(g_vulkanstate.device, handle->memory, 0, size, 0, &udata);
         if(mapresult == VK_SUCCESS){
@@ -35,6 +36,7 @@ void drawCurrentBatch(){
     //UnloadBuffer(vbo);
     vboptr = vboptr_base;
 }
+
 void PresentSurface(FullSurface* surface){
     WGVKSurface wgvksurf = (WGVKSurface)surface->surface;
     VkPresentInfoKHR presentInfo{};
@@ -54,6 +56,7 @@ void PresentSurface(FullSurface* surface){
         std::cerr << "presentRes is " << presentRes << std::endl;
     }
 }
+
 DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsage usage){
     VkBufferUsageFlags vusage = toVulkanBufferUsage(usage);
     DescribedBuffer* ret = callocnew(DescribedBuffer);
@@ -85,10 +88,10 @@ DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsage usage){
         memcpy(mapdata, data, (size_t)bufferInfo.size);
         vkUnmapMemory(g_vulkanstate.device, vertexBufferMemory);
     }
-    ret->buffer = callocnewpp(BufferHandleImpl);
-    ((BufferHandle)ret->buffer)->buffer = vertexBuffer;
-    ((BufferHandle)ret->buffer)->memory = vertexBufferMemory;
-    ((BufferHandle)ret->buffer)->refCount = 1;
+    ret->buffer = callocnewpp(WGVKBufferImpl);
+    ((WGVKBuffer)ret->buffer)->buffer = vertexBuffer;
+    ((WGVKBuffer)ret->buffer)->memory = vertexBufferMemory;
+    ((WGVKBuffer)ret->buffer)->refCount = 1;
     //vkMapMemory(g_vulkanstate.device, vertexBufferMemory, 0, size, void **ppData)
     ret->size = bufferInfo.size;
     ret->usage = usage;
@@ -107,6 +110,47 @@ extern "C" void ResizeSurface_Vk(FullSurface* fsurface, uint32_t width, uint32_t
     UnloadTexture(fsurface->renderTarget.depth);
     fsurface->renderTarget.depth = LoadTexturePro(width, height, Depth32, TextureUsage_RenderAttachment, 1, 1);
 }
+DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode mipmapFilter, float maxAnisotropy){
+    auto vkamode = [](addressMode a){
+        switch(a){
+            case addressMode::clampToEdge:
+                return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            case addressMode::mirrorRepeat:
+                return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+            case addressMode::repeat:
+                return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        }
+    };
+    DescribedSampler ret{};// = callocnew(DescribedSampler);
+    VkSamplerCreateInfo sci{};
+    sci.compareEnable = VK_FALSE;
+    sci.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    sci.addressModeU = vkamode(amode);
+    sci.addressModeV = vkamode(amode);
+    sci.addressModeW = vkamode(amode);
+    
+    sci.mipmapMode = ((fmode == filter_linear) ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST);
+
+    sci.anisotropyEnable = false;
+    sci.maxAnisotropy = maxAnisotropy;
+    sci.magFilter = ((fmode == filter_linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
+    sci.minFilter = ((fmode == filter_linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
+
+    ret.magFilter = fmode;
+    ret.minFilter = fmode;
+    ret.addressModeU = amode;
+    ret.addressModeV = amode;
+    ret.addressModeW = amode;
+    ret.maxAnisotropy = maxAnisotropy;
+    ret.minFilter = mipmapFilter;
+    ret.compare = CompareFunction_Undefined;//huh??
+    VkResult scr = vkCreateSampler(g_vulkanstate.device, &sci, nullptr, (VkSampler*)&ret.sampler);
+    if(scr != VK_SUCCESS){
+        throw std::runtime_error("Sampler creation failed: " + std::to_string(scr));
+    }
+    return ret;
+}
+
 
 extern "C" void GetNewTexture(FullSurface *fsurface){
 
@@ -121,6 +165,8 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
     else{
         fsurface->renderTarget.texture.id = wgvksurf->images[imageIndex];
         fsurface->renderTarget.texture.view = wgvksurf->imageViews[imageIndex];
+        fsurface->renderTarget.texture.width = wgvksurf->width;
+        fsurface->renderTarget.texture.height = wgvksurf->height;
     }
     wgvksurf->activeImageIndex = imageIndex;
 }
@@ -143,9 +189,9 @@ VkInstance createInstance() {
     VkInstance ret{};
 
     uint32_t requiredGLFWExtensions = 0;
-    const char** windowExtensions = nullptr;
+    const char* const* windowExtensions = nullptr;
     #if SUPPORT_GLFW == 1
-    glfwExtensions = glfwGetRequiredInstanceExtensions(&requiredGLFWExtensions);
+    windowExtensions = glfwGetRequiredInstanceExtensions(&requiredGLFWExtensions);
     #elif SUPPORT_SDL2 == 1
     auto dummywindow = SDL_CreateWindow("dummy", 0, 0, 1, 1, SDL_WINDOW_HIDDEN | SDL_WINDOW_VULKAN);
     SDL_bool res = SDL_Vulkan_GetInstanceExtensions(dummywindow, &requiredGLFWExtensions, windowExtensions);
@@ -153,6 +199,8 @@ VkInstance createInstance() {
     windowExtensions = (const char**)std::calloc(requiredGLFWExtensions, sizeof(char*));
     res = SDL_Vulkan_GetInstanceExtensions(dummywindow, &requiredGLFWExtensions, windowExtensions);
     assert(res && "SDL extensions error");
+    #elif SUPPORT_SDL3
+    windowExtensions = SDL_Vulkan_GetInstanceExtensions(&requiredGLFWExtensions);
     #endif
     if (!windowExtensions) {
         throw std::runtime_error("Failed to get required extensions for windowing!");
@@ -304,14 +352,16 @@ QueueIndices findQueueFamilies() {
             ret.graphicsIndex = i;
         }
         // Check for presentation support
-
+        #ifdef MAIN_WINDOW_SDL3
+        bool presentSupport = true;//SDL_Vulkan_GetPresentationSupport(g_vulkanstate.instance, g_vulkanstate.physicalDevice, i);
+        #endif
         #ifdef MAIN_WINDOW_SDL2 //uuh 
         VkBool32 presentSupport = VK_TRUE;
         #elif defined(MAIN_WINDOW_GLFW)
         VkBool32 presentSupport = glfwGetPhysicalDevicePresentationSupport(g_vulkanstate.instance, g_vulkanstate.physicalDevice, i) ? VK_TRUE : VK_FALSE;
         #endif
         //vkGetPhysicalDeviceSurfaceSupportKHR(g_vulkanstate.physicalDevice, i, g_vulkanstate.surface.surface, &presentSupport);
-        if (presentSupport && ret.presentIndex == UINT32_MAX) {
+        if (!!presentSupport && ret.presentIndex == UINT32_MAX) {
             ret.presentIndex = i;
         }
         if(queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT){
@@ -336,8 +386,84 @@ QueueIndices findQueueFamilies() {
 
     return ret;
 }
+DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* descs, uint32_t uniformCount){
+    DescribedBindGroupLayout retv{};
+    DescribedBindGroupLayout* ret = &retv;
+    VkDescriptorSetLayout layout{};
+    VkDescriptorSetLayoutCreateInfo lci{};
+    lci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    lci.bindingCount = uniformCount;
+    
+    small_vector<VkDescriptorSetLayoutBinding> entries(uniformCount);
+    lci.pBindings = entries.data();
+    for(uint32_t i = 0;i < uniformCount;i++){
+        switch(descs[i].type){
+            case storage_texture2d:{
+                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            }break;
+            case storage_texture3d:{
+                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            }break;
+            case storage_buffer:{
+                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            }break;
+            case uniform_buffer:{
+                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            }break;
+            case texture2d:{
+                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+            }break;
+            case texture3d:{
+                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+            }break;
+            case texture_sampler:{
+                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+            }break;
+        }
+        entries[i].descriptorCount = 1;
+        entries[i].binding = descs[i].location;
+        entries[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    }
+    ret->entries = (ResourceTypeDescriptor*)std::calloc(uniformCount, sizeof(ResourceTypeDescriptor));
+    ret->entryCount = uniformCount;
+    std::memcpy(ret->entries, descs, uniformCount * sizeof(ResourceTypeDescriptor));
+    VkResult createResult = vkCreateDescriptorSetLayout(g_vulkanstate.device, &lci, nullptr, (VkDescriptorSetLayout*)&ret->layout);
+    return retv;
+}
 
-// Function to query swapchain support details
+void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size){
+    ResourceDescriptor entry{};
+    BufferDescriptor bufferDesc{};
+    bufferDesc.size = size;
+    bufferDesc.usage = BufferUsage_CopyDst | BufferUsage_Uniform;
+    WGVKBuffer wgvkBuffer = wgvkDeviceCreateBuffer(g_vulkanstate.device, &bufferDesc);
+    entry.binding = index;
+    entry.buffer = wgvkBuffer;
+    entry.size = size;
+    UpdateBindGroupEntry(bg, index, entry);
+    bg->releaseOnClear |= (1 << index);
+}
+
+void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size){
+    ResourceDescriptor entry{};
+    BufferDescriptor bufferDesc{};
+    bufferDesc.size = size;
+    bufferDesc.usage = BufferUsage_CopyDst | BufferUsage_Storage;
+    WGVKBuffer wgvkBuffer = wgvkDeviceCreateBuffer(g_vulkanstate.device, &bufferDesc);
+    entry.binding = index;
+    entry.buffer = wgvkBuffer;
+    entry.size = size;
+    UpdateBindGroupEntry(bg, index, entry);
+    bg->releaseOnClear |= (1 << index);
+}
+
+
+extern "C" void UnloadBuffer(DescribedBuffer* buf){
+    WGVKBuffer handle = (WGVKBuffer)buf->buffer;
+    wgvkReleaseBuffer(handle);
+    std::free(buf);
+}
+
 
 void createRenderPass() {
     VkAttachmentDescription attachments[2] = {};
@@ -454,8 +580,8 @@ std::pair<VkDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDevi
     createInfo.pEnabledFeatures = &deviceFeatures;
 
     // (Optional) Enable validation layers for device-specific debugging
-
-    if (vkCreateDevice(g_vulkanstate.physicalDevice, &createInfo, nullptr, &ret.first) != VK_SUCCESS) {
+    auto dcresult = vkCreateDevice(g_vulkanstate.physicalDevice, &createInfo, nullptr, &ret.first);
+    if (dcresult != VK_SUCCESS) {
         throw std::runtime_error("Failed to create logical device!");
     } else {
         std::cout << "Successfully created logical device\n";
@@ -498,6 +624,12 @@ memory_types discoverMemoryTypes(VkPhysicalDevice physicalDevice) {
     return ret;
 }
 void InitBackend(){
+    #if SUPPORT_SDL3 == 1
+    SDL_Init(SDL_INIT_VIDEO);
+    #endif
+    #if SUPPORT_GLFW
+    glfwInit();
+    #endif
     g_vulkanstate.instance = createInstance();
     g_vulkanstate.physicalDevice = pickPhysicalDevice();
     vkGetPhysicalDeviceMemoryProperties(g_vulkanstate.physicalDevice, &g_vulkanstate.memProperties);
@@ -516,4 +648,86 @@ void InitBackend(){
 
     
     createRenderPass();
+}
+extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
+
+    WGVKRenderPassEncoder ret = callocnewpp(RenderPassEncoderHandleImpl);
+
+    VkCommandBufferBeginInfo bbi{};
+    bbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    VkRenderPassBeginInfo rpbi{};
+    VkClearValue clearvalues[2] = {};
+    clearvalues[0].color = VkClearColorValue{};
+    clearvalues[0].color.float32[0] = (float)renderPass->colorClear.r;
+    clearvalues[0].color.float32[1] = (float)renderPass->colorClear.g;
+    clearvalues[0].color.float32[2] = (float)renderPass->colorClear.b;
+    clearvalues[0].color.float32[3] = (float)renderPass->colorClear.a;
+
+    clearvalues[1].depthStencil = VkClearDepthStencilValue{};
+    clearvalues[1].depthStencil.depth = (float)renderPass->depthClear;
+
+
+
+    if(renderPass->cmdEncoder == nullptr){
+        VkCommandPool oof{};
+        VkCommandPoolCreateInfo pci zeroinit;
+        pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        pci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        VkCommandBufferAllocateInfo cbai zeroinit;
+        cbai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        cbai.commandBufferCount = 1;
+        vkCreateCommandPool(g_vulkanstate.device, &pci, nullptr, &oof);
+        cbai.commandPool = oof;
+        vkAllocateCommandBuffers(g_vulkanstate.device, &cbai, (VkCommandBuffer*)&renderPass->cmdEncoder);
+    }
+    
+    vkResetCommandBuffer((VkCommandBuffer)renderPass->cmdEncoder, 0);
+    rpbi.renderPass = g_vulkanstate.renderPass;
+
+    auto rtex = g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition];
+    VkFramebufferCreateInfo fbci{};
+    fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    VkImageView fbAttachments[2] = {
+        (VkImageView)rtex.texture.view,
+        (VkImageView)rtex.depth.view,
+    };
+    fbci.pAttachments = fbAttachments;
+    fbci.attachmentCount = 2;
+    fbci.width = rtex.texture.width;
+    fbci.height = rtex.texture.height;
+    fbci.layers = 1;
+    fbci.renderPass = g_vulkanstate.renderPass;
+    VkFramebuffer rahmePuffer = 0;
+    vkCreateFramebuffer(g_vulkanstate.device, &fbci, nullptr, &rahmePuffer);
+    rpbi.framebuffer = rahmePuffer;
+    renderPass->rpEncoder = BeginRenderPass_Vk((VkCommandBuffer)renderPass->cmdEncoder, renderPass, rahmePuffer);
+}
+
+extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
+    VkCommandBuffer cbuffer = (VkCommandBuffer)rp->cmdEncoder;
+    vkCmdEndRenderPass(cbuffer);
+    vkEndCommandBuffer(cbuffer);
+    VkPipelineStageFlags stageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    VkSubmitInfo sinfo{};
+    sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    sinfo.commandBufferCount = 1;
+    sinfo.pCommandBuffers = &cbuffer;
+    sinfo.waitSemaphoreCount = 1;
+    sinfo.pWaitSemaphores = g_vulkanstate.syncState.imageAvailableSemaphores;
+    sinfo.pWaitDstStageMask = &stageMask;
+    sinfo.signalSemaphoreCount = 1;
+    sinfo.pSignalSemaphores = g_vulkanstate.syncState.presentSemaphores;
+    //VkFence fence{};
+    //VkFenceCreateInfo finfo{};
+    //finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    //if(vkCreateFence(g_vulkanstate.device, &finfo, nullptr, &fence) != VK_SUCCESS){
+    //    throw std::runtime_error("Could not create fence");
+    //}
+    if(vkQueueSubmit(g_vulkanstate.queue.graphicsQueue, 1, &sinfo, g_vulkanstate.syncState.renderFinishedFence) != VK_SUCCESS){
+        throw std::runtime_error("Could not submit commandbuffer");
+    }
+    if(vkWaitForFences(g_vulkanstate.device, 1, &g_vulkanstate.syncState.renderFinishedFence, VK_TRUE, ~0) != VK_SUCCESS){
+        throw std::runtime_error("Could not wait for fence");
+    }
+    //vkDestroyFence(g_vulkanstate.device, fence, nullptr);
 }

@@ -13,7 +13,13 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #endif
-#if SUPPORT_SDL2
+#if SUPPORT_SDL3 == 1
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_init.h>
+#include <SDL3/SDL_vulkan.h>
+#endif
+#if SUPPORT_SDL2 == 1
+#include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
 #endif
 inline std::pair<std::vector<VkVertexInputAttributeDescription>, std::vector<VkVertexInputBindingDescription>> genericVertexLayoutSetToVulkan(const VertexBufferLayoutSet& vls){
@@ -56,14 +62,14 @@ struct QueueIndices{
 
 struct VertexAndFragmentShaderModuleImpl;
 struct DescriptorSetHandleImpl;
-struct BufferHandleImpl;
+struct WGVKBufferImpl;
 struct WGVKRenderPassEncoderImpl;
 struct CommandBufferHandleImpl;
 struct ImageHandleImpl;
 
 typedef VertexAndFragmentShaderModuleImpl* VertexAndFragmentShaderModule;
 typedef DescriptorSetHandleImpl* DescriptorSetHandle;
-typedef BufferHandleImpl* BufferHandle;
+typedef WGVKBufferImpl* WGVKBuffer;
 typedef WGVKRenderPassEncoderImpl* WGVKRenderPassEncoder;
 typedef CommandBufferHandleImpl* CommmandBufferHandle;
 typedef ImageHandleImpl* ImageHandle;
@@ -83,15 +89,15 @@ typedef struct DescriptorSetHandleImpl{
     refcount_type refCount;
 }DescriptorSetHandleImpl;
 
-typedef struct BufferHandleImpl{
+typedef struct WGVKBufferImpl{
     VkBuffer buffer;
     VkDeviceMemory memory;
     refcount_type refCount;
-}BufferHandleImpl;
+}WGVKBufferImpl;
 
 typedef struct WGVKRenderPassEncoderImpl{
     VkCommandBuffer cmdBuffer;
-    ref_holder<BufferHandle> referencedBuffers;
+    ref_holder<WGVKBuffer> referencedBuffers;
     ref_holder<DescriptorSetHandle> referencedDescriptorSets;
     VkPipelineLayout lastLayout;
     VkFramebuffer frameBuffer;
@@ -375,7 +381,8 @@ inline FullSurface LoadSurface(GLFWwindow* window, SurfaceConfiguration config){
     config.width = extent.width;
     config.height = extent.height;
     retf.surfaceConfig = config;
-
+    retf.renderTarget.texture.width = extent.width;
+    retf.renderTarget.texture.height = extent.height;
     retf.renderTarget.depth = LoadTexturePro(extent.width, extent.height, Depth32, TextureUsage_RenderAttachment, 1, 1);
     
     return retf;
@@ -538,41 +545,9 @@ static inline VkFence CreateFence(VkFenceCreateFlags flags = 0){
     }
     return ret;
 }
-static inline void BeginRenderpassEx_Vk(DescribedRenderpass *renderPass, RenderTexture rtex){
+extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass);
 
-    WGVKRenderPassEncoder ret = callocnewpp(RenderPassEncoderHandleImpl);
 
-    VkCommandBufferBeginInfo bbi{};
-    bbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    VkRenderPassBeginInfo rpbi{};
-    VkClearValue clearvalues[2] = {};
-    clearvalues[0].color = VkClearColorValue{};
-    clearvalues[0].color.float32[0] = (float)renderPass->colorClear.r;
-    clearvalues[0].color.float32[1] = (float)renderPass->colorClear.g;
-    clearvalues[0].color.float32[2] = (float)renderPass->colorClear.b;
-    clearvalues[0].color.float32[3] = (float)renderPass->colorClear.a;
-
-    clearvalues[1].depthStencil = VkClearDepthStencilValue{};
-    clearvalues[1].depthStencil.depth = (float)renderPass->depthClear;
-
-    vkResetCommandBuffer((VkCommandBuffer)renderPass->cmdEncoder, 0);
-    rpbi.renderPass = g_vulkanstate.renderPass;
-    VkFramebufferCreateInfo fbci{};
-    fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    VkImageView fbAttachments[2] = {
-        (VkImageView)rtex.texture.view,
-        (VkImageView)rtex.depth.view,
-    };
-    fbci.pAttachments = fbAttachments;
-    fbci.attachmentCount = 2;
-    fbci.width = rtex.texture.width;
-    fbci.height = rtex.texture.height;
-    fbci.layers = 1;
-    VkFramebuffer rahmePuffer = 0;
-    vkCreateFramebuffer(g_vulkanstate.device, &fbci, nullptr, &rahmePuffer);
-    rpbi.framebuffer = rahmePuffer;
-    //renderPass->renderTarget
-}
 static inline WGVKRenderPassEncoder BeginRenderPass_Vk(VkCommandBuffer cbuffer, DescribedRenderpass* rp, VkFramebuffer fb){
 
     WGVKRenderPassEncoder ret = callocnewpp(RenderPassEncoderHandleImpl);
@@ -591,6 +566,7 @@ static inline WGVKRenderPassEncoder BeginRenderPass_Vk(VkCommandBuffer cbuffer, 
     rpbi.framebuffer = fb;
     rpbi.renderArea.extent.width = g_vulkanstate.surface.surfaceConfig.width;
     rpbi.renderArea.extent.height = g_vulkanstate.surface.surfaceConfig.height;
+    rpbi.renderPass = g_vulkanstate.renderPass;
 
     vkBeginCommandBuffer(cbuffer, &bbi);
     vkCmdBeginRenderPass(cbuffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
@@ -599,56 +575,37 @@ static inline WGVKRenderPassEncoder BeginRenderPass_Vk(VkCommandBuffer cbuffer, 
     rp->rpEncoder = ret;
     return ret;
 }
-inline void EndRenderPass_Vk(VkCommandBuffer cbuffer, DescribedRenderpass* rp){
-    vkCmdEndRenderPass(cbuffer);
-    vkEndCommandBuffer(cbuffer);
-    VkPipelineStageFlags stageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    VkSubmitInfo sinfo{};
-    sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    sinfo.commandBufferCount = 1;
-    sinfo.pCommandBuffers = &cbuffer;
-    sinfo.waitSemaphoreCount = 1;
-    sinfo.pWaitSemaphores = g_vulkanstate.syncState.imageAvailableSemaphores;
-    sinfo.pWaitDstStageMask = &stageMask;
-    sinfo.signalSemaphoreCount = 1;
-    sinfo.pSignalSemaphores = g_vulkanstate.syncState.presentSemaphores;
-    //VkFence fence{};
-    //VkFenceCreateInfo finfo{};
-    //finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    //if(vkCreateFence(g_vulkanstate.device, &finfo, nullptr, &fence) != VK_SUCCESS){
-    //    throw std::runtime_error("Could not create fence");
-    //}
-    if(vkQueueSubmit(g_vulkanstate.queue.graphicsQueue, 1, &sinfo, g_vulkanstate.syncState.renderFinishedFence) != VK_SUCCESS){
-        throw std::runtime_error("Could not submit commandbuffer");
-    }
-    if(vkWaitForFences(g_vulkanstate.device, 1, &g_vulkanstate.syncState.renderFinishedFence, VK_TRUE, ~0) != VK_SUCCESS){
-        throw std::runtime_error("Could not wait for fence");
-    }
-    //vkDestroyFence(g_vulkanstate.device, fence, nullptr);
-}//
+extern "C" void EndRenderPass(VkCommandBuffer cbuffer, DescribedRenderpass* rp);
+
+
 extern "C" Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat format, TextureUsage usage, uint32_t sampleCount, uint32_t mipmaps);
 extern "C" Texture LoadTextureFromImage(Image img);
 extern "C" void UnloadTexture(Texture tex);
 extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vscode, size_t vscodeSizeInBytes, const uint32_t* fscode, size_t fscodeSizeInBytes);
-extern "C" DescribedBindGroupLayout LoadBindGroupLayout_Vk(const ResourceTypeDescriptor* descs, uint32_t uniformCount);
+extern "C" DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* descs, uint32_t uniformCount);
 extern "C" DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSource, const VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
 extern "C" DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, const ResourceDescriptor* resources, uint32_t count);
 extern "C" void UpdateBindGroup_Vk(DescribedBindGroup* bg);
 extern "C" DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsage usage);
-extern "C" void UnloadBuffer_Vk(DescribedBuffer* buf);
+extern "C" void UnloadBuffer(DescribedBuffer* buf);
 
 //wgvk I guess
+
+extern "C" WGVKBuffer wgvkDeviceCreateBuffer(VkDevice device, const BufferDescriptor* desc);
+extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, void const * data, size_t size);
+
+
 extern "C" void wgvkReleaseCommandBuffer(CommmandBufferHandle commandBuffer);
 extern "C" void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc);
-extern "C" void wgvkReleaseBuffer(BufferHandle commandBuffer);
+extern "C" void wgvkReleaseBuffer(WGVKBuffer commandBuffer);
 extern "C" void wgvkReleaseDescriptorSet(DescriptorSetHandle commandBuffer);
 
 extern "C" void wgvkRenderpassEncoderDraw(WGVKRenderPassEncoder rpe, uint32_t vertices, uint32_t instances, uint32_t firstvertex, uint32_t firstinstance);
 extern "C" void wgvkRenderpassEncoderDrawIndexed(WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t firstinstance);
 extern "C" void wgvkRenderPassEncoderBindDescriptorSet(WGVKRenderPassEncoder rpe, uint32_t group, DescriptorSetHandle dset);
 extern "C" void wgvkRenderPassEncoderBindPipeline(WGVKRenderPassEncoder rpe, DescribedPipeline* pipeline);
-extern "C" void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, BufferHandle buffer, VkDeviceSize offset, VkIndexType indexType);
-extern "C" void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t binding, BufferHandle buffer, VkDeviceSize offset);
+extern "C" void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer buffer, VkDeviceSize offset, VkIndexType indexType);
+extern "C" void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t binding, WGVKBuffer buffer, VkDeviceSize offset);
 
 extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry);
 extern "C" void GetNewTexture(FullSurface *fsurface);
@@ -673,7 +630,7 @@ static inline void SetBindgroupTexture_Vk(DescribedBindGroup* bg, uint32_t index
 }
 static inline void BindVertexArray_Vk(WGVKRenderPassEncoder rpenc, VertexArray* vao){
     for(uint32_t i = 0;i < vao->buffers.size();i++){
-        wgvkRenderPassEncoderBindVertexBuffer(rpenc, i, (BufferHandle)vao->buffers[i].first->buffer, 0);
+        wgvkRenderPassEncoderBindVertexBuffer(rpenc, i, (WGVKBuffer)vao->buffers[i].first->buffer, 0);
     }
 }
 

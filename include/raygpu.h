@@ -1295,6 +1295,6 @@ extern const std::unordered_map<WGPUTextureFormat, std::string> textureFormatSpe
 extern const std::unordered_map<WGPUPresentMode, std::string> presentModeSpellingTable;
 extern const std::unordered_map<WGPUBackendType, std::string> backendTypeSpellingTable;
 extern const std::unordered_map<WGPUFeatureName, std::string> featureSpellingTable;
-extern "C" void negotiateSurfaceFormatAndPresentMode(const void* SurfaceHandle);
+
 #endif
 #endif

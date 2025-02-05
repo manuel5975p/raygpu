@@ -69,7 +69,10 @@ typedef struct ResourceDescriptor {
     /*NULLABLE*/ NativeImageViewHandle textureView;
 } ResourceDescriptor;
 
-
+typedef struct BufferDescriptor{
+    BufferUsage usage;
+    uint64_t size;
+}BufferDescriptor;
 
 
 //TODO: Stencil attachment

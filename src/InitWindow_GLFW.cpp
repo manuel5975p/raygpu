@@ -23,7 +23,10 @@ float calculateScrollScale(int deltaMode) {
             return PIXEL_SCALE; // Fallback to pixel scale
     }
 }
-#endif  // 
+#endif  //
+#if SUPPORT_VULKAN_BACKEND == 1
+#include "backend_vulkan/vulkan_internals.hpp"
+#endif
 extern wgpustate g_wgpustate;
 void setupGLFWCallbacks(GLFWwindow* window);
 void ResizeCallback(GLFWwindow* window, int width, int height){
@@ -35,7 +38,7 @@ void ResizeCallback(GLFWwindow* window, int width, int height){
     //TRACELOG(LOG_WARNING, "configured: %llu with extents %u x %u", g_renderstate.createdSubwindows[window].surface, width, height);
     //g_renderstate.surface = wgpu::Surface(g_renderstate.createdSubwindows[window].surface);
     if((void*)window == (void*)g_renderstate.window){
-        g_renderstate.mainWindowRenderTarget = g_renderstate.createdSubwindows[window].surface.frameBuffer;
+        g_renderstate.mainWindowRenderTarget = g_renderstate.createdSubwindows[window].surface.renderTarget;
     }
     Matrix newcamera = ScreenMatrix(width, height);
 }
@@ -403,9 +406,19 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
         
 
         // Create the surface.
-        wgpu::Surface rs = wgpu::glfw::CreateSurfaceForWindow(GetInstance(), (GLFWwindow*)window);
-        negotiateSurfaceFormatAndPresentMode(rs);
-        ret.surface.surface = rs.MoveToCHandle();
+        #if SUPPORT_WGPU_BACKEND == 1
+        wgpu::Surface rs = wgpu::glfw::CreateSurfaceForWindow((WGPUInstance)GetInstance(), (GLFWwindow*)window);
+        WGPUSurface wsurfaceHandle = rs.MoveToCHandle();
+        ret.surface = CreateSurface(wsurfaceHandle, width, height);
+        #elif SUPPORT_VULKAN_BACKEND == 1
+        SurfaceConfiguration config{};
+        config.format = BGRA8;
+        config.presentMode = PresentMode_Fifo;
+        config.width = width;
+        config.height = height;
+        ret.surface = LoadSurface((GLFWwindow*)window, config);
+        #endif
+        //negotiateSurfaceFormatAndPresentMode(wsurfaceHandle);
     #else
         // Create the surface.
         wgpu::SurfaceDescriptorFromCanvasHTMLSelector canvasDesc{};
@@ -419,34 +432,38 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
         window = glfwCreateWindow(width, height, title, mon, nullptr);
         g_renderstate.window = (GLFWwindow*)window;
     #endif
-    ret.surface.surfaceConfig = SurfaceConfiguration{};
+    
+    //ret.surface.surfaceConfig = SurfaceConfiguration{};
+    //SurfaceConfiguration& config = ret.surface.surfaceConfig;
+    //if(g_renderstate.windowFlags & FLAG_VSYNC_LOWLATENCY_HINT){
+    //    config.presentMode = (SurfacePresentMode)(((g_renderstate.unthrottled_PresentMode == PresentMode_Mailbox) ? g_renderstate.unthrottled_PresentMode : g_renderstate.throttled_PresentMode));
+    //}
+    //else if(g_renderstate.windowFlags & FLAG_VSYNC_HINT){
+    //    config.presentMode = (SurfacePresentMode)g_renderstate.throttled_PresentMode;
+    //}
+    //else{
+    //    config.presentMode = (SurfacePresentMode)g_renderstate.unthrottled_PresentMode;
+    //}
 
-    SurfaceConfiguration& config = ret.surface.surfaceConfig;
-    if(g_renderstate.windowFlags & FLAG_VSYNC_LOWLATENCY_HINT){
-        config.presentMode = (SurfacePresentMode)(((g_wgpustate.unthrottled_PresentMode == wgpu::PresentMode::Mailbox) ? g_wgpustate.unthrottled_PresentMode : g_wgpustate.throttled_PresentMode));
-    }
-    else if(g_renderstate.windowFlags & FLAG_VSYNC_HINT){
-        config.presentMode = (SurfacePresentMode)g_wgpustate.throttled_PresentMode;
-    }
-    else{
-        config.presentMode = (SurfacePresentMode)g_wgpustate.unthrottled_PresentMode;
-    }
-    TRACELOG(LOG_INFO, "Initialized GLFW window with surface %s", presentModeSpellingTable.at(config.presentMode).c_str());
+    TRACELOG(LOG_INFO, "Initialized GLFW window with surface %s", presentModeSpellingTable.at((WGPUPresentMode)config.presentMode).c_str());
     //config.alphaMode = WGPUCompositeAlphaMode_Opaque;
-    config.format = (PixelFormat)g_renderstate.frameBufferFormat;
+    
+    //config.format = (PixelFormat)g_renderstate.frameBufferFormat;
     //config.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
-    config.width = width;
-    config.height = height;
+    //config.width = width;
+    //config.height = height;
     //config.viewFormats = &config.format;
     //config.viewFormatCount = 1;
-    config.device = GetDevice();
+    //config.device = GetDevice();
     TRACELOG(LOG_INFO, "Configuring surface");
-    wgpuSurfaceConfigure((WGPUSurface)ret.surface.surface, &config);
+    
+
+    
     int wposx = 0, wposy = 0;
     #ifndef DAWN_USE_WAYLAND
     glfwGetWindowPos((GLFWwindow*)window, &wposx, &wposy);
     #endif
-    g_wgpustate.input_map[window].windowPosition = Rectangle{
+    g_renderstate.input_map[window].windowPosition = Rectangle{
         (float)wposx,
         (float)wposy,
         (float)GetScreenWidth(),
@@ -454,9 +471,9 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
     };
     ret.handle = (void*)window;
     //ret.surface = GetSurface();
-    ret.surface.frameBuffer = g_wgpustate.mainWindowRenderTarget;
-    g_wgpustate.createdSubwindows[window] = ret;
-    g_wgpustate.input_map[ret.handle] = window_input_state{};
+    //ret.surface.renderTarget = g_renderstate.mainWindowRenderTarget;
+    g_renderstate.createdSubwindows[window] = ret;
+    g_renderstate.input_map[ret.handle] = window_input_state{};
     setupGLFWCallbacks((GLFWwindow*)ret.handle);
     return ret;
 }
@@ -465,26 +482,34 @@ extern "C" SubWindow OpenSubWindow_GLFW(uint32_t width, uint32_t height, const c
     #ifndef __EMSCRIPTEN__
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, (g_wgpustate.windowFlags & FLAG_WINDOW_RESIZABLE ) ? GLFW_TRUE : GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, (g_renderstate.windowFlags & FLAG_WINDOW_RESIZABLE ) ? GLFW_TRUE : GLFW_FALSE);
     glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
     ret.handle = glfwCreateWindow(width, height, title, nullptr, nullptr);
-    WGPUInstance inst = GetInstance();
+    WGPUInstance inst = (WGPUInstance)GetInstance();
     wgpu::Surface secondSurface = wgpu::glfw::CreateSurfaceForWindow(inst, (GLFWwindow*)ret.handle);
     wgpu::SurfaceCapabilities capabilities;
     secondSurface.GetCapabilities(GetCXXAdapter(), &capabilities);
     wgpu::SurfaceConfiguration config = {};
     config.device = GetCXXDevice();
     config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
-    config.format = (wgpu::TextureFormat)g_wgpustate.frameBufferFormat;
-    config.presentMode = g_wgpustate.unthrottled_PresentMode;
+    config.format = (wgpu::TextureFormat)g_renderstate.frameBufferFormat;
+    config.presentMode = (wgpu::PresentMode)g_renderstate.unthrottled_PresentMode;
     config.width = width;
     config.height = height;
     secondSurface.Configure(&config);
-    ret.surface.surfaceConfig = config;
+    SurfaceConfiguration cf;
+
+    ret.surface.surfaceConfig = SurfaceConfiguration{
+        static_cast<void*>(config.device.Get()),
+        config.width,
+        config.height,
+        (PixelFormat)config.format,
+        (SurfacePresentMode)config.presentMode
+    };
     ret.surface.surface = secondSurface.MoveToCHandle();
-    ret.surface.frameBuffer = LoadRenderTexture(config.width, config.height);
-    g_wgpustate.createdSubwindows[ret.handle] = ret;
-    g_wgpustate.input_map[(GLFWwindow*)ret.handle] = window_input_state{};
+    ret.surface.renderTarget = LoadRenderTexture(config.width, config.height);
+    g_renderstate.createdSubwindows[ret.handle] = ret;
+    g_renderstate.input_map[(GLFWwindow*)ret.handle] = window_input_state{};
     setupGLFWCallbacks((GLFWwindow*)ret.handle);
     #endif
     return ret;
@@ -493,7 +518,7 @@ extern "C" bool WindowShouldClose_GLFW(GLFWwindow* win){
     return glfwWindowShouldClose(win);
 }
 extern "C" void CloseSubWindow_GLFW(SubWindow subWindow){
-    g_wgpustate.createdSubwindows.erase(subWindow.handle);
+    g_renderstate.createdSubwindows.erase(subWindow.handle);
     glfwWindowShouldClose((GLFWwindow*)subWindow.handle);
     glfwSetWindowShouldClose((GLFWwindow*)subWindow.handle, GLFW_TRUE);
 }

@@ -78,13 +78,15 @@ layout(binding = 0) uniform PerspectiveViewBlock {
 
 // Storage buffer for model matrices (binding = 3).
 // Note: 'buffer' qualifier makes it a shader storage buffer.
-layout(binding = 3) buffer ModelMatrixBlock {
+layout(binding = 3) readonly buffer ModelMatrixBlock {
     mat4 modelMatrix[];  // Array of model matrices.
 };
 
 void main() {
+    gl_PointSize = 1.0f;
+    
     // Compute transformed position using instance-specific model matrix.
-    gl_Position = Perspective_View * modelMatrix[gl_InstanceID] * vec4(in_position, 1.0);
+    gl_Position = Perspective_View * modelMatrix[gl_InstanceIndex] * vec4(in_position, 1.0);
     frag_uv = in_uv;
     frag_color = in_color;
 }
@@ -142,7 +144,7 @@ bool WindowShouldClose(cwoid){
     #ifdef MAIN_WINDOW_SDL2
     return g_renderstate.closeFlag;
     #elif defined(MAIN_WINDOW_GLFW)
-    return WindowShouldClose_GLFW(g_wgpustate.window);
+    return WindowShouldClose_GLFW(g_renderstate.window);
     #else
     return false;
     #endif
@@ -377,7 +379,7 @@ extern "C" void ToggleFullscreen(){
 }
 Vector2 GetTouchPosition(int index){
     #ifdef MAIN_WINDOW_GLFW
-    return GetTouchPointCount_GLFW(index);
+    return Vector2{0,0};//GetTouchPointCount_GLFW(index);
     #elif defined(MAIN_WINDOW_SDL2)
     return GetTouchPosition_SDL2(index);
     #else
@@ -386,7 +388,7 @@ Vector2 GetTouchPosition(int index){
 }
 int GetTouchPointCount(cwoid){
     #ifdef MAIN_WINDOW_GLFW
-    return GetTouchPointCount_GLFW();
+    return 0;//GetTouchPointCount_GLFW();
     #elif defined(MAIN_WINDOW_SDL2)
     return GetTouchPointCount_SDL2();
     #else
@@ -404,7 +406,7 @@ uint32_t GetMonitorWidth(cwoid){
 }
 void SetWindowShouldClose(){
     #ifdef MAIN_WINDOW_GLFW
-    return SetWindowShouldClose_GLFW(g_wgpustate.window);
+    return SetWindowShouldClose_GLFW(g_renderstate.window);
     #elif defined(MAIN_WINDOW_SDL2)
     g_renderstate.closeFlag = true;
     #endif
