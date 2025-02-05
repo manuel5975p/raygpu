@@ -238,7 +238,7 @@ extern "C" void DrawArraysIndexed(WGPUPrimitiveTopology drawMode, DescribedBuffe
     if(GetActivePipeline()->bindGroup.needsUpdate){
         RenderPassSetBindGroup(GetActiveRenderPass(), 0, &GetActivePipeline()->bindGroup);
     }
-    RenderPassSetIndexBuffer(GetActiveRenderPass(), &indexBuffer, WGPUIndexFormat_Uint32, 0);
+    RenderPassSetIndexBuffer(GetActiveRenderPass(), &indexBuffer, IndexFormat_Uint32, 0);
     RenderPassDrawIndexed(GetActiveRenderPass(), vertexCount, 1, 0, 0, 0);
 }
 extern "C" void DrawArraysIndexedInstanced(WGPUPrimitiveTopology drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount, uint32_t instanceCount){
@@ -246,7 +246,7 @@ extern "C" void DrawArraysIndexedInstanced(WGPUPrimitiveTopology drawMode, Descr
     if(GetActivePipeline()->bindGroup.needsUpdate){
         RenderPassSetBindGroup(GetActiveRenderPass(), 0, &GetActivePipeline()->bindGroup);
     }
-    RenderPassSetIndexBuffer(GetActiveRenderPass(), &indexBuffer, WGPUIndexFormat_Uint32, 0);
+    RenderPassSetIndexBuffer(GetActiveRenderPass(), &indexBuffer, IndexFormat_Uint32, 0);
     RenderPassDrawIndexed(GetActiveRenderPass(), vertexCount, instanceCount, 0, 0, 0);
 }
 extern "C" void DrawArraysInstanced(WGPUPrimitiveTopology drawMode, uint32_t vertexCount, uint32_t instanceCount){
@@ -298,7 +298,11 @@ void drawCurrentBatch(){
         allocated_via_pool = true;
         vbo = g_renderstate.smallBufferPool.back();
         g_renderstate.smallBufferPool.pop_back();
+        #if SUPPORT_VULKAN_BACKEND == 1
+        BufferData(vbo, vboptr_base, vertexCount * sizeof(vertex));
+        #else
         wgpuQueueWriteBuffer(GetQueue(), (WGPUBuffer)vbo->buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
+        #endif
     }
     else{
         vbo = GenVertexBuffer(vboptr_base, vertexCount * sizeof(vertex));
@@ -349,7 +353,7 @@ void drawCurrentBatch(){
         case RL_QUADS:{
             const size_t quadCount = vertexCount / 4;
             
-            if(g_renderstate.quadindicesCache->size < 6 * quadCount * sizeof(uint32_t)){
+            if(true || g_renderstate.quadindicesCache->size < 6 * quadCount * sizeof(uint32_t)){
                 std::vector<uint32_t> indices(6 * quadCount);
                 for(size_t i = 0;i < quadCount;i++){
                     indices[i * 6 + 0] = (i * 4 + 0);
