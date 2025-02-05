@@ -89,7 +89,7 @@ void main() {
     gl_Position = Perspective_View * modelMatrix[gl_InstanceIndex] * vec4(in_position, 1.0);
     //gl_Position = vec4(in_position, 1.0);
     frag_uv = in_uv;
-    frag_color = in_color;
+    frag_color = vec4(1,1,1,1);
 }
 )";
 
@@ -112,7 +112,7 @@ void main() {
     // Sample the texture using the combined sampler.
     vec4 texColor = texture(sampler2D(texture0, texSampler), frag_uv);
     outColor = texColor * frag_color;
-    outColor = vec4(1,1,0,1);
+    //outColor = vec4(frag_color.xyz,1);
 }
 )";
 
@@ -312,8 +312,8 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     g_renderstate.defaultPipeline = LoadPipelineForVAOEx(shaderSource, renderBatchVAO, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), GetDefaultSettings());
     #endif
     g_renderstate.activePipeline = g_renderstate.defaultPipeline;
-    g_renderstate.quadindicesCache = callocnew(DescribedBuffer);    //WGPUBufferDescriptor vbmdesc{};
-    g_renderstate.quadindicesCache->usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
+    g_renderstate.quadindicesCache = GenBufferEx(nullptr, 10000, BufferUsage_CopyDst | BufferUsage_Index);//allocnew(DescribedBuffer);    //WGPUBufferDescriptor vbmdesc{};
+    //g_renderstate.quadindicesCache->usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
     //WGPUCommandEncoderDescriptor cedesc{};
     //cedesc.label = STRVIEW("Global Command Encoder");
     //g_renderstate.renderpass.cmdEncoder = wgpuDeviceCreateCommandEncoder(g_wgpustate.device.Get(), &cedesc);

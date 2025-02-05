@@ -11,14 +11,14 @@ void mainloop(void){
 
     BeginDrawing();
     //ClearBackground((Color){230, 23, 230,255});
-    //DrawText("Hello WebGPU enjoyer", 100, 300, 50, (Color){190, 190, 190,255});
+    DrawText("Hello Vulkan enjoyer", 100, 300, 50, (Color){190, 190, 190,255});
     //DrawFPS(5, 5);
     //if(IsKeyPressed(KEY_U)){
     //    ToggleFullscreen();
     //}
-    rlVertex2f(0, 0);
-    rlVertex2f(100, 0);
-    rlVertex2f(0, 100);
+    //rlVertex2f(0, 0);
+    //rlVertex2f(100, 0);
+    //rlVertex2f(0, 100);
     EndDrawing();
     
 }
@@ -27,7 +27,7 @@ int main(void){
     //RequestBackend(WGPUBackendType_Vulkan);
     //SetConfigFlags(FLAG_VSYNC_HINT);
     //SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-    InitWindow(800, 600, "WebGPU window");
+    InitWindow(800, 600, "Vulkan window");
     //SetTargetFPS(0);
     //sdlwin = OpenSubWindow_GLFW(400, 400, "SDL fenschter");
 
