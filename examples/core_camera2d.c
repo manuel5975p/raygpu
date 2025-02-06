@@ -1,6 +1,6 @@
 #include <raygpu.h>
 int main(void){
-    SetConfigFlags(FLAG_MSAA_4X_HINT);
+    //SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(1000, 1000, "Camera2D Example");
     Camera2D cam = (Camera2D){
         .offset = (Vector2){500, 500},
