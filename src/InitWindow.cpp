@@ -887,41 +887,4 @@ extern "C" size_t GetPixelSizeInBytes(PixelFormat format) {
     }*/
 }
 
-extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t newWidth, uint32_t newHeight){
-    fsurface->surfaceConfig.width = newWidth;
-    fsurface->surfaceConfig.height = newHeight;
-    fsurface->renderTarget.colorMultisample.width = newWidth;
-    fsurface->renderTarget.colorMultisample.height = newHeight;
-    fsurface->renderTarget.texture.width = newWidth;
-    fsurface->renderTarget.texture.height = newHeight;
-    fsurface->renderTarget.depth.width = newWidth;
-    fsurface->renderTarget.depth.height = newHeight;
-    WGPUTextureFormat format = (WGPUTextureFormat)fsurface->surfaceConfig.format;
-    WGPUSurfaceConfiguration wsconfig{};
-    wsconfig.device = (WGPUDevice)fsurface->surfaceConfig.device;
-    wsconfig.width = newWidth;
-    wsconfig.height = newHeight;
-    wsconfig.format = format;
-    wsconfig.viewFormatCount = 1;
-    wsconfig.viewFormats = &format;
-    wsconfig.alphaMode = WGPUCompositeAlphaMode_Opaque;
-    wsconfig.presentMode = (WGPUPresentMode)fsurface->surfaceConfig.presentMode;
-    wsconfig.usage = WGPUTextureUsage_CopySrc | WGPUTextureUsage_RenderAttachment;
-    wgpuSurfaceConfigure((WGPUSurface)fsurface->surface, &wsconfig);
-    fsurface->surfaceConfig.width = newWidth;
-    fsurface->surfaceConfig.height = newHeight;
-    //UnloadTexture(fsurface->frameBuffer.texture);
-    //fsurface->frameBuffer.texture = Texture zeroinit;
-    UnloadTexture(fsurface->renderTarget.colorMultisample);
-    UnloadTexture(fsurface->renderTarget.depth);
-    if(g_renderstate.windowFlags & FLAG_MSAA_4X_HINT){
-        fsurface->renderTarget.colorMultisample = LoadTexturePro(newWidth, newHeight, fsurface->surfaceConfig.format, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4, 1);
-    }
-    fsurface->renderTarget.depth = LoadTexturePro(newWidth,
-                           newHeight, 
-                           Depth32, 
-                           WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
-                           (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
-                           1
-    );
-}
+

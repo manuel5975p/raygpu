@@ -216,7 +216,7 @@ void ResizeCallback_Vk(GLFWwindow* win, int width, int height){
     //std::cout << std::format("Resized to {} x {}\n", width, height) << std::flush;
     
     
-    ResizeSurface_Vk(&g_vulkanstate.surface, width, height);
+    ResizeSurface(&g_vulkanstate.surface, width, height);
     //createRenderPass();
 }
 /*void* InitWindow(uint32_t width, uint32_t height, const char *title) {

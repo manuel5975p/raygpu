@@ -42,7 +42,7 @@ void BufferData(DescribedBuffer* buffer, void* data, size_t size){
 //}
 void ResetSyncState(){
     g_vulkanstate.syncState.submitsInThisFrame = 0;
-    g_vulkanstate.syncState.semaphoresInThisFrame.clear();
+    //g_vulkanstate.syncState.semaphoresInThisFrame.clear();
 }
 void PresentSurface(FullSurface* surface){
     WGVKSurface wgvksurf = (WGVKSurface)surface->surface;
@@ -112,7 +112,7 @@ DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsage usage){
     return ret;
 }
 
-extern "C" void ResizeSurface_Vk(FullSurface* fsurface, uint32_t width, uint32_t height){
+extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t width, uint32_t height){
     fsurface->surfaceConfig.width = width;
     fsurface->surfaceConfig.height = height;
     wgvkSurfaceConfigure((WGVKSurface)fsurface->surface, &fsurface->surfaceConfig);
