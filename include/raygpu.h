@@ -737,6 +737,7 @@ EXTERN_C_BEGIN
     bool WindowShouldClose(cwoid);
     SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* title);
     SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char* title);
+    SubWindow InitWindow_SDL3(uint32_t width, uint32_t height, const char* title);
     void CloseSubWindow(SubWindow subWindow);
     FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t height);
     void ResizeSurface(FullSurface* fsurface, uint32_t width, uint32_t height);
