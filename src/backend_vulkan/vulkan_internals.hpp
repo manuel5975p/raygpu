@@ -146,9 +146,13 @@ struct memory_types{
     uint32_t hostVisibleCoherent;
 };
 struct SyncState{
-    VkSemaphore imageAvailableSemaphores[1];
-    VkSemaphore presentSemaphores[1];
+    //VkSemaphore imageAvailableSemaphores[1];
+    //VkSemaphore presentSemaphores[1];
+    
+    uint32_t submitsInThisFrame;
+    std::vector<VkSemaphore> semaphoresInThisFrame;
     VkFence renderFinishedFence;
+    VkSemaphore getSemaphoreAtFrame(uint32_t index);
 };
 struct VulkanState {
     VkInstance instance = VK_NULL_HANDLE;
