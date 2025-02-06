@@ -152,7 +152,7 @@ struct SyncState{
     uint32_t submitsInThisFrame;
     std::vector<VkSemaphore> semaphoresInThisFrame;
     VkFence renderFinishedFence;
-    VkSemaphore getSemaphoreAtFrame(uint32_t index);
+    VkSemaphore getSemaphoreOfSubmitIndex(uint32_t index);
 };
 struct VulkanState {
     VkInstance instance = VK_NULL_HANDLE;
@@ -288,11 +288,17 @@ inline FullSurface LoadSurface(GLFWwindow* window, SurfaceConfiguration config){
     if(glfwCreateWindowSurface(g_vulkanstate.instance, window, nullptr, &ret.surface) != VK_SUCCESS){
         throw std::runtime_error("could not create surface");
     }
-    #elif SUPPORT_SDL2
+    #elif SUPPORT_SDL2 == 1
     if (!SDL_Vulkan_CreateSurface((SDL_Window*)window, g_vulkanstate.instance, &ret.surface)) {
         // Retrieve SDL error message and throw an exception
         throw std::runtime_error("could not create surface: " + std::string(SDL_GetError()));
     }
+    #elif SUPPORT_SDL3 == 1
+    if (!SDL_Vulkan_CreateSurface((SDL_Window*)window, g_vulkanstate.instance, nullptr, &ret.surface)) {
+        // Retrieve SDL error message and throw an exception
+        throw std::runtime_error("could not create surface: " + std::string(SDL_GetError()));
+    }
+    //#endif
     #endif
     SwapChainSupportDetails swapChainSupport = querySwapChainSupport(g_vulkanstate.physicalDevice, ret.surface);
 
