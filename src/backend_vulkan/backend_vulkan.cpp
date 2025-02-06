@@ -525,6 +525,7 @@ void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, cons
     bufferDesc.size = size;
     bufferDesc.usage = BufferUsage_CopyDst | BufferUsage_Uniform;
     WGVKBuffer wgvkBuffer = wgvkDeviceCreateBuffer(g_vulkanstate.device, &bufferDesc);
+    wgvkBuffer->refCount++;
     wgvkQueueWriteBuffer(g_vulkanstate.queue, wgvkBuffer, 0, data, size);
     entry.binding = index;
     entry.buffer = wgvkBuffer;
