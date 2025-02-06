@@ -761,6 +761,8 @@ extern "C" void BufferData(DescribedBuffer* buffer, const void* data, size_t siz
         wgpuQueueWriteBuffer(GetQueue(), (WGPUBuffer)buffer->buffer, 0, data, size);
     }
 }
+extern "C" void ResetSyncState(){}
+
 extern "C" void RenderPassSetIndexBuffer(DescribedRenderpass* drp, DescribedBuffer* buffer, IndexFormat format, uint64_t offset){
     wgpuRenderPassEncoderSetIndexBuffer((WGPURenderPassEncoder)drp->rpEncoder, (WGPUBuffer)buffer->buffer, (WGPUIndexFormat)format, offset, buffer->size);
 }

@@ -647,7 +647,7 @@ void requestAnimationFrameLoopWithJSPI(void (*callback)(void), int, int){
 }
 RenderTexture headless_rtex;
 void BeginDrawing(){
-    
+    ResetSyncState();
     ++g_renderstate.renderTargetStackPosition;
     
     if(g_renderstate.windowFlags & FLAG_HEADLESS){

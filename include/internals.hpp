@@ -321,4 +321,5 @@ namespace std{
 }
 std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char *vs, const char *fs);
 extern "C" void negotiateSurfaceFormatAndPresentMode(const void* SurfaceHandle);
+extern "C" void ResetSyncState(cwoid);
 #endif
