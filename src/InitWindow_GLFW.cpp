@@ -31,7 +31,7 @@ extern wgpustate g_wgpustate;
 void setupGLFWCallbacks(GLFWwindow* window);
 void ResizeCallback(GLFWwindow* window, int width, int height){
     
-    TRACELOG(LOG_INFO, "SDL's ResizeCallback called with %d x %d", width, height);
+    TRACELOG(LOG_INFO, "GLFW's ResizeCallback called with %d x %d", width, height);
     ResizeSurface(&g_renderstate.createdSubwindows[window].surface, width, height);
     
     //wgpuSurfaceConfigure(g_renderstate.createdSubwindows[window].surface, (WGPUSurfaceConfiguration*)&config);
@@ -399,7 +399,7 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
         
     #ifndef __EMSCRIPTEN__
         window = (void*)glfwCreateWindow(width, height, title, mon, nullptr);
-        //glfwSetWindowPos(window, 200, 1200);
+        glfwSetWindowPos((GLFWwindow*)window, 200, 1900);
         if (!window) {
             abort();
         }

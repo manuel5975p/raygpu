@@ -671,9 +671,10 @@ void BeginDrawing(){
         
         //if(g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.id)
         //    UnloadTexture(g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture);
-        //if(g_renderstate.createdSubwindows[g_renderstate.window].surface.renderTarget.texture.id)
-        //    UnloadTexture(g_renderstate.createdSubwindows[g_renderstate.window].surface.renderTarget.texture);
-        
+        #if SUPPORT_WGPU_BACKEND == 1
+        if(g_renderstate.createdSubwindows[g_renderstate.window].surface.renderTarget.texture.id)
+            UnloadTexture(g_renderstate.createdSubwindows[g_renderstate.window].surface.renderTarget.texture);
+        #endif
 
         //g_renderstate.drawmutex.lock();
         g_renderstate.renderExtentX = g_renderstate.createdSubwindows[g_renderstate.window].surface.renderTarget.texture.width;
@@ -708,6 +709,7 @@ void EndDrawing(){
     if(g_renderstate.activeRenderpass){
         drawCurrentBatch();
         EndRenderpassEx(g_renderstate.activeRenderpass);
+        
     }
     if(g_renderstate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
         Image img = LoadImageFromTextureEx((WGPUTexture)GetActiveColorTarget(), 0);
@@ -1489,40 +1491,7 @@ WGPURenderPassDepthStencilAttachment* defaultDSA(WGPUTextureView depth){
     dsa->stencilReadOnly = true;
     return dsa;
 }
-extern "C" DescribedRenderpass LoadRenderpassEx(RenderSettings settings, bool colorClear, DColor colorClearValue, bool depthClear, float depthClearValue){
-    DescribedRenderpass ret{};
-    WGPURenderPassDescriptor desc{};
-    
-    ret.colorClear = colorClearValue;
-    ret.depthClear = depthClearValue;
-    ret.colorLoadOp = colorClear ? LoadOp_Clear : LoadOp_Load;
-    ret.colorStoreOp = StoreOp_Store;
-    ret.depthLoadOp = depthClear ? LoadOp_Clear : LoadOp_Load;
-    ret.depthStoreOp = StoreOp_Store;
-    //ret.settings = settings;
-    //ret.renderPassDesc = WGPURenderPassDescriptor{};
-    //ret.rca = (WGPURenderPassColorAttachment*)calloc(1, sizeof(WGPURenderPassColorAttachment));
-    //ret.rca->view = color;
-    //ret.rca->depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
-    //#ifdef __EMSCRIPTEN__
-    //ret.rca->depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
-    //#endif
-    ////std::cout << rca.depthSlice << "\n";
-    //ret.rca->resolveTarget = nullptr;
-    //ret.rca->loadOp =  WGPULoadOp_Load;
-    //ret.rca->storeOp = WGPUStoreOp_Store;
-    //ret.rca->clearValue = WGPUColor{ 0.01, 0.01, 0.2, 1.0 };
-    //ret.renderPassDesc.colorAttachmentCount = 1;
-    //ret.renderPassDesc.colorAttachments = ret.rca;
-    //// We now add a depth/stencil attachment, if desired:
-    //ret.dsa = nullptr;
-    //if(settings.depthTest){
-    //    ret.dsa = defaultDSA(depth);
-    //}
-    //ret.renderPassDesc.depthStencilAttachment = ret.dsa;
-    //ret.renderPassDesc.timestampWrites = nullptr;
-    return ret;
-}
+
 inline bool operator==(const RenderSettings& a, const RenderSettings& b){
     return a.depthTest == b.depthTest &&
            a.faceCull == b.faceCull &&

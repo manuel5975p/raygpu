@@ -58,6 +58,18 @@ void PresentSurface(FullSurface* surface){
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = swapChains;
     presentInfo.pImageIndices = &wgvksurf->activeImageIndex;
+    VkHostImageLayoutTransitionInfo transition zeroinit;
+    VkImageSubresourceRange isr{};
+    isr.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    isr.layerCount = 1;
+    isr.levelCount = 1;
+    VkCommandPool oof{};
+    VkCommandPoolCreateInfo pci zeroinit;
+    pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    pci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    vkCreateCommandPool(g_vulkanstate.device, &pci, nullptr, &oof);
+    TransitionImageLayout(g_vulkanstate.device, oof, g_vulkanstate.queue.graphicsQueue, wgvksurf->images[wgvksurf->activeImageIndex], VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    vkDestroyCommandPool(g_vulkanstate.device, oof, nullptr);
     VkResult presentRes = vkQueuePresentKHR(g_vulkanstate.queue.presentQueue, &presentInfo);
     if(presentRes != VK_SUCCESS){
         std::cerr << "presentRes is " << presentRes << std::endl;
@@ -119,6 +131,66 @@ extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t width, uint32_t he
     UnloadTexture(fsurface->renderTarget.depth);
     fsurface->renderTarget.depth = LoadTexturePro(width, height, Depth32, TextureUsage_RenderAttachment, 1, 1);
 }
+
+extern "C" DescribedRenderpass LoadRenderpassEx(RenderSettings settings, bool colorClear, DColor colorClearValue, bool depthClear, float depthClearValue){
+    DescribedRenderpass ret{};
+
+    VkRenderPassCreateInfo rpci{};
+    ret.settings = settings;
+
+    ret.colorClear = colorClearValue;
+    ret.depthClear = depthClearValue;
+    ret.colorLoadOp = colorClear ? LoadOp_Clear : LoadOp_Load;
+    ret.colorStoreOp = StoreOp_Store;
+    ret.depthLoadOp = depthClear ? LoadOp_Clear : LoadOp_Load;
+    ret.depthStoreOp = StoreOp_Store;
+    VkAttachmentDescription attachments[2] = {};
+
+    VkAttachmentDescription& colorAttachment = attachments[0];
+    colorAttachment = VkAttachmentDescription{};
+    colorAttachment.format = VK_FORMAT_B8G8R8A8_UNORM;//toVulkanPixelFormat(g_vulkanstate.surface.surfaceConfig.format);
+    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachment.loadOp = toVulkanLoadOperation(ret.colorLoadOp);
+    colorAttachment.storeOp = toVulkanStoreOperation(ret.colorStoreOp);
+    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    colorAttachment.initialLayout = colorClear ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    
+    VkAttachmentDescription& depthAttachment = attachments[1];
+    depthAttachment.format = VK_FORMAT_D32_SFLOAT;
+    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachment.loadOp = toVulkanLoadOperation(ret.depthLoadOp);
+    depthAttachment.storeOp = toVulkanStoreOperation(ret.depthStoreOp);
+    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass{};
+    rpci.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    rpci.attachmentCount = 2;
+    rpci.pAttachments = attachments;
+    
+    VkAttachmentReference ca{};
+    ca.attachment = 0;
+    ca.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference da{};
+    da.attachment = 1;
+    da.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &ca;
+    subpass.pDepthStencilAttachment = &da;
+
+    rpci.pSubpasses = &subpass;
+    rpci.subpassCount = 1;
+    vkCreateRenderPass(g_vulkanstate.device, &rpci, nullptr, (VkRenderPass*)&ret.VkRenderPass);
+
+    return ret;
+}
+
 DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode mipmapFilter, float maxAnisotropy){
     auto vkamode = [](addressMode a){
         switch(a){
@@ -164,10 +236,17 @@ DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode m
 extern "C" void GetNewTexture(FullSurface *fsurface){
 
     uint32_t imageIndex = ~0;
-
+    VkCommandPool oof{};
+    VkCommandPoolCreateInfo pci zeroinit;
+    pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    pci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    vkCreateCommandPool(g_vulkanstate.device, &pci, nullptr, &oof);
     WGVKSurface wgvksurf = ((WGVKSurface)fsurface->surface);
     //TODO: Multiple frames in flight, this amounts to replacing 0 with frameCount % 2 or something similar
     VkResult acquireResult = vkAcquireNextImageKHR(g_vulkanstate.device, wgvksurf->swapchain, UINT64_MAX, g_vulkanstate.syncState.getSemaphoreAtFrame(0), VK_NULL_HANDLE, &imageIndex);
+    TransitionImageLayout(g_vulkanstate.device, oof, g_vulkanstate.queue.graphicsQueue, wgvksurf->images[imageIndex], VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    TransitionImageLayout(g_vulkanstate.device, oof, g_vulkanstate.queue.graphicsQueue, ((ImageHandle)fsurface->renderTarget.depth.id)->image, VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    vkDestroyCommandPool(g_vulkanstate.device, oof, nullptr);
     if(acquireResult != VK_SUCCESS){
         std::cerr << "acquireResult is " << acquireResult << std::endl;
     }
@@ -716,15 +795,6 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     VkCommandBufferBeginInfo bbi{};
     bbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     VkRenderPassBeginInfo rpbi{};
-    VkClearValue clearvalues[2] = {};
-    clearvalues[0].color = VkClearColorValue{};
-    clearvalues[0].color.float32[0] = (float)renderPass->colorClear.r * 0.0f;
-    clearvalues[0].color.float32[1] = (float)renderPass->colorClear.g;
-    clearvalues[0].color.float32[2] = (float)renderPass->colorClear.b;
-    clearvalues[0].color.float32[3] = (float)renderPass->colorClear.a;
-
-    clearvalues[1].depthStencil = VkClearDepthStencilValue{};
-    clearvalues[1].depthStencil.depth = (float)renderPass->depthClear;
 
 
 
@@ -757,7 +827,7 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     fbci.width = rtex.texture.width;
     fbci.height = rtex.texture.height;
     fbci.layers = 1;
-    fbci.renderPass = g_vulkanstate.renderPass;
+    fbci.renderPass = (VkRenderPass)renderPass->VkRenderPass;
     VkFramebuffer rahmePuffer = 0;
     vkCreateFramebuffer(g_vulkanstate.device, &fbci, nullptr, &rahmePuffer);
     rpbi.framebuffer = rahmePuffer;

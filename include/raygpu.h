@@ -101,20 +101,7 @@ typedef struct RenderTexture{
     Texture colorMultisample;
     Texture depth;
 }RenderTexture;
-typedef enum LoadOp {
-    LoadOp_Undefined = 0x00000000,
-    LoadOp_Load = 0x00000001,
-    LoadOp_Clear = 0x00000002,
-    LoadOp_ExpandResolveTexture = 0x00050003,
-    LoadOp_Force32 = 0x7FFFFFFF
-} LoadOp;
 
-typedef enum StoreOp {
-    StoreOp_Undefined = 0x00000000,
-    StoreOp_Store = 0x00000001,
-    StoreOp_Discard = 0x00000002,
-    StoreOp_Force32 = 0x7FFFFFFF
-} StoreOp;
 typedef struct DColor{
     double r,g,b,a;
 }DColor;

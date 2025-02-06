@@ -734,7 +734,20 @@ extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t newWidth, uint32_t
                            1
     );
 }
+extern "C" DescribedRenderpass LoadRenderpassEx(RenderSettings settings, bool colorClear, DColor colorClearValue, bool depthClear, float depthClearValue){
+    DescribedRenderpass ret{};
 
+    ret.settings = settings;
+
+    ret.colorClear = colorClearValue;
+    ret.depthClear = depthClearValue;
+    ret.colorLoadOp = colorClear ? LoadOp_Clear : LoadOp_Load;
+    ret.colorStoreOp = StoreOp_Store;
+    ret.depthLoadOp = depthClear ? LoadOp_Clear : LoadOp_Load;
+    ret.depthStoreOp = StoreOp_Store;
+
+    return ret;
+}
 void BeginRenderpassEx(DescribedRenderpass* renderPass){
     WGPUCommandEncoderDescriptor desc{};
     desc.label = STRVIEW("another cmdencoder");

@@ -158,7 +158,7 @@ void EndSingleTimeCommands(VkDevice device, VkCommandPool commandPool, VkQueue q
 }
 
 // Function to transition image layout
-void TransitionImageLayout(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkImage image, 
+extern "C" void TransitionImageLayout(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkImage image, 
                            VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
     VkCommandBuffer commandBuffer = BeginSingleTimeCommands(device, commandPool);
     
@@ -196,7 +196,11 @@ void TransitionImageLayout(VkDevice device, VkCommandPool commandPool, VkQueue q
         destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     }
     else {
-        throw std::invalid_argument("Unsupported layout transition!");
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        
+        sourceStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+        destinationStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
     }
     
     vkCmdPipelineBarrier(
