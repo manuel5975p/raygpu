@@ -89,7 +89,7 @@ void main() {
     gl_Position = Perspective_View * modelMatrix[gl_InstanceIndex] * vec4(in_position, 1.0);
     //gl_Position = vec4(in_position, 1.0);
     frag_uv = in_uv;
-    frag_color = vec4(1,1,1,1);
+    frag_color = in_color;
 }
 )";
 
@@ -298,7 +298,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     VertexAttribPointer(renderBatchVAO, renderBatchVBO, 3, VertexFormat_Float32x4, 8 * sizeof(float), VertexStepMode_Vertex);
 
 
-    g_renderstate.renderpass = LoadRenderpassEx(GetDefaultSettings(), false, DColor{}, false, 0.0f);
+    g_renderstate.renderpass = LoadRenderpassEx(GetDefaultSettings(), false, DColor{0,1,0,1}, false, 0.0f);
 
     g_renderstate.clearPass = LoadRenderpassEx(GetDefaultSettings(), true, DColor{0,0,0,1}, true, 1.0f);
     //}

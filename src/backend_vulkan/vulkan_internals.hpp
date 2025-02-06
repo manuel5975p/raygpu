@@ -475,7 +475,7 @@ struct FullVkRenderPass{
     VkRenderPass renderPass;
     VkSemaphore signalSemaphore;
 };
-inline DescribedRenderpass LoadRenderPass(RenderSettings settings){
+/*inline DescribedRenderpass LoadRenderPass(RenderSettings settings){
     DescribedRenderpass ret{};
     VkRenderPassCreateInfo rpci{};
 
@@ -526,7 +526,8 @@ inline DescribedRenderpass LoadRenderPass(RenderSettings settings){
     //si.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     //vkCreateSemaphore(g_vulkanstate.device, &si, nullptr, &ret.signalSemaphore);
     return ret;
-}
+}*/
+extern "C" void TransitionImageLayout(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 static inline VkSemaphore CreateSemaphore(VkSemaphoreCreateFlags flags = 0){
     VkSemaphoreCreateInfo sci zeroinit;
     VkSemaphore ret zeroinit;
@@ -560,18 +561,21 @@ static inline WGVKRenderPassEncoder BeginRenderPass_Vk(VkCommandBuffer cbuffer, 
     VkRenderPassBeginInfo rpbi{};
     VkClearValue clearvalues[2] = {};
     clearvalues[0].color = VkClearColorValue{};
-    clearvalues[0].color.float32[0] = 1.0f;
+    clearvalues[0].color.float32[0] = rp->colorClear.r;
+    clearvalues[0].color.float32[1] = rp->colorClear.g;
+    clearvalues[0].color.float32[2] = rp->colorClear.b;
+    clearvalues[0].color.float32[3] = rp->colorClear.a;
     clearvalues[1].depthStencil = VkClearDepthStencilValue{};
-    clearvalues[1].depthStencil.depth = 1.0f;
+    clearvalues[1].depthStencil.depth = rp->depthClear;
 
     rpbi.renderPass = (VkRenderPass)rp->VkRenderPass;
     rpbi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    rpbi.clearValueCount = 2;
+    rpbi.clearValueCount = (rp->colorLoadOp == LoadOp_Clear) ? 2 : 0;
     rpbi.pClearValues = clearvalues;
     rpbi.framebuffer = fb;
     rpbi.renderArea.extent.width = width;//g_vulkanstate.surface.surfaceConfig.width;
     rpbi.renderArea.extent.height = height;//g_vulkanstate.surface.surfaceConfig.height;
-    rpbi.renderPass = g_vulkanstate.renderPass;
+    rpbi.renderPass = (VkRenderPass)rp->VkRenderPass;
 
     vkBeginCommandBuffer(cbuffer, &bbi);
     vkCmdBeginRenderPass(cbuffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);

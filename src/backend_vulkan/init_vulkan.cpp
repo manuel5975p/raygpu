@@ -341,7 +341,7 @@ void mainLoop(GLFWwindow *window) {
     uint64_t framecount = 0;
     uint64_t stamp = nanoTime();
     uint64_t noell = 0;
-    g_renderstate.renderpass = LoadRenderPass(GetDefaultSettings());
+    //g_renderstate.renderpass = LoadRenderPass(GetDefaultSettings());
     Texture depthTex = LoadTexturePro(g_vulkanstate.surface.surfaceConfig.width, g_vulkanstate.surface.surfaceConfig.height, Depth32, TextureUsage_RenderAttachment, 1, 1);
 
 

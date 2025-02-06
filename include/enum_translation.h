@@ -132,8 +132,20 @@ typedef enum FrontFace { FrontFace_Undefined = 0x00000000, FrontFace_CCW = 0x000
 
 typedef enum IndexFormat { IndexFormat_Undefined = 0x00000000, IndexFormat_Uint16 = 0x00000001, IndexFormat_Uint32 = 0x00000002, IndexFormat_Force32 = 0x7FFFFFFF } IndexFormat;
 
-typedef enum LoadOperation { LoadOperation_Undefined = 0x00000000, LoadOperation_Load = 0x00000001, LoadOperation_Clear = 0x00000002, LoadOperation_ExpandResolveTexture = 0x00050003, LoadOperation_Force32 = 0x7FFFFFFF } LoadOperation;
+typedef enum LoadOp {
+    LoadOp_Undefined = 0x00000000,
+    LoadOp_Load = 0x00000001,
+    LoadOp_Clear = 0x00000002,
+    LoadOp_ExpandResolveTexture = 0x00050003,
+    LoadOp_Force32 = 0x7FFFFFFF
+} LoadOp;
 
+typedef enum StoreOp {
+    StoreOp_Undefined = 0x00000000,
+    StoreOp_Store = 0x00000001,
+    StoreOp_Discard = 0x00000002,
+    StoreOp_Force32 = 0x7FFFFFFF
+} StoreOp;
 typedef enum VertexFormat {
     VertexFormat_Uint8 = 0x00000001,
     VertexFormat_Uint8x2 = 0x00000002,
@@ -572,14 +584,26 @@ static inline VkIndexType toVulkanIndexFormat(IndexFormat ifmt) {
         return VK_INDEX_TYPE_UINT16; // Default fallback
     }
 }
-
-static inline VkAttachmentLoadOp toVulkanLoadOperation(LoadOperation lop) {
+static inline VkAttachmentStoreOp toVulkanStoreOperation(StoreOp lop) {
     switch (lop) {
-    case LoadOperation_Load:
+    case StoreOp_Store:
+        return VK_ATTACHMENT_STORE_OP_STORE;
+    case StoreOp_Discard:
+        return VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    case StoreOp_Undefined:
+    
+        return VK_ATTACHMENT_STORE_OP_DONT_CARE; // Example fallback
+    default:
+        return VK_ATTACHMENT_STORE_OP_DONT_CARE; // Default fallback
+    }
+}
+static inline VkAttachmentLoadOp toVulkanLoadOperation(LoadOp lop) {
+    switch (lop) {
+    case LoadOp_Load:
         return VK_ATTACHMENT_LOAD_OP_LOAD;
-    case LoadOperation_Clear:
+    case LoadOp_Clear:
         return VK_ATTACHMENT_LOAD_OP_CLEAR;
-    case LoadOperation_ExpandResolveTexture:
+    case LoadOp_ExpandResolveTexture:
         // Vulkan does not have a direct equivalent; choose appropriate op or handle separately
         return VK_ATTACHMENT_LOAD_OP_LOAD; // Example fallback
     default:
