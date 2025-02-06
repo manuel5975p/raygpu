@@ -5,6 +5,7 @@
 #include <SDL3/SDL_vulkan.h>
 #endif
 #include <webgpu/webgpu.h>
+#include <wgpustate.inc>
 
 constexpr uint32_t max_format_count = 16;
 
@@ -35,7 +36,35 @@ uint32_t GetPresentQueueIndex(void* instanceHandle, void* adapterHandle){
     return ~0;
 }
 
+extern "C" SubWindow InitWindow_SDL3(uint32_t width, uint32_t height, const char *title) {
+    
+    SubWindow ret{};
+    //SDL_SetHint(SDL_HINT_TRACKPAD_IS_TOUCH_ONLY, "1");
+    SDL_WindowFlags windowFlags zeroinit;
+    #if SUPPORT_VULKAN_BACKEND == 1
+    windowFlags |= SDL_WINDOW_VULKAN;
+    #endif
+    SDL_Window *window = SDL_CreateWindow(title, width, height, windowFlags);
+    SDL_SetWindowResizable(window, (g_renderstate.windowFlags & FLAG_WINDOW_RESIZABLE));
+    if(g_renderstate.windowFlags & FLAG_FULLSCREEN_MODE)
+        SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
 
+    
+    ret.handle = window;
+
+    #if SUPPORT_VULKAN_BACKEND == 1
+    VkSurfaceKHR surf = nullptr;
+    SDL_Vulkan_CreateSurface(window, (VkInstance)GetInstance(), nullptr, &surf);
+    
+    #else
+    WGPUSurface surface = SDL_GetWGPUSurface(GetInstance(), window);
+    ret.surface = CreateSurface(surface, width, height);
+    #endif
+    ret.handle = window;
+    ret.surface = CreateSurface(window, width, height);
+    g_renderstate.createdSubwindows[ret.handle] = ret;
+    return ret;
+}
 
 SurfaceAndSwapchainSupport QuerySurfaceAndSwapchainSupport(void* instanceHandle, void* adapterHandle, void* surfaceHandle){
     SurfaceAndSwapchainSupport ret zeroinit;

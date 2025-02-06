@@ -222,6 +222,9 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
 
     //void* window = nullptr;
     if(!(g_renderstate.windowFlags & FLAG_HEADLESS)){
+        #if SUPPORT_SDL3 == 1
+        SubWindow createdWindow = InitWindow_SDL3(width, height, title);
+        #endif
         #if SUPPORT_GLFW == 1 || SUPPORT_SDL2 == 1
         #ifdef MAIN_WINDOW_GLFW
         SubWindow createdWindow = InitWindow_GLFW(width, height, title);
