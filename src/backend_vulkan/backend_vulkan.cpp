@@ -243,7 +243,7 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
     vkCreateCommandPool(g_vulkanstate.device, &pci, nullptr, &oof);
     WGVKSurface wgvksurf = ((WGVKSurface)fsurface->surface);
     //TODO: Multiple frames in flight, this amounts to replacing 0 with frameCount % 2 or something similar
-    VkResult acquireResult = vkAcquireNextImageKHR(g_vulkanstate.device, wgvksurf->swapchain, UINT64_MAX, g_vulkanstate.syncState.getSemaphoreAtFrame(0), VK_NULL_HANDLE, &imageIndex);
+    VkResult acquireResult = vkAcquireNextImageKHR(g_vulkanstate.device, wgvksurf->swapchain, UINT64_MAX, g_vulkanstate.syncState.getSemaphoreOfSubmitIndex(0), VK_NULL_HANDLE, &imageIndex);
     TransitionImageLayout(g_vulkanstate.device, oof, g_vulkanstate.queue.graphicsQueue, wgvksurf->images[imageIndex], VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     TransitionImageLayout(g_vulkanstate.device, oof, g_vulkanstate.queue.graphicsQueue, ((ImageHandle)fsurface->renderTarget.depth.id)->image, VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
     vkDestroyCommandPool(g_vulkanstate.device, oof, nullptr);
@@ -777,7 +777,7 @@ void InitBackend(){
     
     createRenderPass();
 }
-VkSemaphore SyncState::getSemaphoreAtFrame(uint32_t index){
+VkSemaphore SyncState::getSemaphoreOfSubmitIndex(uint32_t index){
     uint32_t capacity = semaphoresInThisFrame.capacity();
     if(semaphoresInThisFrame.size() <= index){
         semaphoresInThisFrame.resize(index + 1);
@@ -895,8 +895,8 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
     sinfo.commandBufferCount = 1;
     sinfo.pCommandBuffers = &cbuffer;
     sinfo.waitSemaphoreCount = 1;
-    VkSemaphore waitsemaphore = g_vulkanstate.syncState.getSemaphoreAtFrame(g_vulkanstate.syncState.submitsInThisFrame);
-    VkSemaphore signalesemaphore = g_vulkanstate.syncState.getSemaphoreAtFrame(g_vulkanstate.syncState.submitsInThisFrame + 1);
+    VkSemaphore waitsemaphore = g_vulkanstate.syncState.getSemaphoreOfSubmitIndex(g_vulkanstate.syncState.submitsInThisFrame);
+    VkSemaphore signalesemaphore = g_vulkanstate.syncState.getSemaphoreOfSubmitIndex(g_vulkanstate.syncState.submitsInThisFrame + 1);
     sinfo.pWaitSemaphores = &waitsemaphore;
     sinfo.pWaitDstStageMask = &stageMask;
     sinfo.signalSemaphoreCount = 1;
