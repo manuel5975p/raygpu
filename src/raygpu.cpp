@@ -1491,6 +1491,7 @@ WGPURenderPassDepthStencilAttachment* defaultDSA(WGPUTextureView depth){
 }
 extern "C" DescribedRenderpass LoadRenderpassEx(RenderSettings settings, bool colorClear, DColor colorClearValue, bool depthClear, float depthClearValue){
     DescribedRenderpass ret{};
+    WGPURenderPassDescriptor desc{};
     
     ret.colorClear = colorClearValue;
     ret.depthClear = depthClearValue;
