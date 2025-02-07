@@ -134,6 +134,9 @@ void PollEvents(){
     #if SUPPORT_SDL2 != 0
     PollEvents_SDL2();
     #endif
+    #if SUPPORT_SDL3 != 0
+    PollEvents_SDL3();
+    #endif
     #if SUPPORT_GLFW != 0
     PollEvents_GLFW();
     #endif

@@ -784,6 +784,7 @@ EXTERN_C_BEGIN
     bool IsCursorOnScreen(cwoid);                                // Check if cursor is on the screen
     void PollEvents(cwoid);
     void PollEvents_SDL2(cwoid);
+    void PollEvents_SDL3(cwoid);
     void PollEvents_GLFW(cwoid);
     uint32_t GetMonitorWidth_GLFW(cwoid);
     uint32_t GetMonitorWidth_SDL2(cwoid);

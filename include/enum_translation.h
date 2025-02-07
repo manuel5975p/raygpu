@@ -26,7 +26,7 @@
 #define ENUM_HEADER_H
 
 //#define SUPPORT_WGPU_BACKEND 1
-#define SUPPORT_VULKAN_BACKEND 1
+//#define SUPPORT_VULKAN_BACKEND 1
 #ifdef __cplusplus
 #include <cassert>
 #include <cstdint>
@@ -956,15 +956,15 @@ static inline WGPUIndexFormat toWebGPUIndexFormat(IndexFormat ifmt) {
 }
 
 // Translation function for LoadOperation to WGPULoadOp
-static inline WGPULoadOp toWebGPULoadOperation(LoadOperation lop) {
+static inline WGPULoadOp toWebGPULoadOperation(LoadOp lop) {
     switch (lop) {
-    case LoadOperation_Load:
+    case LoadOp_Load:
         return WGPULoadOp_Load;
-    case LoadOperation_Clear:
+    case LoadOp_Clear:
         return WGPULoadOp_Clear;
-    case LoadOperation_ExpandResolveTexture:
+    case LoadOp_ExpandResolveTexture:
         // WebGPU does not have a direct equivalent; choose appropriate op or handle separately
-        return WGPULoadOp_Load; // Example fallback
+        return WGPULoadOp_ExpandResolveTexture; // Example fallback
     default:
         return WGPULoadOp_Load; // Default fallback
     }
