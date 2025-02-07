@@ -11,7 +11,7 @@
 #include <stdexcept>
 #include <vector>
 #include <format>
-#define SUPPORT_VULKAN_BACKEND 1
+//#define SUPPORT_VULKAN_BACKEND 1
 #include <raygpu.h>
 #include <small_vector.hpp>
 #include <glslang/SPIRV/GlslangToSpv.h>

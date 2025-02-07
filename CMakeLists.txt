@@ -94,8 +94,8 @@ endif()
 if(SUPPORT_SDL3)
     FetchContent_Declare(
         sdl3fetch
-        #URL      https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.2.0.tar.gz
-        URL      "${CMAKE_CURRENT_LIST_DIR}/../SDL-release-3.2.2.tar.gz"
+        URL      https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.2.2.tar.gz
+        #URL      "${CMAKE_CURRENT_LIST_DIR}/../SDL-release-3.2.2.tar.gz"
         DOWNLOAD_EXTRACT_TIMESTAMP True
     )
     FetchContent_MakeAvailable(sdl3fetch)
@@ -136,7 +136,7 @@ if(SUPPORT_SDL2)
 endif()
 if(SUPPORT_SDL3)
     list(APPEND RG_SOURCES "src/InitWindow_SDL3.cpp")
-    list(APPEND RG_SOURCES "src/sdl3webgpu.c")
+    list(APPEND RG_SOURCES "src/sdl3webgpu.cpp")
 endif()
 if(SUPPORT_GLFW)
     list(APPEND RG_SOURCES "src/dawn_glfwrip.cpp" "src/InitWindow_GLFW.cpp")
@@ -153,6 +153,12 @@ set(SANITIZER_FLAGS "-fsanitize=address")
 add_library(raygpu ${RG_SOURCES})
 if(SUPPORT_SDL2)
     target_compile_definitions(raygpu PUBLIC SUPPORT_SDL2=1)
+endif()
+if(SUPPORT_VULKAN_BACKEND)
+    target_compile_definitions(raygpu PUBLIC SUPPORT_VULKAN_BACKEND=1)
+endif()
+if(SUPPORT_WGPU_BACKEND)
+    target_compile_definitions(raygpu PUBLIC SUPPORT_WGPU_BACKEND=1)
 endif()
 if(SUPPORT_SDL3)
     target_compile_definitions(raygpu PUBLIC SUPPORT_SDL3=1)
@@ -270,10 +276,10 @@ if(EMSCRIPTEN)
 endif()
 
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/examples")
-add_executable(init_vulkan 
-    "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/init_vulkan.cpp"
-)
-target_link_libraries(init_vulkan PUBLIC vulkan raygpu glslang)
-target_include_directories(init_vulkan PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include" "${CMAKE_CURRENT_LIST_DIR}/external")
+#add_executable(init_vulkan 
+#    "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/init_vulkan.cpp"
+#)
+#target_link_libraries(init_vulkan PUBLIC vulkan raygpu glslang)
+#target_include_directories(init_vulkan PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include" "${CMAKE_CURRENT_LIST_DIR}/external")
 #add_executable(reference_sample "src/reference_sample.cpp")
 #target_link_libraries(reference_sample PUBLIC webgpu_dawn webgpu_cpp dawn_wgpu_utils dawn_internal_config dawn::dawn_glfw glfw raygpu)

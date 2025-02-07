@@ -7,7 +7,7 @@
 #include <utility>
 #include <raygpu.h>
 #include <internals.hpp>
-#define SUPPORT_VULKAN_BACKEND 1
+//#define SUPPORT_VULKAN_BACKEND 1
 #include <enum_translation.h>
 #if SUPPORT_GLFW == 1
 #define GLFW_INCLUDE_VULKAN

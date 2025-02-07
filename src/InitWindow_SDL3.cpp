@@ -4,6 +4,8 @@
 #include <vulkan/vulkan.h>
 #include <SDL3/SDL_vulkan.h>
 #include "backend_vulkan/vulkan_internals.hpp"
+#elif SUPPORT_WGPU_BACKEND == 1
+#include "sdl3webgpu.h"
 #endif
 #include <webgpu/webgpu.h>
 #include <wgpustate.inc>
@@ -20,6 +22,7 @@ typedef struct SurfaceAndSwapchainSupport{
 }SurfaceAndSwapchainSupport;
 
 uint32_t GetPresentQueueIndex(void* instanceHandle, void* adapterHandle){
+    #if SUPPORT_VULKAN_BACKEND == 1
     VkInstance instance = (VkInstance)instanceHandle;
     VkPhysicalDevice adapter = (VkPhysicalDevice)adapterHandle;
     
@@ -34,6 +37,7 @@ uint32_t GetPresentQueueIndex(void* instanceHandle, void* adapterHandle){
             return index;
         }
     }
+    #endif
     return ~0;
 }
 
@@ -58,10 +62,11 @@ extern "C" SubWindow InitWindow_SDL3(uint32_t width, uint32_t height, const char
     //SDL_Vulkan_CreateSurface(window, (VkInstance)GetInstance(), nullptr, &surf);
     
     #else
-    WGPUSurface surface = SDL_GetWGPUSurface(GetInstance(), window);
+    WGPUSurface surface = SDL3_GetWGPUSurface((WGPUInstance)GetInstance(), window);
     ret.surface = CreateSurface(surface, width, height);
     #endif
     ret.handle = window;
+    #if SUPPORT_VULKAN_BACKEND
     SurfaceConfiguration config{};
     config.presentMode = PresentMode_Fifo;
     config.format = BGRA8;
@@ -69,6 +74,7 @@ extern "C" SubWindow InitWindow_SDL3(uint32_t width, uint32_t height, const char
     config.width = width;
     config.height = height;
     ret.surface = LoadSurface((GLFWwindow*)window, config);
+    #endif
     g_renderstate.createdSubwindows[ret.handle] = ret;
     g_renderstate.window = (GLFWwindow*)ret.handle;
     g_renderstate.mainWindow = &g_renderstate.createdSubwindows[ret.handle];
@@ -243,7 +249,7 @@ static const KeyboardKey mapScancodeToKey[SCANCODE_MAPPED_NUM] = {
 };
 void ResizeCallback(SDL_Window* window, int width, int height){
 
-    TRACELOG(LOG_INFO, "SDL's ResizeCallback called with %d x %d", width, height);
+    TRACELOG(LOG_INFO, "SDL3's ResizeCallback called with %d x %d", width, height);
     ResizeSurface(&g_renderstate.createdSubwindows[window].surface, width, height);
     
     if((void*)window == (void*)g_renderstate.window){
