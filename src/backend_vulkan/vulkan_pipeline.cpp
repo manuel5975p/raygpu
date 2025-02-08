@@ -238,7 +238,7 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
     DescribedPipeline* ret = callocnew(DescribedPipeline);
     ret->settings = settings;
     ret->createdPipelines = callocnewpp(VertexStateToPipelineMap);
-    ret->bglayout = LoadBindGroupLayout(uniforms, uniformCount);
+    ret->bglayout = LoadBindGroupLayout(uniforms, uniformCount, false);
     auto [spirV, spirF] = glsl_to_spirv(vsSource, fsSource);
     
     ret->sh = LoadShaderModuleFromSPIRV_Vk(spirV.data(), spirV.size() * 4, spirF.data(), spirF.size() * 4);
@@ -258,7 +258,6 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
         bge[i] = ResourceDescriptor{};
         bge[i].binding = uniforms[i].location;
     }
-    ret->bglayout = LoadBindGroupLayout(uniforms, uniformCount);
     ret->bindGroup = LoadBindGroup_Vk(&ret->bglayout, bge.data(), bge.size());
     UpdatePipeline_Vk(ret, vao);    
     

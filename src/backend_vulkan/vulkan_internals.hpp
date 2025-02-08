@@ -597,7 +597,7 @@ extern "C" Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat f
 extern "C" Texture LoadTextureFromImage(Image img);
 extern "C" void UnloadTexture(Texture tex);
 extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vscode, size_t vscodeSizeInBytes, const uint32_t* fscode, size_t fscodeSizeInBytes);
-extern "C" DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* descs, uint32_t uniformCount);
+
 extern "C" DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSource, const VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
 extern "C" DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, const ResourceDescriptor* resources, uint32_t count);
 extern "C" void UpdateBindGroup(DescribedBindGroup* bg);

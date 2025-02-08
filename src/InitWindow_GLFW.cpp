@@ -445,7 +445,7 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
     //    config.presentMode = (SurfacePresentMode)g_renderstate.unthrottled_PresentMode;
     //}
 
-    TRACELOG(LOG_INFO, "Initialized GLFW window with surface %s", presentModeSpellingTable.at((WGPUPresentMode)config.presentMode).c_str());
+    //TRACELOG(LOG_INFO, "Initialized GLFW window with surface %s", presentModeSpellingTable.at((WGPUPresentMode)config.presentMode).c_str());
     //config.alphaMode = WGPUCompositeAlphaMode_Opaque;
     
     //config.format = (PixelFormat)g_renderstate.frameBufferFormat;

@@ -474,7 +474,7 @@ QueueIndices findQueueFamilies() {
 
     return ret;
 }
-DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* descs, uint32_t uniformCount){
+extern "C" DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* descs, uint32_t uniformCount, bool compute){
     DescribedBindGroupLayout retv{};
     DescribedBindGroupLayout* ret = &retv;
     VkDescriptorSetLayout layout{};

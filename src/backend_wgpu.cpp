@@ -1,6 +1,44 @@
 #include <raygpu.h>
 #include <wgpustate.inc>
 #include <unordered_set>
+inline WGPUStorageTextureAccess toStorageTextureAccess(access_type acc){
+    switch(acc){
+        case access_type::readonly:return WGPUStorageTextureAccess_ReadOnly;
+        case access_type::readwrite:return WGPUStorageTextureAccess_ReadWrite;
+        case access_type::writeonly:return WGPUStorageTextureAccess_WriteOnly;
+        default: TRACELOG(LOG_FATAL, "Invalid enum type");
+    }
+    return WGPUStorageTextureAccess_Force32;
+}
+inline WGPUBufferBindingType toStorageBufferAccess(access_type acc){
+    switch(acc){
+        case access_type::readonly: return WGPUBufferBindingType_ReadOnlyStorage;
+        case access_type::readwrite:return WGPUBufferBindingType_Storage;
+        case access_type::writeonly:return WGPUBufferBindingType_Storage;
+        default: TRACELOG(LOG_FATAL, "Invalid enum type");
+    }
+    return WGPUBufferBindingType_Force32;
+}
+inline WGPUTextureFormat toStorageTextureFormat(format_or_sample_type fmt){
+    switch(fmt){
+        case format_or_sample_type::format_r32float: return WGPUTextureFormat_R32Float;
+        case format_or_sample_type::format_r32uint: return WGPUTextureFormat_R32Uint;
+        case format_or_sample_type::format_rgba8unorm: return WGPUTextureFormat_RGBA8Unorm;
+        case format_or_sample_type::format_rgba32float: return WGPUTextureFormat_RGBA32Float;
+        default: TRACELOG(LOG_FATAL, "Invalid enum type");
+    }
+    return WGPUTextureFormat_Force32;
+}
+inline WGPUTextureSampleType toTextureSampleType(format_or_sample_type fmt){
+    switch(fmt){
+        case format_or_sample_type::sample_f32: return WGPUTextureSampleType_Float;
+        case format_or_sample_type::sample_u32: return WGPUTextureSampleType_Uint;
+        default: TRACELOG(LOG_FATAL, "Invalid enum type");
+    }
+    return WGPUTextureSampleType_Force32;
+}
+
+
 extern "C" void UnloadTexture(Texture tex){
     for(uint32_t i = 0;i < tex.mipmaps;i++){
         if(tex.mipViews[i]){
@@ -41,6 +79,74 @@ extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology 
     }
     //pipeline->lastUsedAs = drawMode;
     wgpuRenderPassEncoderSetBindGroup ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, 0, (WGPUBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup), 0, 0);
+}
+DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, bool compute){
+    DescribedBindGroupLayout ret{};
+    WGPUShaderStage visible;
+    WGPUShaderStage vfragmentOnly = compute ? WGPUShaderStage_Compute : WGPUShaderStage_Fragment;
+    WGPUShaderStage vvertexOnly = compute ? WGPUShaderStage_Compute : WGPUShaderStage_Vertex;
+    if(compute){
+        visible = WGPUShaderStage_Compute;
+    }
+    else{
+        visible = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+    }
+
+    
+    WGPUBindGroupLayoutEntry* blayouts = (WGPUBindGroupLayoutEntry*)calloc(uniformCount, sizeof(WGPUBindGroupLayoutEntry));
+    WGPUBindGroupLayoutDescriptor bglayoutdesc{};
+
+    for(size_t i = 0;i < uniformCount;i++){
+        blayouts[i].binding = uniforms[i].location;
+        switch(uniforms[i].type){
+            case uniform_buffer:
+                blayouts[i].visibility = visible;
+                blayouts[i].buffer.type = WGPUBufferBindingType_Uniform;
+                blayouts[i].buffer.minBindingSize = uniforms[i].minBindingSize;
+            break;
+            case storage_buffer:{
+                blayouts[i].visibility = visible;
+                blayouts[i].buffer.type = toStorageBufferAccess(uniforms[i].access);
+                blayouts[i].buffer.minBindingSize = 0;
+            }
+            break;
+            case texture2d:
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].texture.sampleType = toTextureSampleType(uniforms[i].fstype);
+                blayouts[i].texture.viewDimension = WGPUTextureViewDimension_2D;
+            break;
+            case texture_sampler:
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].sampler.type = WGPUSamplerBindingType_Filtering;
+            break;
+            case texture3d:
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].texture.sampleType = toTextureSampleType(uniforms[i].fstype);
+                blayouts[i].texture.viewDimension = WGPUTextureViewDimension_3D;
+            break;
+            case storage_texture2d:
+                blayouts[i].storageTexture.access = toStorageTextureAccess(uniforms[i].access);
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].storageTexture.format = toStorageTextureFormat(uniforms[i].fstype);
+                blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+            break;
+            case storage_texture3d:
+                blayouts[i].storageTexture.access = toStorageTextureAccess(uniforms[i].access);
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].storageTexture.format = toStorageTextureFormat(uniforms[i].fstype);
+                blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_3D;
+            break;
+        }
+    }
+    bglayoutdesc.entryCount = uniformCount;
+    bglayoutdesc.entries = blayouts;
+
+    ret.entries = (ResourceTypeDescriptor*)std::calloc(uniformCount, sizeof(ResourceTypeDescriptor));
+    std::memcpy(ret.entries, uniforms, uniformCount * sizeof(ResourceTypeDescriptor));
+    ret.layout = wgpuDeviceCreateBindGroupLayout((WGPUDevice)GetDevice(), &bglayoutdesc);
+
+    std::free(blayouts);
+    return ret;
 }
 
 extern "C" void UpdateBindGroup(DescribedBindGroup* bg){
@@ -435,12 +541,12 @@ void InitBackend(){
 
 
 bool negotiateSurfaceFormatAndPresentMode_called = false;
-void negotiateSurfaceFormatAndPresentMode(const void* SurfaceHandle){
-    const wgpu::Surface& surf = *reinterpret_cast<const wgpu::Surface*>(SurfaceHandle);
+extern "C" void negotiateSurfaceFormatAndPresentMode(const void* SurfaceHandle){
+    const WGPUSurface surf = (WGPUSurface)SurfaceHandle;
     if(negotiateSurfaceFormatAndPresentMode_called)return;
     negotiateSurfaceFormatAndPresentMode_called = true;
-    wgpu::SurfaceCapabilities capabilities;
-    surf.GetCapabilities(GetCXXAdapter(), &capabilities);
+    WGPUSurfaceCapabilities capabilities;
+    wgpuSurfaceGetCapabilities(surf, (WGPUAdapter)GetAdapter(), &capabilities);
     {
         std::string presentModeString;
         for(uint32_t i = 0;i < capabilities.presentModeCount;i++){
@@ -462,17 +568,17 @@ void negotiateSurfaceFormatAndPresentMode(const void* SurfaceHandle){
     else if(capabilities.presentModeCount > 1){
         g_renderstate.unthrottled_PresentMode = (SurfacePresentMode)capabilities.presentModes[0];
         g_renderstate.throttled_PresentMode = (SurfacePresentMode)capabilities.presentModes[0];
-        std::unordered_set<wgpu::PresentMode> pmset(capabilities.presentModes, capabilities.presentModes + capabilities.presentModeCount);
-        if(pmset.find(wgpu::PresentMode::Fifo) != pmset.end()){
+        std::unordered_set<WGPUPresentMode> pmset(capabilities.presentModes, capabilities.presentModes + capabilities.presentModeCount);
+        if(pmset.find(WGPUPresentMode_Fifo) != pmset.end()){
             g_renderstate.throttled_PresentMode = PresentMode_Fifo;
         }
-        else if(pmset.find(wgpu::PresentMode::FifoRelaxed) != pmset.end()){
+        else if(pmset.find(WGPUPresentMode_FifoRelaxed) != pmset.end()){
             g_renderstate.throttled_PresentMode = PresentMode_FifoRelaxed;
         }
-        if(pmset.find(wgpu::PresentMode::Mailbox) != pmset.end()){
+        if(pmset.find(WGPUPresentMode_Mailbox) != pmset.end()){
             g_renderstate.unthrottled_PresentMode = PresentMode_Mailbox;
         }
-        else if(pmset.find(wgpu::PresentMode::Immediate) != pmset.end()){
+        else if(pmset.find(WGPUPresentMode_Immediate) != pmset.end()){
             g_renderstate.unthrottled_PresentMode = PresentMode_Immediate;
         }
     }
@@ -488,15 +594,15 @@ void negotiateSurfaceFormatAndPresentMode(const void* SurfaceHandle){
         TRACELOG(LOG_INFO, "Supported surface formats: %s", formatsString.c_str());
     }
 
-    wgpu::TextureFormat selectedFormat = wgpu::TextureFormat::Undefined;
+    WGPUTextureFormat selectedFormat = WGPUTextureFormat_Undefined;
     int format_index = 0;
     for(format_index = 0;format_index < capabilities.formatCount;format_index++){
-        if(capabilities.formats[format_index] == wgpu::TextureFormat::RGBA16Float){
+        if(capabilities.formats[format_index] == WGPUTextureFormat_RGBA16Float){
             selectedFormat = (capabilities.formats[format_index]);
             break;
         }
-        if(capabilities.formats[format_index] == wgpu::TextureFormat::BGRA8Unorm ||
-           capabilities.formats[format_index] == wgpu::TextureFormat::RGBA8Unorm){
+        if(capabilities.formats[format_index] == WGPUTextureFormat_BGRA8Unorm ||
+           capabilities.formats[format_index] == WGPUTextureFormat_RGBA8Unorm){
             selectedFormat = (capabilities.formats[format_index]);
             break;
         }
