@@ -42,7 +42,9 @@ uint32_t GetPresentQueueIndex(void* instanceHandle, void* adapterHandle){
 }
 
 extern "C" SubWindow InitWindow_SDL3(uint32_t width, uint32_t height, const char *title) {
+    SDL_InitFlags initFlags = SDL_INIT_VIDEO;
     
+    SDL_Init(initFlags);
     SubWindow ret{};
     //SDL_SetHint(SDL_HINT_TRACKPAD_IS_TOUCH_ONLY, "1");
     SDL_WindowFlags windowFlags zeroinit;

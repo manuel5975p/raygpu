@@ -1031,6 +1031,8 @@ EXTERN_C_BEGIN
     DescribedShaderModule LoadShaderModuleFromSPIRV(const uint32_t* shaderCodeSPIRV, size_t codeSizeInBytes);
     //WGPUShaderModule LoadShader(const char* path);
 
+    DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, bool compute);
+
     DescribedPipeline* ClonePipeline(const DescribedPipeline* pl);
     DescribedPipeline* ClonePipelineWithSettings(const DescribedPipeline* pl, RenderSettings settings);
     DescribedPipeline* LoadPipeline(const char* shaderSource);

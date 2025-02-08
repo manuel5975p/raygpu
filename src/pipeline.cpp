@@ -52,42 +52,6 @@ typedef struct StringToUniformMap{
         
     }
 }StringToUniformMap;
-inline WGPUStorageTextureAccess toStorageTextureAccess(access_type acc){
-    switch(acc){
-        case access_type::readonly:return WGPUStorageTextureAccess_ReadOnly;
-        case access_type::readwrite:return WGPUStorageTextureAccess_ReadWrite;
-        case access_type::writeonly:return WGPUStorageTextureAccess_WriteOnly;
-        default: TRACELOG(LOG_FATAL, "Invalid enum type");
-    }
-    return WGPUStorageTextureAccess_Force32;
-}
-inline WGPUBufferBindingType toStorageBufferAccess(access_type acc){
-    switch(acc){
-        case access_type::readonly: return WGPUBufferBindingType_ReadOnlyStorage;
-        case access_type::readwrite:return WGPUBufferBindingType_Storage;
-        case access_type::writeonly:return WGPUBufferBindingType_Storage;
-        default: TRACELOG(LOG_FATAL, "Invalid enum type");
-    }
-    return WGPUBufferBindingType_Force32;
-}
-inline WGPUTextureFormat toStorageTextureFormat(format_or_sample_type fmt){
-    switch(fmt){
-        case format_or_sample_type::format_r32float: return WGPUTextureFormat_R32Float;
-        case format_or_sample_type::format_r32uint: return WGPUTextureFormat_R32Uint;
-        case format_or_sample_type::format_rgba8unorm: return WGPUTextureFormat_RGBA8Unorm;
-        case format_or_sample_type::format_rgba32float: return WGPUTextureFormat_RGBA32Float;
-        default: TRACELOG(LOG_FATAL, "Invalid enum type");
-    }
-    return WGPUTextureFormat_Force32;
-}
-inline WGPUTextureSampleType toTextureSampleType(format_or_sample_type fmt){
-    switch(fmt){
-        case format_or_sample_type::sample_f32: return WGPUTextureSampleType_Float;
-        case format_or_sample_type::sample_u32: return WGPUTextureSampleType_Uint;
-        default: TRACELOG(LOG_FATAL, "Invalid enum type");
-    }
-    return WGPUTextureSampleType_Force32;
-}
 
 
 
@@ -127,74 +91,7 @@ inline WGPUTextureSampleType toTextureSampleType(format_or_sample_type fmt){
     return wgpuDeviceCreateBindGroupLayout((WGPUDevice)GetDevice(), &bglayoutdesc);
 }*/
 
-DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, bool compute){
-    DescribedBindGroupLayout ret{};
-    WGPUShaderStage visible;
-    WGPUShaderStage vfragmentOnly = compute ? WGPUShaderStage_Compute : WGPUShaderStage_Fragment;
-    WGPUShaderStage vvertexOnly = compute ? WGPUShaderStage_Compute : WGPUShaderStage_Vertex;
-    if(compute){
-        visible = WGPUShaderStage_Compute;
-    }
-    else{
-        visible = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
-    }
 
-    
-    WGPUBindGroupLayoutEntry* blayouts = (WGPUBindGroupLayoutEntry*)calloc(uniformCount, sizeof(WGPUBindGroupLayoutEntry));
-    WGPUBindGroupLayoutDescriptor bglayoutdesc{};
-
-    for(size_t i = 0;i < uniformCount;i++){
-        blayouts[i].binding = uniforms[i].location;
-        switch(uniforms[i].type){
-            case uniform_buffer:
-                blayouts[i].visibility = visible;
-                blayouts[i].buffer.type = WGPUBufferBindingType_Uniform;
-                blayouts[i].buffer.minBindingSize = uniforms[i].minBindingSize;
-            break;
-            case storage_buffer:{
-                blayouts[i].visibility = visible;
-                blayouts[i].buffer.type = toStorageBufferAccess(uniforms[i].access);
-                blayouts[i].buffer.minBindingSize = 0;
-            }
-            break;
-            case texture2d:
-                blayouts[i].visibility = vfragmentOnly;
-                blayouts[i].texture.sampleType = toTextureSampleType(uniforms[i].fstype);
-                blayouts[i].texture.viewDimension = WGPUTextureViewDimension_2D;
-            break;
-            case texture_sampler:
-                blayouts[i].visibility = vfragmentOnly;
-                blayouts[i].sampler.type = WGPUSamplerBindingType_Filtering;
-            break;
-            case texture3d:
-                blayouts[i].visibility = vfragmentOnly;
-                blayouts[i].texture.sampleType = toTextureSampleType(uniforms[i].fstype);
-                blayouts[i].texture.viewDimension = WGPUTextureViewDimension_3D;
-            break;
-            case storage_texture2d:
-                blayouts[i].storageTexture.access = toStorageTextureAccess(uniforms[i].access);
-                blayouts[i].visibility = vfragmentOnly;
-                blayouts[i].storageTexture.format = toStorageTextureFormat(uniforms[i].fstype);
-                blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_2D;
-            break;
-            case storage_texture3d:
-                blayouts[i].storageTexture.access = toStorageTextureAccess(uniforms[i].access);
-                blayouts[i].visibility = vfragmentOnly;
-                blayouts[i].storageTexture.format = toStorageTextureFormat(uniforms[i].fstype);
-                blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_3D;
-            break;
-        }
-    }
-    bglayoutdesc.entryCount = uniformCount;
-    bglayoutdesc.entries = blayouts;
-
-    ret.entries = (ResourceTypeDescriptor*)std::calloc(uniformCount, sizeof(ResourceTypeDescriptor));
-    std::memcpy(ret.entries, uniforms, uniformCount * sizeof(ResourceTypeDescriptor));
-    ret.layout = wgpuDeviceCreateBindGroupLayout((WGPUDevice)GetDevice(), &bglayoutdesc);
-
-    std::free(blayouts);
-    return ret;
-}
 extern "C" DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao){
     std::unordered_map<std::string, ResourceTypeDescriptor> bindings = getBindings(shaderSource);
     std::vector<ResourceTypeDescriptor> values;
