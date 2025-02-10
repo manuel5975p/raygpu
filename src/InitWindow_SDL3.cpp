@@ -48,6 +48,14 @@ void Initialize_SDL3(){
     SDL_Init(initFlags);
 }
 
+extern "C" void* CreateSurfaceForWindow_SDL3(void* windowHandle){
+    #if SUPPORT_VULKAN_BACKEND == 1
+    WGVKSurface retp = callocnew(WGVKSurfaceImpl);
+    SDL_Vulkan_CreateSurface((SDL_Window*)window, g_vulkanstate.instance, nullptr, &retp->surface);
+    #else
+    return SDL3_GetWGPUSurface(g_wgpustate.instance.Get(), (SDL_Window*)windowHandle);
+    #endif
+}
 SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title){
     SubWindow ret zeroinit;
     WGPUInstance inst = (WGPUInstance)GetInstance();
@@ -70,6 +78,7 @@ SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title)
 extern "C" SubWindow InitWindow_SDL3(uint32_t width, uint32_t height, const char *title) {
     
     SubWindow ret{};
+    ret.type = windowType_sdl3;
     //SDL_SetHint(SDL_HINT_TRACKPAD_IS_TOUCH_ONLY, "1");
     SDL_WindowFlags windowFlags zeroinit;
     #if SUPPORT_VULKAN_BACKEND == 1 && !defined(__EMSCRIPTEN__)

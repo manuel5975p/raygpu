@@ -6,7 +6,6 @@
 #include <optional>
 #include <chrono>
 
-
 inline std::ostream& operator<<(std::ostream& ostr, const wgpu::StringView& st){
     ostr.write(st.data, st.length);
     return ostr;
@@ -370,7 +369,31 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     #else
     return nullptr;
     #endif
+}
+/**
+  @return WGPUSurface or WGVKSurface (void*)
 
+ */
+extern "C" void* CreateSurfaceForWindow(SubWindow window){
+    void* surfacePtr = nullptr;
+    switch (window.type){
+        case windowType_sdl3:
+        #if SUPPORT_SDL3 == 1
+        surfacePtr = CreateSurfaceForWindow_SDL3(window.handle);
+        #endif
+        break;
+        case windowType_glfw:
+        #if SUPPORT_GLFW == 1
+        wgsurf = CreateSurfaceForWindow_GLFW(window.handle);
+        #endif
+        break;
+        case windowType_sdl2:
+        #if SUPPORT_SDL2 == 1
+        wgsurf = CreateSurfaceForWindow_GLFW(window.handle);
+        #endif
+        break;
+    }
+    return surfacePtr;
 }
 extern "C" void CharCallback(void* window, unsigned int codePoint){
     g_renderstate.input_map[window].charQueue.push_back((int)codePoint);

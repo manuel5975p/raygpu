@@ -365,12 +365,22 @@ void ToggleFullscreen_GLFW(){
 
     #endif
 }
+extern "C" void* CreateSurfaceForWindow_GLFW(void* windowHandle){
+    #if SUPPORT_VULKAN_BACKEND == 1
+    WGVKSurface retp = callocnew(WGVKSurfaceImpl);
+    glfwCreateWindowSurface(g_vulkanstate.instance, window, nullptr, &retp->surface);
+    return retp;
+    #else
+    return SDL_GetWGPUSurface(g_wgpustate.instance.Get(), (SDL_Window*)windowHandle);
+    #endif
+}
 void SetWindowShouldClose_GLFW(GLFWwindow* window){
     glfwSetWindowShouldClose(window, GLFW_TRUE);
 }
 
 SubWindow InitWindow_GLFW(int width, int height, const char* title){
     SubWindow ret{};
+    ret.type = windowType_glfw;
     void* window = nullptr;
     if (!glfwInit()) {
         abort();
