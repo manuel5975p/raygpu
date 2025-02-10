@@ -303,7 +303,7 @@ inline FullSurface LoadSurface(GLFWwindow* window, SurfaceConfiguration config){
     SwapChainSupportDetails swapChainSupport = querySwapChainSupport(g_vulkanstate.physicalDevice, ret.surface);
 
     VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
-    VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;//chooseSwapPresentMode(swapChainSupport.presentModes);
+    VkPresentModeKHR presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;//toVulkanPresentMode(config.presentMode);//chooseSwapPresentMode(swapChainSupport.presentModes);
     VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities, window);
     ret.width = extent.width;
     ret.height = extent.height;
@@ -349,7 +349,7 @@ inline FullSurface LoadSurface(GLFWwindow* window, SurfaceConfiguration config){
     if (vkCreateSwapchainKHR(g_vulkanstate.device, &createInfo, nullptr, &ret.swapchain) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create swap chain!");
     } else {
-        std::cout << "Successfully created swap chain\n";
+        std::cout << "Successfully created swap chain with presentmode " << createInfo.presentMode << std::endl;
     }
 
     // Retrieve swapchain images

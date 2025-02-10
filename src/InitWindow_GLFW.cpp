@@ -1,6 +1,7 @@
 #include <raygpu.h>
 #include <GLFW/glfw3.h>
 #include <wgpustate.inc>
+#include <internals.hpp>
 #include "GLFW/glfw3.h"
 #include "webgpu/webgpu_glfw.h"
 #ifdef __EMSCRIPTEN__
@@ -106,9 +107,6 @@ EM_BOOL EmscriptenMouseupClickCallback(int eventType, const EmscriptenMouseEvent
 
 
 //#ifndef __EMSCRIPTEN__
-void CharCallback(GLFWwindow* window, unsigned int codePoint){
-    g_renderstate.input_map[window].charQueue.push_back((int)codePoint);
-}
 void CursorEnterCallback(GLFWwindow* window, int entered){
     g_renderstate.input_map[window].cursorInWindow = entered;
 }
@@ -160,7 +158,9 @@ void setupGLFWCallbacks(GLFWwindow* window){
     glfwSetWindowSizeCallback(window, ResizeCallback);
     glfwSetKeyCallback(window, glfwKeyCallback);
     glfwSetCursorPosCallback(window, cpcallback);
-    glfwSetCharCallback(window, CharCallback);
+    glfwSetCharCallback(window, [](auto... x){
+        CharCallback(x...);
+    });
     glfwSetCursorEnterCallback(window, CursorEnterCallback);
     glfwSetScrollCallback(window, ScrollCallback);
     glfwSetMouseButtonCallback(window, clickcallback);
@@ -399,7 +399,7 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
         
     #ifndef __EMSCRIPTEN__
         window = (void*)glfwCreateWindow(width, height, title, mon, nullptr);
-        glfwSetWindowPos((GLFWwindow*)window, 200, 1900);
+        //glfwSetWindowPos((GLFWwindow*)window, 200, 1900);
         if (!window) {
             abort();
         }

@@ -122,6 +122,7 @@ VkImageView CreateImageView(VkDevice device, VkImage image, VkFormat format, VkI
 }
 
 // Function to begin a single-use command buffer
+VkCommandBuffer transientCommandBuffer{};
 VkCommandBuffer BeginSingleTimeCommands(VkDevice device, VkCommandPool commandPool) {
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -129,16 +130,20 @@ VkCommandBuffer BeginSingleTimeCommands(VkDevice device, VkCommandPool commandPo
     allocInfo.commandPool = commandPool;
     allocInfo.commandBufferCount = 1;
     
-    VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
-    
+    if(!transientCommandBuffer){
+        vkAllocateCommandBuffers(device, &allocInfo, &transientCommandBuffer);
+    }
+    else{
+        vkResetCommandBuffer(transientCommandBuffer, 0);
+    }
+
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     
-    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+    vkBeginCommandBuffer(transientCommandBuffer, &beginInfo);
     
-    return commandBuffer;
+    return transientCommandBuffer;
 }
 
 // Function to end and submit a single-use command buffer
@@ -153,8 +158,8 @@ void EndSingleTimeCommands(VkDevice device, VkCommandPool commandPool, VkQueue q
     if (vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS)
         throw std::runtime_error("Failed to submit command buffer!");
     
-    vkQueueWaitIdle(queue);
-    vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+    //vkQueueWaitIdle(queue);
+    //vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 }
 
 // Function to transition image layout
