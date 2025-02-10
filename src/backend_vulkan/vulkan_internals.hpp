@@ -127,6 +127,11 @@ struct WGVKSurfaceImpl{
     VkImage* images;
     VkImageView* imageViews;
     VkFramebuffer* framebuffers;
+
+    uint32_t formatCount;
+    PixelFormat* formatCache;
+    uint32_t presentModeCount;
+    SurfacePresentMode* presentModeCache;
 };
 typedef WGVKSurfaceImpl* WGVKSurface;
 
@@ -205,6 +210,7 @@ struct SwapChainSupportDetails {
     std::vector<VkSurfaceFormatKHR> formats;
     std::vector<VkPresentModeKHR> presentModes;
 };
+extern "C" void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, VkPhysicalDevice adapter, SurfaceCapabilities* capabilities);
 
 inline SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface) {
     SwapChainSupportDetails details;
@@ -398,84 +404,8 @@ inline FullSurface LoadSurface(GLFWwindow* window, SurfaceConfiguration config){
     return retf;
 }
 
-inline void wgvkSurfaceConfigure(WGVKSurfaceImpl* surface, const SurfaceConfiguration* config){
-    auto& device = g_vulkanstate.device;
-    vkDeviceWaitIdle(device);
-    for (uint32_t i = 0; i < surface->imagecount; i++) {
-        vkDestroyImageView(device, surface->imageViews[i], nullptr);
-        //vkDestroyImage(device, surface->images[i], nullptr);
-    }
-    std::free(surface->framebuffers);
-    std::free(surface->imageViews);
-    std::free(surface->images);
-    vkDestroySwapchainKHR(device, surface->swapchain, nullptr);
-    SwapChainSupportDetails swapChainSupport = querySwapChainSupport(g_vulkanstate.physicalDevice, surface->surface);
-    VkSwapchainCreateInfoKHR createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    createInfo.surface = surface->surface;
+extern "C" void wgvkSurfaceConfigure(WGVKSurfaceImpl* surface, const SurfaceConfiguration* config);
 
-    createInfo.minImageCount = surface->imagecount;
-    createInfo.imageFormat = surface->swapchainImageFormat;
-    surface->width = config->width;
-    surface->height = config->height;
-    VkExtent2D newExtent{config->width, config->height};
-    createInfo.imageExtent = newExtent;
-    createInfo.imageArrayLayers = 1; // For stereoscopic 3D applications
-    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-
-    // Queue family indices
-    uint32_t queueFamilyIndices[] = {g_vulkanstate.graphicsFamily, g_vulkanstate.presentFamily};
-
-    if (g_vulkanstate.graphicsFamily != g_vulkanstate.presentFamily) {
-        createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-        createInfo.queueFamilyIndexCount = 2;
-        createInfo.pQueueFamilyIndices = queueFamilyIndices;
-    } else {
-        createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        createInfo.queueFamilyIndexCount = 0;     // Optional
-        createInfo.pQueueFamilyIndices = nullptr; // Optional
-    }
-
-    createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
-    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    createInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR; 
-    createInfo.clipped = VK_TRUE;
-
-    if (vkCreateSwapchainKHR(g_vulkanstate.device, &createInfo, nullptr, &(surface->swapchain)) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create swap chain!");
-    } else {
-        std::cout << "Successfully created swap chain\n";
-    }
-
-    vkGetSwapchainImagesKHR(g_vulkanstate.device, surface->swapchain, &surface->imagecount, nullptr);
-    surface->images = (VkImage*)std::calloc(surface->imagecount, sizeof(VkImage));
-    surface->imageViews = (VkImageView*)std::calloc(surface->imagecount, sizeof(VkImageView));
-
-    vkGetSwapchainImagesKHR(g_vulkanstate.device, surface->swapchain, &surface->imagecount, surface->images);
-
-    surface->imageViews = (VkImageView*)std::calloc(surface->imagecount, sizeof(VkImageView));
-    for (uint32_t i = 0; i < surface->imagecount; i++) {
-        VkImageViewCreateInfo viewInfo{};
-        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        viewInfo.image = surface->images[i];
-        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        viewInfo.format = surface->swapchainImageFormat;
-        viewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-        viewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-        viewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-        viewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        viewInfo.subresourceRange.baseMipLevel = 0;
-        viewInfo.subresourceRange.levelCount = 1;
-        viewInfo.subresourceRange.baseArrayLayer = 0;
-        viewInfo.subresourceRange.layerCount = 1;
-
-        if (vkCreateImageView(device, &viewInfo, nullptr, &surface->imageViews[i]) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create image views!");
-        }
-    }
-
-}
 
 struct FullVkRenderPass{
     VkRenderPass renderPass;
