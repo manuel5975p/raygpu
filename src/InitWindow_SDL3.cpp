@@ -291,6 +291,14 @@ static KeyboardKey ConvertScancodeToKey(SDL_Scancode sdlScancode){
 
     return KEY_NULL; // No equivalent key in Raylib
 }
+
+void PenAxisCallback(SDL_Window* window, SDL_PenID penID, SDL_PenAxis axis, float value){
+    g_renderstate.input_map[window].penStates[penID].axes[axis] = value;
+}
+void PenMotionCallback(SDL_Window* window, SDL_PenID penID, float x, float y){
+    g_renderstate.input_map[window].penStates[penID].position = Vector2{x,y };
+}
+
 void MouseButtonCallback(SDL_Window* window, int button, int action){
     if(action == 1){
         g_renderstate.input_map[window].mouseButtonDown[button] = 1;
@@ -397,6 +405,15 @@ extern "C" void PollEvents_SDL3() {
             MouseButtonCallback(window, event.button.button, state);
         }
         break;
+        case SDL_EVENT_PEN_AXIS:{
+            SDL_Window *window = SDL_GetWindowFromID(event.paxis.windowID);
+            PenAxisCallback(window, event.paxis.which, event.paxis.axis, event.paxis.value);
+        }break;
+        case SDL_EVENT_PEN_MOTION:{
+            SDL_Window *window = SDL_GetWindowFromID(event.pmotion.windowID);
+            PenMotionCallback(window, event.pmotion.which, event.pmotion.x, event.pmotion.y);
+            //std::cout << event.pmotion.x << "\n";
+        }break;
 //
         //    uint8_t forGLFW = event.button.button - 1;
         //    if(forGLFW == 2) forGLFW = 1;
