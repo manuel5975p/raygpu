@@ -5,7 +5,7 @@
 #include <iostream>
 #include <optional>
 #include <chrono>
-
+#include <internals.hpp>
 inline std::ostream& operator<<(std::ostream& ostr, const wgpu::StringView& st){
     ostr.write(st.data, st.length);
     return ostr;
@@ -389,7 +389,7 @@ extern "C" void* CreateSurfaceForWindow(SubWindow window){
         break;
         case windowType_sdl2:
         #if SUPPORT_SDL2 == 1
-        wgsurf = CreateSurfaceForWindow_GLFW(window.handle);
+        wgsurf = CreateSurfaceForWindow_SDL2(window.handle);
         #endif
         break;
     }

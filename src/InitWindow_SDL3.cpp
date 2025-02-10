@@ -51,7 +51,8 @@ void Initialize_SDL3(){
 extern "C" void* CreateSurfaceForWindow_SDL3(void* windowHandle){
     #if SUPPORT_VULKAN_BACKEND == 1
     WGVKSurface retp = callocnew(WGVKSurfaceImpl);
-    SDL_Vulkan_CreateSurface((SDL_Window*)window, g_vulkanstate.instance, nullptr, &retp->surface);
+    SDL_Vulkan_CreateSurface((SDL_Window*)windowHandle, g_vulkanstate.instance, nullptr, &retp->surface);
+    return retp;
     #else
     return SDL3_GetWGPUSurface(g_wgpustate.instance.Get(), (SDL_Window*)windowHandle);
     #endif
