@@ -777,6 +777,7 @@ void InitBackend(){
     createRenderPass();
 }
 VkSemaphore SyncState::getSemaphoreOfSubmitIndex(uint32_t index){
+    std::cout << index << std::endl;
     uint32_t capacity = semaphoresInThisFrame.capacity();
     if(semaphoresInThisFrame.size() <= index){
         semaphoresInThisFrame.resize(index + 1);

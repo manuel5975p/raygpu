@@ -130,12 +130,13 @@ VkCommandBuffer BeginSingleTimeCommands(VkDevice device, VkCommandPool commandPo
     allocInfo.commandPool = commandPool;
     allocInfo.commandBufferCount = 1;
     
-    if(!transientCommandBuffer){
+    //if(!transientCommandBuffer){
         vkAllocateCommandBuffers(device, &allocInfo, &transientCommandBuffer);
-    }
-    else{
+    //}
+    //else{
+        //Never the case currently
         vkResetCommandBuffer(transientCommandBuffer, 0);
-    }
+    //}
 
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -158,8 +159,9 @@ void EndSingleTimeCommands(VkDevice device, VkCommandPool commandPool, VkQueue q
     if (vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS)
         throw std::runtime_error("Failed to submit command buffer!");
     
-    //vkQueueWaitIdle(queue);
-    //vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+    vkQueueWaitIdle(queue);
+    vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+    commandBuffer = nullptr;
 }
 
 // Function to transition image layout

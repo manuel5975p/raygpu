@@ -794,6 +794,7 @@ EXTERN_C_BEGIN
     Vector2 GetTouchPosition_SDL2(int);
     void SetWindowShouldClose_GLFW(GLFWwindow* win);
     void Initialize_SDL2(cwoid);
+    void Initialize_SDL3(cwoid);
 
     bool WindowShouldClose_GLFW(GLFWwindow* win);
     SubWindow InitWindow_GLFW(int width, int height, const char* title);

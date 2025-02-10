@@ -750,12 +750,12 @@ static inline WGPUTextureUsage toWebGPUTextureUsage(TextureUsage usage) {
         case TextureUsage_RenderAttachment:
             wgpuUsage |= WGPUTextureUsage_RenderAttachment;
             break;
-        case TextureUsage_TransientAttachment:
-            wgpuUsage |= WGPUTextureUsage_TransientAttachment;
-            break;
-        case TextureUsage_StorageAttachment:
-            wgpuUsage |= WGPUTextureUsage_StorageAttachment;
-            break;
+        //case TextureUsage_TransientAttachment:
+        //    wgpuUsage |= WGPUTextureUsage_TransientAttachment;
+        //    break;
+        //case TextureUsage_StorageAttachment:
+        //    wgpuUsage |= WGPUTextureUsage_StorageAttachment;
+        //    break;
         default:
             break;
         }
@@ -962,9 +962,9 @@ static inline WGPULoadOp toWebGPULoadOperation(LoadOp lop) {
         return WGPULoadOp_Load;
     case LoadOp_Clear:
         return WGPULoadOp_Clear;
-    case LoadOp_ExpandResolveTexture:
-        // WebGPU does not have a direct equivalent; choose appropriate op or handle separately
-        return WGPULoadOp_ExpandResolveTexture; // Example fallback
+    //case LoadOp_ExpandResolveTexture:
+    //    // WebGPU does not have a direct equivalent; choose appropriate op or handle separately
+    //    return WGPULoadOp_ExpandResolveTexture; // Example fallback
     default:
         return WGPULoadOp_Load; // Default fallback
     }
