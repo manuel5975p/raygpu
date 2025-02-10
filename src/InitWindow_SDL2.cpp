@@ -249,9 +249,7 @@ int GetTouchPointCount_SDL2(){
 }
 
 
-void CharCallback(SDL_Window* window, unsigned int codePoint){
-    g_renderstate.input_map[window].charQueue.push_back((int)codePoint);
-}
+
 void CursorEnterCallback(SDL_Window* window, int entered){
     g_renderstate.input_map[window].cursorInWindow = entered;
 }

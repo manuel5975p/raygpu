@@ -227,12 +227,11 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
 
     //void* window = nullptr;
     if(!(g_renderstate.windowFlags & FLAG_HEADLESS)){
-        #if SUPPORT_SDL3 == 1
-        SubWindow createdWindow = InitWindow_SDL3(width, height, title);
-        #endif
-        #if SUPPORT_GLFW == 1 || SUPPORT_SDL2 == 1
+        #if SUPPORT_GLFW == 1 || SUPPORT_SDL2 == 1 || SUPPORT_SDL3 == 1
         #ifdef MAIN_WINDOW_GLFW
         SubWindow createdWindow = InitWindow_GLFW(width, height, title);
+        #elif defined(MAIN_WINDOW_SDL3)
+        SubWindow createdWindow = InitWindow_SDL3(width, height, title);
         #else
         Initialize_SDL2();
         SubWindow createdWindow = InitWindow_SDL2(width, height, title);
@@ -368,11 +367,16 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     #endif
 
 }
+extern "C" void CharCallback(void* window, unsigned int codePoint){
+    g_renderstate.input_map[window].charQueue.push_back((int)codePoint);
+}
 extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* title){
     #ifdef MAIN_WINDOW_GLFW
     return OpenSubWindow_GLFW(width, height, title);
     #elif defined(MAIN_WINDOW_SDL2)
     return OpenSubWindow_SDL2(width, height, title);
+    #elif defined(MAIN_WINDOW_SDL3)
+    return OpenSubWindow_SDL3(width, height, title);
     #endif
     return SubWindow zeroinit;
 }

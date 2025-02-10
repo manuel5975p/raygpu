@@ -310,7 +310,6 @@ VkInstance createInstance() {
 
     std::vector<const char *> validationLayers;
     for (const auto &layer : availableLayers) {
-        // std::cout << "\t" << layer.layerName << " : " << layer.description << "\n";
         if (std::string(layer.layerName).find("validat") != std::string::npos) {
             std::cout << "\t[DEBUG]: Selecting layer " << layer.layerName << std::endl;
             validationLayers.push_back(layer.layerName);

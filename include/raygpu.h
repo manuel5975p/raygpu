@@ -801,6 +801,7 @@ EXTERN_C_BEGIN
     void ToggleFullscreen_SDL2(cwoid);
     SubWindow OpenSubWindow_GLFW(uint32_t width, uint32_t height, const char* title);
     SubWindow OpenSubWindow_SDL2(uint32_t width, uint32_t height, const char* title);
+    SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title);
 
     /**
      * @brief Get the time elapsed since InitWindow() in seconds since 

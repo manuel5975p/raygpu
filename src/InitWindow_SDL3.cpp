@@ -1,5 +1,7 @@
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_events.h>
 #include <raygpu.h>
+#include <internals.hpp>
 #if SUPPORT_VULKAN_BACKEND == 1
 #include <vulkan/vulkan.h>
 #include <SDL3/SDL_vulkan.h>
@@ -41,6 +43,21 @@ uint32_t GetPresentQueueIndex(void* instanceHandle, void* adapterHandle){
     return ~0;
 }
 
+SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title){
+    SubWindow ret zeroinit;
+    WGPUInstance inst = (WGPUInstance)GetInstance();
+    WGPUSurfaceCapabilities capabilities zeroinit;
+    ret.handle = SDL_CreateWindow(title, width, height, 0);
+    WGPUSurface surface = SDL3_GetWGPUSurface(inst, (SDL_Window*)ret.handle);
+    
+    ret.surface = CreateSurface(surface, width, height);
+    g_renderstate.createdSubwindows[ret.handle] = ret;
+    g_renderstate.input_map[(GLFWwindow*)ret.handle];
+    //setupGLFWCallbacks((GLFWwindow*)ret.handle);
+    return ret;
+}
+
+
 extern "C" SubWindow InitWindow_SDL3(uint32_t width, uint32_t height, const char *title) {
     SDL_InitFlags initFlags = SDL_INIT_VIDEO;
     
@@ -70,9 +87,8 @@ extern "C" SubWindow InitWindow_SDL3(uint32_t width, uint32_t height, const char
     ret.handle = window;
     #if SUPPORT_VULKAN_BACKEND
     SurfaceConfiguration config{};
-    config.presentMode = PresentMode_Fifo;
     config.format = BGRA8;
-    config.presentMode = PresentMode_Fifo;
+    config.presentMode = PresentMode_Mailbox;
     config.width = width;
     config.height = height;
     ret.surface = LoadSurface((GLFWwindow*)window, config);
@@ -267,6 +283,21 @@ static KeyboardKey ConvertScancodeToKey(SDL_Scancode sdlScancode){
 
     return KEY_NULL; // No equivalent key in Raylib
 }
+void MouseButtonCallback(SDL_Window* window, int button, int action){
+    if(action == 1){
+        g_renderstate.input_map[window].mouseButtonDown[button] = 1;
+    }
+    else if(action == 0){
+        g_renderstate.input_map[window].mouseButtonDown[button] = 0;
+    }
+}
+void MousePositionCallback(SDL_Window* window, double x, double y){
+    g_renderstate.input_map[window].mousePos = Vector2{float(x), float(y)};
+}
+
+void KeyUpCallback (SDL_Window* window, int key, int scancode, int mods){
+    g_renderstate.input_map[window].keydown[key] = 0;
+}
 void KeyDownCallback (SDL_Window* window, int key, int scancode, int mods){
     g_renderstate.input_map[window].keydown[key] = 1;
     //if(action == GLFW_PRESS){
@@ -296,8 +327,8 @@ extern "C" void PollEvents_SDL3() {
             }
         }break;
         case SDL_EVENT_KEY_UP:{
-            //SDL_Window *window = SDL_GetWindowFromID(event.key.windowID);
-            //KeyUpCallback(window, ConvertScancodeToKey(event.key.scancode), event.key.scancode, event.key.mod);
+            SDL_Window *window = SDL_GetWindowFromID(event.key.windowID);
+            KeyUpCallback(window, ConvertScancodeToKey(event.key.scancode), event.key.scancode, event.key.mod);
         }break;
         case SDL_EVENT_WINDOW_RESIZED: {
             SDL_Window *window = SDL_GetWindowFromID(event.window.windowID);
@@ -346,15 +377,18 @@ extern "C" void PollEvents_SDL3() {
         //    ScrollCallback(window, event.wheel.x, event.wheel.y);
         //} break;
 //
-        //case SDL_MOUSEMOTION: {
-        //    SDL_Window *window = SDL_GetWindowFromID(event.motion.windowID);
-        //    MousePositionCallback(window, event.motion.x, event.motion.y);
-        //} break;
-//
-        //case SDL_MOUSEBUTTONDOWN:
-        //case SDL_MOUSEBUTTONUP: {
-        //    SDL_Window *window = SDL_GetWindowFromID(event.button.windowID);
-        //    Uint8 state = (event.type == SDL_MOUSEBUTTONDOWN) ? SDL_PRESSED : SDL_RELEASED;
+        case SDL_EVENT_MOUSE_MOTION: {
+            SDL_Window *window = SDL_GetWindowFromID(event.motion.windowID);
+            MousePositionCallback(window, event.motion.x, event.motion.y);
+        } break;
+
+        case SDL_EVENT_MOUSE_BUTTON_DOWN:
+        case SDL_EVENT_MOUSE_BUTTON_UP: {
+            SDL_Window *window = SDL_GetWindowFromID(event.button.windowID);
+            Uint8 state = (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) ? 1 : 0;
+            MouseButtonCallback(window, event.button.button, state);
+        }
+        break;
 //
         //    uint8_t forGLFW = event.button.button - 1;
         //    if(forGLFW == 2) forGLFW = 1;
@@ -362,13 +396,13 @@ extern "C" void PollEvents_SDL3() {
         //    MouseButtonCallback(window, forGLFW, state);
         //} break;
 //
-        //case SDL_TEXTINPUT: {
-        //    SDL_Window *window = SDL_GetWindowFromID(event.text.windowID);
-        //    int cpsize = 0;
-        //    unsigned int codePoint = (unsigned int)GetCodepoint(event.text.text, &cpsize);
-        //    
-        //    CharCallback(window, codePoint);
-        //} break;
+        case SDL_EVENT_TEXT_INPUT: {
+            SDL_Window *window = SDL_GetWindowFromID(event.text.windowID);
+            int cpsize = 0;
+            unsigned int codePoint = (unsigned int)GetCodepoint(event.text.text, &cpsize);
+            
+            CharCallback(window, codePoint);
+        } break;
 //
         //case SDL_TEXTEDITING: {
         //    // Handle text editing if necessary
