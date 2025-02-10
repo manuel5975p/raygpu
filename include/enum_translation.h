@@ -294,6 +294,36 @@ static inline VkImageUsageFlags toVulkanTextureUsage(TextureUsage usage, PixelFo
 
     return vkUsage;
 }
+// Inverse conversion: Vulkan usage flags -> TextureUsage flags
+static inline TextureUsage fromVulkanTextureUsage(VkImageUsageFlags vkUsage) {
+    TextureUsage usage = 0;
+    
+    // Map transfer bits
+    if (vkUsage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
+        usage |= TextureUsage_CopySrc;
+    if (vkUsage & VK_IMAGE_USAGE_TRANSFER_DST_BIT)
+        usage |= TextureUsage_CopyDst;
+    
+    // Map sampling bit
+    if (vkUsage & VK_IMAGE_USAGE_SAMPLED_BIT)
+        usage |= TextureUsage_TextureBinding;
+    
+    // Map storage bit (ambiguous: could originate from either storage flag)
+    if (vkUsage & VK_IMAGE_USAGE_STORAGE_BIT)
+        usage |= TextureUsage_StorageBinding | TextureUsage_StorageAttachment;
+    
+    // Map render attachment bits (depth/stencil or color, both yield RenderAttachment)
+    if (vkUsage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
+        usage |= TextureUsage_RenderAttachment;
+    if (vkUsage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+        usage |= TextureUsage_RenderAttachment;
+    
+    // Map transient attachment
+    if (vkUsage & VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT)
+        usage |= TextureUsage_TransientAttachment;
+    
+    return usage;
+}
 
 /**
  * @brief This function does not have an equivalent in WebGPU

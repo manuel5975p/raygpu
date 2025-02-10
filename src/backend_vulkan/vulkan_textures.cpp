@@ -184,6 +184,8 @@ extern "C" void TransitionImageLayout(VkDevice device, VkCommandPool commandPool
     barrier.subresourceRange.levelCount = 1;
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount = 1;
+    VkRenderPassCreateInfo rpci{};
+    
     
     VkPipelineStageFlags sourceStage;
     VkPipelineStageFlags destinationStage;

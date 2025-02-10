@@ -615,6 +615,13 @@ typedef enum {
     MOUSE_BUTTON_BACK    = 6,       // Mouse button back (advanced mouse device)
 } MouseButton;
 
+typedef struct SurfaceCapabilities{
+    TextureUsage usages;
+    size_t formatCount;
+    PixelFormat const* formats;
+    size_t presentModeCount;
+    SurfacePresentMode const * presentModes;
+}SurfaceCapabilities;
 // Unified Surface Configuration Structure
 typedef struct SurfaceConfiguration {
     void* device;                   // Device that surface belongs to (WPGUDevice or VkDevice)
