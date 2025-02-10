@@ -12,7 +12,7 @@ void mainloop(void){
     BeginDrawing();
     ClearBackground((Color){230, 23, 230,255});
     DrawText("Hello Vulkan enjoyer", 100, 300, 50, (Color){190, 190, 190,255});
-    //DrawFPS(5, 5);
+    DrawFPS(5, 5);
     //if(IsKeyPressed(KEY_U)){
     //    ToggleFullscreen();
     //}

@@ -45,7 +45,6 @@ uint32_t GetPresentQueueIndex(void* instanceHandle, void* adapterHandle){
 
 void Initialize_SDL3(){
     SDL_InitFlags initFlags = SDL_INIT_VIDEO;
-    
     SDL_Init(initFlags);
 }
 
@@ -76,7 +75,7 @@ extern "C" SubWindow InitWindow_SDL3(uint32_t width, uint32_t height, const char
     #if SUPPORT_VULKAN_BACKEND == 1 && !defined(__EMSCRIPTEN__)
     windowFlags |= SDL_WINDOW_VULKAN;
     #endif
-    SDL_Window *window = SDL_CreateWindow(title, width, height, SDL_WINDOW_VULKAN);
+    SDL_Window *window = SDL_CreateWindow(title, width, height, windowFlags);
     SDL_SetWindowResizable(window, (g_renderstate.windowFlags & FLAG_WINDOW_RESIZABLE));
     if(g_renderstate.windowFlags & FLAG_FULLSCREEN_MODE)
         SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
@@ -294,6 +293,9 @@ static KeyboardKey ConvertScancodeToKey(SDL_Scancode sdlScancode){
 
 void PenAxisCallback(SDL_Window* window, SDL_PenID penID, SDL_PenAxis axis, float value){
     g_renderstate.input_map[window].penStates[penID].axes[axis] = value;
+    if(axis == SDL_PEN_AXIS_PRESSURE){
+        std::cout << value << std::endl;
+    }
 }
 void PenMotionCallback(SDL_Window* window, SDL_PenID penID, float x, float y){
     g_renderstate.input_map[window].penStates[penID].position = Vector2{x,y };
@@ -308,6 +310,7 @@ void MouseButtonCallback(SDL_Window* window, int button, int action){
     }
 }
 void MousePositionCallback(SDL_Window* window, double x, double y){
+    std::cout << "Mouse\n";
     g_renderstate.input_map[window].mousePos = Vector2{float(x), float(y)};
 }
 
@@ -328,7 +331,6 @@ void KeyDownCallback (SDL_Window* window, int key, int scancode, int mods){
 }
 extern "C" void PollEvents_SDL3() {
     SDL_Event event;
-    
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
         case SDL_EVENT_QUIT:{
