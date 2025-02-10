@@ -92,6 +92,6 @@ int main(){
         mainloop();
     }
     #else
-    emscripten_set_main_loopmainloop, 0, 0);
+    emscripten_set_main_loop(mainloop, 0, 0);
     #endif
 }

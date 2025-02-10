@@ -27,6 +27,15 @@
 WGPUSurface SDL3_GetWGPUSurface(WGPUInstance instance, SDL_Window* window) {
     //#if defined(SDL_VIDEO_DRIVER_X11)
     std::string drv = SDL_GetCurrentVideoDriver();
+    #ifdef __EMSCRIPTEN__
+    WGPUSurfaceDescriptorFromCanvasHTMLSelector canvasDesc = {0};
+    canvasDesc.chain.sType = WGPUSType_SurfaceSourceCanvasHTMLSelector_Emscripten;
+    canvasDesc.selector = (WGPUStringView){.data = "#canvas", .length = 7};
+
+    WGPUSurfaceDescriptor surfaceDesc = {0};
+    surfaceDesc.nextInChain = &canvasDesc.chain;
+    return wgpuInstanceCreateSurface(instance, &surfaceDesc);
+    #else
     if (drv == "x11") {
         Display *xdisplay = (Display *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_X11_DISPLAY_POINTER, NULL);
         Window xwindow = (Window)SDL_GetNumberProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_X11_WINDOW_NUMBER, 0);
@@ -44,9 +53,17 @@ WGPUSurface SDL3_GetWGPUSurface(WGPUInstance instance, SDL_Window* window) {
         struct wl_display *display = (struct wl_display *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WAYLAND_DISPLAY_POINTER, NULL);
         struct wl_surface *surface = (struct wl_surface *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WAYLAND_SURFACE_POINTER, NULL);
         if (display && surface) {
-
+            WGPUSurfaceSourceWaylandSurface fromWl{};
+            fromWl.chain.next = NULL;
+            fromWl.display = display;
+            fromWl.surface = surface;
+            WGPUSurfaceDescriptor surfaceDescriptor{};
+            surfaceDescriptor.nextInChain = &fromWl.chain;
+            return wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
         }
     }
+    #endif
+    
     //#endif
     return nullptr;
 }

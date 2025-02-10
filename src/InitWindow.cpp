@@ -231,6 +231,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         #ifdef MAIN_WINDOW_GLFW
         SubWindow createdWindow = InitWindow_GLFW(width, height, title);
         #elif defined(MAIN_WINDOW_SDL3)
+        Initialize_SDL3();
         SubWindow createdWindow = InitWindow_SDL3(width, height, title);
         #else
         Initialize_SDL2();
@@ -238,6 +239,10 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         #endif
         g_renderstate.window = (GLFWwindow*)createdWindow.handle;
         auto it = g_renderstate.createdSubwindows.find(g_renderstate.window);
+        if(it == g_renderstate.createdSubwindows.end()){
+            std::cerr << "Window creation error\n";
+            abort();
+        }
         g_renderstate.mainWindow = &it->second;
         //g_wgpustate.surface = wgpu::Surface((WGPUSurface)g_wgpustate.createdSubwindows[glfwWin.handle].surface.surface);
         #endif

@@ -6,7 +6,7 @@
 #include <vulkan/vulkan.h>
 #include <SDL3/SDL_vulkan.h>
 #include "backend_vulkan/vulkan_internals.hpp"
-#elif SUPPORT_WGPU_BACKEND == 1
+#elif SUPPORT_WGPU_BACKEND == 1 || defined(__EMSCRIPTEN__)
 #include "sdl3webgpu.h"
 #endif
 #include <webgpu/webgpu.h>
@@ -43,32 +43,40 @@ uint32_t GetPresentQueueIndex(void* instanceHandle, void* adapterHandle){
     return ~0;
 }
 
+void Initialize_SDL3(){
+    SDL_InitFlags initFlags = SDL_INIT_VIDEO;
+    
+    SDL_Init(initFlags);
+}
+
 SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title){
     SubWindow ret zeroinit;
     WGPUInstance inst = (WGPUInstance)GetInstance();
     WGPUSurfaceCapabilities capabilities zeroinit;
     ret.handle = SDL_CreateWindow(title, width, height, 0);
+    #if SUPPORT_VULKAN_BACKEND == 1
+    abort();
+    #else
     WGPUSurface surface = SDL3_GetWGPUSurface(inst, (SDL_Window*)ret.handle);
     
     ret.surface = CreateSurface(surface, width, height);
     g_renderstate.createdSubwindows[ret.handle] = ret;
     g_renderstate.input_map[(GLFWwindow*)ret.handle];
+    #endif
     //setupGLFWCallbacks((GLFWwindow*)ret.handle);
     return ret;
 }
 
 
 extern "C" SubWindow InitWindow_SDL3(uint32_t width, uint32_t height, const char *title) {
-    SDL_InitFlags initFlags = SDL_INIT_VIDEO;
     
-    SDL_Init(initFlags);
     SubWindow ret{};
     //SDL_SetHint(SDL_HINT_TRACKPAD_IS_TOUCH_ONLY, "1");
     SDL_WindowFlags windowFlags zeroinit;
-    #if SUPPORT_VULKAN_BACKEND == 1
+    #if SUPPORT_VULKAN_BACKEND == 1 && !defined(__EMSCRIPTEN__)
     windowFlags |= SDL_WINDOW_VULKAN;
     #endif
-    SDL_Window *window = SDL_CreateWindow(title, width, height, windowFlags);
+    SDL_Window *window = SDL_CreateWindow(title, width, height, SDL_WINDOW_VULKAN);
     SDL_SetWindowResizable(window, (g_renderstate.windowFlags & FLAG_WINDOW_RESIZABLE));
     if(g_renderstate.windowFlags & FLAG_FULLSCREEN_MODE)
         SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
