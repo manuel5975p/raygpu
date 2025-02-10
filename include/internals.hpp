@@ -324,7 +324,7 @@ extern "C" void negotiateSurfaceFormatAndPresentMode(const void* SurfaceHandle);
 extern "C" void ResetSyncState(cwoid);
 extern "C" void CharCallback(void* window, unsigned int codePoint);
 
-extern "C" void* CreateSurfaceForWindow(void* windowHandle);
+extern "C" void* CreateSurfaceForWindow(SubWindow window);
 extern "C" void* CreateSurfaceForWindow_SDL2(void* windowHandle);
 extern "C" void* CreateSurfaceForWindow_SDL3(void* windowHandle);
 extern "C" void* CreateSurfaceForWindow_GLFW(void* windowHandle);
