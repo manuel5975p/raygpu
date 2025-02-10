@@ -4,6 +4,11 @@
 #include <map>
 #include <deque>
 #include <array>
+struct PenInputState{
+    float axes[16];
+    Vector2 position;
+};
+
 struct window_input_state{
     
     Rectangle windowPosition; // Recovery after fullscreen
@@ -20,6 +25,8 @@ struct window_input_state{
     
     std::vector<std::pair<int64_t, Vector2>> touchPoints; //Map from SDL_FingerID to Vector2
     std::deque<int> charQueue;
+
+    std::unordered_map<unsigned int, PenInputState> penStates;
 };
 struct wgpustate{
     wgpu::Instance instance{};
