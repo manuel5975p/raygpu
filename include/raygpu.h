@@ -644,10 +644,13 @@ typedef struct FullSurface{
     SurfaceConfiguration surfaceConfig;
     RenderTexture renderTarget;
 }FullSurface;
-
+typedef enum windowType {
+    windowType_glfw, windowType_sdl2, windowType_sdl3
+}windowType;
 typedef struct SubWindow{
     void* handle;
     FullSurface surface;
+    windowType type;
 }SubWindow;
 
 typedef struct full_renderstate full_renderstate;

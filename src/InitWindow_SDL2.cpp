@@ -159,6 +159,14 @@ void Initialize_SDL2(){
     }
     inited_sdl_ = true;
 }
+extern "C" void* CreateSurfaceForWindow_SDL2(void* windowHandle){
+    #if SUPPORT_VULKAN_BACKEND == 1
+    WGVKSurface retp = callocnew(WGVKSurfaceImpl);
+    SDL_Vulkan_CreateSurface((SDL_Window*)window, g_vulkanstate.instance, &retp->surface);
+    #else
+    return SDL_GetWGPUSurface(g_wgpustate.instance.Get(), (SDL_Window*)windowHandle);
+    #endif
+}
 void negotiateSurfaceFormatAndPresentMode(const wgpu::Surface &surf);
 extern "C" SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char *title) {
     
