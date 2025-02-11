@@ -421,14 +421,14 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
         #if SUPPORT_WGPU_BACKEND == 1
         wgpu::Surface rs = wgpu::glfw::CreateSurfaceForWindow((WGPUInstance)GetInstance(), (GLFWwindow*)window);
         WGPUSurface wsurfaceHandle = rs.MoveToCHandle();
-        ret.surface = CreateSurface(wsurfaceHandle, width, height);
+        //ret.surface = CreateSurface(wsurfaceHandle, width, height);
         #elif SUPPORT_VULKAN_BACKEND == 1
         SurfaceConfiguration config{};
         config.format = BGRA8;
         config.presentMode = PresentMode_Fifo;
         config.width = width;
         config.height = height;
-        ret.surface = LoadSurface((GLFWwindow*)window, config);
+        //ret.surface = LoadSurface((GLFWwindow*)window, config);
         #endif
         //negotiateSurfaceFormatAndPresentMode(wsurfaceHandle);
     #else
@@ -467,7 +467,7 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
     //config.viewFormats = &config.format;
     //config.viewFormatCount = 1;
     //config.device = GetDevice();
-    TRACELOG(LOG_INFO, "Configuring surface");
+    //TRACELOG(LOG_INFO, "Configuring surface");
     
 
     

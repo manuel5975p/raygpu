@@ -372,7 +372,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     samplerDesc.lodMaxClamp  = 1.0f;
     samplerDesc.maxAnisotropy = 1;
 
-
+    
     DescribedSampler sampler = LoadSampler(repeat, filter_linear);
     g_renderstate.defaultSampler = sampler;
     SetSampler(2, sampler);

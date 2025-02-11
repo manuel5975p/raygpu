@@ -60,6 +60,7 @@ extern "C" void* CreateSurfaceForWindow_SDL3(void* windowHandle){
 }
 SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title){
     SubWindow ret zeroinit;
+    ret.type = windowType_sdl3;
     WGPUInstance inst = (WGPUInstance)GetInstance();
     WGPUSurfaceCapabilities capabilities zeroinit;
     SDL_WindowFlags windowFlags;
@@ -80,7 +81,8 @@ SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title)
     fsurface.surfaceConfig = config;
     fsurface.surface = vSurface;
     fsurface.renderTarget.depth = LoadDepthTexture(width, height);
-    g_renderstate.createdSubwindows[ret.handle].surface = fsurface;
+    ret.surface = fsurface;
+    g_renderstate.createdSubwindows[ret.handle] = ret;
     #else
     WGPUSurface surface = SDL3_GetWGPUSurface(inst, (SDL_Window*)ret.handle);
     

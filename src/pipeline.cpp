@@ -254,6 +254,7 @@ extern "C" void UpdatePipeline(DescribedPipeline* pl){
     std::vector<WGPUVertexBufferLayout> layouts_converted;
     for(uint32_t i = 0;i < vlayout_complete.number_of_buffers;i++){
         layouts_converted.push_back(WGPUVertexBufferLayout{
+            .nextInChain    = nullptr,
             .arrayStride    = vlayout_complete.layouts[i].arrayStride,
             .stepMode       = (WGPUVertexStepMode)vlayout_complete.layouts[i].stepMode,
             .attributeCount = vlayout_complete.layouts[i].attributeCount,
@@ -393,7 +394,7 @@ RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, const std::ve
     std::vector<WGPUVertexBufferLayout> layouts_converted;
     for(uint32_t i = 0;i < vlayout_complete.number_of_buffers;i++){
         layouts_converted.push_back(WGPUVertexBufferLayout{
-            //.nextInChain = nullptr,
+            .nextInChain = nullptr,
             .arrayStride    = vlayout_complete.layouts[i].arrayStride,
             .stepMode       = (WGPUVertexStepMode)vlayout_complete.layouts[i].stepMode,
             .attributeCount = vlayout_complete.layouts[i].attributeCount,
