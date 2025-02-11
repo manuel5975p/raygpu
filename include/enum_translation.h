@@ -107,7 +107,6 @@ typedef enum BlendFactor {
     BlendFactor_OneMinusSrc1 = 0x0000000F,
     BlendFactor_Src1Alpha = 0x00000010,
     BlendFactor_OneMinusSrc1Alpha = 0x00000011,
-    BlendFactor_Force32 = 0x7FFFFFFF
 } BlendFactor;
 
 typedef enum BlendOperation {
