@@ -130,9 +130,11 @@ extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
         const auto& [format, location] = attr;
         allAttribsInOneBuffer.push_back(AttributeAndResidence{
             .attr = VertexAttribute{
+                .nextInChain = nullptr,
                 .format = format,
                 .offset = offset,
-                .shaderLocation = location},
+                .shaderLocation = location
+            },
             .bufferSlot = 0,
             .stepMode = VertexStepMode_Vertex,
             .enabled = true}
@@ -391,6 +393,7 @@ RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, const std::ve
     std::vector<WGPUVertexBufferLayout> layouts_converted;
     for(uint32_t i = 0;i < vlayout_complete.number_of_buffers;i++){
         layouts_converted.push_back(WGPUVertexBufferLayout{
+            .nextInChain = nullptr,
             .arrayStride    = vlayout_complete.layouts[i].arrayStride,
             .stepMode       = (WGPUVertexStepMode)vlayout_complete.layouts[i].stepMode,
             .attributeCount = vlayout_complete.layouts[i].attributeCount,

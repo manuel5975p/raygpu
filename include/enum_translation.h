@@ -147,6 +147,7 @@ typedef enum StoreOp {
     StoreOp_Force32 = 0x7FFFFFFF
 } StoreOp;
 typedef enum VertexFormat {
+    
     VertexFormat_Uint8 = 0x00000001,
     VertexFormat_Uint8x2 = 0x00000002,
     VertexFormat_Uint8x4 = 0x00000003,

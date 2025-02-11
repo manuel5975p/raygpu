@@ -363,7 +363,7 @@ void InitBackend(){
     // Create the instance with the toggles
     wgpu::InstanceDescriptor instanceDescriptor = {};
     instanceDescriptor.nextInChain = togglesChain;
-    instanceDescriptor.features.timedWaitAnyEnable = true;
+    instanceDescriptor.capabilities.timedWaitAnyEnable = true;
     
     sample->instance = wgpu::CreateInstance(&instanceDescriptor);
 #else
@@ -480,8 +480,8 @@ void InitBackend(){
                 case wgpu::ErrorType::Unknown:
                     errorTypeName = "Unknown";
                     break;
-                case wgpu::ErrorType::DeviceLost:
-                    errorTypeName = "Device lost";
+                case wgpu::ErrorType::NoError:
+                    errorTypeName = "No Error";
                     break;
                 default:
                     __builtin_unreachable();
