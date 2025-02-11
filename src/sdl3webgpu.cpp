@@ -10,7 +10,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_video.h>
 //#include <SDL3/SDL_properties.h>
-#if defined(SDL_VIDEO_DRIVER_X11)
+#if USE_X11 == 1
 #include <X11/Xlib.h>
 #endif
 #if defined(SDL_VIDEO_DRIVER_COCOA)
