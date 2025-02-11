@@ -63,9 +63,8 @@ typedef enum addressMode {
     repeat = 0x2,
     mirrorRepeat = 0x3,
 } addressMode;
-
 typedef enum PixelFormat {
-    RGBA8 =   0x18, //WGPUTextureFormat_RGBA8Unorm,
+    RGBA8 =   0x12,
     BGRA8 =   0x17, //WGPUTextureFormat_BGRA8Unorm,
     RGBA16F = 0x22, //WGPUTextureFormat_RGBA16Float,
     RGBA32F = 0x23, //WGPUTextureFormat_RGBA32Float,
@@ -116,7 +115,7 @@ typedef enum BlendOperation {
     BlendOperation_ReverseSubtract = 0x00000003,
     BlendOperation_Min = 0x00000004,
     BlendOperation_Max = 0x00000005,
-    BlendOperation_Force32 = 0x7FFFFFFF
+    //BlendOperation_Force32 = 0x7FFFFFFF
 } BlendOperation;
 typedef enum SurfacePresentMode{ 
     PresentMode_Fifo = 0x00000001,
