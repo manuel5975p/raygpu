@@ -93,8 +93,10 @@ void wgvkSurfaceConfigure(WGVKSurfaceImpl* surface, const SurfaceConfiguration* 
     VkSwapchainCreateInfoKHR createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     createInfo.surface = surface->surface;
-
-    createInfo.minImageCount = 1;
+    VkSurfaceCapabilitiesKHR vkCapabilities;
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(g_vulkanstate.physicalDevice, surface->surface, &vkCapabilities);
+    
+    createInfo.minImageCount = vkCapabilities.minImageCount;
     createInfo.imageFormat = toVulkanPixelFormat(config->format);//swapchainImageFormat;
     surface->width = config->width;
     surface->height = config->height;
