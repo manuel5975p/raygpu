@@ -179,6 +179,7 @@ typedef struct DescribedShaderModule{
 }DescribedShaderModule;
 
 typedef struct VertexAttribute {
+    void* nextInChain;
     VertexFormat format;
     uint64_t offset;
     uint32_t shaderLocation;

@@ -253,7 +253,11 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         config.format = BGRA8;
         config.presentMode = PresentMode_Fifo;
         wgvkSurfaceConfigure(vSurface, &config);
-
+        FullSurface fsurface zeroinit;
+        fsurface.surfaceConfig = config;
+        fsurface.surface = vSurface;
+        fsurface.renderTarget.depth = LoadDepthTexture(width, height);
+        g_renderstate.createdSubwindows[createdWindow.handle].surface = fsurface;
         #endif
 
         g_renderstate.window = (GLFWwindow*)createdWindow.handle;
@@ -286,10 +290,10 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     };
 
     AttributeAndResidence attrs[4] = {
-        AttributeAndResidence{VertexAttribute{VertexFormat_Float32x3, 0 * sizeof(float), 0}, 0, VertexStepMode_Vertex, true},
-        AttributeAndResidence{VertexAttribute{VertexFormat_Float32x2, 3 * sizeof(float), 1}, 0, VertexStepMode_Vertex, true},
-        AttributeAndResidence{VertexAttribute{VertexFormat_Float32x3, 5 * sizeof(float), 2}, 0, VertexStepMode_Vertex, true},
-        AttributeAndResidence{VertexAttribute{VertexFormat_Float32x4, 8 * sizeof(float), 3}, 0, VertexStepMode_Vertex, true},
+        AttributeAndResidence{VertexAttribute{nullptr, VertexFormat_Float32x3, 0 * sizeof(float), 0}, 0, VertexStepMode_Vertex, true},
+        AttributeAndResidence{VertexAttribute{nullptr, VertexFormat_Float32x2, 3 * sizeof(float), 1}, 0, VertexStepMode_Vertex, true},
+        AttributeAndResidence{VertexAttribute{nullptr, VertexFormat_Float32x3, 5 * sizeof(float), 2}, 0, VertexStepMode_Vertex, true},
+        AttributeAndResidence{VertexAttribute{nullptr, VertexFormat_Float32x4, 8 * sizeof(float), 3}, 0, VertexStepMode_Vertex, true},
     };
     
     //arraySetter(shaderInputs.per_vertex_sizes, {3,2,4});
@@ -404,12 +408,12 @@ extern "C" void* CreateSurfaceForWindow(SubWindow window){
         break;
         case windowType_glfw:
         #if SUPPORT_GLFW == 1
-        wgsurf = CreateSurfaceForWindow_GLFW(window.handle);
+        surfacePtr = CreateSurfaceForWindow_GLFW(window.handle);
         #endif
         break;
         case windowType_sdl2:
         #if SUPPORT_SDL2 == 1
-        wgsurf = CreateSurfaceForWindow_SDL2(window.handle);
+        surfacePtr = CreateSurfaceForWindow_SDL2(window.handle);
         #endif
         break;
     }
