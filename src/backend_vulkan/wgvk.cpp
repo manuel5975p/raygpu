@@ -94,8 +94,8 @@ void wgvkSurfaceConfigure(WGVKSurfaceImpl* surface, const SurfaceConfiguration* 
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     createInfo.surface = surface->surface;
 
-    createInfo.minImageCount = surface->imagecount;
-    createInfo.imageFormat = surface->swapchainImageFormat;
+    createInfo.minImageCount = 1;
+    createInfo.imageFormat = toVulkanPixelFormat(config->format);//swapchainImageFormat;
     surface->width = config->width;
     surface->height = config->height;
     VkExtent2D newExtent{config->width, config->height};

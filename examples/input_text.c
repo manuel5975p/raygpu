@@ -14,7 +14,7 @@ void mainloop(cwoid){
     //    DrawText("48762938476293874598ljfasdhgfakjhfaskjdsgjksafdgjaskdjfdsagjkfasdghkajs48762938476293874598ljfasdhgfakjhfaskjdsgjksafdgjaskdjfdsagjkfasdghkajs48762938476293874598ljfasdhgfakjhfaskjdsgjksafdgjaskdjfdsagjkfasdghkajs48762938476293874598ljfasdhgfakjhfaskjdsgjksafdgjaskdjfdsagjkfasdghkajs", 0, 500 + 10*i, 5, WHITE);
     DrawFPS(5, 5);
     EndDrawing();
-    TRACELOG(LOG_WARNING, "%d", GetFPS());
+    //TRACELOG(LOG_WARNING, "%d", GetFPS());
 }
 int main(void){
     SetConfigFlags(FLAG_VSYNC_HINT);
