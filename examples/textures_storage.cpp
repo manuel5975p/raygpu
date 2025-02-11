@@ -1,4 +1,5 @@
 #include <raygpu.h>
+#include <iostream>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -96,8 +97,8 @@ int main(){
     //SetConfigFlags();
     InitWindow(width, height, "Storage Texture");
     SetTargetFPS(0);
-    storageTex = LoadTexturePro(width, height, WGPUTextureFormat_RGBA8Unorm, WGPUTextureUsage_CopySrc | WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding, 1, 1);
-    tex = LoadTexturePro(width, height, WGPUTextureFormat_RGBA8Unorm, WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst, 1, 1);
+    storageTex = LoadTexturePro(width, height, RGBA8, TextureUsage_CopySrc | TextureUsage_StorageBinding | TextureUsage_TextureBinding, 1, 1);
+    tex = LoadTexturePro(width, height, BGRA8, TextureUsage_TextureBinding | TextureUsage_CopyDst, 1, 1);
     pl = LoadComputePipeline(shaderCode);
 
     SetBindgroupTexture(&pl->bindGroup, 0, storageTex);
