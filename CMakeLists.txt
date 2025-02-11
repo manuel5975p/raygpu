@@ -45,7 +45,20 @@ set(DAWN_FETCH_DEPENDENCIES OFF CACHE BOOL "" FORCE)
 set(DAWN_BUILD_MONOLITHIC_LIBRARY ON CACHE BOOL "" FORCE)
 set(DAWN_ENABLE_OPENGLES ON CACHE BOOL "" FORCE)
 set(DAWN_ENABLE_DESKTOP_GL ON CACHE BOOL "" FORCE)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/dawn)
+if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/dawn/CMakeLists.txt")
+  # Use the local dawn directory
+  add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/dawn")
+else()
+  # FetchContent to download dawn if not present locally
+  include(FetchContent)
+  set(FETCHCONTENT_QUIET FALSE)
+  FetchContent_Declare(
+    dawn
+    URL https://github.com/manuel5975p/dawn_monorepo/archive/refs/tags/v7011.tar.gz
+
+  )
+  FetchContent_MakeAvailable(dawn)
+endif()
 set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
 #set(DAWN_FETCH_DEPENDENCIES ON CACHE BOOL "" FORCE)
 set(DAWN_BUILD_MONOLITHIC_LIBRARY ON CACHE BOOL "" FORCE)
