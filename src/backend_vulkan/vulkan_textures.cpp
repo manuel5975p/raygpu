@@ -135,7 +135,7 @@ VkCommandBuffer BeginSingleTimeCommands(VkDevice device, VkCommandPool commandPo
     //}
     //else{
         //Never the case currently
-        vkResetCommandBuffer(transientCommandBuffer, 0);
+        //vkResetCommandBuffer(transientCommandBuffer, 0);
     //}
 
     VkCommandBufferBeginInfo beginInfo{};

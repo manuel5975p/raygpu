@@ -171,6 +171,13 @@ endif()
 
 set(SANITIZER_FLAGS "-fsanitize=address")
 add_library(raygpu ${RG_SOURCES})
+
+if(DAWN_USE_X11)
+    target_compile_definitions(raygpu PUBLIC USE_X11=1)
+endif()
+if(DAWN_USE_WAYLAND)
+    target_compile_definitions(raygpu PUBLIC USE_WAYLAND=1)
+endif()
 if(SUPPORT_SDL2)
     target_compile_definitions(raygpu PUBLIC SUPPORT_SDL2=1)
 endif()

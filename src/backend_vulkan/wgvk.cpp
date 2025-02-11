@@ -139,7 +139,7 @@ void wgvkSurfaceConfigure(WGVKSurfaceImpl* surface, const SurfaceConfiguration* 
         viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         viewInfo.image = surface->images[i];
         viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        viewInfo.format = surface->swapchainImageFormat;
+        viewInfo.format = toVulkanPixelFormat(BGRA8);
         viewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
         viewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
         viewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;

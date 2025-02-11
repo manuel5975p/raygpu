@@ -62,9 +62,25 @@ SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title)
     SubWindow ret zeroinit;
     WGPUInstance inst = (WGPUInstance)GetInstance();
     WGPUSurfaceCapabilities capabilities zeroinit;
-    ret.handle = SDL_CreateWindow(title, width, height, 0);
+    SDL_WindowFlags windowFlags;
     #if SUPPORT_VULKAN_BACKEND == 1
-    abort();
+    windowFlags |= SDL_WINDOW_VULKAN;
+    #endif
+    ret.handle = SDL_CreateWindow(title, width, height, windowFlags);
+    #if SUPPORT_VULKAN_BACKEND == 1
+    WGVKSurface vSurface = callocnew(WGVKSurfaceImpl);
+    bool surfaceCreated = SDL_Vulkan_CreateSurface((SDL_Window*)ret.handle, g_vulkanstate.instance, nullptr, &vSurface->surface);
+    SurfaceConfiguration config{};
+    config.width = width;
+    config.height = height;
+    config.format = BGRA8;
+    config.presentMode = PresentMode_Fifo;
+    wgvkSurfaceConfigure(vSurface, &config);
+    FullSurface fsurface zeroinit;
+    fsurface.surfaceConfig = config;
+    fsurface.surface = vSurface;
+    fsurface.renderTarget.depth = LoadDepthTexture(width, height);
+    g_renderstate.createdSubwindows[ret.handle].surface = fsurface;
     #else
     WGPUSurface surface = SDL3_GetWGPUSurface(inst, (SDL_Window*)ret.handle);
     
