@@ -1,5 +1,6 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_events.h>
+#include <format>
 #include <raygpu.h>
 #include <internals.hpp>
 #if SUPPORT_VULKAN_BACKEND == 1
@@ -93,26 +94,27 @@ extern "C" SubWindow InitWindow_SDL3(uint32_t width, uint32_t height, const char
     
     ret.handle = window;
 
-    #if SUPPORT_VULKAN_BACKEND == 1
+    //#if SUPPORT_VULKAN_BACKEND == 1
     //VkSurfaceKHR surf = nullptr;
     //SDL_Vulkan_CreateSurface(window, (VkInstance)GetInstance(), nullptr, &surf);
-    
-    #else
-    WGPUSurface surface = SDL3_GetWGPUSurface((WGPUInstance)GetInstance(), window);
-    ret.surface = CreateSurface(surface, width, height);
-    #endif
-    ret.handle = window;
-    #if SUPPORT_VULKAN_BACKEND
-    SurfaceConfiguration config{};
-    config.format = BGRA8;
-    config.presentMode = PresentMode_Mailbox;
-    config.width = width;
-    config.height = height;
-    ret.surface = LoadSurface((GLFWwindow*)window, config);
-    #endif
+    //
+    //#else
+    //WGPUSurface surface = SDL3_GetWGPUSurface((WGPUInstance)GetInstance(), window);
+    //ret.surface = CreateSurface(surface, width, height);
+    //#endif
+    //ret.handle = window;
+    //#if SUPPORT_VULKAN_BACKEND
+    //SurfaceConfiguration config{};
+    //config.format = BGRA8;
+    //config.presentMode = PresentMode_Mailbox;
+    //config.width = width;
+    //config.height = height;
+    //ret.surface = LoadSurface((GLFWwindow*)window, config);
+    //#endif
     g_renderstate.createdSubwindows[ret.handle] = ret;
     g_renderstate.window = (GLFWwindow*)ret.handle;
     g_renderstate.mainWindow = &g_renderstate.createdSubwindows[ret.handle];
+    SDL_StartTextInput((SDL_Window*)ret.handle);
     return ret;
 }
 
@@ -310,6 +312,9 @@ void PenAxisCallback(SDL_Window* window, SDL_PenID penID, SDL_PenAxis axis, floa
 void PenMotionCallback(SDL_Window* window, SDL_PenID penID, float x, float y){
     g_renderstate.input_map[window].penStates[penID].position = Vector2{x,y };
 }
+void FingerMotionCallback(SDL_Window* window, SDL_FingerID finger, float x, float y){
+    std::cout << std::format("Finger {}: {},{}", finger, x, y) << std::endl;
+}
 
 void MouseButtonCallback(SDL_Window* window, int button, int action){
     if(action == 1){
@@ -320,7 +325,6 @@ void MouseButtonCallback(SDL_Window* window, int button, int action){
     }
 }
 void MousePositionCallback(SDL_Window* window, double x, double y){
-    std::cout << "Mouse\n";
     g_renderstate.input_map[window].mousePos = Vector2{float(x), float(y)};
 }
 
@@ -393,12 +397,12 @@ extern "C" void PollEvents_SDL3() {
         //    SDL_GetWindowSize(lastTouched, &w, &h);
         //    FingerUpCallback(lastTouched, event.tfinger.fingerId, event.tfinger.x * w, event.tfinger.y * h);
         //}break;
-        //case SDL_FINGERMOTION:{
-        //    lastTouched = SDL_GetWindowFromID(event.tfinger.windowID);
-        //    int w, h;
-        //    SDL_GetWindowSize(lastTouched, &w, &h);
-        //    FingerMotionCallback(lastTouched, event.tfinger.fingerId, event.tfinger.x * w, event.tfinger.y * h);
-        //}break;
+        case SDL_EVENT_FINGER_MOTION:{
+            SDL_Window* lastTouched = SDL_GetWindowFromID(event.tfinger.windowID);
+            int w, h;
+            SDL_GetWindowSize(lastTouched, &w, &h);
+            FingerMotionCallback(lastTouched, event.tfinger.fingerID, event.tfinger.x * w, event.tfinger.y * h);
+        }break;
         //case SDL_MOUSEWHEEL: {
         //    SDL_Window *window = SDL_GetWindowFromID(event.wheel.windowID);
         //    // Note: SDL's yoffset is positive when scrolling up, negative when scrolling down
@@ -437,10 +441,10 @@ extern "C" void PollEvents_SDL3() {
             SDL_Window *window = SDL_GetWindowFromID(event.text.windowID);
             int cpsize = 0;
             unsigned int codePoint = (unsigned int)GetCodepoint(event.text.text, &cpsize);
-            
             CharCallback(window, codePoint);
         } break;
-//
+        case SDL_EVENT_TEXT_EDITING:{
+        }break;
         //case SDL_TEXTEDITING: {
         //    // Handle text editing if necessary
         //    // Typically used for input method editors (IMEs)

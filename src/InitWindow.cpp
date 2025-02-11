@@ -6,6 +6,10 @@
 #include <optional>
 #include <chrono>
 #include <internals.hpp>
+
+#if SUPPORT_VULKAN_BACKEND == 1
+#include "backend_vulkan/vulkan_internals.hpp"
+#endif
 inline std::ostream& operator<<(std::ostream& ostr, const wgpu::StringView& st){
     ostr.write(st.data, st.length);
     return ostr;
@@ -236,6 +240,22 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         Initialize_SDL2();
         SubWindow createdWindow = InitWindow_SDL2(width, height, title);
         #endif
+
+        void* wgpu_or_wgvk_surface = CreateSurfaceForWindow(createdWindow);
+        #if SUPPORT_WGPU_BACKEND == 1
+        WGPUSurface wSurface = (WGPUSurface)wgpu_or_wgvk_surface;
+        g_renderstate.createdSubwindows[createdWindow.handle].surface = CreateSurface(wSurface, width, height);
+        #else
+        WGVKSurface vSurface = (WGVKSurface)wgpu_or_wgvk_surface;
+        SurfaceConfiguration config{};
+        config.width = width;
+        config.height = height;
+        config.format = BGRA8;
+        config.presentMode = PresentMode_Fifo;
+        wgvkSurfaceConfigure(vSurface, &config);
+
+        #endif
+
         g_renderstate.window = (GLFWwindow*)createdWindow.handle;
         auto it = g_renderstate.createdSubwindows.find(g_renderstate.window);
         if(it == g_renderstate.createdSubwindows.end()){

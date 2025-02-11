@@ -371,7 +371,7 @@ extern "C" void* CreateSurfaceForWindow_GLFW(void* windowHandle){
     glfwCreateWindowSurface(g_vulkanstate.instance, (GLFWwindow*)windowHandle, nullptr, &retp->surface);
     return retp;
     #else
-    wgpu::Surface rs = wgpu::glfw::CreateSurfaceForWindow((WGPUInstance)GetInstance(), (GLFWwindow*)window);
+    wgpu::Surface rs = wgpu::glfw::CreateSurfaceForWindow((WGPUInstance)GetInstance(), (GLFWwindow*)windowHandle);
     WGPUSurface wsurfaceHandle = rs.MoveToCHandle();
     return wsurfaceHandle;
     #endif
