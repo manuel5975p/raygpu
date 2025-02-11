@@ -122,7 +122,11 @@ endif()
 #download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_image_write.h" "stb_image_write.h")
 #download_file_if_not_exists("https://raw.githubusercontent.com/raysan5/raygui/refs/heads/master/src/raygui.h" "raygui.h")
 
-#add_subdirectory(dawn)
+if(ANDROID)
+include_directories("${ANDROID_NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include")
+endif()
+
+
 set(RG_SOURCES
     "src/InitWindow.cpp"
     "src/raygpu.cpp"
