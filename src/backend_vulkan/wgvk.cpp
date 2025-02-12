@@ -158,7 +158,7 @@ void wgvkSurfaceConfigure(WGVKSurfaceImpl* surface, const SurfaceConfiguration* 
     }
 
 }
-void wgvkReleaseCommandBuffer(CommmandBufferHandle commandBuffer) { vkFreeCommandBuffers(g_vulkanstate.device, commandBuffer->pool, 1, &commandBuffer->buffer); }
+void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) { vkFreeCommandBuffers(g_vulkanstate.device, commandBuffer->pool, 1, &commandBuffer->buffer); }
 void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc) {
     --rpenc->refCount;
     if (rpenc->refCount == 0) {

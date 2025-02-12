@@ -95,6 +95,10 @@ typedef struct Texture3D{
 typedef struct Rectangle {
     float x, y, width, height;
 } Rectangle;
+typedef struct WGVKStringView{
+    const char* data;
+    size_t length;
+}WGVKStringView;
 
 typedef struct RenderTexture{
     Texture texture;
