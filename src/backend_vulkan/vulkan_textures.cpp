@@ -55,8 +55,8 @@ VkBuffer CreateBuffer(VkDevice device, VkDeviceSize size, VkBufferUsageFlags usa
 }
 
 // Function to create a Vulkan image
-ImageHandle CreateImage(VkDevice device, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, VkDeviceMemory& imageMemory) {
-    ImageHandle ret = callocnew(ImageHandleImpl);
+WGVKTexture CreateImage(VkDevice device, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, VkDeviceMemory& imageMemory) {
+    WGVKTexture ret = callocnew(ImageHandleImpl);
 
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -254,13 +254,13 @@ void CopyBufferToImage(VkDevice device, VkCommandPool commandPool, VkQueue queue
 }
 
 // Main function to create Vulkan image from RGBA8 data or as empty
-ImageHandle CreateVkImage(VkDevice device, VkPhysicalDevice physicalDevice, VkCommandPool commandPool, VkQueue queue, 
+WGVKTexture CreateVkImage(VkDevice device, VkPhysicalDevice physicalDevice, VkCommandPool commandPool, VkQueue queue, 
                                                 const uint8_t* data, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, bool hasData) {
     VkDeviceMemory imageMemory;
     // Adjust usage flags based on format (e.g., depth formats might need different usages)
     
     
-    ImageHandle image = CreateImage(device, width, height, format, usage, imageMemory);
+    WGVKTexture image = CreateImage(device, width, height, format, usage, imageMemory);
     
     if (hasData && data != nullptr) {
         // Create staging buffer
@@ -310,7 +310,7 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     
     bool hasData = data != nullptr;
     
-    ImageHandle image = CreateVkImage(
+    WGVKTexture image = CreateVkImage(
         g_vulkanstate.device,
         g_vulkanstate.physicalDevice, 
         commandPool, 
@@ -353,7 +353,7 @@ extern "C" Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat f
 void UnloadTexture(Texture tex){
     vkDestroyImageView(g_vulkanstate.device, (VkImageView)tex.view, nullptr);
 
-    ImageHandle handle = (ImageHandle)tex.id;
+    WGVKTexture handle = (WGVKTexture)tex.id;
     vkDestroyImage(g_vulkanstate.device, handle->image, nullptr);
     vkFreeMemory(g_vulkanstate.device, handle->memory, nullptr);
 }

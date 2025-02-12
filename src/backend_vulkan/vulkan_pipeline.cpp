@@ -296,7 +296,7 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, Resou
     //TODO don't release and recreate here or find something better
     if(true /*|| donotcache*/){
         if(bg->bindGroup)
-            wgvkReleaseDescriptorSet((DescriptorSetHandle)bg->bindGroup);
+            wgvkReleaseDescriptorSet((WGVKBindGroup)bg->bindGroup);
         bg->bindGroup = nullptr;
     }
     //else if(!bg->needsUpdate && bg->bindGroup){
@@ -341,10 +341,10 @@ DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, cons
     
     ret.layout = layout;
     ret.bindGroup = callocnewpp(DescriptorSetHandleImpl);
-    ((DescriptorSetHandle)ret.bindGroup)->refCount = 1;
+    ((WGVKBindGroup)ret.bindGroup)->refCount = 1;
 
-    ((DescriptorSetHandle)ret.bindGroup)->pool = dpool;
-    ((DescriptorSetHandle)ret.bindGroup)->set = dset;
+    ((WGVKBindGroup)ret.bindGroup)->pool = dpool;
+    ((WGVKBindGroup)ret.bindGroup)->set = dset;
 
     ret.entries = (ResourceDescriptor*)std::calloc(count, sizeof(ResourceDescriptor));
     ret.entryCount = count;
@@ -388,7 +388,7 @@ void UpdateBindGroup(DescribedBindGroup* bg){
     const auto* layout = bg->layout;
     if(bg->needsUpdate == false)return;
     bg->bindGroup = callocnewpp(DescriptorSetHandleImpl);
-    DescriptorSetHandle dshandle = (DescriptorSetHandle)bg->bindGroup;
+    WGVKBindGroup dshandle = (WGVKBindGroup)bg->bindGroup;
     VkDescriptorPoolCreateInfo dpci{};
     dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     dpci.flags |= VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
@@ -405,17 +405,17 @@ void UpdateBindGroup(DescribedBindGroup* bg){
     dpci.poolSizeCount = sizes.size();
     dpci.pPoolSizes = sizes.data();
     dpci.maxSets = 1;
-    vkCreateDescriptorPool(g_vulkanstate.device, &dpci, nullptr, &((DescriptorSetHandle)bg->bindGroup)->pool);
+    vkCreateDescriptorPool(g_vulkanstate.device, &dpci, nullptr, &((WGVKBindGroup)bg->bindGroup)->pool);
     
     //VkCopyDescriptorSet copy{};
     //copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
     
     VkDescriptorSetAllocateInfo dsai{};
     dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    dsai.descriptorPool = ((DescriptorSetHandle)bg->bindGroup)->pool;
+    dsai.descriptorPool = ((WGVKBindGroup)bg->bindGroup)->pool;
     dsai.descriptorSetCount = 1;
     dsai.pSetLayouts = (VkDescriptorSetLayout*)&layout->layout;
-    vkAllocateDescriptorSets(g_vulkanstate.device, &dsai, &((DescriptorSetHandle)bg->bindGroup)->set);
+    vkAllocateDescriptorSets(g_vulkanstate.device, &dsai, &((WGVKBindGroup)bg->bindGroup)->set);
 
 
 
@@ -424,13 +424,13 @@ void UpdateBindGroup(DescribedBindGroup* bg){
     small_vector<VkDescriptorBufferInfo> bufferInfos(count, VkDescriptorBufferInfo{});
     small_vector<VkDescriptorImageInfo> imageInfos(count, VkDescriptorImageInfo{});
     
-    ((DescriptorSetHandle)bg->bindGroup)->refCount = 1;
+    ((WGVKBindGroup)bg->bindGroup)->refCount = 1;
     auto& l3 = layout->entries[3];
     for(uint32_t i = 0;i < count;i++){
         writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         uint32_t binding = bg->entries[i].binding;
         writes[i].dstBinding = binding;
-        writes[i].dstSet = ((DescriptorSetHandle)bg->bindGroup)->set;
+        writes[i].dstSet = ((WGVKBindGroup)bg->bindGroup)->set;
         writes[i].descriptorType = toVulkanResourceType(bg->layout->entries[i].type);
         writes[i].descriptorCount = 1;
 
@@ -463,7 +463,7 @@ void SetBindGroupTexture_Vk(DescribedBindGroup* bg, uint32_t binding, Texture te
 
     bg->entries[binding].textureView = tex.view;
     if(bg->bindGroup){
-        wgvkReleaseDescriptorSet((DescriptorSetHandle)bg->bindGroup);
+        wgvkReleaseDescriptorSet((WGVKBindGroup)bg->bindGroup);
         bg->bindGroup = nullptr;
     }
     bg->needsUpdate = true;
@@ -473,7 +473,7 @@ void SetBindGroupBuffer_Vk(DescribedBindGroup* bg, uint32_t binding, DescribedBu
     //TODO: actually, one would need to iterate entries to find out where .binding == binding
     bg->entries[binding].buffer = buf->buffer;
     if(bg->bindGroup){
-        wgvkReleaseDescriptorSet((DescriptorSetHandle)bg->bindGroup);
+        wgvkReleaseDescriptorSet((WGVKBindGroup)bg->bindGroup);
         bg->bindGroup = nullptr;
     }
     bg->needsUpdate = true;
@@ -484,7 +484,7 @@ void SetBindGroupSampler_Vk(DescribedBindGroup* bg, uint32_t binding, DescribedS
     bg->entries[binding].sampler = buf.sampler;
 
     if(bg->bindGroup){
-        wgvkReleaseDescriptorSet((DescriptorSetHandle)bg->bindGroup);
+        wgvkReleaseDescriptorSet((WGVKBindGroup)bg->bindGroup);
         bg->bindGroup = nullptr;
     }
     bg->needsUpdate = true;

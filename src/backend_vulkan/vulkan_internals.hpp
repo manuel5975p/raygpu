@@ -61,18 +61,18 @@ struct QueueIndices{
 };
 
 struct VertexAndFragmentShaderModuleImpl;
-struct DescriptorSetHandleImpl;
+struct WGVKBindGroupImpl;
 struct WGVKBufferImpl;
 struct WGVKRenderPassEncoderImpl;
 struct CommandBufferHandleImpl;
-struct ImageHandleImpl;
+struct WGVKTextureImpl;
 
 typedef VertexAndFragmentShaderModuleImpl* VertexAndFragmentShaderModule;
-typedef DescriptorSetHandleImpl* DescriptorSetHandle;
+typedef WGVKBindGroupImpl* WGVKBindGroup;
 typedef WGVKBufferImpl* WGVKBuffer;
 typedef WGVKRenderPassEncoderImpl* WGVKRenderPassEncoder;
 typedef CommandBufferHandleImpl* CommmandBufferHandle;
-typedef ImageHandleImpl* ImageHandle;
+typedef WGVKTextureImpl* WGVKTexture;
 
 using refcount_type = uint32_t;
 template<typename T>
@@ -83,7 +83,7 @@ typedef struct VertexAndFragmentShaderModuleImpl{
     VkShaderModule fModule;
 }VertexAndFragmentShaderModuleImpl;
 
-typedef struct DescriptorSetHandleImpl{
+typedef struct WGVKBindGroupImpl{
     VkDescriptorSet set;
     VkDescriptorPool pool;
     refcount_type refCount;
@@ -98,7 +98,7 @@ typedef struct WGVKBufferImpl{
 typedef struct WGVKRenderPassEncoderImpl{
     VkCommandBuffer cmdBuffer;
     ref_holder<WGVKBuffer> referencedBuffers;
-    ref_holder<DescriptorSetHandle> referencedDescriptorSets;
+    ref_holder<WGVKBindGroup> referencedDescriptorSets;
     VkPipelineLayout lastLayout;
     VkFramebuffer frameBuffer;
     refcount_type refCount;
@@ -110,10 +110,116 @@ typedef struct CommandBufferHandleImpl{
     VkCommandPool pool;
 }CommandBufferHandleImpl;
 
-typedef struct ImageHandleImpl{
+typedef struct WGVKTextureImpl{
     VkImage image;
     VkDeviceMemory memory;
 }ImageHandleImpl;
+
+typedef struct AttachmentDescriptor{
+    PixelFormat format;
+    uint32_t sampleCount;
+    LoadOp loadop;
+    StoreOp storeop;
+}AttachmentDescriptor;
+
+constexpr uint32_t max_attachments = 8;
+typedef struct RenderPassLayout{
+    uint32_t attachmentCount;
+    AttachmentDescriptor attachments[max_attachments];
+}RenderPassLayout;
+
+struct xorshiftstate{
+    uint64_t x64;
+    void update(uint32_t x, uint32_t y)noexcept{
+        x64 ^= ((uint64_t(x) << 32) | uint64_t(y)) * 0x2545F4914F6CDD1D;
+        x64 ^= x64 << 13;
+        x64 ^= x64 >> 7;
+        x64 ^= x64 << 17;
+    }
+};
+namespace std{
+    template<>
+    struct hash<RenderPassLayout>{
+        inline constexpr size_t operator()(const RenderPassLayout& layout)const noexcept{
+
+            xorshiftstate ret{0x2545F4918F6CDD1D};
+            for(uint32_t i = 0;i < layout.attachmentCount;i++){
+                ret.update(layout.attachments[i].format, layout.attachments[i].sampleCount);
+                ret.update(layout.attachments[i].loadop, layout.attachments[i].storeop);
+            }
+            return ret.x64;
+        }
+    };
+}
+inline bool is__depth(PixelFormat fmt){
+    return fmt ==  Depth24 || fmt == Depth32;
+}
+
+static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassLayout layout) {
+    VkAttachmentDescription vkAttachments[max_attachments] = {}; // array for Vulkan attachments
+
+    [[maybe_unused]] uint32_t colorAttachmentCount = 0;
+    uint32_t depthAttachmentIndex = VK_ATTACHMENT_UNUSED; // index for depth attachment if any
+
+    // Convert custom attachments to Vulkan attachments
+    for (uint32_t i = 0; i < layout.attachmentCount; i++) {
+        const AttachmentDescriptor &att = layout.attachments[i];
+        vkAttachments[i].format     = toVulkanPixelFormat(att.format);
+        vkAttachments[i].loadOp     = toVulkanLoadOperation(att.loadop);
+        vkAttachments[i].storeOp    = toVulkanStoreOperation(att.storeop);
+        vkAttachments[i].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        vkAttachments[i].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        vkAttachments[i].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+        if (is__depth(att.format)) {
+            vkAttachments[i].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            depthAttachmentIndex = i;
+        } else {
+            vkAttachments[i].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            ++colorAttachmentCount;
+        }
+    }
+
+    // Set up color attachment references for the subpass.
+    VkAttachmentReference colorRefs[max_attachments] = {}; // list of color attachments
+    uint32_t colorIndex = 0;
+    for (uint32_t i = 0; i < layout.attachmentCount; i++) {
+        if (!is__depth(layout.attachments[i].format)) {
+            colorRefs[colorIndex].attachment = i;
+            colorRefs[colorIndex].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            ++colorIndex;
+        }
+    }
+
+    // Set up subpass description.
+    VkSubpassDescription subpass = {};
+    subpass.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount    = colorIndex;
+    subpass.pColorAttachments       = colorIndex ? colorRefs : nullptr;
+    // Assign depth attachment if present.
+    VkAttachmentReference depthRef = {};
+    if (depthAttachmentIndex != VK_ATTACHMENT_UNUSED) {
+        depthRef.attachment = depthAttachmentIndex;
+        depthRef.layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        subpass.pDepthStencilAttachment = &depthRef;
+    } else {
+        subpass.pDepthStencilAttachment = nullptr;
+    }
+
+    // Create render pass create info.
+    VkRenderPassCreateInfo rpci = {};
+    rpci.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    rpci.attachmentCount = layout.attachmentCount;
+    rpci.pAttachments    = vkAttachments;
+    rpci.subpassCount    = 1;
+    rpci.pSubpasses      = &subpass;
+    // (Optional: add subpass dependencies if needed.)
+
+    VkRenderPass renderPass = VK_NULL_HANDLE;
+    VkResult result = vkCreateRenderPass(device, &rpci, nullptr, &renderPass);
+    // (Handle errors appropriately in production code)
+    return renderPass;
+}
+
 
 struct WGVKSurfaceImpl{
     VkSurfaceKHR surface;
@@ -543,11 +649,11 @@ extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_
 extern "C" void wgvkReleaseCommandBuffer(CommmandBufferHandle commandBuffer);
 extern "C" void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc);
 extern "C" void wgvkReleaseBuffer(WGVKBuffer commandBuffer);
-extern "C" void wgvkReleaseDescriptorSet(DescriptorSetHandle commandBuffer);
+extern "C" void wgvkReleaseDescriptorSet(WGVKBindGroup commandBuffer);
 
 extern "C" void wgvkRenderpassEncoderDraw(WGVKRenderPassEncoder rpe, uint32_t vertices, uint32_t instances, uint32_t firstvertex, uint32_t firstinstance);
 extern "C" void wgvkRenderpassEncoderDrawIndexed(WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t firstinstance);
-extern "C" void wgvkRenderPassEncoderBindDescriptorSet(WGVKRenderPassEncoder rpe, uint32_t group, DescriptorSetHandle dset);
+extern "C" void wgvkRenderPassEncoderBindDescriptorSet(WGVKRenderPassEncoder rpe, uint32_t group, WGVKBindGroup dset);
 extern "C" void wgvkRenderPassEncoderBindPipeline(WGVKRenderPassEncoder rpe, DescribedPipeline* pipeline);
 extern "C" void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, VkPipeline pipeline, VkPipelineLayout layout);
 extern "C" void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer buffer, VkDeviceSize offset, VkIndexType indexType);
