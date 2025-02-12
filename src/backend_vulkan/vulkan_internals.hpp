@@ -64,14 +64,16 @@ struct VertexAndFragmentShaderModuleImpl;
 struct WGVKBindGroupImpl;
 struct WGVKBufferImpl;
 struct WGVKRenderPassEncoderImpl;
-struct CommandBufferHandleImpl;
+struct WGVKCommandEncoderImpl;
+struct WGVKCommandBufferImpl;
 struct WGVKTextureImpl;
 
 typedef VertexAndFragmentShaderModuleImpl* VertexAndFragmentShaderModule;
 typedef WGVKBindGroupImpl* WGVKBindGroup;
 typedef WGVKBufferImpl* WGVKBuffer;
 typedef WGVKRenderPassEncoderImpl* WGVKRenderPassEncoder;
-typedef CommandBufferHandleImpl* CommmandBufferHandle;
+typedef WGVKCommandBufferImpl* WGVKCommandBuffer;
+typedef WGVKCommandEncoderImpl* WGVKCommandEncoder;
 typedef WGVKTextureImpl* WGVKTexture;
 
 using refcount_type = uint32_t;
@@ -104,11 +106,14 @@ typedef struct WGVKRenderPassEncoderImpl{
     refcount_type refCount;
 }RenderPassEncoderHandleImpl;
 
-typedef struct CommandBufferHandleImpl{
+typedef struct WGVKCommandBufferImpl{
     ref_holder<WGVKRenderPassEncoder> referencedRPs;
     VkCommandBuffer buffer;
     VkCommandPool pool;
-}CommandBufferHandleImpl;
+}WGVKCommandBufferImpl;
+typedef struct WGVKCommandEncoderImpl{
+
+}WGVKCommandEncoderImpl;
 
 typedef struct WGVKTextureImpl{
     VkImage image;
@@ -151,6 +156,40 @@ namespace std{
         }
     };
 }
+typedef struct WGVKRenderPassColorAttachment{
+    void* nextInChain;
+    NativeImageViewHandle view;
+    NativeImageViewHandle resolveTarget;
+    uint32_t depthSlice;
+    LoadOp loadOp;
+    StoreOp storeOp;
+    DColor clearValue;
+}WGVKRenderPassColorAttachment;
+
+typedef struct WGVKRenderPassDepthStencilAttachment{
+    void* nextInChain;
+    NativeImageViewHandle view;
+    LoadOp depthLoadOp;
+    StoreOp depthStoreOp;
+    float depthClearValue;
+    uint32_t depthReadOnly;
+    LoadOp stencilLoadOp;
+    StoreOp stencilStoreOp;
+    uint32_t stencilClearValue;
+    uint32_t stencilReadOnly;
+}WGVKRenderPassDepthStencilAttachment;
+
+typedef struct WGVKRenderPassDescriptor{
+    void* nextInChain;
+    WGVKStringView label;
+    size_t colorAttachmentCount;
+    WGVKRenderPassColorAttachment const* colorAttachments;
+    WGVKRenderPassDepthStencilAttachment const * depthStencilAttachment;
+    
+    //idgaf members
+    void* occlusionQuerySet;
+    void const *timestampWrites;
+}WGVKRenderPassDescriptor;
 inline bool is__depth(PixelFormat fmt){
     return fmt ==  Depth24 || fmt == Depth32;
 }
@@ -169,7 +208,7 @@ static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassL
         vkAttachments[i].storeOp    = toVulkanStoreOperation(att.storeop);
         vkAttachments[i].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         vkAttachments[i].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        vkAttachments[i].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+        vkAttachments[i].initialLayout  = (att.loadop == LoadOp_Load ? (is__depth(att.format) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) : (VK_IMAGE_LAYOUT_UNDEFINED));
         if (is__depth(att.format)) {
             vkAttachments[i].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             depthAttachmentIndex = i;
@@ -646,7 +685,7 @@ extern "C" WGVKBuffer wgvkDeviceCreateBuffer(VkDevice device, const BufferDescri
 extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, void const * data, size_t size);
 
 
-extern "C" void wgvkReleaseCommandBuffer(CommmandBufferHandle commandBuffer);
+extern "C" void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer);
 extern "C" void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc);
 extern "C" void wgvkReleaseBuffer(WGVKBuffer commandBuffer);
 extern "C" void wgvkReleaseDescriptorSet(WGVKBindGroup commandBuffer);
