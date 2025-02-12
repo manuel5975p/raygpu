@@ -41,6 +41,51 @@ extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_
     
     abort();
 }
+
+
+
+extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(VkDevice device){
+    WGVKCommandEncoder ret = callocnew(WGVKCommandEncoderImpl);
+
+    VkCommandPoolCreateInfo pci{};
+    pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    pci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+
+    vkCreateCommandPool(device, &pci, nullptr, &ret->pool);
+    VkCommandBufferAllocateInfo bai{};
+    bai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    bai.commandPool = ret->pool;
+    bai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    bai.commandBufferCount = 1;
+    vkAllocateCommandBuffers(device, nullptr, &ret->buffer);
+
+    VkCommandBufferBeginInfo bbi{};
+    bbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    bbi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vkBeginCommandBuffer(ret->buffer, &bbi);
+    return ret;
+}
+extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, const WGVKRenderPassDescriptor* rpdesc){
+    RenderPassLayout rplayout{};
+    rplayout.attachmentCount = rpdesc->colorAttachmentCount;
+    VkRenderPassBeginInfo rpbi{};
+    
+}
+extern "C" void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
+
+}
+extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder commandEncoder){
+
+}
+
+
+
+
+
+
+
+
+
 extern "C" void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, VkPhysicalDevice adapter, SurfaceCapabilities* capabilities){
     VkSurfaceKHR surface = wgvkSurface->surface;
     VkSurfaceCapabilitiesKHR scap{};

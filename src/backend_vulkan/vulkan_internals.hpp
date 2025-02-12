@@ -112,7 +112,9 @@ typedef struct WGVKCommandBufferImpl{
     VkCommandPool pool;
 }WGVKCommandBufferImpl;
 typedef struct WGVKCommandEncoderImpl{
-
+    ref_holder<WGVKRenderPassEncoder> referencedRPs;
+    VkCommandBuffer buffer;
+    VkCommandPool pool;
 }WGVKCommandEncoderImpl;
 
 typedef struct WGVKTextureImpl{
@@ -127,10 +129,12 @@ typedef struct AttachmentDescriptor{
     StoreOp storeop;
 }AttachmentDescriptor;
 
-constexpr uint32_t max_attachments = 8;
+constexpr uint32_t max_color_attachments = 8;
 typedef struct RenderPassLayout{
     uint32_t attachmentCount;
-    AttachmentDescriptor attachments[max_attachments];
+    AttachmentDescriptor colorAttachments[max_color_attachments];
+    uint32_t depthAttachmentPresent;
+    AttachmentDescriptor depthAttachment;
 }RenderPassLayout;
 
 struct xorshiftstate{
@@ -149,8 +153,12 @@ namespace std{
 
             xorshiftstate ret{0x2545F4918F6CDD1D};
             for(uint32_t i = 0;i < layout.attachmentCount;i++){
-                ret.update(layout.attachments[i].format, layout.attachments[i].sampleCount);
-                ret.update(layout.attachments[i].loadop, layout.attachments[i].storeop);
+                ret.update(layout.colorAttachments[i].format, layout.colorAttachments[i].sampleCount);
+                ret.update(layout.colorAttachments[i].loadop, layout.colorAttachments[i].storeop);
+            }
+            if(layout.depthAttachmentPresent){
+                ret.update(layout.depthAttachment.format, layout.depthAttachment.sampleCount);
+                ret.update(layout.depthAttachment.loadop, layout.depthAttachment.storeop);
             }
             return ret.x64;
         }
@@ -195,14 +203,14 @@ inline bool is__depth(PixelFormat fmt){
 }
 
 static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassLayout layout) {
-    VkAttachmentDescription vkAttachments[max_attachments] = {}; // array for Vulkan attachments
+    VkAttachmentDescription vkAttachments[max_color_attachments] = {}; // array for Vulkan attachments
 
     [[maybe_unused]] uint32_t colorAttachmentCount = 0;
     uint32_t depthAttachmentIndex = VK_ATTACHMENT_UNUSED; // index for depth attachment if any
 
     // Convert custom attachments to Vulkan attachments
     for (uint32_t i = 0; i < layout.attachmentCount; i++) {
-        const AttachmentDescriptor &att = layout.attachments[i];
+        const AttachmentDescriptor &att = layout.colorAttachments[i];
         vkAttachments[i].format     = toVulkanPixelFormat(att.format);
         vkAttachments[i].loadOp     = toVulkanLoadOperation(att.loadop);
         vkAttachments[i].storeOp    = toVulkanStoreOperation(att.storeop);
@@ -219,10 +227,10 @@ static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassL
     }
 
     // Set up color attachment references for the subpass.
-    VkAttachmentReference colorRefs[max_attachments] = {}; // list of color attachments
+    VkAttachmentReference colorRefs[max_color_attachments] = {}; // list of color attachments
     uint32_t colorIndex = 0;
     for (uint32_t i = 0; i < layout.attachmentCount; i++) {
-        if (!is__depth(layout.attachments[i].format)) {
+        if (!is__depth(layout.colorAttachments[i].format)) {
             colorRefs[colorIndex].attachment = i;
             colorRefs[colorIndex].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
             ++colorIndex;
@@ -684,6 +692,10 @@ extern "C" void UnloadBuffer(DescribedBuffer* buf);
 extern "C" WGVKBuffer wgvkDeviceCreateBuffer(VkDevice device, const BufferDescriptor* desc);
 extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, void const * data, size_t size);
 
+extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(VkDevice device);
+extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, const WGVKRenderPassDescriptor* rpdesc);
+extern "C" void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder);
+extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder commandEncoder);
 
 extern "C" void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer);
 extern "C" void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc);
