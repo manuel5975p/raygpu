@@ -77,7 +77,7 @@ int main(){
     //SetConfigFlags(FLAG_STDOUT_TO_FFMPEG);
     //if(headless)
     //    SetConfigFlags(FLAG_HEADLESS);
-    RequestLimit(maxBufferSize, 1ull << 30);
+    //RequestLimit(maxBufferSize, 1ull << 30);
     InitWindow(2560, 1440, "Compute Shader");
     SetTargetFPS(0);
     

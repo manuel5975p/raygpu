@@ -245,7 +245,7 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
     //TODO: Multiple frames in flight, this amounts to replacing 0 with frameCount % 2 or something similar
     VkResult acquireResult = vkAcquireNextImageKHR(g_vulkanstate.device, wgvksurf->swapchain, UINT64_MAX, g_vulkanstate.syncState.getSemaphoreOfSubmitIndex(0), VK_NULL_HANDLE, &imageIndex);
     TransitionImageLayout(g_vulkanstate.device, oof, g_vulkanstate.queue.graphicsQueue, wgvksurf->images[imageIndex], VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    TransitionImageLayout(g_vulkanstate.device, oof, g_vulkanstate.queue.graphicsQueue, ((ImageHandle)fsurface->renderTarget.depth.id)->image, VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    TransitionImageLayout(g_vulkanstate.device, oof, g_vulkanstate.queue.graphicsQueue, ((WGVKTexture)fsurface->renderTarget.depth.id)->image, VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
     vkDestroyCommandPool(g_vulkanstate.device, oof, nullptr);
     if(acquireResult != VK_SUCCESS){
         std::cerr << "acquireResult is " << acquireResult << std::endl;
@@ -633,7 +633,7 @@ extern "C" void RenderPassSetVertexBuffer(DescribedRenderpass* drp, uint32_t slo
     //wgpuRenderPassEncoderSetVertexBuffer((WGPURenderPassEncoder)drp->rpEncoder, slot, (WGPUBuffer)buffer->buffer, offset, buffer->size);
 }
 extern "C" void RenderPassSetBindGroup(DescribedRenderpass* drp, uint32_t group, DescribedBindGroup* bindgroup){
-    wgvkRenderPassEncoderBindDescriptorSet((WGVKRenderPassEncoder)drp->rpEncoder, group, (DescriptorSetHandle)bindgroup->bindGroup);
+    wgvkRenderPassEncoderBindDescriptorSet((WGVKRenderPassEncoder)drp->rpEncoder, group, (WGVKBindGroup)bindgroup->bindGroup);
     //wgpuRenderPassEncoderSetBindGroup((WGPURenderPassEncoder)drp->rpEncoder, group, (WGPUBindGroup)UpdateAndGetNativeBindGroup(bindgroup), 0, nullptr);
 }
 extern "C" void RenderPassDraw        (DescribedRenderpass* drp, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance){
@@ -879,7 +879,7 @@ extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology 
             abort();
     }
     //pipeline->lastUsedAs = drawMode;
-    wgvkRenderPassEncoderBindDescriptorSet((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, (DescriptorSetHandle)UpdateAndGetNativeBindGroup(&pipeline->bindGroup));
+    wgvkRenderPassEncoderBindDescriptorSet((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, (WGVKBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup));
     //wgvkRenderPassEncoderSetBindGroup ((WGPURenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
 
 }

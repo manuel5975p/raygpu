@@ -7,7 +7,9 @@ function(add_example target_name)
     add_library(${target_name} SHARED "${target_name}.c" "${ANDROID_NDK_ROOT}/sources/android/native_app_glue/android_native_app_glue.c")
     target_compile_definitions(${target_name} PUBLIC ANDROID PLATFORM_ANDROID __ANDROID_API__=35)
     target_link_libraries(${target_name} PUBLIC android_glue raygpu log android EGL GLESv2 OpenSLES atomic c m dl)
-    target_link_options(${target_name} PUBLIC )
+    set_target_properties(${target_name} PROPERTIES
+      LINK_FLAGS "-z noexecstack -z now -z relro"
+    )
     else()
     add_executable(${target_name} "${target_name}.c")
     target_link_libraries(${target_name} PUBLIC raygpu)

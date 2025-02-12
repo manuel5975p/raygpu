@@ -179,7 +179,7 @@ void wgvkReleaseBuffer(WGVKBuffer buffer) {
         std::free(buffer);
     }
 }
-void wgvkReleaseDescriptorSet(DescriptorSetHandle dshandle) {
+void wgvkReleaseDescriptorSet(WGVKBindGroup dshandle) {
     --dshandle->refCount;
     if (dshandle->refCount == 0) {
         vkFreeDescriptorSets(g_vulkanstate.device, dshandle->pool, 1, &dshandle->set);
@@ -216,7 +216,7 @@ void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, VkPipeline pipe
 }
 
 // Implementation of RenderPassDescriptorBindDescriptorSet
-void wgvkRenderPassEncoderBindDescriptorSet(WGVKRenderPassEncoder rpe, uint32_t group, DescriptorSetHandle dset) {
+void wgvkRenderPassEncoderBindDescriptorSet(WGVKRenderPassEncoder rpe, uint32_t group, WGVKBindGroup dset) {
     assert(rpe != nullptr && "RenderPassEncoderHandle is null");
     assert(dset != nullptr && "DescriptorSetHandle is null");
     assert(rpe->lastLayout != VK_NULL_HANDLE && "Pipeline layout is not set");
