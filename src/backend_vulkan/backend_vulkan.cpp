@@ -68,7 +68,7 @@ void PresentSurface(FullSurface* surface){
     pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     pci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     vkCreateCommandPool(g_vulkanstate.device, &pci, nullptr, &oof);
-    TransitionImageLayout(g_vulkanstate.device, oof, g_vulkanstate.queue.graphicsQueue, wgvksurf->images[wgvksurf->activeImageIndex], VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    TransitionImageLayout(g_vulkanstate.device, oof, g_vulkanstate.queue.graphicsQueue, wgvksurf->images[wgvksurf->activeImageIndex]->image, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
     vkDestroyCommandPool(g_vulkanstate.device, oof, nullptr);
     VkResult presentRes = vkQueuePresentKHR(g_vulkanstate.queue.presentQueue, &presentInfo);
     if(presentRes != VK_SUCCESS){
@@ -244,7 +244,7 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
     WGVKSurface wgvksurf = ((WGVKSurface)fsurface->surface);
     //TODO: Multiple frames in flight, this amounts to replacing 0 with frameCount % 2 or something similar
     VkResult acquireResult = vkAcquireNextImageKHR(g_vulkanstate.device, wgvksurf->swapchain, UINT64_MAX, g_vulkanstate.syncState.getSemaphoreOfSubmitIndex(0), VK_NULL_HANDLE, &imageIndex);
-    TransitionImageLayout(g_vulkanstate.device, oof, g_vulkanstate.queue.graphicsQueue, wgvksurf->images[imageIndex], VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    TransitionImageLayout(g_vulkanstate.device, oof, g_vulkanstate.queue.graphicsQueue, wgvksurf->images[imageIndex]->image, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     TransitionImageLayout(g_vulkanstate.device, oof, g_vulkanstate.queue.graphicsQueue, ((WGVKTexture)fsurface->renderTarget.depth.id)->image, VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
     vkDestroyCommandPool(g_vulkanstate.device, oof, nullptr);
     if(acquireResult != VK_SUCCESS){
@@ -799,29 +799,29 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     
     renderPass->cmdEncoder = wgvkDeviceCreateCommandEncoder(g_vulkanstate.device);
     
-    if(renderPass->cmdEncoder == nullptr){
-        VkCommandPool oof{};
-        VkCommandPoolCreateInfo pci zeroinit;
-        pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        pci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-        VkCommandBufferAllocateInfo cbai zeroinit;
-        cbai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        cbai.commandBufferCount = 1;
-        vkCreateCommandPool(g_vulkanstate.device, &pci, nullptr, &oof);
-        cbai.commandPool = oof;
-        vkAllocateCommandBuffers(g_vulkanstate.device, &cbai, (VkCommandBuffer*)&renderPass->cmdEncoder);
-    }
-    else{
-        vkResetCommandBuffer((VkCommandBuffer)renderPass->cmdEncoder, 0);
-    }
+    //if(renderPass->cmdEncoder == nullptr){
+    //    VkCommandPool oof{};
+    //    VkCommandPoolCreateInfo pci zeroinit;
+    //    pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    //    pci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    //    VkCommandBufferAllocateInfo cbai zeroinit;
+    //    cbai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    //    cbai.commandBufferCount = 1;
+    //    vkCreateCommandPool(g_vulkanstate.device, &pci, nullptr, &oof);
+    //    cbai.commandPool = oof;
+    //    vkAllocateCommandBuffers(g_vulkanstate.device, &cbai, (VkCommandBuffer*)&renderPass->cmdEncoder);
+    //}
+    //else{
+    //    vkResetCommandBuffer((VkCommandBuffer)renderPass->cmdEncoder, 0);
+    //}
     rpbi.renderPass = g_vulkanstate.renderPass;
 
     auto rtex = g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition];
     VkFramebufferCreateInfo fbci{};
     fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     VkImageView fbAttachments[2] = {
-        (VkImageView)rtex.texture.view,
-        (VkImageView)rtex.depth.view,
+        ((WGVKTextureView)rtex.texture.view)->view,
+        ((WGVKTextureView)rtex.depth.view)->view,
     };
     fbci.pAttachments = fbAttachments;
     fbci.attachmentCount = 2;
