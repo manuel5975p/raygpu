@@ -67,6 +67,7 @@ struct WGVKRenderPassEncoderImpl;
 struct WGVKCommandEncoderImpl;
 struct WGVKCommandBufferImpl;
 struct WGVKTextureImpl;
+struct WGVKTextureViewImpl;
 
 typedef VertexAndFragmentShaderModuleImpl* VertexAndFragmentShaderModule;
 typedef WGVKBindGroupImpl* WGVKBindGroup;
@@ -75,6 +76,7 @@ typedef WGVKRenderPassEncoderImpl* WGVKRenderPassEncoder;
 typedef WGVKCommandBufferImpl* WGVKCommandBuffer;
 typedef WGVKCommandEncoderImpl* WGVKCommandEncoder;
 typedef WGVKTextureImpl* WGVKTexture;
+typedef WGVKTextureViewImpl* WGVKTextureView;
 
 using refcount_type = uint32_t;
 template<typename T>
@@ -99,6 +101,7 @@ typedef struct WGVKBufferImpl{
 
 typedef struct WGVKRenderPassEncoderImpl{
     VkCommandBuffer cmdBuffer;
+    VkRenderPass renderPass;
     ref_holder<WGVKBuffer> referencedBuffers;
     ref_holder<WGVKBindGroup> referencedDescriptorSets;
     VkPipelineLayout lastLayout;
@@ -111,6 +114,7 @@ typedef struct WGVKCommandBufferImpl{
     VkCommandBuffer buffer;
     VkCommandPool pool;
 }WGVKCommandBufferImpl;
+
 typedef struct WGVKCommandEncoderImpl{
     ref_holder<WGVKRenderPassEncoder> referencedRPs;
     VkCommandBuffer buffer;
@@ -120,10 +124,18 @@ typedef struct WGVKCommandEncoderImpl{
 typedef struct WGVKTextureImpl{
     VkImage image;
     VkDeviceMemory memory;
+    VkDevice device;
+    uint32_t width, height, depthOrArrayLayers;
 }ImageHandleImpl;
 
+typedef struct WGVKTextureViewImpl{
+    VkImageView view;
+    VkFormat format;
+    uint32_t width, height, depthOrArrayLayers;
+}WGVKTextureViewImpl;
+
 typedef struct AttachmentDescriptor{
-    PixelFormat format;
+    VkFormat format;
     uint32_t sampleCount;
     LoadOp loadop;
     StoreOp storeop;
@@ -131,7 +143,7 @@ typedef struct AttachmentDescriptor{
 
 constexpr uint32_t max_color_attachments = 8;
 typedef struct RenderPassLayout{
-    uint32_t attachmentCount;
+    uint32_t colorAttachmentCount;
     AttachmentDescriptor colorAttachments[max_color_attachments];
     uint32_t depthAttachmentPresent;
     AttachmentDescriptor depthAttachment;
@@ -152,7 +164,7 @@ namespace std{
         inline constexpr size_t operator()(const RenderPassLayout& layout)const noexcept{
 
             xorshiftstate ret{0x2545F4918F6CDD1D};
-            for(uint32_t i = 0;i < layout.attachmentCount;i++){
+            for(uint32_t i = 0;i < layout.colorAttachmentCount;i++){
                 ret.update(layout.colorAttachments[i].format, layout.colorAttachments[i].sampleCount);
                 ret.update(layout.colorAttachments[i].loadop, layout.colorAttachments[i].storeop);
             }
@@ -166,8 +178,8 @@ namespace std{
 }
 typedef struct WGVKRenderPassColorAttachment{
     void* nextInChain;
-    NativeImageViewHandle view;
-    NativeImageViewHandle resolveTarget;
+    WGVKTextureView view;
+    WGVKTextureView resolveTarget;
     uint32_t depthSlice;
     LoadOp loadOp;
     StoreOp storeOp;
@@ -176,7 +188,7 @@ typedef struct WGVKRenderPassColorAttachment{
 
 typedef struct WGVKRenderPassDepthStencilAttachment{
     void* nextInChain;
-    NativeImageViewHandle view;
+    WGVKTextureView view;
     LoadOp depthLoadOp;
     StoreOp depthStoreOp;
     float depthClearValue;
@@ -198,10 +210,55 @@ typedef struct WGVKRenderPassDescriptor{
     void* occlusionQuerySet;
     void const *timestampWrites;
 }WGVKRenderPassDescriptor;
+
+typedef struct WGVKTextureViewDescriptor{
+    void* nextInChain;
+    WGVKStringView label;
+    PixelFormat format;
+    TextureDimension dimension;
+    uint32_t baseMipLevel;
+    uint32_t mipLevelCount;
+    uint32_t baseArrayLayer;
+    uint32_t arrayLayerCount;
+    TextureAspect aspect;
+    TextureUsage usage;
+}WGVKTextureViewDescriptor;
+
+static inline RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescriptor* rpdesc){
+    RenderPassLayout ret{};
+    
+    if(rpdesc->depthStencilAttachment->view){
+        ret.depthAttachmentPresent = 1U;
+        ret.depthAttachment = AttachmentDescriptor{
+            .format = rpdesc->depthStencilAttachment->view->format, 
+            .sampleCount = 1,
+            .loadop = rpdesc->depthStencilAttachment->depthLoadOp,
+            .storeop = rpdesc->depthStencilAttachment->depthStoreOp
+        };
+    }
+
+    
+    ret.colorAttachmentCount = rpdesc->colorAttachmentCount;
+    assert(ret.colorAttachmentCount < max_color_attachments && "Too many color attachments");
+    for(uint32_t i = 0;i < rpdesc->colorAttachmentCount;i++){
+        ret.colorAttachments[i] = AttachmentDescriptor{
+            .format = rpdesc->colorAttachments[i].view->format, 
+            .sampleCount = 1,
+            .loadop = rpdesc->colorAttachments[i].loadOp,
+            .storeop = rpdesc->colorAttachments[i].storeOp
+        };
+    }
+
+    return ret;
+}
+
+
 inline bool is__depth(PixelFormat fmt){
     return fmt ==  Depth24 || fmt == Depth32;
 }
-
+inline bool is__depth(VkFormat fmt){
+    return fmt ==  VK_FORMAT_D32_SFLOAT || fmt == VK_FORMAT_D32_SFLOAT_S8_UINT || fmt == VK_FORMAT_D24_UNORM_S8_UINT;
+}
 static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassLayout layout) {
     VkAttachmentDescription vkAttachments[max_color_attachments] = {}; // array for Vulkan attachments
 
@@ -209,9 +266,9 @@ static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassL
     uint32_t depthAttachmentIndex = VK_ATTACHMENT_UNUSED; // index for depth attachment if any
 
     // Convert custom attachments to Vulkan attachments
-    for (uint32_t i = 0; i < layout.attachmentCount; i++) {
+    for (uint32_t i = 0; i < layout.colorAttachmentCount; i++) {
         const AttachmentDescriptor &att = layout.colorAttachments[i];
-        vkAttachments[i].format     = toVulkanPixelFormat(att.format);
+        vkAttachments[i].format     = att.format;
         vkAttachments[i].loadOp     = toVulkanLoadOperation(att.loadop);
         vkAttachments[i].storeOp    = toVulkanStoreOperation(att.storeop);
         vkAttachments[i].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -229,7 +286,7 @@ static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassL
     // Set up color attachment references for the subpass.
     VkAttachmentReference colorRefs[max_color_attachments] = {}; // list of color attachments
     uint32_t colorIndex = 0;
-    for (uint32_t i = 0; i < layout.attachmentCount; i++) {
+    for (uint32_t i = 0; i < layout.colorAttachmentCount; i++) {
         if (!is__depth(layout.colorAttachments[i].format)) {
             colorRefs[colorIndex].attachment = i;
             colorRefs[colorIndex].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -255,7 +312,7 @@ static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassL
     // Create render pass create info.
     VkRenderPassCreateInfo rpci = {};
     rpci.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    rpci.attachmentCount = layout.attachmentCount;
+    rpci.attachmentCount = layout.colorAttachmentCount;
     rpci.pAttachments    = vkAttachments;
     rpci.subpassCount    = 1;
     rpci.pSubpasses      = &subpass;
@@ -284,7 +341,7 @@ struct WGVKSurfaceImpl{
     uint32_t formatCount;
     PixelFormat* formatCache;
     uint32_t presentModeCount;
-    SurfacePresentMode* presentModeCache;
+    PresentMode* presentModeCache;
 };
 typedef WGVKSurfaceImpl* WGVKSurface;
 
@@ -688,7 +745,7 @@ extern "C" DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsa
 extern "C" void UnloadBuffer(DescribedBuffer* buf);
 
 //wgvk I guess
-
+extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureViewDescriptor *descriptor);
 extern "C" WGVKBuffer wgvkDeviceCreateBuffer(VkDevice device, const BufferDescriptor* desc);
 extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, void const * data, size_t size);
 

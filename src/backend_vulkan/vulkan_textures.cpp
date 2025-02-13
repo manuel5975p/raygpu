@@ -89,16 +89,21 @@ WGVKTexture CreateImage(VkDevice device, uint32_t width, uint32_t height, VkForm
     
     if (vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS){
         throw std::runtime_error("Failed to allocate image memory!");
-        abort();
+        //abort();
     }
     vkBindImageMemory(device, image, imageMemory, 0);
     ret->image = image;
     ret->memory = imageMemory;
+    ret->device = device;
+    ret->width = width;
+    ret->height = height;
+    ret->depthOrArrayLayers = 1;
     return ret;
 }
 
 // Function to create an image view
-VkImageView CreateImageView(VkDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags) {
+WGVKTextureView CreateImageView(VkDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags) {
+    WGVKTextureView ret = callocnew(WGVKTextureViewImpl);
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewInfo.image = image;
@@ -115,10 +120,10 @@ VkImageView CreateImageView(VkDevice device, VkImage image, VkFormat format, VkI
     viewInfo.subresourceRange.layerCount = 1;
     
     VkImageView imageView;
-    if (vkCreateImageView(device, &viewInfo, nullptr, &imageView) != VK_SUCCESS)
+    if (vkCreateImageView(device, &viewInfo, nullptr, &ret->view) != VK_SUCCESS)
         throw std::runtime_error("Failed to create image view!");
-    
-    return imageView;
+    ret->format = viewInfo.format;
+    return ret;
 }
 
 // Function to begin a single-use command buffer
@@ -299,7 +304,8 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     
     VkFormat vkFormat = toVulkanPixelFormat(format);
     VkImageUsageFlags vkUsage = toVulkanTextureUsage(usage, format);
-    VkCommandPoolCreateInfo poolInfo{};
+
+    VkCommandPoolCreateInfo poolInfo zeroinit;
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolInfo.queueFamilyIndex = g_vulkanstate.graphicsFamily;
     poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
@@ -334,13 +340,15 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     if (format == Depth24 || format == Depth32) {
         aspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
     }
-    
-    ret.view = CreateImageView(g_vulkanstate.device, image->image, vkFormat, aspectFlags);
-    
+    WGVKTextureView view = CreateImageView(g_vulkanstate.device, image->image, vkFormat, aspectFlags);
+    view->width = width;
+    view->height = height;
+    view->depthOrArrayLayers = 1;
+    ret.view = view;
     // Handle mipmaps if necessary (not implemented here)
     // For simplicity, only base mip level is created. Extend as needed.
     
-    std::cout << "Successfully created texture and image view\n";
+    TRACELOG(LOG_INFO, "Loaded WGVKTexture and view [%u y %u]", (unsigned)width, (unsigned)height);
     
     vkDestroyCommandPool(g_vulkanstate.device, commandPool, nullptr);
     

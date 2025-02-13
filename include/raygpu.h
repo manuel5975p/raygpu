@@ -624,7 +624,7 @@ typedef struct SurfaceCapabilities{
     size_t formatCount;
     PixelFormat const* formats;
     size_t presentModeCount;
-    SurfacePresentMode const * presentModes;
+    PresentMode const * presentModes;
 }SurfaceCapabilities;
 // Unified Surface Configuration Structure
 typedef struct SurfaceConfiguration {
@@ -632,7 +632,7 @@ typedef struct SurfaceConfiguration {
     uint32_t width;                 // Width of the rendering surface
     uint32_t height;                // Height of the rendering surface
     PixelFormat format;             // Pixel format of the surface
-    SurfacePresentMode presentMode; // Present mode for image presentation
+    PresentMode presentMode; // Present mode for image presentation
 } SurfaceConfiguration;
 
 
