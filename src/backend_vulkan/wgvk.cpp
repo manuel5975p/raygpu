@@ -79,6 +79,7 @@ extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVK
     ivci.components = cm;
     ivci.viewType = toVulkanTextureViewDimension(descriptor->dimension);
     ivci.format = toVulkanPixelFormat(descriptor->format);
+    
     VkImageSubresourceRange sr{
         .aspectMask = toVulkanAspectMask(descriptor->aspect),
         .baseMipLevel = descriptor->baseMipLevel,
@@ -86,10 +87,16 @@ extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVK
         .baseArrayLayer = descriptor->baseArrayLayer,
         .layerCount = descriptor->arrayLayerCount
     };
+    if(!is__depth(ivci.format)){
+        sr.aspectMask &= VK_IMAGE_ASPECT_COLOR_BIT;
+    }
     ivci.subresourceRange = sr;
     WGVKTextureView ret = callocnew(WGVKTextureViewImpl);
     vkCreateImageView(texture->device, &ivci, nullptr, &ret->view);
     ret->format = ivci.format;
+    ret->width = texture->width;
+    ret->height = texture->height;
+    ret->depthOrArrayLayers = texture->depthOrArrayLayers;
     return ret;
 }
 extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, const WGVKRenderPassDescriptor* rpdesc){
@@ -118,6 +125,7 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
     fbci.height = rpdesc->colorAttachments[0].view->height;
     fbci.layers = 1;
     fbci.pAttachments = attachmentViews;
+    fbci.renderPass = ret->renderPass;
     vkCreateFramebuffer(g_vulkanstate.device, &fbci, nullptr, &ret->frameBuffer);
 
     rpbi.renderPass = ret->renderPass;
@@ -270,6 +278,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
     vkGetSwapchainImagesKHR(g_vulkanstate.device, surface->swapchain, &surface->imagecount, tmpImages.data());
     surface->images = (WGVKTexture*)std::calloc(surface->imagecount, sizeof(WGVKTexture));
     for (uint32_t i = 0; i < surface->imagecount; i++) {
+        surface->images[i] = callocnew(WGVKTextureImpl);
         surface->images[i]->device = device;
         surface->images[i]->width = config->width;
         surface->images[i]->height = config->height;
