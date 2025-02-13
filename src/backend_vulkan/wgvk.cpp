@@ -46,7 +46,6 @@ extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_
 
 extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(VkDevice device){
     WGVKCommandEncoder ret = callocnewpp(WGVKCommandEncoderImpl);
-
     VkCommandPoolCreateInfo pci{};
     pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     pci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
@@ -57,7 +56,7 @@ extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(VkDevice device){
     bai.commandPool = ret->pool;
     bai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     bai.commandBufferCount = 1;
-    vkAllocateCommandBuffers(device, nullptr, &ret->buffer);
+    vkAllocateCommandBuffers(device, &bai, &ret->buffer);
 
     VkCommandBufferBeginInfo bbi{};
     bbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -95,7 +94,9 @@ extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVK
 }
 extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, const WGVKRenderPassDescriptor* rpdesc){
     WGVKRenderPassEncoder ret = callocnewpp(WGVKRenderPassEncoderImpl);
-    
+    //One for WGVKRenderPassEncoder the other for the command buffer
+    ret->refCount = 2;
+    enc->referencedRPs.insert(ret);
     RenderPassLayout rplayout = GetRenderPassLayout(rpdesc);
     VkRenderPassBeginInfo rpbi{};
 
@@ -141,17 +142,22 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
 
     vkCmdBeginRenderPass(enc->buffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
     ret->cmdBuffer = enc->buffer;
-    
+    ret->cmdEncoder = enc;
     //allColorAndDepthAttachments[max_color_attachments + 1];
     //uint32_t i = 0;
-    
+    return ret;
 
 }
 extern "C" void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
-
+    vkCmdEndRenderPass(renderPassEncoder->cmdBuffer);
 }
 extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder commandEncoder){
-
+    WGVKCommandBuffer ret = callocnewpp(WGVKCommandBufferImpl);
+    vkEndCommandBuffer(commandEncoder->buffer);
+    ret->referencedRPs = std::move(commandEncoder->referencedRPs);
+    ret->pool = commandEncoder->pool;
+    ret->buffer = commandEncoder->buffer;
+    return ret;
 }
 
 
@@ -199,14 +205,19 @@ extern "C" void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, VkPhysicalDe
     capabilities->usages = fromVulkanTextureUsage(scap.supportedUsageFlags);
 }
 
-void wgvkSurfaceConfigure(WGVKSurfaceImpl* surface, const SurfaceConfiguration* config){
-    auto& device = g_vulkanstate.device;
+void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* config){
+    auto device = config->device ? VkDevice(config->device) : g_vulkanstate.device;
+
     vkDeviceWaitIdle(device);
-    for (uint32_t i = 0; i < surface->imagecount; i++) {
-        vkDestroyImageView(device, surface->imageViews[i], nullptr);
-        //vkDestroyImage(device, surface->images[i], nullptr);
+    if(surface->imageViews){
+        for (uint32_t i = 0; i < surface->imagecount; i++) {
+            wgvkReleaseTextureView(surface->imageViews[i]);
+            //vkDestroyImage(device, surface->images[i], nullptr);
+        }
     }
-    std::free(surface->framebuffers);
+
+    //std::free(surface->framebuffers);
+    
     std::free(surface->imageViews);
     std::free(surface->images);
     vkDestroySwapchainKHR(device, surface->swapchain, nullptr);
@@ -251,35 +262,61 @@ void wgvkSurfaceConfigure(WGVKSurfaceImpl* surface, const SurfaceConfiguration* 
     }
 
     vkGetSwapchainImagesKHR(g_vulkanstate.device, surface->swapchain, &surface->imagecount, nullptr);
-    surface->images = (VkImage*)std::calloc(surface->imagecount, sizeof(VkImage));
-    surface->imageViews = (VkImageView*)std::calloc(surface->imagecount, sizeof(VkImageView));
 
-    vkGetSwapchainImagesKHR(g_vulkanstate.device, surface->swapchain, &surface->imagecount, surface->images);
+    std::vector<VkImage> tmpImages(surface->imagecount);
 
-    surface->imageViews = (VkImageView*)std::calloc(surface->imagecount, sizeof(VkImageView));
+    //surface->imageViews = (VkImageView*)std::calloc(surface->imagecount, sizeof(VkImageView));
+
+    vkGetSwapchainImagesKHR(g_vulkanstate.device, surface->swapchain, &surface->imagecount, tmpImages.data());
+    surface->images = (WGVKTexture*)std::calloc(surface->imagecount, sizeof(WGVKTexture));
     for (uint32_t i = 0; i < surface->imagecount; i++) {
-        VkImageViewCreateInfo viewInfo{};
-        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        viewInfo.image = surface->images[i];
-        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        viewInfo.format = toVulkanPixelFormat(BGRA8);
-        viewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-        viewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-        viewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-        viewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        viewInfo.subresourceRange.baseMipLevel = 0;
-        viewInfo.subresourceRange.levelCount = 1;
-        viewInfo.subresourceRange.baseArrayLayer = 0;
-        viewInfo.subresourceRange.layerCount = 1;
+        surface->images[i]->device = device;
+        surface->images[i]->width = config->width;
+        surface->images[i]->height = config->height;
+        surface->images[i]->depthOrArrayLayers = 1;
+        surface->images[i]->refCount = 1;        
+        surface->images[i]->image = tmpImages[i];        
+    }
+    surface->imageViews = (WGVKTextureView*)std::calloc(surface->imagecount, sizeof(VkImageView));
 
-        if (vkCreateImageView(device, &viewInfo, nullptr, &surface->imageViews[i]) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create image views!");
-        }
+    for (uint32_t i = 0; i < surface->imagecount; i++) {
+        WGVKTextureViewDescriptor viewDesc zeroinit;
+        viewDesc.arrayLayerCount = 1;
+        viewDesc.baseArrayLayer = 0;
+        viewDesc.baseMipLevel = 0;
+        viewDesc.mipLevelCount = 1;
+        viewDesc.aspect = TextureAspect_All;
+        viewDesc.dimension = TextureDimension_2D;
+        viewDesc.format = config->format;
+        viewDesc.usage = TextureUsage_RenderAttachment;
+        //VkImageViewCreateInfo viewInfo{};
+        //viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        //viewInfo.image = surface->images[i]->image;
+        //viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        //viewInfo.format = toVulkanPixelFormat(BGRA8);
+        //viewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        //viewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        //viewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        //viewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        //viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        //viewInfo.subresourceRange.baseMipLevel = 0;
+        //viewInfo.subresourceRange.levelCount = 1;
+        //viewInfo.subresourceRange.baseArrayLayer = 0;
+        //viewInfo.subresourceRange.layerCount = 1;
+        //if (vkCreateImageView(device, &viewInfo, nullptr, &surface->imageViews[i]) != VK_SUCCESS) {
+        //    throw std::runtime_error("failed to create image views!");
+        //}
+        surface->imageViews[i] = wgvkTextureCreateView(surface->images[i], &viewDesc);
     }
 
 }
-void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) { vkFreeCommandBuffers(g_vulkanstate.device, commandBuffer->pool, 1, &commandBuffer->buffer); }
+void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
+    for(auto rp : commandBuffer->referencedRPs){
+        wgvkReleaseRenderPassEncoder(rp);
+    }
+    vkFreeCommandBuffers(g_vulkanstate.device, commandBuffer->pool, 1, &commandBuffer->buffer);
+    std::free(commandBuffer);
+}
 void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc) {
     --rpenc->refCount;
     if (rpenc->refCount == 0) {
@@ -306,6 +343,15 @@ void wgvkReleaseDescriptorSet(WGVKBindGroup dshandle) {
         vkFreeDescriptorSets(g_vulkanstate.device, dshandle->pool, 1, &dshandle->set);
         vkDestroyDescriptorPool(g_vulkanstate.device, dshandle->pool, nullptr);
     }
+}
+
+extern "C" void wgvkReleaseTexture(WGVKTexture texture){
+    --texture->refCount;
+    //TODO
+}
+extern "C" void wgvkReleaseTextureView(WGVKTextureView view){
+    --view->refCount;
+    //TODO
 }
 
 // Implementation of RenderpassEncoderDraw

@@ -107,6 +107,7 @@ typedef struct WGVKRenderPassEncoderImpl{
     VkPipelineLayout lastLayout;
     VkFramebuffer frameBuffer;
     refcount_type refCount;
+    WGVKCommandEncoder cmdEncoder;
 }RenderPassEncoderHandleImpl;
 
 typedef struct WGVKCommandBufferImpl{
@@ -125,12 +126,15 @@ typedef struct WGVKTextureImpl{
     VkImage image;
     VkDeviceMemory memory;
     VkDevice device;
+    uint32_t refCount;
     uint32_t width, height, depthOrArrayLayers;
 }ImageHandleImpl;
 
 typedef struct WGVKTextureViewImpl{
     VkImageView view;
     VkFormat format;
+    uint32_t refCount;
+    WGVKTexture texture;
     uint32_t width, height, depthOrArrayLayers;
 }WGVKTextureViewImpl;
 
@@ -334,9 +338,9 @@ struct WGVKSurfaceImpl{
     uint32_t width, height;
     VkFormat swapchainImageFormat;
     VkColorSpaceKHR swapchainColorSpace;
-    VkImage* images;
-    VkImageView* imageViews;
-    VkFramebuffer* framebuffers;
+    WGVKTexture* images;
+    WGVKTextureView* imageViews;
+    //VkFramebuffer* framebuffers;
 
     uint32_t formatCount;
     PixelFormat* formatCache;
@@ -496,7 +500,7 @@ inline VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities,
         return actualExtent;
     }
 }
-inline FullSurface LoadSurface(GLFWwindow* window, SurfaceConfiguration config){
+/*inline FullSurface LoadSurface(GLFWwindow* window, SurfaceConfiguration config){
     FullSurface retf{};
     WGVKSurface retp = callocnew(WGVKSurfaceImpl);
     auto& ret = *retp;
@@ -612,7 +616,7 @@ inline FullSurface LoadSurface(GLFWwindow* window, SurfaceConfiguration config){
     retf.renderTarget.depth = LoadTexturePro(extent.width, extent.height, Depth32, TextureUsage_RenderAttachment, 1, 1);
     
     return retf;
-}
+}*/
 
 extern "C" void wgvkSurfaceConfigure(WGVKSurfaceImpl* surface, const SurfaceConfiguration* config);
 
@@ -754,10 +758,13 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
 extern "C" void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder);
 extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder commandEncoder);
 
+extern "C" void wgvkReleaseCommandEncoder(WGVKCommandBuffer commandBuffer);
 extern "C" void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer);
 extern "C" void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc);
 extern "C" void wgvkReleaseBuffer(WGVKBuffer commandBuffer);
 extern "C" void wgvkReleaseDescriptorSet(WGVKBindGroup commandBuffer);
+extern "C" void wgvkReleaseTexture(WGVKTexture texture);
+extern "C" void wgvkReleaseTextureView(WGVKTextureView view);
 
 extern "C" void wgvkRenderpassEncoderDraw(WGVKRenderPassEncoder rpe, uint32_t vertices, uint32_t instances, uint32_t firstvertex, uint32_t firstinstance);
 extern "C" void wgvkRenderpassEncoderDrawIndexed(WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t firstinstance);
