@@ -263,8 +263,24 @@ inline bool is__depth(PixelFormat fmt){
 inline bool is__depth(VkFormat fmt){
     return fmt ==  VK_FORMAT_D32_SFLOAT || fmt == VK_FORMAT_D32_SFLOAT_S8_UINT || fmt == VK_FORMAT_D24_UNORM_S8_UINT;
 }
+static inline VkSampleCountFlagBits toVulkanSampleCount(uint32_t samples){
+    if(samples & (samples - 1)){
+        return VK_SAMPLE_COUNT_1_BIT;
+    }
+    else{
+        switch(samples){
+            case 2: return VK_SAMPLE_COUNT_2_BIT;
+            case 4: return VK_SAMPLE_COUNT_4_BIT;
+            case 8: return VK_SAMPLE_COUNT_8_BIT;
+            case 16: return VK_SAMPLE_COUNT_16_BIT;
+            case 32: return VK_SAMPLE_COUNT_32_BIT;
+            case 64: return VK_SAMPLE_COUNT_64_BIT;
+        }
+    }
+    return VK_SAMPLE_COUNT_1_BIT;
+}
 static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassLayout layout) {
-    VkAttachmentDescription vkAttachments[max_color_attachments] = {}; // array for Vulkan attachments
+    VkAttachmentDescription vkAttachments[max_color_attachments + 1] = {}; // array for Vulkan attachments
 
     [[maybe_unused]] uint32_t colorAttachmentCount = 0;
     uint32_t depthAttachmentIndex = VK_ATTACHMENT_UNUSED; // index for depth attachment if any
@@ -272,19 +288,28 @@ static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassL
     // Convert custom attachments to Vulkan attachments
     for (uint32_t i = 0; i < layout.colorAttachmentCount; i++) {
         const AttachmentDescriptor &att = layout.colorAttachments[i];
+        vkAttachments[i].samples    = toVulkanSampleCount(att.sampleCount);
         vkAttachments[i].format     = att.format;
         vkAttachments[i].loadOp     = toVulkanLoadOperation(att.loadop);
         vkAttachments[i].storeOp    = toVulkanStoreOperation(att.storeop);
         vkAttachments[i].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         vkAttachments[i].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         vkAttachments[i].initialLayout  = (att.loadop == LoadOp_Load ? (is__depth(att.format) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) : (VK_IMAGE_LAYOUT_UNDEFINED));
-        if (is__depth(att.format)) {
+        if (is__depth(att.format)) { // Never the case
             vkAttachments[i].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             depthAttachmentIndex = i;
         } else {
             vkAttachments[i].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
             ++colorAttachmentCount;
         }
+    }
+    if(layout.depthAttachmentPresent){
+        VkAttachmentDescription vkdesc zeroinit;
+        vkAttachments[i].initialLayout  = (att.loadop == LoadOp_Load ? (is__depth(att.format) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) : (VK_IMAGE_LAYOUT_UNDEFINED));
+        
+        vkdesc.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            
+        vkAttachments[layout.colorAttachmentCount] = vkdesc;
     }
 
     // Set up color attachment references for the subpass.
@@ -316,7 +341,7 @@ static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassL
     // Create render pass create info.
     VkRenderPassCreateInfo rpci = {};
     rpci.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    rpci.attachmentCount = layout.colorAttachmentCount;
+    rpci.attachmentCount = layout.colorAttachmentCount + layout.depthAttachmentPresent ? 1u : 0u;
     rpci.pAttachments    = vkAttachments;
     rpci.subpassCount    = 1;
     rpci.pSubpasses      = &subpass;

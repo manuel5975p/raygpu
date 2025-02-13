@@ -817,35 +817,56 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     rpbi.renderPass = g_vulkanstate.renderPass;
 
     auto rtex = g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition];
-    VkFramebufferCreateInfo fbci{};
-    fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    VkImageView fbAttachments[2] = {
-        ((WGVKTextureView)rtex.texture.view)->view,
-        ((WGVKTextureView)rtex.depth.view)->view,
-    };
-    fbci.pAttachments = fbAttachments;
-    fbci.attachmentCount = 2;
-    fbci.width = rtex.texture.width;
-    fbci.height = rtex.texture.height;
-    fbci.layers = 1;
-    fbci.renderPass = (VkRenderPass)renderPass->VkRenderPass;
-    VkFramebuffer rahmePuffer = 0;
-    vkCreateFramebuffer(g_vulkanstate.device, &fbci, nullptr, &rahmePuffer);
-    rpbi.framebuffer = rahmePuffer;
-    renderPass->rpEncoder = BeginRenderPass_Vk((VkCommandBuffer)renderPass->cmdEncoder, renderPass, rahmePuffer, rtex.texture.width, rtex.texture.height);
+    //VkFramebufferCreateInfo fbci{};
+    //fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    //VkImageView fbAttachments[2] = {
+    //    ((WGVKTextureView)rtex.texture.view)->view,
+    //    ((WGVKTextureView)rtex.depth.view)->view,
+    //};
+
+    WGVKRenderPassDescriptor rpdesc zeroinit;
+    WGVKRenderPassDepthStencilAttachment dsa zeroinit;
+    dsa.depthClearValue = renderPass->depthClear;
+    dsa.stencilClearValue = 0;
+    dsa.stencilLoadOp = LoadOp_Undefined;
+    dsa.stencilStoreOp = StoreOp_Discard;
+    dsa.depthLoadOp = renderPass->depthLoadOp;
+    dsa.depthStoreOp = renderPass->depthStoreOp;
+    dsa.view = (WGVKTextureView)rtex.depth.view;
+    WGVKRenderPassColorAttachment rca zeroinit;
+    rca.depthSlice = 0;
+    rca.clearValue = renderPass->colorClear;
+    rca.loadOp = renderPass->colorLoadOp;
+    rca.storeOp = renderPass->colorStoreOp;
+    rca.view = (WGVKTextureView)rtex.texture.view;
+
+    rpdesc.depthStencilAttachment = &dsa;
+    rpdesc.colorAttachments = &rca;
+    rpdesc.colorAttachmentCount = 1;
+    //fbci.pAttachments = fbAttachments;
+    //fbci.attachmentCount = 2;
+    //fbci.width = rtex.texture.width;
+    //fbci.height = rtex.texture.height;
+    //fbci.layers = 1;
+    //fbci.renderPass = (VkRenderPass)renderPass->VkRenderPass;
+    //VkFramebuffer rahmePuffer = 0;
+    //vkCreateFramebuffer(g_vulkanstate.device, &fbci, nullptr, &rahmePuffer);
+    //rpbi.framebuffer = rahmePuffer;
+    //renderPass->rpEncoder = BeginRenderPass_Vk((VkCommandBuffer)renderPass->cmdEncoder, renderPass, rahmePuffer, rtex.texture.width, rtex.texture.height);
+    renderPass->rpEncoder = wgvkCommandEncoderBeginRenderPass((WGVKCommandEncoder)renderPass->cmdEncoder, &rpdesc);
     VkViewport viewport zeroinit;
     viewport.minDepth = 0;
     viewport.maxDepth = 1;
     viewport.x = 0;
-    viewport.y = fbci.height;
-    viewport.width  = fbci.width;
-    viewport.height = -((float)fbci.height);
+    viewport.y = rtex.texture.height;
+    viewport.width  = rtex.texture.width;
+    viewport.height = -((float)rtex.texture.height);
 
     VkRect2D scissor zeroinit;
     scissor.offset.x = 0;
     scissor.offset.y = 0;
-    scissor.extent.width = fbci.width;
-    scissor.extent.height = fbci.height;
+    scissor.extent.width =  rtex.texture.width;
+    scissor.extent.height = rtex.texture.height;
     vkCmdSetViewport((VkCommandBuffer)renderPass->cmdEncoder, 0, 1, &viewport);
     vkCmdSetScissor((VkCommandBuffer)renderPass->cmdEncoder, 0, 1, &scissor);
     //wgvkRenderPassEncoderBindPipeline((WGVKRenderPassEncoder)renderPass->rpEncoder, g_renderstate.defaultPipeline);
