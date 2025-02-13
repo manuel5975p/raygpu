@@ -45,7 +45,7 @@ extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_
 
 
 extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(VkDevice device){
-    WGVKCommandEncoder ret = callocnew(WGVKCommandEncoderImpl);
+    WGVKCommandEncoder ret = callocnewpp(WGVKCommandEncoderImpl);
 
     VkCommandPoolCreateInfo pci{};
     pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -65,11 +65,87 @@ extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(VkDevice device){
     vkBeginCommandBuffer(ret->buffer, &bbi);
     return ret;
 }
+extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureViewDescriptor *descriptor){
+    WGPUTexture tex;
+    VkImageViewCreateInfo ivci{};
+    ivci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    ivci.image = texture->image;
+
+    VkComponentMapping cm{
+        .r = VK_COMPONENT_SWIZZLE_IDENTITY, 
+        .g = VK_COMPONENT_SWIZZLE_IDENTITY, 
+        .b = VK_COMPONENT_SWIZZLE_IDENTITY, 
+        .a = VK_COMPONENT_SWIZZLE_IDENTITY
+    };
+    ivci.components = cm;
+    ivci.viewType = toVulkanTextureViewDimension(descriptor->dimension);
+    ivci.format = toVulkanPixelFormat(descriptor->format);
+    VkImageSubresourceRange sr{
+        .aspectMask = toVulkanAspectMask(descriptor->aspect),
+        .baseMipLevel = descriptor->baseMipLevel,
+        .levelCount = descriptor->mipLevelCount,
+        .baseArrayLayer = descriptor->baseArrayLayer,
+        .layerCount = descriptor->arrayLayerCount
+    };
+    ivci.subresourceRange = sr;
+    WGVKTextureView ret = callocnew(WGVKTextureViewImpl);
+    vkCreateImageView(texture->device, &ivci, nullptr, &ret->view);
+    ret->format = ivci.format;
+    return ret;
+}
 extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, const WGVKRenderPassDescriptor* rpdesc){
-    RenderPassLayout rplayout{};
-    rplayout.attachmentCount = rpdesc->colorAttachmentCount;
-    VkRenderPassBeginInfo rpbi{};
+    WGVKRenderPassEncoder ret = callocnewpp(WGVKRenderPassEncoderImpl);
     
+    RenderPassLayout rplayout = GetRenderPassLayout(rpdesc);
+    VkRenderPassBeginInfo rpbi{};
+
+    //TODO DAAAAAAAAAAAAMN device
+
+    ret->renderPass = LoadRenderPassFromLayout(g_vulkanstate.device, rplayout);
+
+    VkImageView attachmentViews[max_color_attachments + 1];
+    
+    for(uint32_t i = 0;i < rplayout.colorAttachmentCount;i++){
+        attachmentViews[i] = rpdesc->colorAttachments[i].view->view;
+    }
+    attachmentViews[rplayout.colorAttachmentCount] = rpdesc->depthStencilAttachment->view->view;
+
+    VkFramebufferCreateInfo fbci zeroinit;
+    fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    fbci.attachmentCount = rplayout.colorAttachmentCount + rplayout.depthAttachmentPresent;
+    fbci.width = rpdesc->colorAttachments[0].view->width;
+    fbci.height = rpdesc->colorAttachments[0].view->height;
+    fbci.layers = 1;
+    fbci.pAttachments = attachmentViews;
+    vkCreateFramebuffer(g_vulkanstate.device, &fbci, nullptr, &ret->frameBuffer);
+
+    rpbi.renderPass = ret->renderPass;
+    rpbi.renderArea = VkRect2D{
+        .offset = VkOffset2D{0, 0},
+        .extent = VkExtent2D{rpdesc->colorAttachments[0].view->width, rpdesc->colorAttachments[0].view->height}
+    };
+
+    
+
+    rpbi.framebuffer = ret->frameBuffer;
+    VkClearValue clearValues[max_color_attachments + 1];
+    for(uint32_t i = 0;i < rplayout.colorAttachmentCount;i++){
+        clearValues[i].color.float32[0] = rpdesc->colorAttachments[i].clearValue.r;
+        clearValues[i].color.float32[1] = rpdesc->colorAttachments[i].clearValue.g;
+        clearValues[i].color.float32[2] = rpdesc->colorAttachments[i].clearValue.b;
+        clearValues[i].color.float32[3] = rpdesc->colorAttachments[i].clearValue.a;
+    }
+    clearValues[rplayout.colorAttachmentCount].depthStencil.depth = rpdesc->depthStencilAttachment->depthClearValue;
+    rpbi.clearValueCount = rplayout.colorAttachmentCount + 1;
+    rpbi.pClearValues = clearValues;
+
+    vkCmdBeginRenderPass(enc->buffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
+    ret->cmdBuffer = enc->buffer;
+    
+    //allColorAndDepthAttachments[max_color_attachments + 1];
+    //uint32_t i = 0;
+    
+
 }
 extern "C" void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
 
@@ -108,7 +184,7 @@ extern "C" void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, VkPhysicalDe
     uint32_t presentModeCount;
     vkGetPhysicalDeviceSurfacePresentModesKHR(adapter, surface, &presentModeCount, nullptr);
     if (presentModeCount != 0) {
-        wgvkSurface->presentModeCache = (SurfacePresentMode*)std::calloc(presentModeCount, sizeof(SurfacePresentMode));
+        wgvkSurface->presentModeCache = (PresentMode*)std::calloc(presentModeCount, sizeof(PresentMode));
         std::vector<VkPresentModeKHR> presentModes(formatCount);
         vkGetPhysicalDeviceSurfacePresentModesKHR(adapter, surface, &presentModeCount, presentModes.data());
         for(size_t i = 0;i < presentModeCount;i++){

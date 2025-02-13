@@ -18,7 +18,7 @@ constexpr uint32_t max_format_count = 16;
 typedef struct SurfaceAndSwapchainSupport{
     PixelFormat supportedFormats[max_format_count];
     uint32_t supportedFormatCount;
-    SurfacePresentMode supportedPresentModes[4];
+    PresentMode supportedPresentModes[4];
     uint32_t supportedPresentModeCount;
 
     uint32_t presentQueueIndex; // Vulkan only

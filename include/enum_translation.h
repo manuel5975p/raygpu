@@ -87,6 +87,16 @@ typedef enum CompareFunction {
     CompareFunction_Always = 0x00000008
 } CompareFunction;
 
+typedef enum TextureDimension{
+    TextureDimension_Undefined = 0x00000000,
+    TextureDimension_1D = 0x00000001,
+    TextureDimension_2D = 0x00000002,
+    //TextureViewDimension_2DArray = 0x00000003,
+    //TextureViewDimension_Cube = 0x00000004,
+    //TextureViewDimension_CubeArray = 0x00000005,
+    TextureDimension_3D = 0x00000003
+}TextureDimension;
+
 typedef enum BlendFactor {
     BlendFactor_Undefined = 0x00000000,
     BlendFactor_Zero = 0x00000001,
@@ -117,12 +127,23 @@ typedef enum BlendOperation {
     BlendOperation_Max = 0x00000005,
     //BlendOperation_Force32 = 0x7FFFFFFF
 } BlendOperation;
-typedef enum SurfacePresentMode{ 
+typedef enum PresentMode{ 
     PresentMode_Fifo = 0x00000001,
     PresentMode_FifoRelaxed = 0x00000002,
     PresentMode_Immediate = 0x00000003,
     PresentMode_Mailbox = 0x00000004,
-}SurfacePresentMode;
+}PresentMode;
+
+typedef enum TextureAspect {
+    TextureAspect_Undefined = 0x00000000,
+    TextureAspect_All = 0x00000001,
+    TextureAspect_StencilOnly = 0x00000002,
+    TextureAspect_DepthOnly = 0x00000003,
+    TextureAspect_Plane0Only = 0x00050000,
+    TextureAspect_Plane1Only = 0x00050001,
+    TextureAspect_Plane2Only = 0x00050002,
+    TextureAspect_Force32 = 0x7FFFFFFF
+} TextureAspect;
 
 typedef enum TFilterMode { TFilterMode_Undefined = 0x00000000, TFilterMode_Nearest = 0x00000001, TFilterMode_Linear = 0x00000002, TFilterMode_Force32 = 0x7FFFFFFF } TFilterMode;
 
@@ -293,6 +314,21 @@ static inline VkImageUsageFlags toVulkanTextureUsage(TextureUsage usage, PixelFo
 
     return vkUsage;
 }
+static inline VkImageAspectFlags toVulkanAspectMask(TextureAspect aspect){
+    VkImageAspectFlagBits ret;
+    switch(aspect){
+        case TextureAspect_All:
+        return VK_IMAGE_ASPECT_COLOR_BIT | VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+        case TextureAspect_DepthOnly:
+        return VK_IMAGE_ASPECT_DEPTH_BIT;
+        case TextureAspect_StencilOnly:
+        return VK_IMAGE_ASPECT_STENCIL_BIT;
+
+        default: {
+            assert(false && "This aspect is not implemented");
+        }
+    }
+}
 // Inverse conversion: Vulkan usage flags -> TextureUsage flags
 static inline TextureUsage fromVulkanTextureUsage(VkImageUsageFlags vkUsage) {
     TextureUsage usage = 0;
@@ -406,7 +442,42 @@ static inline VkBufferUsageFlags toVulkanBufferUsage(BufferUsage busg) {
 
     return usage;
 }
-
+static inline VkImageViewType toVulkanTextureViewDimension(TextureDimension dim){
+    VkImageViewCreateInfo info;
+    switch(dim){
+        default:
+        case 0:{
+            __builtin_unreachable();
+        }
+        case TextureDimension_1D:{
+            return VK_IMAGE_VIEW_TYPE_1D;
+        }
+        case TextureDimension_2D:{
+            return VK_IMAGE_VIEW_TYPE_2D;
+        }
+        case TextureDimension_3D:{
+            return VK_IMAGE_VIEW_TYPE_3D;
+        }
+    }
+}
+static inline VkImageType toVulkanTextureDimension(TextureDimension dim){
+    VkImageViewCreateInfo info;
+    switch(dim){
+        default:
+        case 0:{
+            __builtin_unreachable();
+        }
+        case TextureDimension_1D:{
+            return VK_IMAGE_TYPE_1D;
+        }
+        case TextureDimension_2D:{
+            return VK_IMAGE_TYPE_2D;
+        }
+        case TextureDimension_3D:{
+            return VK_IMAGE_TYPE_3D;
+        }
+    }
+}
 static inline VkFilter toVulkanFilterMode(filterMode fm) {
     switch (fm) {
     case filter_nearest:
@@ -434,7 +505,7 @@ static inline PixelFormat fromVulkanPixelFormat(VkFormat format) {
         default: __builtin_unreachable();
     }
 }
-static inline VkPresentModeKHR toVulkanPresentMode(SurfacePresentMode mode){
+static inline VkPresentModeKHR toVulkanPresentMode(PresentMode mode){
     switch(mode){
         case PresentMode_Fifo:
             return VK_PRESENT_MODE_FIFO_KHR;
@@ -447,7 +518,7 @@ static inline VkPresentModeKHR toVulkanPresentMode(SurfacePresentMode mode){
     }
     return (VkPresentModeKHR)~0;
 }
-static inline SurfacePresentMode fromVulkanPresentMode(VkPresentModeKHR mode){
+static inline PresentMode fromVulkanPresentMode(VkPresentModeKHR mode){
     switch(mode){
         case VK_PRESENT_MODE_FIFO_KHR:
             return PresentMode_Fifo;
@@ -458,7 +529,7 @@ static inline SurfacePresentMode fromVulkanPresentMode(VkPresentModeKHR mode){
         case VK_PRESENT_MODE_MAILBOX_KHR:
             return PresentMode_Mailbox;
         default:
-            return (SurfacePresentMode)~0;
+            return (PresentMode)~0;
     }
 }
 static inline VkFormat toVulkanPixelFormat(PixelFormat format) {
