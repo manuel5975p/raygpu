@@ -55,7 +55,7 @@ VkBuffer CreateBuffer(VkDevice device, VkDeviceSize size, VkBufferUsageFlags usa
 }
 
 // Function to create a Vulkan image
-WGVKTexture CreateImage(VkDevice device, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, VkDeviceMemory& imageMemory) {
+WGVKTexture CreateImage(VkDevice device, uint32_t width, uint32_t height, uint32_t sampleCount, VkFormat format, VkImageUsageFlags usage, VkDeviceMemory& imageMemory) {
     WGVKTexture ret = callocnew(ImageHandleImpl);
 
     VkImageCreateInfo imageInfo{};
@@ -69,7 +69,7 @@ WGVKTexture CreateImage(VkDevice device, uint32_t width, uint32_t height, VkForm
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     imageInfo.usage = usage;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.samples = toVulkanSampleCount(sampleCount);
     
     VkImage image;
     if (vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS)
@@ -97,6 +97,7 @@ WGVKTexture CreateImage(VkDevice device, uint32_t width, uint32_t height, VkForm
     ret->device = device;
     ret->width = width;
     ret->height = height;
+    ret->sampleCount = sampleCount;
     ret->depthOrArrayLayers = 1;
     return ret;
 }
@@ -123,6 +124,7 @@ WGVKTextureView CreateImageView(VkDevice device, VkImage image, VkFormat format,
     if (vkCreateImageView(device, &viewInfo, nullptr, &ret->view) != VK_SUCCESS)
         throw std::runtime_error("Failed to create image view!");
     ret->format = viewInfo.format;
+
     return ret;
 }
 
@@ -262,12 +264,12 @@ void CopyBufferToImage(VkDevice device, VkCommandPool commandPool, VkQueue queue
 
 // Main function to create Vulkan image from RGBA8 data or as empty
 WGVKTexture CreateVkImage(VkDevice device, VkPhysicalDevice physicalDevice, VkCommandPool commandPool, VkQueue queue, 
-                                                const uint8_t* data, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, bool hasData) {
+                                                const uint8_t* data, uint32_t width, uint32_t height, uint32_t sampleCount, VkFormat format, VkImageUsageFlags usage, bool hasData) {
     VkDeviceMemory imageMemory;
     // Adjust usage flags based on format (e.g., depth formats might need different usages)
     
     
-    WGVKTexture image = CreateImage(device, width, height, format, usage, imageMemory);
+    WGVKTexture image = CreateImage(device, width, height, sampleCount, format, usage, imageMemory);
     
     if (hasData && data != nullptr) {
         // Create staging buffer
@@ -325,7 +327,8 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
         g_vulkanstate.queue.computeQueue, 
         (uint8_t*)data, 
         width, 
-        height, 
+        height,
+        sampleCount,
         vkFormat,
         vkUsage,
         hasData
@@ -345,6 +348,7 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     WGVKTextureView view = CreateImageView(g_vulkanstate.device, image->image, vkFormat, aspectFlags);
     view->width = width;
     view->height = height;
+    view->sampleCount = sampleCount;
     view->depthOrArrayLayers = 1;
     ret.view = view;
     // Handle mipmaps if necessary (not implemented here)
