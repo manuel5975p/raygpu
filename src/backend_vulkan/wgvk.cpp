@@ -64,42 +64,7 @@ extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(VkDevice device){
     vkBeginCommandBuffer(ret->buffer, &bbi);
     return ret;
 }
-extern "C" WGVKTexture wgvkDeviceCreateTexture(VkDevice device, const WGVKTextureDescriptor* descriptor){
-    VkDeviceMemory imageMemory;
-    // Adjust usage flags based on format (e.g., depth formats might need different usages)
-    
-    
-    WGVKTexture image = CreateImage(device, width, height, sampleCount, format, usage, imageMemory);
-    
-    if (hasData && data != nullptr) {
-        // Create staging buffer
-        VkDeviceSize imageSize = width * height * 4; // Adjust based on format if necessary
-        VkDeviceMemory stagingMemory;
-        VkBuffer stagingBuffer = CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
-                                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingMemory);
-        
-        // Map and copy data to staging buffer
-        void* mappedData;
-        vkMapMemory(device, stagingMemory, 0, imageSize, 0, &mappedData);
-        std::memcpy(mappedData, data, static_cast<size_t>(imageSize));
-        vkUnmapMemory(device, stagingMemory);
-        
-        // Transition image layout to TRANSFER_DST_OPTIMAL
-        TransitionImageLayout(device, commandPool, queue, image->image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-        
-        // Copy buffer to image
-        CopyBufferToImage(device, commandPool, queue, stagingBuffer, image->image, width, height);
-        
-        // Transition image layout to SHADER_READ_ONLY_OPTIMAL
-        TransitionImageLayout(device, commandPool, queue, image->image, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        
-        // Cleanup staging resources
-        vkDestroyBuffer(device, stagingBuffer, nullptr);
-        vkFreeMemory(device, stagingMemory, nullptr);
-    }
-    
-    return image;
-}
+
 extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureViewDescriptor *descriptor){
     WGPUTexture tex;
     VkImageViewCreateInfo ivci{};
