@@ -167,6 +167,8 @@ extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder command
     ret->referencedRPs = std::move(commandEncoder->referencedRPs);
     ret->pool = commandEncoder->pool;
     ret->buffer = commandEncoder->buffer;
+    commandEncoder->buffer = nullptr;
+    commandEncoder->pool = nullptr;
     return ret;
 }
 
@@ -321,6 +323,15 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
     }
 
 }
+void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
+    for(auto rp : commandEncoder->referencedRPs){
+        wgvkReleaseRenderPassEncoder(rp);
+    }
+    if(commandEncoder->buffer)
+        vkFreeCommandBuffers(g_vulkanstate.device, commandEncoder->pool, 1, &commandEncoder->buffer);
+    std::free(commandEncoder);
+}
+
 void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
     for(auto rp : commandBuffer->referencedRPs){
         wgvkReleaseRenderPassEncoder(rp);
@@ -328,6 +339,7 @@ void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
     vkFreeCommandBuffers(g_vulkanstate.device, commandBuffer->pool, 1, &commandBuffer->buffer);
     std::free(commandBuffer);
 }
+
 void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc) {
     --rpenc->refCount;
     if (rpenc->refCount == 0) {
