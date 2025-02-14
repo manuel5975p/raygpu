@@ -155,6 +155,7 @@ typedef struct RenderPassLayout{
     AttachmentDescriptor colorAttachments[max_color_attachments];
     uint32_t depthAttachmentPresent;
     AttachmentDescriptor depthAttachment;
+    uint32_t colorResolveIndex;
 }RenderPassLayout;
 
 struct xorshiftstate{
@@ -249,12 +250,13 @@ typedef struct WGVKTextureViewDescriptor{
 
 static inline RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescriptor* rpdesc){
     RenderPassLayout ret{};
+    ret.colorResolveIndex = VK_ATTACHMENT_UNUSED;
     
     if(rpdesc->depthStencilAttachment->view){
         ret.depthAttachmentPresent = 1U;
         ret.depthAttachment = AttachmentDescriptor{
             .format = rpdesc->depthStencilAttachment->view->format, 
-            .sampleCount = 1,
+            .sampleCount = rpdesc->depthStencilAttachment->view->sampleCount,
             .loadop = rpdesc->depthStencilAttachment->depthLoadOp,
             .storeop = rpdesc->depthStencilAttachment->depthStoreOp
         };
@@ -266,15 +268,16 @@ static inline RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescripto
     for(uint32_t i = 0;i < rpdesc->colorAttachmentCount;i++){
         ret.colorAttachments[i] = AttachmentDescriptor{
             .format = rpdesc->colorAttachments[i].view->format, 
-            .sampleCount = rpdesc->colorAttachments[i].view->samples,
+            .sampleCount = rpdesc->colorAttachments[i].view->sampleCount,
             .loadop = rpdesc->colorAttachments[i].loadOp,
             .storeop = rpdesc->colorAttachments[i].storeOp
         };
         if(rpdesc->colorAttachments[i].resolveTarget != 0){
             i++;
+            ret.colorResolveIndex = i;
             ret.colorAttachments[i] = AttachmentDescriptor{
                 .format = rpdesc->colorAttachments[i].view->format, 
-                .sampleCount = 1,
+                .sampleCount = rpdesc->colorAttachments[i].view->sampleCount,
                 .loadop = rpdesc->colorAttachments[i].loadOp,
                 .storeop = rpdesc->colorAttachments[i].storeOp
             };
@@ -291,6 +294,7 @@ inline bool is__depth(PixelFormat fmt){
 inline bool is__depth(VkFormat fmt){
     return fmt ==  VK_FORMAT_D32_SFLOAT || fmt == VK_FORMAT_D32_SFLOAT_S8_UINT || fmt == VK_FORMAT_D24_UNORM_S8_UINT;
 }
+
 static inline VkSampleCountFlagBits toVulkanSampleCount(uint32_t samples){
     if(samples & (samples - 1)){
         return VK_SAMPLE_COUNT_1_BIT;
@@ -363,7 +367,9 @@ static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassL
     subpass.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount    = colorIndex;
     subpass.pColorAttachments       = colorIndex ? colorRefs : nullptr;
-    subpass.pResolveAttachments = 
+
+
+    subpass.pResolveAttachments =    colorRefs + layout.colorResolveIndex;
     // Assign depth attachment if present.
     VkAttachmentReference depthRef = {};
     if (depthAttachmentIndex != VK_ATTACHMENT_UNUSED) {
@@ -815,7 +821,7 @@ extern "C" DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsa
 extern "C" void UnloadBuffer(DescribedBuffer* buf);
 
 //wgvk I guess
-extern "C" WGVKTexture wgpuDeviceCreateTexture(VkDevice device, const WGVKTextureDescriptor* descriptor);
+extern "C" WGVKTexture wgvkDeviceCreateTexture(VkDevice device, const WGVKTextureDescriptor* descriptor);
 extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureViewDescriptor *descriptor);
 extern "C" WGVKBuffer wgvkDeviceCreateBuffer(VkDevice device, const BufferDescriptor* desc);
 extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, void const * data, size_t size);
