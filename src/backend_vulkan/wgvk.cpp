@@ -106,7 +106,7 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
     enc->referencedRPs.insert(ret);
     RenderPassLayout rplayout = GetRenderPassLayout(rpdesc);
     VkRenderPassBeginInfo rpbi{};
-
+    rpbi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     //TODO DAAAAAAAAAAAAMN device
 
     ret->renderPass = LoadRenderPassFromLayout(g_vulkanstate.device, rplayout);
@@ -126,8 +126,10 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
     fbci.layers = 1;
     fbci.pAttachments = attachmentViews;
     fbci.renderPass = ret->renderPass;
-    vkCreateFramebuffer(g_vulkanstate.device, &fbci, nullptr, &ret->frameBuffer);
-
+    VkResult fbresult = vkCreateFramebuffer(g_vulkanstate.device, &fbci, nullptr, &ret->frameBuffer);
+    if(fbresult != VK_SUCCESS){
+        TRACELOG(LOG_FATAL, "Error creating framebuffer: %d", (int)fbresult);
+    }
     rpbi.renderPass = ret->renderPass;
     rpbi.renderArea = VkRect2D{
         .offset = VkOffset2D{0, 0},
