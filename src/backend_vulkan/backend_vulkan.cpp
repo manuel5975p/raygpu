@@ -935,6 +935,9 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
     if(vkWaitForFences(g_vulkanstate.device, 1, &g_vulkanstate.syncState.renderFinishedFence, VK_TRUE, ~0) != VK_SUCCESS){
         throw std::runtime_error("Could not wait for fence");
     }
+    wgvkReleaseRenderPassEncoder((WGVKRenderPassEncoder)rp->rpEncoder);
+    wgvkReleaseCommandEncoder((WGVKCommandEncoder)rp->cmdEncoder);
+    wgvkReleaseCommandBuffer(cbuffer);
     vkResetFences(g_vulkanstate.device, 1, &g_vulkanstate.syncState.renderFinishedFence);
     //vkDestroyFence(g_vulkanstate.device, fence, nullptr);
 

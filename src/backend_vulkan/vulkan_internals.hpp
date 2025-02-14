@@ -790,7 +790,7 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
 extern "C" void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder);
 extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder commandEncoder);
 
-extern "C" void wgvkReleaseCommandEncoder(WGVKCommandBuffer commandBuffer);
+extern "C" void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandBuffer);
 extern "C" void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer);
 extern "C" void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc);
 extern "C" void wgvkReleaseBuffer(WGVKBuffer commandBuffer);
