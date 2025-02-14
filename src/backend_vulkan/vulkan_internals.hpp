@@ -307,10 +307,16 @@ static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassL
         VkAttachmentDescription vkdesc zeroinit;
         const AttachmentDescriptor &att = layout.depthAttachment;
         vkdesc.initialLayout  = (att.loadop == LoadOp_Load ? (is__depth(att.format) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) : (VK_IMAGE_LAYOUT_UNDEFINED));
-        
+        vkdesc.samples    = toVulkanSampleCount(att.sampleCount);
+        vkdesc.format     = att.format;
+        vkdesc.loadOp     = toVulkanLoadOperation(att.loadop);
+        vkdesc.storeOp    = toVulkanStoreOperation(att.storeop);
+        vkdesc.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        vkdesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         vkdesc.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             
         vkAttachments[layout.colorAttachmentCount] = vkdesc;
+        depthAttachmentIndex = layout.colorAttachmentCount;
     }
 
     // Set up color attachment references for the subpass.
@@ -342,7 +348,7 @@ static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassL
     // Create render pass create info.
     VkRenderPassCreateInfo rpci = {};
     rpci.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    rpci.attachmentCount = layout.colorAttachmentCount + layout.depthAttachmentPresent ? 1u : 0u;
+    rpci.attachmentCount = layout.colorAttachmentCount + (layout.depthAttachmentPresent ? 1u : 0u);
     rpci.pAttachments    = vkAttachments;
     rpci.subpassCount    = 1;
     rpci.pSubpasses      = &subpass;

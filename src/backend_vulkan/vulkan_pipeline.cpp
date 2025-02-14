@@ -442,7 +442,7 @@ void UpdateBindGroup(DescribedBindGroup* bg){
         }
 
         if(layout->entries[i].type == texture2d || layout->entries[i].type == texture3d){
-            imageInfos[i].imageView = (VkImageView)(bg->entries[i].textureView);
+            imageInfos[i].imageView = ((WGVKTextureView)bg->entries[i].textureView)->view;
             imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             writes[i].pImageInfo = imageInfos.data() + i;
         }

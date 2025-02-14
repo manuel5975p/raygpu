@@ -867,8 +867,8 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     scissor.offset.y = 0;
     scissor.extent.width =  rtex.texture.width;
     scissor.extent.height = rtex.texture.height;
-    vkCmdSetViewport((VkCommandBuffer)renderPass->cmdEncoder, 0, 1, &viewport);
-    vkCmdSetScissor((VkCommandBuffer)renderPass->cmdEncoder, 0, 1, &scissor);
+    vkCmdSetViewport(((WGVKRenderPassEncoder)renderPass->rpEncoder)->cmdBuffer, 0, 1, &viewport);
+    vkCmdSetScissor (((WGVKRenderPassEncoder)renderPass->rpEncoder)->cmdBuffer, 0, 1, &scissor);
     //wgvkRenderPassEncoderBindPipeline((WGVKRenderPassEncoder)renderPass->rpEncoder, g_renderstate.defaultPipeline);
     g_renderstate.activeRenderpass = renderPass;
     //UpdateBindGroup_Vk(&g_renderstate.defaultPipeline->bindGroup);
@@ -906,15 +906,15 @@ extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology 
 
 }
 extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
-    VkCommandBuffer cbuffer = (VkCommandBuffer)rp->cmdEncoder;
-    vkCmdEndRenderPass(cbuffer);
-    vkEndCommandBuffer(cbuffer);
+    wgvkRenderPassEncoderEnd((WGVKRenderPassEncoder)rp->rpEncoder);
+    WGVKCommandBuffer cbuffer = wgvkCommandEncoderFinish((WGVKCommandEncoder)rp->cmdEncoder);
+
     g_renderstate.activeRenderpass = nullptr;
     VkPipelineStageFlags stageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     VkSubmitInfo sinfo{};
     sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     sinfo.commandBufferCount = 1;
-    sinfo.pCommandBuffers = &cbuffer;
+    sinfo.pCommandBuffers = &cbuffer->buffer;
     sinfo.waitSemaphoreCount = 1;
     VkSemaphore waitsemaphore = g_vulkanstate.syncState.getSemaphoreOfSubmitIndex(g_vulkanstate.syncState.submitsInThisFrame);
     VkSemaphore signalesemaphore = g_vulkanstate.syncState.getSemaphoreOfSubmitIndex(g_vulkanstate.syncState.submitsInThisFrame + 1);
@@ -937,4 +937,6 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
     }
     vkResetFences(g_vulkanstate.device, 1, &g_vulkanstate.syncState.renderFinishedFence);
     //vkDestroyFence(g_vulkanstate.device, fence, nullptr);
+
+    //TODO: not leak here
 }
