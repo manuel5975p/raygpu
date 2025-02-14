@@ -130,6 +130,7 @@ typedef struct WGVKTextureImpl{
     VkDevice device;
     uint32_t refCount;
     uint32_t width, height, depthOrArrayLayers;
+    uint32_t sampleCount;
 }ImageHandleImpl;
 
 typedef struct WGVKTextureViewImpl{
@@ -138,6 +139,7 @@ typedef struct WGVKTextureViewImpl{
     uint32_t refCount;
     WGVKTexture texture;
     uint32_t width, height, depthOrArrayLayers;
+    uint32_t sampleCount;
 }WGVKTextureViewImpl;
 
 typedef struct AttachmentDescriptor{
@@ -216,6 +218,21 @@ typedef struct WGVKRenderPassDescriptor{
     void* occlusionQuerySet;
     void const *timestampWrites;
 }WGVKRenderPassDescriptor;
+WGPUTextureDescriptor desc{};
+typedef struct Extent3D{
+    uint32_t width, height, depthOrArrayLayers;
+}Extent3D;
+typedef struct WGVKTextureDescriptor{
+    void* nextInChain;
+    WGVKStringView label;
+    TextureUsage usage;
+    TextureDimension dimension;
+    Extent3D size;
+    PixelFormat format;
+    uint32_t mipLevelCount;
+    uint32_t sampleCount;
+    size_t viewFormatCount;
+}WGVKTextureDescriptor;
 
 typedef struct WGVKTextureViewDescriptor{
     void* nextInChain;
@@ -249,10 +266,19 @@ static inline RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescripto
     for(uint32_t i = 0;i < rpdesc->colorAttachmentCount;i++){
         ret.colorAttachments[i] = AttachmentDescriptor{
             .format = rpdesc->colorAttachments[i].view->format, 
-            .sampleCount = 1,
+            .sampleCount = rpdesc->colorAttachments[i].view->samples,
             .loadop = rpdesc->colorAttachments[i].loadOp,
             .storeop = rpdesc->colorAttachments[i].storeOp
         };
+        if(rpdesc->colorAttachments[i].resolveTarget != 0){
+            i++;
+            ret.colorAttachments[i] = AttachmentDescriptor{
+                .format = rpdesc->colorAttachments[i].view->format, 
+                .sampleCount = 1,
+                .loadop = rpdesc->colorAttachments[i].loadOp,
+                .storeop = rpdesc->colorAttachments[i].storeOp
+            };
+        }
     }
 
     return ret;
@@ -337,6 +363,7 @@ static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassL
     subpass.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount    = colorIndex;
     subpass.pColorAttachments       = colorIndex ? colorRefs : nullptr;
+    subpass.pResolveAttachments = 
     // Assign depth attachment if present.
     VkAttachmentReference depthRef = {};
     if (depthAttachmentIndex != VK_ATTACHMENT_UNUSED) {
@@ -788,6 +815,7 @@ extern "C" DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsa
 extern "C" void UnloadBuffer(DescribedBuffer* buf);
 
 //wgvk I guess
+extern "C" WGVKTexture wgpuDeviceCreateTexture(VkDevice device, const WGVKTextureDescriptor* descriptor);
 extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureViewDescriptor *descriptor);
 extern "C" WGVKBuffer wgvkDeviceCreateBuffer(VkDevice device, const BufferDescriptor* desc);
 extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, void const * data, size_t size);
