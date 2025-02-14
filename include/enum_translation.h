@@ -326,6 +326,7 @@ static inline VkImageAspectFlags toVulkanAspectMask(TextureAspect aspect){
 
         default: {
             assert(false && "This aspect is not implemented");
+            return VK_IMAGE_ASPECT_COLOR_BIT;
         }
     }
 }

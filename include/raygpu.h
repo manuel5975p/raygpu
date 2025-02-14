@@ -897,6 +897,7 @@ EXTERN_C_BEGIN
     void EndComputepassEx(DescribedComputepass* computePass);
     void BeginRenderpassEx(DescribedRenderpass* renderPass);
     void EndRenderpassEx(DescribedRenderpass* renderPass);
+    void EndRenderpassPro(DescribedRenderpass* renderPass, bool isRenderTexture);
     void BeginPipelineMode(DescribedPipeline* pipeline);
     void EndPipelineMode(cwoid);
     void BeginMode2D(Camera2D camera);

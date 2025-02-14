@@ -647,6 +647,7 @@ void requestAnimationFrameLoopWithJSPI(void (*callback)(void), int, int){
 }
 RenderTexture headless_rtex;
 void BeginDrawing(){
+
     ResetSyncState();
     ++g_renderstate.renderTargetStackPosition;
     
@@ -1755,7 +1756,8 @@ void BeginTextureMode(RenderTexture rtex){
 
 void EndTextureMode(){
     drawCurrentBatch();
-    EndRenderpass();
+
+    EndRenderpassPro(GetActiveRenderPass(), true);
 
     --g_renderstate.renderTargetStackPosition;
     g_renderstate.renderExtentX = g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.width;

@@ -168,12 +168,7 @@ void EndSingleTimeCommands(VkDevice device, VkCommandPool commandPool, VkQueue q
     vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
     commandBuffer = nullptr;
 }
-
-// Function to transition image layout
-extern "C" void TransitionImageLayout(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkImage image, 
-                           VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
-    VkCommandBuffer commandBuffer = BeginSingleTimeCommands(device, commandPool);
-    
+extern "C" void EncodeTransitionImageLayout(VkCommandBuffer commandBuffer, VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image){
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     barrier.oldLayout = oldLayout;
@@ -225,6 +220,13 @@ extern "C" void TransitionImageLayout(VkDevice device, VkCommandPool commandPool
         0, nullptr,
         1, &barrier
     );
+}
+// Function to transition image layout
+extern "C" void TransitionImageLayout(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkImage image, 
+                           VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
+    VkCommandBuffer commandBuffer = BeginSingleTimeCommands(device, commandPool);
+    
+    EncodeTransitionImageLayout(commandBuffer, oldLayout, newLayout, image);
     
     EndSingleTimeCommands(device, commandPool, queue, commandBuffer);
 }

@@ -76,6 +76,7 @@ SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title)
     config.height = height;
     config.format = BGRA8;
     config.presentMode = PresentMode_Fifo;
+    config.device = g_vulkanstate.device;
     wgvkSurfaceConfigure(vSurface, &config);
     FullSurface fsurface zeroinit;
     fsurface.surfaceConfig = config;
