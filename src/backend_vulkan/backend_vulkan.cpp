@@ -41,16 +41,29 @@ void BufferData(DescribedBuffer* buffer, void* data, size_t size){
 //    vboptr = vboptr_base;
 //}
 void ResetSyncState(){
-    g_vulkanstate.syncState.submitsInThisFrame = 0;
+    g_vulkanstate.queue.syncState.submitsInThisFrame = 0;
     //g_vulkanstate.syncState.semaphoresInThisFrame.clear();
 }
 void PresentSurface(FullSurface* surface){
+
+    VkSubmitInfo si{};
+    si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    si.waitSemaphoreCount = 1;
+    si.signalSemaphoreCount = 1;
+    VkPipelineStageFlags stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+    si.pWaitDstStageMask = &stage;
+    si.pWaitSemaphores = &g_vulkanstate.queue.syncState.getSemaphoreOfSubmitIndex(0);
+    si.pSignalSemaphores = &g_vulkanstate.queue.syncState.getSemaphoreOfSubmitIndex(1);
+    si.pCommandBuffers = nullptr;
+    si.commandBufferCount = 0;
+    vkQueueSubmit(g_vulkanstate.queue.graphicsQueue, 1, &si, VK_NULL_HANDLE);
+
     WGVKSurface wgvksurf = (WGVKSurface)surface->surface;
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.waitSemaphoreCount = 1;
     VkSemaphore waiton[2] = {
-        g_vulkanstate.syncState.semaphoresInThisFrame[g_vulkanstate.syncState.submitsInThisFrame],
+        g_vulkanstate.queue.syncState.semaphoresInThisFrame[1],
         //g_vulkanstate.syncState.imageAvailableSemaphores[0]
     };
     presentInfo.pWaitSemaphores = waiton;
@@ -66,7 +79,7 @@ void PresentSurface(FullSurface* surface){
     VkCommandPool oof{};
     VkCommandPoolCreateInfo pci zeroinit;
     pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    pci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    pci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
     vkCreateCommandPool(g_vulkanstate.device, &pci, nullptr, &oof);
     TransitionImageLayout(g_vulkanstate.device, oof, g_vulkanstate.queue.graphicsQueue, wgvksurf->images[wgvksurf->activeImageIndex]->image, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
     vkDestroyCommandPool(g_vulkanstate.device, oof, nullptr);
@@ -77,6 +90,7 @@ void PresentSurface(FullSurface* surface){
 }
 
 DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsage usage){
+
     VkBufferUsageFlags vusage = toVulkanBufferUsage(usage);
     DescribedBuffer* ret = callocnew(DescribedBuffer);
     VkBuffer vertexBuffer{};
@@ -127,6 +141,7 @@ DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsage usage){
 extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t width, uint32_t height){
     fsurface->surfaceConfig.width = width;
     fsurface->surfaceConfig.height = height;
+
     wgvkSurfaceConfigure((WGVKSurface)fsurface->surface, &fsurface->surfaceConfig);
     UnloadTexture(fsurface->renderTarget.depth);
     fsurface->renderTarget.depth = LoadTexturePro(width, height, Depth32, TextureUsage_RenderAttachment, 1, 1);
@@ -239,28 +254,31 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
     VkCommandPool oof{};
     VkCommandPoolCreateInfo pci zeroinit;
     pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    pci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    pci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
     vkCreateCommandPool(g_vulkanstate.device, &pci, nullptr, &oof);
     WGVKSurface wgvksurf = ((WGVKSurface)fsurface->surface);
     //TODO: Multiple frames in flight, this amounts to replacing 0 with frameCount % 2 or something similar
-    VkResult acquireResult = vkAcquireNextImageKHR(g_vulkanstate.device, wgvksurf->swapchain, UINT64_MAX, g_vulkanstate.syncState.getSemaphoreOfSubmitIndex(0), VK_NULL_HANDLE, &imageIndex);
-    TransitionImageLayout(g_vulkanstate.device, oof, g_vulkanstate.queue.graphicsQueue, wgvksurf->images[imageIndex]->image, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    TransitionImageLayout(g_vulkanstate.device, oof, g_vulkanstate.queue.graphicsQueue, ((WGVKTexture)fsurface->renderTarget.depth.id)->image, VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-    vkDestroyCommandPool(g_vulkanstate.device, oof, nullptr);
+    VkResult acquireResult = vkAcquireNextImageKHR(g_vulkanstate.device, wgvksurf->swapchain, UINT64_MAX, g_vulkanstate.queue.syncState.getSemaphoreOfSubmitIndex(0), VK_NULL_HANDLE, &imageIndex);
     if(acquireResult != VK_SUCCESS){
         std::cerr << "acquireResult is " << acquireResult << std::endl;
     }
-    else{
-        fsurface->renderTarget.texture.id = wgvksurf->images[imageIndex];
-        fsurface->renderTarget.texture.view = wgvksurf->imageViews[imageIndex];
-        fsurface->renderTarget.texture.width = wgvksurf->width;
-        fsurface->renderTarget.texture.height = wgvksurf->height;
-    }
+    VkDevice vd = ((WGVKSurface)fsurface->surface)->device;
+    VkCommandBuffer buf = BeginSingleTimeCommands(vd, oof);
+    EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, wgvksurf->images[imageIndex]->image);
+    EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, ((WGVKTexture)fsurface->renderTarget.depth.id)->image);
+    EndSingleTimeCommands(vd, oof, g_vulkanstate.queue.graphicsQueue, buf);
+    vkDestroyCommandPool(g_vulkanstate.device, oof, nullptr);
+    
+    fsurface->renderTarget.texture.id = wgvksurf->images[imageIndex];
+    fsurface->renderTarget.texture.view = wgvksurf->imageViews[imageIndex];
+    fsurface->renderTarget.texture.width = wgvksurf->width;
+    fsurface->renderTarget.texture.height = wgvksurf->height;
+    
     wgvksurf->activeImageIndex = imageIndex;
 }
 void negotiateSurfaceFormatAndPresentMode(const void* SurfaceHandle){
     g_renderstate.throttled_PresentMode = PresentMode_Fifo;
-    g_renderstate.unthrottled_PresentMode = PresentMode_Fifo;
+    g_renderstate.unthrottled_PresentMode = PresentMode_Immediate;
     g_renderstate.frameBufferFormat = BGRA8;
 }
 void* GetInstance(){
@@ -309,12 +327,14 @@ VkInstance createInstance() {
     vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
     std::vector<const char *> validationLayers;
+    #ifndef NDEBUG
     for (const auto &layer : availableLayers) {
         if (std::string(layer.layerName).find("validat") != std::string::npos) {
             std::cout << "\t[DEBUG]: Selecting layer " << layer.layerName << std::endl;
             validationLayers.push_back(layer.layerName);
         }
     }
+    #endif
 
     VkInstanceCreateInfo createInfo{};
 
@@ -525,7 +545,7 @@ void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, cons
     bufferDesc.usage = BufferUsage_CopyDst | BufferUsage_Uniform;
     WGVKBuffer wgvkBuffer = wgvkDeviceCreateBuffer(g_vulkanstate.device, &bufferDesc);
     wgvkBuffer->refCount++;
-    wgvkQueueWriteBuffer(g_vulkanstate.queue, wgvkBuffer, 0, data, size);
+    wgvkQueueWriteBuffer(&g_vulkanstate.queue, wgvkBuffer, 0, data, size);
     entry.binding = index;
     entry.buffer = wgvkBuffer;
     entry.size = size;
@@ -534,7 +554,7 @@ void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, cons
 }
 extern "C" void BufferData(DescribedBuffer* buffer, const void* data, size_t size){
     if(buffer->buffer != nullptr && buffer->size >= size){
-        wgvkQueueWriteBuffer(g_vulkanstate.queue, (WGVKBuffer)buffer->buffer, 0, data, size);
+        wgvkQueueWriteBuffer(&g_vulkanstate.queue, (WGVKBuffer)buffer->buffer, 0, data, size);
     }
     else{
         if(buffer->buffer)
@@ -554,7 +574,7 @@ void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, cons
     bufferDesc.size = size;
     bufferDesc.usage = BufferUsage_CopyDst | BufferUsage_Storage;
     WGVKBuffer wgvkBuffer = wgvkDeviceCreateBuffer(g_vulkanstate.device, &bufferDesc);
-    wgvkQueueWriteBuffer(g_vulkanstate.queue, wgvkBuffer, 0, data, size);
+    wgvkQueueWriteBuffer(&g_vulkanstate.queue, wgvkBuffer, 0, data, size);
     entry.binding = index;
     entry.buffer = wgvkBuffer;
     entry.size = size;
@@ -645,10 +665,10 @@ extern "C" void RenderPassDrawIndexed (DescribedRenderpass* drp, uint32_t indexC
     //wgpuRenderPassEncoderDrawIndexed((WGPURenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
 }
 // Function to create logical device and retrieve queues
-std::pair<VkDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDevice, QueueIndices indices) {
+std::pair<VkDevice, WGVKQueueImpl> createLogicalDevice(VkPhysicalDevice physicalDevice, QueueIndices indices) {
     // Find queue families
     QueueIndices qind = findQueueFamilies();
-    std::pair<VkDevice, WGVKQueue> ret{};
+    std::pair<VkDevice, WGVKQueueImpl> ret{};
     // Collect unique queue families
     std::set<uint32_t> uniqueQueueFamilies; // = { g_vulkanstate.graphicsFamily, g_vulkanstate.presentFamily };
 
@@ -765,18 +785,18 @@ void InitBackend(){
     auto device_and_queues = createLogicalDevice(g_vulkanstate.physicalDevice, queues);
     g_vulkanstate.device = device_and_queues.first;
     g_vulkanstate.queue = device_and_queues.second;
-    g_vulkanstate.syncState.semaphoresInThisFrame.resize(10);
+    g_vulkanstate.queue.syncState.semaphoresInThisFrame.resize(10);
     for(uint32_t i = 0;i < 10;i++){
-        g_vulkanstate.syncState.semaphoresInThisFrame[i] = CreateSemaphore(0);
+        g_vulkanstate.queue.syncState.semaphoresInThisFrame[i] = CreateSemaphore(0);
     }
     //g_vulkanstate.syncState.imageAvailableSemaphores[0] = CreateSemaphore(0);
     //g_vulkanstate.syncState.presentSemaphores[0] = CreateSemaphore(0);
-    g_vulkanstate.syncState.renderFinishedFence = CreateFence(0);
+    g_vulkanstate.queue.syncState.renderFinishedFence = CreateFence(0);
 
     
     createRenderPass();
 }
-VkSemaphore SyncState::getSemaphoreOfSubmitIndex(uint32_t index){
+const VkSemaphore& SyncState::getSemaphoreOfSubmitIndex(uint32_t index){
     uint32_t capacity = semaphoresInThisFrame.capacity();
     if(semaphoresInThisFrame.size() <= index){
         semaphoresInThisFrame.resize(index + 1);
@@ -905,8 +925,11 @@ extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology 
     //wgvkRenderPassEncoderSetBindGroup ((WGPURenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
 
 }
+
 extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
-    wgvkRenderPassEncoderEnd((WGVKRenderPassEncoder)rp->rpEncoder);
+    if(rp->rpEncoder){
+        wgvkRenderPassEncoderEnd((WGVKRenderPassEncoder)rp->rpEncoder);
+    }
     WGVKCommandBuffer cbuffer = wgvkCommandEncoderFinish((WGVKCommandEncoder)rp->cmdEncoder);
 
     g_renderstate.activeRenderpass = nullptr;
@@ -916,30 +939,40 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
     sinfo.commandBufferCount = 1;
     sinfo.pCommandBuffers = &cbuffer->buffer;
     sinfo.waitSemaphoreCount = 1;
-    VkSemaphore waitsemaphore = g_vulkanstate.syncState.getSemaphoreOfSubmitIndex(g_vulkanstate.syncState.submitsInThisFrame);
-    VkSemaphore signalesemaphore = g_vulkanstate.syncState.getSemaphoreOfSubmitIndex(g_vulkanstate.syncState.submitsInThisFrame + 1);
+    VkSemaphore waitsemaphore = g_vulkanstate.queue.syncState.getSemaphoreOfSubmitIndex(g_vulkanstate.queue.syncState.submitsInThisFrame);
+    VkSemaphore signalesemaphore = g_vulkanstate.queue.syncState.getSemaphoreOfSubmitIndex(g_vulkanstate.queue.syncState.submitsInThisFrame + 1);
     sinfo.pWaitSemaphores = &waitsemaphore;
     sinfo.pWaitDstStageMask = &stageMask;
     sinfo.signalSemaphoreCount = 1;
     sinfo.pSignalSemaphores = &signalesemaphore;
-    ++g_vulkanstate.syncState.submitsInThisFrame;
+    ++g_vulkanstate.queue.syncState.submitsInThisFrame;
     //VkFence fence{};
     //VkFenceCreateInfo finfo{};
     //finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     //if(vkCreateFence(g_vulkanstate.device, &finfo, nullptr, &fence) != VK_SUCCESS){
     //    throw std::runtime_error("Could not create fence");
     //}
-    if(vkQueueSubmit(g_vulkanstate.queue.graphicsQueue, 1, &sinfo, g_vulkanstate.syncState.renderFinishedFence) != VK_SUCCESS){
-        throw std::runtime_error("Could not submit commandbuffer");
-    }
-    if(vkWaitForFences(g_vulkanstate.device, 1, &g_vulkanstate.syncState.renderFinishedFence, VK_TRUE, ~0) != VK_SUCCESS){
-        throw std::runtime_error("Could not wait for fence");
-    }
-    wgvkReleaseRenderPassEncoder((WGVKRenderPassEncoder)rp->rpEncoder);
+    wgvkQueueSubmit(&g_vulkanstate.queue, 1, &cbuffer);
+    //if(vkQueueSubmit(g_vulkanstate.queue.graphicsQueue, 1, &sinfo, g_vulkanstate.queue.syncState.renderFinishedFence) != VK_SUCCESS){
+    //    throw std::runtime_error("Could not submit commandbuffer");
+    //}
+    //if(vkWaitForFences(g_vulkanstate.device, 1, &g_vulkanstate.queue.syncState.renderFinishedFence, VK_TRUE, ~0) != VK_SUCCESS){
+    //    throw std::runtime_error("Could not wait for fence");
+    //}
+    if(rp->rpEncoder)wgvkReleaseRenderPassEncoder((WGVKRenderPassEncoder)rp->rpEncoder);
     wgvkReleaseCommandEncoder((WGVKCommandEncoder)rp->cmdEncoder);
     wgvkReleaseCommandBuffer(cbuffer);
-    vkResetFences(g_vulkanstate.device, 1, &g_vulkanstate.syncState.renderFinishedFence);
+    //vkResetFences(g_vulkanstate.device, 1, &g_vulkanstate.queue.syncState.renderFinishedFence);
+    //g_vulkanstate.queue.syncState.submitsInThisFrame = 0;
     //vkDestroyFence(g_vulkanstate.device, fence, nullptr);
 
-    //TODO: not leak here
+}
+extern "C" void EndRenderpassPro(DescribedRenderpass* rp, bool renderTexture){
+    if(renderTexture){
+        wgvkRenderPassEncoderEnd((WGVKRenderPassEncoder)rp->rpEncoder);
+        wgvkReleaseRenderPassEncoder((WGVKRenderPassEncoder)rp->rpEncoder);
+        wgvkCommandEncoderTransitionTextureLayout((WGVKCommandEncoder)rp->cmdEncoder, (WGVKTexture)GetActiveColorTarget(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        rp->rpEncoder = nullptr;
+    }
+    EndRenderpassEx(rp);
 }

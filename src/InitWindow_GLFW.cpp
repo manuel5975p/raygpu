@@ -516,7 +516,7 @@ extern "C" SubWindow OpenSubWindow_GLFW(uint32_t width, uint32_t height, const c
         config.width,
         config.height,
         (PixelFormat)config.format,
-        (SurfacePresentMode)config.presentMode
+        (PresentMode)config.presentMode
     };
     ret.surface.surface = secondSurface.MoveToCHandle();
     ret.surface.renderTarget = LoadRenderTexture(config.width, config.height);

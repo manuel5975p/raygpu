@@ -68,10 +68,12 @@ struct WGVKCommandEncoderImpl;
 struct WGVKCommandBufferImpl;
 struct WGVKTextureImpl;
 struct WGVKTextureViewImpl;
+struct WGVKQueueImpl;
 
 typedef VertexAndFragmentShaderModuleImpl* VertexAndFragmentShaderModule;
 typedef WGVKBindGroupImpl* WGVKBindGroup;
 typedef WGVKBufferImpl* WGVKBuffer;
+typedef WGVKQueueImpl* WGVKQueue;
 typedef WGVKRenderPassEncoderImpl* WGVKRenderPassEncoder;
 typedef WGVKCommandBufferImpl* WGVKCommandBuffer;
 typedef WGVKCommandEncoderImpl* WGVKCommandEncoder;
@@ -364,6 +366,7 @@ static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassL
 struct WGVKSurfaceImpl{
     VkSurfaceKHR surface;
     VkSwapchainKHR swapchain;
+    VkDevice device;
     uint32_t imagecount;
 
     uint32_t activeImageIndex;
@@ -384,18 +387,6 @@ typedef WGVKSurfaceImpl* WGVKSurface;
 //struct WGVKDevice{
 //    VkDevice device;
 //};
-
-struct WGVKQueue{
-    VkQueue graphicsQueue;
-    VkQueue computeQueue;
-    VkQueue transferQueue;
-    VkQueue presentQueue;
-};
-
-struct memory_types{
-    uint32_t deviceLocal;
-    uint32_t hostVisibleCoherent;
-};
 struct SyncState{
     //VkSemaphore imageAvailableSemaphores[1];
     //VkSemaphore presentSemaphores[1];
@@ -403,15 +394,28 @@ struct SyncState{
     uint32_t submitsInThisFrame;
     std::vector<VkSemaphore> semaphoresInThisFrame;
     VkFence renderFinishedFence;
-    VkSemaphore getSemaphoreOfSubmitIndex(uint32_t index);
+    const VkSemaphore& getSemaphoreOfSubmitIndex(uint32_t index);
 };
+struct WGVKQueueImpl{
+    VkQueue graphicsQueue;
+    VkQueue computeQueue;
+    VkQueue transferQueue;
+    VkQueue presentQueue;
+    SyncState syncState;
+};
+
+struct memory_types{
+    uint32_t deviceLocal;
+    uint32_t hostVisibleCoherent;
+};
+
 struct VulkanState {
     VkInstance instance = VK_NULL_HANDLE;
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     VkPhysicalDeviceMemoryProperties memProperties;
 
     VkDevice device = VK_NULL_HANDLE;
-    WGVKQueue queue;
+    WGVKQueueImpl queue;
 
     // Separate queues for clarity
     //VkQueue graphicsQueue = VK_NULL_HANDLE;
@@ -432,7 +436,7 @@ struct VulkanState {
     VkPipelineLayout graphicsPipelineLayout;
 
     DescribedPipeline* defaultPipeline{};
-    SyncState syncState;
+    
     //VkExtent2D swapchainExtent = {0, 0};
     //std::vector<VkImage> swapchainImages;
     //std::vector<VkImageView> swapchainImageViews;
@@ -710,6 +714,9 @@ struct FullVkRenderPass{
     return ret;
 }*/
 extern "C" void TransitionImageLayout(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+extern "C" void EncodeTransitionImageLayout(VkCommandBuffer commandBuffer, VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image);
+extern "C" VkCommandBuffer BeginSingleTimeCommands(VkDevice device, VkCommandPool commandPool);
+extern "C" void EndSingleTimeCommands(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkCommandBuffer commandBuffer);
 static inline VkSemaphore CreateSemaphore(VkSemaphoreCreateFlags flags = 0){
     VkSemaphoreCreateInfo sci zeroinit;
     VkSemaphore ret zeroinit;
@@ -789,6 +796,8 @@ extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(VkDevice device);
 extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, const WGVKRenderPassDescriptor* rpdesc);
 extern "C" void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder);
 extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder commandEncoder);
+extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVKCommandBuffer* buffers);
+extern "C" void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
 
 extern "C" void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandBuffer);
 extern "C" void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer);

@@ -172,6 +172,24 @@ extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder command
     return ret;
 }
 
+extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVKCommandBuffer* buffers){
+    VkSubmitInfo si zeroinit;
+    si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    si.commandBufferCount = commandCount;
+    small_vector<VkCommandBuffer> submittable(commandCount);
+    for(size_t i = 0;i < commandCount;i++){
+        submittable[i] = buffers[i]->buffer;
+    }
+    si.pCommandBuffers = submittable.data();
+    vkQueueSubmit(queue->graphicsQueue, 1, &si, queue->syncState.renderFinishedFence);
+    if(vkWaitForFences(g_vulkanstate.device, 1, &g_vulkanstate.queue.syncState.renderFinishedFence, VK_TRUE, ~0) != VK_SUCCESS){
+        throw std::runtime_error("Could not wait for fence");
+    }
+    vkResetFences(g_vulkanstate.device, 1, &g_vulkanstate.queue.syncState.renderFinishedFence);
+    //VkPipelineStageFlags bop[1] = {VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT};
+    //si.pWaitDstStageMask = bop;
+}
+
 
 
 
@@ -218,7 +236,7 @@ extern "C" void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, VkPhysicalDe
 }
 
 void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* config){
-    auto device = config->device ? VkDevice(config->device) : g_vulkanstate.device;
+    auto device = VkDevice(config->device);
 
     vkDeviceWaitIdle(device);
     if(surface->imageViews){
@@ -244,6 +262,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
     createInfo.imageFormat = toVulkanPixelFormat(config->format);//swapchainImageFormat;
     surface->width = config->width;
     surface->height = config->height;
+    surface->device = (VkDevice)config->device;
     VkExtent2D newExtent{config->width, config->height};
     createInfo.imageExtent = newExtent;
     createInfo.imageArrayLayers = 1; // For stereoscopic 3D applications
@@ -264,7 +283,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
 
     createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    createInfo.presentMode = toVulkanPresentMode(config->presentMode); 
+    createInfo.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;//toVulkanPresentMode(config->presentMode); 
     createInfo.clipped = VK_TRUE;
 
     if (vkCreateSwapchainKHR(g_vulkanstate.device, &createInfo, nullptr, &(surface->swapchain)) != VK_SUCCESS) {
@@ -322,6 +341,60 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
         surface->imageViews[i] = wgvkTextureCreateView(surface->images[i], &viewDesc);
     }
 
+}
+void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout oldLayout, VkImageLayout newLayout){
+    VkImageMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = oldLayout;
+    barrier.newLayout = newLayout;
+    
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    
+    VkImage image = texture->image;
+    barrier.image = image;
+    barrier.subresourceRange.aspectMask = 
+        (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+    VkRenderPassCreateInfo rpci{};
+    
+    
+    VkPipelineStageFlags sourceStage;
+    VkPipelineStageFlags destinationStage;
+    
+    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    }
+    else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        
+        sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    else {
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        
+        sourceStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+        destinationStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    }
+    
+    vkCmdPipelineBarrier(
+        encoder->buffer,
+        sourceStage, destinationStage,
+        0,
+        0, nullptr,
+        0, nullptr,
+        1, &barrier
+    );
 }
 void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
     for(auto rp : commandEncoder->referencedRPs){

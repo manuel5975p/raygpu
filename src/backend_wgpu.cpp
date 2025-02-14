@@ -562,12 +562,12 @@ extern "C" void negotiateSurfaceFormatAndPresentMode(const void* SurfaceHandle){
     }
     else if(capabilities.presentModeCount == 1){
         TRACELOG(LOG_INFO, "Only %s supported", presentModeSpellingTable.at((WGPUPresentMode)capabilities.presentModes[0]).c_str());
-        g_renderstate.unthrottled_PresentMode = (SurfacePresentMode)capabilities.presentModes[0];
-        g_renderstate.throttled_PresentMode = (SurfacePresentMode)capabilities.presentModes[0];
+        g_renderstate.unthrottled_PresentMode = (PresentMode)capabilities.presentModes[0];
+        g_renderstate.throttled_PresentMode = (PresentMode)capabilities.presentModes[0];
     }
     else if(capabilities.presentModeCount > 1){
-        g_renderstate.unthrottled_PresentMode = (SurfacePresentMode)capabilities.presentModes[0];
-        g_renderstate.throttled_PresentMode = (SurfacePresentMode)capabilities.presentModes[0];
+        g_renderstate.unthrottled_PresentMode = (PresentMode)capabilities.presentModes[0];
+        g_renderstate.throttled_PresentMode = (PresentMode)capabilities.presentModes[0];
         std::unordered_set<WGPUPresentMode> pmset(capabilities.presentModes, capabilities.presentModes + capabilities.presentModeCount);
         if(pmset.find(WGPUPresentMode_Fifo) != pmset.end()){
             g_renderstate.throttled_PresentMode = PresentMode_Fifo;
@@ -935,7 +935,7 @@ extern "C" void RenderPassDraw        (DescribedRenderpass* drp, uint32_t vertex
 extern "C" void RenderPassDrawIndexed (DescribedRenderpass* drp, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t baseVertex, uint32_t firstInstance){
     wgpuRenderPassEncoderDrawIndexed((WGPURenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
 }
-void EndRenderpassEx(DescribedRenderpass* renderPass){
+void EndRenderpassEx(DescribedRenderpass* renderPass, bool /*isRenderTexture*/){
     drawCurrentBatch();
     wgpuRenderPassEncoderEnd((WGPURenderPassEncoder)renderPass->rpEncoder);
     g_renderstate.activeRenderpass = nullptr;
@@ -948,4 +948,7 @@ void EndRenderpassEx(DescribedRenderpass* renderPass){
     wgpuRenderPassEncoderRelease((WGPURenderPassEncoder)re);
     wgpuCommandEncoderRelease((WGPUCommandEncoder)renderPass->cmdEncoder);
     wgpuCommandBufferRelease(command);
+}
+extern "C" void EndRenderpassPro(DescribedRenderpass* rp, bool renderTexture){
+    EndRenderpassEx(rp);
 }

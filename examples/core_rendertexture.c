@@ -1,7 +1,7 @@
 #include <raygpu.h>
 
 int main(void){
-    SetConfigFlags(FLAG_MSAA_4X_HINT);
+    //SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(800, 600, "WebGPU window");
     //SetTargetFPS(60);
     bool flag = 0;

@@ -248,6 +248,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         #else
         WGVKSurface vSurface = (WGVKSurface)wgpu_or_wgvk_surface;
         SurfaceConfiguration config{};
+        config.device = g_vulkanstate.device;
         config.width = width;
         config.height = height;
         config.format = BGRA8;
