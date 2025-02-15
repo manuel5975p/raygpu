@@ -935,7 +935,7 @@ extern "C" void RenderPassDraw        (DescribedRenderpass* drp, uint32_t vertex
 extern "C" void RenderPassDrawIndexed (DescribedRenderpass* drp, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t baseVertex, uint32_t firstInstance){
     wgpuRenderPassEncoderDrawIndexed((WGPURenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
 }
-void EndRenderpassEx(DescribedRenderpass* renderPass, bool /*isRenderTexture*/){
+extern "C" void EndRenderpassEx(DescribedRenderpass* renderPass){
     drawCurrentBatch();
     wgpuRenderPassEncoderEnd((WGPURenderPassEncoder)renderPass->rpEncoder);
     g_renderstate.activeRenderpass = nullptr;
