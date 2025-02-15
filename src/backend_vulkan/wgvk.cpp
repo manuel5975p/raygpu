@@ -121,7 +121,8 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
         attachmentViews[i] = rpdesc->colorAttachments[i].view->view;
     }
     attachmentViews[rplayout.colorAttachmentCount] = rpdesc->depthStencilAttachment->view->view;
-    attachmentViews[rplayout.colorAttachmentCount+1] = rpdesc->colorAttachments[0].resolveTarget->view;
+    if(rpdesc->colorAttachments[0].resolveTarget)
+        attachmentViews[rplayout.colorAttachmentCount+1] = rpdesc->colorAttachments[0].resolveTarget->view;
 
     VkFramebufferCreateInfo fbci zeroinit;
     fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;

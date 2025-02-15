@@ -30,7 +30,7 @@ int main(void){
     
     //RequestLimit(maxBufferSize, 1 << 13);
     //RequestBackend(WGPUBackendType_Vulkan);
-    SetConfigFlags(FLAG_MSAA_4X_HINT);
+    //SetConfigFlags(FLAG_MSAA_4X_HINT);
     //SetConfigFlags(FLAG_VSYNC_HINT);
     //SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(800, 600, "Vulkan window");

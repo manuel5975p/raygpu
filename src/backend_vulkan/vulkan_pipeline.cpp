@@ -210,10 +210,37 @@ void UpdatePipeline_Vk(DescribedPipeline* ret, const VertexArray* vao){
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
     pipelineInfo.layout = (VkPipelineLayout)ret->layout.layout;
-    pipelineInfo.renderPass = g_vulkanstate.renderPass;
+
+    RenderPassLayout rpLayout zeroinit;
+    rpLayout.colorAttachmentCount = 1;
+    rpLayout.depthAttachmentPresent = settings.depthTest;
+    
+    rpLayout.colorAttachments[0].format = toVulkanPixelFormat(BGRA8);
+    rpLayout.colorAttachments[0].loadop = LoadOp_Load;
+    rpLayout.colorAttachments[0].storeop = StoreOp_Store;
+    rpLayout.colorAttachments[0].sampleCount = settings.sampleCount;
+    
+    if(settings.depthTest){
+        rpLayout.depthAttachment.format = toVulkanPixelFormat(Depth32);
+        rpLayout.depthAttachment.loadop = LoadOp_Load;
+        rpLayout.depthAttachment.storeop = StoreOp_Store;
+        rpLayout.depthAttachment.sampleCount = settings.sampleCount;
+    }
+    if(settings.sampleCount > 1){
+        rpLayout.colorAttachments[1].format = toVulkanPixelFormat(BGRA8);
+        rpLayout.colorAttachments[1].loadop = LoadOp_Load;
+        rpLayout.colorAttachments[1].storeop = StoreOp_Store;
+        rpLayout.colorAttachments[1].sampleCount = 1;
+        rpLayout.colorResolveIndex = 1;
+    }
+    else{
+        rpLayout.colorResolveIndex = VK_ATTACHMENT_UNUSED;
+    }
+    VkRenderPass rp = LoadRenderPassFromLayout(g_vulkanstate.device, rpLayout);
+    pipelineInfo.renderPass = rp;
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
-
+    
     if (vkCreateGraphicsPipelines(g_vulkanstate.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&ret->quartet.pipeline_TriangleList) != VK_SUCCESS) {
         throw std::runtime_error("Trianglelist pipiline creation failed");
     }

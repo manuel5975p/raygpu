@@ -858,8 +858,13 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     rca.clearValue = renderPass->colorClear;
     rca.loadOp = renderPass->colorLoadOp;
     rca.storeOp = renderPass->colorStoreOp;
-    rca.view = (WGVKTextureView)rtex.colorMultisample.view;
-    rca.resolveTarget = (WGVKTextureView)rtex.texture.view;
+    if(rtex.colorMultisample.view){
+        rca.view = (WGVKTextureView)rtex.colorMultisample.view;
+        rca.resolveTarget = (WGVKTextureView)rtex.texture.view;
+    }
+    else{
+        rca.view = (WGVKTextureView)rtex.texture.view;
+    }
 
     rpdesc.depthStencilAttachment = &dsa;
     rpdesc.colorAttachments = &rca;
