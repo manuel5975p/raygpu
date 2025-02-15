@@ -597,7 +597,7 @@ void createRenderPass() {
     colorAttachment = VkAttachmentDescription{};
     //colorAttachment.format = toVulkanPixelFormat(g_vulkanstate.surface.surfaceConfig.format);
     colorAttachment.format = toVulkanPixelFormat(BGRA8);
-    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachment.samples = VK_SAMPLE_COUNT_4_BIT;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -607,7 +607,7 @@ void createRenderPass() {
 
     VkAttachmentDescription& depthAttachment = attachments[1];
     depthAttachment.format = VK_FORMAT_D32_SFLOAT;
-    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachment.samples = VK_SAMPLE_COUNT_4_BIT;
     depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -810,7 +810,7 @@ const VkSemaphore& SyncState::getSemaphoreOfSubmitIndex(uint32_t index){
 }
 extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
 
-    WGVKRenderPassEncoder ret = callocnewpp(RenderPassEncoderHandleImpl);
+    WGVKRenderPassEncoder ret = callocnewpp(WGVKRenderPassEncoderImpl);
 
     VkCommandBufferBeginInfo bbi{};
     bbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -858,7 +858,8 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     rca.clearValue = renderPass->colorClear;
     rca.loadOp = renderPass->colorLoadOp;
     rca.storeOp = renderPass->colorStoreOp;
-    rca.view = (WGVKTextureView)rtex.texture.view;
+    rca.view = (WGVKTextureView)rtex.colorMultisample.view;
+    rca.resolveTarget = (WGVKTextureView)rtex.texture.view;
 
     rpdesc.depthStencilAttachment = &dsa;
     rpdesc.colorAttachments = &rca;

@@ -219,7 +219,7 @@ typedef struct WGVKRenderPassDescriptor{
     void* occlusionQuerySet;
     void const *timestampWrites;
 }WGVKRenderPassDescriptor;
-WGPUTextureDescriptor desc{};
+
 typedef struct Extent3D{
     uint32_t width, height, depthOrArrayLayers;
 }Extent3D;
@@ -276,10 +276,10 @@ static inline RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescripto
             i++;
             ret.colorResolveIndex = i;
             ret.colorAttachments[i] = AttachmentDescriptor{
-                .format = rpdesc->colorAttachments[i].view->format, 
-                .sampleCount = rpdesc->colorAttachments[i].view->sampleCount,
-                .loadop = rpdesc->colorAttachments[i].loadOp,
-                .storeop = rpdesc->colorAttachments[i].storeOp
+                .format = rpdesc->colorAttachments[i - 1].resolveTarget->format, 
+                .sampleCount = rpdesc->colorAttachments[i - 1].resolveTarget->sampleCount,
+                .loadop = rpdesc->colorAttachments[i - 1].loadOp,
+                .storeop = rpdesc->colorAttachments[i - 1].storeOp
             };
         }
     }
@@ -307,34 +307,38 @@ static inline VkSampleCountFlagBits toVulkanSampleCount(uint32_t samples){
             case 16: return VK_SAMPLE_COUNT_16_BIT;
             case 32: return VK_SAMPLE_COUNT_32_BIT;
             case 64: return VK_SAMPLE_COUNT_64_BIT;
+            default: return VK_SAMPLE_COUNT_1_BIT;
         }
     }
-    return VK_SAMPLE_COUNT_1_BIT;
 }
+
 static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassLayout layout) {
     VkAttachmentDescription vkAttachments[max_color_attachments + 1] = {}; // array for Vulkan attachments
 
     [[maybe_unused]] uint32_t colorAttachmentCount = 0;
     uint32_t depthAttachmentIndex = VK_ATTACHMENT_UNUSED; // index for depth attachment if any
+    uint32_t colorResolveIndex = VK_ATTACHMENT_UNUSED; // index for depth attachment if any
 
     // Convert custom attachments to Vulkan attachments
-    for (uint32_t i = 0; i < layout.colorAttachmentCount; i++) {
-        const AttachmentDescriptor &att = layout.colorAttachments[i];
-        vkAttachments[i].samples    = toVulkanSampleCount(att.sampleCount);
-        vkAttachments[i].format     = att.format;
-        vkAttachments[i].loadOp     = toVulkanLoadOperation(att.loadop);
-        vkAttachments[i].storeOp    = toVulkanStoreOperation(att.storeop);
-        vkAttachments[i].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        vkAttachments[i].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        vkAttachments[i].initialLayout  = (att.loadop == LoadOp_Load ? (is__depth(att.format) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) : (VK_IMAGE_LAYOUT_UNDEFINED));
+    uint32_t attachmentIndex = 0;
+    for (attachmentIndex = 0; attachmentIndex < layout.colorAttachmentCount; attachmentIndex++) {
+        const AttachmentDescriptor &att = layout.colorAttachments[attachmentIndex];
+        vkAttachments[attachmentIndex].samples    = toVulkanSampleCount(att.sampleCount);
+        vkAttachments[attachmentIndex].format     = att.format;
+        vkAttachments[attachmentIndex].loadOp     = toVulkanLoadOperation(att.loadop);
+        vkAttachments[attachmentIndex].storeOp    = toVulkanStoreOperation(att.storeop);
+        vkAttachments[attachmentIndex].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        vkAttachments[attachmentIndex].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        vkAttachments[attachmentIndex].initialLayout  = (att.loadop == LoadOp_Load ? (is__depth(att.format) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) : (VK_IMAGE_LAYOUT_UNDEFINED));
         if (is__depth(att.format)) { // Never the case
-            vkAttachments[i].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-            depthAttachmentIndex = i;
+            vkAttachments[attachmentIndex].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            depthAttachmentIndex = attachmentIndex;
         } else {
-            vkAttachments[i].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            vkAttachments[attachmentIndex].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
             ++colorAttachmentCount;
         }
     }
+
     if(layout.depthAttachmentPresent){
         VkAttachmentDescription vkdesc zeroinit;
         const AttachmentDescriptor &att = layout.depthAttachment;
@@ -347,9 +351,28 @@ static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassL
         vkdesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         vkdesc.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             
-        vkAttachments[layout.colorAttachmentCount] = vkdesc;
-        depthAttachmentIndex = layout.colorAttachmentCount;
+        vkAttachments[attachmentIndex] = vkdesc;
+        depthAttachmentIndex = attachmentIndex;
+        attachmentIndex++;
     }
+
+    if(layout.colorResolveIndex != VK_ATTACHMENT_UNUSED){
+        VkAttachmentDescription vkdesc zeroinit;
+        const AttachmentDescriptor &att = layout.colorAttachments[layout.colorResolveIndex];
+        vkdesc.initialLayout  = (att.loadop == LoadOp_Load ? (is__depth(att.format) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) : (VK_IMAGE_LAYOUT_UNDEFINED));
+        vkdesc.samples    = toVulkanSampleCount(att.sampleCount);
+        vkdesc.format     = att.format;
+        vkdesc.loadOp     = toVulkanLoadOperation(att.loadop);
+        vkdesc.storeOp    = toVulkanStoreOperation(att.storeop);
+        vkdesc.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        vkdesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        vkdesc.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            
+        vkAttachments[attachmentIndex] = vkdesc;
+        colorResolveIndex = attachmentIndex;
+        attachmentIndex++;
+    }
+
 
     // Set up color attachment references for the subpass.
     VkAttachmentReference colorRefs[max_color_attachments] = {}; // list of color attachments
@@ -369,7 +392,6 @@ static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassL
     subpass.pColorAttachments       = colorIndex ? colorRefs : nullptr;
 
 
-    subpass.pResolveAttachments =    colorRefs + layout.colorResolveIndex;
     // Assign depth attachment if present.
     VkAttachmentReference depthRef = {};
     if (depthAttachmentIndex != VK_ATTACHMENT_UNUSED) {
@@ -380,10 +402,20 @@ static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassL
         subpass.pDepthStencilAttachment = nullptr;
     }
 
+    VkAttachmentReference resolveRef = {};
+    if (colorResolveIndex != VK_ATTACHMENT_UNUSED) {
+        resolveRef.attachment = colorResolveIndex;
+        resolveRef.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        subpass.pResolveAttachments = &resolveRef;
+    } else {
+        subpass.pResolveAttachments = nullptr;
+    }
+    
+
     // Create render pass create info.
     VkRenderPassCreateInfo rpci = {};
     rpci.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    rpci.attachmentCount = layout.colorAttachmentCount + (layout.depthAttachmentPresent ? 1u : 0u);
+    rpci.attachmentCount = layout.colorAttachmentCount + (layout.depthAttachmentPresent ? 1u : 0u) + (layout.colorResolveIndex != VK_ATTACHMENT_UNUSED);
     rpci.pAttachments    = vkAttachments;
     rpci.subpassCount    = 1;
     rpci.pSubpasses      = &subpass;
@@ -781,7 +813,7 @@ static inline WGVKRenderPassEncoder BeginRenderPass_Vk(VkCommandBuffer cbuffer, 
     VkCommandBufferBeginInfo bbi{};
     bbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     VkRenderPassBeginInfo rpbi{};
-    VkClearValue clearvalues[2] = {};
+    VkClearValue clearvalues[3] = {};
     clearvalues[0].color = VkClearColorValue{};
     clearvalues[0].color.float32[0] = rp->colorClear.r;
     clearvalues[0].color.float32[1] = rp->colorClear.g;
@@ -789,10 +821,15 @@ static inline WGVKRenderPassEncoder BeginRenderPass_Vk(VkCommandBuffer cbuffer, 
     clearvalues[0].color.float32[3] = rp->colorClear.a;
     clearvalues[1].depthStencil = VkClearDepthStencilValue{};
     clearvalues[1].depthStencil.depth = rp->depthClear;
+    clearvalues[2].color = VkClearColorValue{};
+    clearvalues[2].color.float32[0] = rp->colorClear.r;
+    clearvalues[2].color.float32[1] = rp->colorClear.g;
+    clearvalues[2].color.float32[2] = rp->colorClear.b;
+    clearvalues[2].color.float32[3] = rp->colorClear.a;
 
     rpbi.renderPass = (VkRenderPass)rp->VkRenderPass;
     rpbi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    rpbi.clearValueCount = (rp->colorLoadOp == LoadOp_Clear) ? 2 : 0;
+    rpbi.clearValueCount = (rp->colorLoadOp == LoadOp_Clear) ? (3) : 0;
     rpbi.pClearValues = clearvalues;
     rpbi.framebuffer = fb;
     rpbi.renderArea.extent.width = width;//g_vulkanstate.surface.surfaceConfig.width;

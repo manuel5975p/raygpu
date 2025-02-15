@@ -257,7 +257,16 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         FullSurface fsurface zeroinit;
         fsurface.surfaceConfig = config;
         fsurface.surface = vSurface;
-        fsurface.renderTarget.depth = LoadDepthTexture(width, height);
+        if(g_renderstate.windowFlags & FLAG_MSAA_4X_HINT)
+            fsurface.renderTarget.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_renderstate.frameBufferFormat, TextureUsage_RenderAttachment | TextureUsage_TextureBinding | TextureUsage_CopyDst | TextureUsage_CopySrc, 4, 1);
+        fsurface.renderTarget.depth = LoadTexturePro(width,
+                                      height, 
+                                      Depth32, 
+                                      WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
+                                      (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
+                                      1
+        );
+        //fsurface.renderTarget.depth = LoadDepthTexture(width, height);
         g_renderstate.createdSubwindows[createdWindow.handle].surface = fsurface;
         #endif
 
