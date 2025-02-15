@@ -95,6 +95,7 @@ extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVK
     WGVKTextureView ret = callocnew(WGVKTextureViewImpl);
     vkCreateImageView(texture->device, &ivci, nullptr, &ret->view);
     ret->format = ivci.format;
+    ret->texture = texture;
     ret->width = texture->width;
     ret->height = texture->height;
     ret->sampleCount = texture->sampleCount;
@@ -106,6 +107,7 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
     //One for WGVKRenderPassEncoder the other for the command buffer
     ret->refCount = 2;
     enc->referencedRPs.insert(ret);
+
     RenderPassLayout rplayout = GetRenderPassLayout(rpdesc);
     VkRenderPassBeginInfo rpbi{};
     rpbi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -113,16 +115,17 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
 
     ret->renderPass = LoadRenderPassFromLayout(g_vulkanstate.device, rplayout);
 
-    VkImageView attachmentViews[max_color_attachments + 1];
+    VkImageView attachmentViews[max_color_attachments + 2];
     
     for(uint32_t i = 0;i < rplayout.colorAttachmentCount;i++){
         attachmentViews[i] = rpdesc->colorAttachments[i].view->view;
     }
     attachmentViews[rplayout.colorAttachmentCount] = rpdesc->depthStencilAttachment->view->view;
+    attachmentViews[rplayout.colorAttachmentCount+1] = rpdesc->colorAttachments[0].resolveTarget->view;
 
     VkFramebufferCreateInfo fbci zeroinit;
     fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    fbci.attachmentCount = rplayout.colorAttachmentCount + rplayout.depthAttachmentPresent;
+    fbci.attachmentCount = rplayout.colorAttachmentCount + rplayout.depthAttachmentPresent + uint32_t(rplayout.colorResolveIndex != VK_ATTACHMENT_UNUSED);
     fbci.width = rpdesc->colorAttachments[0].view->width;
     fbci.height = rpdesc->colorAttachments[0].view->height;
     fbci.layers = 1;
@@ -141,15 +144,21 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
     
 
     rpbi.framebuffer = ret->frameBuffer;
-    VkClearValue clearValues[max_color_attachments + 1];
+    VkClearValue clearValues[max_color_attachments + 2];
     for(uint32_t i = 0;i < rplayout.colorAttachmentCount;i++){
         clearValues[i].color.float32[0] = rpdesc->colorAttachments[i].clearValue.r;
         clearValues[i].color.float32[1] = rpdesc->colorAttachments[i].clearValue.g;
         clearValues[i].color.float32[2] = rpdesc->colorAttachments[i].clearValue.b;
         clearValues[i].color.float32[3] = rpdesc->colorAttachments[i].clearValue.a;
     }
+    if(rplayout.colorResolveIndex != VK_ATTACHMENT_UNUSED){
+        clearValues[2].color.float32[0] = rpdesc->colorAttachments[0].clearValue.r;
+        clearValues[2].color.float32[1] = rpdesc->colorAttachments[0].clearValue.g;
+        clearValues[2].color.float32[2] = rpdesc->colorAttachments[0].clearValue.b;
+        clearValues[2].color.float32[3] = rpdesc->colorAttachments[0].clearValue.a;
+    }
     clearValues[rplayout.colorAttachmentCount].depthStencil.depth = rpdesc->depthStencilAttachment->depthClearValue;
-    rpbi.clearValueCount = rplayout.colorAttachmentCount + 1;
+    rpbi.clearValueCount = rplayout.colorAttachmentCount + rplayout.depthAttachmentPresent + (rplayout.colorResolveIndex != VK_ATTACHMENT_UNUSED);
     rpbi.pClearValues = clearValues;
 
     vkCmdBeginRenderPass(enc->buffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
@@ -285,7 +294,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
 
     createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    createInfo.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;//toVulkanPresentMode(config->presentMode); 
+    createInfo.presentMode = toVulkanPresentMode(config->presentMode); 
     createInfo.clipped = VK_TRUE;
 
     if (vkCreateSwapchainKHR(g_vulkanstate.device, &createInfo, nullptr, &(surface->swapchain)) != VK_SUCCESS) {
@@ -308,8 +317,9 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
         surface->images[i]->width = config->width;
         surface->images[i]->height = config->height;
         surface->images[i]->depthOrArrayLayers = 1;
-        surface->images[i]->refCount = 1;        
-        surface->images[i]->image = tmpImages[i];        
+        surface->images[i]->refCount = 1;
+        surface->images[i]->sampleCount = 1;
+        surface->images[i]->image = tmpImages[i];
     }
     surface->imageViews = (WGVKTextureView*)std::calloc(surface->imagecount, sizeof(VkImageView));
 
