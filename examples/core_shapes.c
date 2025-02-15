@@ -1,7 +1,8 @@
 #include <raygpu.h>
 
 int main(void){
-    InitWindow(800, 600, "WebGPU window");
+    SetConfigFlags(FLAG_MSAA_4X_HINT);
+    InitWindow(800, 600, "Vulkan window");
     Texture tex = LoadTextureFromImage(GenImageChecker(WHITE, BLACK, 100, 100, 10));
     SetTargetFPS(0);
     while(!WindowShouldClose()){
