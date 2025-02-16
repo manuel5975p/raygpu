@@ -406,7 +406,33 @@ void UnloadTexture(Texture tex){
     vkDestroyImage(g_vulkanstate.device, handle->image, nullptr);
     vkFreeMemory(g_vulkanstate.device, handle->memory, nullptr);
 }
-
+extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
+    Image ret zeroinit;
+    VkBufferImageCopy region{};
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0; // Tightly packed
+    region.bufferImageHeight = 0;
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel = mipLevel;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount = 1;
+    region.imageOffset = {0, 0, 0};
+    region.imageExtent = VkExtent3D{tex->width, tex->height, 1u};
+    VkCommandBuffer commandBuffer{};
+    size_t size = GetPixelSizeInBytes(fromVulkanPixelFormat(tex->format));
+    VkDeviceMemory bufferMemory{};
+    VkBuffer stagingBuffer = CreateBuffer(g_vulkanstate.device, size * tex->width * tex->height, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, bufferMemory);
+    
+    vkCmdCopyImageToBuffer(
+        commandBuffer,
+        tex->image,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        stagingBuffer,
+        1,
+        &region
+    );
+    return ret;
+} 
 // Updated LoadTextureFromImage_Vk function using LoadTexturePro
 Texture LoadTextureFromImage(Image img) {
     Color* altdata = nullptr;

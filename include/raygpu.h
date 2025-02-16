@@ -36,6 +36,15 @@
 static inline uint64_t ROT_BYTES(uint64_t V, uint8_t C) {
     return ((V << C) | ((V) >> (64 - C)));
 }
+
+#if SUPPORT_WGPU_BACKEND == 1
+typedef struct WGPUTextureImpl WGVKTextureImpl;
+typedef WGPUTexture WGVKTexture;
+#elif SUPPORT_VULKAN_BACKEND == 1
+struct WGVKTextureImpl;
+typedef struct WGVKTextureImpl* WGVKTexture;
+#endif
+
 typedef struct vertex{
     Vector3 pos;
     Vector2 uv ;
@@ -926,7 +935,7 @@ EXTERN_C_BEGIN
     Texture LoadTextureFromImage(Image img);
     void ImageFormat(Image* img, PixelFormat newFormat);
     Image LoadImageFromTexture(Texture tex);
-    Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t mipLevel);
+    Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel);
     void TakeScreenshot(const char* filename);
     Image LoadImage(const char* filename);
     Image ImageFromImage(Image img, Rectangle rec);

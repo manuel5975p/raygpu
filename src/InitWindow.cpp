@@ -149,6 +149,9 @@ void* GetActiveWindowHandle(){
     return g_renderstate.window;
 }
 bool WindowShouldClose(cwoid){
+    if(g_renderstate.window == nullptr){ //headless
+        return false;
+    }
     #ifdef MAIN_WINDOW_SDL2
     return g_renderstate.closeFlag;
     #elif defined(MAIN_WINDOW_GLFW)
