@@ -126,6 +126,7 @@ typedef struct WGVKCommandEncoderImpl{
 
 typedef struct WGVKTextureImpl{
     VkImage image;
+    VkFormat format;
     VkDeviceMemory memory;
     VkDevice device;
     uint32_t refCount;

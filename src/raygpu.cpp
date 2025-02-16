@@ -49,8 +49,7 @@ extern "C" void ToggleFullscreenImpl(cwoid);
 wgpustate g_wgpustate{};
 renderstate g_renderstate{};
 
-wgpu::Buffer readtex zeroinit;
-volatile bool waitflag = false;
+
 
 typedef struct GIFRecordState{
     uint64_t delayInCentiseconds;
@@ -75,7 +74,7 @@ void startRecording(GIFRecordState* grst, uint64_t delayInCentiseconds){
     grst->recording = true;
 }
 
-void addScreenshot(GIFRecordState* grst, WGPUTexture tex){
+void addScreenshot(GIFRecordState* grst, WGVKTexture tex){
     //#ifdef __EMSCRIPTEN__
     //if(grst->numberOfFrames > 0)
     //    msf_gif_frame(&grst->msf_state, (uint8_t*)fbLoad.data, grst->delayInCentiseconds, 8, fbLoad.rowStrideInBytes);
@@ -713,7 +712,7 @@ void EndDrawing(){
         
     }
     if(g_renderstate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
-        Image img = LoadImageFromTextureEx((WGPUTexture)GetActiveColorTarget(), 0);
+        Image img = LoadImageFromTextureEx((WGVKTexture)GetActiveColorTarget(), 0);
         if (img.format != BGRA8 && img.format != RGBA8) {
             // Handle unsupported formats or convert as necessary
             fprintf(stderr, "Unsupported pixel format for FFmpeg export.\n");
@@ -757,7 +756,7 @@ void EndDrawing(){
             int recordingTextX = GetScreenWidth() - MeasureText("Recording", 30);
             DrawText("Recording", recordingTextX, 5, 30, Color{255,40,40,255});
             EndRenderpass();
-            addScreenshot(g_renderstate.grst, (WGPUTexture)fbCopy.id);
+            addScreenshot(g_renderstate.grst, (WGVKTexture)fbCopy.id);
             UnloadTexture(fbCopy);
             g_renderstate.grst->lastFrameTimestamp = stmp;
         }
@@ -859,118 +858,7 @@ uint32_t RoundUpToNextMultipleOf16(uint32_t x) {
 #endif 
 
 
-Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t miplevel){
-    
-    size_t formatSize = GetPixelSizeInBytes((PixelFormat)wgpuTextureGetFormat(tex));
-    uint32_t width = wgpuTextureGetWidth(tex);
-    uint32_t height = wgpuTextureGetHeight(tex);
-    Image ret {
-        nullptr, 
-        wgpuTextureGetWidth(tex), 
-        wgpuTextureGetHeight(tex), 
-        1,
-        (PixelFormat)wgpuTextureGetFormat(tex), 
-        RoundUpToNextMultipleOf256(formatSize * width), 
-    };
-    WGPUBufferDescriptor b{};
-    b.mappedAtCreation = false;
-    
-    b.size = RoundUpToNextMultipleOf256(formatSize * width) * height;
-    b.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
-    
-    readtex = wgpu::Buffer(wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &b));
-    
-    WGPUCommandEncoderDescriptor commandEncoderDesc{};
-    commandEncoderDesc.label = STRVIEW("Command Encoder");
-    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder((WGPUDevice)GetDevice(), &commandEncoderDesc);
-    WGPUImageCopyTexture tbsource{};
-    tbsource.texture = tex;
-    tbsource.mipLevel = miplevel;
-    tbsource.origin = { 0, 0, 0 }; // equivalent of the offset argument of Queue::writeBuffer
-    tbsource.aspect = WGPUTextureAspect_All; // only relevant for depth/Stencil textures
-    WGPUImageCopyBuffer tbdest{};
-    tbdest.buffer = readtex.Get();
-    tbdest.layout.offset = 0;
-    tbdest.layout.bytesPerRow = RoundUpToNextMultipleOf256(formatSize * width);
-    tbdest.layout.rowsPerImage = height;
 
-    WGPUExtent3D copysize{width / (1 << miplevel), height / (1 << miplevel), 1};
-    wgpuCommandEncoderCopyTextureToBuffer(encoder, &tbsource, &tbdest, &copysize);
-    
-    WGPUCommandBufferDescriptor cmdBufferDescriptor{};
-    cmdBufferDescriptor.label = STRVIEW("Command buffer");
-    WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &cmdBufferDescriptor);
-    wgpuCommandEncoderRelease(encoder);
-    wgpuQueueSubmit(GetQueue(), 1, &command);
-    wgpuCommandBufferRelease(command);
-    //#ifdef WEBGPU_BACKEND_DAWN
-    //wgpuDeviceTick((WGPUDevice)GetDevice());
-    //#else
-    //#endif
-    ret.format = (PixelFormat)ret.format;
-    waitflag = true;
-    auto onBuffer2Mapped = [&ret](wgpu::MapAsyncStatus status, const char* userdata){
-        //std::cout << "Backcalled: " << (int)status << std::endl;
-        waitflag = false;
-        if(status != wgpu::MapAsyncStatus::Success){
-            TRACELOG(LOG_ERROR, "onBuffer2Mapped called back with error!");
-        }
-        assert(status == wgpu::MapAsyncStatus::Success);
-
-        uint64_t bufferSize = readtex.GetSize();
-        const void* map = readtex.GetConstMappedRange(0, bufferSize);
-        //fbLoad.data = std::realloc(fbLoad.data , bufferSize);
-        ret.data = std::malloc(bufferSize);
-        std::memcpy(ret.data, map, bufferSize);
-        readtex.Unmap();
-        wgpuBufferRelease(readtex.MoveToCHandle());
-    };
-
-    
-    
-    #ifndef __EMSCRIPTEN__
-    GetCXXInstance().WaitAny(readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped), 1000000000);
-    #else
-    GetCXXInstance().WaitAny(readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped), 1000000000);
-    //readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::AllowSpontaneous, onBuffer2Mapped);
-    
-    //while(waitflag){
-    //    
-    //}
-    //readtex.MapAsync(wgpu::MapMode::Read, 0, size_t(std::ceil(4.0 * width / 256.0) * 256) * height, onBuffer2Mapped, &ibpair);
-    //wgpu::Future fut = readtex.MapAsync(wgpu::MapMode::Read, 0, RoundUpToNextMultipleOf256(formatSize * width) * height, wgpu::CallbackMode::WaitAnyOnly, onBuffer2Mapped);
-    //WGPUFutureWaitInfo winfo{};
-    //winfo.future = fut;
-    //wgpuInstanceWaitAny(g_renderstate.instance, 1, &winfo, 1000000000);
-
-    //while(!done){
-        //emscripten_sleep(20);
-    //}
-    //wgpuInstanceWaitAny(g_renderstate.instance, 1, &winfo, 1000000000);
-    //emscripten_sleep(20);
-    #endif
-    //wgpuBufferMapAsyncF(readtex, WGPUMapMode_Read, 0, 4 * tex.width * tex.height, onBuffer2Mapped);
-    /*while(ibpair.first->data == nullptr){
-        std::this_thread::sleep_for(std::chrono::microseconds(1));
-        WGPUCommandBufferDescriptor cmdBufferDescriptor2{};
-        cmdBufferDescriptor.label = "Command buffer";
-        WGPUCommandEncoderDescriptor commandEncoderDesc2{};
-        commandEncoderDesc.label = "Command Encode2";
-        WGPUCommandEncoder encoder2 = wgpuDeviceCreateCommandEncoder(device, &commandEncoderDesc);
-        WGPUCommandBuffer command2 = wgpuCommandEncoderFinish(encoder2, &cmdBufferDescriptor);
-        wgpuQueueSubmit(g_renderstate.queue, 1, &command2);
-        wgpuCommandBufferRelease(command);
-        #ifdef WEBGPU_BACKEND_DAWN
-        wgpuDeviceTick(device);
-        #endif
-    }
-    #ifdef WEBGPU_BACKEND_DAWN
-    wgpuInstanceProcessEvents(g_renderstate.instance);
-    wgpuDeviceTick(device);
-    #endif*/
-    //readtex.Destroy();
-    return ret;
-}
 template<typename from, typename to>
 to convert4(const from& fr){
     to ret;
@@ -1041,14 +929,14 @@ void UnloadImageColors(Color* cols){
 Image LoadImageFromTexture(Texture tex){
     //#ifndef __EMSCRIPTEN__
     //auto& device = g_renderstate.device;
-    return LoadImageFromTextureEx((WGPUTexture)tex.id, 0);
+    return LoadImageFromTextureEx((WGVKTexture)tex.id, 0);
     //#else
     //std::cerr << "LoadImageFromTexture not supported on web\n";
     //return Image{};
     //#endif
 }
 void TakeScreenshot(const char* filename){
-    Image img = LoadImageFromTextureEx((WGPUTexture)g_renderstate.mainWindowRenderTarget.texture.id, 0);
+    Image img = LoadImageFromTextureEx((WGVKTexture)g_renderstate.mainWindowRenderTarget.texture.id, 0);
     SaveImage(img, filename);
     UnloadImage(img);
 }
