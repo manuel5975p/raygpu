@@ -147,7 +147,7 @@ VkDescriptorSet loadBindGroup(VkDescriptorSetLayout layout, Texture tex){
     }
     else{
         throw "sdjfhjskd\n";
-    }    
+    }
     VkWriteDescriptorSet s{};
     s.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     VkDescriptorImageInfo imageinfo{};
