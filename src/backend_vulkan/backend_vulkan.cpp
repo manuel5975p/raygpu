@@ -862,10 +862,8 @@ RenderTexture LoadRenderTexture(uint32_t width, uint32_t height){
     if(g_renderstate.windowFlags & FLAG_MSAA_4X_HINT){
         ret.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_renderstate.frameBufferFormat, TextureUsage_RenderAttachment | TextureUsage_CopySrc, 4, 1);
     }
-    #if SUPPORT_VULKAN_BACKEND == 1
     
-    wgvkQueueTransitionLayout(GetQueue(), ret.texture.id->, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    #endif
+    wgvkQueueTransitionLayout(&g_vulkanstate.queue, ((WGVKTexture)ret.texture.id), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     return ret;
 }
 extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
