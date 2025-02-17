@@ -66,7 +66,7 @@ extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(VkDevice device){
 }
 
 extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureViewDescriptor *descriptor){
-    WGPUTexture tex;
+    
     VkImageViewCreateInfo ivci{};
     ivci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     ivci.image = texture->image;
@@ -174,10 +174,17 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
 extern "C" void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
     vkCmdEndRenderPass(renderPassEncoder->cmdBuffer);
 }
+/**
+ * @brief Ends a CommandEncoder into a CommandBuffer
+ * This is a one-way transition for WebGPU, therefore we can move resource tracking
+ * In Vulkan, this transition is merely a call to vkEndCommandBuffer
+ * 
+ */
 extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder commandEncoder){
     WGVKCommandBuffer ret = callocnewpp(WGVKCommandBufferImpl);
     vkEndCommandBuffer(commandEncoder->buffer);
     ret->referencedRPs = std::move(commandEncoder->referencedRPs);
+    ret->resourceUsage = std::move(commandEncoder->resourceUsage);
     ret->pool = commandEncoder->pool;
     ret->buffer = commandEncoder->buffer;
     commandEncoder->buffer = nullptr;
@@ -430,12 +437,7 @@ void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
 void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc) {
     --rpenc->refCount;
     if (rpenc->refCount == 0) {
-        for (auto x : rpenc->referencedBuffers) {
-            wgvkReleaseBuffer(x);
-        }
-        for (auto x : rpenc->referencedDescriptorSets) {
-            wgvkReleaseDescriptorSet(x);
-        }
+        rpenc->resourceUsage.releaseAllAndClear();
         std::free(rpenc);
     }
 }
@@ -450,6 +452,7 @@ void wgvkReleaseBuffer(WGVKBuffer buffer) {
 void wgvkReleaseDescriptorSet(WGVKBindGroup dshandle) {
     --dshandle->refCount;
     if (dshandle->refCount == 0) {
+        dshandle->resourceUsage.releaseAllAndClear();
         vkFreeDescriptorSets(g_vulkanstate.device, dshandle->pool, 1, &dshandle->set);
         vkDestroyDescriptorPool(g_vulkanstate.device, dshandle->pool, nullptr);
     }
@@ -516,10 +519,9 @@ void wgvkRenderPassEncoderBindDescriptorSet(WGVKRenderPassEncoder rpe, uint32_t 
                             0,                               // Dynamic offset count
                             nullptr                          // Pointer to dynamic offsets
     );
-    if(!rpe->referencedDescriptorSets.contains(dset)){
-        ++dset->refCount;
-        rpe->referencedDescriptorSets.insert(dset);
-    }
+
+
+    rpe->resourceUsage.track(dset);
 }
 void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t binding, WGVKBuffer buffer, VkDeviceSize offset) {
     assert(rpe != nullptr && "RenderPassEncoderHandle is null");
@@ -528,10 +530,7 @@ void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t b
     // Bind the vertex buffer to the command buffer at the specified binding point
     vkCmdBindVertexBuffers(rpe->cmdBuffer, binding, 1, &(buffer->buffer), &offset);
 
-    if(!rpe->referencedBuffers.contains(buffer)){
-        ++buffer->refCount;
-        rpe->referencedBuffers.insert(buffer);
-    }
+    rpe->resourceUsage.track(buffer);
 }
 void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer buffer, VkDeviceSize offset, VkIndexType indexType) {
     assert(rpe != nullptr && "RenderPassEncoderHandle is null");
@@ -540,8 +539,5 @@ void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer 
     // Bind the index buffer to the command buffer
     vkCmdBindIndexBuffer(rpe->cmdBuffer, buffer->buffer, offset, indexType);
 
-    if(!rpe->referencedBuffers.contains(buffer)){
-        ++buffer->refCount;
-        rpe->referencedBuffers.insert(buffer);
-    }
+    rpe->resourceUsage.track(buffer);
 }

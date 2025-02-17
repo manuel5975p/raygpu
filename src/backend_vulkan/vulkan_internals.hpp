@@ -1,6 +1,7 @@
 #ifndef VULKAN_INTERNALS_HPP
 #define VULKAN_INTERNALS_HPP
 #include "small_vector.hpp"
+#include "tint/lang/core/ir/referenced_functions.h"
 #include <unordered_set>
 #include <vulkan/vulkan.h>
 #include <vector>
@@ -83,6 +84,23 @@ typedef WGVKTextureViewImpl* WGVKTextureView;
 using refcount_type = uint32_t;
 template<typename T>
 using ref_holder = std::unordered_set<T>;
+typedef struct ResourceUsage{
+    ref_holder<WGVKBuffer> referencedBuffers;
+    ref_holder<WGVKTexture> referencedTextures;
+    ref_holder<WGVKTextureView> referencedTextureViews;
+    ref_holder<WGVKBindGroup> referencedBindGroups;
+    bool contains(WGVKBuffer buffer)const noexcept;
+    bool contains(WGVKTexture texture)const noexcept;
+    bool contains(WGVKTextureView view)const noexcept;
+    bool contains(WGVKBindGroup bindGroup)const noexcept;
+
+    void track(WGVKBuffer buffer)noexcept;
+    void track(WGVKTexture texture)noexcept;
+    void track(WGVKTextureView view)noexcept;
+    void track(WGVKBindGroup bindGroup)noexcept;
+    void releaseAllAndClear()noexcept;
+}ResourceUsage;
+
 
 typedef struct VertexAndFragmentShaderModuleImpl{
     VkShaderModule vModule;
@@ -93,6 +111,7 @@ typedef struct WGVKBindGroupImpl{
     VkDescriptorSet set;
     VkDescriptorPool pool;
     refcount_type refCount;
+    ResourceUsage resourceUsage;
 }DescriptorSetHandleImpl;
 
 typedef struct WGVKBufferImpl{
@@ -100,29 +119,6 @@ typedef struct WGVKBufferImpl{
     VkDeviceMemory memory;
     refcount_type refCount;
 }WGVKBufferImpl;
-
-typedef struct WGVKRenderPassEncoderImpl{
-    VkCommandBuffer cmdBuffer;
-    VkRenderPass renderPass;
-    ref_holder<WGVKBuffer> referencedBuffers;
-    ref_holder<WGVKBindGroup> referencedDescriptorSets;
-    VkPipelineLayout lastLayout;
-    VkFramebuffer frameBuffer;
-    refcount_type refCount;
-    WGVKCommandEncoder cmdEncoder;
-}RenderPassEncoderHandleImpl;
-
-typedef struct WGVKCommandBufferImpl{
-    ref_holder<WGVKRenderPassEncoder> referencedRPs;
-    VkCommandBuffer buffer;
-    VkCommandPool pool;
-}WGVKCommandBufferImpl;
-
-typedef struct WGVKCommandEncoderImpl{
-    ref_holder<WGVKRenderPassEncoder> referencedRPs;
-    VkCommandBuffer buffer;
-    VkCommandPool pool;
-}WGVKCommandEncoderImpl;
 
 typedef struct WGVKTextureImpl{
     VkImage image;
@@ -159,6 +155,96 @@ typedef struct RenderPassLayout{
     uint32_t colorResolveIndex;
 }RenderPassLayout;
 
+extern "C" void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandBuffer);
+extern "C" void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer);
+extern "C" void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc);
+extern "C" void wgvkReleaseBuffer(WGVKBuffer commandBuffer);
+extern "C" void wgvkReleaseDescriptorSet(WGVKBindGroup commandBuffer);
+extern "C" void wgvkReleaseTexture(WGVKTexture texture);
+extern "C" void wgvkReleaseTextureView(WGVKTextureView view);
+
+inline bool ResourceUsage::contains(WGVKBuffer buffer)const noexcept{
+    return referencedBuffers.find(buffer) != referencedBuffers.end();
+}
+inline bool ResourceUsage::contains(WGVKTexture texture)const noexcept{
+    return referencedTextures.find(texture) != referencedTextures.end();
+}
+inline bool ResourceUsage::contains(WGVKTextureView view)const noexcept{
+    return referencedTextureViews.find(view) != referencedTextureViews.end();
+}
+inline bool ResourceUsage::contains(WGVKBindGroup bindGroup)const noexcept{
+    return referencedBindGroups.find(bindGroup) != referencedBindGroups.end();
+}
+
+inline void ResourceUsage::track(WGVKBuffer buffer)noexcept{
+    if(!contains(buffer)){
+        ++buffer->refCount;
+        referencedBuffers.insert(buffer);
+    }
+}
+inline void ResourceUsage::track(WGVKTexture texture)noexcept{
+    if(!contains(texture)){
+        ++texture->refCount;
+        referencedTextures.insert(texture);
+    }
+}
+inline void ResourceUsage::track(WGVKTextureView view)noexcept{
+    if(!contains(view)){
+        ++view->refCount;
+        referencedTextureViews.insert(view);
+    }
+}
+inline void ResourceUsage::track(WGVKBindGroup bindGroup)noexcept{
+    if(!contains(bindGroup)){
+        ++bindGroup->refCount;
+        referencedBindGroups.insert(bindGroup);
+    }
+}
+inline void ResourceUsage::releaseAllAndClear()noexcept{
+    for(auto buffer : referencedBuffers){
+        wgvkReleaseBuffer(buffer);
+    }
+    for(auto bindGroup : referencedBindGroups){
+        wgvkReleaseDescriptorSet(bindGroup);
+    }
+    for(auto texture : referencedTextures){
+        wgvkReleaseTexture(texture);
+    }
+    for(auto view : referencedTextureViews){
+        wgvkReleaseTextureView(view);
+    }
+    referencedBuffers.clear();
+    referencedTextures.clear();
+    referencedTextureViews.clear();
+    referencedBindGroups.clear();
+}
+
+typedef struct WGVKRenderPassEncoderImpl{
+    VkCommandBuffer cmdBuffer;
+    VkRenderPass renderPass;
+    
+    ResourceUsage resourceUsage;
+    refcount_type refCount;
+
+    VkPipelineLayout lastLayout;
+    VkFramebuffer frameBuffer;
+    WGVKCommandEncoder cmdEncoder;
+}RenderPassEncoderHandleImpl;
+
+typedef struct WGVKCommandBufferImpl{
+    ref_holder<WGVKRenderPassEncoder> referencedRPs;
+    ResourceUsage resourceUsage;
+    
+    VkCommandBuffer buffer;
+    VkCommandPool pool;
+}WGVKCommandBufferImpl;
+
+typedef struct WGVKCommandEncoderImpl{
+    ref_holder<WGVKRenderPassEncoder> referencedRPs;
+    ResourceUsage resourceUsage;
+    VkCommandBuffer buffer;
+    VkCommandPool pool;
+}WGVKCommandEncoderImpl;
 struct xorshiftstate{
     uint64_t x64;
     void update(uint32_t x, uint32_t y)noexcept{
@@ -468,6 +554,8 @@ struct WGVKQueueImpl{
     VkQueue transferQueue;
     VkQueue presentQueue;
     SyncState syncState;
+
+    WGVKCommandEncoder presubmitCache;
 };
 
 struct memory_types{
@@ -871,13 +959,7 @@ extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder command
 extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVKCommandBuffer* buffers);
 extern "C" void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
 
-extern "C" void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandBuffer);
-extern "C" void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer);
-extern "C" void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc);
-extern "C" void wgvkReleaseBuffer(WGVKBuffer commandBuffer);
-extern "C" void wgvkReleaseDescriptorSet(WGVKBindGroup commandBuffer);
-extern "C" void wgvkReleaseTexture(WGVKTexture texture);
-extern "C" void wgvkReleaseTextureView(WGVKTextureView view);
+
 
 extern "C" void wgvkRenderpassEncoderDraw(WGVKRenderPassEncoder rpe, uint32_t vertices, uint32_t instances, uint32_t firstvertex, uint32_t firstinstance);
 extern "C" void wgvkRenderpassEncoderDrawIndexed(WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t firstinstance);
