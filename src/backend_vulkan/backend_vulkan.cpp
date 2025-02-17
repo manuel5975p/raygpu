@@ -745,7 +745,8 @@ std::pair<VkDevice, WGVKQueueImpl> createLogicalDevice(VkPhysicalDevice physical
             ret.second.computeQueue = ret.second.presentQueue;
         }
     }
-    ret.second.presubmitCache = wgvkDeviceCreateCommandEncoder(ret.first);
+    WGVKCommandEncoderDescriptor cedesc zeroinit;
+    ret.second.presubmitCache = wgvkDeviceCreateCommandEncoder(ret.first, &cedesc);
     //__builtin_dump_struct(&g_vulkanstate, printf);
     // std::cin.get();
 
@@ -852,6 +853,21 @@ const VkSemaphore& SyncState::getSemaphoreOfSubmitIndex(uint32_t index){
     }
     return semaphoresInThisFrame[index];
 }
+RenderTexture LoadRenderTexture(uint32_t width, uint32_t height){
+    RenderTexture ret{
+        .texture = LoadTextureEx(width, height, (PixelFormat)g_renderstate.frameBufferFormat, true),
+        .colorMultisample = Texture{}, 
+        .depth = LoadTexturePro(width, height, Depth32, TextureUsage_RenderAttachment | TextureUsage_CopySrc, (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1, 1)
+    };
+    if(g_renderstate.windowFlags & FLAG_MSAA_4X_HINT){
+        ret.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_renderstate.frameBufferFormat, TextureUsage_RenderAttachment | TextureUsage_CopySrc, 4, 1);
+    }
+    #if SUPPORT_VULKAN_BACKEND == 1
+    
+    wgvkQueueTransitionLayout(GetQueue(), ret.texture.id->, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    #endif
+    return ret;
+}
 extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
 
     WGVKRenderPassEncoder ret = callocnewpp(WGVKRenderPassEncoderImpl);
@@ -859,9 +875,9 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     VkCommandBufferBeginInfo bbi{};
     bbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     VkRenderPassBeginInfo rpbi{};
+    WGVKCommandEncoderDescriptor cedesc zeroinit;
 
-    
-    renderPass->cmdEncoder = wgvkDeviceCreateCommandEncoder(g_vulkanstate.device);
+    renderPass->cmdEncoder = wgvkDeviceCreateCommandEncoder(g_vulkanstate.device, &cedesc);
     
     //if(renderPass->cmdEncoder == nullptr){
     //    VkCommandPool oof{};
