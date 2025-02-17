@@ -782,7 +782,7 @@ struct FullVkRenderPass{
 extern "C" void TransitionImageLayout(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 extern "C" void EncodeTransitionImageLayout(VkCommandBuffer commandBuffer, VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image);
 extern "C" VkCommandBuffer BeginSingleTimeCommands(VkDevice device, VkCommandPool commandPool);
-extern "C" void EndSingleTimeCommands(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkCommandBuffer commandBuffer);
+extern "C" void EndSingleTimeCommandsAndSubmit(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkCommandBuffer commandBuffer);
 static inline VkSemaphore CreateSemaphore(VkSemaphoreCreateFlags flags = 0){
     VkSemaphoreCreateInfo sci zeroinit;
     VkSemaphore ret zeroinit;

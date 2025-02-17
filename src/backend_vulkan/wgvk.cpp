@@ -96,6 +96,7 @@ extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVK
     vkCreateImageView(texture->device, &ivci, nullptr, &ret->view);
     ret->format = ivci.format;
     ret->texture = texture;
+    ++texture->refCount;
     ret->width = texture->width;
     ret->height = texture->height;
     ret->sampleCount = texture->sampleCount;
@@ -456,11 +457,19 @@ void wgvkReleaseDescriptorSet(WGVKBindGroup dshandle) {
 
 extern "C" void wgvkReleaseTexture(WGVKTexture texture){
     --texture->refCount;
-    //TODO
+    if(texture->refCount == 0){
+        vkDestroyImage(texture->device, texture->image, nullptr);
+        vkFreeMemory(texture->device, texture->memory, nullptr);
+        std::free(texture);
+    }
 }
 extern "C" void wgvkReleaseTextureView(WGVKTextureView view){
     --view->refCount;
-    //TODO
+    if(view->refCount == 0){
+        vkDestroyImageView(view->texture->device, view->view, nullptr);
+        wgvkReleaseTexture(view->texture);
+        std::free(view);
+    }
 }
 
 // Implementation of RenderpassEncoderDraw
