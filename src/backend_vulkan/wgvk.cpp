@@ -44,12 +44,12 @@ extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_
 
 
 
-extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(VkDevice device){
+extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(VkDevice device, const WGVKCommandEncoderDescriptor* desc){
     WGVKCommandEncoder ret = callocnewpp(WGVKCommandEncoderImpl);
     VkCommandPoolCreateInfo pci{};
     pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    pci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-
+    pci.flags = desc->recyclable ? VK_COMMAND_POOL_CREATE_TRANSIENT_BIT : VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    ret->recyclable = desc->recyclable;
     vkCreateCommandPool(device, &pci, nullptr, &ret->pool);
     VkCommandBufferAllocateInfo bai{};
     bai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -64,7 +64,10 @@ extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(VkDevice device){
     vkBeginCommandBuffer(ret->buffer, &bbi);
     return ret;
 }
-
+extern "C" void wgvkQueueTransitionLayout(WGVKQueue cSelf, WGVKTexture texture, VkImageLayout from, VkImageLayout to){
+    EncodeTransitionImageLayout(cSelf->presubmitCache->buffer, from, to, texture->image);
+    cSelf->presubmitCache->resourceUsage.track(texture);
+}
 extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureViewDescriptor *descriptor){
     
     VkImageViewCreateInfo ivci{};
@@ -195,10 +198,13 @@ extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder command
 extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVKCommandBuffer* buffers){
     VkSubmitInfo si zeroinit;
     si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    si.commandBufferCount = commandCount;
-    small_vector<VkCommandBuffer> submittable(commandCount);
+    si.commandBufferCount = commandCount + 1;
+    small_vector<VkCommandBuffer> submittable(commandCount + 1);
+    WGVKCommandBuffer cachebuffer = wgvkCommandEncoderFinish(queue->presubmitCache);
+
+    submittable[0] = cachebuffer->buffer;
     for(size_t i = 0;i < commandCount;i++){
-        submittable[i] = buffers[i]->buffer;
+        submittable[i + 1] = buffers[i]->buffer;
     }
     si.pCommandBuffers = submittable.data();
     vkQueueSubmit(queue->graphicsQueue, 1, &si, queue->syncState.renderFinishedFence);
@@ -206,6 +212,10 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
         throw std::runtime_error("Could not wait for fence");
     }
     vkResetFences(g_vulkanstate.device, 1, &g_vulkanstate.queue.syncState.renderFinishedFence);
+    wgvkReleaseCommandEncoder(queue->presubmitCache);
+    wgvkReleaseCommandBuffer(cachebuffer);
+    WGVKCommandEncoderDescriptor cedesc zeroinit;
+    queue->presubmitCache = wgvkDeviceCreateCommandEncoder(g_vulkanstate.device, &cedesc);
     //VkPipelineStageFlags bop[1] = {VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT};
     //si.pWaitDstStageMask = bop;
 }

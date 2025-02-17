@@ -244,6 +244,7 @@ typedef struct WGVKCommandEncoderImpl{
     ResourceUsage resourceUsage;
     VkCommandBuffer buffer;
     VkCommandPool pool;
+    bool recyclable;
 }WGVKCommandEncoderImpl;
 struct xorshiftstate{
     uint64_t x64;
@@ -306,6 +307,12 @@ typedef struct WGVKRenderPassDescriptor{
     void* occlusionQuerySet;
     void const *timestampWrites;
 }WGVKRenderPassDescriptor;
+
+typedef struct WGVKCommandEncoderDescriptor{
+    WGPUChainedStruct* nextInChain;
+    WGPUStringView label;
+    bool recyclable;
+}WGVKCommandEncoderDescriptor;
 
 typedef struct Extent3D{
     uint32_t width, height, depthOrArrayLayers;
@@ -951,8 +958,9 @@ extern "C" WGVKTexture wgvkDeviceCreateTexture(VkDevice device, const WGVKTextur
 extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureViewDescriptor *descriptor);
 extern "C" WGVKBuffer wgvkDeviceCreateBuffer(VkDevice device, const BufferDescriptor* desc);
 extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, void const * data, size_t size);
+extern "C" void wgvkQueueTransitionLayout(WGVKQueue cSelf, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
 
-extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(VkDevice device);
+extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(VkDevice device, const WGVKCommandEncoderDescriptor* cdesc);
 extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, const WGVKRenderPassDescriptor* rpdesc);
 extern "C" void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder);
 extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder commandEncoder);
