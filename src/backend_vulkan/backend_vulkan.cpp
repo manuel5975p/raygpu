@@ -745,6 +745,7 @@ std::pair<VkDevice, WGVKQueueImpl> createLogicalDevice(VkPhysicalDevice physical
             ret.second.computeQueue = ret.second.presentQueue;
         }
     }
+    ret.second.presubmitCache = wgvkDeviceCreateCommandEncoder(ret.first);
     //__builtin_dump_struct(&g_vulkanstate, printf);
     // std::cin.get();
 
@@ -752,11 +753,54 @@ std::pair<VkDevice, WGVKQueueImpl> createLogicalDevice(VkPhysicalDevice physical
 
     return ret;
 }
+void printVkPhysicalDeviceMemoryProperties(const VkPhysicalDeviceMemoryProperties* properties) {
+    if (!properties) {
+        printf("Invalid VkPhysicalDeviceMemoryProperties pointer\n");
+        return;
+    }
+
+    printf("VkPhysicalDeviceMemoryProperties:\n");
+    
+    printf("  Memory Type Count: %u\n", properties->memoryTypeCount);
+    for (uint32_t i = 0; i < properties->memoryTypeCount; i++) {
+        VkMemoryType memoryType = properties->memoryTypes[i];
+        printf("    Memory Type %u:\n", i);
+        printf("      Heap Index: %u\n", memoryType.heapIndex);
+        printf("      Property Flags: 0x%08X\n", memoryType.propertyFlags);
+
+        // Decode memory property flags
+        printf("      Properties: ");
+        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) printf("DEVICE_LOCAL ");
+        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) printf("HOST_VISIBLE ");
+        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) printf("HOST_COHERENT ");
+        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) printf("HOST_CACHED ");
+        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) printf("LAZILY_ALLOCATED ");
+        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_PROTECTED_BIT) printf("PROTECTED ");
+        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD) printf("DEVICE_COHERENT_AMD ");
+        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_UNCACHED_BIT_AMD) printf("DEVICE_UNCACHED_AMD ");
+        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_RDMA_CAPABLE_BIT_NV) printf("RDMA_CAPABLE_NV ");
+        printf("\n");
+    }
+
+    printf("  Memory Heap Count: %u\n", properties->memoryHeapCount);
+    for (uint32_t i = 0; i < properties->memoryHeapCount; i++) {
+        VkMemoryHeap memoryHeap = properties->memoryHeaps[i];
+        printf("    Memory Heap %u:\n", i);
+        printf("      Size: %llu bytes (%.2f MB)\n", (unsigned long long)memoryHeap.size, memoryHeap.size / (1024.0 * 1024.0));
+        printf("      Flags: 0x%08X\n", memoryHeap.flags);
+
+        // Decode memory heap flags
+        printf("      Properties: ");
+        if (memoryHeap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) printf("DEVICE_LOCAL ");
+        if (memoryHeap.flags & VK_MEMORY_HEAP_MULTI_INSTANCE_BIT) printf("MULTI_INSTANCE ");
+        printf("\n");
+    }
+}
 memory_types discoverMemoryTypes(VkPhysicalDevice physicalDevice) {
     memory_types ret{~0u, ~0u};
     VkPhysicalDeviceMemoryProperties memProperties{};
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
-    
+    //printVkPhysicalDeviceMemoryProperties(&memProperties);
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
         if ((memProperties.memoryTypes[i].propertyFlags & (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) == (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
             ret.hostVisibleCoherent = i;
@@ -768,7 +812,7 @@ memory_types discoverMemoryTypes(VkPhysicalDevice physicalDevice) {
     return ret;
 }
 void InitBackend(){
-    #if SUPPORT_SDL3 == 1
+    #if SUPPORT_SDL2 == 1 || SUPPORT_SDL3 == 1
     SDL_Init(SDL_INIT_VIDEO);
     #endif
     #if SUPPORT_GLFW
