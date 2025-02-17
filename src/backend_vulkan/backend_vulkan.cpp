@@ -864,6 +864,9 @@ RenderTexture LoadRenderTexture(uint32_t width, uint32_t height){
     }
     
     wgvkQueueTransitionLayout(&g_vulkanstate.queue, ((WGVKTexture)ret.texture.id), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    if(ret.colorMultisample.id)
+        wgvkQueueTransitionLayout(&g_vulkanstate.queue, ((WGVKTexture)ret.colorMultisample.id), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    wgvkQueueTransitionLayout(&g_vulkanstate.queue, ((WGVKTexture)ret.depth.id), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
     return ret;
 }
 extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
