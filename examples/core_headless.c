@@ -19,7 +19,8 @@ int main(void){
         
         DrawFPS(0, 0);
         EndDrawing();
-        if(GetFrameCount() % 16 == 0){
+        //if(GetFrameCount() % 16 == 0)
+        {
             TakeScreenshot(TextFormat("frame%llu.png", GetFrameCount()));
             printf("FPS: %d\n", GetFPS());
         }

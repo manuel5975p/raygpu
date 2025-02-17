@@ -407,6 +407,15 @@ void UnloadTexture(Texture tex){
     vkFreeMemory(g_vulkanstate.device, handle->memory, nullptr);
 }
 extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
+    static VkCommandPool transientPool = [](){
+        VkCommandPool ret = nullptr;
+        VkCommandPoolCreateInfo pci zeroinit;
+        pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        pci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+        vkCreateCommandPool(g_vulkanstate.device, &pci, nullptr, &ret);
+        return ret;
+    }();
+    static VkFence fence = CreateFence();
     Image ret zeroinit;
     VkBufferImageCopy region{};
     region.bufferOffset = 0;
@@ -418,19 +427,26 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
     region.imageSubresource.layerCount = 1;
     region.imageOffset = {0, 0, 0};
     region.imageExtent = VkExtent3D{tex->width, tex->height, 1u};
-    VkCommandBuffer commandBuffer{};
     size_t size = GetPixelSizeInBytes(fromVulkanPixelFormat(tex->format));
     VkDeviceMemory bufferMemory{};
     VkBuffer stagingBuffer = CreateBuffer(g_vulkanstate.device, size * tex->width * tex->height, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, bufferMemory);
-    
+    VkCommandBuffer commandBuffer = BeginSingleTimeCommands(g_vulkanstate.device, transientPool);
     vkCmdCopyImageToBuffer(
         commandBuffer,
         tex->image,
-        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         stagingBuffer,
         1,
         &region
     );
+    EndSingleTimeCommands(g_vulkanstate.device, transientPool, g_vulkanstate.queue.graphicsQueue, commandBuffer);
+    VkSubmitInfo sinfo zeroinit;
+    sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    sinfo.commandBufferCount = 1;
+    sinfo.pCommandBuffers = &commandBuffer;
+    vkQueueSubmit(g_vulkanstate.queue.graphicsQueue, 1, &sinfo, fence);
+    vkWaitForFences(g_vulkanstate.device, 1, &fence, VK_TRUE, UINT64_MAX);
+    vkResetFences(g_vulkanstate.device, 1, &fence);
     return ret;
 } 
 // Updated LoadTextureFromImage_Vk function using LoadTexturePro
