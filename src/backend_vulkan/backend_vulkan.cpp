@@ -266,7 +266,7 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
     VkCommandBuffer buf = BeginSingleTimeCommands(vd, oof);
     EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, wgvksurf->images[imageIndex]->image);
     EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, ((WGVKTexture)fsurface->renderTarget.depth.id)->image);
-    EndSingleTimeCommands(vd, oof, g_vulkanstate.queue.graphicsQueue, buf);
+    EndSingleTimeCommandsAndSubmit(vd, oof, g_vulkanstate.queue.graphicsQueue, buf);
     vkDestroyCommandPool(g_vulkanstate.device, oof, nullptr);
     
     fsurface->renderTarget.texture.id = wgvksurf->images[imageIndex];

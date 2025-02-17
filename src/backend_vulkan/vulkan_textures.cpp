@@ -155,8 +155,11 @@ VkCommandBuffer BeginSingleTimeCommands(VkDevice device, VkCommandPool commandPo
 }
 
 // Function to end and submit a single-use command buffer
-void EndSingleTimeCommands(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkCommandBuffer commandBuffer) {
+void EndSingleTimeCommands(VkDevice device, VkCommandPool commandPool, VkCommandBuffer commandBuffer){
     vkEndCommandBuffer(commandBuffer);
+}
+void EndSingleTimeCommandsAndSubmit(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkCommandBuffer commandBuffer) {
+    EndSingleTimeCommands(device, commandPool, commandBuffer);
     
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -230,7 +233,7 @@ extern "C" void TransitionImageLayout(VkDevice device, VkCommandPool commandPool
     
     EncodeTransitionImageLayout(commandBuffer, oldLayout, newLayout, image);
     
-    EndSingleTimeCommands(device, commandPool, queue, commandBuffer);
+    EndSingleTimeCommandsAndSubmit(device, commandPool, queue, commandBuffer);
 }
 extern "C" WGVKTexture wgvkDeviceCreateTexture(VkDevice device, const WGVKTextureDescriptor* descriptor){
     VkDeviceMemory imageMemory;
@@ -294,7 +297,7 @@ void CopyBufferToImage(VkDevice device, VkCommandPool commandPool, VkQueue queue
         &region
     );
     
-    EndSingleTimeCommands(device, commandPool, queue, commandBuffer);
+    EndSingleTimeCommandsAndSubmit(device, commandPool, queue, commandBuffer);
 }
 
 // Main function to create Vulkan image from RGBA8 data or as empty
@@ -400,11 +403,9 @@ extern "C" Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat f
 }
 
 void UnloadTexture(Texture tex){
-    vkDestroyImageView(g_vulkanstate.device, (VkImageView)tex.view, nullptr);
-
-    WGVKTexture handle = (WGVKTexture)tex.id;
-    vkDestroyImage(g_vulkanstate.device, handle->image, nullptr);
-    vkFreeMemory(g_vulkanstate.device, handle->memory, nullptr);
+    wgvkReleaseTextureView((WGVKTextureView)tex.view);
+    wgvkReleaseTexture((WGVKTexture)tex.id);
+    
 }
 extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
     static VkCommandPool transientPool = [](){
@@ -429,17 +430,24 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
     region.imageExtent = VkExtent3D{tex->width, tex->height, 1u};
     size_t size = GetPixelSizeInBytes(fromVulkanPixelFormat(tex->format));
     VkDeviceMemory bufferMemory{};
-    VkBuffer stagingBuffer = CreateBuffer(g_vulkanstate.device, size * tex->width * tex->height, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, bufferMemory);
+    size_t bufferSize = size * tex->width * tex->height;
+    VkBuffer stagingBuffer = CreateBuffer(g_vulkanstate.device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, bufferMemory);
     VkCommandBuffer commandBuffer = BeginSingleTimeCommands(g_vulkanstate.device, transientPool);
+    
+    EncodeTransitionImageLayout(commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, tex->image);
+    
     vkCmdCopyImageToBuffer(
         commandBuffer,
         tex->image,
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
         stagingBuffer,
         1,
         &region
     );
-    EndSingleTimeCommands(g_vulkanstate.device, transientPool, g_vulkanstate.queue.graphicsQueue, commandBuffer);
+    
+    EncodeTransitionImageLayout(commandBuffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, tex->image);
+
+    EndSingleTimeCommands(g_vulkanstate.device, transientPool, commandBuffer);
     VkSubmitInfo sinfo zeroinit;
     sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     sinfo.commandBufferCount = 1;
@@ -447,6 +455,21 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
     vkQueueSubmit(g_vulkanstate.queue.graphicsQueue, 1, &sinfo, fence);
     vkWaitForFences(g_vulkanstate.device, 1, &fence, VK_TRUE, UINT64_MAX);
     vkResetFences(g_vulkanstate.device, 1, &fence);
+    vkFreeCommandBuffers(g_vulkanstate.device, transientPool, 1, &commandBuffer);
+    void* mapPtr = nullptr;
+    VkResult mapResult = vkMapMemory(g_vulkanstate.device, bufferMemory, 0, size, 0, &mapPtr);
+    if(mapResult == VK_SUCCESS){
+        ret.data = std::calloc(bufferSize, 1);
+        ret.width = tex->width;
+        ret.height = tex->height;
+        ret.format = fromVulkanPixelFormat(tex->format);
+        ret.mipmaps = 0;
+        ret.rowStrideInBytes = ret.width * size;
+        std::memcpy(ret.data, mapPtr, bufferSize);
+    }
+    vkUnmapMemory(g_vulkanstate.device, bufferMemory);
+    vkFreeMemory(g_vulkanstate.device, bufferMemory, nullptr);
+    vkDestroyBuffer(g_vulkanstate.device, stagingBuffer, nullptr);
     return ret;
 } 
 // Updated LoadTextureFromImage_Vk function using LoadTexturePro
