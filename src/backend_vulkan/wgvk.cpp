@@ -43,6 +43,79 @@ extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_
 }
 
 
+extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(VkDevice device, const WGVKBindGroupDescriptor* bgdesc){
+
+    WGVKBindGroup ret = callocnewpp(WGVKBindGroupImpl);
+    ret->refCount = 1;
+    //WGVKBindGroup dshandle = (WGVKBindGroup)bg->bindGroup;
+
+    VkDescriptorPoolCreateInfo dpci{};
+    dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    dpci.maxSets = 1;
+    //dpci.flags |= VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    
+    std::unordered_map<VkDescriptorType, uint32_t> counts;
+    for(uint32_t i = 0;i < bgdesc->layout->entryCount;i++){
+        ++counts[toVulkanResourceType(bgdesc->layout->entries[i].type)];
+    }
+    std::vector<VkDescriptorPoolSize> sizes;
+    sizes.reserve(counts.size());
+    for(const auto& [t, s] : counts){
+        sizes.push_back(VkDescriptorPoolSize{.type = t, .descriptorCount = s});
+    }
+
+    dpci.poolSizeCount = sizes.size();
+    dpci.pPoolSizes = sizes.data();
+    dpci.maxSets = 1;
+    vkCreateDescriptorPool(g_vulkanstate.device, &dpci, nullptr, &ret->pool);
+    
+    //VkCopyDescriptorSet copy{};
+    //copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
+    
+    VkDescriptorSetAllocateInfo dsai{};
+    dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    dsai.descriptorPool = ret->pool;
+    dsai.descriptorSetCount = 1;
+    dsai.pSetLayouts = (VkDescriptorSetLayout*)&bgdesc->layout->layout;
+    vkAllocateDescriptorSets(g_vulkanstate.device, &dsai, &ret->set);
+
+
+
+    uint32_t count = bgdesc->entryCount;
+    small_vector<VkWriteDescriptorSet> writes(count, VkWriteDescriptorSet{});
+    small_vector<VkDescriptorBufferInfo> bufferInfos(count, VkDescriptorBufferInfo{});
+    small_vector<VkDescriptorImageInfo> imageInfos(count, VkDescriptorImageInfo{});
+
+    for(uint32_t i = 0;i < count;i++){
+        writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        uint32_t binding = bgdesc->entries[i].binding;
+        writes[i].dstBinding = binding;
+        writes[i].dstSet = ret->set;
+        writes[i].descriptorType = toVulkanResourceType(bgdesc->layout->entries[i].type);
+        writes[i].descriptorCount = 1;
+
+        if(bgdesc->layout->entries[i].type == uniform_buffer || bgdesc->layout->entries[i].type == storage_buffer){
+            bufferInfos[i].buffer = ((WGVKBuffer)bgdesc->entries[i].buffer)->buffer;
+            bufferInfos[i].offset = bgdesc->entries[i].offset;
+            bufferInfos[i].range =  bgdesc->entries[i].size;
+            writes[i].pBufferInfo = bufferInfos.data() + i;
+        }
+
+        if(bgdesc->layout->entries[i].type == texture2d || bgdesc->layout->entries[i].type == texture3d){
+            imageInfos[i].imageView = ((WGVKTextureView)bgdesc->entries[i].textureView)->view;
+            imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            writes[i].pImageInfo = imageInfos.data() + i;
+        }
+
+        if(bgdesc->layout->entries[i].type == texture_sampler){
+            VkSampler vksampler = (VkSampler)bgdesc->entries[i].sampler;
+            imageInfos[i].sampler = vksampler;
+            writes[i].pImageInfo = imageInfos.data() + i;
+        }
+    }
+    vkUpdateDescriptorSets(g_vulkanstate.device, writes.size(), writes.data(), 0, nullptr);
+    return ret;
+}
 
 extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(VkDevice device, const WGVKCommandEncoderDescriptor* desc){
     WGVKCommandEncoder ret = callocnewpp(WGVKCommandEncoderImpl);
@@ -65,7 +138,7 @@ extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(VkDevice device, co
     return ret;
 }
 extern "C" void wgvkQueueTransitionLayout(WGVKQueue cSelf, WGVKTexture texture, VkImageLayout from, VkImageLayout to){
-    EncodeTransitionImageLayout(cSelf->presubmitCache->buffer, from, to, texture->image);
+    EncodeTransitionImageLayout(cSelf->presubmitCache->buffer, from, to, texture);
     cSelf->presubmitCache->resourceUsage.track(texture);
 }
 extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureViewDescriptor *descriptor){
@@ -463,7 +536,7 @@ void wgvkReleaseDescriptorSet(WGVKBindGroup dshandle) {
     --dshandle->refCount;
     if (dshandle->refCount == 0) {
         dshandle->resourceUsage.releaseAllAndClear();
-        vkFreeDescriptorSets(g_vulkanstate.device, dshandle->pool, 1, &dshandle->set);
+        //vkFreeDescriptorSets(g_vulkanstate.device, dshandle->pool, 1, &dshandle->set);
         vkDestroyDescriptorPool(g_vulkanstate.device, dshandle->pool, nullptr);
     }
 }

@@ -84,10 +84,12 @@ typedef WGVKTextureViewImpl* WGVKTextureView;
 using refcount_type = uint32_t;
 template<typename T>
 using ref_holder = std::unordered_set<T>;
+template<typename T, typename R>
+using typed_ref_holder = std::unordered_map<T, R>;
 typedef struct ResourceUsage{
     ref_holder<WGVKBuffer> referencedBuffers;
     ref_holder<WGVKTexture> referencedTextures;
-    ref_holder<WGVKTextureView> referencedTextureViews;
+    typed_ref_holder<WGVKTextureView, TextureUsage> referencedTextureViews;
     ref_holder<WGVKBindGroup> referencedBindGroups;
     bool contains(WGVKBuffer buffer)const noexcept;
     bool contains(WGVKTexture texture)const noexcept;
@@ -96,7 +98,7 @@ typedef struct ResourceUsage{
 
     void track(WGVKBuffer buffer)noexcept;
     void track(WGVKTexture texture)noexcept;
-    void track(WGVKTextureView view)noexcept;
+    void track(WGVKTextureView view, TextureUsage usage)noexcept;
     void track(WGVKBindGroup bindGroup)noexcept;
     void releaseAllAndClear()noexcept;
 }ResourceUsage;
@@ -120,9 +122,11 @@ typedef struct WGVKBufferImpl{
     refcount_type refCount;
 }WGVKBufferImpl;
 
+
 typedef struct WGVKTextureImpl{
     VkImage image;
     VkFormat format;
+    VkImageLayout layout;
     VkDeviceMemory memory;
     VkDevice device;
     uint32_t refCount;
@@ -145,6 +149,22 @@ typedef struct AttachmentDescriptor{
     LoadOp loadop;
     StoreOp storeop;
 }AttachmentDescriptor;
+typedef struct WGVKBindGroupEntry{
+    void* nextInChain;
+    uint32_t binding;
+    WGVKBuffer buffer;
+    uint64_t offset;
+    uint64_t size;
+    VkSampler sampler;
+    WGVKTextureView textureView;
+}WGVKBindGroupEntry;
+typedef struct WGVKBindGroupDescriptor{
+    void* nextInChain;
+    WGVKStringView label;
+    const DescribedBindGroupLayout* layout;
+    size_t entryCount;
+    const ResourceDescriptor* entries;
+}WGVKBindGroupDescriptor;
 
 constexpr uint32_t max_color_attachments = 8;
 typedef struct RenderPassLayout{
@@ -188,10 +208,10 @@ inline void ResourceUsage::track(WGVKTexture texture)noexcept{
         referencedTextures.insert(texture);
     }
 }
-inline void ResourceUsage::track(WGVKTextureView view)noexcept{
+inline void ResourceUsage::track(WGVKTextureView view, TextureUsage usage)noexcept{
     if(!contains(view)){
         ++view->refCount;
-        referencedTextureViews.insert(view);
+        referencedTextureViews.emplace(view, usage);
     }
 }
 inline void ResourceUsage::track(WGVKBindGroup bindGroup)noexcept{
@@ -210,7 +230,7 @@ inline void ResourceUsage::releaseAllAndClear()noexcept{
     for(auto texture : referencedTextures){
         wgvkReleaseTexture(texture);
     }
-    for(auto view : referencedTextureViews){
+    for(const auto [view, _] : referencedTextureViews){
         wgvkReleaseTextureView(view);
     }
     referencedBuffers.clear();
@@ -874,8 +894,8 @@ struct FullVkRenderPass{
     //vkCreateSemaphore(g_vulkanstate.device, &si, nullptr, &ret.signalSemaphore);
     return ret;
 }*/
-extern "C" void TransitionImageLayout(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
-extern "C" void EncodeTransitionImageLayout(VkCommandBuffer commandBuffer, VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image);
+extern "C" void TransitionImageLayout(VkDevice device, VkCommandPool commandPool, VkQueue queue, WGVKTexture texture, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+extern "C" void EncodeTransitionImageLayout(VkCommandBuffer commandBuffer, VkImageLayout oldLayout, VkImageLayout newLayout, WGVKTexture texture);
 extern "C" VkCommandBuffer BeginSingleTimeCommands(VkDevice device, VkCommandPool commandPool);
 extern "C" void EndSingleTimeCommandsAndSubmit(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkCommandBuffer commandBuffer);
 static inline VkSemaphore CreateSemaphore(VkSemaphoreCreateFlags flags = 0){
@@ -958,6 +978,7 @@ extern "C" WGVKTexture wgvkDeviceCreateTexture(VkDevice device, const WGVKTextur
 extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureViewDescriptor *descriptor);
 extern "C" WGVKBuffer wgvkDeviceCreateBuffer(VkDevice device, const BufferDescriptor* desc);
 extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, void const * data, size_t size);
+extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(VkDevice device, const WGVKBindGroupDescriptor* bgdesc);
 extern "C" void wgvkQueueTransitionLayout(WGVKQueue cSelf, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
 
 extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(VkDevice device, const WGVKCommandEncoderDescriptor* cdesc);
