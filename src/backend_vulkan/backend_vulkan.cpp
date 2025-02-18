@@ -862,8 +862,8 @@ RenderTexture LoadRenderTexture(uint32_t width, uint32_t height){
     if(g_renderstate.windowFlags & FLAG_MSAA_4X_HINT){
         ret.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_renderstate.frameBufferFormat, TextureUsage_RenderAttachment | TextureUsage_CopySrc, 4, 1);
     }
-    
-    wgvkQueueTransitionLayout(&g_vulkanstate.queue, ((WGVKTexture)ret.texture.id), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    WGVKTextureView colorTargetView = (WGVKTextureView)ret.texture.view;
+    wgvkQueueTransitionLayout(&g_vulkanstate.queue, colorTargetView->texture, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     if(ret.colorMultisample.id)
         wgvkQueueTransitionLayout(&g_vulkanstate.queue, ((WGVKTexture)ret.colorMultisample.id), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     wgvkQueueTransitionLayout(&g_vulkanstate.queue, ((WGVKTexture)ret.depth.id), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
@@ -922,9 +922,18 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     if(rtex.colorMultisample.view){
         rca.view = (WGVKTextureView)rtex.colorMultisample.view;
         rca.resolveTarget = (WGVKTextureView)rtex.texture.view;
+        if(rca.view->texture->layout != VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL){
+            wgvkCommandEncoderTransitionTextureLayout((WGVKCommandEncoder)renderPass->cmdEncoder, rca.view->texture, rca.view->texture->layout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        }
+        if(rca.resolveTarget->texture->layout != VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL){
+            wgvkCommandEncoderTransitionTextureLayout((WGVKCommandEncoder)renderPass->cmdEncoder, rca.resolveTarget->texture, rca.resolveTarget->texture->layout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        }
     }
     else{
         rca.view = (WGVKTextureView)rtex.texture.view;
+        if(rca.view->texture->layout != VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL){
+            wgvkCommandEncoderTransitionTextureLayout((WGVKCommandEncoder)renderPass->cmdEncoder, rca.view->texture, rca.view->texture->layout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        }
     }
 
     rpdesc.depthStencilAttachment = &dsa;
@@ -1026,7 +1035,10 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
     //if(vkWaitForFences(g_vulkanstate.device, 1, &g_vulkanstate.queue.syncState.renderFinishedFence, VK_TRUE, ~0) != VK_SUCCESS){
     //    throw std::runtime_error("Could not wait for fence");
     //}
-    if(rp->rpEncoder)wgvkReleaseRenderPassEncoder((WGVKRenderPassEncoder)rp->rpEncoder);
+    WGVKRenderPassEncoder rpe = (WGVKRenderPassEncoder)rp->rpEncoder;
+    if(rpe){
+        wgvkReleaseRenderPassEncoder(rpe);
+    }
     wgvkReleaseCommandEncoder((WGVKCommandEncoder)rp->cmdEncoder);
     wgvkReleaseCommandBuffer(cbuffer);
     //vkResetFences(g_vulkanstate.device, 1, &g_vulkanstate.queue.syncState.renderFinishedFence);
@@ -1038,7 +1050,8 @@ extern "C" void EndRenderpassPro(DescribedRenderpass* rp, bool renderTexture){
     if(renderTexture){
         wgvkRenderPassEncoderEnd((WGVKRenderPassEncoder)rp->rpEncoder);
         wgvkReleaseRenderPassEncoder((WGVKRenderPassEncoder)rp->rpEncoder);
-        wgvkCommandEncoderTransitionTextureLayout((WGVKCommandEncoder)rp->cmdEncoder, (WGVKTexture)GetActiveColorTarget(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        WGVKTexture ctarget = (WGVKTexture)GetActiveColorTarget();
+        wgvkCommandEncoderTransitionTextureLayout((WGVKCommandEncoder)rp->cmdEncoder, ctarget, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         rp->rpEncoder = nullptr;
     }
     EndRenderpassEx(rp);

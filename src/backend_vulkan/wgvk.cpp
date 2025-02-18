@@ -95,6 +95,7 @@ extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(VkDevice device, const WGVKBi
         writes[i].descriptorCount = 1;
 
         if(bgdesc->layout->entries[i].type == uniform_buffer || bgdesc->layout->entries[i].type == storage_buffer){
+            ret->resourceUsage.track((WGVKBuffer)bgdesc->entries[i].buffer);
             bufferInfos[i].buffer = ((WGVKBuffer)bgdesc->entries[i].buffer)->buffer;
             bufferInfos[i].offset = bgdesc->entries[i].offset;
             bufferInfos[i].range =  bgdesc->entries[i].size;
@@ -102,6 +103,7 @@ extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(VkDevice device, const WGVKBi
         }
 
         if(bgdesc->layout->entries[i].type == texture2d || bgdesc->layout->entries[i].type == texture3d){
+            ret->resourceUsage.track((WGVKTextureView)bgdesc->entries[i].textureView, TextureUsage_TextureBinding);
             imageInfos[i].imageView = ((WGVKTextureView)bgdesc->entries[i].textureView)->view;
             imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             writes[i].pImageInfo = imageInfos.data() + i;
@@ -169,6 +171,7 @@ extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVK
     }
     ivci.subresourceRange = sr;
     WGVKTextureView ret = callocnew(WGVKTextureViewImpl);
+    ret->refCount = 1;
     vkCreateImageView(texture->device, &ivci, nullptr, &ret->view);
     ret->format = ivci.format;
     ret->texture = texture;
@@ -204,6 +207,17 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
     VkFramebufferCreateInfo fbci zeroinit;
     fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     fbci.attachmentCount = rplayout.colorAttachmentCount + rplayout.depthAttachmentPresent + uint32_t(rplayout.colorResolveIndex != VK_ATTACHMENT_UNUSED);
+
+    if(rpdesc->colorAttachments[0].view){
+        ret->resourceUsage.track(rpdesc->colorAttachments[0].view, TextureUsage_RenderAttachment);
+    }
+    if(rpdesc->colorAttachments[0].resolveTarget){
+        ret->resourceUsage.track(rpdesc->colorAttachments[0].resolveTarget, TextureUsage_RenderAttachment);
+    }
+    if(rpdesc->depthStencilAttachment->view){
+        ret->resourceUsage.track(rpdesc->depthStencilAttachment->view, TextureUsage_RenderAttachment);
+    }
+
     fbci.width = rpdesc->colorAttachments[0].view->width;
     fbci.height = rpdesc->colorAttachments[0].view->height;
     fbci.layers = 1;
@@ -499,6 +513,7 @@ void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKT
         0, nullptr,
         1, &barrier
     );
+    texture->layout = newLayout;
 }
 void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
     for(auto rp : commandEncoder->referencedRPs){
