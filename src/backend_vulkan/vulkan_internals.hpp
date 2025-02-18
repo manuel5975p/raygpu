@@ -10,6 +10,7 @@
 #include <internals.hpp>
 //#define SUPPORT_VULKAN_BACKEND 1
 #include <enum_translation.h>
+#include <vulkan/vulkan_core.h>
 #if SUPPORT_GLFW == 1
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>

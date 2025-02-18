@@ -46,7 +46,7 @@ void ResetSyncState(){
 }
 void PresentSurface(FullSurface* surface){
 
-    VkSubmitInfo si{};
+    VkSubmitInfo si zeroinit;
     si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     si.waitSemaphoreCount = 1;
     si.signalSemaphoreCount = 1;
@@ -82,6 +82,7 @@ void PresentSurface(FullSurface* surface){
     pci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
     vkCreateCommandPool(g_vulkanstate.device, &pci, nullptr, &oof);
     TransitionImageLayout(g_vulkanstate.device, oof, g_vulkanstate.queue.graphicsQueue, wgvksurf->images[wgvksurf->activeImageIndex], VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    
     vkDestroyCommandPool(g_vulkanstate.device, oof, nullptr);
     VkResult presentRes = vkQueuePresentKHR(g_vulkanstate.queue.presentQueue, &presentInfo);
     if(presentRes != VK_SUCCESS){
