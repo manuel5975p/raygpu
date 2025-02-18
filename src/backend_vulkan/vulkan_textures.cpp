@@ -99,6 +99,7 @@ WGVKTexture CreateImage(VkDevice device, uint32_t width, uint32_t height, uint32
     ret->height = height;
     ret->sampleCount = sampleCount;
     ret->depthOrArrayLayers = 1;
+    ret->layout = VK_IMAGE_LAYOUT_UNDEFINED;
     return ret;
 }
 
@@ -173,7 +174,8 @@ void EndSingleTimeCommandsAndSubmit(VkDevice device, VkCommandPool commandPool, 
     vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
     commandBuffer = nullptr;
 }
-extern "C" void EncodeTransitionImageLayout(VkCommandBuffer commandBuffer, VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image){
+extern "C" void EncodeTransitionImageLayout(VkCommandBuffer commandBuffer, VkImageLayout oldLayout, VkImageLayout newLayout, WGVKTexture texture){
+    VkImage image = texture->image;
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     barrier.oldLayout = oldLayout;
@@ -225,13 +227,13 @@ extern "C" void EncodeTransitionImageLayout(VkCommandBuffer commandBuffer, VkIma
         0, nullptr,
         1, &barrier
     );
+    texture->layout = newLayout;
 }
 // Function to transition image layout
-extern "C" void TransitionImageLayout(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkImage image, 
+extern "C" void TransitionImageLayout(VkDevice device, VkCommandPool commandPool, VkQueue queue, WGVKTexture texture, 
                            VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
     VkCommandBuffer commandBuffer = BeginSingleTimeCommands(device, commandPool);
-    
-    EncodeTransitionImageLayout(commandBuffer, oldLayout, newLayout, image);
+    EncodeTransitionImageLayout(commandBuffer, oldLayout, newLayout, texture);
     
     EndSingleTimeCommandsAndSubmit(device, commandPool, queue, commandBuffer);
 }
@@ -323,13 +325,13 @@ WGVKTexture CreateVkImage(VkDevice device, VkPhysicalDevice physicalDevice, VkCo
         vkUnmapMemory(device, stagingMemory);
         
         // Transition image layout to TRANSFER_DST_OPTIMAL
-        TransitionImageLayout(device, commandPool, queue, image->image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        TransitionImageLayout(device, commandPool, queue, image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
         
         // Copy buffer to image
         CopyBufferToImage(device, commandPool, queue, stagingBuffer, image->image, width, height);
         
         // Transition image layout to SHADER_READ_ONLY_OPTIMAL
-        TransitionImageLayout(device, commandPool, queue, image->image, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        TransitionImageLayout(device, commandPool, queue, image, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         
         // Cleanup staging resources
         vkDestroyBuffer(device, stagingBuffer, nullptr);
@@ -434,7 +436,7 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
     VkBuffer stagingBuffer = CreateBuffer(g_vulkanstate.device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, bufferMemory);
     VkCommandBuffer commandBuffer = BeginSingleTimeCommands(g_vulkanstate.device, transientPool);
     
-    EncodeTransitionImageLayout(commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, tex->image);
+    EncodeTransitionImageLayout(commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, tex);
     
     vkCmdCopyImageToBuffer(
         commandBuffer,
@@ -445,7 +447,7 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
         &region
     );
     
-    EncodeTransitionImageLayout(commandBuffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, tex->image);
+    EncodeTransitionImageLayout(commandBuffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, tex);
 
     EndSingleTimeCommands(g_vulkanstate.device, transientPool, commandBuffer);
     VkSubmitInfo sinfo zeroinit;

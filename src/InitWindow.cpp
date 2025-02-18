@@ -159,7 +159,7 @@ bool WindowShouldClose(cwoid){
     #elif defined(MAIN_WINDOW_SDL3)
     return g_renderstate.closeFlag;
     #else
-    return false;
+    return g_renderstate.closeFlag;
     #endif
 }
 
