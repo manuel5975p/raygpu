@@ -149,15 +149,15 @@ typedef struct AttachmentDescriptor{
     LoadOp loadop;
     StoreOp storeop;
 }AttachmentDescriptor;
-typedef struct WGVKBindGroupEntry{
-    void* nextInChain;
-    uint32_t binding;
-    WGVKBuffer buffer;
-    uint64_t offset;
-    uint64_t size;
-    VkSampler sampler;
-    WGVKTextureView textureView;
-}WGVKBindGroupEntry;
+//typedef struct WGVKBindGroupEntry{
+//    void* nextInChain;
+//    uint32_t binding;
+//    WGVKBuffer buffer;
+//    uint64_t offset;
+//    uint64_t size;
+//    VkSampler sampler;
+//    WGVKTextureView textureView;
+//}WGVKBindGroupEntry;
 typedef struct WGVKBindGroupDescriptor{
     void* nextInChain;
     WGVKStringView label;

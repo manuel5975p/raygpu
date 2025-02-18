@@ -100,6 +100,7 @@ WGVKTexture CreateImage(VkDevice device, uint32_t width, uint32_t height, uint32
     ret->sampleCount = sampleCount;
     ret->depthOrArrayLayers = 1;
     ret->layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    ret->refCount = 1;
     return ret;
 }
 
@@ -125,7 +126,7 @@ WGVKTextureView CreateImageView(VkDevice device, VkImage image, VkFormat format,
     if (vkCreateImageView(device, &viewInfo, nullptr, &ret->view) != VK_SUCCESS)
         throw std::runtime_error("Failed to create image view!");
     ret->format = viewInfo.format;
-
+    ret->refCount = 1;
     return ret;
 }
 
@@ -390,6 +391,7 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     view->height = height;
     view->sampleCount = sampleCount;
     view->depthOrArrayLayers = 1;
+    view->texture = image;
     ret.view = view;
     // Handle mipmaps if necessary (not implemented here)
     // For simplicity, only base mip level is created. Extend as needed.
@@ -454,20 +456,25 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
     sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     sinfo.commandBufferCount = 1;
     sinfo.pCommandBuffers = &commandBuffer;
-    vkQueueSubmit(g_vulkanstate.queue.graphicsQueue, 1, &sinfo, fence);
-    vkWaitForFences(g_vulkanstate.device, 1, &fence, VK_TRUE, UINT64_MAX);
-    vkResetFences(g_vulkanstate.device, 1, &fence);
-    vkFreeCommandBuffers(g_vulkanstate.device, transientPool, 1, &commandBuffer);
-    void* mapPtr = nullptr;
-    VkResult mapResult = vkMapMemory(g_vulkanstate.device, bufferMemory, 0, size, 0, &mapPtr);
-    if(mapResult == VK_SUCCESS){
-        ret.data = std::calloc(bufferSize, 1);
-        ret.width = tex->width;
-        ret.height = tex->height;
-        ret.format = fromVulkanPixelFormat(tex->format);
-        ret.mipmaps = 0;
-        ret.rowStrideInBytes = ret.width * size;
-        std::memcpy(ret.data, mapPtr, bufferSize);
+    VkResult submitResult = vkQueueSubmit(g_vulkanstate.queue.graphicsQueue, 1, &sinfo, fence);
+    if(submitResult == VK_SUCCESS){
+        vkWaitForFences(g_vulkanstate.device, 1, &fence, VK_TRUE, UINT64_MAX);
+        vkResetFences(g_vulkanstate.device, 1, &fence);
+        vkFreeCommandBuffers(g_vulkanstate.device, transientPool, 1, &commandBuffer);
+        void* mapPtr = nullptr;
+        VkResult mapResult = vkMapMemory(g_vulkanstate.device, bufferMemory, 0, size, 0, &mapPtr);
+        if(mapResult == VK_SUCCESS){
+            ret.data = std::calloc(bufferSize, 1);
+            ret.width = tex->width;
+            ret.height = tex->height;
+            ret.format = fromVulkanPixelFormat(tex->format);
+            ret.mipmaps = 0;
+            ret.rowStrideInBytes = ret.width * size;
+            std::memcpy(ret.data, mapPtr, bufferSize);
+        }
+        else{
+            TRACELOG(LOG_ERROR, "vkMapMemory failed with errorcode %d", mapResult);
+        }
     }
     vkUnmapMemory(g_vulkanstate.device, bufferMemory);
     vkFreeMemory(g_vulkanstate.device, bufferMemory, nullptr);
