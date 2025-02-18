@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <cstring>
 #include <iostream>
+#include <vulkan/vulkan_core.h>
 
 // Utility function to translate PixelFormat to VkFormat
 
@@ -423,19 +424,21 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
     static VkFence fence = CreateFence();
     Image ret zeroinit;
     VkBufferImageCopy region{};
+
+    size_t size = GetPixelSizeInBytes(fromVulkanPixelFormat(tex->format));
     region.bufferOffset = 0;
-    region.bufferRowLength = 0; // Tightly packed
-    region.bufferImageHeight = 0;
+    region.bufferRowLength = 0;//size * tex->width; // Tightly packed
+    region.bufferImageHeight = 0;//tex->height;
     region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     region.imageSubresource.mipLevel = mipLevel;
     region.imageSubresource.baseArrayLayer = 0;
     region.imageSubresource.layerCount = 1;
     region.imageOffset = {0, 0, 0};
+    TRACELOG(LOG_INFO, "Copying image with extent %u x %u", tex->width, tex->height);
     region.imageExtent = VkExtent3D{tex->width, tex->height, 1u};
-    size_t size = GetPixelSizeInBytes(fromVulkanPixelFormat(tex->format));
     VkDeviceMemory bufferMemory{};
     size_t bufferSize = size * tex->width * tex->height;
-    VkBuffer stagingBuffer = CreateBuffer(g_vulkanstate.device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, bufferMemory);
+    VkBuffer stagingBuffer = CreateBuffer(g_vulkanstate.device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, bufferMemory);
     VkCommandBuffer commandBuffer = BeginSingleTimeCommands(g_vulkanstate.device, transientPool);
     
     EncodeTransitionImageLayout(commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, tex);
@@ -458,11 +461,17 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
     sinfo.pCommandBuffers = &commandBuffer;
     VkResult submitResult = vkQueueSubmit(g_vulkanstate.queue.graphicsQueue, 1, &sinfo, fence);
     if(submitResult == VK_SUCCESS){
-        vkWaitForFences(g_vulkanstate.device, 1, &fence, VK_TRUE, UINT64_MAX);
+        VkResult fenceWait = vkWaitForFences(g_vulkanstate.device, 1, &fence, VK_TRUE, UINT64_MAX);
+        if(fenceWait != VK_SUCCESS){
+            TRACELOG(LOG_ERROR, "Waiting for fence not successful");
+        }
+        else{
+            TRACELOG(LOG_INFO, "Successfully waited for fence");
+        }
         vkResetFences(g_vulkanstate.device, 1, &fence);
         vkFreeCommandBuffers(g_vulkanstate.device, transientPool, 1, &commandBuffer);
         void* mapPtr = nullptr;
-        VkResult mapResult = vkMapMemory(g_vulkanstate.device, bufferMemory, 0, size, 0, &mapPtr);
+        VkResult mapResult = vkMapMemory(g_vulkanstate.device, bufferMemory, 0, size * tex->width * tex->height, 0, &mapPtr);
         if(mapResult == VK_SUCCESS){
             ret.data = std::calloc(bufferSize, 1);
             ret.width = tex->width;
@@ -471,6 +480,7 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
             ret.mipmaps = 0;
             ret.rowStrideInBytes = ret.width * size;
             std::memcpy(ret.data, mapPtr, bufferSize);
+            __builtin_dump_struct(&ret, printf);
         }
         else{
             TRACELOG(LOG_ERROR, "vkMapMemory failed with errorcode %d", mapResult);
