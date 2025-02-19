@@ -287,6 +287,18 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
     si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     si.commandBufferCount = commandCount + 1;
     small_vector<VkCommandBuffer> submittable(commandCount + 1);
+    for(size_t i = 0;i < commandCount;i++){
+        WGVKCommandBuffer buffer = buffers[i];
+        for(auto rp : buffer->referencedRPs){
+            for(auto dset : rp->resourceUsage.referencedBindGroups){
+                for(auto tex : dset->resourceUsage.referencedTextureViews){
+                    if(tex.first->texture->layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL){
+                        wgvkCommandEncoderTransitionTextureLayout(queue->presubmitCache, tex.first->texture, tex.first->texture->layout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                    }
+                }
+            }
+        }
+    }
     WGVKCommandBuffer cachebuffer = wgvkCommandEncoderFinish(queue->presubmitCache);
 
     submittable[0] = cachebuffer->buffer;
@@ -460,7 +472,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
     }
 
 }
-void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout oldLayout, VkImageLayout newLayout){
+void impl_transition(VkCommandBuffer buffer, WGVKTexture texture, VkImageLayout oldLayout, VkImageLayout newLayout){
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     barrier.oldLayout = oldLayout;
@@ -506,7 +518,7 @@ void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKT
     }
     
     vkCmdPipelineBarrier(
-        encoder->buffer,
+        buffer,
         sourceStage, destinationStage,
         0,
         0, nullptr,
@@ -515,6 +527,13 @@ void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKT
     );
     texture->layout = newLayout;
 }
+void wgvkRenderPassEncoderTransitionTextureLayout(WGVKRenderPassEncoder encoder, WGVKTexture texture, VkImageLayout oldLayout, VkImageLayout newLayout){
+    impl_transition(encoder->cmdBuffer, texture, oldLayout, newLayout);
+}
+void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout oldLayout, VkImageLayout newLayout){
+    impl_transition(encoder->buffer, texture, oldLayout, newLayout);
+}
+
 void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
     for(auto rp : commandEncoder->referencedRPs){
         wgvkReleaseRenderPassEncoder(rp);
@@ -606,7 +625,7 @@ void wgvkRenderPassEncoderBindDescriptorSet(WGVKRenderPassEncoder rpe, uint32_t 
     assert(rpe != nullptr && "RenderPassEncoderHandle is null");
     assert(dset != nullptr && "DescriptorSetHandle is null");
     assert(rpe->lastLayout != VK_NULL_HANDLE && "Pipeline layout is not set");
-
+    
     // Bind the descriptor set to the command buffer
     vkCmdBindDescriptorSets(rpe->cmdBuffer,                  // Command buffer
                             VK_PIPELINE_BIND_POINT_GRAPHICS, // Pipeline bind point
@@ -621,10 +640,11 @@ void wgvkRenderPassEncoderBindDescriptorSet(WGVKRenderPassEncoder rpe, uint32_t 
 
     rpe->resourceUsage.track(dset);
 }
+
 void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t binding, WGVKBuffer buffer, VkDeviceSize offset) {
     assert(rpe != nullptr && "RenderPassEncoderHandle is null");
     assert(buffer != nullptr && "BufferHandle is null");
-
+    
     // Bind the vertex buffer to the command buffer at the specified binding point
     vkCmdBindVertexBuffers(rpe->cmdBuffer, binding, 1, &(buffer->buffer), &offset);
 

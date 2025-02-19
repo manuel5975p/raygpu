@@ -255,7 +255,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         config.width = width;
         config.height = height;
         config.format = BGRA8;
-        config.presentMode = PresentMode_Fifo;
+        config.presentMode = PresentMode_Immediate;
         wgvkSurfaceConfigure(vSurface, &config);
         FullSurface fsurface zeroinit;
         fsurface.surfaceConfig = config;

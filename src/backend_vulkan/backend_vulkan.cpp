@@ -1048,12 +1048,12 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
 
 }
 extern "C" void EndRenderpassPro(DescribedRenderpass* rp, bool renderTexture){
-    if(renderTexture){
-        wgvkRenderPassEncoderEnd((WGVKRenderPassEncoder)rp->rpEncoder);
-        wgvkReleaseRenderPassEncoder((WGVKRenderPassEncoder)rp->rpEncoder);
-        WGVKTexture ctarget = (WGVKTexture)GetActiveColorTarget();
-        wgvkCommandEncoderTransitionTextureLayout((WGVKCommandEncoder)rp->cmdEncoder, ctarget, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        rp->rpEncoder = nullptr;
-    }
+    //if(renderTexture){
+    //    wgvkRenderPassEncoderEnd((WGVKRenderPassEncoder)rp->rpEncoder);
+    //    wgvkReleaseRenderPassEncoder((WGVKRenderPassEncoder)rp->rpEncoder);
+    //    WGVKTexture ctarget = (WGVKTexture)GetActiveColorTarget();
+    //    wgvkCommandEncoderTransitionTextureLayout((WGVKCommandEncoder)rp->cmdEncoder, ctarget, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    //    rp->rpEncoder = nullptr;
+    //}
     EndRenderpassEx(rp);
 }

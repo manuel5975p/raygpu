@@ -19,7 +19,7 @@ int main(void){
         EndTextureMode();
         ClearBackground(BLUE);
         DrawTexturePro(tex.texture, (Rectangle){0,0,300,300}, (Rectangle){100,100,400,400}, (Vector2){0,0}, 0.0f, WHITE);
-        DrawFPS(0, 0);
+        //DrawFPS(0, 0);
         EndDrawing();
     }
     
