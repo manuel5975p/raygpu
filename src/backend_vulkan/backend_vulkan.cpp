@@ -780,7 +780,7 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     // std::cin.get();
 
     std::cout << "Successfully retrieved queues\n";
-    ret.first->
+    ret.first->queue = ret.second;
     return ret;
 }
 void printVkPhysicalDeviceMemoryProperties(const VkPhysicalDeviceMemoryProperties* properties) {
