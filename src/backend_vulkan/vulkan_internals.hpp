@@ -980,6 +980,7 @@ extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVK
 extern "C" WGVKBuffer wgvkDeviceCreateBuffer(VkDevice device, const BufferDescriptor* desc);
 extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, void const * data, size_t size);
 extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(VkDevice device, const WGVKBindGroupDescriptor* bgdesc);
+extern "C" void wgvkWriteBindGroup(VkDevice device, WGVKBindGroup, const WGVKBindGroupDescriptor* bgdesc);
 extern "C" void wgvkQueueTransitionLayout(WGVKQueue cSelf, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
 
 extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(VkDevice device, const WGVKCommandEncoderDescriptor* cdesc);

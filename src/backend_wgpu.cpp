@@ -1,6 +1,8 @@
 #include <raygpu.h>
 #include <wgpustate.inc>
 #include <unordered_set>
+#include <internals.hpp>
+
 inline WGPUStorageTextureAccess toStorageTextureAccess(access_type acc){
     switch(acc){
         case access_type::readonly:return WGPUStorageTextureAccess_ReadOnly;
@@ -58,6 +60,114 @@ extern "C" void UnloadTexture(Texture tex){
 void PresentSurface(FullSurface* fsurface){
     wgpuSurfacePresent((WGPUSurface)fsurface->surface);
 }
+
+
+extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, const std::vector<AttributeAndResidence>& attribs){
+    uint32_t attribCount = attribs.size();
+    auto it = pl->createdPipelines->pipelines.find(attribs);
+    if(it != pl->createdPipelines->pipelines.end()){
+        //TRACELOG(LOG_INFO, "Reusing cached pipeline triplet");
+        return it->second;
+    }
+    TRACELOG(LOG_DEBUG, "Creating new pipeline triplet");
+    VertexBufferLayoutSet layoutset = getBufferLayoutRepresentation(attribs.data(), attribs.size());
+    pl->vertexLayout = layoutset;
+    
+
+    WGPURenderPipelineDescriptor pipelineDesc zeroinit;
+    const RenderSettings& settings = pl->settings; 
+    pipelineDesc.multisample.count = pl->settings.sampleCount ? pl->settings.sampleCount : 1;
+    pipelineDesc.multisample.mask = 0xFFFFFFFF;
+    pipelineDesc.multisample.alphaToCoverageEnabled = false;
+    pipelineDesc.layout = (WGPUPipelineLayout)pl->layout.layout;
+
+    WGPUVertexState vertexState{};
+    WGPUFragmentState fragmentState{};
+    WGPUBlendState blendState{};
+
+    vertexState.module = (WGPUShaderModule)pl->sh.shaderModule;
+
+    VertexBufferLayoutSet& vlayout_complete = pl->vertexLayout;
+    vertexState.bufferCount = vlayout_complete.number_of_buffers;
+
+    std::vector<WGPUVertexBufferLayout> layouts_converted;
+    for(uint32_t i = 0;i < vlayout_complete.number_of_buffers;i++){
+        layouts_converted.push_back(WGPUVertexBufferLayout{
+            .nextInChain = nullptr,
+            .arrayStride    = vlayout_complete.layouts[i].arrayStride,
+            .stepMode       = (WGPUVertexStepMode)vlayout_complete.layouts[i].stepMode,
+            .attributeCount = vlayout_complete.layouts[i].attributeCount,
+            //TODO: this relies on the fact that VertexAttribute and WGPUVertexAttribute are exactly compatible
+            .attributes     = (WGPUVertexAttribute*)vlayout_complete.layouts[i].attributes,
+        });
+    }
+    vertexState.buffers = layouts_converted.data();
+    vertexState.constantCount = 0;
+    vertexState.entryPoint = STRVIEW("vs_main");
+    pipelineDesc.vertex = vertexState;
+
+
+    
+    fragmentState.module = (WGPUShaderModule)pl->sh.shaderModule;
+    fragmentState.entryPoint = STRVIEW("fs_main");
+    fragmentState.constantCount = 0;
+    fragmentState.constants = nullptr;
+
+    blendState.color.srcFactor = (WGPUBlendFactor   )settings.blendFactorSrcColor;
+    blendState.color.dstFactor = (WGPUBlendFactor   )settings.blendFactorDstColor;
+    blendState.color.operation = (WGPUBlendOperation)settings.blendOperationColor;
+    blendState.alpha.srcFactor = (WGPUBlendFactor   )settings.blendFactorSrcAlpha;
+    blendState.alpha.dstFactor = (WGPUBlendFactor   )settings.blendFactorDstAlpha;
+    blendState.alpha.operation = (WGPUBlendOperation)settings.blendOperationAlpha;
+    WGPUColorTargetState colorTarget{};
+
+    colorTarget.format = (WGPUTextureFormat)g_renderstate.frameBufferFormat;
+    colorTarget.blend = &blendState;
+    colorTarget.writeMask = WGPUColorWriteMask_All;
+    fragmentState.targetCount = 1;
+    fragmentState.targets = &colorTarget;
+    pipelineDesc.fragment = &fragmentState;
+    // We setup a depth buffer state for the render pipeline
+    WGPUDepthStencilState depthStencilState{};
+    if(settings.depthTest){
+        // Keep a fragment only if its depth is lower than the previously blended one
+        // Each time a fragment is blended into the target, we update the value of the Z-buffer
+        // Store the format in a variable as later parts of the code depend on it
+        // Deactivate the stencil alltogether
+        WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth32Float;
+
+        depthStencilState.depthCompare = (WGPUCompareFunction)settings.depthCompare;
+        depthStencilState.depthWriteEnabled = WGPUOptionalBool_True;
+        depthStencilState.format = depthTextureFormat;
+        depthStencilState.stencilReadMask = 0;
+        depthStencilState.stencilWriteMask = 0;
+        depthStencilState.stencilFront.compare = WGPUCompareFunction_Always;
+        depthStencilState.stencilBack.compare = WGPUCompareFunction_Always;
+    }
+    pipelineDesc.depthStencil = settings.depthTest ? &depthStencilState : nullptr;
+    
+    pipelineDesc.primitive.frontFace = (WGPUFrontFace)settings.frontFace;
+    pipelineDesc.primitive.cullMode = settings.faceCull ? WGPUCullMode_Back : WGPUCullMode_None;
+    RenderPipelineQuartet quartet;
+    //if(attribCount != 0){
+    pipelineDesc.primitive.topology = WGPUPrimitiveTopology_PointList;
+    quartet.pipeline_PointList = wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipelineDesc);
+    pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
+    quartet.pipeline_TriangleList = wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipelineDesc);
+    pipelineDesc.primitive.topology = WGPUPrimitiveTopology_LineList;
+    quartet.pipeline_LineList = wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipelineDesc);
+    pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleStrip;
+    pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
+    quartet.pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipelineDesc);
+    pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
+    pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
+
+    pl->createdPipelines->pipelines[attribs] = quartet;
+    return quartet;
+}
+
+
+
 extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode){
     switch(drawMode){
         case WGPUPrimitiveTopology_TriangleList:

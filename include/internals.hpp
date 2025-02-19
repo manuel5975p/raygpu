@@ -82,6 +82,8 @@ inline void UnloadBufferLayoutSet(VertexBufferLayoutSet set){
     std::free(set.layouts);
     std::free(set.attributePool);
 }
+
+extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, const std::vector<AttributeAndResidence>& attribs);
 inline VertexBufferLayoutSet getBufferLayoutRepresentation(const AttributeAndResidence* attributes, const uint32_t number_of_attribs){
     uint32_t maxslot = 0;
     for(size_t i = 0;i < number_of_attribs;i++){

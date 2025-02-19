@@ -1069,6 +1069,7 @@ EXTERN_C_BEGIN
     DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs);
 
     void UpdatePipeline(DescribedPipeline* pl);
+
     DescribedPipeline* DefaultPipeline(cwoid);
     RenderSettings GetDefaultSettings(cwoid);
     Texture GetDefaultTexture(cwoid);
