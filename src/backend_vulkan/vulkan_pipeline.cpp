@@ -23,10 +23,10 @@ extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vs
 
 
     ret.shaderModule = callocnew(VertexAndFragmentShaderModuleImpl);
-    if (vkCreateShaderModule(g_vulkanstate.device, &vscreateInfo, nullptr, &((VertexAndFragmentShaderModule)ret.shaderModule)->vModule) != VK_SUCCESS) {
+    if (vkCreateShaderModule(g_vulkanstate.device->device, &vscreateInfo, nullptr, &((VertexAndFragmentShaderModule)ret.shaderModule)->vModule) != VK_SUCCESS) {
         throw std::runtime_error("failed to create vertex shader module!");
     }
-    if (vkCreateShaderModule(g_vulkanstate.device, &fscreateInfo, nullptr, &((VertexAndFragmentShaderModule)ret.shaderModule)->fModule) != VK_SUCCESS) {
+    if (vkCreateShaderModule(g_vulkanstate.device->device, &fscreateInfo, nullptr, &((VertexAndFragmentShaderModule)ret.shaderModule)->fModule) != VK_SUCCESS) {
         throw std::runtime_error("failed to create fragment shader module!");
     }
 
@@ -241,19 +241,19 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, c
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     
-    if (vkCreateGraphicsPipelines(g_vulkanstate.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&quartet.pipeline_TriangleList) != VK_SUCCESS) {
+    if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&quartet.pipeline_TriangleList) != VK_SUCCESS) {
         throw std::runtime_error("Trianglelist pipiline creation failed");
     }
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
-    if (vkCreateGraphicsPipelines(g_vulkanstate.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&quartet.pipeline_TriangleStrip) != VK_SUCCESS) {
+    if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&quartet.pipeline_TriangleStrip) != VK_SUCCESS) {
         throw std::runtime_error("Trianglelist pipiline creation failed");
     }
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-    if (vkCreateGraphicsPipelines(g_vulkanstate.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&quartet.pipeline_LineList) != VK_SUCCESS) {
+    if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&quartet.pipeline_LineList) != VK_SUCCESS) {
         throw std::runtime_error("Trianglelist pipiline creation failed");
     }
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-    if (vkCreateGraphicsPipelines(g_vulkanstate.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&quartet.pipeline_PointList) != VK_SUCCESS) {
+    if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&quartet.pipeline_PointList) != VK_SUCCESS) {
         throw std::runtime_error("Trianglelist pipiline creation failed");
     }
     
@@ -471,19 +471,19 @@ void UpdatePipeline_Vk(DescribedPipeline* ret, const VertexArray* vao){
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     
-    if (vkCreateGraphicsPipelines(g_vulkanstate.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&ret->quartet.pipeline_TriangleList) != VK_SUCCESS) {
+    if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&ret->quartet.pipeline_TriangleList) != VK_SUCCESS) {
         throw std::runtime_error("Trianglelist pipiline creation failed");
     }
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
-    if (vkCreateGraphicsPipelines(g_vulkanstate.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&ret->quartet.pipeline_TriangleStrip) != VK_SUCCESS) {
+    if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&ret->quartet.pipeline_TriangleStrip) != VK_SUCCESS) {
         throw std::runtime_error("Trianglelist pipiline creation failed");
     }
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-    if (vkCreateGraphicsPipelines(g_vulkanstate.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&ret->quartet.pipeline_LineList) != VK_SUCCESS) {
+    if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&ret->quartet.pipeline_LineList) != VK_SUCCESS) {
         throw std::runtime_error("Trianglelist pipiline creation failed");
     }
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-    if (vkCreateGraphicsPipelines(g_vulkanstate.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&ret->quartet.pipeline_PointList) != VK_SUCCESS) {
+    if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&ret->quartet.pipeline_PointList) != VK_SUCCESS) {
         throw std::runtime_error("Trianglelist pipiline creation failed");
     }
     ret->createdPipelines->pipelines[vao->attributes] = ret->quartet;
@@ -507,7 +507,7 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
     pipelineLayoutInfo.pushConstantRangeCount = 0;
     pipelineLayoutInfo.pPushConstantRanges = nullptr;
     
-    if (vkCreatePipelineLayout(g_vulkanstate.device, &pipelineLayoutInfo, nullptr, (VkPipelineLayout*)&ret->layout.layout) != VK_SUCCESS) {
+    if (vkCreatePipelineLayout(g_vulkanstate.device->device, &pipelineLayoutInfo, nullptr, (VkPipelineLayout*)&ret->layout.layout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create pipeline layout!");
     }
     std::vector<ResourceDescriptor> bge(uniformCount);
@@ -550,10 +550,8 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, Resou
     bg->entries[index] = entry;
     //bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
 
-    //TODO don't release and recreate here or find something better
-    if(true /*|| donotcache*/){
-        if(bg->bindGroup)
-            wgvkReleaseDescriptorSet((WGVKBindGroup)bg->bindGroup);
+    if(bg->bindGroup && ((WGVKBindGroup)bg->bindGroup)->refCount > 1){
+        wgvkReleaseDescriptorSet((WGVKBindGroup)bg->bindGroup);
         bg->bindGroup = nullptr;
     }
     //else if(!bg->needsUpdate && bg->bindGroup){
@@ -652,8 +650,16 @@ void UpdateBindGroup(DescribedBindGroup* bg){
     bgdesc.entries = bg->entries;
     bgdesc.layout = bg->layout;
     //bgdesc.entries 
-    
-    bg->bindGroup = wgvkDeviceCreateBindGroup(g_vulkanstate.device, &bgdesc);
+    if(bg->bindGroup && ((WGVKBindGroup)bg->bindGroup)->refCount == 1){
+        wgvkWriteBindGroup(g_vulkanstate.device, (WGVKBindGroup)bg->bindGroup, &bgdesc);
+    }
+    else{
+        if(bg->bindGroup){
+            TRACELOG(LOG_WARNING, "Weird. This shouldn't be the case");
+            wgvkReleaseDescriptorSet((WGVKBindGroup)bg->bindGroup);
+        }
+        bg->bindGroup = wgvkDeviceCreateBindGroup(g_vulkanstate.device, &bgdesc);
+    }
     bg->needsUpdate = false;
 }
 

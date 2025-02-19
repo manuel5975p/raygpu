@@ -1,6 +1,6 @@
 #include "vulkan_internals.hpp"
 
-extern "C" WGVKBuffer wgvkDeviceCreateBuffer(VkDevice device, const BufferDescriptor* desc){
+extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDescriptor* desc){
     WGVKBuffer wgvkBuffer = callocnewpp(WGVKBufferImpl);
     wgvkBuffer->refCount = 1;
 
@@ -10,31 +10,31 @@ extern "C" WGVKBuffer wgvkDeviceCreateBuffer(VkDevice device, const BufferDescri
     bufferDesc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     bufferDesc.usage = toVulkanBufferUsage(desc->usage);
     
-    VkResult bufferCreateResult = vkCreateBuffer((VkDevice)GetDevice(), &bufferDesc, nullptr, &wgvkBuffer->buffer);
+    VkResult bufferCreateResult = vkCreateBuffer(device->device, &bufferDesc, nullptr, &wgvkBuffer->buffer);
     VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(g_vulkanstate.device, wgvkBuffer->buffer, &memRequirements);
+    vkGetBufferMemoryRequirements(g_vulkanstate.device->device, wgvkBuffer->buffer, &memRequirements);
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
     allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
 
-    if (vkAllocateMemory(g_vulkanstate.device, &allocInfo, nullptr, &wgvkBuffer->memory) != VK_SUCCESS) {
+    if (vkAllocateMemory(device->device, &allocInfo, nullptr, &wgvkBuffer->memory) != VK_SUCCESS) {
         throw std::runtime_error("failed to allocate vertex buffer memory!");
     }
-    vkBindBufferMemory(g_vulkanstate.device, wgvkBuffer->buffer, wgvkBuffer->memory, 0);
+    vkBindBufferMemory(device->device, wgvkBuffer->buffer, wgvkBuffer->memory, 0);
     return wgvkBuffer;
 }
 
 extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, void const * data, size_t size){
     void* mappedMemory = nullptr;
 
-    VkResult result = vkMapMemory(g_vulkanstate.device, buffer->memory, bufferOffset, size, 0, &mappedMemory);
+    VkResult result = vkMapMemory(g_vulkanstate.device->device, buffer->memory, bufferOffset, size, 0, &mappedMemory);
     
     if (result == VK_SUCCESS && mappedMemory != nullptr) {
         // Memory is host mappable: copy data and unmap.
         std::memcpy(mappedMemory, data, size);
-        vkUnmapMemory(g_vulkanstate.device, buffer->memory);
+        vkUnmapMemory(g_vulkanstate.device->device, buffer->memory);
         return;
     }
     assert(false && "Not yet implemented");
@@ -44,23 +44,10 @@ extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_
 
 
 
-extern "C" void wgvkWriteBindGroup(VkDevice device, WGVKBindGroup, const WGVKBindGroupDescriptor* bgdesc){
-    
-}
-
-
-
-extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(VkDevice device, const WGVKBindGroupDescriptor* bgdesc){
-
-    WGVKBindGroup ret = callocnewpp(WGVKBindGroupImpl);
-    ret->refCount = 1;
-    //WGVKBindGroup dshandle = (WGVKBindGroup)bg->bindGroup;
-    wgvkWriteBindGroup(device, ret, bgdesc);
-    
+extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup, const WGVKBindGroupDescriptor* bgdesc){
     VkDescriptorPoolCreateInfo dpci{};
     dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     dpci.maxSets = 1;
-    //dpci.flags |= VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
     
     std::unordered_map<VkDescriptorType, uint32_t> counts;
     for(uint32_t i = 0;i < bgdesc->layout->entryCount;i++){
@@ -75,17 +62,17 @@ extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(VkDevice device, const WGVKBi
     dpci.poolSizeCount = sizes.size();
     dpci.pPoolSizes = sizes.data();
     dpci.maxSets = 1;
-    vkCreateDescriptorPool(g_vulkanstate.device, &dpci, nullptr, &ret->pool);
+    vkCreateDescriptorPool(device->device, &dpci, nullptr, &wvBindGroup->pool);
     
     //VkCopyDescriptorSet copy{};
     //copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
     
     VkDescriptorSetAllocateInfo dsai{};
     dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    dsai.descriptorPool = ret->pool;
+    dsai.descriptorPool = wvBindGroup->pool;
     dsai.descriptorSetCount = 1;
     dsai.pSetLayouts = (VkDescriptorSetLayout*)&bgdesc->layout->layout;
-    vkAllocateDescriptorSets(g_vulkanstate.device, &dsai, &ret->set);
+    vkAllocateDescriptorSets(device->device, &dsai, &wvBindGroup->set);
 
 
 
@@ -98,12 +85,12 @@ extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(VkDevice device, const WGVKBi
         writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         uint32_t binding = bgdesc->entries[i].binding;
         writes[i].dstBinding = binding;
-        writes[i].dstSet = ret->set;
+        writes[i].dstSet = wvBindGroup->set;
         writes[i].descriptorType = toVulkanResourceType(bgdesc->layout->entries[i].type);
         writes[i].descriptorCount = 1;
 
         if(bgdesc->layout->entries[i].type == uniform_buffer || bgdesc->layout->entries[i].type == storage_buffer){
-            ret->resourceUsage.track((WGVKBuffer)bgdesc->entries[i].buffer);
+            wvBindGroup->resourceUsage.track((WGVKBuffer)bgdesc->entries[i].buffer);
             bufferInfos[i].buffer = ((WGVKBuffer)bgdesc->entries[i].buffer)->buffer;
             bufferInfos[i].offset = bgdesc->entries[i].offset;
             bufferInfos[i].range =  bgdesc->entries[i].size;
@@ -111,7 +98,7 @@ extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(VkDevice device, const WGVKBi
         }
 
         if(bgdesc->layout->entries[i].type == texture2d || bgdesc->layout->entries[i].type == texture3d){
-            ret->resourceUsage.track((WGVKTextureView)bgdesc->entries[i].textureView, TextureUsage_TextureBinding);
+            wvBindGroup->resourceUsage.track((WGVKTextureView)bgdesc->entries[i].textureView, TextureUsage_TextureBinding);
             imageInfos[i].imageView = ((WGVKTextureView)bgdesc->entries[i].textureView)->view;
             imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             writes[i].pImageInfo = imageInfos.data() + i;
@@ -123,23 +110,34 @@ extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(VkDevice device, const WGVKBi
             writes[i].pImageInfo = imageInfos.data() + i;
         }
     }
-    vkUpdateDescriptorSets(g_vulkanstate.device, writes.size(), writes.data(), 0, nullptr);
+    vkUpdateDescriptorSets(device->device, writes.size(), writes.data(), 0, nullptr);
+}
+
+
+
+extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVKBindGroupDescriptor* bgdesc){
+
+    WGVKBindGroup ret = callocnewpp(WGVKBindGroupImpl);
+    ret->refCount = 1;
+    wgvkWriteBindGroup(device, ret, bgdesc);
+    
+    
     return ret;
 }
 
-extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(VkDevice device, const WGVKCommandEncoderDescriptor* desc){
+extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, const WGVKCommandEncoderDescriptor* desc){
     WGVKCommandEncoder ret = callocnewpp(WGVKCommandEncoderImpl);
     VkCommandPoolCreateInfo pci{};
     pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    pci.flags = desc->recyclable ? VK_COMMAND_POOL_CREATE_TRANSIENT_BIT : VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    pci.flags = desc->recyclable ? VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT : VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
     ret->recyclable = desc->recyclable;
-    vkCreateCommandPool(device, &pci, nullptr, &ret->pool);
+    vkCreateCommandPool(device->device, &pci, nullptr, &ret->pool);
     VkCommandBufferAllocateInfo bai{};
     bai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     bai.commandPool = ret->pool;
     bai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     bai.commandBufferCount = 1;
-    vkAllocateCommandBuffers(device, &bai, &ret->buffer);
+    vkAllocateCommandBuffers(device->device, &bai, &ret->buffer);
 
     VkCommandBufferBeginInfo bbi{};
     bbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -180,7 +178,7 @@ extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVK
     ivci.subresourceRange = sr;
     WGVKTextureView ret = callocnew(WGVKTextureViewImpl);
     ret->refCount = 1;
-    vkCreateImageView(texture->device, &ivci, nullptr, &ret->view);
+    vkCreateImageView(texture->device->device, &ivci, nullptr, &ret->view);
     ret->format = ivci.format;
     ret->texture = texture;
     ++texture->refCount;
@@ -231,7 +229,7 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
     fbci.layers = 1;
     fbci.pAttachments = attachmentViews;
     fbci.renderPass = ret->renderPass;
-    VkResult fbresult = vkCreateFramebuffer(g_vulkanstate.device, &fbci, nullptr, &ret->frameBuffer);
+    VkResult fbresult = vkCreateFramebuffer(g_vulkanstate.device->device, &fbci, nullptr, &ret->frameBuffer);
     if(fbresult != VK_SUCCESS){
         TRACELOG(LOG_FATAL, "Error creating framebuffer: %d", (int)fbresult);
     }
@@ -280,6 +278,7 @@ extern "C" void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder
  */
 extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder commandEncoder){
     WGVKCommandBuffer ret = callocnewpp(WGVKCommandBufferImpl);
+    ret->refCount = 1;
     vkEndCommandBuffer(commandEncoder->buffer);
     ret->referencedRPs = std::move(commandEncoder->referencedRPs);
     ret->resourceUsage = std::move(commandEncoder->resourceUsage);
@@ -314,15 +313,20 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
         submittable[i + 1] = buffers[i]->buffer;
     }
     si.pCommandBuffers = submittable.data();
-    vkQueueSubmit(queue->graphicsQueue, 1, &si, queue->syncState.renderFinishedFence);
-    if(vkWaitForFences(g_vulkanstate.device, 1, &g_vulkanstate.queue.syncState.renderFinishedFence, VK_TRUE, ~0) != VK_SUCCESS){
-        throw std::runtime_error("Could not wait for fence");
+    VkResult submitResult = vkQueueSubmit(queue->graphicsQueue, 1, &si, queue->syncState.renderFinishedFence);
+    if(submitResult == VK_SUCCESS){
+        if(vkWaitForFences(g_vulkanstate.device->device, 1, &g_vulkanstate.queue->syncState.renderFinishedFence, VK_TRUE, 100000000) != VK_SUCCESS){
+            throw std::runtime_error("Could not wait for fence");
+        }
+        vkResetFences(g_vulkanstate.device->device, 1, &g_vulkanstate.queue->syncState.renderFinishedFence);
+    }else{
+        throw std::runtime_error("vkQueueSubmit failed");
     }
-    vkResetFences(g_vulkanstate.device, 1, &g_vulkanstate.queue.syncState.renderFinishedFence);
     wgvkReleaseCommandEncoder(queue->presubmitCache);
-    wgvkReleaseCommandBuffer(cachebuffer);
+    //wgvkReleaseCommandBuffer(cachebuffer);
     WGVKCommandEncoderDescriptor cedesc zeroinit;
-    queue->presubmitCache = wgvkDeviceCreateCommandEncoder(g_vulkanstate.device, &cedesc);
+    //queue->presubmitCache = wgvkDeviceCreateCommandEncoder(g_vulkanstate.device->device,, &cedesc);
+    queue->presubmitCache = wgvkResetCommandBuffer(cachebuffer);
     //VkPipelineStageFlags bop[1] = {VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT};
     //si.pWaitDstStageMask = bop;
 }
@@ -373,9 +377,9 @@ extern "C" void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, VkPhysicalDe
 }
 
 void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* config){
-    auto device = VkDevice(config->device);
+    auto device = WGVKDevice(config->device);
 
-    vkDeviceWaitIdle(device);
+    vkDeviceWaitIdle(device->device);
     if(surface->imageViews){
         for (uint32_t i = 0; i < surface->imagecount; i++) {
             wgvkReleaseTextureView(surface->imageViews[i]);
@@ -387,7 +391,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
     
     std::free(surface->imageViews);
     std::free(surface->images);
-    vkDestroySwapchainKHR(device, surface->swapchain, nullptr);
+    vkDestroySwapchainKHR(device->device, surface->swapchain, nullptr);
     SwapChainSupportDetails swapChainSupport = querySwapChainSupport(g_vulkanstate.physicalDevice, surface->surface);
     VkSwapchainCreateInfoKHR createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -399,7 +403,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
     createInfo.imageFormat = toVulkanPixelFormat(config->format);//swapchainImageFormat;
     surface->width = config->width;
     surface->height = config->height;
-    surface->device = (VkDevice)config->device;
+    surface->device = (WGVKDevice)config->device;
     VkExtent2D newExtent{config->width, config->height};
     createInfo.imageExtent = newExtent;
     createInfo.imageArrayLayers = 1; // For stereoscopic 3D applications
@@ -423,19 +427,19 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
     createInfo.presentMode = toVulkanPresentMode(config->presentMode); 
     createInfo.clipped = VK_TRUE;
 
-    if (vkCreateSwapchainKHR(g_vulkanstate.device, &createInfo, nullptr, &(surface->swapchain)) != VK_SUCCESS) {
+    if (vkCreateSwapchainKHR(device->device, &createInfo, nullptr, &(surface->swapchain)) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create swap chain!");
     } else {
         std::cout << "Successfully created swap chain\n";
     }
 
-    vkGetSwapchainImagesKHR(g_vulkanstate.device, surface->swapchain, &surface->imagecount, nullptr);
+    vkGetSwapchainImagesKHR(device->device, surface->swapchain, &surface->imagecount, nullptr);
 
     std::vector<VkImage> tmpImages(surface->imagecount);
 
     //surface->imageViews = (VkImageView*)std::calloc(surface->imagecount, sizeof(VkImageView));
 
-    vkGetSwapchainImagesKHR(g_vulkanstate.device, surface->swapchain, &surface->imagecount, tmpImages.data());
+    vkGetSwapchainImagesKHR(g_vulkanstate.device->device, surface->swapchain, &surface->imagecount, tmpImages.data());
     surface->images = (WGVKTexture*)std::calloc(surface->imagecount, sizeof(WGVKTexture));
     for (uint32_t i = 0; i < surface->imagecount; i++) {
         surface->images[i] = callocnew(WGVKTextureImpl);
@@ -547,16 +551,45 @@ void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
         wgvkReleaseRenderPassEncoder(rp);
     }
     if(commandEncoder->buffer)
-        vkFreeCommandBuffers(g_vulkanstate.device, commandEncoder->pool, 1, &commandEncoder->buffer);
+        vkFreeCommandBuffers(g_vulkanstate.device->device, commandEncoder->pool, 1, &commandEncoder->buffer);
     std::free(commandEncoder);
 }
 
-void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
+extern "C" WGVKCommandEncoder wgvkResetCommandBuffer(WGVKCommandBuffer commandBuffer) {
+    WGVKCommandEncoder ret = callocnewpp(WGVKCommandEncoderImpl);
+    assert(commandBuffer->refCount == 1);
+
     for(auto rp : commandBuffer->referencedRPs){
         wgvkReleaseRenderPassEncoder(rp);
     }
-    vkFreeCommandBuffers(g_vulkanstate.device, commandBuffer->pool, 1, &commandBuffer->buffer);
+    commandBuffer->referencedRPs.clear();
+    if(commandBuffer->buffer)
+        vkResetCommandBuffer(commandBuffer->buffer, 0);
+    ret->buffer = commandBuffer->buffer;
+    ret->pool = commandBuffer->pool;
+    ret->recyclable = true;
     std::free(commandBuffer);
+    VkCommandBufferBeginInfo cbbi zeroinit;
+    cbbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    cbbi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    VkResult beginResult = vkBeginCommandBuffer(ret->buffer, &cbbi);
+    if(beginResult != VK_SUCCESS){
+        TRACELOG(LOG_FATAL, "Could not start command recording");
+    }
+    return ret;
+}
+
+void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
+    --commandBuffer->refCount;
+    if(commandBuffer->refCount == 0){
+        for(auto rp : commandBuffer->referencedRPs){
+            wgvkReleaseRenderPassEncoder(rp);
+        }
+        vkFreeCommandBuffers(g_vulkanstate.device->device, commandBuffer->pool, 1, &commandBuffer->buffer);
+        vkDestroyCommandPool(g_vulkanstate.device->device, commandBuffer->pool, nullptr);
+
+        std::free(commandBuffer);
+    }
 }
 
 void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc) {
@@ -569,8 +602,8 @@ void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc) {
 void wgvkReleaseBuffer(WGVKBuffer buffer) {
     --buffer->refCount;
     if (buffer->refCount == 0) {
-        vkDestroyBuffer(g_vulkanstate.device, buffer->buffer, nullptr);
-        vkFreeMemory(g_vulkanstate.device, buffer->memory, nullptr);
+        vkDestroyBuffer(g_vulkanstate.device->device, buffer->buffer, nullptr);
+        vkFreeMemory(g_vulkanstate.device->device, buffer->memory, nullptr);
         std::free(buffer);
     }
 }
@@ -578,23 +611,24 @@ void wgvkReleaseDescriptorSet(WGVKBindGroup dshandle) {
     --dshandle->refCount;
     if (dshandle->refCount == 0) {
         dshandle->resourceUsage.releaseAllAndClear();
-        //vkFreeDescriptorSets(g_vulkanstate.device, dshandle->pool, 1, &dshandle->set);
-        vkDestroyDescriptorPool(g_vulkanstate.device, dshandle->pool, nullptr);
+        //vkFreeDescriptorSets(g_vulkanstate.device->device, dshandle->pool, 1, &dshandle->set);
+        vkDestroyDescriptorPool(g_vulkanstate.device->device, dshandle->pool, nullptr);
+        std::free(dshandle);
     }
 }
 
 extern "C" void wgvkReleaseTexture(WGVKTexture texture){
     --texture->refCount;
     if(texture->refCount == 0){
-        vkDestroyImage(texture->device, texture->image, nullptr);
-        vkFreeMemory(texture->device, texture->memory, nullptr);
+        vkDestroyImage(texture->device->device, texture->image, nullptr);
+        vkFreeMemory(texture->device->device, texture->memory, nullptr);
         std::free(texture);
     }
 }
 extern "C" void wgvkReleaseTextureView(WGVKTextureView view){
     --view->refCount;
     if(view->refCount == 0){
-        vkDestroyImageView(view->texture->device, view->view, nullptr);
+        vkDestroyImageView(view->texture->device->device, view->view, nullptr);
         wgvkReleaseTexture(view->texture);
         std::free(view);
     }

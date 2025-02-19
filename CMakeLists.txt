@@ -115,6 +115,8 @@ if(SUPPORT_SDL3)
         #URL      "${CMAKE_CURRENT_LIST_DIR}/../SDL-release-3.2.2.tar.gz"
         DOWNLOAD_EXTRACT_TIMESTAMP True
     )
+    set(SDL_STATIC ON)
+    set(SDL_SHARED OFF)
     FetchContent_MakeAvailable(sdl3fetch)
 endif()
 #download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_rect_pack.h" "stb_rect_pack.h")
