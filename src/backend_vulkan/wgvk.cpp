@@ -313,29 +313,36 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
         submittable[i + 1] = buffers[i]->buffer;
     }
     si.pCommandBuffers = submittable.data();
-    VkResult submitResult = vkQueueSubmit(queue->graphicsQueue, 1, &si, queue->syncState.renderFinishedFence);
+    VkFence fence = CreateFence();
+    VkResult submitResult = vkQueueSubmit(queue->graphicsQueue, 1, &si, fence);
     if(submitResult == VK_SUCCESS){
-        if(vkWaitForFences(g_vulkanstate.device->device, 1, &g_vulkanstate.queue->syncState.renderFinishedFence, VK_TRUE, 100000000) != VK_SUCCESS){
+        std::unordered_set<WGVKCommandBuffer> insert;
+        insert.reserve(3);
+        insert.insert(cachebuffer);
+        ++cachebuffer->refCount;
+        
+        for(size_t i = 0;i < commandCount;i++){
+            insert.insert(buffers[i]);
+            ++buffers[i]->refCount;
+        }
+        uint64_t frameCount = queue->device->submittedFrames;
+        queue->pendingCommandBuffers.emplace(fence, std::move(insert));
+        TRACELOG(LOG_INFO, "Count: %d", (int)queue->pendingCommandBuffers.size());
+        /*if(vkWaitForFences(g_vulkanstate.device->device, 1, &g_vulkanstate.queue->syncState.renderFinishedFence, VK_TRUE, 100000000) != VK_SUCCESS){
             throw std::runtime_error("Could not wait for fence");
         }
-        vkResetFences(g_vulkanstate.device->device, 1, &g_vulkanstate.queue->syncState.renderFinishedFence);
+        vkResetFences(g_vulkanstate.device->device, 1, &g_vulkanstate.queue->syncState.renderFinishedFence);*/
     }else{
         throw std::runtime_error("vkQueueSubmit failed");
     }
     wgvkReleaseCommandEncoder(queue->presubmitCache);
-    //wgvkReleaseCommandBuffer(cachebuffer);
+    wgvkReleaseCommandBuffer(cachebuffer);
     WGVKCommandEncoderDescriptor cedesc zeroinit;
-    //queue->presubmitCache = wgvkDeviceCreateCommandEncoder(g_vulkanstate.device->device,, &cedesc);
-    queue->presubmitCache = wgvkResetCommandBuffer(cachebuffer);
+    queue->presubmitCache = wgvkDeviceCreateCommandEncoder(g_vulkanstate.device, &cedesc);
+    //queue->presubmitCache = wgvkResetCommandBuffer(cachebuffer);
     //VkPipelineStageFlags bop[1] = {VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT};
     //si.pWaitDstStageMask = bop;
 }
-
-
-
-
-
-
 
 
 
