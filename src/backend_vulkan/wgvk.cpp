@@ -43,12 +43,20 @@ extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_
 }
 
 
+
+extern "C" void wgvkWriteBindGroup(VkDevice device, WGVKBindGroup, const WGVKBindGroupDescriptor* bgdesc){
+    
+}
+
+
+
 extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(VkDevice device, const WGVKBindGroupDescriptor* bgdesc){
 
     WGVKBindGroup ret = callocnewpp(WGVKBindGroupImpl);
     ret->refCount = 1;
     //WGVKBindGroup dshandle = (WGVKBindGroup)bg->bindGroup;
-
+    wgvkWriteBindGroup(device, ret, bgdesc);
+    
     VkDescriptorPoolCreateInfo dpci{};
     dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     dpci.maxSets = 1;
