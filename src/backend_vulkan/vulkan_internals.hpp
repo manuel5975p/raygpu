@@ -71,11 +71,13 @@ struct WGVKCommandBufferImpl;
 struct WGVKTextureImpl;
 struct WGVKTextureViewImpl;
 struct WGVKQueueImpl;
+struct WGVKDeviceImpl;
 
 typedef VertexAndFragmentShaderModuleImpl* VertexAndFragmentShaderModule;
 typedef WGVKBindGroupImpl* WGVKBindGroup;
 typedef WGVKBufferImpl* WGVKBuffer;
 typedef WGVKQueueImpl* WGVKQueue;
+typedef WGVKDeviceImpl* WGVKDevice;
 typedef WGVKRenderPassEncoderImpl* WGVKRenderPassEncoder;
 typedef WGVKCommandBufferImpl* WGVKCommandBuffer;
 typedef WGVKCommandEncoderImpl* WGVKCommandEncoder;
@@ -123,13 +125,25 @@ typedef struct WGVKBufferImpl{
     refcount_type refCount;
 }WGVKBufferImpl;
 
+constexpr uint32_t framesInFlight = 2;
+struct PerframeCache{
+    VkCommandPool commandPool;
+    std::unordered_set<VkCommandBuffer> buffers;
+
+};
+typedef struct WGVKDeviceImpl{
+    VkDevice device;
+    WGVKQueue queue;
+    size_t submittedFrames = 0;
+    PerframeCache frameCaches[framesInFlight];
+}WGVKDeviceImpl;
 
 typedef struct WGVKTextureImpl{
     VkImage image;
     VkFormat format;
     VkImageLayout layout;
     VkDeviceMemory memory;
-    VkDevice device;
+    WGVKDevice device;
     uint32_t refCount;
     uint32_t width, height, depthOrArrayLayers;
     uint32_t sampleCount;
@@ -177,6 +191,7 @@ typedef struct RenderPassLayout{
 }RenderPassLayout;
 
 extern "C" void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandBuffer);
+extern "C" WGVKCommandEncoder wgvkResetCommandBuffer(WGVKCommandBuffer commandEncoder);
 extern "C" void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer);
 extern "C" void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc);
 extern "C" void wgvkReleaseBuffer(WGVKBuffer commandBuffer);
@@ -253,10 +268,11 @@ typedef struct WGVKRenderPassEncoderImpl{
 }RenderPassEncoderHandleImpl;
 
 typedef struct WGVKCommandBufferImpl{
+    VkCommandBuffer buffer;
+    refcount_type refCount;
     ref_holder<WGVKRenderPassEncoder> referencedRPs;
     ResourceUsage resourceUsage;
     
-    VkCommandBuffer buffer;
     VkCommandPool pool;
 }WGVKCommandBufferImpl;
 
@@ -427,7 +443,7 @@ static inline VkSampleCountFlagBits toVulkanSampleCount(uint32_t samples){
     }
 }
 
-static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassLayout layout) {
+static inline VkRenderPass LoadRenderPassFromLayout(WGVKDevice device, RenderPassLayout layout) {
     VkAttachmentDescription vkAttachments[max_color_attachments + 1] = {}; // array for Vulkan attachments
 
     [[maybe_unused]] uint32_t colorAttachmentCount = 0;
@@ -537,7 +553,7 @@ static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassL
     // (Optional: add subpass dependencies if needed.)
 
     VkRenderPass renderPass = VK_NULL_HANDLE;
-    VkResult result = vkCreateRenderPass(device, &rpci, nullptr, &renderPass);
+    VkResult result = vkCreateRenderPass(device->device, &rpci, nullptr, &renderPass);
     // (Handle errors appropriately in production code)
     return renderPass;
 }
@@ -546,7 +562,7 @@ static inline VkRenderPass LoadRenderPassFromLayout(VkDevice device, RenderPassL
 struct WGVKSurfaceImpl{
     VkSurfaceKHR surface;
     VkSwapchainKHR swapchain;
-    VkDevice device;
+    WGVKDevice device;
     uint32_t imagecount;
 
     uint32_t activeImageIndex;
@@ -596,8 +612,8 @@ struct VulkanState {
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     VkPhysicalDeviceMemoryProperties memProperties;
 
-    VkDevice device = VK_NULL_HANDLE;
-    WGVKQueueImpl queue;
+    WGVKDevice device = nullptr;
+    WGVKQueue queue;
 
     // Separate queues for clarity
     //VkQueue graphicsQueue = VK_NULL_HANDLE;
@@ -895,16 +911,16 @@ struct FullVkRenderPass{
     //vkCreateSemaphore(g_vulkanstate.device, &si, nullptr, &ret.signalSemaphore);
     return ret;
 }*/
-extern "C" void TransitionImageLayout(VkDevice device, VkCommandPool commandPool, VkQueue queue, WGVKTexture texture, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+extern "C" void TransitionImageLayout(WGVKDevice device, VkCommandPool commandPool, VkQueue queue, WGVKTexture texture, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 extern "C" void EncodeTransitionImageLayout(VkCommandBuffer commandBuffer, VkImageLayout oldLayout, VkImageLayout newLayout, WGVKTexture texture);
-extern "C" VkCommandBuffer BeginSingleTimeCommands(VkDevice device, VkCommandPool commandPool);
-extern "C" void EndSingleTimeCommandsAndSubmit(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkCommandBuffer commandBuffer);
+extern "C" VkCommandBuffer BeginSingleTimeCommands(WGVKDevice device, VkCommandPool commandPool);
+extern "C" void EndSingleTimeCommandsAndSubmit(WGVKDevice device, VkCommandPool commandPool, VkQueue queue, VkCommandBuffer commandBuffer);
 static inline VkSemaphore CreateSemaphore(VkSemaphoreCreateFlags flags = 0){
     VkSemaphoreCreateInfo sci zeroinit;
     VkSemaphore ret zeroinit;
     sci.flags = flags;
     sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    VkResult res = vkCreateSemaphore(g_vulkanstate.device, &sci, nullptr, &ret);
+    VkResult res = vkCreateSemaphore(g_vulkanstate.device->device, &sci, nullptr, &ret);
     if(res != VK_SUCCESS){
         TRACELOG(LOG_ERROR, "Error creating semaphore");
     }
@@ -915,7 +931,7 @@ static inline VkFence CreateFence(VkFenceCreateFlags flags = 0){
     VkFence ret zeroinit;
     sci.flags = flags;
     sci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    VkResult res = vkCreateFence(g_vulkanstate.device, &sci, nullptr, &ret);
+    VkResult res = vkCreateFence(g_vulkanstate.device->device, &sci, nullptr, &ret);
     if(res != VK_SUCCESS){
         TRACELOG(LOG_ERROR, "Error creating fence");
     }
@@ -975,15 +991,15 @@ extern "C" DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsa
 extern "C" void UnloadBuffer(DescribedBuffer* buf);
 
 //wgvk I guess
-extern "C" WGVKTexture wgvkDeviceCreateTexture(VkDevice device, const WGVKTextureDescriptor* descriptor);
+extern "C" WGVKTexture wgvkDeviceCreateTexture(WGVKDevice device, const WGVKTextureDescriptor* descriptor);
 extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureViewDescriptor *descriptor);
-extern "C" WGVKBuffer wgvkDeviceCreateBuffer(VkDevice device, const BufferDescriptor* desc);
+extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDescriptor* desc);
 extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, void const * data, size_t size);
-extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(VkDevice device, const WGVKBindGroupDescriptor* bgdesc);
-extern "C" void wgvkWriteBindGroup(VkDevice device, WGVKBindGroup, const WGVKBindGroupDescriptor* bgdesc);
+extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVKBindGroupDescriptor* bgdesc);
+extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup, const WGVKBindGroupDescriptor* bgdesc);
 extern "C" void wgvkQueueTransitionLayout(WGVKQueue cSelf, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
 
-extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(VkDevice device, const WGVKCommandEncoderDescriptor* cdesc);
+extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, const WGVKCommandEncoderDescriptor* cdesc);
 extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, const WGVKRenderPassDescriptor* rpdesc);
 extern "C" void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder);
 extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder commandEncoder);

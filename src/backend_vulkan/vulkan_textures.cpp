@@ -24,7 +24,7 @@ uint32_t FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, Vk
 }
 
 // Function to create a Vulkan buffer
-VkBuffer CreateBuffer(VkDevice device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkDeviceMemory& bufferMemory) {
+VkBuffer CreateBuffer(WGVKDevice device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkDeviceMemory& bufferMemory) {
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferInfo.size = size;
@@ -32,11 +32,11 @@ VkBuffer CreateBuffer(VkDevice device, VkDeviceSize size, VkBufferUsageFlags usa
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     
     VkBuffer buffer;
-    if (vkCreateBuffer(device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
+    if (vkCreateBuffer(device->device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
         throw std::runtime_error("Failed to create buffer!");
     
     VkMemoryRequirements memReq;
-    vkGetBufferMemoryRequirements(device, buffer, &memReq);
+    vkGetBufferMemoryRequirements(device->device, buffer, &memReq);
     
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -47,16 +47,16 @@ VkBuffer CreateBuffer(VkDevice device, VkDeviceSize size, VkBufferUsageFlags usa
         properties
     );
     
-    if (vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
+    if (vkAllocateMemory(device->device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
         throw std::runtime_error("Failed to allocate buffer memory!");
     
-    vkBindBufferMemory(device, buffer, bufferMemory, 0);
+    vkBindBufferMemory(device->device, buffer, bufferMemory, 0);
     
     return buffer;
 }
 
 // Function to create a Vulkan image
-WGVKTexture CreateImage(VkDevice device, uint32_t width, uint32_t height, uint32_t sampleCount, VkFormat format, VkImageUsageFlags usage, VkDeviceMemory& imageMemory) {
+WGVKTexture CreateImage(WGVKDevice device, uint32_t width, uint32_t height, uint32_t sampleCount, VkFormat format, VkImageUsageFlags usage, VkDeviceMemory& imageMemory) {
     WGVKTexture ret = callocnew(ImageHandleImpl);
 
     VkImageCreateInfo imageInfo{};
@@ -73,11 +73,11 @@ WGVKTexture CreateImage(VkDevice device, uint32_t width, uint32_t height, uint32
     imageInfo.samples = toVulkanSampleCount(sampleCount);
     
     VkImage image;
-    if (vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS)
+    if (vkCreateImage(device->device, &imageInfo, nullptr, &image) != VK_SUCCESS)
         throw std::runtime_error("Failed to create image!");
     
     VkMemoryRequirements memReq;
-    vkGetImageMemoryRequirements(device, image, &memReq);
+    vkGetImageMemoryRequirements(device->device, image, &memReq);
     
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -88,11 +88,11 @@ WGVKTexture CreateImage(VkDevice device, uint32_t width, uint32_t height, uint32
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
     );
     
-    if (vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS){
+    if (vkAllocateMemory(device->device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS){
         throw std::runtime_error("Failed to allocate image memory!");
         //abort();
     }
-    vkBindImageMemory(device, image, imageMemory, 0);
+    vkBindImageMemory(device->device, image, imageMemory, 0);
     ret->image = image;
     ret->memory = imageMemory;
     ret->device = device;
@@ -106,7 +106,7 @@ WGVKTexture CreateImage(VkDevice device, uint32_t width, uint32_t height, uint32
 }
 
 // Function to create an image view
-WGVKTextureView CreateImageView(VkDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags) {
+WGVKTextureView CreateImageView(WGVKDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags) {
     WGVKTextureView ret = callocnew(WGVKTextureViewImpl);
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -124,7 +124,7 @@ WGVKTextureView CreateImageView(VkDevice device, VkImage image, VkFormat format,
     viewInfo.subresourceRange.layerCount = 1;
     
     VkImageView imageView;
-    if (vkCreateImageView(device, &viewInfo, nullptr, &ret->view) != VK_SUCCESS)
+    if (vkCreateImageView(device->device, &viewInfo, nullptr, &ret->view) != VK_SUCCESS)
         throw std::runtime_error("Failed to create image view!");
     ret->format = viewInfo.format;
     ret->refCount = 1;
@@ -133,7 +133,7 @@ WGVKTextureView CreateImageView(VkDevice device, VkImage image, VkFormat format,
 
 // Function to begin a single-use command buffer
 VkCommandBuffer transientCommandBuffer{};
-VkCommandBuffer BeginSingleTimeCommands(VkDevice device, VkCommandPool commandPool) {
+VkCommandBuffer BeginSingleTimeCommands(WGVKDevice device, VkCommandPool commandPool) {
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -141,7 +141,7 @@ VkCommandBuffer BeginSingleTimeCommands(VkDevice device, VkCommandPool commandPo
     allocInfo.commandBufferCount = 1;
     
     //if(!transientCommandBuffer){
-        vkAllocateCommandBuffers(device, &allocInfo, &transientCommandBuffer);
+        vkAllocateCommandBuffers(device->device, &allocInfo, &transientCommandBuffer);
     //}
     //else{
         //Never the case currently
@@ -158,10 +158,10 @@ VkCommandBuffer BeginSingleTimeCommands(VkDevice device, VkCommandPool commandPo
 }
 
 // Function to end and submit a single-use command buffer
-void EndSingleTimeCommands(VkDevice device, VkCommandPool commandPool, VkCommandBuffer commandBuffer){
+void EndSingleTimeCommands(WGVKDevice device, VkCommandPool commandPool, VkCommandBuffer commandBuffer){
     vkEndCommandBuffer(commandBuffer);
 }
-void EndSingleTimeCommandsAndSubmit(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkCommandBuffer commandBuffer) {
+void EndSingleTimeCommandsAndSubmit(WGVKDevice device, VkCommandPool commandPool, VkQueue queue, VkCommandBuffer commandBuffer) {
     EndSingleTimeCommands(device, commandPool, commandBuffer);
     
     VkSubmitInfo submitInfo{};
@@ -173,7 +173,7 @@ void EndSingleTimeCommandsAndSubmit(VkDevice device, VkCommandPool commandPool, 
         throw std::runtime_error("Failed to submit command buffer!");
     
     vkQueueWaitIdle(queue);
-    vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+    vkFreeCommandBuffers(device->device, commandPool, 1, &commandBuffer);
     commandBuffer = nullptr;
 }
 extern "C" void EncodeTransitionImageLayout(VkCommandBuffer commandBuffer, VkImageLayout oldLayout, VkImageLayout newLayout, WGVKTexture texture){
@@ -232,14 +232,14 @@ extern "C" void EncodeTransitionImageLayout(VkCommandBuffer commandBuffer, VkIma
     texture->layout = newLayout;
 }
 // Function to transition image layout
-extern "C" void TransitionImageLayout(VkDevice device, VkCommandPool commandPool, VkQueue queue, WGVKTexture texture, 
+extern "C" void TransitionImageLayout(WGVKDevice device, VkCommandPool commandPool, VkQueue queue, WGVKTexture texture, 
                            VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
     VkCommandBuffer commandBuffer = BeginSingleTimeCommands(device, commandPool);
     EncodeTransitionImageLayout(commandBuffer, oldLayout, newLayout, texture);
     
     EndSingleTimeCommandsAndSubmit(device, commandPool, queue, commandBuffer);
 }
-extern "C" WGVKTexture wgvkDeviceCreateTexture(VkDevice device, const WGVKTextureDescriptor* descriptor){
+extern "C" WGVKTexture wgvkDeviceCreateTexture(WGVKDevice device, const WGVKTextureDescriptor* descriptor){
     VkDeviceMemory imageMemory;
     // Adjust usage flags based on format (e.g., depth formats might need different usages)
     
@@ -276,7 +276,7 @@ extern "C" WGVKTexture wgvkDeviceCreateTexture(VkDevice device, const WGVKTextur
     return image;
 }
 // Function to copy buffer to image
-void CopyBufferToImage(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
+void CopyBufferToImage(WGVKDevice device, VkCommandPool commandPool, VkQueue queue, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
     VkCommandBuffer commandBuffer = BeginSingleTimeCommands(device, commandPool);
     
     VkBufferImageCopy region{};
@@ -305,7 +305,7 @@ void CopyBufferToImage(VkDevice device, VkCommandPool commandPool, VkQueue queue
 }
 
 // Main function to create Vulkan image from RGBA8 data or as empty
-WGVKTexture CreateVkImage(VkDevice device, VkPhysicalDevice physicalDevice, VkCommandPool commandPool, VkQueue queue, 
+WGVKTexture CreateVkImage(WGVKDevice device, VkPhysicalDevice physicalDevice, VkCommandPool commandPool, VkQueue queue, 
                                                 const uint8_t* data, uint32_t width, uint32_t height, uint32_t sampleCount, VkFormat format, VkImageUsageFlags usage, bool hasData) {
     VkDeviceMemory imageMemory;
     // Adjust usage flags based on format (e.g., depth formats might need different usages)
@@ -322,9 +322,9 @@ WGVKTexture CreateVkImage(VkDevice device, VkPhysicalDevice physicalDevice, VkCo
         
         // Map and copy data to staging buffer
         void* mappedData;
-        vkMapMemory(device, stagingMemory, 0, imageSize, 0, &mappedData);
+        vkMapMemory(device->device, stagingMemory, 0, imageSize, 0, &mappedData);
         std::memcpy(mappedData, data, static_cast<size_t>(imageSize));
-        vkUnmapMemory(device, stagingMemory);
+        vkUnmapMemory(device->device, stagingMemory);
         
         // Transition image layout to TRANSFER_DST_OPTIMAL
         TransitionImageLayout(device, commandPool, queue, image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -336,8 +336,8 @@ WGVKTexture CreateVkImage(VkDevice device, VkPhysicalDevice physicalDevice, VkCo
         TransitionImageLayout(device, commandPool, queue, image, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         
         // Cleanup staging resources
-        vkDestroyBuffer(device, stagingBuffer, nullptr);
-        vkFreeMemory(device, stagingMemory, nullptr);
+        vkDestroyBuffer(device->device, stagingBuffer, nullptr);
+        vkFreeMemory(device->device, stagingMemory, nullptr);
     }
     
     return image;
@@ -357,7 +357,7 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
     
     VkCommandPool commandPool;
-    if (vkCreateCommandPool(g_vulkanstate.device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
+    if (vkCreateCommandPool(g_vulkanstate.device->device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
         throw std::runtime_error("Failed to create command pool!");
     
     bool hasData = data != nullptr;
@@ -366,7 +366,7 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
         g_vulkanstate.device,
         g_vulkanstate.physicalDevice, 
         commandPool, 
-        g_vulkanstate.queue.computeQueue, 
+        g_vulkanstate.queue->computeQueue, 
         (uint8_t*)data, 
         width, 
         height,
@@ -397,9 +397,9 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     // Handle mipmaps if necessary (not implemented here)
     // For simplicity, only base mip level is created. Extend as needed.
     
-    TRACELOG(LOG_INFO, "Loaded WGVKTexture and view [%u y %u]", (unsigned)width, (unsigned)height);
+    //TRACELOG(LOG_INFO, "Loaded WGVKTexture and view [%u y %u]", (unsigned)width, (unsigned)height);
     
-    vkDestroyCommandPool(g_vulkanstate.device, commandPool, nullptr);
+    vkDestroyCommandPool(g_vulkanstate.device->device, commandPool, nullptr);
     
     return ret;
 }
@@ -418,7 +418,7 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
         VkCommandPoolCreateInfo pci zeroinit;
         pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         pci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-        vkCreateCommandPool(g_vulkanstate.device, &pci, nullptr, &ret);
+        vkCreateCommandPool(g_vulkanstate.device->device, &pci, nullptr, &ret);
         return ret;
     }();
     static VkFence fence = CreateFence();
@@ -434,7 +434,7 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
     region.imageSubresource.baseArrayLayer = 0;
     region.imageSubresource.layerCount = 1;
     region.imageOffset = {0, 0, 0};
-    TRACELOG(LOG_INFO, "Copying image with extent %u x %u", tex->width, tex->height);
+    //TRACELOG(LOG_INFO, "Copying image with extent %u x %u", tex->width, tex->height);
     region.imageExtent = VkExtent3D{tex->width, tex->height, 1u};
     VkDeviceMemory bufferMemory{};
     size_t bufferSize = size * tex->width * tex->height;
@@ -459,19 +459,19 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
     sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     sinfo.commandBufferCount = 1;
     sinfo.pCommandBuffers = &commandBuffer;
-    VkResult submitResult = vkQueueSubmit(g_vulkanstate.queue.graphicsQueue, 1, &sinfo, fence);
+    VkResult submitResult = vkQueueSubmit(g_vulkanstate.queue->graphicsQueue, 1, &sinfo, fence);
     if(submitResult == VK_SUCCESS){
-        VkResult fenceWait = vkWaitForFences(g_vulkanstate.device, 1, &fence, VK_TRUE, UINT64_MAX);
+        VkResult fenceWait = vkWaitForFences(g_vulkanstate.device->device, 1, &fence, VK_TRUE, UINT64_MAX);
         if(fenceWait != VK_SUCCESS){
             TRACELOG(LOG_ERROR, "Waiting for fence not successful");
         }
         else{
             TRACELOG(LOG_INFO, "Successfully waited for fence");
         }
-        vkResetFences(g_vulkanstate.device, 1, &fence);
-        vkFreeCommandBuffers(g_vulkanstate.device, transientPool, 1, &commandBuffer);
+        vkResetFences(g_vulkanstate.device->device, 1, &fence);
+        vkFreeCommandBuffers(g_vulkanstate.device->device, transientPool, 1, &commandBuffer);
         void* mapPtr = nullptr;
-        VkResult mapResult = vkMapMemory(g_vulkanstate.device, bufferMemory, 0, size * tex->width * tex->height, 0, &mapPtr);
+        VkResult mapResult = vkMapMemory(g_vulkanstate.device->device, bufferMemory, 0, size * tex->width * tex->height, 0, &mapPtr);
         if(mapResult == VK_SUCCESS){
             ret.data = std::calloc(bufferSize, 1);
             ret.width = tex->width;
@@ -480,15 +480,14 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
             ret.mipmaps = 0;
             ret.rowStrideInBytes = ret.width * size;
             std::memcpy(ret.data, mapPtr, bufferSize);
-            __builtin_dump_struct(&ret, printf);
         }
         else{
             TRACELOG(LOG_ERROR, "vkMapMemory failed with errorcode %d", mapResult);
         }
     }
-    vkUnmapMemory(g_vulkanstate.device, bufferMemory);
-    vkFreeMemory(g_vulkanstate.device, bufferMemory, nullptr);
-    vkDestroyBuffer(g_vulkanstate.device, stagingBuffer, nullptr);
+    vkUnmapMemory(g_vulkanstate.device->device, bufferMemory);
+    vkFreeMemory(g_vulkanstate.device->device, bufferMemory, nullptr);
+    vkDestroyBuffer(g_vulkanstate.device->device, stagingBuffer, nullptr);
     return ret;
 } 
 // Updated LoadTextureFromImage_Vk function using LoadTexturePro
