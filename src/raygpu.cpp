@@ -1705,8 +1705,26 @@ extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t he
     return ret;
 }
 extern "C" void EndWindowMode(){
+    
+    { //This is an inlined EndTextureMode that passes false for EndRenderpassPro
+        drawCurrentBatch();
+
+        EndRenderpassPro(GetActiveRenderPass(), false);
+
+        --g_renderstate.renderTargetStackPosition;
+        g_renderstate.renderExtentX = g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.width;
+        g_renderstate.renderExtentY = g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.height;
+        Matrix mat = ScreenMatrix(g_renderstate.renderExtentX, g_renderstate.renderExtentY);
+        //SetUniformBuffer(0, g_renderstate.defaultScreenMatrix);
+        PopMatrix();
+        SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
+        if(g_renderstate.renderTargetStackPosition >= 0){
+            BeginRenderpass();
+        }
+    }
+    
     //EndRenderpass();
-    EndTextureMode();
+    //EndTextureMode();
     //g_renderstate.currentDefaultRenderTarget = g_renderstate.mainWindowRenderTarget;
     PresentSurface(&g_renderstate.activeSubWindow.surface);
     auto& ipstate = g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()];

@@ -1066,3 +1066,15 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* renderPass){
 extern "C" void EndRenderpassPro(DescribedRenderpass* rp, bool renderTexture){
     EndRenderpassEx(rp);
 }
+
+RenderTexture LoadRenderTexture(uint32_t width, uint32_t height){
+    RenderTexture ret{
+        .texture = LoadTextureEx(width, height, (PixelFormat)g_renderstate.frameBufferFormat, true),
+        .colorMultisample = Texture{}, 
+        .depth = LoadTexturePro(width, height, Depth32, TextureUsage_RenderAttachment | TextureUsage_CopySrc, (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1, 1)
+    };
+    if(g_renderstate.windowFlags & FLAG_MSAA_4X_HINT){
+        ret.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_renderstate.frameBufferFormat, TextureUsage_RenderAttachment | TextureUsage_CopySrc, 4, 1);
+    }
+    return ret;
+}
