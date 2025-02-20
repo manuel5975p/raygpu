@@ -22,11 +22,10 @@ extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vs
     fscreateInfo.pCode = reinterpret_cast<const uint32_t*>(fscode);
 
 
-    ret.shaderModule = callocnew(VertexAndFragmentShaderModuleImpl);
-    if (vkCreateShaderModule(g_vulkanstate.device->device, &vscreateInfo, nullptr, &((VertexAndFragmentShaderModule)ret.shaderModule)->vModule) != VK_SUCCESS) {
+    if (vkCreateShaderModule(g_vulkanstate.device->device, &vscreateInfo, nullptr, ((VkShaderModule*)&ret.vertexModule)) != VK_SUCCESS) {
         throw std::runtime_error("failed to create vertex shader module!");
     }
-    if (vkCreateShaderModule(g_vulkanstate.device->device, &fscreateInfo, nullptr, &((VertexAndFragmentShaderModule)ret.shaderModule)->fModule) != VK_SUCCESS) {
+    if (vkCreateShaderModule(g_vulkanstate.device->device, &fscreateInfo, nullptr, ((VkShaderModule*)&ret.fragmentModule)) != VK_SUCCESS) {
         throw std::runtime_error("failed to create fragment shader module!");
     }
 
@@ -36,19 +35,17 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, c
     RenderPipelineQuartet quartet zeroinit;
 
 
-    
-    VertexAndFragmentShaderModule vfm = ((VertexAndFragmentShaderModule)ret->sh.shaderModule);
     auto& settings = ret->settings;
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertShaderStageInfo.module = vfm->vModule;
+    vertShaderStageInfo.module = (VkShaderModule)ret->sh.vertexModule;
     vertShaderStageInfo.pName = "main";
 
     VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
     fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragShaderStageInfo.module = vfm->fModule;
+    fragShaderStageInfo.module = (VkShaderModule)ret->sh.fragmentModule;
     fragShaderStageInfo.pName = "main";
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
@@ -260,6 +257,21 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, c
 
     return quartet;
 }
+ShaderSourceType detectShaderLanguage(std::string_view source){
+    
+}
+
+DescribedShaderModule LoadShaderModule(ShaderSources source){
+    DescribedShaderModule ret zeroinit;
+    std::string_view vsView = source.vertexSource;
+    ShaderSourceType vsType = sourceTypeUnknown;
+    if(source.vertexSource){
+        vsView = std::string_view(source.vertexSource);
+        vsType = 
+    }
+}
+
+
 void UpdatePipeline_Vk(DescribedPipeline* ret, const VertexArray* vao){
     // Shader Stage Setup
     auto it = ret->createdPipelines->pipelines.find(vao->attributes);
@@ -268,18 +280,17 @@ void UpdatePipeline_Vk(DescribedPipeline* ret, const VertexArray* vao){
         return;
     }
 
-    VertexAndFragmentShaderModule vfm = ((VertexAndFragmentShaderModule)ret->sh.shaderModule);
     auto& settings = ret->settings;
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertShaderStageInfo.module = vfm->vModule;
+    vertShaderStageInfo.module = (VkShaderModule)ret->sh.vertexModule;
     vertShaderStageInfo.pName = "main";
 
     VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
     fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragShaderStageInfo.module = vfm->fModule;
+    fragShaderStageInfo.module = (VkShaderModule)ret->sh.fragmentModule;
     fragShaderStageInfo.pName = "main";
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};

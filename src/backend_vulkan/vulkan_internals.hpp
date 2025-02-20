@@ -62,7 +62,7 @@ struct QueueIndices{
     uint32_t presentIndex;
 };
 
-struct VertexAndFragmentShaderModuleImpl;
+//struct VertexAndFragmentShaderModuleImpl;
 struct WGVKBindGroupImpl;
 struct WGVKBufferImpl;
 struct WGVKRenderPassEncoderImpl;
@@ -73,7 +73,7 @@ struct WGVKTextureViewImpl;
 struct WGVKQueueImpl;
 struct WGVKDeviceImpl;
 
-typedef VertexAndFragmentShaderModuleImpl* VertexAndFragmentShaderModule;
+//typedef VertexAndFragmentShaderModuleImpl* VertexAndFragmentShaderModule;
 typedef WGVKBindGroupImpl* WGVKBindGroup;
 typedef WGVKBufferImpl* WGVKBuffer;
 typedef WGVKQueueImpl* WGVKQueue;
@@ -107,10 +107,10 @@ typedef struct ResourceUsage{
 }ResourceUsage;
 
 
-typedef struct VertexAndFragmentShaderModuleImpl{
-    VkShaderModule vModule;
-    VkShaderModule fModule;
-}VertexAndFragmentShaderModuleImpl;
+//typedef struct VertexAndFragmentShaderModuleImpl{
+//    VkShaderModule vModule;
+//    VkShaderModule fModule;
+//}VertexAndFragmentShaderModuleImpl;
 
 typedef struct WGVKBindGroupImpl{
     VkDescriptorSet set;

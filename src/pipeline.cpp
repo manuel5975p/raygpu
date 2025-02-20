@@ -167,7 +167,8 @@ DescribedShaderModule LoadShaderModuleFromSPIRV(const uint32_t* shaderCodeSPIRV,
     WGPUStringView strv = STRVIEW("spirv_shader");
     WGPUShaderModule sh = wgpuDeviceCreateShaderModule((WGPUDevice)GetDevice(), &shaderDesc);
     DescribedShaderModule ret zeroinit;
-    ret.shaderModule = sh;
+    ret.vertexModule = sh;
+    ret.fragmentModule = sh;
     ret.source = calloc(codeSizeInBytes / sizeof(uint32_t), sizeof(uint32_t));
     std::memcpy(const_cast<void*>(ret.source), shaderCodeSPIRV, codeSizeInBytes);
     ret.sourceLengthInBytes = codeSizeInBytes;
@@ -176,6 +177,7 @@ DescribedShaderModule LoadShaderModuleFromSPIRV(const uint32_t* shaderCodeSPIRV,
     return ret;
 }
 DescribedShaderModule LoadShaderModuleFromMemoryWGSL2(const char* shaderSourceWGSLVertex, const char* shaderSourceWGSLFragment){
+    abort();
     WGPUShaderModuleDescriptor shaderDesc zeroinit;
 
     WGPUShaderModuleWGSLDescriptor shaderCodeDesc1 zeroinit;
@@ -223,7 +225,8 @@ DescribedShaderModule LoadShaderModuleFromMemory(const char* shaderSourceWGSL) {
     }
     void* source = std::calloc(sourceSize + 1, 1);
     std::memcpy(source, shaderSourceWGSL, sourceSize);
-    ret.shaderModule = mod;
+    ret.vertexModule = mod;
+    ret.fragmentModule = mod;
     ret.sourceLengthInBytes = sourceSize;
     ret.source = source;
     return ret;
@@ -232,7 +235,13 @@ void UnloadShaderModule(DescribedShaderModule mod){
     //hmmmmmmmmmmmmmmmmmmmmmmmmmm
     //const shouldn't exist!!1!
     std::free(const_cast<void*>(mod.source));
-    wgpuShaderModuleRelease((WGPUShaderModule)mod.shaderModule);
+    if(mod.vertexModule) wgpuShaderModuleRelease((WGPUShaderModule)mod.vertexModule);
+    if(mod.fragmentModule && mod.fragmentModule != mod.vertexModule){
+        wgpuShaderModuleRelease((WGPUShaderModule)mod.fragmentModule);
+    }
+    if(mod.computeModule && mod.computeModule != mod.vertexModule && mod.computeModule != mod.fragmentModule){
+        wgpuShaderModuleRelease((WGPUShaderModule)mod.computeModule);
+    }
 }
 extern "C" void UpdatePipeline(DescribedPipeline* pl){
     WGPURenderPipelineDescriptor pipelineDesc zeroinit;
@@ -246,7 +255,7 @@ extern "C" void UpdatePipeline(DescribedPipeline* pl){
     WGPUFragmentState fragmentState{};
     WGPUBlendState blendState{};
 
-    vertexState.module = (WGPUShaderModule)pl->sh.shaderModule;
+    vertexState.module = (WGPUShaderModule)pl->sh.vertexModule;
 
     VertexBufferLayoutSet& vlayout_complete = pl->vertexLayout;
     vertexState.bufferCount = vlayout_complete.number_of_buffers;
@@ -269,7 +278,7 @@ extern "C" void UpdatePipeline(DescribedPipeline* pl){
 
 
     
-    fragmentState.module = (WGPUShaderModule)pl->sh.shaderModule;
+    fragmentState.module = (WGPUShaderModule)pl->sh.fragmentModule;
     fragmentState.entryPoint = STRVIEW("fs_main");
     fragmentState.constantCount = 0;
     fragmentState.constants = nullptr;
@@ -471,7 +480,7 @@ DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const Re
     pldesc.bindGroupLayouts = (WGPUBindGroupLayout*) &ret->bglayout.layout;
     WGPUPipelineLayout playout = wgpuDeviceCreatePipelineLayout((WGPUDevice)GetDevice(), &pldesc);
     ret->shaderModule = LoadShaderModuleFromMemory(shaderCode);
-    desc.compute.module = (WGPUShaderModule)ret->shaderModule.shaderModule;
+    desc.compute.module = (WGPUShaderModule)ret->shaderModule.computeModule;
     desc.compute.entryPoint = STRVIEW("compute_main");
     desc.layout = playout;
     ret->pipeline = wgpuDeviceCreateComputePipeline((WGPUDevice)GetDevice(), &desc);
