@@ -2,7 +2,8 @@
 
 int main(void){
 
-    SetConfigFlags(FLAG_HEADLESS | FLAG_MSAA_4X_HINT);
+    //SetConfigFlags(FLAG_HEADLESS | FLAG_MSAA_4X_HINT);
+    SetConfigFlags(FLAG_HEADLESS);
     //RequestBackend(WGPUBackendType_Vulkan);
     InitWindow(1280, 1280, "This title has no effect");
     Texture tex = LoadTextureFromImage(GenImageChecker(WHITE, BLACK, 100, 100, 10));
@@ -19,7 +20,7 @@ int main(void){
         
         DrawFPS(0, 0);
         EndDrawing();
-        //if(GetFrameCount() % 16 == 0)
+        if(GetFrameCount() % 128 == 0)
         {
             TakeScreenshot(TextFormat("frame%llu.png", GetFrameCount()));
             printf("FPS: %d\n", GetFPS());

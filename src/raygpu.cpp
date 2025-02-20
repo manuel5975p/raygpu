@@ -660,6 +660,7 @@ void BeginDrawing(){
         if(headless_rtex.depth.id){
             UnloadTexture(headless_rtex.depth);
         }
+        
 
         headless_rtex = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
         g_renderstate.mainWindowRenderTarget = headless_rtex;
@@ -778,6 +779,9 @@ void EndDrawing(){
         #ifndef __EMSCRIPTEN__
         PresentSurface(&g_renderstate.mainWindow->surface);
         #endif
+    }
+    else{
+        PostPresentSurface();
     }
     
     std::copy(g_renderstate.smallBufferRecyclingBin.begin(), g_renderstate.smallBufferRecyclingBin.end(), std::back_inserter(g_renderstate.smallBufferPool));

@@ -408,8 +408,10 @@ extern "C" Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat f
 }
 
 void UnloadTexture(Texture tex){
-    wgvkReleaseTextureView((WGVKTextureView)tex.view);
-    wgvkReleaseTexture((WGVKTexture)tex.id);
+    WGVKTextureView view = (WGVKTextureView)tex.view;
+    WGVKTexture texture = (WGVKTexture)tex.id;
+    wgvkReleaseTextureView(view);
+    wgvkReleaseTexture(texture);
     
 }
 extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
