@@ -25,22 +25,7 @@ void BufferData(DescribedBuffer* buffer, void* data, size_t size){
     }
 }
 
-//__attribute__((weak)) void drawCurrentBatch(){
-//    size_t vertexCount = vboptr - vboptr_base;
-//    if(vertexCount == 0){
-//        return;
-//    }
-//    DescribedBuffer* vbo = GenBufferEx(vboptr_base, vertexCount * sizeof(vertex), BufferUsage_Vertex | BufferUsage_CopyDst);
-//    
-//    renderBatchVAO->buffers.front().first = vbo;
-//    BindPipeline(GetActivePipeline(), WGPUPrimitiveTopology_TriangleList);
-//    BindVertexArray_Vk((WGVKRenderPassEncoder)g_renderstate.renderpass.rpEncoder, renderBatchVAO);
-//    //wgvkRenderPassEncoderBindVertexBuffer(, uint32_t binding, BufferHandle buffer, VkDeviceSize offset)
-//    wgvkRenderpassEncoderDraw((WGVKRenderPassEncoder)g_renderstate.renderpass.rpEncoder, vertexCount, 1, 0, 0);
-//    
-//    //UnloadBuffer(vbo);
-//    vboptr = vboptr_base;
-//}
+
 void ResetSyncState(){
     g_vulkanstate.queue->syncState.submitsInThisFrame = 0;
     //g_vulkanstate.syncState.semaphoresInThisFrame.clear();
@@ -86,10 +71,30 @@ void PresentSurface(FullSurface* surface){
     
     vkDestroyCommandPool(g_vulkanstate.device->device, oof, nullptr);
     VkResult presentRes = vkQueuePresentKHR(g_vulkanstate.queue->presentQueue, &presentInfo);
-    
+    ++wgvksurf->device->submittedFrames;
     if(presentRes != VK_SUCCESS){
-        std::cerr << "presentRes is " << presentRes << std::endl;
+        TRACELOG(LOG_ERROR, "presentRes is %d", presentRes);
     }
+    PostPresentSurface();
+
+}
+void PostPresentSurface(){
+    WGVKDevice surfaceDevice = g_vulkanstate.device;
+    WGVKQueue queue = surfaceDevice->queue;
+    std::vector<VkFence> fences;
+    fences.reserve(queue->pendingCommandBuffers.size());
+    for(auto [fence, bufferset] : queue->pendingCommandBuffers){
+        fences.push_back(fence);
+    }
+
+    vkWaitForFences(surfaceDevice->device, fences.size(), fences.data(), VK_TRUE, 1 << 25);
+    for(auto [fence, bufferset] : queue->pendingCommandBuffers){
+        vkDestroyFence(surfaceDevice->device, fence, nullptr);
+        for(auto buffer : bufferset)
+            wgvkReleaseCommandBuffer(buffer);
+    }
+    
+    queue->pendingCommandBuffers.clear();
 }
 
 DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsage usage){
@@ -266,20 +271,6 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
         std::cerr << "acquireResult is " << acquireResult << std::endl;
     }
     WGVKDevice surfaceDevice = ((WGVKSurface)fsurface->surface)->device;
-    WGVKQueue queue = surfaceDevice->queue;
-    std::vector<VkFence> fences;
-    fences.reserve(queue->pendingCommandBuffers.size());
-    for(auto [fence, bufferset] : queue->pendingCommandBuffers){
-        fences.push_back(fence);
-    }
-    vkWaitForFences(surfaceDevice->device, fences.size(), fences.data(), VK_TRUE, 1 << 25);
-    for(auto [fence, bufferset] : queue->pendingCommandBuffers){
-        vkDestroyFence(surfaceDevice->device, fence, nullptr);
-        for(auto buffer : bufferset)
-            wgvkReleaseCommandBuffer(buffer);
-    }
-    
-    queue->pendingCommandBuffers.clear();
     VkCommandBuffer buf = BeginSingleTimeCommands(surfaceDevice, oof);
     EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, wgvksurf->images[imageIndex]);
     EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, (WGVKTexture)fsurface->renderTarget.depth.id);
@@ -344,14 +335,16 @@ VkInstance createInstance() {
     vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
     std::vector<const char *> validationLayers;
-    #ifndef NDEBUG
     for (const auto &layer : availableLayers) {
-        if (std::string(layer.layerName).find("validat") != std::string::npos) {
-            std::cout << "\t[DEBUG]: Selecting layer " << layer.layerName << std::endl;
+        if (std::string(layer.layerName).find("valid") != std::string::npos) {
+            #ifndef NDEBUG
+            TRACELOG(LOG_INFO, "Selecting Validation Layer %s",layer.layerName);
             validationLayers.push_back(layer.layerName);
+            #else
+            TRACELOG(LOG_INFO, "Validation Layer %s available but not selections since NDEBUG is defined",layer.layerName);
+            #endif
         }
     }
-    #endif
 
     VkInstanceCreateInfo createInfo{};
 
@@ -370,9 +363,9 @@ VkInstance createInstance() {
     std::vector<VkExtensionProperties> availableInstanceExtensions(instanceExtensionCount);
     vkEnumerateInstanceExtensionProperties(NULL, &instanceExtensionCount, availableInstanceExtensions.data());
     for(auto& ext : availableInstanceExtensions){
-        std::cout << ext.extensionName << ", ";
+        //std::cout << ext.extensionName << ", ";
     }
-    std::cout << std::endl;
+    //std::cout << std::endl;
     //extensions.push_back(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME);
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
@@ -384,7 +377,7 @@ VkInstance createInstance() {
     if (instanceCreation != VK_SUCCESS) {
         throw std::runtime_error(std::string("Failed to create Vulkan instance : ") + std::to_string(instanceCreation));
     } else {
-        std::cout << "Successfully created Vulkan instance\n";
+        TRACELOG(LOG_INFO, "Successfully created Vulkan instance");
     }
 
     
@@ -408,7 +401,7 @@ VkPhysicalDevice pickPhysicalDevice() {
     for (const auto &device : devices) {
         VkPhysicalDeviceProperties props;
         vkGetPhysicalDeviceProperties(device, &props);
-        std::cout << "Found device: " << props.deviceName << "\n";
+        TRACELOG(LOG_INFO, "Found device: %s", props.deviceName);
     }
     for (const auto &device : devices) {
         VkPhysicalDeviceProperties props{};
@@ -1094,7 +1087,8 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
     if(rpe){
         wgvkReleaseRenderPassEncoder(rpe);
     }
-    wgvkReleaseCommandEncoder((WGVKCommandEncoder)rp->cmdEncoder);
+    WGVKCommandEncoder cmdEncoder = (WGVKCommandEncoder)rp->cmdEncoder;
+    wgvkReleaseCommandEncoder(cmdEncoder);
     wgvkReleaseCommandBuffer(cbuffer);
     //vkResetFences(g_vulkanstate.device, 1, &g_vulkanstate.queue.syncState.renderFinishedFence);
     //g_vulkanstate.queue.syncState.submitsInThisFrame = 0;

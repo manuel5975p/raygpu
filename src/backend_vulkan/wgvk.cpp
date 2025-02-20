@@ -45,9 +45,37 @@ extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_
 
 
 extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup, const WGVKBindGroupDescriptor* bgdesc){
-    VkDescriptorPoolCreateInfo dpci{};
-    dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    dpci.maxSets = 1;
+    if(wvBindGroup->pool == nullptr){
+        VkDescriptorPoolCreateInfo dpci{};
+        dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        dpci.maxSets = 1;
+
+        std::unordered_map<VkDescriptorType, uint32_t> counts;
+        for(uint32_t i = 0;i < bgdesc->layout->entryCount;i++){
+            ++counts[toVulkanResourceType(bgdesc->layout->entries[i].type)];
+        }
+        std::vector<VkDescriptorPoolSize> sizes;
+        sizes.reserve(counts.size());
+        for(const auto& [t, s] : counts){
+            sizes.push_back(VkDescriptorPoolSize{.type = t, .descriptorCount = s});
+        }
+
+        dpci.poolSizeCount = sizes.size();
+        dpci.pPoolSizes = sizes.data();
+        dpci.maxSets = 1;
+        vkCreateDescriptorPool(device->device, &dpci, nullptr, &wvBindGroup->pool);
+
+        //VkCopyDescriptorSet copy{};
+        //copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
+
+        VkDescriptorSetAllocateInfo dsai{};
+        dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        dsai.descriptorPool = wvBindGroup->pool;
+        dsai.descriptorSetCount = 1;
+        dsai.pSetLayouts = (VkDescriptorSetLayout*)&bgdesc->layout->layout;
+        vkAllocateDescriptorSets(device->device, &dsai, &wvBindGroup->set);
+    }
+
     for(uint32_t i = 0;i < bgdesc->entryCount;i++){
         auto& entry = bgdesc->entries[i];
         if(entry.buffer){
@@ -70,30 +98,7 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
             wvBindGroup->resourceUsage.referencedTextureViews.emplace((WGVKTextureView)entry.textureView, TextureUsage_TextureBinding);
         }
     }
-    std::unordered_map<VkDescriptorType, uint32_t> counts;
-    for(uint32_t i = 0;i < bgdesc->layout->entryCount;i++){
-        ++counts[toVulkanResourceType(bgdesc->layout->entries[i].type)];
-    }
-    std::vector<VkDescriptorPoolSize> sizes;
-    sizes.reserve(counts.size());
-    for(const auto& [t, s] : counts){
-        sizes.push_back(VkDescriptorPoolSize{.type = t, .descriptorCount = s});
-    }
 
-    dpci.poolSizeCount = sizes.size();
-    dpci.pPoolSizes = sizes.data();
-    dpci.maxSets = 1;
-    vkCreateDescriptorPool(device->device, &dpci, nullptr, &wvBindGroup->pool);
-    
-    //VkCopyDescriptorSet copy{};
-    //copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
-    
-    VkDescriptorSetAllocateInfo dsai{};
-    dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    dsai.descriptorPool = wvBindGroup->pool;
-    dsai.descriptorSetCount = 1;
-    dsai.pSetLayouts = (VkDescriptorSetLayout*)&bgdesc->layout->layout;
-    vkAllocateDescriptorSets(device->device, &dsai, &wvBindGroup->set);
 
 
 
@@ -140,6 +145,35 @@ extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVK
 
     WGVKBindGroup ret = callocnewpp(WGVKBindGroupImpl);
     ret->refCount = 1;
+
+    VkDescriptorPoolCreateInfo dpci{};
+    dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    dpci.maxSets = 1;
+
+    std::unordered_map<VkDescriptorType, uint32_t> counts;
+    for(uint32_t i = 0;i < bgdesc->layout->entryCount;i++){
+        ++counts[toVulkanResourceType(bgdesc->layout->entries[i].type)];
+    }
+    std::vector<VkDescriptorPoolSize> sizes;
+    sizes.reserve(counts.size());
+    for(const auto& [t, s] : counts){
+        sizes.push_back(VkDescriptorPoolSize{.type = t, .descriptorCount = s});
+    }
+
+    dpci.poolSizeCount = sizes.size();
+    dpci.pPoolSizes = sizes.data();
+    dpci.maxSets = 1;
+    vkCreateDescriptorPool(device->device, &dpci, nullptr, &ret->pool);
+    
+    //VkCopyDescriptorSet copy{};
+    //copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
+    
+    VkDescriptorSetAllocateInfo dsai{};
+    dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    dsai.descriptorPool = ret->pool;
+    dsai.descriptorSetCount = 1;
+    dsai.pSetLayouts = (VkDescriptorSetLayout*)&bgdesc->layout->layout;
+    vkAllocateDescriptorSets(device->device, &dsai, &ret->set);
     wgvkWriteBindGroup(device, ret, bgdesc);
 
     return ret;
@@ -199,7 +233,7 @@ extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVK
         sr.aspectMask &= VK_IMAGE_ASPECT_COLOR_BIT;
     }
     ivci.subresourceRange = sr;
-    WGVKTextureView ret = callocnew(WGVKTextureViewImpl);
+    WGVKTextureView ret = callocnewpp(WGVKTextureViewImpl);
     ret->refCount = 1;
     vkCreateImageView(texture->device->device, &ivci, nullptr, &ret->view);
     ret->format = ivci.format;
@@ -417,7 +451,9 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
     if(surface->imageViews){
         for (uint32_t i = 0; i < surface->imagecount; i++) {
             wgvkReleaseTextureView(surface->imageViews[i]);
-            //vkDestroyImage(device, surface->images[i], nullptr);
+            //This line is not required, since those are swapchain-owned images
+            //These images also have a null memory member
+            //wgvkReleaseTexture(surface->images[i]);
         }
     }
 
@@ -464,7 +500,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
     if (vkCreateSwapchainKHR(device->device, &createInfo, nullptr, &(surface->swapchain)) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create swap chain!");
     } else {
-        std::cout << "Successfully created swap chain\n";
+        TRACELOG(LOG_INFO, "wgvkSurfaceConfigure(): Successfully created swap chain");
     }
 
     vkGetSwapchainImagesKHR(device->device, surface->swapchain, &surface->imagecount, nullptr);
@@ -496,7 +532,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
         viewDesc.aspect = TextureAspect_All;
         viewDesc.dimension = TextureDimension_2D;
         viewDesc.format = config->format;
-        viewDesc.usage = TextureUsage_RenderAttachment;
+        viewDesc.usage = TextureUsage_RenderAttachment | TextureUsage_CopySrc;
         //VkImageViewCreateInfo viewInfo{};
         //viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         //viewInfo.image = surface->images[i]->image;
@@ -587,6 +623,7 @@ void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
     if(commandEncoder->buffer){
         vkFreeCommandBuffers(commandEncoder->device->device, commandEncoder->device->frameCaches[commandEncoder->cacheIndex].commandPool, 1, &commandEncoder->buffer);
     }
+    commandEncoder->~WGVKCommandEncoderImpl();
     std::free(commandEncoder);
 }
 
@@ -602,7 +639,10 @@ extern "C" WGVKCommandEncoder wgvkResetCommandBuffer(WGVKCommandBuffer commandBu
         vkResetCommandBuffer(commandBuffer->buffer, 0);
     ret->buffer = commandBuffer->buffer;
     ret->cacheIndex = commandBuffer->cacheIndex;
+
+    commandBuffer->~WGVKCommandBufferImpl();
     std::free(commandBuffer);
+    
     VkCommandBufferBeginInfo cbbi zeroinit;
     cbbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     cbbi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -622,7 +662,7 @@ void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
         VkCommandPool pool = commandBuffer->device->frameCaches[commandBuffer->cacheIndex].commandPool;
         vkFreeCommandBuffers(commandBuffer->device->device, pool, 1, &commandBuffer->buffer);
         //vkDestroyCommandPool(g_vulkanstate.device->device, commandBuffer->pool, nullptr);
-
+        commandBuffer->~WGVKCommandBufferImpl();
         std::free(commandBuffer);
     }
 }
@@ -633,6 +673,7 @@ void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc) {
         rpenc->resourceUsage.releaseAllAndClear();
         vkDestroyFramebuffer(rpenc->device->device, rpenc->frameBuffer, nullptr);
         vkDestroyRenderPass(rpenc->device->device, rpenc->renderPass, nullptr);
+        rpenc->~WGVKRenderPassEncoderImpl();
         std::free(rpenc);
     }
 }
@@ -641,6 +682,7 @@ void wgvkReleaseBuffer(WGVKBuffer buffer) {
     if (buffer->refCount == 0) {
         vkDestroyBuffer(g_vulkanstate.device->device, buffer->buffer, nullptr);
         vkFreeMemory(g_vulkanstate.device->device, buffer->memory, nullptr);
+        buffer->~WGVKBufferImpl();
         std::free(buffer);
     }
 }
@@ -650,6 +692,7 @@ void wgvkReleaseDescriptorSet(WGVKBindGroup dshandle) {
         dshandle->resourceUsage.releaseAllAndClear();
         //vkFreeDescriptorSets(g_vulkanstate.device->device, dshandle->pool, 1, &dshandle->set);
         vkDestroyDescriptorPool(g_vulkanstate.device->device, dshandle->pool, nullptr);
+        dshandle->~WGVKBindGroupImpl();
         std::free(dshandle);
     }
 }
@@ -659,6 +702,8 @@ extern "C" void wgvkReleaseTexture(WGVKTexture texture){
     if(texture->refCount == 0){
         vkDestroyImage(texture->device->device, texture->image, nullptr);
         vkFreeMemory(texture->device->device, texture->memory, nullptr);
+
+        texture->~WGVKTextureImpl();
         std::free(texture);
     }
 }
@@ -667,6 +712,7 @@ extern "C" void wgvkReleaseTextureView(WGVKTextureView view){
     if(view->refCount == 0){
         vkDestroyImageView(view->texture->device->device, view->view, nullptr);
         wgvkReleaseTexture(view->texture);
+        view->~WGVKTextureViewImpl();
         std::free(view);
     }
 }
