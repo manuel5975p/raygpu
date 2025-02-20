@@ -133,7 +133,6 @@ typedef struct DescribedBindGroup{
     ResourceDescriptor* entries;
 
 
-    uint64_t releaseOnClear; //bitset
     uint64_t descriptorHash; //currently unused
     
 }DescribedBindGroup;

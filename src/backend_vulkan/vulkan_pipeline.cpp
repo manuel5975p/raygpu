@@ -267,6 +267,7 @@ void UpdatePipeline_Vk(DescribedPipeline* ret, const VertexArray* vao){
         ret->quartet = it->second;
         return;
     }
+
     VertexAndFragmentShaderModule vfm = ((VertexAndFragmentShaderModule)ret->sh.shaderModule);
     auto& settings = ret->settings;
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
@@ -466,6 +467,7 @@ void UpdatePipeline_Vk(DescribedPipeline* ret, const VertexArray* vao){
     else{
         rpLayout.colorResolveIndex = VK_ATTACHMENT_UNUSED;
     }
+
     VkRenderPass rp = LoadRenderPassFromLayout(g_vulkanstate.device, rpLayout);
     pipelineInfo.renderPass = rp;
     pipelineInfo.subpass = 0;
@@ -532,21 +534,47 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, Resou
         //return;
     }
     uint64_t oldHash = bg->descriptorHash;
-    
-    if(bg->releaseOnClear & (1 << index)){
-        //donotcache = true;
-        if(bg->entries[index].buffer){
-            wgvkReleaseBuffer((WGVKBuffer)bg->entries[index].buffer);
-        }
-        else if(bg->entries[index].textureView){
-            //Todo: currently not the case anyway, but this is nadinöf
-            //vkDestroyImageView((VkImageView)bg->entries[index].textureView);
-        }
-        else if(bg->entries[index].sampler){
-            //wgpuSamplerRelease((WGPUSampler)bg->entries[index].sampler);
-        }
-        bg->releaseOnClear &= ~(1 << index);
+    if(bg->entries[index].buffer){
+        WGVKBuffer wBuffer = (WGVKBuffer)bg->entries[index].buffer;
+        wgvkReleaseBuffer(wBuffer);
     }
+    else if(bg->entries[index].textureView){
+        //TODO: currently not the case anyway, but this is nadinöf
+        wgvkReleaseTextureView((WGVKTextureView)bg->entries[index].textureView);
+    }
+    else if(bg->entries[index].sampler){
+        // TODO
+    }
+    if(entry.buffer){
+        wgvkBufferAddRef((WGVKBuffer)entry.buffer);
+    }
+    else if(entry.textureView){
+        wgvkTextureViewAddRef((WGVKTextureView)entry.textureView);
+    }
+    else if(entry.sampler){
+        // TODO
+    }
+    else{
+        TRACELOG(LOG_FATAL, "Invalid ResourceDescriptor");
+    }
+
+    
+    //if(bg->releaseOnClear & (1 << index)){
+    //    //donotcache = true;
+    //    if(bg->entries[index].buffer){
+    //        WGVKBuffer wBuffer = (WGVKBuffer)bg->entries[index].buffer;
+    //        wgvkReleaseBuffer(wBuffer);
+    //    }
+    //    else if(bg->entries[index].textureView){
+    //        //Todo: currently not the case anyway, but this is nadinöf
+    //        //vkDestroyImageView((VkImageView)bg->entries[index].textureView);
+    //    }
+    //    else if(bg->entries[index].sampler){
+    //        //wgpuSamplerRelease((WGPUSampler)bg->entries[index].sampler);
+    //    }
+    //    bg->releaseOnClear &= ~(1 << index);
+    //}
+
     bg->entries[index] = entry;
     //bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
 
@@ -650,7 +678,7 @@ void UpdateBindGroup(DescribedBindGroup* bg){
     bgdesc.entries = bg->entries;
     bgdesc.layout = bg->layout;
     //bgdesc.entries 
-    if(bg->bindGroup && ((WGVKBindGroup)bg->bindGroup)->refCount == 1){
+    if(bg->bindGroup && ((WGVKBindGroup)bg->bindGroup)->refCount == 1){        
         wgvkWriteBindGroup(g_vulkanstate.device, (WGVKBindGroup)bg->bindGroup, &bgdesc);
     }
     else{

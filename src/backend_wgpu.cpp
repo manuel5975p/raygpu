@@ -304,21 +304,24 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, Resou
     }
     uint64_t oldHash = bg->descriptorHash;
     bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
-    //bool donotcache = false;
-    if(bg->releaseOnClear & (1 << index)){
-        //donotcache = true;
-        if(bg->entries[index].buffer){
-            wgpuBufferRelease((WGPUBuffer)bg->entries[index].buffer);
-        }
-        else if(bg->entries[index].textureView){
-            //Todo: currently not the case anyway, but this is nadinöf
-            wgpuTextureViewRelease((WGPUTextureView)bg->entries[index].textureView);
-        }
-        else if(bg->entries[index].sampler){
-            wgpuSamplerRelease((WGPUSampler)bg->entries[index].sampler);
-        }
-        bg->releaseOnClear &= ~(1 << index);
+    if(bg->entries[index].buffer){
+        wgpuBufferRelease((WGPUBuffer)bg->entries[index].buffer);
     }
+    //bool donotcache = false;
+    //if(bg->releaseOnClear & (1 << index)){
+    //    //donotcache = true;
+    //    if(bg->entries[index].buffer){
+    //        wgpuBufferRelease((WGPUBuffer)bg->entries[index].buffer);
+    //    }
+    //    else if(bg->entries[index].textureView){
+    //        //Todo: currently not the case anyway, but this is nadinöf
+    //        wgpuTextureViewRelease((WGPUTextureView)bg->entries[index].textureView);
+    //    }
+    //    else if(bg->entries[index].sampler){
+    //        wgpuSamplerRelease((WGPUSampler)bg->entries[index].sampler);
+    //    }
+    //    bg->releaseOnClear &= ~(1 << index);
+    //}
     bg->entries[index] = entry;
     bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
 
@@ -836,7 +839,8 @@ void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, cons
     entry.buffer = uniformBuffer;
     entry.size = size;
     UpdateBindGroupEntry(bg, index, entry);
-    bg->releaseOnClear |= (1 << index);
+    wgpuBufferRelease(uniformBuffer);
+    //bg->releaseOnClear |= (1 << index);
 }
 
 void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size){
@@ -847,13 +851,13 @@ void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, cons
     bufferDesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
     bufferDesc.mappedAtCreation = false;
 
-    WGPUBuffer uniformBuffer = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &bufferDesc);
-    wgpuQueueWriteBuffer(GetQueue(), uniformBuffer, 0, data, size);
+    WGPUBuffer storageBuffer = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &bufferDesc);
+    wgpuQueueWriteBuffer(GetQueue(), storageBuffer, 0, data, size);
     entry.binding = index;
-    entry.buffer = uniformBuffer;
+    entry.buffer = storageBuffer;
     entry.size = size;
     UpdateBindGroupEntry(bg, index, entry);
-    bg->releaseOnClear |= (1 << index);
+    wgpuBufferRelease(storageBuffer);
 }
 void UnloadBuffer(DescribedBuffer* buffer){
     wgpuBufferRelease((WGPUBuffer)buffer->buffer);
