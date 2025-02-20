@@ -160,8 +160,10 @@ typedef struct StringToUniformMap StringToUniformMap;
  */
 typedef struct VertexStateToPipelineMap VertexStateToPipelineMap;
 typedef enum ShaderSourceType{
-    sourceTypeSPIRV = 1,
-    sourceTypeWGSL  = 2
+    sourceTypeUnknown = 0,
+    sourceTypeSPIRV   = 1,
+    sourceTypeWGSL    = 2,
+    sourceTypeGLSL    = 3,
 }ShaderSourceType;
 
 typedef struct DescribedShaderModule{
@@ -173,7 +175,9 @@ typedef struct DescribedShaderModule{
     ShaderSourceType sourceType;
     size_t sourceLengthInBytes;
 
-    NativeShaderModuleHandle shaderModule;
+    NativeShaderModuleHandle vertexModule;
+    NativeShaderModuleHandle fragmentModule;
+    NativeShaderModuleHandle computeModule;
     StringToUniformMap* uniformLocations;
 }DescribedShaderModule;
 

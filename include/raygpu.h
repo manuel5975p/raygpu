@@ -627,6 +627,20 @@ typedef enum {
     MOUSE_BUTTON_FORWARD = 5,       // Mouse button forward (advanced mouse device)
     MOUSE_BUTTON_BACK    = 6,       // Mouse button back (advanced mouse device)
 } MouseButton;
+/**
+ * @brief Generalized shader source struct. Not all members need to be set.
+ * 
+ * @details Currently supported settings are
+ * 1. vertexSource and fragmentSource set with GLSL or WGSL sources
+ * 2. vertexAndFragmentSource set with WGSL source
+ * 3. computeSource set with GLSL or WGSL source
+ */
+typedef struct ShaderSources{
+    const char* vertexSource;
+    const char* fragmentSource;
+    const char* vertexAndFragmentSource;
+    const char* computeSource;
+}ShaderSources;
 
 typedef struct SurfaceCapabilities{
     TextureUsage usages;
@@ -1056,6 +1070,7 @@ EXTERN_C_BEGIN
     DescribedShaderModule LoadShaderModuleFromMemory(const char* shaderSourceWGSL);
     DescribedShaderModule LoadShaderModuleFromMemoryWGSL2(const char* shaderSourceWGSLVertex, const char* shaderSourceWGSLFragment);
     DescribedShaderModule LoadShaderModuleFromSPIRV(const uint32_t* shaderCodeSPIRV, size_t codeSizeInBytes);
+    DescribedShaderModule LoadShaderModule(ShaderSources source);
     //WGPUShaderModule LoadShader(const char* path);
 
     DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, bool compute);
@@ -1068,7 +1083,7 @@ EXTERN_C_BEGIN
     DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao);
     DescribedPipeline* LoadPipelineForVAOEx(const char* shaderSource, VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
     DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs);
-
+    DescribedPipeline* LoadPipelinePro(cwoid);
     void UpdatePipeline(DescribedPipeline* pl);
 
     DescribedPipeline* DefaultPipeline(cwoid);
