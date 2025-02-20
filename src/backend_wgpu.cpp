@@ -85,7 +85,7 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, co
     WGPUFragmentState fragmentState{};
     WGPUBlendState blendState{};
 
-    vertexState.module = (WGPUShaderModule)pl->sh.shaderModule;
+    vertexState.module = (WGPUShaderModule)pl->sh.vertexModule;
 
     VertexBufferLayoutSet& vlayout_complete = pl->vertexLayout;
     vertexState.bufferCount = vlayout_complete.number_of_buffers;
@@ -108,7 +108,7 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, co
 
 
     
-    fragmentState.module = (WGPUShaderModule)pl->sh.shaderModule;
+    fragmentState.module = (WGPUShaderModule)pl->sh.fragmentModule;
     fragmentState.entryPoint = STRVIEW("fs_main");
     fragmentState.constantCount = 0;
     fragmentState.constants = nullptr;
@@ -167,7 +167,7 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, co
 }
 
 
-
+void PostPresentSurface(){}
 extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode){
     switch(drawMode){
         case WGPUPrimitiveTopology_TriangleList:
@@ -304,9 +304,20 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, Resou
     }
     uint64_t oldHash = bg->descriptorHash;
     bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
+    if(entry.buffer){
+        wgpuBufferAddRef((WGPUBuffer)entry.buffer);
+    }
+    if(entry.textureView){
+        wgpuTextureViewAddRef((WGPUTextureView)entry.textureView);
+    }
+
     if(bg->entries[index].buffer){
         wgpuBufferRelease((WGPUBuffer)bg->entries[index].buffer);
     }
+    if(bg->entries[index].textureView){
+        wgpuTextureViewRelease((WGPUTextureView)bg->entries[index].textureView);
+    }
+    
     //bool donotcache = false;
     //if(bg->releaseOnClear & (1 << index)){
     //    //donotcache = true;

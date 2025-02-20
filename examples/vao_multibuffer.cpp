@@ -87,9 +87,9 @@ int main(){
     settings.depthTest = 1;
     settings.depthCompare = CompareFunction_LessEqual;
 
-    //DescribedPipeline* pl = LoadPipelineEx(source, nullptr, 0, nullptr, 0, settings);
+    DescribedPipeline* pl = LoadPipelineEx(source, nullptr, 0, nullptr, 0, settings);
     //DescribedPipeline* pl = DefaultPipeline();
-    DescribedPipeline* pl = LoadPipelinePro(/*source, vao, nullptr, 0, settings*/);
+    //DescribedPipeline* pl = LoadPipelinePro(/*source, vao, nullptr, 0, settings*/);
     PreparePipeline(pl, vao);
     while(!WindowShouldClose()){
         BeginDrawing();
