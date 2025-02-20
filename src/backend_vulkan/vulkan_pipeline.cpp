@@ -258,17 +258,34 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, c
     return quartet;
 }
 ShaderSourceType detectShaderLanguage(std::string_view source){
-    
+    if(source.find("@location") != std::string::npos || source.find("@binding") != std::string::npos){
+        return sourceTypeWGSL;
+    }
+    else if(source.find("#version") != std::string::npos){
+        return sourceTypeGLSL;
+    }
+    else{
+        return sourceTypeUnknown;
+    }
 }
 
 DescribedShaderModule LoadShaderModule(ShaderSources source){
+    
     DescribedShaderModule ret zeroinit;
     std::string_view vsView = source.vertexSource;
     ShaderSourceType vsType = sourceTypeUnknown;
+    std::string_view fsView = source.vertexSource;
+    ShaderSourceType fsType = sourceTypeUnknown;
+
     if(source.vertexSource){
         vsView = std::string_view(source.vertexSource);
-        vsType = 
+        vsType = detectShaderLanguage(vsView);
     }
+    if(source.fragmentSource){
+        fsView = std::string_view(source.fragmentSource);
+        fsType = detectShaderLanguage(vsView);
+    }
+    return ret;
 }
 
 
