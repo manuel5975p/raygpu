@@ -127,14 +127,16 @@ extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVK
 
 extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, const WGVKCommandEncoderDescriptor* desc){
     WGVKCommandEncoder ret = callocnewpp(WGVKCommandEncoderImpl);
-    VkCommandPoolCreateInfo pci{};
-    pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    pci.flags = desc->recyclable ? VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT : VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-    ret->recyclable = desc->recyclable;
-    vkCreateCommandPool(device->device, &pci, nullptr, &ret->pool);
+    //§VkCommandPoolCreateInfo pci{};
+    //§pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    //§pci.flags = desc->recyclable ? VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT : VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+    //§ret->recyclable = desc->recyclable;
+    PerframeCache& cache = device->frameCaches[device->submittedFrames % framesInFlight];
+    ret->cacheIndex = device->submittedFrames % framesInFlight;
+    //vkCreateCommandPool(device->device, &pci, nullptr, &cache.commandPool);
     VkCommandBufferAllocateInfo bai{};
     bai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    bai.commandPool = ret->pool;
+    bai.commandPool = cache.commandPool;
     bai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     bai.commandBufferCount = 1;
     vkAllocateCommandBuffers(device->device, &bai, &ret->buffer);
@@ -272,8 +274,10 @@ extern "C" void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder
 }
 /**
  * @brief Ends a CommandEncoder into a CommandBuffer
- * This is a one-way transition for WebGPU, therefore we can move resource tracking
- * In Vulkan, this transition is merely a call to vkEndCommandBuffer
+ * @details This is a one-way transition for WebGPU, therefore we can move resource tracking
+ * In Vulkan, this transition is merely a call to vkEndCommandBuffer.
+ * 
+ * The rest of this function just moves data from the Encoder struct into the buffer. 
  * 
  */
 extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder commandEncoder){
@@ -282,10 +286,9 @@ extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder command
     vkEndCommandBuffer(commandEncoder->buffer);
     ret->referencedRPs = std::move(commandEncoder->referencedRPs);
     ret->resourceUsage = std::move(commandEncoder->resourceUsage);
-    ret->pool = commandEncoder->pool;
+    ret->cacheIndex = commandEncoder->cacheIndex;
     ret->buffer = commandEncoder->buffer;
     commandEncoder->buffer = nullptr;
-    commandEncoder->pool = nullptr;
     return ret;
 }
 
@@ -327,6 +330,7 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
         }
         uint64_t frameCount = queue->device->submittedFrames;
         queue->pendingCommandBuffers.emplace(fence, std::move(insert));
+        
         TRACELOG(LOG_INFO, "Count: %d", (int)queue->pendingCommandBuffers.size());
         /*if(vkWaitForFences(g_vulkanstate.device->device, 1, &g_vulkanstate.queue->syncState.renderFinishedFence, VK_TRUE, 100000000) != VK_SUCCESS){
             throw std::runtime_error("Could not wait for fence");
@@ -557,8 +561,9 @@ void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
     for(auto rp : commandEncoder->referencedRPs){
         wgvkReleaseRenderPassEncoder(rp);
     }
-    if(commandEncoder->buffer)
-        vkFreeCommandBuffers(g_vulkanstate.device->device, commandEncoder->pool, 1, &commandEncoder->buffer);
+    if(commandEncoder->buffer){
+        vkFreeCommandBuffers(commandEncoder->device->device, commandEncoder->device->frameCaches[commandEncoder->cacheIndex].commandPool, 1, &commandEncoder->buffer);
+    }
     std::free(commandEncoder);
 }
 
@@ -573,8 +578,7 @@ extern "C" WGVKCommandEncoder wgvkResetCommandBuffer(WGVKCommandBuffer commandBu
     if(commandBuffer->buffer)
         vkResetCommandBuffer(commandBuffer->buffer, 0);
     ret->buffer = commandBuffer->buffer;
-    ret->pool = commandBuffer->pool;
-    ret->recyclable = true;
+    ret->cacheIndex = commandBuffer->cacheIndex;
     std::free(commandBuffer);
     VkCommandBufferBeginInfo cbbi zeroinit;
     cbbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -592,8 +596,8 @@ void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
         for(auto rp : commandBuffer->referencedRPs){
             wgvkReleaseRenderPassEncoder(rp);
         }
-        vkFreeCommandBuffers(g_vulkanstate.device->device, commandBuffer->pool, 1, &commandBuffer->buffer);
-        vkDestroyCommandPool(g_vulkanstate.device->device, commandBuffer->pool, nullptr);
+        vkFreeCommandBuffers(g_vulkanstate.device->device, commandBuffer->device->frameCaches[commandBuffer->cacheIndex].commandPool, 1, &commandBuffer->buffer);
+        //vkDestroyCommandPool(g_vulkanstate.device->device, commandBuffer->pool, nullptr);
 
         std::free(commandBuffer);
     }

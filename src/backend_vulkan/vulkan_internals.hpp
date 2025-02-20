@@ -273,15 +273,16 @@ typedef struct WGVKCommandBufferImpl{
     ref_holder<WGVKRenderPassEncoder> referencedRPs;
     ResourceUsage resourceUsage;
     
-    VkCommandPool pool;
+    WGVKDevice device;
+    uint32_t cacheIndex;
 }WGVKCommandBufferImpl;
 
 typedef struct WGVKCommandEncoderImpl{
     ref_holder<WGVKRenderPassEncoder> referencedRPs;
     ResourceUsage resourceUsage;
     VkCommandBuffer buffer;
-    VkCommandPool pool;
-    bool recyclable;
+    WGVKDevice device;
+    uint32_t cacheIndex;
 }WGVKCommandEncoderImpl;
 struct xorshiftstate{
     uint64_t x64;

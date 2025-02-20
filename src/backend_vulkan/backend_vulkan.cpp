@@ -266,6 +266,17 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
         std::cerr << "acquireResult is " << acquireResult << std::endl;
     }
     WGVKDevice vd = ((WGVKSurface)fsurface->surface)->device;
+    WGVKQueue queue = vd->queue;
+    std::vector<VkFence> fences;
+    fences.reserve(queue->pendingCommandBuffers.size());
+    for(auto [fence, bufferset] : queue->pendingCommandBuffers){
+        fences.push_back(fence);
+    }
+    vkWaitForFences(vd->device, fences.size(), fences.data(), VK_TRUE, 1 << 25);
+    for(auto [fence, bufferset] : queue->pendingCommandBuffers){
+        for(auto buffer : bufferset)
+            wgvkReleaseCommandBuffer(buffer);
+    }
     VkCommandBuffer buf = BeginSingleTimeCommands(vd, oof);
     EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, wgvksurf->images[imageIndex]);
     EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, (WGVKTexture)fsurface->renderTarget.depth.id);
@@ -756,7 +767,7 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     if (dcresult != VK_SUCCESS) {
         throw std::runtime_error("Failed to create logical device!");
     } else {
-        std::cout << "Successfully created logical device\n";
+        TRACELOG(LOG_INFO, "Successfully created logical device");
     }
 
     // Retrieve and assign queues
@@ -779,7 +790,13 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     //__builtin_dump_struct(&g_vulkanstate, printf);
     // std::cin.get();
 
-    std::cout << "Successfully retrieved queues\n";
+    for(uint32_t i = 0;i < framesInFlight;i++){
+        VkCommandPoolCreateInfo pci zeroinit;
+        pci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        vkCreateCommandPool(ret.first->device, &pci, nullptr, &ret.first->frameCaches[i].commandPool);
+    }
+
+    TRACELOG(LOG_INFO, "Successfully retrieved queues");
     ret.first->queue = ret.second;
     return ret;
 }
