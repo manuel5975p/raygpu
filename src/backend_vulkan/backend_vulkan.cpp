@@ -265,22 +265,25 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
     if(acquireResult != VK_SUCCESS){
         std::cerr << "acquireResult is " << acquireResult << std::endl;
     }
-    WGVKDevice vd = ((WGVKSurface)fsurface->surface)->device;
-    WGVKQueue queue = vd->queue;
+    WGVKDevice surfaceDevice = ((WGVKSurface)fsurface->surface)->device;
+    WGVKQueue queue = surfaceDevice->queue;
     std::vector<VkFence> fences;
     fences.reserve(queue->pendingCommandBuffers.size());
     for(auto [fence, bufferset] : queue->pendingCommandBuffers){
         fences.push_back(fence);
     }
-    vkWaitForFences(vd->device, fences.size(), fences.data(), VK_TRUE, 1 << 25);
+    vkWaitForFences(surfaceDevice->device, fences.size(), fences.data(), VK_TRUE, 1 << 25);
     for(auto [fence, bufferset] : queue->pendingCommandBuffers){
+        vkDestroyFence(surfaceDevice->device, fence, nullptr);
         for(auto buffer : bufferset)
             wgvkReleaseCommandBuffer(buffer);
     }
-    VkCommandBuffer buf = BeginSingleTimeCommands(vd, oof);
+    
+    queue->pendingCommandBuffers.clear();
+    VkCommandBuffer buf = BeginSingleTimeCommands(surfaceDevice, oof);
     EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, wgvksurf->images[imageIndex]);
     EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, (WGVKTexture)fsurface->renderTarget.depth.id);
-    EndSingleTimeCommandsAndSubmit(vd, oof, g_vulkanstate.queue->graphicsQueue, buf);
+    EndSingleTimeCommandsAndSubmit(surfaceDevice, oof, g_vulkanstate.queue->graphicsQueue, buf);
     vkDestroyCommandPool(g_vulkanstate.device->device, oof, nullptr);
     
     fsurface->renderTarget.texture.id = wgvksurf->images[imageIndex];
@@ -587,7 +590,7 @@ void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, cons
     entry.buffer = wgvkBuffer;
     entry.size = size;
     UpdateBindGroupEntry(bg, index, entry);
-    bg->releaseOnClear |= (1 << index);
+    wgvkReleaseBuffer(wgvkBuffer);
 }
 extern "C" void BufferData(DescribedBuffer* buffer, const void* data, size_t size){
     if(buffer->buffer != nullptr && buffer->size >= size){
@@ -616,7 +619,7 @@ void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, cons
     entry.buffer = wgvkBuffer;
     entry.size = size;
     UpdateBindGroupEntry(bg, index, entry);
-    bg->releaseOnClear |= (1 << index);
+    wgvkReleaseBuffer(wgvkBuffer);
 }
 
 
@@ -786,18 +789,24 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     }
     WGVKCommandEncoderDescriptor cedesc zeroinit;
     cedesc.recyclable = true;
+    for(uint32_t i = 0;i < framesInFlight;i++){
+        VkCommandPoolCreateInfo pci zeroinit;
+        pci.flags = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        pci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        vkCreateCommandPool(ret.first->device, &pci, nullptr, &ret.first->frameCaches[i].commandPool);
+    }
     ret.second->presubmitCache = wgvkDeviceCreateCommandEncoder(ret.first, &cedesc);
     //__builtin_dump_struct(&g_vulkanstate, printf);
     // std::cin.get();
 
-    for(uint32_t i = 0;i < framesInFlight;i++){
-        VkCommandPoolCreateInfo pci zeroinit;
-        pci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-        vkCreateCommandPool(ret.first->device, &pci, nullptr, &ret.first->frameCaches[i].commandPool);
-    }
+    
 
     TRACELOG(LOG_INFO, "Successfully retrieved queues");
-    ret.first->queue = ret.second;
+    {
+        auto [device, queue] = ret;
+        device->queue = queue;
+        queue->device = device;
+    }
     return ret;
 }
 void printVkPhysicalDeviceMemoryProperties(const VkPhysicalDeviceMemoryProperties* properties) {

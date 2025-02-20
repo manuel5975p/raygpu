@@ -48,7 +48,28 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
     VkDescriptorPoolCreateInfo dpci{};
     dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     dpci.maxSets = 1;
-    
+    for(uint32_t i = 0;i < bgdesc->entryCount;i++){
+        auto& entry = bgdesc->entries[i];
+        if(entry.buffer){
+            wgvkBufferAddRef((WGVKBuffer)entry.buffer);
+        }
+        else if(entry.textureView){
+            wgvkTextureViewAddRef((WGVKTextureView)entry.textureView);
+        }
+        else if(entry.sampler){
+            // TODO
+        }
+    }
+    wvBindGroup->resourceUsage.releaseAllAndClear();
+    for(uint32_t i = 0;i < bgdesc->entryCount;i++){
+        auto& entry = bgdesc->entries[i];
+        if(entry.buffer){
+            wvBindGroup->resourceUsage.referencedBuffers.emplace((WGVKBuffer)entry.buffer);
+        }
+        else if(entry.textureView){
+            wvBindGroup->resourceUsage.referencedTextureViews.emplace((WGVKTextureView)entry.textureView, TextureUsage_TextureBinding);
+        }
+    }
     std::unordered_map<VkDescriptorType, uint32_t> counts;
     for(uint32_t i = 0;i < bgdesc->layout->entryCount;i++){
         ++counts[toVulkanResourceType(bgdesc->layout->entries[i].type)];
@@ -120,8 +141,7 @@ extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVK
     WGVKBindGroup ret = callocnewpp(WGVKBindGroupImpl);
     ret->refCount = 1;
     wgvkWriteBindGroup(device, ret, bgdesc);
-    
-    
+
     return ret;
 }
 
@@ -133,6 +153,7 @@ extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, 
     //§ret->recyclable = desc->recyclable;
     PerframeCache& cache = device->frameCaches[device->submittedFrames % framesInFlight];
     ret->cacheIndex = device->submittedFrames % framesInFlight;
+    ret->device = device;
     //vkCreateCommandPool(device->device, &pci, nullptr, &cache.commandPool);
     VkCommandBufferAllocateInfo bai{};
     bai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -195,6 +216,7 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
     //One for WGVKRenderPassEncoder the other for the command buffer
     ret->refCount = 2;
     enc->referencedRPs.insert(ret);
+    ret->device = enc->device;
 
     RenderPassLayout rplayout = GetRenderPassLayout(rpdesc);
     VkRenderPassBeginInfo rpbi{};
@@ -288,6 +310,7 @@ extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder command
     ret->resourceUsage = std::move(commandEncoder->resourceUsage);
     ret->cacheIndex = commandEncoder->cacheIndex;
     ret->buffer = commandEncoder->buffer;
+    ret->device = commandEncoder->device;
     commandEncoder->buffer = nullptr;
     return ret;
 }
@@ -331,7 +354,7 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
         uint64_t frameCount = queue->device->submittedFrames;
         queue->pendingCommandBuffers.emplace(fence, std::move(insert));
         
-        TRACELOG(LOG_INFO, "Count: %d", (int)queue->pendingCommandBuffers.size());
+        //TRACELOG(LOG_INFO, "Count: %d", (int)queue->pendingCommandBuffers.size());
         /*if(vkWaitForFences(g_vulkanstate.device->device, 1, &g_vulkanstate.queue->syncState.renderFinishedFence, VK_TRUE, 100000000) != VK_SUCCESS){
             throw std::runtime_error("Could not wait for fence");
         }
@@ -596,7 +619,8 @@ void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
         for(auto rp : commandBuffer->referencedRPs){
             wgvkReleaseRenderPassEncoder(rp);
         }
-        vkFreeCommandBuffers(g_vulkanstate.device->device, commandBuffer->device->frameCaches[commandBuffer->cacheIndex].commandPool, 1, &commandBuffer->buffer);
+        VkCommandPool pool = commandBuffer->device->frameCaches[commandBuffer->cacheIndex].commandPool;
+        vkFreeCommandBuffers(commandBuffer->device->device, pool, 1, &commandBuffer->buffer);
         //vkDestroyCommandPool(g_vulkanstate.device->device, commandBuffer->pool, nullptr);
 
         std::free(commandBuffer);
@@ -607,6 +631,8 @@ void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc) {
     --rpenc->refCount;
     if (rpenc->refCount == 0) {
         rpenc->resourceUsage.releaseAllAndClear();
+        vkDestroyFramebuffer(rpenc->device->device, rpenc->frameBuffer, nullptr);
+        vkDestroyRenderPass(rpenc->device->device, rpenc->renderPass, nullptr);
         std::free(rpenc);
     }
 }
@@ -711,4 +737,16 @@ void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer 
     vkCmdBindIndexBuffer(rpe->cmdBuffer, buffer->buffer, offset, indexType);
 
     rpe->resourceUsage.track(buffer);
+}
+extern "C" void wgvkTextureViewAddRef(WGVKTextureView textureView){
+    ++textureView->refCount;
+}
+extern "C" void wgvkTextureAddRef(WGVKTexture texture){
+    ++texture->refCount;
+}
+extern "C" void wgvkBufferAddRef(WGVKBuffer buffer){
+    ++buffer->refCount;
+}
+extern "C" void wgvkBindGroupAddRef(WGVKBindGroup bindGroup){
+    ++bindGroup->refCount;
 }

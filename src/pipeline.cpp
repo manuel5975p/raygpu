@@ -408,16 +408,16 @@ DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
 
     pipeline->bindGroup = LoadBindGroup(&_pipeline->bglayout, _pipeline->bindGroup.entries, _pipeline->bindGroup.entryCount);
     for(uint32_t i = 0;i < _pipeline->bindGroup.entryCount;i++){
-        if(_pipeline->bindGroup.releaseOnClear & (1ull << i)){
-            if(_pipeline->bindGroup.entries[i].buffer){
-                if(_pipeline->bglayout.entries[i].type == uniform_buffer){
-                    pipeline->bindGroup.entries[i].buffer = cloneBuffer((WGPUBuffer)pipeline->bindGroup.entries[i].buffer, WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc | WGPUBufferUsage_Uniform);
-                }
-                else if(_pipeline->bglayout.entries[i].type == storage_buffer){
-                    pipeline->bindGroup.entries[i].buffer = cloneBuffer((WGPUBuffer)pipeline->bindGroup.entries[i].buffer, WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc | WGPUBufferUsage_Storage);
-                }
-            }
-        }
+        //if(_pipeline->bindGroup.releaseOnClear & (1ull << i)){
+        //    if(_pipeline->bindGroup.entries[i].buffer){
+        //        if(_pipeline->bglayout.entries[i].type == uniform_buffer){
+        //            pipeline->bindGroup.entries[i].buffer = cloneBuffer((WGPUBuffer)pipeline->bindGroup.entries[i].buffer, WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc | WGPUBufferUsage_Uniform);
+        //        }
+        //        else if(_pipeline->bglayout.entries[i].type == storage_buffer){
+        //            pipeline->bindGroup.entries[i].buffer = cloneBuffer((WGPUBuffer)pipeline->bindGroup.entries[i].buffer, WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc | WGPUBufferUsage_Storage);
+        //        }
+        //    }
+        //}
     }
     pipeline->vertexLayout = VertexBufferLayoutSet zeroinit;
     

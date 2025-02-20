@@ -259,6 +259,7 @@ typedef struct WGVKRenderPassEncoderImpl{
     VkCommandBuffer cmdBuffer;
     VkRenderPass renderPass;
     
+    WGVKDevice device;
     ResourceUsage resourceUsage;
     refcount_type refCount;
 
@@ -1023,8 +1024,10 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, Resou
 extern "C" void GetNewTexture(FullSurface *fsurface);
 extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t width, uint32_t height);
 
-
-
+extern "C" void wgvkTextureAddRef(WGVKTexture texture);
+extern "C" void wgvkTextureViewAddRef(WGVKTextureView textureView);
+extern "C" void wgvkBufferAddRef(WGVKBuffer buffer);
+extern "C" void wgvkBindGroupAddRef(WGVKBindGroup bindGroup);
 
 static inline void SetBindgroupSampler_Vk(DescribedBindGroup* bg, uint32_t index, DescribedSampler smp){
     ResourceDescriptor entry{};
