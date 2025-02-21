@@ -227,6 +227,7 @@ DescribedShaderModule LoadShaderModuleFromMemory(const char* shaderSourceWGSL) {
     std::memcpy(source, shaderSourceWGSL, sourceSize);
     ret.vertexModule = mod;
     ret.fragmentModule = mod;
+    ret.computeModule = mod;
     ret.sourceLengthInBytes = sourceSize;
     ret.source = source;
     return ret;
@@ -483,6 +484,7 @@ DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const Re
     desc.compute.module = (WGPUShaderModule)ret->shaderModule.computeModule;
     desc.compute.entryPoint = STRVIEW("compute_main");
     desc.layout = playout;
+    WGPUDevice device = (WGPUDevice)GetDevice();
     ret->pipeline = wgpuDeviceCreateComputePipeline((WGPUDevice)GetDevice(), &desc);
     std::vector<ResourceDescriptor> bge(uniformCount);
     for(uint32_t i = 0;i < bge.size();i++){
