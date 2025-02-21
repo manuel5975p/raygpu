@@ -5,9 +5,10 @@ set(SUPPORT_WGSL_PARSER ON CACHE BOOL "Support wgsl parsing for uniform and attr
 option(SUPPORT_GLSL_PARSER OFF)
 option(SUPPORT_SDL2 OFF)
 option(SUPPORT_SDL3 OFF)
-option(SUPPORT_GLFW ON)
+option(SUPPORT_GLFW "" ON)
 option(SUPPORT_VULKAN_BACKEND OFF)
-option(SUPPORT_WGPU_BACKEND ON)
+option(SUPPORT_WGPU_BACKEND "" ON)
+message(STATUS "SUPPORT_WGPU_BACKEND: ${SUPPORT_WGPU_BACKEND}")
 #if(EMSCRIPTEN)
 #    set(SUPPORT_SDL2 OFF CACHE BOOL "Support the SDL2 windowing backend" FORCE)
 #endif()
@@ -52,7 +53,8 @@ set(TINT_ENABLE_INSTALL ON CACHE BOOL "Enable install step for Tint libraries")
 set(BUILD_GMOCK ON CACHE BOOL "" FORCE)
 if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/dawn/CMakeLists.txt")
 # Use the local dawn directory
-add_subdirectory("dawn")
+    add_subdirectory("dawn")
+    set(dawn_SOURCE_DIR "dawn")
 else()
 # FetchContent to download dawn if not present locally
 include(FetchContent)
@@ -96,12 +98,12 @@ function(download_file_if_not_exists url filename)
     endif()
 endfunction()
 if(NOT EMSCRIPTEN AND SUPPORT_GLSL_PARSER)
-    FetchContent_Declare(
-        khrGlslang
-        URL      https://github.com/KhronosGroup/glslang/archive/refs/tags/15.1.0.tar.gz
-        DOWNLOAD_EXTRACT_TIMESTAMP True
-    )
-    FetchContent_MakeAvailable(khrGlslang)
+    #FetchContent_Declare(
+    #    khrGlslang
+    #    URL      https://github.com/KhronosGroup/glslang/archive/refs/tags/15.1.0.tar.gz
+    #    DOWNLOAD_EXTRACT_TIMESTAMP True
+    #)
+    #FetchContent_MakeAvailable(khrGlslang)
 endif()
 if(SUPPORT_SDL2)
     FetchContent_Declare(
@@ -289,9 +291,9 @@ else()
         #target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
     )
     target_include_directories(raygpu PUBLIC  
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dawn/include/>  
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dawn/src>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dawn/>
+        $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/include/>  
+        $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/src>
+        $<BUILD_INTERFACE:${dawn_SOURCE_DIR}>
         $<INSTALL_INTERFACE:include/raygpu/dawn/include>
         $<INSTALL_INTERFACE:include/raygpu/dawn/src>
         $<INSTALL_INTERFACE:include/raygpu/dawn/>
@@ -326,6 +328,7 @@ if(EMSCRIPTEN)
 endif()
 
 add_subdirectory("examples")
+
 set(EXPORT_RG_TARGETS raygpu)
 if(SUPPORT_GLFW)
     list(APPEND EXPORT_RG_TARGETS glfw)
