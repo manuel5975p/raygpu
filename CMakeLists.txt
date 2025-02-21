@@ -37,17 +37,18 @@ set(TINT_BUILD_CMD_TOOLS OFF CACHE BOOL "" FORCE)
 set(TINT_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
 set(DAWN_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
 set(TINT_BUILD_GLSL_VALIDATOR OFF CACHE BOOL "" FORCE)
-set(TINT_BUILD_GLSL_WRITER ON CACHE BOOL "" FORCE)
+set(TINT_BUILD_GLSL_WRITER OFF CACHE BOOL "" FORCE)
 set(TINT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(DAWN_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "" FORCE)
 set(DAWN_FETCH_DEPENDENCIES OFF CACHE BOOL "" FORCE)
 set(DAWN_BUILD_MONOLITHIC_LIBRARY ON CACHE BOOL "" FORCE)
-set(DAWN_ENABLE_OPENGLES ON CACHE BOOL "" FORCE)
-set(DAWN_ENABLE_DESKTOP_GL ON CACHE BOOL "" FORCE)
+set(DAWN_ENABLE_OPENGLES OFF CACHE BOOL "" FORCE)
+set(DAWN_ENABLE_DESKTOP_GL OFF CACHE BOOL "" FORCE)
+set(DAWN_ENABLE_INSTALL ON CACHE BOOL "Enable install step for Dawn libraries")
 if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/dawn/CMakeLists.txt")
   # Use the local dawn directory
-  add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/dawn")
+  add_subdirectory("dawn")
 else()
   # FetchContent to download dawn if not present locally
   include(FetchContent)
@@ -64,10 +65,10 @@ set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
 set(DAWN_BUILD_MONOLITHIC_LIBRARY ON CACHE BOOL "" FORCE)
 set(DAWN_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
 set(TINT_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
-set(DAWN_ENABLE_OPENGLES ON CACHE BOOL "" FORCE)
-set(DAWN_ENABLE_DESKTOP_GL ON CACHE BOOL "" FORCE)
+set(DAWN_ENABLE_OPENGLES OFF CACHE BOOL "" FORCE)
+set(DAWN_ENABLE_DESKTOP_GL OFF CACHE BOOL "" FORCE)
 set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "" FORCE)
-set(TINT_BUILD_GLSL_WRITER ON CACHE BOOL "" FORCE)
+set(TINT_BUILD_GLSL_WRITER OFF CACHE BOOL "" FORCE)
 set(ENABLE_HLSL OFF CACHE BOOL "" FORCE)
 set(ENABLE_PCH OFF CACHE BOOL "" FORCE)
 set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
@@ -145,10 +146,10 @@ set(RG_SOURCES
     "src/windows_stuff.c"
 )
 if(SUPPORT_VULKAN_BACKEND)
-    list(APPEND RG_SOURCES "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/vulkan_textures.cpp")
-    list(APPEND RG_SOURCES "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/vulkan_pipeline.cpp")
-    list(APPEND RG_SOURCES "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/backend_vulkan.cpp")
-    list(APPEND RG_SOURCES "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/wgvk.cpp")
+    list(APPEND RG_SOURCES "src/backend_vulkan/vulkan_textures.cpp")
+    list(APPEND RG_SOURCES "src/backend_vulkan/vulkan_pipeline.cpp")
+    list(APPEND RG_SOURCES "src/backend_vulkan/backend_vulkan.cpp")
+    list(APPEND RG_SOURCES "src/backend_vulkan/wgvk.cpp")
 endif()
 if(SUPPORT_WGPU_BACKEND)
     list(APPEND RG_SOURCES "src/backend_wgpu.cpp")
@@ -226,7 +227,11 @@ foreach(file ${SUPPRESS_WARNINGS_SOURCE_FILES})
         set_source_files_properties(${file} PROPERTIES COMPILE_FLAGS "-w")
     endif()
 endforeach()
-target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include" "${CMAKE_BINARY_DIR}/dl" "${CMAKE_CURRENT_LIST_DIR}/external")
+#target_include_directories(raygpu PUBLIC include/)
+target_include_directories(raygpu PUBLIC  
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>  
+    $<INSTALL_INTERFACE:include/raygpu>
+)
 if(EMSCRIPTEN)
     target_link_libraries(raygpu PUBLIC
         emdawnwebgpu_c
@@ -256,11 +261,10 @@ if(EMSCRIPTEN)
     if(SUPPORT_SDL3)
         target_link_libraries(raygpu PUBLIC SDL3::SDL3)
     endif()
-    target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
+    #target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
 else()
 if(SUPPORT_VULKAN_BACKEND)
-target_link_libraries(raygpu PUBLIC vulkan webgpu_dawn webgpu_cpp dawn_internal_config)
-
+    target_link_libraries(raygpu PUBLIC vulkan webgpu_dawn webgpu_cpp dawn_internal_config)
 else()
     target_link_libraries(raygpu PUBLIC
         webgpu_dawn
@@ -308,11 +312,26 @@ if(EMSCRIPTEN)
     set(CMAKE_EXECUTABLE_SUFFIX ".html") # This line is used to set your executable to build with the emscripten html template so that you can directly open it.
 endif()
 
-add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/examples")
-#add_executable(init_vulkan 
-#    "${CMAKE_CURRENT_LIST_DIR}/src/backend_vulkan/init_vulkan.cpp"
+add_subdirectory("examples")
+
+include(CMakePackageConfigHelpers)
+
+install(
+    TARGETS raygpu
+    EXPORT DawnInstall
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+)
+install(
+    DIRECTORY ${CMAKE_SOURCE_DIR}/include/
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/raygpu"
+    FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
+)
+
+#install(EXPORT raygpuTargets
+#    FILE raygpu.cmake
+#    NAMESPACE raygpu::
+#    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/raygpu"
 #)
-#target_link_libraries(init_vulkan PUBLIC vulkan raygpu glslang)
-#target_include_directories(init_vulkan PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include" "${CMAKE_CURRENT_LIST_DIR}/external")
-#add_executable(reference_sample "src/reference_sample.cpp")
-#target_link_libraries(reference_sample PUBLIC webgpu_dawn webgpu_cpp dawn_wgpu_utils dawn_internal_config dawn::dawn_glfw glfw raygpu)

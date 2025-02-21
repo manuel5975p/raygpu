@@ -1,7 +1,7 @@
 #include <raygpu.h>
 #include <stdio.h>
 #define RAYGUI_IMPLEMENTATION
-#include <raygui.h>
+#include <external/raygui.h>
 char buffer[100] = {0};
 
 bool editable = true;

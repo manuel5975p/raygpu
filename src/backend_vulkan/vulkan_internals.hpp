@@ -1,7 +1,6 @@
 #ifndef VULKAN_INTERNALS_HPP
 #define VULKAN_INTERNALS_HPP
-#include "small_vector.hpp"
-#include "tint/lang/core/ir/referenced_functions.h"
+#include <external/small_vector.hpp>
 #include <unordered_set>
 #include <vulkan/vulkan.h>
 #include <vector>
@@ -372,7 +371,7 @@ typedef struct WGVKTextureViewDescriptor{
     void* nextInChain;
     WGVKStringView label;
     PixelFormat format;
-    TextureDimension dimension;
+    TextureViewDimension dimension;
     uint32_t baseMipLevel;
     uint32_t mipLevelCount;
     uint32_t baseArrayLayer;

@@ -85,7 +85,7 @@
     #endif
 
     #define STB_RECT_PACK_IMPLEMENTATION
-    #include <stb_rect_pack.h>     // Required for: ttf/bdf font rectangles packaging
+    #include <external/stb_rect_pack.h>     // Required for: ttf/bdf font rectangles packaging
 
     #include <math.h>   // Required for: ttf/bdf font rectangles packaging
 
@@ -102,7 +102,7 @@
 
     #define STBTT_STATIC
     #define STB_TRUETYPE_IMPLEMENTATION
-    #include <stb_truetype.h>      // Required for: ttf font data reading
+    #include <external/stb_truetype.h>      // Required for: ttf font data reading
 
     #if defined(__GNUC__) // GCC and Clang
         #pragma GCC diagnostic pop

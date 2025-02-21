@@ -15,10 +15,10 @@
 #define RL_REALLOC realloc
 #endif
 #define TINYOBJ_LOADER_C_IMPLEMENTATION
-#include <tinyobj_loader_c.h>
-#include <cgltf.h>
+#include <external/tinyobj_loader_c.h>
+#include <external/cgltf.h>
 #define PAR_SHAPES_IMPLEMENTATION
-#include <par_shapes.h>
+#include <external/par_shapes.h>
 
 constexpr float v3_zero [3] = {0,0,0};
 constexpr float v3_xunit[3] = {1,0,0};
