@@ -37,10 +37,10 @@
 #if DAWN_PLATFORM_IS(WINDOWS)
 #define GLFW_EXPOSE_NATIVE_WIN32
 #endif
-#if defined(DAWN_USE_X11)
+#if defined(RAYGPU_USE_X11)
 #define GLFW_EXPOSE_NATIVE_X11
 #endif
-#if defined(DAWN_USE_WAYLAND)
+#if defined(RAYGPU_USE_WAYLAND)
 #define GLFW_EXPOSE_NATIVE_WAYLAND
 #endif
 #if !defined(__EMSCRIPTEN__)
@@ -78,8 +78,8 @@ SetupWindowAndGetSurfaceDescriptor(GLFWwindow* window) {
             }};
 #elif defined(DAWN_ENABLE_BACKEND_METAL)
     return SetupWindowAndGetSurfaceDescriptorCocoa(window);
-#elif defined(DAWN_USE_WAYLAND) || defined(DAWN_USE_X11)
-#if defined(GLFW_PLATFORM_WAYLAND) && defined(DAWN_USE_WAYLAND)
+#elif defined(RAYGPU_USE_WAYLAND) || defined(RAYGPU_USE_X11)
+#if defined(GLFW_PLATFORM_WAYLAND) && defined(RAYGPU_USE_WAYLAND)
     if (glfwGetPlatform() == GLFW_PLATFORM_WAYLAND) {
         wgpu::SurfaceSourceWaylandSurface* desc = new wgpu::SurfaceSourceWaylandSurface();
         desc->display = glfwGetWaylandDisplay();
@@ -89,7 +89,7 @@ SetupWindowAndGetSurfaceDescriptor(GLFWwindow* window) {
                 }};
     } else  // NOLINT(readability/braces)
 #endif
-#if defined(DAWN_USE_X11)
+#if defined(RAYGPU_USE_X11)
     {
         wgpu::SurfaceSourceXlibWindow* desc = new wgpu::SurfaceSourceXlibWindow();
         desc->display = glfwGetX11Display();
