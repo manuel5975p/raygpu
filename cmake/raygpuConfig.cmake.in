@@ -1,4 +1,4 @@
 @PACKAGE_INIT@
 
-# Include the exported targets file
-include("${CMAKE_CURRENT_LIST_DIR}/raygpuTargets.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/raygpuTargets.cmake")
+#check_required_components(raygpu)

@@ -33,12 +33,14 @@ if(NOT SUPPORT_GLFW)
     endif()
 endif()
 
-set(TINT_BUILD_CMD_TOOLS OFF CACHE BOOL "" FORCE)
+set(TINT_BUILD_CMD_TOOLS ON CACHE BOOL "" FORCE)
 set(TINT_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
 set(DAWN_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
 set(TINT_BUILD_GLSL_VALIDATOR OFF CACHE BOOL "" FORCE)
-set(TINT_BUILD_GLSL_WRITER OFF CACHE BOOL "" FORCE)
-set(TINT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(TINT_BUILD_GLSL_WRITER ON CACHE BOOL "" FORCE)
+set(TINT_BUILD_MSL_WRITER ON CACHE BOOL "" FORCE)
+set(TINT_BUILD_HLSL_WRITER ON CACHE BOOL "" FORCE)
+set(TINT_BUILD_TESTS ON CACHE BOOL "" FORCE)
 set(DAWN_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "" FORCE)
 set(DAWN_FETCH_DEPENDENCIES OFF CACHE BOOL "" FORCE)
@@ -46,51 +48,52 @@ set(DAWN_BUILD_MONOLITHIC_LIBRARY ON CACHE BOOL "" FORCE)
 set(DAWN_ENABLE_OPENGLES OFF CACHE BOOL "" FORCE)
 set(DAWN_ENABLE_DESKTOP_GL OFF CACHE BOOL "" FORCE)
 set(DAWN_ENABLE_INSTALL ON CACHE BOOL "Enable install step for Dawn libraries")
+set(TINT_ENABLE_INSTALL ON CACHE BOOL "Enable install step for Tint libraries")
+set(BUILD_GMOCK ON CACHE BOOL "" FORCE)
 if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/dawn/CMakeLists.txt")
-  # Use the local dawn directory
-  add_subdirectory("dawn")
+# Use the local dawn directory
+add_subdirectory("dawn")
 else()
-  # FetchContent to download dawn if not present locally
-  include(FetchContent)
-  set(FETCHCONTENT_QUIET FALSE)
-  FetchContent_Declare(
+# FetchContent to download dawn if not present locally
+include(FetchContent)
+set(FETCHCONTENT_QUIET FALSE)
+FetchContent_Declare(
     dawn
     URL https://github.com/manuel5975p/dawn_monorepo/archive/refs/tags/v7011.tar.gz
-
-  )
-  FetchContent_MakeAvailable(dawn)
+    
+    )
+    FetchContent_MakeAvailable(dawn)
 endif()
-set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
-#set(DAWN_FETCH_DEPENDENCIES ON CACHE BOOL "" FORCE)
-set(DAWN_BUILD_MONOLITHIC_LIBRARY ON CACHE BOOL "" FORCE)
-set(DAWN_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
-set(TINT_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
-set(DAWN_ENABLE_OPENGLES OFF CACHE BOOL "" FORCE)
-set(DAWN_ENABLE_DESKTOP_GL OFF CACHE BOOL "" FORCE)
-set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "" FORCE)
-set(TINT_BUILD_GLSL_WRITER OFF CACHE BOOL "" FORCE)
-set(ENABLE_HLSL OFF CACHE BOOL "" FORCE)
-set(ENABLE_PCH OFF CACHE BOOL "" FORCE)
-set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
-set(TINT_BUILD_CMD_TOOLS OFF CACHE BOOL "" FORCE)
-set(TINT_BUILD_GLSL_VALIDATOR OFF CACHE BOOL "" FORCE)
-set(TINT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+#set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
+#set(DAWN_BUILD_MONOLITHIC_LIBRARY ON CACHE BOOL "" FORCE)
+#set(DAWN_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
+#set(TINT_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
+#set(DAWN_ENABLE_OPENGLES OFF CACHE BOOL "" FORCE)
+#set(DAWN_ENABLE_DESKTOP_GL OFF CACHE BOOL "" FORCE)
+#set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "" FORCE)
+#set(TINT_BUILD_GLSL_WRITER OFF CACHE BOOL "" FORCE)
+#set(ENABLE_HLSL OFF CACHE BOOL "" FORCE)
+#set(ENABLE_PCH OFF CACHE BOOL "" FORCE)
+#set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+#set(TINT_BUILD_CMD_TOOLS OFF CACHE BOOL "" FORCE)
+#set(TINT_BUILD_GLSL_VALIDATOR OFF CACHE BOOL "" FORCE)
+#set(TINT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 
 # Define the download function
 function(download_file_if_not_exists url filename)
-set(DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/dl")
-set(DOWNLOAD_FILE "${DOWNLOAD_DIR}/${filename}")
+    set(DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/dl")
+    set(DOWNLOAD_FILE "${DOWNLOAD_DIR}/${filename}")
 
-# Create download directory if it doesn't exist
-file(MAKE_DIRECTORY ${DOWNLOAD_DIR})
+    # Create download directory if it doesn't exist
+    file(MAKE_DIRECTORY ${DOWNLOAD_DIR})
 
-# Check if the file exists, download if not
-if(NOT EXISTS ${DOWNLOAD_FILE})
-message(STATUS "Downloading ${filename} from ${url}...")
-file(DOWNLOAD ${url} ${DOWNLOAD_FILE})
-else()
-message(STATUS "File ${filename} already exists, skipping download.")
-endif()
+    # Check if the file exists, download if not
+    if(NOT EXISTS ${DOWNLOAD_FILE})
+        message(STATUS "Downloading ${filename} from ${url}...")
+        file(DOWNLOAD ${url} ${DOWNLOAD_FILE})
+    else()
+        message(STATUS "File ${filename} already exists, skipping download.")
+    endif()
 endfunction()
 if(NOT EMSCRIPTEN AND SUPPORT_GLSL_PARSER)
     FetchContent_Declare(
@@ -268,12 +271,12 @@ if(SUPPORT_VULKAN_BACKEND)
 else()
     target_link_libraries(raygpu PUBLIC
         webgpu_dawn
-        webgpu_cpp
+        #webgpu_cpp
         #tint_api_common
         #tint_lang_wgsl_reader
-        dawn_internal_config
-        tint_lang_wgsl
-        tint_api
+        #dawn_internal_config
+        #tint_lang_wgsl
+        #tint_api
         #glslang
     
         #dawn::dawn_native
@@ -282,6 +285,16 @@ else()
         #dawn::dawn_wgpu_utils
         #dawn::dawn_test_utils
         #dawn::dawn_proc
+        
+        #target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
+    )
+    target_include_directories(raygpu PUBLIC  
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dawn/include/>  
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dawn/src>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dawn/>
+        $<INSTALL_INTERFACE:include/raygpu/dawn/include>
+        $<INSTALL_INTERFACE:include/raygpu/dawn/src>
+        $<INSTALL_INTERFACE:include/raygpu/dawn/>
     )
 endif()
     if(SUPPORT_SDL2)
@@ -313,11 +326,15 @@ if(EMSCRIPTEN)
 endif()
 
 add_subdirectory("examples")
-
-include(CMakePackageConfigHelpers)
-
+set(EXPORT_RG_TARGETS raygpu)
+if(SUPPORT_GLFW)
+    list(APPEND EXPORT_RG_TARGETS glfw)
+endif()
+if(SUPPORT_SDL3)
+    list(APPEND EXPORT_RG_TARGETS SDL3::SDL3)
+endif()
 install(
-    TARGETS raygpu
+    TARGETS ${EXPORT_RG_TARGETS}
     EXPORT DawnInstall
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
@@ -325,13 +342,77 @@ install(
     INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
 )
 install(
+    EXPORT DawnInstall
+    FILE raygpuTargets.cmake
+    NAMESPACE raygpu::
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/raygpu"
+)
+
+
+install(
     DIRECTORY ${CMAKE_SOURCE_DIR}/include/
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/raygpu"
     FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
 )
 
-#install(EXPORT raygpuTargets
-#    FILE raygpu.cmake
-#    NAMESPACE raygpu::
+configure_package_config_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/raygpuConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/raygpuConfig.cmake"
+    INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/raygpu"
+)
+install(
+    EXPORT DawnInstall
+    FILE raygpuConfig.cmake
+    NAMESPACE raygpu::
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/raygpu"
+)
+
+#install(TARGETS raygpu)
+#file(GLOB_RECURSE tint_wgsl_src 
+#    "dawn/src/tint/lang/wgsl/ast/*.cc"
+#    "dawn/src/tint/lang/wgsl/reader/*.cc"
+#    "dawn/src/tint/lang/wgsl/common/*.cc"
+#    "dawn/src/tint/lang/wgsl/inspector/*.cc"
+#    "dawn/src/tint/lang/wgsl/intrinsic/*.cc"
+#    "dawn/src/tint/lang/wgsl/resolver/*.cc"
+#    "dawn/src/tint/lang/wgsl/sem/*.cc"
+#    "dawn/src/tint/lang/wgsl/ir/*.cc"
+#)
+#
+## Convert the file to an absolute path
+#get_filename_component(READER_BENCH_PATH
+#    "${CMAKE_SOURCE_DIR}/dawn/src/tint/lang/wgsl/reader/reader_bench.cc" ABSOLUTE)
+#
+## Remove it from the list
+#list(REMOVE_ITEM tint_wgsl_src "${READER_BENCH_PATH}")
+#add_library(tint_full ${tint_wgsl_src})
+#target_include_directories(tint_full PUBLIC  
+#    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dawn/include/>  
+#    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dawn/src>
+#    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dawn/>
+#    $<INSTALL_INTERFACE:include/raygpu/dawn/include>
+#    $<INSTALL_INTERFACE:include/raygpu/dawn/src>
+#    $<INSTALL_INTERFACE:include/raygpu/dawn/>
+#)
+#include(CMakePackageConfigHelpers)
+#
+
+# Export the targets for use in a CMake package
+
+
+## Generate and install a version file
+#include(CMakePackageConfigHelpers)
+#write_basic_package_version_file(
+#    "${CMAKE_CURRENT_BINARY_DIR}/raygpuConfigVersion.cmake"
+#    COMPATIBILITY AnyNewerVersion
+#    VERSION 1.0
+#)
+#
+# Configure the config file
+
+#
+## Install the config and version files
+#install(FILES
+#    "${CMAKE_CURRENT_BINARY_DIR}/raygpuConfig.cmake"
+#    "${CMAKE_CURRENT_BINARY_DIR}/raygpuConfigVersion.cmake"
 #    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/raygpu"
 #)

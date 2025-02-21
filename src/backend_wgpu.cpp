@@ -1,4 +1,5 @@
 #include <raygpu.h>
+#include <dawn/dawn_proc_table.h>
 #include <wgpustate.inc>
 #include <unordered_set>
 #include <internals.hpp>
@@ -494,6 +495,7 @@ void InitBackend(){
     }
 
 #ifndef __EMSCRIPTEN__
+    
     //dawnProcSetProcs(&dawn::native::GetProcs());
 
     // Create the instance with the toggles
