@@ -541,6 +541,9 @@ extern "C" DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescri
             case storage_texture2d:{
                 entries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
             }break;
+            case storage_texture2d_array:{
+                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            }break;
             case storage_texture3d:{
                 entries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
             }break;
@@ -551,6 +554,9 @@ extern "C" DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescri
                 entries[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
             }break;
             case texture2d:{
+                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+            }break;
+            case texture2d_array:{
                 entries[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
             }break;
             case texture3d:{

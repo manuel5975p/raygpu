@@ -5,5 +5,5 @@
 #pragma GCC diagnostic ignored "-Wextra"
 
 #include <raygpu.h>
-#include <stb_image.h>
-#include <stb_image_write.h>
+#include <external/stb_image.h>
+#include <external/stb_image_write.h>

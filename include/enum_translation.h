@@ -96,6 +96,16 @@ typedef enum TextureDimension{
     //TextureViewDimension_CubeArray = 0x00000005,
     TextureDimension_3D = 0x00000003
 }TextureDimension;
+typedef enum TextureViewDimension{
+    TextureViewDimension_Undefined = 0x00000000,
+    TextureViewDimension_1D = 0x00000001,
+    TextureViewDimension_2D = 0x00000002,
+    TextureViewDimension_2DArray = 0x00000003,
+    //TextureViewDimension_Cube = 0x00000004,
+    //TextureViewDimension_CubeArray = 0x00000005,
+    TextureViewDimension_3D = 0x00000006,
+    TextureViewDimension_Force32 = 0x7FFFFFFF
+}TextureViewDimension;
 
 typedef enum BlendFactor {
     BlendFactor_Undefined = 0x00000000,
@@ -372,6 +382,9 @@ static inline VkDescriptorType toVulkanResourceType(uniform_type type) {
     case storage_texture2d: {
         return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     }
+    case storage_texture2d_array: {
+        return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    }
     case storage_texture3d: {
         return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     }
@@ -382,6 +395,9 @@ static inline VkDescriptorType toVulkanResourceType(uniform_type type) {
         return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     }
     case texture2d: {
+        return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    }
+    case texture2d_array: {
         return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
     }
     case texture3d: {
@@ -443,22 +459,26 @@ static inline VkBufferUsageFlags toVulkanBufferUsage(BufferUsage busg) {
 
     return usage;
 }
-static inline VkImageViewType toVulkanTextureViewDimension(TextureDimension dim){
+static inline VkImageViewType toVulkanTextureViewDimension(TextureViewDimension dim){
     VkImageViewCreateInfo info;
     switch(dim){
         default:
         case 0:{
             __builtin_unreachable();
         }
-        case TextureDimension_1D:{
+        case TextureViewDimension_1D:{
             return VK_IMAGE_VIEW_TYPE_1D;
         }
-        case TextureDimension_2D:{
+        case TextureViewDimension_2D:{
             return VK_IMAGE_VIEW_TYPE_2D;
         }
-        case TextureDimension_3D:{
+        case TextureViewDimension_3D:{
             return VK_IMAGE_VIEW_TYPE_3D;
         }
+        case TextureViewDimension_2DArray:{
+            return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+        }
+
     }
 }
 static inline VkImageType toVulkanTextureDimension(TextureDimension dim){

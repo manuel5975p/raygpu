@@ -414,6 +414,35 @@ void UnloadTexture(Texture tex){
     wgvkReleaseTexture(texture);
     
 }
+extern "C" Texture2DArray LoadTextureArray(uint32_t width, uint32_t height, uint32_t layerCount, PixelFormat format){
+    Texture2DArray ret zeroinit;
+    ret.sampleCount = 1;
+    WGVKTextureDescriptor tDesc zeroinit;
+    tDesc.format = (format);
+    tDesc.size = Extent3D{width, height, layerCount};
+    tDesc.dimension = TextureDimension_2D;
+    tDesc.sampleCount = 1;
+    tDesc.mipLevelCount = 1;
+    tDesc.usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_CopySrc | WGPUTextureUsage_CopyDst;
+    tDesc.viewFormatCount = 1;
+    //tDesc.viewFormats = &tDesc.format;
+    ret.id = wgvkDeviceCreateTexture((WGVKDevice)g_vulkanstate.device, &tDesc);
+    WGVKTextureViewDescriptor vDesc zeroinit;
+    vDesc.aspect = TextureAspect_All;
+    vDesc.arrayLayerCount = layerCount;
+    vDesc.baseArrayLayer = 0;
+    vDesc.mipLevelCount = 1;
+    vDesc.baseMipLevel = 0;
+    vDesc.dimension = TextureViewDimension_2DArray;
+    vDesc.format = tDesc.format;
+    vDesc.usage = tDesc.usage;
+    ret.view = wgvkTextureCreateView((WGVKTexture)ret.id, &vDesc);
+    ret.width = width;
+    ret.height = height;
+    ret.layerCount = layerCount;
+    ret.format = format;
+    return ret;
+}
 extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
     static VkCommandPool transientPool = [](){
         VkCommandPool ret = nullptr;

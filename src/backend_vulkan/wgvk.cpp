@@ -530,7 +530,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
         viewDesc.baseMipLevel = 0;
         viewDesc.mipLevelCount = 1;
         viewDesc.aspect = TextureAspect_All;
-        viewDesc.dimension = TextureDimension_2D;
+        viewDesc.dimension = TextureViewDimension_2D;
         viewDesc.format = config->format;
         viewDesc.usage = TextureUsage_RenderAttachment | TextureUsage_CopySrc;
         //VkImageViewCreateInfo viewInfo{};

@@ -37,12 +37,12 @@
 #include <unordered_map>
 #include <webgpu/webgpu_cpp.h>
 #include "wgpustate.inc"
-#include <stb_image_write.h>
-#include <stb_image.h>
-#include <sinfl.h>
-#include <sdefl.h>
+#include <external/stb_image_write.h>
+#include <external/stb_image.h>
+#include <external/sinfl.h>
+#include <external/sdefl.h>
 #include <internals.hpp>
-#include "msf_gif.h"
+#include <external/msf_gif.h>
 extern "C" void ToggleFullscreenImpl(cwoid);
 #ifdef __EMSCRIPTEN__
 #endif  // __EMSCRIPTEN__

@@ -1,4 +1,4 @@
 #define SINFL_IMPLEMENTATION
 #define SDEFL_IMPLEMENTATION
-#include <sinfl.h>
-#include <sdefl.h>
+#include <external/sinfl.h>
+#include <external/sdefl.h>
