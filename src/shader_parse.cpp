@@ -267,7 +267,12 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindings(const char* 
         auto iden = result.AST().GlobalVariables()[i]->type->As<tint::ast::IdentifierExpression>()->identifier;
         auto& glob = result.AST().GlobalVariables()[i];
         if(iden->symbol.Name().starts_with("texture_2d")){
-            desc.type = texture2d;
+            if(iden->symbol.Name().starts_with("texture_2d_array")){
+                desc.type = texture2d_array;
+            }
+            else{
+                desc.type = texture2d;
+            }
             desc.fstype = extractFormat(iden);
         }
         if(iden->symbol.Name().starts_with("texture_3d")){
@@ -275,7 +280,12 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindings(const char* 
             desc.fstype = extractFormat(iden);
         }
         if(iden->symbol.Name().starts_with("texture_storage_2d")){
-            desc.type = storage_texture2d;
+            if(iden->symbol.Name().starts_with("texture_storage_2d_array")){
+                desc.type = storage_texture2d_array;
+            }
+            else{
+                desc.type = storage_texture2d;
+            }
             desc.access = extractAccess(iden);
             desc.fstype = extractFormat(iden);
         }

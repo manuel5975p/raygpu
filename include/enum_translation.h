@@ -47,7 +47,7 @@ using std::uint64_t;
 #endif
 // ------------------------- Enum Definitions -------------------------
 
-typedef enum uniform_type { uniform_buffer, storage_buffer, texture2d, storage_texture2d, texture_sampler, texture3d, storage_texture3d } uniform_type;
+typedef enum uniform_type { uniform_buffer, storage_buffer, texture2d, texture2d_array, storage_texture2d, texture_sampler, texture3d, storage_texture3d, storage_texture2d_array} uniform_type;
 
 typedef enum access_type { readonly, readwrite, writeonly } access_type;
 
@@ -1055,7 +1055,17 @@ static inline WGPUIndexFormat toWebGPUIndexFormat(IndexFormat ifmt) {
         return WGPUIndexFormat_Uint16; // Default fallback
     }
 }
-
+static inline WGPUTextureFormat toWGPUTextureFormat(PixelFormat format){
+    switch(format){
+        case RGBA8:return WGPUTextureFormat_RGBA8Unorm;
+        case BGRA8:return WGPUTextureFormat_BGRA8Unorm;
+        case RGBA16F: return WGPUTextureFormat_RGBA16Float;
+        case RGBA32F: return WGPUTextureFormat_RGBA32Float;
+        case Depth24: return WGPUTextureFormat_Depth24Plus;
+        case Depth32: return WGPUTextureFormat_Depth32Float;
+        default: return WGPUTextureFormat_Undefined;
+    }
+}
 // Translation function for LoadOperation to WGPULoadOp
 static inline WGPULoadOp toWebGPULoadOperation(LoadOp lop) {
     switch (lop) {

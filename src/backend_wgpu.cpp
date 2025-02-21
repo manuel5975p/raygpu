@@ -225,6 +225,12 @@ DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* unifo
                 blayouts[i].texture.sampleType = toTextureSampleType(uniforms[i].fstype);
                 blayouts[i].texture.viewDimension = WGPUTextureViewDimension_2D;
             break;
+            case texture2d_array:
+                blayouts[i].storageTexture.access = toStorageTextureAccess(uniforms[i].access);
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].storageTexture.format = toStorageTextureFormat(uniforms[i].fstype);
+                blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;
+            break;
             case texture_sampler:
                 blayouts[i].visibility = vfragmentOnly;
                 blayouts[i].sampler.type = WGPUSamplerBindingType_Filtering;
@@ -239,6 +245,12 @@ DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* unifo
                 blayouts[i].visibility = vfragmentOnly;
                 blayouts[i].storageTexture.format = toStorageTextureFormat(uniforms[i].fstype);
                 blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+            break;
+            case storage_texture2d_array:
+                blayouts[i].storageTexture.access = toStorageTextureAccess(uniforms[i].access);
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].storageTexture.format = toStorageTextureFormat(uniforms[i].fstype);
+                blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;
             break;
             case storage_texture3d:
                 blayouts[i].storageTexture.access = toStorageTextureAccess(uniforms[i].access);
@@ -765,7 +777,35 @@ void* GetDevice(){
 void* GetAdapter(){
     return g_wgpustate.adapter.Get();
 }
-
+extern "C" Texture2DArray LoadTextureArray(uint32_t width, uint32_t height, uint32_t layerCount, PixelFormat format){
+    Texture2DArray ret zeroinit;
+    ret.sampleCount = 1;
+    WGPUTextureDescriptor tDesc zeroinit;
+    tDesc.format = toWGPUTextureFormat(format);
+    tDesc.size = WGPUExtent3D{width, height, layerCount};
+    tDesc.dimension = WGPUTextureDimension_2D;
+    tDesc.sampleCount = 1;
+    tDesc.mipLevelCount = 1;
+    tDesc.usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_CopySrc | WGPUTextureUsage_CopyDst;
+    tDesc.viewFormatCount = 1;
+    tDesc.viewFormats = &tDesc.format;
+    ret.id = wgpuDeviceCreateTexture((WGPUDevice)GetDevice(), &tDesc);
+    WGPUTextureViewDescriptor vDesc zeroinit;
+    vDesc.aspect = WGPUTextureAspect_All;
+    vDesc.arrayLayerCount = layerCount;
+    vDesc.baseArrayLayer = 0;
+    vDesc.mipLevelCount = 1;
+    vDesc.baseMipLevel = 0;
+    vDesc.dimension = WGPUTextureViewDimension_2DArray;
+    vDesc.format = tDesc.format;
+    vDesc.usage = tDesc.usage;
+    ret.view = wgpuTextureCreateView((WGPUTexture)ret.id, &vDesc);
+    ret.width = width;
+    ret.height = height;
+    ret.layerCount = layerCount;
+    ret.format = format;
+    return ret;
+}
 extern "C" Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat format, TextureUsage usage, uint32_t sampleCount, uint32_t mipmaps){
     WGPUTextureDescriptor tDesc{};
     tDesc.dimension = WGPUTextureDimension_2D;
