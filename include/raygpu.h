@@ -88,7 +88,6 @@ typedef struct Texture2D{
     PixelFormat format;
     uint32_t sampleCount;
     uint32_t mipmaps;
-
 }Texture2D;
 typedef Texture2D Texture;
 
@@ -100,6 +99,13 @@ typedef struct Texture3D{
     uint32_t sampleCount;
 }Texture3D;
 
+typedef struct Texture2DArray{
+    NativeImageHandle id;
+    NativeImageHandle view;
+    uint32_t width, height, layerCount;
+    PixelFormat format;
+    uint32_t sampleCount;
+}Texture2DArray;
 
 typedef struct Rectangle {
     float x, y, width, height;
@@ -946,6 +952,7 @@ EXTERN_C_BEGIN
     void UnloadSampler(DescribedSampler sampler);
 
     NativeImageHandle GetActiveColorTarget(cwoid);
+    Texture2DArray LoadTextureArray(uint32_t width, uint32_t height, uint32_t layerCount, PixelFormat format);
     void* GetActiveWindowHandle(cwoid);
     Texture LoadTextureFromImage(Image img);
     void ImageFormat(Image* img, PixelFormat newFormat);
