@@ -26,7 +26,6 @@
 #ifndef PIPELINE_H
 #define PIPELINE_H
 #include <stdint.h>
-#include <webgpu/webgpu.h>
 #include <macros_and_constants.h>
 #include <enum_translation.h>
 
@@ -254,9 +253,10 @@ typedef struct DescribedComputePipeline{
 
 typedef struct VertexArray VertexArray;
 EXTERN_C_BEGIN
-    inline void UsePipeline(WGPURenderPassEncoder rpEncoder, DescribedPipeline pl){
-        wgpuRenderPassEncoderSetPipeline(rpEncoder, (WGPURenderPipeline)pl.quartet.pipeline_TriangleList);
-    }
+
+    //inline void UsePipeline(WGPURenderPassEncoder rpEncoder, DescribedPipeline pl){
+    //    wgpuRenderPassEncoderSetPipeline(rpEncoder, (WGPURenderPipeline)pl.quartet.pipeline_TriangleList);
+    //}
     
 
     //DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, uint32_t uniformCount);

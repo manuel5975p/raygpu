@@ -347,8 +347,8 @@ typedef struct WGVKRenderPassDescriptor{
 }WGVKRenderPassDescriptor;
 
 typedef struct WGVKCommandEncoderDescriptor{
-    WGPUChainedStruct* nextInChain;
-    WGPUStringView label;
+    void* nextInChain;
+    WGVKStringView label;
     bool recyclable;
 }WGVKCommandEncoderDescriptor;
 

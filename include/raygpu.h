@@ -1,16 +1,18 @@
 #ifndef RAYGPU_H
 #define RAYGPU_H
 #include <config.h>
+#if SUPPORT_WGPU_BACKEND == 1
 #include <webgpu/webgpu.h>
 #ifdef __cplusplus
 #include <webgpu/webgpu_cpp.h>
 #endif
+#endif
 #include <stdbool.h>
 #include <stdio.h>
 #include <assert.h>
-#include "macros_and_constants.h"
-#include "mathutils.h"
-#include "pipeline.h"
+#include <macros_and_constants.h>
+#include <mathutils.h>
+#include <pipeline.h>
 #ifdef __cplusplus
 #include <vector>
 #include <cassert>
@@ -38,11 +40,19 @@ static inline uint64_t ROT_BYTES(uint64_t V, uint8_t C) {
 }
 
 #if SUPPORT_WGPU_BACKEND == 1
+typedef struct WGPUBufferImpl WGVKBufferImpl;
 typedef struct WGPUTextureImpl WGVKTextureImpl;
+typedef struct WGPUTextureViewImpl WGVKTextureViewImpl;
+typedef WGPUBuffer WGVKBuffer;
 typedef WGPUTexture WGVKTexture;
+typedef WGPUTextureView WGVKTextureView;
 #elif SUPPORT_VULKAN_BACKEND == 1
 struct WGVKTextureImpl;
+struct WGVKTextureViewImpl;
+struct WGVKBufferImpl;
 typedef struct WGVKTextureImpl* WGVKTexture;
+typedef struct WGVKTextureViewImpl* WGVKTextureView;
+typedef struct WGVKBufferImpl* WGVKBuffer;
 #endif
 
 typedef struct vertex{
@@ -148,25 +158,11 @@ typedef struct DescribedComputePass{
     //WGPUComputePassDescriptor desc; <-- By omitting this we lose timestampwrites
 }DescribedComputepass;
 
-EXTERN_C_BEGIN
-    void* GetInstance(cwoid);
-    void* GetAdapter (cwoid);
-    void* GetDevice  (cwoid);
-    WGPUQueue    GetQueue   (cwoid);
-    WGPUSurface  GetSurface (cwoid);
-EXTERN_C_END
 
-#ifdef __cplusplus
-    wgpu::Instance& GetCXXInstance();
-    wgpu::Adapter&  GetCXXAdapter ();
-    wgpu::Device&   GetCXXDevice  ();
-    wgpu::Queue&    GetCXXQueue   ();
-    wgpu::Surface&  GetCXXSurface ();
-#endif
 
 
 typedef struct DescribedBuffer{
-    WGPUBufferUsage usage;
+    BufferUsage usage;
     uint64_t size;
     NativeBufferHandle buffer;
 }DescribedBuffer;
@@ -300,10 +296,10 @@ externcvar vertex* vboptr;
 externcvar vertex* vboptr_base;
 externcvar VertexArray* renderBatchVAO;
 externcvar DescribedBuffer* renderBatchVBO;
-typedef enum draw_mode{
-    RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS, RL_LINES
-}draw_mode;
-externcvar draw_mode current_drawmode;
+typedef enum PrimitiveType{
+    RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS, RL_LINES, RL_POINTS
+}PrimitiveType;
+externcvar PrimitiveType current_drawmode;
 
 externcvar char telegrama_render1[];
 externcvar char telegrama_render2[];
@@ -633,6 +629,21 @@ typedef enum {
     MOUSE_BUTTON_FORWARD = 5,       // Mouse button forward (advanced mouse device)
     MOUSE_BUTTON_BACK    = 6,       // Mouse button back (advanced mouse device)
 } MouseButton;
+
+
+typedef enum BackendType {
+    BackendType_Undefined = 0x00000000,
+    BackendType_Null = 0x00000001,
+    BackendType_WebGPU = 0x00000002,
+    BackendType_D3D11 = 0x00000003,
+    BackendType_D3D12 = 0x00000004,
+    BackendType_Metal = 0x00000005,
+    BackendType_Vulkan = 0x00000006,
+    BackendType_OpenGL = 0x00000007,
+    BackendType_OpenGLES = 0x00000008,
+    BackendType_Force32 = 0x7FFFFFFF
+} BackendType;
+
 /**
  * @brief Generalized shader source struct. Not all members need to be set.
  * 
@@ -882,14 +893,14 @@ EXTERN_C_BEGIN
      * 
      * @param backend The backend to use, e.g. WGPUBackendType_Vulkan, WGPUBackendType_D3D12
      */
-    void RequestBackend(WGPUBackendType backend);
+    void RequestBackend(BackendType backend);
     
     /**
      * @brief Force a specific adapter type, namely WGPUAdapterType_DiscreteGPU, WGPUAdapterType_IntegratedGPU or WGPUAdapterType_CPU.
      * Not all types are guaranteed to exist.
      * @param type The adapter type
      */
-    void RequestAdapterType(WGPUAdapterType type);
+    //void RequestAdapterType(WGPUAdapterType type);
     void SetConfigFlags(int /* enum WindowFlag */ flag);
     
     
@@ -1063,7 +1074,7 @@ EXTERN_C_BEGIN
             drawCurrentBatch();
         }
     }
-    void rlBegin(enum draw_mode mode);
+    void rlBegin(PrimitiveType mode);
     void rlEnd(cwoid);
 
     void BeginTextureMode(RenderTexture rtex);
@@ -1071,7 +1082,7 @@ EXTERN_C_BEGIN
     void BeginWindowMode(SubWindow sw);
     void EndWindowMode(cwoid);
 
-    void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode);
+    void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode);
     void BindComputePipeline(DescribedComputePipeline* pipeline);
 
     DescribedShaderModule LoadShaderModuleFromMemory(const char* shaderSourceWGSL);
@@ -1099,8 +1110,8 @@ EXTERN_C_BEGIN
     void UnloadPipeline(DescribedPipeline* pl);
 
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
-    RenderTexture LoadRenderTextureEx(uint32_t width, uint32_t height, WGPUTextureFormat colorFormat, uint32_t sampleCount);
-    const char* TextureFormatName(WGPUTextureFormat fmt);
+    RenderTexture LoadRenderTextureEx(uint32_t width, uint32_t height, PixelFormat colorFormat, uint32_t sampleCount);
+    const char* TextureFormatName(PixelFormat fmt);
     size_t GetPixelSizeInBytes(PixelFormat format);
     
     Texture LoadBlankTexture(uint32_t width, uint32_t height);
@@ -1110,7 +1121,7 @@ EXTERN_C_BEGIN
     Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat format, TextureUsage usage, uint32_t sampleCount, uint32_t mipmaps);
     void GenTextureMipmaps(Texture2D* tex);
     Texture3D LoadTexture3DEx(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format);
-    Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format, WGPUTextureUsage usage, uint32_t sampleCount);
+    Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format, TextureUsage usage, uint32_t sampleCount);
     
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
     void UpdateTexture(Texture tex, void* data);
@@ -1163,14 +1174,14 @@ EXTERN_C_BEGIN
     void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size);
     void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size);
     void SetBindgroupTexture3D         (DescribedBindGroup* bg, uint32_t index, Texture3D tex);
-    void SetBindgroupTextureView       (DescribedBindGroup* bg, uint32_t index, WGPUTextureView texView);
+    void SetBindgroupTextureView       (DescribedBindGroup* bg, uint32_t index, WGVKTextureView texView);
     void SetBindgroupTexture           (DescribedBindGroup* bg, uint32_t index, Texture tex);
     void SetBindgroupSampler           (DescribedBindGroup* bg, uint32_t index, DescribedSampler sampler);
 
 
 
-    void init_full_renderstate (full_renderstate* state, const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniform_count, WGPUTextureView c, WGPUTextureView d);
-    void updatePipeline        (full_renderstate* state, enum draw_mode drawmode);
+    void init_full_renderstate (full_renderstate* state, const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniform_count, WGVKTextureView c, WGVKTextureView d);
+    void updatePipeline        (full_renderstate* state, enum PrimitiveType drawmode);
     //void setTargetTextures     (full_renderstate* state, WGPUTextureView c, WGPUTextureView colorMultisample, WGPUTextureView d);
 
     /**
@@ -1186,10 +1197,10 @@ EXTERN_C_BEGIN
     void BindPipelineVertexArray(DescribedPipeline* pipeline, VertexArray* va);
     void BindVertexArray        (VertexArray* va);
 
-    void DrawArrays                (WGPUPrimitiveTopology drawMode, uint32_t vertexCount);
-    void DrawArraysInstanced       (WGPUPrimitiveTopology drawMode, uint32_t vertexCount, uint32_t instanceCount);
-    void DrawArraysIndexed         (WGPUPrimitiveTopology drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount);
-    void DrawArraysIndexedInstanced(WGPUPrimitiveTopology drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount, uint32_t instanceCount);
+    void DrawArrays                (PrimitiveType drawMode, uint32_t vertexCount);
+    void DrawArraysInstanced       (PrimitiveType drawMode, uint32_t vertexCount, uint32_t instanceCount);
+    void DrawArraysIndexed         (PrimitiveType drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount);
+    void DrawArraysIndexedInstanced(PrimitiveType drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount, uint32_t instanceCount);
 
     Material LoadMaterialDefault(cwoid);
     ModelAnimation *LoadModelAnimations(const char *fileName, int *animCount);
@@ -1286,7 +1297,20 @@ EXTERN_C_BEGIN
     void DrawPolyLinesEx(Vector2 center, int sides, float radius, float rotation, float lineThick, Color color);
     void DrawSplineSegmentBezierQuadratic(Vector2 p1, Vector2 c2, Vector2 p3, float thick, Color color);
     void DrawSplineSegmentBezierCubic(Vector2 p1, Vector2 c2, Vector2 c3, Vector2 p4, float thick, Color color);
+
+    void* GetInstance(cwoid);
+    void* GetAdapter (cwoid);
+    void* GetDevice  (cwoid);
+    void* GetQueue   (cwoid);
+    void* GetSurface (cwoid);
     
+    #if defined(__cplusplus) && SUPPORT_WGPU_BACKEND == 1
+        wgpu::Instance& GetCXXInstance();
+        wgpu::Adapter&  GetCXXAdapter ();
+        wgpu::Device&   GetCXXDevice  ();
+        wgpu::Queue&    GetCXXQueue   ();
+        wgpu::Surface&  GetCXXSurface ();
+    #endif
     inline uint32_t attributeSize(VertexFormat fmt){
         switch(fmt){
             case VertexFormat_Uint8x4:
@@ -1331,11 +1355,10 @@ typedef struct wgpustate wgpustate;
 typedef struct renderstate renderstate;
 extern wgpustate g_wgpustate;
 extern renderstate g_renderstate;
-#ifdef __cplusplus
+#if defined(__cplusplus) && SUPPORT_WGPU_BACKEND == 1
 extern const std::unordered_map<WGPUTextureFormat, std::string> textureFormatSpellingTable;
 extern const std::unordered_map<WGPUPresentMode, std::string> presentModeSpellingTable;
 extern const std::unordered_map<WGPUBackendType, std::string> backendTypeSpellingTable;
 extern const std::unordered_map<WGPUFeatureName, std::string> featureSpellingTable;
-
 #endif
 #endif
