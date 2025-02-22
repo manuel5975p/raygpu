@@ -9,6 +9,7 @@ option(SUPPORT_GLFW "" ON)
 option(SUPPORT_VULKAN_BACKEND OFF)
 option(SUPPORT_WGPU_BACKEND "" ON)
 message(STATUS "SUPPORT_WGPU_BACKEND: ${SUPPORT_WGPU_BACKEND}")
+
 #if(EMSCRIPTEN)
 #    set(SUPPORT_SDL2 OFF CACHE BOOL "Support the SDL2 windowing backend" FORCE)
 #endif()
@@ -33,7 +34,7 @@ if(NOT SUPPORT_GLFW)
         endif()
     endif()
 endif()
-
+if(SUPPORT_WGPU_BACKEND)
 set(TINT_BUILD_CMD_TOOLS ON CACHE BOOL "" FORCE)
 set(TINT_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
 set(DAWN_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
@@ -82,6 +83,8 @@ endif()
 #set(TINT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 
 # Define the download function
+endif()
+
 function(download_file_if_not_exists url filename)
     set(DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/dl")
     set(DOWNLOAD_FILE "${DOWNLOAD_DIR}/${filename}")
@@ -252,13 +255,13 @@ if(EMSCRIPTEN)
         #glslang
     )
     if(SUPPORT_WGSL_PARSER)
-    target_link_libraries(raygpu PUBLIC
-        tint_api
-        tint_api_common
-        tint_lang_core
-        tint_lang_wgsl
-        tint_lang_wgsl_reader
-    )
+        target_link_libraries(raygpu PUBLIC
+            tint_api
+            tint_api_common
+            tint_lang_core
+            tint_lang_wgsl
+            tint_lang_wgsl_reader
+        )
     endif()
     if(SUPPORT_SDL2)
         target_link_libraries(raygpu PUBLIC SDL2::SDL2)
@@ -269,7 +272,7 @@ if(EMSCRIPTEN)
     #target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
 else()
 if(SUPPORT_VULKAN_BACKEND)
-    target_link_libraries(raygpu PUBLIC vulkan webgpu_dawn webgpu_cpp dawn_internal_config)
+    target_link_libraries(raygpu PUBLIC vulkan)
 else()
     target_link_libraries(raygpu PUBLIC
         webgpu_dawn
@@ -336,6 +339,7 @@ endif()
 if(SUPPORT_SDL3)
     list(APPEND EXPORT_RG_TARGETS SDL3::SDL3)
 endif()
+if(NOT SUPPORT_VULKAN_BACKEND)
 install(
     TARGETS ${EXPORT_RG_TARGETS}
     EXPORT DawnInstall
@@ -368,6 +372,7 @@ install(
     NAMESPACE raygpu::
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/raygpu"
 )
+endif()
 
 #install(TARGETS raygpu)
 #file(GLOB_RECURSE tint_wgsl_src 

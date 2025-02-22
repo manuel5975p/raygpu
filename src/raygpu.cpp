@@ -35,8 +35,10 @@
 #include <cstdarg>
 #include <thread>
 #include <unordered_map>
-#include <webgpu/webgpu_cpp.h>
-#include "wgpustate.inc"
+#include <deque>
+#include <map>
+//#include <webgpu/webgpu_cpp.h>
+
 #include <external/stb_image_write.h>
 #include <external/stb_image.h>
 #include <external/sinfl.h>
@@ -46,7 +48,7 @@
 extern "C" void ToggleFullscreenImpl(cwoid);
 #ifdef __EMSCRIPTEN__
 #endif  // __EMSCRIPTEN__
-wgpustate g_wgpustate{};
+#include <renderstate.inc>
 renderstate g_renderstate{};
 
 
@@ -155,7 +157,7 @@ vertex* vboptr;
 vertex* vboptr_base;
 VertexArray* renderBatchVAO;
 DescribedBuffer* renderBatchVBO;
-draw_mode current_drawmode;
+PrimitiveType current_drawmode;
 //DescribedBuffer vbomap;
 #ifdef _WIN32
 #define __builtin_unreachable(...)
@@ -176,9 +178,6 @@ void BindVertexArray(VertexArray* va){
 
 
 
-extern "C" void ComputePassSetBindGroup(DescribedComputepass* drp, uint32_t group, DescribedBindGroup* bindgroup){
-    wgpuComputePassEncoderSetBindGroup((WGPUComputePassEncoder)drp->cpEncoder, group, (WGPUBindGroup)UpdateAndGetNativeBindGroup(bindgroup), 0, nullptr);
-}
 
 
 
@@ -221,7 +220,7 @@ extern "C" void DisableVertexAttribArray(VertexArray* array, uint32_t attribLoca
     array->disableAttribute(attribLocation);
     return;
 }
-extern "C" void DrawArrays(WGPUPrimitiveTopology drawMode, uint32_t vertexCount){
+extern "C" void DrawArrays(PrimitiveType drawMode, uint32_t vertexCount){
     BindPipeline(GetActivePipeline(), drawMode);
 
     if(GetActivePipeline()->bindGroup.needsUpdate){
@@ -229,7 +228,7 @@ extern "C" void DrawArrays(WGPUPrimitiveTopology drawMode, uint32_t vertexCount)
     }
     RenderPassDraw(GetActiveRenderPass(), vertexCount, 1, 0, 0);
 }
-extern "C" void DrawArraysIndexed(WGPUPrimitiveTopology drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount){
+extern "C" void DrawArraysIndexed(PrimitiveType drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount){
     BindPipeline(GetActivePipeline(), drawMode);
     //PreparePipeline(GetActivePipeline(), VertexArray *va)
     //TRACELOG(LOG_INFO, "a oooo");
@@ -240,7 +239,7 @@ extern "C" void DrawArraysIndexed(WGPUPrimitiveTopology drawMode, DescribedBuffe
     RenderPassSetIndexBuffer(GetActiveRenderPass(), &indexBuffer, IndexFormat_Uint32, 0);
     RenderPassDrawIndexed(GetActiveRenderPass(), vertexCount, 1, 0, 0, 0);
 }
-extern "C" void DrawArraysIndexedInstanced(WGPUPrimitiveTopology drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount, uint32_t instanceCount){
+extern "C" void DrawArraysIndexedInstanced(PrimitiveType drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount, uint32_t instanceCount){
     BindPipeline(GetActivePipeline(), drawMode);
     if(GetActivePipeline()->bindGroup.needsUpdate){
         RenderPassSetBindGroup(GetActiveRenderPass(), 0, &GetActivePipeline()->bindGroup);
@@ -248,7 +247,7 @@ extern "C" void DrawArraysIndexedInstanced(WGPUPrimitiveTopology drawMode, Descr
     RenderPassSetIndexBuffer(GetActiveRenderPass(), &indexBuffer, IndexFormat_Uint32, 0);
     RenderPassDrawIndexed(GetActiveRenderPass(), vertexCount, instanceCount, 0, 0, 0);
 }
-extern "C" void DrawArraysInstanced(WGPUPrimitiveTopology drawMode, uint32_t vertexCount, uint32_t instanceCount){
+extern "C" void DrawArraysInstanced(PrimitiveType drawMode, uint32_t vertexCount, uint32_t instanceCount){
     BindPipeline(GetActivePipeline(), drawMode);
     if(GetActivePipeline()->bindGroup.needsUpdate){
         RenderPassSetBindGroup(GetActiveRenderPass(), 0, &GetActivePipeline()->bindGroup);
@@ -263,28 +262,7 @@ Texture GetDepthTexture(){
 Texture GetMultisampleColorTarget(){
     return g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].colorMultisample;
 }
-WGPUQueue GetQueue(){
-    return g_wgpustate.queue.Get();
-}
 
-WGPUSurface GetSurface(){
-    return (WGPUSurface)g_renderstate.mainWindow->surface.surface;
-}
-wgpu::Instance& GetCXXInstance(){
-    return g_wgpustate.instance;
-}
-wgpu::Adapter&  GetCXXAdapter (){
-    return g_wgpustate.adapter;
-}
-wgpu::Device&   GetCXXDevice  (){
-    return g_wgpustate.device;
-}
-wgpu::Queue&    GetCXXQueue   (){
-    return g_wgpustate.queue;
-}
-wgpu::Surface&  GetCXXSurface (){
-    return *((wgpu::Surface*)&g_renderstate.mainWindow->surface.surface);
-}
 
 void drawCurrentBatch(){
     size_t vertexCount = vboptr - vboptr_base;
@@ -316,9 +294,9 @@ void drawCurrentBatch(){
 
             //TODO: Line texturing is currently disable in all DrawLine... functions
             SetTexture(1, g_renderstate.whitePixel);
-            BindPipeline(GetActivePipeline(), WGPUPrimitiveTopology_LineList);
+            BindPipeline(GetActivePipeline(), RL_LINES);
             BindPipelineVertexArray(GetActivePipeline(), renderBatchVAO);
-            DrawArrays(WGPUPrimitiveTopology_LineList, vertexCount);
+            DrawArrays(RL_LINES, vertexCount);
             //wgpuRenderPassEncoderSetBindGroup(g_renderstate.renderpass.rpEncoder, 0, GetWGPUBindGroup(&GetActivePipeline()->bindGroup), 0, 0);
             //wgpuRenderPassEncoderSetVertexBuffer(g_renderstate.renderpass.rpEncoder, 0, vbo.buffer, 0, wgpuBufferGetSize(vbo.buffer));
             //wgpuRenderPassEncoderDraw(g_renderstate.renderpass.rpEncoder, vertexCount, 1, 0, 0);
@@ -326,17 +304,17 @@ void drawCurrentBatch(){
             GetActivePipeline()->bindGroup.needsUpdate = true;
         }break;
         case RL_TRIANGLE_STRIP:{
-            BindPipeline(GetActivePipeline(), WGPUPrimitiveTopology_TriangleList);
+            BindPipeline(GetActivePipeline(), RL_TRIANGLE_STRIP);
             BindPipelineVertexArray(GetActivePipeline(), renderBatchVAO);
-            DrawArrays(WGPUPrimitiveTopology_TriangleStrip, vertexCount);
+            DrawArrays(RL_TRIANGLE_STRIP, vertexCount);
             break;
         }
         
         case RL_TRIANGLES:{
             //SetTexture(1, g_renderstate.whitePixel);
-            BindPipeline(GetActivePipeline(), WGPUPrimitiveTopology_TriangleList);
+            BindPipeline(GetActivePipeline(), RL_TRIANGLES);
             BindPipelineVertexArray(GetActivePipeline(), renderBatchVAO);
-            DrawArrays(WGPUPrimitiveTopology_TriangleList, vertexCount);
+            DrawArrays(RL_TRIANGLES, vertexCount);
             //abort();
             //vboptr = vboptr_base;
             //BindPipeline(g_renderstate.activePipeline, WGPUPrimitiveTopology_TriangleList);
@@ -372,7 +350,7 @@ void drawCurrentBatch(){
             //BindPipeline(g_renderstate.activePipeline, WGPUPrimitiveTopology_TriangleList);
             //g_renderstate.activePipeline
             BindPipelineVertexArray(GetActivePipeline(), renderBatchVAO);
-            DrawArraysIndexed(WGPUPrimitiveTopology_TriangleList, *ibuf, quadCount * 6);
+            DrawArraysIndexed(RL_TRIANGLES, *ibuf, quadCount * 6);
 
             //wgpuQueueWriteBuffer(GetQueue(), vbo.buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
             
@@ -417,10 +395,7 @@ Matrix* GetMatrixPtr(){
 void SetMatrix(Matrix m){
     g_renderstate.matrixStack[g_renderstate.stackPosition].first = m;
 }
-WGPUBuffer GetMatrixBuffer(){
-    wgpuQueueWriteBuffer(GetQueue(), g_renderstate.matrixStack[g_renderstate.stackPosition].second, 0, &g_renderstate.matrixStack[g_renderstate.stackPosition].first, sizeof(Matrix));
-    return g_renderstate.matrixStack[g_renderstate.stackPosition].second;
-}
+
 void adaptRenderPass(DescribedRenderpass* drp, RenderSettings settings){
     drp->settings = settings;
     //drp->renderPassDesc.colorAttachments = settings.depthTest ? drp->rca : nullptr;
@@ -481,58 +456,7 @@ void EndMode3D(){
     SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
 }
 
-extern "C" void BindComputePipeline(DescribedComputePipeline* pipeline){
-    wgpuComputePassEncoderSetPipeline ((WGPUComputePassEncoder)g_renderstate.computepass.cpEncoder, (WGPUComputePipeline)pipeline->pipeline);
-    wgpuComputePassEncoderSetBindGroup((WGPUComputePassEncoder)g_renderstate.computepass.cpEncoder, 0, (WGPUBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup), 0, 0);
-}
-extern "C" void CopyBufferToBuffer(DescribedBuffer* source, DescribedBuffer* dest, size_t count){
-    wgpuCommandEncoderCopyBufferToBuffer((WGPUCommandEncoder)g_renderstate.computepass.cmdEncoder, (WGPUBuffer)source->buffer, 0, (WGPUBuffer)dest->buffer, 0, count);
-}
-WGPUBuffer intermediary = 0;
-extern "C" void CopyTextureToTexture(Texture source, Texture dest){
-    size_t rowBytes = RoundUpToNextMultipleOf256(source.width * GetPixelSizeInBytes(source.format));
-    WGPUBufferDescriptor bdesc zeroinit;
-    bdesc.size = rowBytes * source.height;
-    bdesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc;
-    if(!intermediary){
-        intermediary = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &bdesc);
-    }
-    else if(wgpuBufferGetSize(intermediary) < bdesc.size){
-        wgpuBufferRelease(intermediary);
-        intermediary = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &bdesc);
-    }
-    
-    WGPUImageCopyTexture src zeroinit;
-    src.texture = (WGPUTexture)source.id;
-    src.aspect = WGPUTextureAspect_All;
-    src.mipLevel = 0;
-    src.origin = WGPUOrigin3D{0, 0, 0};
-    
-    WGPUImageCopyBuffer bdst zeroinit;
-    bdst.buffer = intermediary;
-    bdst.layout.rowsPerImage = source.height;
-    bdst.layout.bytesPerRow = rowBytes;
-    bdst.layout.offset = 0;
 
-    WGPUImageCopyTexture tdst zeroinit;
-    tdst.texture = (WGPUTexture)dest.id;
-    tdst.aspect = WGPUTextureAspect_All;
-    tdst.mipLevel = 0;
-    tdst.origin = WGPUOrigin3D{0, 0, 0};
-
-    WGPUExtent3D copySize zeroinit;
-    copySize.width = source.width;
-    copySize.height = source.height;
-    copySize.depthOrArrayLayers = 1;
-    
-    wgpuCommandEncoderCopyTextureToBuffer((WGPUCommandEncoder)g_renderstate.computepass.cmdEncoder, &src, &bdst, &copySize);
-    wgpuCommandEncoderCopyBufferToTexture((WGPUCommandEncoder)g_renderstate.computepass.cmdEncoder, &bdst, &tdst, &copySize);
-    
-    //Doesnt work unfortunately:
-    //wgpuCommandEncoderCopyTextureToTexture(g_renderstate.computepass.cmdEncoder, &src, &dst, &copySize);
-    
-    //wgpuBufferRelease(intermediary);
-}
 uint32_t GetScreenWidth (cwoid){
     return g_renderstate.width;
 }
@@ -564,39 +488,11 @@ extern "C" void ClearBackground(Color clearColor){
 void BeginComputepass(){
     BeginComputepassEx(&g_renderstate.computepass);
 }
-void DispatchCompute(uint32_t x, uint32_t y, uint32_t z){
-    wgpuComputePassEncoderDispatchWorkgroups((WGPUComputePassEncoder)g_renderstate.computepass.cpEncoder, x, y, z);
-}
-void ComputepassEndOnlyComputing(cwoid){
-    wgpuComputePassEncoderEnd((WGPUComputePassEncoder)g_renderstate.computepass.cpEncoder);
-    g_renderstate.computepass.cpEncoder = nullptr;
-}
+
 void EndComputepass(){
     EndComputepassEx(&g_renderstate.computepass);
 }
-void BeginComputepassEx(DescribedComputepass* computePass){
-    computePass->cmdEncoder = wgpuDeviceCreateCommandEncoder((WGPUDevice)GetDevice(), nullptr);
-    WGPUComputePassDescriptor desc{};
-    desc.label = STRVIEW("ComputePass");
-    g_renderstate.computepass.cpEncoder = wgpuCommandEncoderBeginComputePass((WGPUCommandEncoder)g_renderstate.computepass.cmdEncoder, &desc);
 
-}
-void EndComputepassEx(DescribedComputepass* computePass){
-    if(computePass->cpEncoder){
-        wgpuComputePassEncoderEnd((WGPUComputePassEncoder)computePass->cpEncoder);
-        computePass->cpEncoder = 0;
-    }
-    
-    //TODO
-    g_renderstate.activeComputepass = nullptr;
-
-    WGPUCommandBufferDescriptor cmdBufferDescriptor{};
-    cmdBufferDescriptor.label = STRVIEW("CB");
-    WGPUCommandBuffer command = wgpuCommandEncoderFinish((WGPUCommandEncoder)computePass->cmdEncoder, &cmdBufferDescriptor);
-    wgpuQueueSubmit(GetQueue(), 1, &command);
-    wgpuCommandBufferRelease(command);
-    wgpuCommandEncoderRelease((WGPUCommandEncoder)computePass->cmdEncoder);
-}
 #ifdef __EMSCRIPTEN__
 typedef void (*FrameCallback)(void);
 typedef void (*FrameCallbackArg)(void*);
@@ -835,7 +731,7 @@ void EndGIFRecording(){
     #endif
     endRecording(g_renderstate.grst, buf);
 }
-void rlBegin(draw_mode mode){
+void rlBegin(PrimitiveType mode){
     
     if(current_drawmode != mode){
         drawCurrentBatch();
@@ -1049,40 +945,9 @@ void DrawFPS(int posX, int posY){
     return wgpuDeviceCreateShaderModule((WGPUDevice)GetDevice(), &shaderDesc);
 }*/
 extern "C" Texture3D LoadTexture3DEx(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format){
-    return LoadTexture3DPro(width, height, depth, format, WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_StorageBinding, 1);
+    return LoadTexture3DPro(width, height, depth, format, TextureUsage_CopyDst | TextureUsage_TextureBinding | TextureUsage_StorageBinding, 1);
 }
-extern "C" Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format, WGPUTextureUsage usage, uint32_t sampleCount){
-    Texture3D ret zeroinit;
-    ret.width = width;
-    ret.height = height;
-    ret.depth = depth;
-    ret.sampleCount = sampleCount;
-    ret.format = format;
 
-    WGPUTextureDescriptor tDesc zeroinit;
-    tDesc.dimension = WGPUTextureDimension_3D;
-    tDesc.size = {width, height, depth};
-    tDesc.mipLevelCount = 1;
-    tDesc.sampleCount = sampleCount;
-    tDesc.format = (WGPUTextureFormat)format;
-    tDesc.usage  = usage;
-    tDesc.viewFormatCount = 1;
-    tDesc.viewFormats = &tDesc.format;
-    
-    WGPUTextureViewDescriptor textureViewDesc zeroinit;
-    textureViewDesc.aspect = ((format == Depth24 || format == Depth32) ? WGPUTextureAspect_DepthOnly : WGPUTextureAspect_All);
-    textureViewDesc.baseArrayLayer = 0;
-    textureViewDesc.arrayLayerCount = 1;
-    textureViewDesc.baseMipLevel = 0;
-    textureViewDesc.mipLevelCount = 1;
-    textureViewDesc.dimension = WGPUTextureViewDimension_3D;
-    textureViewDesc.format = tDesc.format;
-
-    ret.id = wgpuDeviceCreateTexture((WGPUDevice)GetDevice(), &tDesc);
-    ret.view = wgpuTextureCreateView((WGPUTexture)ret.id, &textureViewDesc);
-    
-    return ret;
-}
 constexpr char mipmapComputerSource[] = R"(
 @group(0) @binding(0) var previousMipLevel: texture_2d<f32>;
 @group(0) @binding(1) var nextMipLevel: texture_storage_2d<rgba8unorm, write>;
@@ -1100,25 +965,10 @@ fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
     textureStore(nextMipLevel, id.xy, color);
 }
 )";
-void GenTextureMipmaps(Texture2D* tex){
-    static DescribedComputePipeline* cpl = LoadComputePipeline(mipmapComputerSource);
-    BeginComputepass();
-    
-    for(int i = 0;i < tex->mipmaps - 1;i++){
-        SetBindgroupTextureView(&cpl->bindGroup, 0, (WGPUTextureView)tex->mipViews[i    ]);
-        SetBindgroupTextureView(&cpl->bindGroup, 1, (WGPUTextureView)tex->mipViews[i + 1]);
-        if(i == 0){
-            BindComputePipeline(cpl);
-        }
-        ComputePassSetBindGroup(&g_renderstate.computepass, 0, &cpl->bindGroup);
-        uint32_t divisor = (1 << i) * 8;
-        DispatchCompute((tex->width + divisor - 1) & -(divisor) / 8, (tex->height + divisor - 1) & -(divisor) / 8, 1);
-    }
-    EndComputepass();
-}
+
 
 extern "C" Texture LoadTextureEx(uint32_t width, uint32_t height, PixelFormat format, bool to_be_used_as_rendertarget){
-    return LoadTexturePro(width, height, format, (WGPUTextureUsage_RenderAttachment * to_be_used_as_rendertarget) | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 1, 1);
+    return LoadTexturePro(width, height, format, (TextureUsage_RenderAttachment * to_be_used_as_rendertarget) | TextureUsage_TextureBinding | TextureUsage_CopyDst | TextureUsage_CopySrc, 1, 1);
 }
 Texture LoadTexture(const char* filename){
     Image img = LoadImage(filename);
@@ -1137,51 +987,16 @@ RenderTexture LoadRenderTextureEx(uint32_t width, uint32_t height, PixelFormat c
     RenderTexture ret{
         .texture = LoadTextureEx(width, height, colorFormat, true),
         .colorMultisample = Texture{}, 
-        .depth = LoadTexturePro(width, height, Depth32, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, sampleCount, 1)
+        .depth = LoadTexturePro(width, height, Depth32, TextureUsage_RenderAttachment | TextureUsage_CopySrc, sampleCount, 1)
     };
     if(sampleCount > 1){
-        ret.colorMultisample = LoadTexturePro(width, height, colorFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, sampleCount, 1);
+        ret.colorMultisample = LoadTexturePro(width, height, colorFormat, TextureUsage_RenderAttachment | TextureUsage_CopySrc, sampleCount, 1);
     }
     return ret;
 }
 
-void UpdateTexture(Texture tex, void* data){
-    WGPUImageCopyTexture destination{};
-    destination.texture = (WGPUTexture)tex.id;
-    destination.aspect = WGPUTextureAspect_All;
-    destination.mipLevel = 0;
-    destination.origin = WGPUOrigin3D{0,0,0};
 
-    WGPUTextureDataLayout source{};
-    source.offset = 0;
-    source.bytesPerRow = GetPixelSizeInBytes(tex.format) * tex.width;
-    source.rowsPerImage = tex.height;
-    WGPUExtent3D writeSize{};
-    writeSize.depthOrArrayLayers = 1;
-    writeSize.width = tex.width;
-    writeSize.height = tex.height;
-    wgpuQueueWriteTexture(GetQueue(), &destination, data, tex.width * tex.height * GetPixelSizeInBytes(tex.format), &source, &writeSize);
-}
-inline WGPUVertexFormat f16format(uint32_t s){
-    switch(s){
-        case 1:return WGPUVertexFormat_Float16  ;
-        case 2:return WGPUVertexFormat_Float16x2;
-      //case 3:return WGPUVertexFormat_Float16x3;
-        case 4:return WGPUVertexFormat_Float16x4;
-        default: abort();
-    }
-    __builtin_unreachable();
-}
-inline WGPUVertexFormat f32format(uint32_t s){
-    switch(s){
-        case 1:return WGPUVertexFormat_Float32  ;
-        case 2:return WGPUVertexFormat_Float32x2;
-        case 3:return WGPUVertexFormat_Float32x3;
-        case 4:return WGPUVertexFormat_Float32x4;
-        default: abort();
-    }
-    __builtin_unreachable();
-}
+
 DescribedRenderpass* GetActiveRenderPass(){
     return g_renderstate.activeRenderpass;
 }
@@ -1232,7 +1047,7 @@ extern "C" void SetBindgroupTexture3D(DescribedBindGroup* bg, uint32_t index, Te
     
     UpdateBindGroupEntry(bg, index, entry);
 }
-extern "C" void SetBindgroupTextureView(DescribedBindGroup* bg, uint32_t index, WGPUTextureView texView){
+extern "C" void SetBindgroupTextureView(DescribedBindGroup* bg, uint32_t index, WGVKTextureView texView){
     ResourceDescriptor entry{};
     entry.binding = index;
     entry.textureView = texView;
@@ -1309,71 +1124,10 @@ extern "C" DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bgla
     return ret;
 }
 
-void ResizeBuffer(DescribedBuffer* buffer, size_t newSize){
-    if(newSize == buffer->size)return;
-
-    DescribedBuffer newbuffer{};
-    newbuffer.usage = buffer->usage;
-    newbuffer.size = newSize;
-    WGPUBufferDescriptor desc zeroinit;
-    desc.usage = newbuffer.usage;
-    desc.size = newbuffer.size;
-    desc.mappedAtCreation = false;
-
-    newbuffer.buffer = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &desc);
-    wgpuBufferRelease((WGPUBuffer)buffer->buffer);
-    *buffer = newbuffer;
-}
-void ResizeBufferAndConserve(DescribedBuffer* buffer, size_t newSize){
-    if(newSize == buffer->size)return;
-
-    size_t smaller = std::min<uint32_t>(newSize, buffer->size);
-    DescribedBuffer newbuffer{};
-
-    newbuffer.usage = buffer->usage;
-    newbuffer.size = newSize;
-    WGPUBufferDescriptor desc zeroinit;
-    desc.usage = newbuffer.usage;
-    desc.size = newbuffer.size;
-    desc.mappedAtCreation = false;
-    newbuffer.buffer = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &desc);
-    WGPUCommandEncoderDescriptor edesc{};
-    WGPUCommandBufferDescriptor bdesc{};
-    auto enc = wgpuDeviceCreateCommandEncoder((WGPUDevice)GetDevice(), &edesc);
-    wgpuCommandEncoderCopyBufferToBuffer(enc, (WGPUBuffer)buffer->buffer, 0, (WGPUBuffer)newbuffer.buffer, 0, smaller);
-    auto buf = wgpuCommandEncoderFinish(enc, &bdesc);
-    wgpuQueueSubmit(GetQueue(), 1, &buf);
-    wgpuCommandEncoderRelease(enc);
-    wgpuCommandBufferRelease(buf);
-    wgpuBufferRelease((WGPUBuffer)buffer->buffer);
-    *buffer = newbuffer;
-}
 
 
-WGPURenderPassDepthStencilAttachment* defaultDSA(WGPUTextureView depth){
-    WGPURenderPassDepthStencilAttachment* dsa = (WGPURenderPassDepthStencilAttachment*)calloc(1, sizeof(WGPURenderPassDepthStencilAttachment));
-    // The view of the depth texture
-    dsa->view = depth;
-    //dsa.depthSlice = 0;
-    // The initial value of the depth buffer, meaning "far"
-    dsa->depthClearValue = 1.0f;
-    // Operation settings comparable to the color attachment
-    dsa->depthLoadOp = WGPULoadOp_Load;
-    dsa->depthStoreOp = WGPUStoreOp_Store;
-    // we could turn off writing to the depth buffer globally here
-    dsa->depthReadOnly = false;
-    // Stencil setup, mandatory but unused
-    dsa->stencilClearValue = 0;
-    #ifdef WEBGPU_BACKEND_WGPU
-    dsa.stencilLoadOp =  WGPULoadOp_Load;
-    dsa.stencilStoreOp = WGPUStoreOp_Store;
-    #else
-    dsa->stencilLoadOp = WGPULoadOp_Undefined;
-    dsa->stencilStoreOp = WGPUStoreOp_Undefined;
-    #endif
-    dsa->stencilReadOnly = true;
-    return dsa;
-}
+
+
 
 inline bool operator==(const RenderSettings& a, const RenderSettings& b){
     return a.depthTest == b.depthTest &&
@@ -1406,9 +1160,7 @@ void UnloadRenderpass(DescribedRenderpass rp){
 DescribedSampler LoadSampler(addressMode amode, filterMode fmode){
     return LoadSamplerEx(amode, fmode, fmode, 1.0f);
 }
-void UnloadSampler(DescribedSampler sampler){
-    wgpuSamplerRelease((WGPUSampler)sampler.sampler);
-}
+
 
 NativeImageHandle GetActiveColorTarget(){
     return g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.id;
@@ -1670,44 +1422,7 @@ extern "C" void BeginWindowMode(SubWindow sw){
     //BeginRenderpass();
 }
 
-extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t height){
-    FullSurface ret{};
-    ret.surface = (WGPUSurface)nsurface;
-    negotiateSurfaceFormatAndPresentMode(nsurface);
-    WGPUSurfaceCapabilities capa{};
-    WGPUAdapter adapter = (WGPUAdapter)GetAdapter();
 
-    wgpuSurfaceGetCapabilities((WGPUSurface)ret.surface, adapter, &capa);
-    WGPUSurfaceConfiguration config{};
-    WGPUPresentMode thm = (WGPUPresentMode)g_renderstate.throttled_PresentMode;
-    WGPUPresentMode um = (WGPUPresentMode)g_renderstate.unthrottled_PresentMode;
-    if (g_renderstate.windowFlags & FLAG_VSYNC_LOWLATENCY_HINT) {
-        config.presentMode = (WGPUPresentMode)(((g_renderstate.unthrottled_PresentMode == PresentMode_Mailbox) ? um : thm));
-    } else if (g_renderstate.windowFlags & FLAG_VSYNC_HINT) {
-        config.presentMode = (WGPUPresentMode)thm;
-    } else {
-        config.presentMode = (WGPUPresentMode)um;
-    }
-    TRACELOG(LOG_INFO, "Initialized surface with %s", presentModeSpellingTable.at(config.presentMode).c_str());
-    config.alphaMode = WGPUCompositeAlphaMode_Opaque;
-    config.format = (WGPUTextureFormat)g_renderstate.frameBufferFormat;
-    config.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
-    config.width = width;
-    config.height = height;
-    config.viewFormats = &config.format;
-    config.viewFormatCount = 1;
-    config.device = (WGPUDevice)GetDevice();
-
-    ret.surfaceConfig.presentMode = (PresentMode)config.presentMode;
-    ret.surfaceConfig.device = (void*)config.device;
-    ret.surfaceConfig.width = config.width;
-    ret.surfaceConfig.height = config.width;
-    ret.surfaceConfig.format = (PixelFormat)config.format;
-    
-    ret.renderTarget = LoadRenderTexture(width, height);
-    wgpuSurfaceConfigure((WGPUSurface)ret.surface, &config);
-    return ret;
-}
 extern "C" void EndWindowMode(){
     
     { //This is an inlined EndTextureMode that passes false for EndRenderpassPro
@@ -1774,62 +1489,7 @@ extern "C" void EndWindowMode(){
     
 }
 
-extern "C" StagingBuffer GenStagingBuffer(size_t size, BufferUsage usage){
-    StagingBuffer ret{};
-    WGPUBufferDescriptor descriptor1 = WGPUBufferDescriptor{
-        .nextInChain = nullptr,
-        .label = WGPUStringView{},
-        .usage = WGPUBufferUsage_MapWrite | WGPUBufferUsage_CopySrc,
-        .size = size,
-        .mappedAtCreation = true
-    };
-    WGPUBufferDescriptor descriptor2 = WGPUBufferDescriptor{
-        .nextInChain = nullptr,
-        .label = WGPUStringView{},
-        .usage = usage,
-        .size = size,
-        .mappedAtCreation = false
-    };
-    ret.gpuUsable.buffer = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &descriptor1);
-    ret.mappable.buffer = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &descriptor2);
-    ret.map = wgpuBufferGetMappedRange((WGPUBuffer)ret.mappable.buffer, 0, size);
-    return ret;
-}
-void RecreateStagingBuffer(StagingBuffer* buffer){
-    wgpuBufferRelease((WGPUBuffer)buffer->gpuUsable.buffer);
-    WGPUBufferDescriptor gpudesc{};
-    gpudesc.size = buffer->gpuUsable.size;
-    gpudesc.usage = buffer->gpuUsable.usage;
-    buffer->gpuUsable.buffer = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &gpudesc);
-}
 
-void UpdateStagingBuffer(StagingBuffer* buffer){
-    wgpuBufferUnmap((WGPUBuffer)buffer->mappable.buffer);
-    WGPUCommandEncoderDescriptor arg{};
-    WGPUCommandBufferDescriptor arg2{};
-    WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder((WGPUDevice)GetDevice(), &arg);
-
-    wgpuCommandEncoderCopyBufferToBuffer(enc, (WGPUBuffer)buffer->mappable.buffer, 0, (WGPUBuffer)buffer->gpuUsable.buffer, 0,buffer->mappable.size);
-    WGPUCommandBuffer buf = wgpuCommandEncoderFinish(enc, &arg2);
-    wgpuQueueSubmit(GetQueue(), 1, &buf);
-    
-    wgpu::Buffer b((WGPUBuffer)buffer->mappable.buffer);
-    WGPUFuture f = b.MapAsync(wgpu::MapMode::Write, 0, b.GetSize(), wgpu::CallbackMode::WaitAnyOnly, [](wgpu::MapAsyncStatus status, wgpu::StringView message){});
-    wgpuCommandEncoderRelease(enc);
-    wgpuCommandBufferRelease(buf);
-    WGPUFutureWaitInfo winfo{f, 0};
-    wgpuInstanceWaitAny((WGPUInstance)GetInstance(), 1, &winfo, UINT64_MAX);
-    buffer->mappable.buffer = b.MoveToCHandle();
-    buffer->map = (vertex*)wgpuBufferGetMappedRange((WGPUBuffer)buffer->mappable.buffer, 0, buffer->mappable.size);
-}
-//StagingBuffer MapStagingBuffer(size_t size, WGPUBufferUsage usage){
-//
-//}
-void UnloadStagingBuffer(StagingBuffer* buf){
-    wgpuBufferRelease((WGPUBuffer)buf->gpuUsable.buffer);
-    wgpuBufferUnmap  ((WGPUBuffer)buf->mappable.buffer);
-    wgpuBufferRelease((WGPUBuffer)buf->mappable.buffer);
-}
 int GetRandomValue(int min, int max){
     int w = (max - min);
     int v = rand() & w;

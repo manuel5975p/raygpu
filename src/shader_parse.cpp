@@ -58,6 +58,7 @@ const std::unordered_map<std::string, std::unordered_map<std::string, VertexForm
     map["vec4"]["u32"] = VertexFormat_Uint32x4;
     return map;
 }();
+#if defined(SUPPORT_WGSL_PARSER) && SUPPORT_WGSL_PARSER == 1
 format_or_sample_type extractFormat(const tint::ast::Identifier* iden){
     if(auto templiden = iden->As<tint::ast::TemplatedIdentifier>()){
         for(size_t i = 0;i < templiden->arguments.Length();i++){
@@ -108,6 +109,7 @@ access_type extractAccess(const tint::ast::Identifier* iden){
     TRACELOG(LOG_FATAL, "Shader parse failed");
     return access_type(12123);
 }
+#endif
 std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes(const char* shaderSource){
     
     std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> ret;

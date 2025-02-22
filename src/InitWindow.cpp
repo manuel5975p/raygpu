@@ -1,19 +1,17 @@
 #include <filesystem>
 #include <raygpu.h>
 #include <unordered_set>
-#include <webgpu/webgpu_cpp.h>
 #include <iostream>
 #include <optional>
+#include <map>
+#include <deque>
 #include <chrono>
 #include <internals.hpp>
 
 #if SUPPORT_VULKAN_BACKEND == 1
 #include "backend_vulkan/vulkan_internals.hpp"
 #endif
-inline std::ostream& operator<<(std::ostream& ostr, const wgpu::StringView& st){
-    ostr.write(st.data, st.length);
-    return ostr;
-}
+
 
 constexpr char shaderSource[] = R"(
 struct VertexInput {
@@ -122,16 +120,8 @@ void main() {
 
 
 struct full_renderstate;
-#include "wgpustate.inc"
-struct webgpu_cxx_state{
-    wgpu::Instance instance{};
-    wgpu::Adapter adapter{};
-    wgpu::Device device{};
-    wgpu::Queue queue{};
-    //wgpu::Surface surface{};
-    //full_renderstate* rstate = nullptr;
-    //Texture depthTexture{};
-};
+#include "renderstate.inc"
+
 
 void PollEvents(){
     #if SUPPORT_SDL2 != 0
@@ -187,7 +177,7 @@ bool WindowShouldClose(cwoid){
 
 
 
-
+extern "C" Texture2D texShapes;
 
 extern "C" DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSource, const VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
 
@@ -218,6 +208,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     g_renderstate.height = height;
     
     g_renderstate.whitePixel = LoadTextureFromImage(GenImageChecker(Color{255,255,255,255}, Color{255,255,255,255}, 1, 1, 0));
+    texShapes = g_renderstate.whitePixel;
     TraceLog(LOG_INFO, "Loaded whitepixel texture");
 
     //DescribedShaderModule tShader = LoadShaderModuleFromMemory(shaderSource);
@@ -265,7 +256,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         fsurface.renderTarget.depth = LoadTexturePro(width,
                                       height, 
                                       Depth32, 
-                                      WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
+                                      TextureUsage_RenderAttachment | TextureUsage_TextureBinding | TextureUsage_CopyDst | TextureUsage_CopySrc, 
                                       (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
                                       1
         );
@@ -319,7 +310,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     auto depthTexture = LoadTexturePro(width,
                                   height, 
                                   Depth32, 
-                                  WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
+                                  TextureUsage_RenderAttachment | TextureUsage_TextureBinding | TextureUsage_CopyDst | TextureUsage_CopySrc, 
                                   (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
                                   1
     );
@@ -372,19 +363,6 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     SetTexture(1, g_renderstate.whitePixel);
     Matrix iden = MatrixIdentity();
     SetStorageBufferData(3, &iden, 64);
-
-    WGPUSamplerDescriptor samplerDesc{};
-    samplerDesc.addressModeU = WGPUAddressMode_Repeat;
-    samplerDesc.addressModeV = WGPUAddressMode_Repeat;
-    samplerDesc.addressModeW = WGPUAddressMode_Repeat;
-    samplerDesc.magFilter    = WGPUFilterMode_Linear;
-    samplerDesc.minFilter    = WGPUFilterMode_Linear;
-    samplerDesc.mipmapFilter = WGPUMipmapFilterMode_Linear;
-    samplerDesc.compare      = WGPUCompareFunction_Undefined;
-    samplerDesc.lodMinClamp  = 0.0f;
-    samplerDesc.lodMaxClamp  = 1.0f;
-    samplerDesc.maxAnisotropy = 1;
-
     
     DescribedSampler sampler = LoadSampler(repeat, filter_linear);
     g_renderstate.defaultSampler = sampler;
@@ -499,245 +477,7 @@ uint32_t GetMonitorHeight(cwoid){
     #endif
 }
 
-const std::unordered_map<WGPUFeatureName, std::string> featureSpellingTable = [](){
-    std::unordered_map<WGPUFeatureName, std::string> ret;
-    #ifdef __EMSCRIPTEN__
-    ret[WGPUFeatureName_DepthClipControl] = "DepthClipControl";
-    ret[WGPUFeatureName_Depth32FloatStencil8] = "Depth32FloatStencil8";
-    ret[WGPUFeatureName_TimestampQuery] = "TimestampQuery";
-    ret[WGPUFeatureName_TextureCompressionBC] = "TextureCompressionBC";
-    ret[WGPUFeatureName_TextureCompressionETC2] = "TextureCompressionETC2";
-    ret[WGPUFeatureName_TextureCompressionASTC] = "TextureCompressionASTC";
-    ret[WGPUFeatureName_IndirectFirstInstance] = "IndirectFirstInstance";
-    ret[WGPUFeatureName_ShaderF16] = "ShaderF16";
-    ret[WGPUFeatureName_RG11B10UfloatRenderable] = "RG11B10UfloatRenderable";
-    ret[WGPUFeatureName_BGRA8UnormStorage] = "BGRA8UnormStorage";
-    ret[WGPUFeatureName_Float32Filterable] = "Float32Filterable";
-    ret[WGPUFeatureName_Float32Blendable] = "Float32Blendable";
-    ret[WGPUFeatureName_Subgroups] = "Subgroups";
-    ret[WGPUFeatureName_SubgroupsF16] = "SubgroupsF16";
-    ret[WGPUFeatureName_Force32] = "Force32";
-    #else
-    ret[WGPUFeatureName_DepthClipControl] = "DepthClipControl";
-    ret[WGPUFeatureName_Depth32FloatStencil8] = "Depth32FloatStencil8";
-    ret[WGPUFeatureName_TimestampQuery] = "TimestampQuery";
-    ret[WGPUFeatureName_TextureCompressionBC] = "TextureCompressionBC";
-    ret[WGPUFeatureName_TextureCompressionETC2] = "TextureCompressionETC2";
-    ret[WGPUFeatureName_TextureCompressionASTC] = "TextureCompressionASTC";
-    ret[WGPUFeatureName_IndirectFirstInstance] = "IndirectFirstInstance";
-    ret[WGPUFeatureName_ShaderF16] = "ShaderF16";
-    ret[WGPUFeatureName_RG11B10UfloatRenderable] = "RG11B10UfloatRenderable";
-    ret[WGPUFeatureName_BGRA8UnormStorage] = "BGRA8UnormStorage";
-    ret[WGPUFeatureName_Float32Filterable] = "Float32Filterable";
-    ret[WGPUFeatureName_Float32Blendable] = "Float32Blendable";
-    ret[WGPUFeatureName_Subgroups] = "Subgroups";
-    ret[WGPUFeatureName_SubgroupsF16] = "SubgroupsF16";
-    ret[WGPUFeatureName_DawnInternalUsages] = "DawnInternalUsages";
-    ret[WGPUFeatureName_DawnMultiPlanarFormats] = "DawnMultiPlanarFormats";
-    ret[WGPUFeatureName_DawnNative] = "DawnNative";
-    ret[WGPUFeatureName_ChromiumExperimentalTimestampQueryInsidePasses] = "ChromiumExperimentalTimestampQueryInsidePasses";
-    ret[WGPUFeatureName_ImplicitDeviceSynchronization] = "ImplicitDeviceSynchronization";
-    ret[WGPUFeatureName_ChromiumExperimentalImmediateData] = "ChromiumExperimentalImmediateData";
-    ret[WGPUFeatureName_TransientAttachments] = "TransientAttachments";
-    ret[WGPUFeatureName_MSAARenderToSingleSampled] = "MSAARenderToSingleSampled";
-    ret[WGPUFeatureName_DualSourceBlending] = "DualSourceBlending";
-    ret[WGPUFeatureName_D3D11MultithreadProtected] = "D3D11MultithreadProtected";
-    ret[WGPUFeatureName_ANGLETextureSharing] = "ANGLETextureSharing";
-    ret[WGPUFeatureName_PixelLocalStorageCoherent] = "PixelLocalStorageCoherent";
-    ret[WGPUFeatureName_PixelLocalStorageNonCoherent] = "PixelLocalStorageNonCoherent";
-    ret[WGPUFeatureName_Unorm16TextureFormats] = "Unorm16TextureFormats";
-    ret[WGPUFeatureName_Snorm16TextureFormats] = "Snorm16TextureFormats";
-    ret[WGPUFeatureName_MultiPlanarFormatExtendedUsages] = "MultiPlanarFormatExtendedUsages";
-    ret[WGPUFeatureName_MultiPlanarFormatP010] = "MultiPlanarFormatP010";
-    ret[WGPUFeatureName_HostMappedPointer] = "HostMappedPointer";
-    ret[WGPUFeatureName_MultiPlanarRenderTargets] = "MultiPlanarRenderTargets";
-    ret[WGPUFeatureName_MultiPlanarFormatNv12a] = "MultiPlanarFormatNv12a";
-    ret[WGPUFeatureName_FramebufferFetch] = "FramebufferFetch";
-    ret[WGPUFeatureName_BufferMapExtendedUsages] = "BufferMapExtendedUsages";
-    ret[WGPUFeatureName_AdapterPropertiesMemoryHeaps] = "AdapterPropertiesMemoryHeaps";
-    ret[WGPUFeatureName_AdapterPropertiesD3D] = "AdapterPropertiesD3D";
-    ret[WGPUFeatureName_AdapterPropertiesVk] = "AdapterPropertiesVk";
-    ret[WGPUFeatureName_R8UnormStorage] = "R8UnormStorage";
-    ret[WGPUFeatureName_Norm16TextureFormats] = "Norm16TextureFormats";
-    ret[WGPUFeatureName_MultiPlanarFormatNv16] = "MultiPlanarFormatNv16";
-    ret[WGPUFeatureName_MultiPlanarFormatNv24] = "MultiPlanarFormatNv24";
-    ret[WGPUFeatureName_MultiPlanarFormatP210] = "MultiPlanarFormatP210";
-    ret[WGPUFeatureName_MultiPlanarFormatP410] = "MultiPlanarFormatP410";
-    ret[WGPUFeatureName_SharedTextureMemoryVkDedicatedAllocation] = "SharedTextureMemoryVkDedicatedAllocation";
-    ret[WGPUFeatureName_SharedTextureMemoryAHardwareBuffer] = "SharedTextureMemoryAHardwareBuffer";
-    ret[WGPUFeatureName_SharedTextureMemoryDmaBuf] = "SharedTextureMemoryDmaBuf";
-    ret[WGPUFeatureName_SharedTextureMemoryOpaqueFD] = "SharedTextureMemoryOpaqueFD";
-    ret[WGPUFeatureName_SharedTextureMemoryZirconHandle] = "SharedTextureMemoryZirconHandle";
-    ret[WGPUFeatureName_SharedTextureMemoryDXGISharedHandle] = "SharedTextureMemoryDXGISharedHandle";
-    ret[WGPUFeatureName_SharedTextureMemoryD3D11Texture2D] = "SharedTextureMemoryD3D11Texture2D";
-    ret[WGPUFeatureName_SharedTextureMemoryIOSurface] = "SharedTextureMemoryIOSurface";
-    ret[WGPUFeatureName_SharedTextureMemoryEGLImage] = "SharedTextureMemoryEGLImage";
-    ret[WGPUFeatureName_SharedFenceVkSemaphoreOpaqueFD] = "SharedFenceVkSemaphoreOpaqueFD";
-    ret[WGPUFeatureName_SharedFenceSyncFD] = "SharedFenceSyncFD";
-    ret[WGPUFeatureName_SharedFenceVkSemaphoreZirconHandle] = "SharedFenceVkSemaphoreZirconHandle";
-    ret[WGPUFeatureName_SharedFenceDXGISharedHandle] = "SharedFenceDXGISharedHandle";
-    ret[WGPUFeatureName_SharedFenceMTLSharedEvent] = "SharedFenceMTLSharedEvent";
-    ret[WGPUFeatureName_SharedBufferMemoryD3D12Resource] = "SharedBufferMemoryD3D12Resource";
-    ret[WGPUFeatureName_StaticSamplers] = "StaticSamplers";
-    ret[WGPUFeatureName_YCbCrVulkanSamplers] = "YCbCrVulkanSamplers";
-    ret[WGPUFeatureName_ShaderModuleCompilationOptions] = "ShaderModuleCompilationOptions";
-    ret[WGPUFeatureName_DawnLoadResolveTexture] = "DawnLoadResolveTexture";
-    ret[WGPUFeatureName_DawnPartialLoadResolveTexture] = "DawnPartialLoadResolveTexture";
-    ret[WGPUFeatureName_MultiDrawIndirect] = "MultiDrawIndirect";
-    ret[WGPUFeatureName_ClipDistances] = "ClipDistances";
-    ret[WGPUFeatureName_DawnTexelCopyBufferRowAlignment] = "DawnTexelCopyBufferRowAlignment";
-    ret[WGPUFeatureName_FlexibleTextureViews] = "FlexibleTextureViews";
-    ret[WGPUFeatureName_Force32] = "Force32";
-    #endif
-    return ret;
-}();
 
-const std::unordered_map<WGPUBackendType, std::string> backendTypeSpellingTable = [](){
-    std::unordered_map<WGPUBackendType, std::string> map;
-    map[WGPUBackendType_Undefined] = "Undefined";
-    map[WGPUBackendType_Null] = "Null";
-    map[WGPUBackendType_WebGPU] = "WebGPU";
-    map[WGPUBackendType_D3D11] = "D3D11";
-    map[WGPUBackendType_D3D12] = "D3D12";
-    map[WGPUBackendType_Metal] = "Metal";
-    map[WGPUBackendType_Vulkan] = "Vulkan";
-    map[WGPUBackendType_OpenGL] = "OpenGL";
-    map[WGPUBackendType_OpenGLES] = "OpenGLES";
-    return map;
-}();
-const std::unordered_map<WGPUPresentMode, std::string> presentModeSpellingTable = [](){
-    std::unordered_map<WGPUPresentMode, std::string> map;
-    map[WGPUPresentMode_Fifo] = "WGPUPresentMode_Fifo";
-    map[WGPUPresentMode_FifoRelaxed] = "WGPUPresentMode_FifoRelaxed";
-    map[WGPUPresentMode_Immediate] = "WGPUPresentMode_Immediate";
-    map[WGPUPresentMode_Mailbox] = "WGPUPresentMode_Mailbox";
-    map[WGPUPresentMode_Force32] = "WGPUPresentMode_Force32";
-    return map;
-}();
-const std::unordered_map<WGPUTextureFormat, std::string> textureFormatSpellingTable = [](){
-    std::unordered_map<WGPUTextureFormat, std::string> map;
-    map[WGPUTextureFormat_Undefined] = "WGPUTextureFormat_Undefined";
-    map[WGPUTextureFormat_R8Unorm] = "WGPUTextureFormat_R8Unorm";
-    map[WGPUTextureFormat_R8Snorm] = "WGPUTextureFormat_R8Snorm";
-    map[WGPUTextureFormat_R8Uint] = "WGPUTextureFormat_R8Uint";
-    map[WGPUTextureFormat_R8Sint] = "WGPUTextureFormat_R8Sint";
-    map[WGPUTextureFormat_R16Uint] = "WGPUTextureFormat_R16Uint";
-    map[WGPUTextureFormat_R16Sint] = "WGPUTextureFormat_R16Sint";
-    map[WGPUTextureFormat_R16Float] = "WGPUTextureFormat_R16Float";
-    map[WGPUTextureFormat_RG8Unorm] = "WGPUTextureFormat_RG8Unorm";
-    map[WGPUTextureFormat_RG8Snorm] = "WGPUTextureFormat_RG8Snorm";
-    map[WGPUTextureFormat_RG8Uint] = "WGPUTextureFormat_RG8Uint";
-    map[WGPUTextureFormat_RG8Sint] = "WGPUTextureFormat_RG8Sint";
-    map[WGPUTextureFormat_R32Float] = "WGPUTextureFormat_R32Float";
-    map[WGPUTextureFormat_R32Uint] = "WGPUTextureFormat_R32Uint";
-    map[WGPUTextureFormat_R32Sint] = "WGPUTextureFormat_R32Sint";
-    map[WGPUTextureFormat_RG16Uint] = "WGPUTextureFormat_RG16Uint";
-    map[WGPUTextureFormat_RG16Sint] = "WGPUTextureFormat_RG16Sint";
-    map[WGPUTextureFormat_RG16Float] = "WGPUTextureFormat_RG16Float";
-    map[WGPUTextureFormat_RGBA8Unorm] = "WGPUTextureFormat_RGBA8Unorm";
-    map[WGPUTextureFormat_RGBA8UnormSrgb] = "WGPUTextureFormat_RGBA8UnormSrgb";
-    map[WGPUTextureFormat_RGBA8Snorm] = "WGPUTextureFormat_RGBA8Snorm";
-    map[WGPUTextureFormat_RGBA8Uint] = "WGPUTextureFormat_RGBA8Uint";
-    map[WGPUTextureFormat_RGBA8Sint] = "WGPUTextureFormat_RGBA8Sint";
-    map[WGPUTextureFormat_BGRA8Unorm] = "WGPUTextureFormat_BGRA8Unorm";
-    map[WGPUTextureFormat_BGRA8UnormSrgb] = "WGPUTextureFormat_BGRA8UnormSrgb";
-    map[WGPUTextureFormat_RGB10A2Uint] = "WGPUTextureFormat_RGB10A2Uint";
-    map[WGPUTextureFormat_RGB10A2Unorm] = "WGPUTextureFormat_RGB10A2Unorm";
-    map[WGPUTextureFormat_RG11B10Ufloat] = "WGPUTextureFormat_RG11B10Ufloat";
-    map[WGPUTextureFormat_RGB9E5Ufloat] = "WGPUTextureFormat_RGB9E5Ufloat";
-    map[WGPUTextureFormat_RG32Float] = "WGPUTextureFormat_RG32Float";
-    map[WGPUTextureFormat_RG32Uint] = "WGPUTextureFormat_RG32Uint";
-    map[WGPUTextureFormat_RG32Sint] = "WGPUTextureFormat_RG32Sint";
-    map[WGPUTextureFormat_RGBA16Uint] = "WGPUTextureFormat_RGBA16Uint";
-    map[WGPUTextureFormat_RGBA16Sint] = "WGPUTextureFormat_RGBA16Sint";
-    map[WGPUTextureFormat_RGBA16Float] = "WGPUTextureFormat_RGBA16Float";
-    map[WGPUTextureFormat_RGBA32Float] = "WGPUTextureFormat_RGBA32Float";
-    map[WGPUTextureFormat_RGBA32Uint] = "WGPUTextureFormat_RGBA32Uint";
-    map[WGPUTextureFormat_RGBA32Sint] = "WGPUTextureFormat_RGBA32Sint";
-    map[WGPUTextureFormat_Stencil8] = "WGPUTextureFormat_Stencil8";
-    map[WGPUTextureFormat_Depth16Unorm] = "WGPUTextureFormat_Depth16Unorm";
-    map[WGPUTextureFormat_Depth24Plus] = "WGPUTextureFormat_Depth24Plus";
-    map[WGPUTextureFormat_Depth24PlusStencil8] = "WGPUTextureFormat_Depth24PlusStencil8";
-    map[WGPUTextureFormat_Depth32Float] = "WGPUTextureFormat_Depth32Float";
-    map[WGPUTextureFormat_Depth32FloatStencil8] = "WGPUTextureFormat_Depth32FloatStencil8";
-    map[WGPUTextureFormat_BC1RGBAUnorm] = "WGPUTextureFormat_BC1RGBAUnorm";
-    map[WGPUTextureFormat_BC1RGBAUnormSrgb] = "WGPUTextureFormat_BC1RGBAUnormSrgb";
-    map[WGPUTextureFormat_BC2RGBAUnorm] = "WGPUTextureFormat_BC2RGBAUnorm";
-    map[WGPUTextureFormat_BC2RGBAUnormSrgb] = "WGPUTextureFormat_BC2RGBAUnormSrgb";
-    map[WGPUTextureFormat_BC3RGBAUnorm] = "WGPUTextureFormat_BC3RGBAUnorm";
-    map[WGPUTextureFormat_BC3RGBAUnormSrgb] = "WGPUTextureFormat_BC3RGBAUnormSrgb";
-    map[WGPUTextureFormat_BC4RUnorm] = "WGPUTextureFormat_BC4RUnorm";
-    map[WGPUTextureFormat_BC4RSnorm] = "WGPUTextureFormat_BC4RSnorm";
-    map[WGPUTextureFormat_BC5RGUnorm] = "WGPUTextureFormat_BC5RGUnorm";
-    map[WGPUTextureFormat_BC5RGSnorm] = "WGPUTextureFormat_BC5RGSnorm";
-    map[WGPUTextureFormat_BC6HRGBUfloat] = "WGPUTextureFormat_BC6HRGBUfloat";
-    map[WGPUTextureFormat_BC6HRGBFloat] = "WGPUTextureFormat_BC6HRGBFloat";
-    map[WGPUTextureFormat_BC7RGBAUnorm] = "WGPUTextureFormat_BC7RGBAUnorm";
-    map[WGPUTextureFormat_BC7RGBAUnormSrgb] = "WGPUTextureFormat_BC7RGBAUnormSrgb";
-    map[WGPUTextureFormat_ETC2RGB8Unorm] = "WGPUTextureFormat_ETC2RGB8Unorm";
-    map[WGPUTextureFormat_ETC2RGB8UnormSrgb] = "WGPUTextureFormat_ETC2RGB8UnormSrgb";
-    map[WGPUTextureFormat_ETC2RGB8A1Unorm] = "WGPUTextureFormat_ETC2RGB8A1Unorm";
-    map[WGPUTextureFormat_ETC2RGB8A1UnormSrgb] = "WGPUTextureFormat_ETC2RGB8A1UnormSrgb";
-    map[WGPUTextureFormat_ETC2RGBA8Unorm] = "WGPUTextureFormat_ETC2RGBA8Unorm";
-    map[WGPUTextureFormat_ETC2RGBA8UnormSrgb] = "WGPUTextureFormat_ETC2RGBA8UnormSrgb";
-    map[WGPUTextureFormat_EACR11Unorm] = "WGPUTextureFormat_EACR11Unorm";
-    map[WGPUTextureFormat_EACR11Snorm] = "WGPUTextureFormat_EACR11Snorm";
-    map[WGPUTextureFormat_EACRG11Unorm] = "WGPUTextureFormat_EACRG11Unorm";
-    map[WGPUTextureFormat_EACRG11Snorm] = "WGPUTextureFormat_EACRG11Snorm";
-    map[WGPUTextureFormat_ASTC4x4Unorm] = "WGPUTextureFormat_ASTC4x4Unorm";
-    map[WGPUTextureFormat_ASTC4x4UnormSrgb] = "WGPUTextureFormat_ASTC4x4UnormSrgb";
-    map[WGPUTextureFormat_ASTC5x4Unorm] = "WGPUTextureFormat_ASTC5x4Unorm";
-    map[WGPUTextureFormat_ASTC5x4UnormSrgb] = "WGPUTextureFormat_ASTC5x4UnormSrgb";
-    map[WGPUTextureFormat_ASTC5x5Unorm] = "WGPUTextureFormat_ASTC5x5Unorm";
-    map[WGPUTextureFormat_ASTC5x5UnormSrgb] = "WGPUTextureFormat_ASTC5x5UnormSrgb";
-    map[WGPUTextureFormat_ASTC6x5Unorm] = "WGPUTextureFormat_ASTC6x5Unorm";
-    map[WGPUTextureFormat_ASTC6x5UnormSrgb] = "WGPUTextureFormat_ASTC6x5UnormSrgb";
-    map[WGPUTextureFormat_ASTC6x6Unorm] = "WGPUTextureFormat_ASTC6x6Unorm";
-    map[WGPUTextureFormat_ASTC6x6UnormSrgb] = "WGPUTextureFormat_ASTC6x6UnormSrgb";
-    map[WGPUTextureFormat_ASTC8x5Unorm] = "WGPUTextureFormat_ASTC8x5Unorm";
-    map[WGPUTextureFormat_ASTC8x5UnormSrgb] = "WGPUTextureFormat_ASTC8x5UnormSrgb";
-    map[WGPUTextureFormat_ASTC8x6Unorm] = "WGPUTextureFormat_ASTC8x6Unorm";
-    map[WGPUTextureFormat_ASTC8x6UnormSrgb] = "WGPUTextureFormat_ASTC8x6UnormSrgb";
-    map[WGPUTextureFormat_ASTC8x8Unorm] = "WGPUTextureFormat_ASTC8x8Unorm";
-    map[WGPUTextureFormat_ASTC8x8UnormSrgb] = "WGPUTextureFormat_ASTC8x8UnormSrgb";
-    map[WGPUTextureFormat_ASTC10x5Unorm] = "WGPUTextureFormat_ASTC10x5Unorm";
-    map[WGPUTextureFormat_ASTC10x5UnormSrgb] = "WGPUTextureFormat_ASTC10x5UnormSrgb";
-    map[WGPUTextureFormat_ASTC10x6Unorm] = "WGPUTextureFormat_ASTC10x6Unorm";
-    map[WGPUTextureFormat_ASTC10x6UnormSrgb] = "WGPUTextureFormat_ASTC10x6UnormSrgb";
-    map[WGPUTextureFormat_ASTC10x8Unorm] = "WGPUTextureFormat_ASTC10x8Unorm";
-    map[WGPUTextureFormat_ASTC10x8UnormSrgb] = "WGPUTextureFormat_ASTC10x8UnormSrgb";
-    map[WGPUTextureFormat_ASTC10x10Unorm] = "WGPUTextureFormat_ASTC10x10Unorm";
-    map[WGPUTextureFormat_ASTC10x10UnormSrgb] = "WGPUTextureFormat_ASTC10x10UnormSrgb";
-    map[WGPUTextureFormat_ASTC12x10Unorm] = "WGPUTextureFormat_ASTC12x10Unorm";
-    map[WGPUTextureFormat_ASTC12x10UnormSrgb] = "WGPUTextureFormat_ASTC12x10UnormSrgb";
-    map[WGPUTextureFormat_ASTC12x12Unorm] = "WGPUTextureFormat_ASTC12x12Unorm";
-    map[WGPUTextureFormat_ASTC12x12UnormSrgb] = "WGPUTextureFormat_ASTC12x12UnormSrgb";
-    #ifndef __EMSCRIPTEN__ //why??
-    map[WGPUTextureFormat_R16Unorm] = "WGPUTextureFormat_R16Unorm";
-    map[WGPUTextureFormat_RG16Unorm] = "WGPUTextureFormat_RG16Unorm";
-    map[WGPUTextureFormat_RGBA16Unorm] = "WGPUTextureFormat_RGBA16Unorm";
-    map[WGPUTextureFormat_R16Snorm] = "WGPUTextureFormat_R16Snorm";
-    map[WGPUTextureFormat_RG16Snorm] = "WGPUTextureFormat_RG16Snorm";
-    map[WGPUTextureFormat_RGBA16Snorm] = "WGPUTextureFormat_RGBA16Snorm";
-    map[WGPUTextureFormat_R8BG8Biplanar420Unorm] = "WGPUTextureFormat_R8BG8Biplanar420Unorm";
-    map[WGPUTextureFormat_R10X6BG10X6Biplanar420Unorm] = "WGPUTextureFormat_R10X6BG10X6Biplanar420Unorm";
-    map[WGPUTextureFormat_R8BG8A8Triplanar420Unorm] = "WGPUTextureFormat_R8BG8A8Triplanar420Unorm";
-    map[WGPUTextureFormat_R8BG8Biplanar422Unorm] = "WGPUTextureFormat_R8BG8Biplanar422Unorm";
-    map[WGPUTextureFormat_R8BG8Biplanar444Unorm] = "WGPUTextureFormat_R8BG8Biplanar444Unorm";
-    map[WGPUTextureFormat_R10X6BG10X6Biplanar422Unorm] = "WGPUTextureFormat_R10X6BG10X6Biplanar422Unorm";
-    map[WGPUTextureFormat_R10X6BG10X6Biplanar444Unorm] = "WGPUTextureFormat_R10X6BG10X6Biplanar444Unorm";
-    map[WGPUTextureFormat_External] = "WGPUTextureFormat_External";
-    map[WGPUTextureFormat_Force32] = "WGPUTextureFormat_Force32";
-    #endif
-    return map;
-}();
-const char* TextureFormatName(WGPUTextureFormat fmt){
-    auto it = textureFormatSpellingTable.find(fmt);
-    if(it == textureFormatSpellingTable.end()){
-        return "?? Unknown WGPUTextureFormat value ??";
-    }
-    return it->second.c_str();
-}
 extern "C" size_t GetPixelSizeInBytes(PixelFormat format) {
     switch(format){
         case PixelFormat::BGRA8:

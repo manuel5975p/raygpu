@@ -45,8 +45,7 @@
 **********************************************************************************************/
 
 #include "raygpu.h"     // Declares module functions
-#include <webgpu/webgpu_cpp.h>
-#include "wgpustate.inc"
+//#include <webgpu/webgpu_cpp.h>
 // Check if config flags have been externally provided on compilation line
 //#if !defined(EXTERNAL_CONFIG_FLAGS)
 //    #include "config.h"         // Defines module configuration flags
@@ -80,7 +79,7 @@
 // Global Variables Definition
 //----------------------------------------------------------------------------------
 using Texture2D = Texture;
-Texture2D& texShapes = g_renderstate.whitePixel;                // Texture used on shapes drawing (white pixel loaded by rlgl)
+extern "C" Texture2D texShapes;                // Texture used on shapes drawing (white pixel loaded by rlgl)
 static Rectangle texShapesRec = {0.0f, 0.0f, 1.0f, 1.0f};    // Texture source rectangle used on shapes drawing
 constexpr float PI = M_PI;
 //----------------------------------------------------------------------------------

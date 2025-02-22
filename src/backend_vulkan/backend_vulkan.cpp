@@ -604,7 +604,7 @@ extern "C" void BufferData(DescribedBuffer* buffer, const void* data, size_t siz
 
         buffer->buffer = wgvkDeviceCreateBuffer((WGVKDevice)GetDevice(), &nbdesc);
         buffer->size = size;
-        wgpuQueueWriteBuffer(GetQueue(), (WGPUBuffer)buffer->buffer, 0, data, size);
+        wgvkQueueWriteBuffer(g_vulkanstate.queue, (WGVKBuffer)buffer->buffer, 0, data, size);
     }
 }
 void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size){
@@ -703,6 +703,7 @@ extern "C" void RenderPassDrawIndexed (DescribedRenderpass* drp, uint32_t indexC
     wgvkRenderpassEncoderDrawIndexed((WGVKRenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, baseVertex, firstInstance);
     //wgpuRenderPassEncoderDrawIndexed((WGPURenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
 }
+
 // Function to create logical device and retrieve queues
 std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDevice, QueueIndices indices) {
     // Find queue families
@@ -1029,10 +1030,10 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     //drawCurrentBatch();
     //BindPipeline(g_renderstate.defaultPipeline, WGPUPrimitiveTopology_TriangleList);
 }
-extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode){
+extern "C" void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode){
 
     switch(drawMode){
-        case WGPUPrimitiveTopology_TriangleList:
+        case RL_TRIANGLES:
         //std::cout << "Binding: " <<  pipeline->pipeline << "\n";
         
         wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (VkPipeline)pipeline->quartet.pipeline_TriangleList, (VkPipelineLayout)pipeline->layout.layout);

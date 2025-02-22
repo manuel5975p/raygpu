@@ -3,7 +3,7 @@
 
 
 #ifndef SUPPORT_WGSL_PARSER
-    #define SUPPORT_WGSL_PARSER 1
+    //#define SUPPORT_WGSL_PARSER 1
 #endif
 
 #ifndef SUPPORT_GLSL_PARSER

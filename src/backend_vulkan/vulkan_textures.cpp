@@ -423,7 +423,7 @@ extern "C" Texture2DArray LoadTextureArray(uint32_t width, uint32_t height, uint
     tDesc.dimension = TextureDimension_2D;
     tDesc.sampleCount = 1;
     tDesc.mipLevelCount = 1;
-    tDesc.usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_CopySrc | WGPUTextureUsage_CopyDst;
+    tDesc.usage = TextureUsage_StorageBinding | TextureUsage_CopySrc | TextureUsage_CopyDst;
     tDesc.viewFormatCount = 1;
     //tDesc.viewFormats = &tDesc.format;
     ret.id = wgvkDeviceCreateTexture((WGVKDevice)g_vulkanstate.device, &tDesc);
