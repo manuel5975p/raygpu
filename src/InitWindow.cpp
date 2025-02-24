@@ -82,7 +82,6 @@ layout(binding = 0) uniform PerspectiveViewBlock {
 layout(binding = 3) readonly buffer ModelMatrixBlock {
     mat4 modelMatrix[];  // Array of model matrices.
 };
-
 void main() {
     gl_PointSize = 1.0f;
     

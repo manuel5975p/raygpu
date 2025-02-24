@@ -1,6 +1,5 @@
 #include <raygpu.h>
 #include <internals.hpp>
-#include <external/gl_corearb.h>
 const char* computeSource = R"(
 #version 450 core
 
@@ -79,17 +78,70 @@ void main() {
     //outColor = vec4(frag_color.xyz,1);
 }
 )";
-
+constexpr char shaderSourceWGSL[] = R"(
+    struct VertexInput {
+        @location(0) position: vec3f,
+        @location(1) uv: vec2f,
+        @location(2) normal: vec3f,
+        @location(3) color: vec4f,
+    };
+    
+    struct VertexOutput {
+        @builtin(position) position: vec4f,
+        @location(0) uv: vec2f,
+        @location(1) color: vec4f,
+    };
+    
+    struct LightBuffer {
+        count: u32,
+        positions: array<vec3f>
+    };
+    
+    @group(0) @binding(0) var<uniform> Perspective_View: mat4x4f;
+    @group(0) @binding(1) var texture0: texture_2d<f32>;
+    @group(0) @binding(2) var texSampler: sampler;
+    @group(0) @binding(3) var<storage> modelMatrix: array<mat4x4f>;
+    @group(0) @binding(4) var<storage> lights: LightBuffer;
+    @group(0) @binding(5) var<storage> lights2: LightBuffer;
+    
+    //Can be omitted
+    //@group(0) @binding(3) var<storage> storig: array<vec4f>;
+    
+    
+    @vertex
+    fn vs_main(@builtin(instance_index) instanceIdx : u32, in: VertexInput) -> VertexOutput {
+        var out: VertexOutput;
+        out.position = Perspective_View * 
+                       modelMatrix[instanceIdx] *
+        vec4f(in.position.xyz, 1.0f);
+        out.color = in.color;
+        out.uv = in.uv;
+        return out;
+    }
+    
+    @fragment
+    fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+        return textureSample(texture0, texSampler, in.uv).rgba * in.color;
+    }
+    )";
 
 
 int main(){
+    InitWindow(800, 800, "as");
     ShaderSources sources zeroinit;
-    sources.computeSource = computeSource;
-    //sources.vertexSource = vertexSourceGLSL;
-    //sources.fragmentSource = fragmentSourceGLSL;
+    //sources.computeSource = computeSource;
+    sources.vertexSource = vertexSourceGLSL;
+    sources.fragmentSource = fragmentSourceGLSL;
     
     auto comp = getBindingsGLSL(sources);
-    for(auto [n, l] : comp){
+    auto wgcomp = getBindings(shaderSourceWGSL);
+    for(auto [n, l] : wgcomp){
         std::cout << n << ": " << l.location << ", " << l.type <<  "\n";
     }
+    exit(0);
+    while(!WindowShouldClose()){
+        BeginDrawing();
+        EndDrawing();
+    }
+    
 }

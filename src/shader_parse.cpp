@@ -24,6 +24,7 @@
 
 
 //#include <ctre.hpp>
+
 #include <raygpu.h>
 #include <internals.hpp>
 #include <vector>
@@ -33,10 +34,16 @@
 
 #if defined(SUPPORT_WGSL_PARSER) && SUPPORT_WGSL_PARSER == 1
 #include <tint/tint.h>
-#include <tint/api/tint.h>
-#include <tint/lang/wgsl/reader/parser/parser.h>
-#include <tint/lang/wgsl/reader/reader.h>
-#include <tint/lang/core/type/reference.h>
+#include "src/tint/lang/wgsl/ast/var.h"
+#include "src/tint/lang/wgsl/ast/const.h"
+#include "src/tint/lang/wgsl/ast/templated_identifier.h"
+#include "src/tint/lang/wgsl/ast/module.h"
+#include "src/tint/lang/wgsl/ast/identifier_expression.h"
+#include "src/tint/lang/core/type/reference.h"
+//#include <tint/lang/wgsl/reader/parser/parser.h>
+//#include <tint/lang/wgsl/reader/reader.h>
+//#include <tint/lang/core/type/reference.h>
+//#include <tint/lang/spirv/writer/writer.h>
 #endif
 
 //#include <tint/lang/glsl/writer/writer.h>
@@ -92,6 +99,15 @@ format_or_sample_type extractFormat(const tint::ast::Identifier* iden){
     }
     TRACELOG(LOG_FATAL, "Shader parse failed");
     return format_or_sample_type(12123);
+}
+
+std::vector<uint32_t> wgslToSpirv(const char* wgslSource){
+    tint::Source::File file("", wgslSource);
+    tint::Program program = tint::wgsl::reader::Parse(&file);
+    tint::Result<tint::core::ir::Module> module = tint::wgsl::reader::ProgramToLoweredIR(program);
+    tint::spirv::writer::Options options{};
+    tint::Result<tint::spirv::writer::Output> spirv = tint::spirv::writer::Generate(module.Get(), options);
+    return spirv.Get().spirv;
 }
 access_type extractAccess(const tint::ast::Identifier* iden){
     if(auto templiden = iden->As<tint::ast::TemplatedIdentifier>()){
