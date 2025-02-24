@@ -1,3 +1,9 @@
+#include <set>
+#include <map>
+#include <array>
+#include <deque>
+#include <mutex>
+#include <vector>
 struct PenInputState{
     float axes[16];
     Vector2 position;

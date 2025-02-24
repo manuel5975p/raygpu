@@ -84,7 +84,7 @@ int main(){
     firstPassPipeline = LoadComputePipeline(computeCode);
     mipmappedTexture = LoadTexturePro(
         1000, 1000,
-        RGBA8, WGPUTextureUsage_StorageBinding | WGPUTextureUsage_CopySrc | WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding,
+        RGBA8, TextureUsage_StorageBinding | TextureUsage_CopySrc | TextureUsage_CopyDst | TextureUsage_TextureBinding,
         1,
         10
     );
@@ -92,7 +92,6 @@ int main(){
     UpdateTexture(mipmappedTexture, img.data);
     GenTextureMipmaps(&mipmappedTexture);
     checker = LoadTextureFromImage(GenImageChecker(RED, BLACK, 50, 50, 5));
-    WGPUSamplerDescriptor sd{};
     cam = Camera3D{
         .position = Vector3{-2,2,size / 2},
         .target = Vector3{3,0, size / 2},

@@ -25,8 +25,12 @@
 
 //#include <ctre.hpp>
 #include <raygpu.h>
+#include <internals.hpp>
 #include <vector>
 #include <sstream>
+
+#include <string_view>
+
 #if defined(SUPPORT_WGSL_PARSER) && SUPPORT_WGSL_PARSER == 1
 #include <tint/tint.h>
 #include <tint/api/tint.h>
@@ -111,6 +115,11 @@ access_type extractAccess(const tint::ast::Identifier* iden){
 }
 #endif
 std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes(const char* shaderSource){
+    std::string_view source_view = std::string_view(shaderSource);
+    ShaderSourceType language = detectShaderLanguage(source_view);
+    if(language == sourceTypeGLSL){
+        //return getBindingsGLSL(ShaderSources{.computeSource = shaderSource});
+    }
     
     std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> ret;
 #if defined(SUPPORT_WGSL_PARSER) && SUPPORT_WGSL_PARSER == 1
@@ -229,7 +238,14 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
 std::unordered_map<std::string, ResourceTypeDescriptor> getBindings(const char* shaderSource){
     //tint::Initialize();
     std::unordered_map<std::string, ResourceTypeDescriptor> ret;
-#if defined(SUPPORT_WGSL_PARSER) && SUPPORT_WGSL_PARSER == 1
+    std::string_view source_view = std::string_view(shaderSource);
+    ShaderSourceType language = detectShaderLanguage(source_view);
+    if(language == sourceTypeGLSL){
+        ShaderSources sources zeroinit;
+        sources.computeSource = shaderSource;
+        return getBindingsGLSL(sources);
+    }
+#if SUPPORT_WGSL_PARSER == 1
     tint::Source::File f("path", shaderSource);
     tint::wgsl::reader::Options options{};
     tint::wgsl::AllowedFeatures features;

@@ -26,12 +26,16 @@
 
 
 
-#include "tint/lang/wgsl/ast/identifier.h"
-#include "tint/lang/wgsl/ast/module.h"
 #if SUPPORT_GLSL_PARSER == 1
-#include <SPIRV/GlslangToSpv.h>
+//#include <SPIRV/GlslangToSpv.h>
+#include "gl_corearb.h"
 #include <glslang/Public/ShaderLang.h>
+#include <glslang/SPIRV/GlslangToSpv.h>
+#include <glslang/MachineIndependent/localintermediate.h>
+#include <glslang/Public/resource_limits_c.h>
 #include <raygpu.h>
+#include <memory>
+#ifdef GLSL_TO_WGSL
 #include <tint/tint.h>
 #include <tint/lang/core/ir/module.h>
 #include <tint/lang/spirv/reader/parser/parser.h>
@@ -40,7 +44,9 @@
 #include <tint/lang/wgsl/writer/writer.h>
 #include <tint/lang/glsl/writer/writer.h>
 #include <tint/lang/core/type/reference.h>
+#endif
 #include <regex>
+extern std::unordered_map<uint32_t, std::string> uniformTypeNames;
 bool glslang_initialized = false;
 std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char *vs, const char *fs) {
 
@@ -120,6 +126,124 @@ std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char
 
     return {spirvV, spirvF};
 }
+std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSources sources){
+    const int glslVersion = 450;
+    
+    
+    if (!glslang_initialized){
+        glslang::InitializeProcess();
+        glslang_initialized = true;
+    }
+    
+    if(sources.vertexAndFragmentSource){
+        TRACELOG(LOG_ERROR, "VS and FS in one not supported for GLSL");
+    }
+    
+    std::vector<std::pair<EShLanguage, std::unique_ptr<glslang::TShader>>> shaders;
+    std::vector<const char*> stageSources;
+    if(sources.vertexSource && sources.fragmentSource){
+        shaders.push_back({EShLangVertex,   std::make_unique<glslang::TShader>(EShLangVertex)});
+        shaders.push_back({EShLangFragment, std::make_unique<glslang::TShader>(EShLangFragment)});
+        stageSources.push_back(sources.vertexSource);
+        stageSources.push_back(sources.fragmentSource);
+        shaders[0].second->setStrings(stageSources.data(), 1);
+        shaders[1].second->setStrings(stageSources.data() + 1, 1);
+        shaders[0].second->setEnvInput(glslang::EShSourceGlsl, EShLangVertex, glslang::EShClientOpenGL, glslVersion);
+        shaders[0].second->setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
+        shaders[0].second->setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
+        shaders[1].second->setEnvInput(glslang::EShSourceGlsl, EShLangFragment, glslang::EShClientOpenGL, glslVersion);
+        shaders[1].second->setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
+        shaders[1].second->setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
+    }
+    else if(sources.computeSource){
+        shaders.push_back({EShLangCompute, std::make_unique<glslang::TShader>(EShLangCompute)});
+        stageSources.push_back(sources.computeSource);
+        shaders[0].second->setStrings(stageSources.data(), 1);
+        shaders[0].second->setEnvInput(glslang::EShSourceGlsl, EShLangCompute, glslang::EShClientOpenGL, glslVersion);
+        shaders[0].second->setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
+        shaders[0].second->setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
+        
+    }
+
+    
+    
+
+    TBuiltInResource Resources = {};
+    Resources.maxComputeWorkGroupSizeX = 1024;
+    Resources.maxComputeWorkGroupSizeY = 1024;
+    Resources.maxComputeWorkGroupSizeZ = 1024;
+    Resources.maxCombinedTextureImageUnits = 8;
+
+    Resources.limits.generalUniformIndexing = true;
+    Resources.limits.generalVariableIndexing = true;
+    Resources.maxDrawBuffers = true;
+
+    EShMessages messages = (EShMessages)(EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules);
+
+    // Parse the shader
+    
+    for(size_t i = 0;i < shaders.size();i++){
+        auto& [language, shader] = shaders[i];
+
+        shader->setAutoMapLocations(false);
+        shader->setAutoMapBindings (false);
+        if(!shader->parse(&Resources,  glslVersion, ECoreProfile, false, false, messages)){
+            const char* lang = (language == EShLangCompute ? "Compute" : ((language == EShLangVertex) ? "Vertex" : "Fragment"));
+            TRACELOG(LOG_ERROR, "%s GLSL Parsing Failed: %s", lang, shader->getInfoLog());
+        }
+    }
+
+    // Link the program
+    glslang::TProgram program;
+    for(size_t i = 0;i < shaders.size();i++){
+        auto& [language, shader] = shaders[i];
+        program.addShader(shader.get());
+    }
+    if(!program.link(messages)){
+        TRACELOG(LOG_WARNING, "Linking program failed: %s", program.getInfoDebugLog());
+    }
+    else{
+        TRACELOG(LOG_INFO, "Program linked successfully");
+    }
+
+    program.buildReflection();
+    std::unordered_map<std::string, ResourceTypeDescriptor> ret;
+    for(uint32_t i = 0;i < program.getNumUniformBlocks();i++){
+        std::string name = program.getUniformBlockName(i);
+        ResourceTypeDescriptor insert zeroinit;
+        //std::cout << program.getUniformBlock(i).getBinding() << ": " << program.getUniformBlockName(i) << " readonly: " << program.getUniformBlock(i).getType()->getStorageQualifierString() << "\n";
+        //std::cout << program.getUniformBlock(i).getBinding() << ": " << program.getUniformBlockName(i) << "\n";
+        //std::cout << program.getUniformBlockName(i) << ": " << program.getUniformBlock(i).size << "\n";
+        insert.location = program.getUniformBlock(i).getBinding();
+        insert.minBindingSize = program.getUniformBlock(i).size;
+        insert.access = program.getUniformBlock(i).getType()->getQualifier().isWriteOnly() ? writeonly : (program.getUniformBlock(i).getType()->getQualifier().isReadOnly() ? readonly : readwrite);
+        
+        std::string storageOrUniform = program.getUniformBlock(i).getType()->getStorageQualifierString();
+        bool uniform = storageOrUniform.find("storage") == std::string::npos;
+        insert.type = uniform ? uniform_buffer : storage_buffer;
+        ret[program.getUniformBlockName(i)] = insert;
+    }
+
+    for(uint32_t i = 0;i < program.getNumUniformVariables();i++){
+        if(program.getUniform(i).getBinding() != -1){
+            ResourceTypeDescriptor insert zeroinit;
+            
+            insert.location = program.getUniform(i).getBinding();
+            insert.minBindingSize = 0;
+            
+            //insert.access = program.getUniformBlock(i).getType()->getQualifier().isWriteOnly() ? writeonly : (program.getUniformBlock(i).getType()->getQualifier().isReadOnly() ? readonly : readwrite);
+            //std::string storageOrUniform = program.getUniformBlock(i).getType()->getStorageQualifierString();
+
+            ret[program.getUniform(i).name] = insert;
+            //std::cout << program.getUniform(i).getBinding() << ": " << program.getUniform(i).name << " of type " << uniformTypeNames[program.getUniformType(i)] << "\n";
+        }
+    }
+    //for(uint32_t i = 0;i < program.getNumUniformBlocks();i++){
+    //    std::cout << program.getUniformBlock(i).getBinding() << ": " << program.getUniformBlockName(i) << "\n";
+    //}
+    return ret;
+}
+#ifdef GLSL_TO_WGSL
 extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     auto [spirvV, spirvF] = glsl_to_spirv(vs, fs);
     //std::cout.write((char*)spirv.data(), spirv.size() * sizeof(uint32_t));
@@ -236,8 +360,87 @@ extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     //std::cout << wgsl_from_prog_resultF->wgsl << "\n";
     return LoadPipeline(composed.c_str());
 }
+#endif
 #else
 //int main(){
 //    return 0;
 //}
 #endif
+std::unordered_map<uint32_t, std::string> uniformTypeNames = []{
+    std::unordered_map<uint32_t, std::string> map;
+    map[GL_FLOAT] = "GL_FLOAT";
+    map[GL_FLOAT_VEC2] = "GL_FLOAT_VEC2";
+    map[GL_FLOAT_VEC3] = "GL_FLOAT_VEC3";
+    map[GL_FLOAT_VEC4] = "GL_FLOAT_VEC4";
+    map[GL_DOUBLE] = "GL_DOUBLE";
+    map[GL_DOUBLE_VEC2] = "GL_DOUBLE_VEC2";
+    map[GL_DOUBLE_VEC3] = "GL_DOUBLE_VEC3";
+    map[GL_DOUBLE_VEC4] = "GL_DOUBLE_VEC4";
+    map[GL_INT] = "GL_INT";
+    map[GL_INT_VEC2] = "GL_INT_VEC2";
+    map[GL_INT_VEC3] = "GL_INT_VEC3";
+    map[GL_INT_VEC4] = "GL_INT_VEC4";
+    map[GL_UNSIGNED_INT] = "GL_UNSIGNED_INT";
+    map[GL_UNSIGNED_INT_VEC2] = "GL_UNSIGNED_INT_VEC2";
+    map[GL_UNSIGNED_INT_VEC3] = "GL_UNSIGNED_INT_VEC3";
+    map[GL_UNSIGNED_INT_VEC4] = "GL_UNSIGNED_INT_VEC4";
+    map[GL_BOOL] = "GL_BOOL";
+    map[GL_BOOL_VEC2] = "GL_BOOL_VEC2";
+    map[GL_BOOL_VEC3] = "GL_BOOL_VEC3";
+    map[GL_BOOL_VEC4] = "GL_BOOL_VEC4";
+    map[GL_FLOAT_MAT2] = "GL_FLOAT_MAT2";
+    map[GL_FLOAT_MAT3] = "GL_FLOAT_MAT3";
+    map[GL_FLOAT_MAT4] = "GL_FLOAT_MAT4";
+    map[GL_FLOAT_MAT2x3] = "GL_FLOAT_MAT2x3";
+    map[GL_FLOAT_MAT2x4] = "GL_FLOAT_MAT2x4";
+    map[GL_FLOAT_MAT3x2] = "GL_FLOAT_MAT3x2";
+    map[GL_FLOAT_MAT3x4] = "GL_FLOAT_MAT3x4";
+    map[GL_FLOAT_MAT4x2] = "GL_FLOAT_MAT4x2";
+    map[GL_FLOAT_MAT4x3] = "GL_FLOAT_MAT4x3";
+    map[GL_DOUBLE_MAT2] = "GL_DOUBLE_MAT2";
+    map[GL_DOUBLE_MAT3] = "GL_DOUBLE_MAT3";
+    map[GL_DOUBLE_MAT4] = "GL_DOUBLE_MAT4";
+    map[GL_DOUBLE_MAT2x3] = "GL_DOUBLE_MAT2x3";
+    map[GL_DOUBLE_MAT2x4] = "GL_DOUBLE_MAT2x4";
+    map[GL_DOUBLE_MAT3x2] = "GL_DOUBLE_MAT3x2";
+    map[GL_DOUBLE_MAT3x4] = "GL_DOUBLE_MAT3x4";
+    map[GL_DOUBLE_MAT4x2] = "GL_DOUBLE_MAT4x2";
+    map[GL_DOUBLE_MAT4x3] = "GL_DOUBLE_MAT4x3";
+    map[GL_SAMPLER_1D] = "GL_SAMPLER_1D";
+    map[GL_SAMPLER_2D] = "GL_SAMPLER_2D";
+    map[GL_SAMPLER_3D] = "GL_SAMPLER_3D";
+    map[GL_SAMPLER_CUBE] = "GL_SAMPLER_CUBE";
+    map[GL_SAMPLER_1D_SHADOW] = "GL_SAMPLER_1D_SHADOW";
+    map[GL_SAMPLER_2D_SHADOW] = "GL_SAMPLER_2D_SHADOW";
+    map[GL_SAMPLER_1D_ARRAY] = "GL_SAMPLER_1D_ARRAY";
+    map[GL_SAMPLER_2D_ARRAY] = "GL_SAMPLER_2D_ARRAY";
+    map[GL_SAMPLER_1D_ARRAY_SHADOW] = "GL_SAMPLER_1D_ARRAY_SHADOW";
+    map[GL_SAMPLER_2D_ARRAY_SHADOW] = "GL_SAMPLER_2D_ARRAY_SHADOW";
+    map[GL_SAMPLER_2D_MULTISAMPLE] = "GL_SAMPLER_2D_MULTISAMPLE";
+    map[GL_SAMPLER_2D_MULTISAMPLE_ARRAY] = "GL_SAMPLER_2D_MULTISAMPLE_ARRAY";
+    map[GL_SAMPLER_CUBE_SHADOW] = "GL_SAMPLER_CUBE_SHADOW";
+    map[GL_SAMPLER_BUFFER] = "GL_SAMPLER_BUFFER";
+    map[GL_SAMPLER_2D_RECT] = "GL_SAMPLER_2D_RECT";
+    map[GL_SAMPLER_2D_RECT_SHADOW] = "GL_SAMPLER_2D_RECT_SHADOW";
+    map[GL_INT_SAMPLER_1D] = "GL_INT_SAMPLER_1D";
+    map[GL_INT_SAMPLER_2D] = "GL_INT_SAMPLER_2D";
+    map[GL_INT_SAMPLER_3D] = "GL_INT_SAMPLER_3D";
+    map[GL_INT_SAMPLER_CUBE] = "GL_INT_SAMPLER_CUBE";
+    map[GL_INT_SAMPLER_1D_ARRAY] = "GL_INT_SAMPLER_1D_ARRAY";
+    map[GL_INT_SAMPLER_2D_ARRAY] = "GL_INT_SAMPLER_2D_ARRAY";
+    map[GL_INT_SAMPLER_2D_MULTISAMPLE] = "GL_INT_SAMPLER_2D_MULTISAMPLE";
+    map[GL_INT_SAMPLER_2D_MULTISAMPLE_ARRAY] = "GL_INT_SAMPLER_2D_MULTISAMPLE_ARRAY";
+    map[GL_INT_SAMPLER_BUFFER] = "GL_INT_SAMPLER_BUFFER";
+    map[GL_INT_SAMPLER_2D_RECT] = "GL_INT_SAMPLER_2D_RECT";
+    map[GL_UNSIGNED_INT_SAMPLER_1D] = "GL_UNSIGNED_INT_SAMPLER_1D";
+    map[GL_UNSIGNED_INT_SAMPLER_2D] = "GL_UNSIGNED_INT_SAMPLER_2D";
+    map[GL_UNSIGNED_INT_SAMPLER_3D] = "GL_UNSIGNED_INT_SAMPLER_3D";
+    map[GL_UNSIGNED_INT_SAMPLER_CUBE] = "GL_UNSIGNED_INT_SAMPLER_CUBE";
+    map[GL_UNSIGNED_INT_SAMPLER_1D_ARRAY] = "GL_UNSIGNED_INT_SAMPLER_1D_ARRAY";
+    map[GL_UNSIGNED_INT_SAMPLER_2D_ARRAY] = "GL_UNSIGNED_INT_SAMPLER_2D_ARRAY";
+    map[GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE] = "GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE";
+    map[GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE_ARRAY] = "GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE_ARRAY";
+    map[GL_UNSIGNED_INT_SAMPLER_BUFFER] = "GL_UNSIGNED_INT_SAMPLER_BUFFER";
+    map[GL_UNSIGNED_INT_SAMPLER_2D_RECT] = "GL_UNSIGNED_INT_SAMPLER_2D_RECT";
+    return map;
+}();

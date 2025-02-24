@@ -550,3 +550,30 @@ Texture LoadTextureFromImage(Image img) {
     if(altdata)std::free(altdata);
     return ret;
 }
+Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format, TextureUsage usage, uint32_t sampleCount){
+    Texture3D ret zeroinit;
+    WGVKTextureDescriptor tDesc{};
+    tDesc.dimension = TextureDimension_3D;
+    tDesc.size = Extent3D{width, height, depth};
+    tDesc.mipLevelCount = 1;
+    tDesc.sampleCount = sampleCount;
+    tDesc.usage = TextureUsage_StorageBinding | TextureUsage_TextureBinding | TextureUsage_CopySrc | TextureUsage_CopyDst;
+    tDesc.format = format;
+    ret.width = width;
+    ret.height = height;
+    ret.depth = depth;
+    ret.id = wgvkDeviceCreateTexture(g_vulkanstate.device, &tDesc);
+    
+    WGVKTextureViewDescriptor vDesc zeroinit;
+    vDesc.arrayLayerCount = 1;
+    vDesc.baseArrayLayer = 0;
+    vDesc.mipLevelCount = 1;
+    vDesc.baseMipLevel = 0;
+    vDesc.aspect = TextureAspect_All;
+    vDesc.dimension = TextureViewDimension_3D;
+    vDesc.usage = TextureUsage_StorageBinding | TextureUsage_TextureBinding | TextureUsage_CopySrc | TextureUsage_CopyDst;
+    
+    ret.view = wgvkTextureCreateView((WGVKTexture)ret.id, &vDesc);
+    ret.sampleCount = sampleCount;
+    return ret;
+}
