@@ -34,38 +34,42 @@ if(NOT SUPPORT_GLFW)
         endif()
     endif()
 endif()
-if(SUPPORT_WGPU_BACKEND)
-set(TINT_BUILD_CMD_TOOLS ON CACHE BOOL "" FORCE)
-set(TINT_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
-set(DAWN_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
-set(TINT_BUILD_GLSL_VALIDATOR OFF CACHE BOOL "" FORCE)
-set(TINT_BUILD_GLSL_WRITER ON CACHE BOOL "" FORCE)
-set(TINT_BUILD_MSL_WRITER ON CACHE BOOL "" FORCE)
-set(TINT_BUILD_HLSL_WRITER ON CACHE BOOL "" FORCE)
-set(TINT_BUILD_TESTS ON CACHE BOOL "" FORCE)
-set(DAWN_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "" FORCE)
-set(DAWN_FETCH_DEPENDENCIES OFF CACHE BOOL "" FORCE)
-set(DAWN_BUILD_MONOLITHIC_LIBRARY ON CACHE BOOL "" FORCE)
-set(DAWN_ENABLE_OPENGLES OFF CACHE BOOL "" FORCE)
-set(DAWN_ENABLE_DESKTOP_GL OFF CACHE BOOL "" FORCE)
-set(DAWN_ENABLE_INSTALL ON CACHE BOOL "Enable install step for Dawn libraries")
-set(TINT_ENABLE_INSTALL ON CACHE BOOL "Enable install step for Tint libraries")
-set(BUILD_GMOCK ON CACHE BOOL "" FORCE)
-if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/dawn/CMakeLists.txt")
-# Use the local dawn directory
-    add_subdirectory("dawn")
-    set(dawn_SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/dawn")
+if(SUPPORT_WGPU_BACKEND OR SUPPORT_WGSL_PARSER)
+    set(DAWN_IS_IN_USE True)
+    set(TINT_BUILD_CMD_TOOLS ON CACHE BOOL "" FORCE)
+    set(TINT_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
+    set(DAWN_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
+    set(TINT_BUILD_GLSL_VALIDATOR OFF CACHE BOOL "" FORCE)
+    set(TINT_BUILD_GLSL_WRITER ON CACHE BOOL "" FORCE)
+    set(TINT_BUILD_MSL_WRITER ON CACHE BOOL "" FORCE)
+    set(TINT_BUILD_HLSL_WRITER ON CACHE BOOL "" FORCE)
+    set(TINT_BUILD_TESTS ON CACHE BOOL "" FORCE)
+    set(DAWN_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "" FORCE)
+    set(DAWN_FETCH_DEPENDENCIES OFF CACHE BOOL "" FORCE)
+    set(DAWN_BUILD_MONOLITHIC_LIBRARY ON CACHE BOOL "" FORCE)
+    set(DAWN_ENABLE_OPENGLES OFF CACHE BOOL "" FORCE)
+    set(DAWN_ENABLE_DESKTOP_GL OFF CACHE BOOL "" FORCE)
+    set(DAWN_ENABLE_INSTALL ON CACHE BOOL "Enable install step for Dawn libraries")
+    set(TINT_ENABLE_INSTALL ON CACHE BOOL "Enable install step for Tint libraries")
+    set(BUILD_GMOCK ON CACHE BOOL "" FORCE)
+    if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/dawn/CMakeLists.txt")
+        # Use the local dawn directory
+        add_subdirectory("dawn")
+        set(dawn_SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/dawn")
+    else()
+        # FetchContent to download dawn if not present locally
+        include(FetchContent)
+        set(FETCHCONTENT_QUIET FALSE)
+        FetchContent_Declare(
+            dawn
+            URL https://github.com/manuel5975p/dawn_monorepo/archive/refs/tags/v7011.tar.gz
+
+        )
+        FetchContent_MakeAvailable(dawn)
+    endif()
 else()
-# FetchContent to download dawn if not present locally
-include(FetchContent)
-set(FETCHCONTENT_QUIET FALSE)
-FetchContent_Declare(
-    dawn
-    URL https://github.com/manuel5975p/dawn_monorepo/archive/refs/tags/v7011.tar.gz
-    
-    )
-    FetchContent_MakeAvailable(dawn)
+    set(DAWN_IS_IN_USE False)
 endif()
 #set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
 #set(DAWN_BUILD_MONOLITHIC_LIBRARY ON CACHE BOOL "" FORCE)
@@ -83,7 +87,6 @@ endif()
 #set(TINT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 
 # Define the download function
-endif()
 
 function(download_file_if_not_exists url filename)
     set(DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/dl")
@@ -107,7 +110,9 @@ if(NOT EMSCRIPTEN AND SUPPORT_GLSL_PARSER)
         URL      https://github.com/KhronosGroup/glslang/archive/refs/tags/15.1.0.tar.gz
         DOWNLOAD_EXTRACT_TIMESTAMP True
     )
-    FetchContent_MakeAvailable(khrGlslang)
+    if(NOT DAWN_IS_IN_USE)
+        FetchContent_MakeAvailable(khrGlslang)
+    endif()
     option(SPIRV_REFLECT_STATIC_LIB "" ON)
     option(SPIRV_REFLECT_EXECUTABLE "" OFF)
     option(SPIRV_REFLECT_EXAMPLES "" OFF)
@@ -138,6 +143,7 @@ if(SUPPORT_SDL3)
     )
     set(SDL_STATIC ON)
     set(SDL_SHARED OFF)
+    set(SDL3_LIBURING OFF CACHE BOOL "Enable SDL liburing support" FORCE)
     FetchContent_MakeAvailable(sdl3fetch)
 endif()
 #download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_rect_pack.h" "stb_rect_pack.h")
@@ -226,6 +232,9 @@ endif()
 if(SUPPORT_GLSL_PARSER)
     target_compile_definitions(raygpu PUBLIC SUPPORT_GLSL_PARSER=1)
 endif()
+if(SUPPORT_WGSL_PARSER)    
+    target_compile_definitions(raygpu PUBLIC SUPPORT_WGSL_PARSER=1)
+endif()
 if(NOT MSVC AND NOT EMSCRIPTEN)
     if(CMAKE_BUILD_TYPE MATCHES Debug)
         foreach(source_file IN LISTS RG_SOURCES)
@@ -294,6 +303,7 @@ if(SUPPORT_VULKAN_BACKEND)
 else()
     target_link_libraries(raygpu PUBLIC
         webgpu_dawn
+        tint_api
         #webgpu_cpp
         #tint_api_common
         #tint_lang_wgsl_reader
@@ -311,27 +321,40 @@ else()
         
         #target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
     )
-    target_include_directories(raygpu PUBLIC  
-        $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/include/>  
-        $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/src>
-        $<BUILD_INTERFACE:${dawn_SOURCE_DIR}>
-        $<INSTALL_INTERFACE:include/raygpu/dawn/include>
-        $<INSTALL_INTERFACE:include/raygpu/dawn/src>
-        $<INSTALL_INTERFACE:include/raygpu/dawn/>
-    )
+    # target_include_directories(raygpu PUBLIC
+    #     $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/include/>  
+    #     $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/src>
+    #     $<BUILD_INTERFACE:${dawn_SOURCE_DIR}>
+    #     $<INSTALL_INTERFACE:include/raygpu/dawn/include>
+    #     $<INSTALL_INTERFACE:include/raygpu/dawn/src>
+    #     $<INSTALL_INTERFACE:include/raygpu/dawn/>
+    # )
+
 endif()
-    if(SUPPORT_SDL2)
-        target_link_libraries(raygpu PUBLIC SDL2::SDL2)
-    endif()
-    if(SUPPORT_SDL3)
-        target_link_libraries(raygpu PUBLIC SDL3::SDL3)
-    endif()
-    if(SUPPORT_GLFW)
-        target_link_libraries(raygpu PUBLIC glfw)
-    endif()
-    if(SUPPORT_GLSL_PARSER)
-        target_link_libraries(raygpu PUBLIC glslang spirv-reflect-static)
-    endif()
+if(SUPPORT_WGSL_PARSER)
+    target_link_libraries(raygpu PUBLIC tint_api ) #tint_lang_wgsl_reader tint_lang_wgsl_inspector tint_lang_wgsl_resolver tint_lang_spirv_writer)
+    #target_include_directories(raygpu PUBLIC  
+    #    $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/include/>  
+    #    $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/src>
+    #    $<BUILD_INTERFACE:${dawn_SOURCE_DIR}>
+    #    $<INSTALL_INTERFACE:include/raygpu/dawn/include>
+    #    $<INSTALL_INTERFACE:include/raygpu/dawn/src>
+    #    $<INSTALL_INTERFACE:include/raygpu/dawn/>
+    #)
+endif()
+
+if(SUPPORT_SDL2)
+    target_link_libraries(raygpu PUBLIC SDL2::SDL2)
+endif()
+if(SUPPORT_SDL3)
+    target_link_libraries(raygpu PUBLIC SDL3::SDL3)
+endif()
+if(SUPPORT_GLFW)
+    target_link_libraries(raygpu PUBLIC glfw)
+endif()
+if(SUPPORT_GLSL_PARSER)
+    target_link_libraries(raygpu PUBLIC glslang spirv-reflect-static)
+endif()
 endif()
 
 #add_executable(example "src/example.cpp")

@@ -262,10 +262,13 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, c
 DescribedShaderModule LoadShaderModule(ShaderSources source){
     
     DescribedShaderModule ret zeroinit;
-    std::string_view vsView = source.vertexSource;
+    std::string_view vsView;
     ShaderSourceType vsType = sourceTypeUnknown;
-    std::string_view fsView = source.vertexSource;
+    std::string_view fsView;
     ShaderSourceType fsType = sourceTypeUnknown;
+
+    std::string_view vsfsView;
+    ShaderSourceType vsfsType = sourceTypeUnknown;
 
     if(source.vertexSource){
         vsView = std::string_view(source.vertexSource);
@@ -275,6 +278,17 @@ DescribedShaderModule LoadShaderModule(ShaderSources source){
         fsView = std::string_view(source.fragmentSource);
         fsType = detectShaderLanguage(vsView);
     }
+    if(source.vertexAndFragmentSource){
+        vsfsView = std::string_view(source.vertexAndFragmentSource);
+        vsfsType = detectShaderLanguage(vsfsView);
+    }
+    if(source.vertexSource && source.fragmentSource){
+        assert(vsType == sourceTypeGLSL && fsType == sourceTypeGLSL);
+        auto [vsSpirv, fsSpirv] = glsl_to_spirv(source.vertexSource, source.fragmentSource);
+        ret = LoadShaderModuleFromSPIRV_Vk(vsSpirv.data(), vsSpirv.size() * 4, fsSpirv.data(), fsSpirv.size() * 4);
+    }
+    ret.uniformLocations = callocnewpp(StringToUniformMap);
+    ret.uniformLocations->uniforms = getBindingsGLSL(source);
     return ret;
 }
 
@@ -516,9 +530,14 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
     ret->settings = settings;
     ret->createdPipelines = callocnewpp(VertexStateToPipelineMap);
     ret->bglayout = LoadBindGroupLayout(uniforms, uniformCount, false);
-    auto [spirV, spirF] = glsl_to_spirv(vsSource, fsSource);
+    ShaderSources sources zeroinit;
+    sources.vertexSource = vsSource;
+    sources.fragmentSource = fsSource;
+
+    ret->sh = LoadShaderModule(sources);
+    //auto [spirV, spirF] = glsl_to_spirv(vsSource, fsSource);
     
-    ret->sh = LoadShaderModuleFromSPIRV_Vk(spirV.data(), spirV.size() * 4, spirF.data(), spirF.size() * 4);
+    //ret->sh = LoadShaderModuleFromSPIRV_Vk(spirV.data(), spirV.size() * 4, spirF.data(), spirF.size() * 4);
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -531,6 +550,7 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
         throw std::runtime_error("failed to create pipeline layout!");
     }
     std::vector<ResourceDescriptor> bge(uniformCount);
+
     for(uint32_t i = 0;i < bge.size();i++){
         bge[i] = ResourceDescriptor{};
         bge[i].binding = uniforms[i].location;

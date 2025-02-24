@@ -958,7 +958,6 @@ extern "C" Texture3D LoadTexture3DEx(uint32_t width, uint32_t height, uint32_t d
     return LoadTexture3DPro(width, height, depth, format, TextureUsage_CopyDst | TextureUsage_TextureBinding | TextureUsage_StorageBinding, 1);
 }
 uint32_t GetUniformLocation(DescribedPipeline* pl, const char* uniformName){
-    return LOCATION_NOT_FOUND;
     return pl->sh.uniformLocations->GetLocation(uniformName);
 }
 uint32_t GetUniformLocationCompute(DescribedComputePipeline* pl, const char* uniformName){

@@ -47,7 +47,7 @@ function(add_cpp_example target_name)
     endif()
 endfunction()
 
-#add_example(core_window)
+add_example(core_window)
 #add_example(core_resizable)
 #add_example(core_shapes)
 #add_example(core_vsync_fullscreen)

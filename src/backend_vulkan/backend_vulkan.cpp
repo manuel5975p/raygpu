@@ -352,9 +352,11 @@ VkInstance createInstance() {
     #elif SUPPORT_SDL3
     windowExtensions = SDL_Vulkan_GetInstanceExtensions(&requiredGLFWExtensions);
     #endif
+    #if SUPPORT_GLFW == 1 || SUPPORT_SDL2 == 1 || SUPPORT_SDL3 == 1
     if (!windowExtensions) {
         throw std::runtime_error("Failed to get required extensions for windowing!");
     }
+    #endif
 
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -702,8 +704,11 @@ void createRenderPass() {
     colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    #ifdef FORCE_HEADLESS
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    #else
     colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
+    #endif
     VkAttachmentDescription& depthAttachment = attachments[1];
     depthAttachment.format = VK_FORMAT_D32_SFLOAT;
     depthAttachment.samples = VK_SAMPLE_COUNT_4_BIT;
@@ -770,20 +775,25 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     QueueIndices qind = findQueueFamilies();
     std::pair<WGVKDevice, WGVKQueue> ret{};
     // Collect unique queue families
-    std::set<uint32_t> uniqueQueueFamilies; // = { g_vulkanstate.graphicsFamily, g_vulkanstate.presentFamily };
+    std::vector<uint32_t> queueFamilies;
+    {
+        std::set<uint32_t> uniqueQueueFamilies; // = { g_vulkanstate.graphicsFamily, g_vulkanstate.presentFamily };
 
-    uniqueQueueFamilies.insert(indices.computeIndex);
-    uniqueQueueFamilies.insert(indices.graphicsIndex);
-    uniqueQueueFamilies.insert(indices.presentIndex);
-
-    // Example: Include computeFamily if it's different
-    std::vector<uint32_t> queueFamilies(uniqueQueueFamilies.begin(), uniqueQueueFamilies.end());
-
+        uniqueQueueFamilies.insert(indices.computeIndex);
+        uniqueQueueFamilies.insert(indices.graphicsIndex);
+        uniqueQueueFamilies.insert(indices.presentIndex);
+        auto it = uniqueQueueFamilies.find(VK_QUEUE_FAMILY_IGNORED);
+        if(it != uniqueQueueFamilies.end()){
+            uniqueQueueFamilies.erase(it);
+        }
+        // Example: Include computeFamily if it's different
+        queueFamilies = std::vector<uint32_t>(uniqueQueueFamilies.begin(), uniqueQueueFamilies.end());
+    }
     // Create queue create infos
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
     float queuePriority = 1.0f;
 
-    for (uint32_t queueFamily : uniqueQueueFamilies) {
+    for (uint32_t queueFamily : queueFamilies) {
         VkDeviceQueueCreateInfo queueCreateInfo{};
         queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
         queueCreateInfo.queueFamilyIndex = queueFamily;
@@ -794,7 +804,9 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
 
     // Specify device extensions
     std::vector<const char *> deviceExtensions = {
+        #ifndef FORCE_HEADLESS
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
+        #endif
         // Add other required extensions here
     };
 
@@ -835,8 +847,9 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
 
     // Retrieve and assign queues
     vkGetDeviceQueue(ret.first->device, indices.graphicsIndex, 0, &ret.second->graphicsQueue);
+    #ifndef FORCE_HEADLESS
     vkGetDeviceQueue(ret.first->device, indices.presentIndex, 0, &ret.second->presentQueue);
-
+    #endif
     if (indices.computeIndex != indices.graphicsIndex && indices.computeIndex != indices.presentIndex) {
         vkGetDeviceQueue(ret.first->device, indices.computeIndex, 0, &ret.second->computeQueue);
     } else {
