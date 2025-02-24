@@ -33,7 +33,7 @@
 #include <glslang/SPIRV/GlslangToSpv.h>
 #include <glslang/MachineIndependent/localintermediate.h>
 #include <glslang/Public/resource_limits_c.h>
-#include <spirv-reflect/spirv_reflect.h>
+#include <spirv_reflect.h>
 #include <raygpu.h>
 #include <memory>
 #include <fstream>

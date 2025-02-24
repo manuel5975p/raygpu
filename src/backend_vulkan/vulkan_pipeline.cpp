@@ -761,3 +761,36 @@ void SetBindGroupSampler_Vk(DescribedBindGroup* bg, uint32_t binding, DescribedS
     }
     bg->needsUpdate = true;
 }
+
+extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount){
+    DescribedComputePipeline* ret = callocnew(DescribedComputePipeline);
+    ShaderSources sources zeroinit;
+    sources.computeSource = shaderCode;
+    DescribedShaderModule computeShaderModule = LoadShaderModule(sources);
+
+
+    DescribedBindGroupLayout bgl = LoadBindGroupLayout(uniforms, uniformCount, true);
+    VkPipelineLayoutCreateInfo lci zeroinit;
+    lci.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    lci.setLayoutCount = 1;
+    lci.pSetLayouts = (VkDescriptorSetLayout*)(&bgl.layout);
+    VkPipelineLayout layout zeroinit;
+    VkResult pipelineCreationResult = vkCreatePipelineLayout(g_vulkanstate.device->device, &lci, nullptr, &layout);
+    VkPipelineShaderStageCreateInfo computeStage zeroinit;
+    computeStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    computeStage.module = (VkShaderModule)computeShaderModule.computeModule;
+
+
+    computeStage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    computeStage.pName = "Compute Stage";
+
+    VkComputePipelineCreateInfo cpci zeroinit;
+    cpci.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    cpci.layout = layout;
+    cpci.stage = computeStage;
+    
+    return ret;
+}
+extern "C" DescribedComputePipeline* LoadComputePipeline(const char* shaderCode){
+    return nullptr;
+}

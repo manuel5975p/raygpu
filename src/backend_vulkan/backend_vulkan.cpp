@@ -630,7 +630,7 @@ extern "C" DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescri
         }
         entries[i].descriptorCount = 1;
         entries[i].binding = descs[i].location;
-        entries[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+        entries[i].stageFlags = compute ? (VK_SHADER_STAGE_COMPUTE_BIT) : (VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
     }
     ret->entries = (ResourceTypeDescriptor*)std::calloc(uniformCount, sizeof(ResourceTypeDescriptor));
     ret->entryCount = uniformCount;
