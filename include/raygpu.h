@@ -1304,13 +1304,7 @@ EXTERN_C_BEGIN
     void* GetQueue   (cwoid);
     void* GetSurface (cwoid);
     
-    #if defined(__cplusplus) && SUPPORT_WGPU_BACKEND == 1
-        wgpu::Instance& GetCXXInstance();
-        wgpu::Adapter&  GetCXXAdapter ();
-        wgpu::Device&   GetCXXDevice  ();
-        wgpu::Queue&    GetCXXQueue   ();
-        wgpu::Surface&  GetCXXSurface ();
-    #endif
+    
     inline uint32_t attributeSize(VertexFormat fmt){
         switch(fmt){
             case VertexFormat_Uint8x4:
@@ -1350,7 +1344,13 @@ EXTERN_C_BEGIN
         return 0;
     }
 EXTERN_C_END
-
+#if defined(__cplusplus) && SUPPORT_WGPU_BACKEND == 1
+    wgpu::Instance& GetCXXInstance();
+    wgpu::Adapter&  GetCXXAdapter ();
+    wgpu::Device&   GetCXXDevice  ();
+    wgpu::Queue&    GetCXXQueue   ();
+    wgpu::Surface&  GetCXXSurface ();
+#endif
 typedef struct wgpustate wgpustate;
 typedef struct renderstate renderstate;
 extern wgpustate g_wgpustate;

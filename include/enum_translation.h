@@ -26,7 +26,7 @@
 #define ENUM_HEADER_H
 
 //#define SUPPORT_WGPU_BACKEND 1
-//#define SUPPORT_VULKAN_BACKEND 1
+#define SUPPORT_VULKAN_BACKEND 1
 #ifdef __cplusplus
 #include <cassert>
 #include <cstdint>
@@ -51,7 +51,7 @@ typedef enum uniform_type { uniform_buffer, storage_buffer, texture2d, texture2d
 
 typedef enum access_type { readonly, readwrite, writeonly } access_type;
 
-typedef enum format_or_sample_type { sample_f32, sample_u32, format_r32float, format_r32uint, format_rgba8unorm, format_rgba32float } format_or_sample_type;
+typedef enum format_or_sample_type { we_dont_know, sample_f32, sample_u32, format_r32float, format_r32uint, format_rgba8unorm, format_rgba32float } format_or_sample_type;
 
 typedef enum filterMode {
     filter_nearest = 0x1,
@@ -379,33 +379,35 @@ static inline TextureUsage fromVulkanTextureUsage(VkImageUsageFlags vkUsage) {
  */
 static inline VkDescriptorType toVulkanResourceType(uniform_type type) {
     switch (type) {
-    case storage_texture2d: {
-        return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    }
-    case storage_texture2d_array: {
-        return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    }
-    case storage_texture3d: {
-        return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    }
-    case storage_buffer: {
-        return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    }
-    case uniform_buffer: {
-        return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    }
-    case texture2d: {
-        return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    }
-    case texture2d_array: {
-        return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    }
-    case texture3d: {
-        return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    }
-    case texture_sampler: {
-        return VK_DESCRIPTOR_TYPE_SAMPLER;
-    }
+        case storage_texture2d: {
+            return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        }
+        case storage_texture2d_array: {
+            return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        }
+        case storage_texture3d: {
+            return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        }
+        case storage_buffer: {
+            return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        }
+        case uniform_buffer: {
+            return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        }
+        case texture2d: {
+            return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        }
+        case texture2d_array: {
+            return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        }
+        case texture3d: {
+            return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        }
+        case texture_sampler: {
+            return VK_DESCRIPTOR_TYPE_SAMPLER;
+        }
+        default:
+            __builtin_unreachable();
     }
 }
 

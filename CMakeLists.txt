@@ -5,7 +5,7 @@ set(SUPPORT_WGSL_PARSER ON CACHE BOOL "Support wgsl parsing for uniform and attr
 option(SUPPORT_GLSL_PARSER OFF)
 option(SUPPORT_SDL2 OFF)
 option(SUPPORT_SDL3 OFF)
-option(SUPPORT_GLFW "" ON)
+option(SUPPORT_GLFW "" OFF)
 option(SUPPORT_VULKAN_BACKEND OFF)
 option(SUPPORT_WGPU_BACKEND "" ON)
 message(STATUS "SUPPORT_WGPU_BACKEND: ${SUPPORT_WGPU_BACKEND}")
@@ -108,6 +108,17 @@ if(NOT EMSCRIPTEN AND SUPPORT_GLSL_PARSER)
         DOWNLOAD_EXTRACT_TIMESTAMP True
     )
     FetchContent_MakeAvailable(khrGlslang)
+    option(SPIRV_REFLECT_STATIC_LIB "" ON)
+    option(SPIRV_REFLECT_EXECUTABLE "" OFF)
+    option(SPIRV_REFLECT_EXAMPLES "" OFF)
+    option(SPIRV_REFLECT_BUILD_TESTS "" OFF)
+    FetchContent_Declare(
+        khrSpirvReflect
+        GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-Reflect.git
+        GIT_SHALLOW TRUE
+        GIT_TAG vulkan-sdk-1.4.304
+    )
+    FetchContent_MakeAvailable(khrSpirvReflect)
 endif()
 if(SUPPORT_SDL2)
     FetchContent_Declare(
@@ -319,7 +330,7 @@ endif()
         target_link_libraries(raygpu PUBLIC glfw)
     endif()
     if(SUPPORT_GLSL_PARSER)
-        target_link_libraries(raygpu PUBLIC glslang)
+        target_link_libraries(raygpu PUBLIC glslang spirv-reflect-static)
     endif()
 endif()
 

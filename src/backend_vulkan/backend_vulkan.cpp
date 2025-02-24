@@ -229,6 +229,8 @@ DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode m
                 return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
             case addressMode::repeat:
                 return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            default:
+                __builtin_unreachable();
         }
     };
     DescribedSampler ret{};// = callocnew(DescribedSampler);

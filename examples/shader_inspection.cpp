@@ -3,18 +3,21 @@
 #include <external/gl_corearb.h>
 const char* computeSource = R"(
 #version 450 core
-#extension GL_ARB_separate_shader_objects : enable
 
 layout(binding = 0) uniform texture2D texture0;
 layout(binding = 1) uniform sampler texSampler;  
 
-layout(std430, binding = 2) writeonly buffer DummyOutputBuffer {
+layout(binding = 2) uniform DummyUniformBuffer {
+    float udata[];
+}a;
+
+layout(std430, binding = 3) writeonly buffer DummyOutputBuffer {
     float data[];
 };
 
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 void main() {
-    data[0] += texture(sampler2D(texture0, texSampler), vec2(0, 0)).x;
+    data[0] += texture(sampler2D(texture0, texSampler), vec2(0, 0)).x + a.udata[0];
 }
 )";
 
