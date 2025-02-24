@@ -33,8 +33,10 @@
 #include <glslang/SPIRV/GlslangToSpv.h>
 #include <glslang/MachineIndependent/localintermediate.h>
 #include <glslang/Public/resource_limits_c.h>
+#include <spirv-reflect/spirv_reflect.h>
 #include <raygpu.h>
 #include <memory>
+#include <fstream>
 #ifdef GLSL_TO_WGSL
 #include <tint/tint.h>
 #include <tint/lang/core/ir/module.h>
@@ -205,9 +207,64 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
     else{
         TRACELOG(LOG_INFO, "Program linked successfully");
     }
+    auto spvdsToResourceType = [](SpvReflectDescriptorType spvType){
+        switch(spvType){
+            case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+                return texture2d;
+            case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+                return storage_texture2d;
+            break;
+            case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER:
+                return texture_sampler;
+            break;
+            case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+            default:
+                assert(false && "Unsupported");
+                __builtin_unreachable();
+        }
+    };
 
-    program.buildReflection();
     std::unordered_map<std::string, ResourceTypeDescriptor> ret;
+    for(const auto& [lang, shader] : shaders){
+        glslang::TIntermediate* intermediate = program.getIntermediate(lang);
+        std::vector<uint32_t> stageSpirv;
+        //glslang::SpvOptions options{.generateDebugInfo = true};
+        glslang::GlslangToSpv(*intermediate, stageSpirv);
+        spv_reflect::ShaderModule mod(stageSpirv);
+        uint32_t count = 0;
+        SpvReflectResult result = spvReflectEnumerateDescriptorSets(&mod.GetShaderModule(), &count, NULL);
+        assert(result == SPV_REFLECT_RESULT_SUCCESS);
+      
+        std::vector<SpvReflectDescriptorSet*> sets(count);
+        result = spvReflectEnumerateDescriptorSets(&mod.GetShaderModule(), &count, sets.data());
+        std::vector<SpvReflectInterfaceVariable*> vars;
+        uint32_t varcount;
+        spvReflectEnumerateInputVariables(&mod.GetShaderModule(), &varcount, nullptr);
+        vars.resize(varcount);
+        spvReflectEnumerateInputVariables(&mod.GetShaderModule(), &varcount, vars.data());
+
+        for(auto set : sets){
+        
+            for(uint32_t i = 0;i < set->binding_count;i++){
+                auto binding = set->bindings[i];
+                //std::cout << set->bindings[i]->name << ": " <<  set->bindings[i]->descriptor_type << "\n";
+                if(set->bindings[i]->descriptor_type == SpvReflectDescriptorType::SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER || set->bindings[i]->descriptor_type == SpvReflectDescriptorType::SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER){
+
+                }
+                else{
+                    ResourceTypeDescriptor insert zeroinit;
+                    insert.fstype = we_dont_know;
+                    insert.type = spvdsToResourceType(set->bindings[i]->descriptor_type);
+                    insert.location = set->bindings[i]->binding;
+                    ret[set->bindings[i]->name] = insert;
+                }
+                //std::cout << set->bindings[i]->block. << ": " <<  set->bindings[i]->descriptor_type << "\n";
+                
+            }
+        }
+        //std::cout << std::endl;
+    }
+    program.buildReflection();
     for(uint32_t i = 0;i < program.getNumUniformBlocks();i++){
         std::string name = program.getUniformBlockName(i);
         ResourceTypeDescriptor insert zeroinit;
@@ -223,34 +280,34 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
         insert.type = uniform ? uniform_buffer : storage_buffer;
         ret[program.getUniformBlockName(i)] = insert;
     }
-
-    for(uint32_t i = 0;i < program.getNumUniformVariables();i++){
-        if(program.getUniform(i).getBinding() != -1){
-            ResourceTypeDescriptor insert zeroinit;
-            
-            insert.location = program.getUniform(i).getBinding();
-            insert.minBindingSize = 0;
-            //insert.access = program.getUniformBlock(i).getType()->getQualifier().isWriteOnly() ? writeonly : (program.getUniformBlock(i).getType()->getQualifier().isReadOnly() ? readonly : readwrite);
-            //std::string storageOrUniform = program.getUniformBlock(i).getType()->getStorageQualifierString();
-            switch(program.getUniformType(i)){
-                case GL_SAMPLER_2D:
-                insert.type = texture_sampler;
-                break;
-                case GL_TEXTURE_2D:
-                insert.type = texture2d;
-                break;
-                
-                default:{
-                    const glslang::TType* oo = program.getUniformTType(i);
-                    bool cs = oo->containsSampler();
-                    std::cout << "not handled: " << program.getUniformType(i) << std::endl;
-                    //abort(); 
-                }break;
-            }
-            ret[program.getUniform(i).name] = insert;
-        }
-        //std::cout << program.getUniform(i).getBinding() << ": " << program.getUniform(i).name << " of type " << uniformTypeNames[program.getUniformType(i)] << "\n";
-    }
+//
+    //for(uint32_t i = 0;i < program.getNumUniformVariables();i++){
+    //    if(program.getUniform(i).getBinding() != -1){
+    //        ResourceTypeDescriptor insert zeroinit;
+    //        
+    //        insert.location = program.getUniform(i).getBinding();
+    //        insert.minBindingSize = 0;
+    //        //insert.access = program.getUniformBlock(i).getType()->getQualifier().isWriteOnly() ? writeonly : (program.getUniformBlock(i).getType()->getQualifier().isReadOnly() ? readonly : readwrite);
+    //        //std::string storageOrUniform = program.getUniformBlock(i).getType()->getStorageQualifierString();
+    //        switch(program.getUniformType(i)){
+    //            case GL_SAMPLER_2D:
+    //            insert.type = texture_sampler;
+    //            break;
+    //            case GL_TEXTURE_2D:
+    //            insert.type = texture2d;
+    //            break;
+    //            
+    //            default:{
+    //                const glslang::TType* oo = program.getUniformTType(i);
+    //                bool cs = oo->containsSampler();
+    //                std::cout << "not handled: " << program.getUniformType(i) << std::endl;
+    //                //abort(); 
+    //            }break;
+    //        }
+    //        ret[program.getUniform(i).name] = insert;
+    //    }
+    //    //std::cout << program.getUniform(i).getBinding() << ": " << program.getUniform(i).name << " of type " << uniformTypeNames[program.getUniformType(i)] << "\n";
+    //}
     //for(uint32_t i = 0;i < program.getNumUniformBlocks();i++){
     //    std::cout << program.getUniformBlock(i).getBinding() << ": " << program.getUniformBlockName(i) << "\n";
     //}
