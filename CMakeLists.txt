@@ -40,18 +40,19 @@ if(SUPPORT_WGPU_BACKEND OR SUPPORT_WGSL_PARSER)
     set(TINT_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
     set(DAWN_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
     set(TINT_BUILD_GLSL_VALIDATOR OFF CACHE BOOL "" FORCE)
-    set(TINT_BUILD_GLSL_WRITER ON CACHE BOOL "" FORCE)
-    set(TINT_BUILD_MSL_WRITER ON CACHE BOOL "" FORCE)
-    set(TINT_BUILD_HLSL_WRITER ON CACHE BOOL "" FORCE)
-    set(TINT_BUILD_TESTS ON CACHE BOOL "" FORCE)
+    set(TINT_BUILD_GLSL_WRITER OFF CACHE BOOL "" FORCE)
+    set(TINT_BUILD_MSL_WRITER OFF CACHE BOOL "" FORCE)
+    set(TINT_BUILD_HLSL_WRITER OFF CACHE BOOL "" FORCE)
+    set(TINT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(DAWN_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "" FORCE)
     set(DAWN_FETCH_DEPENDENCIES OFF CACHE BOOL "" FORCE)
     set(DAWN_BUILD_MONOLITHIC_LIBRARY ON CACHE BOOL "" FORCE)
     set(DAWN_ENABLE_OPENGLES OFF CACHE BOOL "" FORCE)
     set(DAWN_ENABLE_DESKTOP_GL OFF CACHE BOOL "" FORCE)
-    set(DAWN_ENABLE_INSTALL ON CACHE BOOL "Enable install step for Dawn libraries")
-    set(TINT_ENABLE_INSTALL ON CACHE BOOL "Enable install step for Tint libraries")
+    set(DAWN_ENABLE_SPIRV_VALIDATION OFF CACHE BOOL "" FORCE)
+    set(DAWN_ENABLE_INSTALL ON CACHE BOOL "Enable install step for Dawn libraries"  FORCE)
+    set(TINT_ENABLE_INSTALL OFF CACHE BOOL "Enable install step for Tint libraries" FORCE)
     set(BUILD_GMOCK ON CACHE BOOL "" FORCE)
     if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/dawn/CMakeLists.txt")
         # Use the local dawn directory
@@ -110,9 +111,9 @@ if(NOT EMSCRIPTEN AND SUPPORT_GLSL_PARSER)
         URL      https://github.com/KhronosGroup/glslang/archive/refs/tags/15.1.0.tar.gz
         DOWNLOAD_EXTRACT_TIMESTAMP True
     )
-    if(NOT DAWN_IS_IN_USE)
+    #if(NOT DAWN_IS_IN_USE)
         FetchContent_MakeAvailable(khrGlslang)
-    endif()
+    #endif()
     option(SPIRV_REFLECT_STATIC_LIB "" ON)
     option(SPIRV_REFLECT_EXECUTABLE "" OFF)
     option(SPIRV_REFLECT_EXAMPLES "" OFF)
@@ -303,7 +304,6 @@ if(SUPPORT_VULKAN_BACKEND)
 else()
     target_link_libraries(raygpu PUBLIC
         webgpu_dawn
-        tint_api
         #webgpu_cpp
         #tint_api_common
         #tint_lang_wgsl_reader
@@ -321,6 +321,7 @@ else()
         
         #target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
     )
+    target_link_libraries(raygpu PRIVATE tint_api)
     # target_include_directories(raygpu PUBLIC
     #     $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/include/>  
     #     $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/src>
@@ -332,7 +333,7 @@ else()
 
 endif()
 if(SUPPORT_WGSL_PARSER)
-    target_link_libraries(raygpu PUBLIC tint_api ) #tint_lang_wgsl_reader tint_lang_wgsl_inspector tint_lang_wgsl_resolver tint_lang_spirv_writer)
+    target_link_libraries(raygpu PRIVATE tint_api) #tint_lang_wgsl_reader tint_lang_wgsl_inspector tint_lang_wgsl_resolver tint_lang_spirv_writer)
     #target_include_directories(raygpu PUBLIC  
     #    $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/include/>  
     #    $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/src>

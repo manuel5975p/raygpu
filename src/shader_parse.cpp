@@ -34,6 +34,7 @@
 
 #if defined(SUPPORT_WGSL_PARSER) && SUPPORT_WGSL_PARSER == 1
 #include <tint/tint.h>
+#include "src/tint/lang/wgsl/ast/override.h"
 #include "src/tint/lang/wgsl/ast/var.h"
 #include "src/tint/lang/wgsl/ast/const.h"
 #include "src/tint/lang/wgsl/ast/templated_identifier.h"
