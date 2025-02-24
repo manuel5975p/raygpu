@@ -555,6 +555,8 @@ QueueIndices findQueueFamilies() {
         VkBool32 presentSupport = VK_TRUE;
         #elif defined(MAIN_WINDOW_GLFW)
         VkBool32 presentSupport = glfwGetPhysicalDevicePresentationSupport(g_vulkanstate.instance, g_vulkanstate.physicalDevice, i) ? VK_TRUE : VK_FALSE;
+        #else
+        VkBool32 presentSupport = VK_FALSE;
         #endif
         //vkGetPhysicalDeviceSurfaceSupportKHR(g_vulkanstate.physicalDevice, i, g_vulkanstate.surface.surface, &presentSupport);
         if (!!presentSupport && ret.presentIndex == UINT32_MAX) {

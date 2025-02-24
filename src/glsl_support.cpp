@@ -28,7 +28,7 @@
 
 #if SUPPORT_GLSL_PARSER == 1
 //#include <SPIRV/GlslangToSpv.h>
-#include "gl_corearb.h"
+#include <external/gl_corearb.h>
 #include <glslang/Public/ShaderLang.h>
 #include <glslang/SPIRV/GlslangToSpv.h>
 #include <glslang/MachineIndependent/localintermediate.h>
@@ -219,7 +219,7 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
         insert.access = program.getUniformBlock(i).getType()->getQualifier().isWriteOnly() ? writeonly : (program.getUniformBlock(i).getType()->getQualifier().isReadOnly() ? readonly : readwrite);
         
         std::string storageOrUniform = program.getUniformBlock(i).getType()->getStorageQualifierString();
-        bool uniform = storageOrUniform.find("storage") == std::string::npos;
+        bool uniform = storageOrUniform.find("uniform") != std::string::npos;
         insert.type = uniform ? uniform_buffer : storage_buffer;
         ret[program.getUniformBlockName(i)] = insert;
     }
@@ -230,13 +230,26 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
             
             insert.location = program.getUniform(i).getBinding();
             insert.minBindingSize = 0;
-            
             //insert.access = program.getUniformBlock(i).getType()->getQualifier().isWriteOnly() ? writeonly : (program.getUniformBlock(i).getType()->getQualifier().isReadOnly() ? readonly : readwrite);
             //std::string storageOrUniform = program.getUniformBlock(i).getType()->getStorageQualifierString();
-
+            switch(program.getUniformType(i)){
+                case GL_SAMPLER_2D:
+                insert.type = texture_sampler;
+                break;
+                case GL_TEXTURE_2D:
+                insert.type = texture2d;
+                break;
+                
+                default:{
+                    const glslang::TType* oo = program.getUniformTType(i);
+                    bool cs = oo->containsSampler();
+                    std::cout << "not handled: " << program.getUniformType(i) << std::endl;
+                    //abort(); 
+                }break;
+            }
             ret[program.getUniform(i).name] = insert;
-            //std::cout << program.getUniform(i).getBinding() << ": " << program.getUniform(i).name << " of type " << uniformTypeNames[program.getUniformType(i)] << "\n";
         }
+        //std::cout << program.getUniform(i).getBinding() << ": " << program.getUniform(i).name << " of type " << uniformTypeNames[program.getUniformType(i)] << "\n";
     }
     //for(uint32_t i = 0;i < program.getNumUniformBlocks();i++){
     //    std::cout << program.getUniformBlock(i).getBinding() << ": " << program.getUniformBlockName(i) << "\n";
