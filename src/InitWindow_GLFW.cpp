@@ -1,9 +1,12 @@
 #include <raygpu.h>
 #include <GLFW/glfw3.h>
-#include <wgpustate.inc>
+//#include <wgpustate.inc>
+#include <renderstate.inc>
 #include <internals.hpp>
 #include "GLFW/glfw3.h"
+#if SUPPORT_WGPU_BACKEND == 1
 #include "webgpu/webgpu_glfw.h"
+#endif
 #ifdef __EMSCRIPTEN__
 #include <emscripten/html5.h>
 #include <emscripten/emscripten.h>
@@ -491,39 +494,39 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
 }
 extern "C" SubWindow OpenSubWindow_GLFW(uint32_t width, uint32_t height, const char* title){
     SubWindow ret{};
-    #ifndef __EMSCRIPTEN__
-    glfwInit();
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, (g_renderstate.windowFlags & FLAG_WINDOW_RESIZABLE ) ? GLFW_TRUE : GLFW_FALSE);
-    glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
-    ret.handle = glfwCreateWindow(width, height, title, nullptr, nullptr);
-    WGPUInstance inst = (WGPUInstance)GetInstance();
-    wgpu::Surface secondSurface = wgpu::glfw::CreateSurfaceForWindow(inst, (GLFWwindow*)ret.handle);
-    wgpu::SurfaceCapabilities capabilities;
-    secondSurface.GetCapabilities(GetCXXAdapter(), &capabilities);
-    wgpu::SurfaceConfiguration config = {};
-    config.device = GetCXXDevice();
-    config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
-    config.format = (wgpu::TextureFormat)g_renderstate.frameBufferFormat;
-    config.presentMode = (wgpu::PresentMode)g_renderstate.unthrottled_PresentMode;
-    config.width = width;
-    config.height = height;
-    secondSurface.Configure(&config);
-    SurfaceConfiguration cf;
-
-    ret.surface.surfaceConfig = SurfaceConfiguration{
-        static_cast<void*>(config.device.Get()),
-        config.width,
-        config.height,
-        (PixelFormat)config.format,
-        (PresentMode)config.presentMode
-    };
-    ret.surface.surface = secondSurface.MoveToCHandle();
-    ret.surface.renderTarget = LoadRenderTexture(config.width, config.height);
-    g_renderstate.createdSubwindows[ret.handle] = ret;
-    g_renderstate.input_map[(GLFWwindow*)ret.handle] = window_input_state{};
-    setupGLFWCallbacks((GLFWwindow*)ret.handle);
-    #endif
+    //#ifndef __EMSCRIPTEN__
+    //glfwInit();
+    //glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    //glfwWindowHint(GLFW_RESIZABLE, (g_renderstate.windowFlags & FLAG_WINDOW_RESIZABLE ) ? GLFW_TRUE : GLFW_FALSE);
+    //glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
+    //ret.handle = glfwCreateWindow(width, height, title, nullptr, nullptr);
+    //WGPUInstance inst = (WGPUInstance)GetInstance();
+    //wgpu::Surface secondSurface = wgpu::glfw::CreateSurfaceForWindow(inst, (GLFWwindow*)ret.handle);
+    //wgpu::SurfaceCapabilities capabilities;
+    //secondSurface.GetCapabilities(GetCXXAdapter(), &capabilities);
+    //wgpu::SurfaceConfiguration config = {};
+    //config.device = GetCXXDevice();
+    //config.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
+    //config.format = (wgpu::TextureFormat)g_renderstate.frameBufferFormat;
+    //config.presentMode = (wgpu::PresentMode)g_renderstate.unthrottled_PresentMode;
+    //config.width = width;
+    //config.height = height;
+    //secondSurface.Configure(&config);
+    //SurfaceConfiguration cf;
+//
+    //ret.surface.surfaceConfig = SurfaceConfiguration{
+    //    static_cast<void*>(config.device.Get()),
+    //    config.width,
+    //    config.height,
+    //    (PixelFormat)config.format,
+    //    (PresentMode)config.presentMode
+    //};
+    //ret.surface.surface = secondSurface.MoveToCHandle();
+    //ret.surface.renderTarget = LoadRenderTexture(config.width, config.height);
+    //g_renderstate.createdSubwindows[ret.handle] = ret;
+    //g_renderstate.input_map[(GLFWwindow*)ret.handle] = window_input_state{};
+    //setupGLFWCallbacks((GLFWwindow*)ret.handle);
+    //#endif
     return ret;
 }
 extern "C" bool WindowShouldClose_GLFW(GLFWwindow* win){

@@ -2,7 +2,7 @@
 #include <raygpu.h>
 #include <set>
 #include <vulkan/vulkan_core.h>
-#include <wgpustate.inc>
+#include <renderstate.inc>
 #include "vulkan_internals.hpp"
 
 
@@ -154,6 +154,12 @@ extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t width, uint32_t he
     UnloadTexture(fsurface->renderTarget.depth);
     fsurface->renderTarget.depth = LoadTexturePro(width, height, Depth32, TextureUsage_RenderAttachment, 1, 1);
 }
+extern "C" void BeginComputepassEx(DescribedComputepass* computePass){
+    
+}
+extern "C" void EndComputepassEx(DescribedComputepass* computePass){
+    
+}
 
 extern "C" DescribedRenderpass LoadRenderpassEx(RenderSettings settings, bool colorClear, DColor colorClearValue, bool depthClear, float depthClearValue){
     DescribedRenderpass ret{};
@@ -299,6 +305,34 @@ void* GetAdapter(){
     return g_vulkanstate.physicalDevice;
 }
 // Function to create Vulkan instance
+static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT messageType,
+    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+    void* pUserData) {
+    if(messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT){
+        TRACELOG(LOG_ERROR, pCallbackData->pMessage);
+        __builtin_trap();
+    }
+    else if(messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT){
+        TRACELOG(LOG_WARNING, pCallbackData->pMessage);
+    }
+    else if(messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT){
+        TRACELOG(LOG_INFO, pCallbackData->pMessage);
+    }
+   
+    
+
+    return VK_FALSE;
+}
+VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
+    auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+    if (func != nullptr) {
+        return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
+    } else {
+        return VK_ERROR_EXTENSION_NOT_PRESENT;
+    }
+}
 VkInstance createInstance() {
     VkInstance ret{};
 
@@ -356,15 +390,21 @@ VkInstance createInstance() {
 
     // Copy GLFW extensions to a vector
     std::vector<const char *> extensions(windowExtensions, windowExtensions + requiredGLFWExtensions);
-    
-    uint32_t instanceExtensionCount = 0;
 
+    uint32_t instanceExtensionCount = 0;
+    
     vkEnumerateInstanceExtensionProperties(NULL, &instanceExtensionCount, NULL);
-    std::vector<VkExtensionProperties> availableInstanceExtensions(instanceExtensionCount);
-    vkEnumerateInstanceExtensionProperties(NULL, &instanceExtensionCount, availableInstanceExtensions.data());
-    for(auto& ext : availableInstanceExtensions){
-        //std::cout << ext.extensionName << ", ";
+    std::vector<VkExtensionProperties> availableInstanceExtensions_vec(instanceExtensionCount);
+    vkEnumerateInstanceExtensionProperties(NULL, &instanceExtensionCount, availableInstanceExtensions_vec.data());
+    std::unordered_set<std::string> availableInstanceExtensions;
+    for(auto ext : availableInstanceExtensions_vec){
+        availableInstanceExtensions.emplace(ext.extensionName);
     }
+    #ifndef NDEBUG
+    if(availableInstanceExtensions.find(VK_EXT_DEBUG_UTILS_EXTENSION_NAME) != availableInstanceExtensions.end()){
+        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    }
+    #endif
     //std::cout << std::endl;
     //extensions.push_back(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME);
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
@@ -379,6 +419,22 @@ VkInstance createInstance() {
     } else {
         TRACELOG(LOG_INFO, "Successfully created Vulkan instance");
     }
+    #ifndef NDEBUG
+    
+    VkDebugUtilsMessengerEXT debugMessenger zeroinit;
+    {
+        VkDebugUtilsMessengerCreateInfoEXT createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+        createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+        createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+        createInfo.pfnUserCallback = debugCallback;
+        createInfo.pUserData = nullptr; // Optional
+        VkResult dbcResult = CreateDebugUtilsMessengerEXT(ret, &createInfo, nullptr, &debugMessenger);
+        if (dbcResult != VK_SUCCESS) {
+            TRACELOG(LOG_ERROR, "Failed to set up debug callback, error code: %d! Valudation errors will be printed but ignored", (int)dbcResult);
+        }
+    }
+#endif
 
     
     return ret;
@@ -791,7 +847,7 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     cedesc.recyclable = true;
     for(uint32_t i = 0;i < framesInFlight;i++){
         VkCommandPoolCreateInfo pci zeroinit;
-        pci.flags = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         pci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         vkCreateCommandPool(ret.first->device, &pci, nullptr, &ret.first->frameCaches[i].commandPool);
     }
@@ -1055,6 +1111,12 @@ extern "C" void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode
     wgvkRenderPassEncoderBindDescriptorSet((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, (WGVKBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup));
     //wgvkRenderPassEncoderSetBindGroup ((WGPURenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
 
+}
+extern "C" void CopyTextureToTexture(Texture source, Texture dest){
+    TRACELOG(LOG_FATAL, "Unimplemented function: %s", __FUNCTION__);
+}
+void ComputepassEndOnlyComputing(cwoid){
+    TRACELOG(LOG_FATAL, "Unimplemented function: %s", __FUNCTION__);
 }
 
 extern "C" void EndRenderpassEx(DescribedRenderpass* rp){

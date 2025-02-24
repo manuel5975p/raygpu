@@ -30,28 +30,7 @@
 #include <cassert>
 #include <iostream>
 #include <internals.hpp>
-typedef struct StringToUniformMap{
-    std::unordered_map<std::string, ResourceTypeDescriptor> uniforms;
-    ResourceTypeDescriptor operator[](const std::string& v)const noexcept{
-        return uniforms.find(v)->second;
-    }
-    uint32_t GetLocation(const std::string& v)const noexcept{
-        auto it = uniforms.find(v);
-        if(it == uniforms.end())
-            return LOCATION_NOT_FOUND;
-        return it->second.location;
-    }
-    ResourceTypeDescriptor operator[](const char* v)const noexcept{
-        return uniforms.find(v)->second;
-    }
-    uint32_t GetLocation(const char* v)const noexcept{
-        auto it = uniforms.find(v);
-        if(it == uniforms.end())
-            return LOCATION_NOT_FOUND;
-        return it->second.location;
-        
-    }
-}StringToUniformMap;
+
 
 
 
@@ -106,13 +85,7 @@ extern "C" DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, Verte
 
     return pl;
 }
-uint32_t GetUniformLocation(DescribedPipeline* pl, const char* uniformName){
-    return LOCATION_NOT_FOUND;
-    return pl->sh.uniformLocations->GetLocation(uniformName);
-}
-uint32_t GetUniformLocationCompute(DescribedComputePipeline* pl, const char* uniformName){
-    return pl->shaderModule.uniformLocations->GetLocation(uniformName);
-}
+
 DescribedPipeline* LoadPipelineForVAOEx(const char* shaderSource, VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
     DescribedPipeline* pl = LoadPipelineEx(shaderSource, nullptr, 0, uniforms, uniformCount, settings);
     PreparePipeline(pl, vao);
@@ -373,28 +346,7 @@ extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const A
 std::vector<AttributeAndResidence> GetAttributesAndResidences(const VertexArray* va){
     return va->attributes;
 }
-extern "C" void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va){
-    
-    auto plquart = GetPipelinesForLayout(pipeline, va->attributes);
-    //pipeline->descriptor.vertex.buffers = pipeline->vbLayouts;
 
-    //if(pipeline->pipeline)
-    //    wgpuRenderPipelineRelease(pipeline->pipeline);
-    //if(pipeline->pipeline_TriangleStrip)
-    //    wgpuRenderPipelineRelease(pipeline->pipeline_TriangleStrip);
-    //if(pipeline->pipeline_LineList)
-    //    wgpuRenderPipelineRelease(pipeline->pipeline_LineList);
-
-    pipeline->quartet = plquart;
-    //pipeline->pipeline = wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipeline->descriptor);
-    //pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_LineList;
-    //pipeline->pipeline_LineList = wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipeline->descriptor);
-    //pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleStrip;
-    //pipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
-    //pipeline->pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipeline->descriptor);
-    //pipeline->descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
-    //pipeline->descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
-}
 WGPUBuffer cloneBuffer(WGPUBuffer b, WGPUBufferUsage usage){
     WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder((WGPUDevice)GetDevice(), nullptr);
     WGPUBufferDescriptor retd{};
@@ -536,24 +488,7 @@ Shader LoadShaderFromMemory(const char *vertexSource, const char *fragmentSource
 Texture GetDefaultTexture(cwoid){
     return g_renderstate.whitePixel;
 }
-RenderSettings GetDefaultSettings(){
-    RenderSettings ret zeroinit;
-    ret.faceCull = 1;
-    ret.frontFace = FrontFace_CCW;
-    ret.depthTest = 1;
-    ret.depthCompare = CompareFunction_LessEqual;
-    ret.sampleCount = (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
 
-    ret.blendFactorSrcAlpha = BlendFactor_One;
-    ret.blendFactorDstAlpha = BlendFactor_OneMinusSrcAlpha;
-    ret.blendOperationAlpha = BlendOperation_Add;
-
-    ret.blendFactorSrcColor = BlendFactor_SrcAlpha;
-    ret.blendFactorDstColor = BlendFactor_OneMinusSrcAlpha;
-    ret.blendOperationColor = BlendOperation_Add;
-    
-    return ret;
-}
 DescribedPipeline* DefaultPipeline(){
     return g_renderstate.defaultPipeline;
 }
@@ -583,14 +518,7 @@ DescribedPipeline* Relayout(DescribedPipeline* pl, VertexArray* vao){
 }
 
 
-NativeBindgroupHandle UpdateAndGetNativeBindGroup(DescribedBindGroup* bg){
-    if(bg->needsUpdate){
-        UpdateBindGroup(bg);
-        //bg->bindGroup = wgpuDeviceCreateBindGroup((WGPUDevice)GetDevice(), &(bg->desc));
-        bg->needsUpdate = false;
-    }
-    return bg->bindGroup;
-}
+
 extern "C" void UnloadBindGroup(DescribedBindGroup* bg){
     free(bg->entries);
     wgpuBindGroupRelease((WGPUBindGroup)bg->bindGroup);

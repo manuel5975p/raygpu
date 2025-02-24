@@ -80,6 +80,7 @@
 //----------------------------------------------------------------------------------
 using Texture2D = Texture;
 extern "C" Texture2D texShapes;                // Texture used on shapes drawing (white pixel loaded by rlgl)
+Texture2D texShapes;
 static Rectangle texShapesRec = {0.0f, 0.0f, 1.0f, 1.0f};    // Texture source rectangle used on shapes drawing
 constexpr float PI = M_PI;
 //----------------------------------------------------------------------------------

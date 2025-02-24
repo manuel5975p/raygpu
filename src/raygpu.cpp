@@ -51,7 +51,17 @@ extern "C" void ToggleFullscreenImpl(cwoid);
 #include <renderstate.inc>
 renderstate g_renderstate{};
 
-
+ShaderSourceType detectShaderLanguage(std::string_view source){
+    if(source.find("@location") != std::string::npos || source.find("@binding") != std::string::npos){
+        return sourceTypeWGSL;
+    }
+    else if(source.find("#version") != std::string::npos){
+        return sourceTypeGLSL;
+    }
+    else{
+        return sourceTypeUnknown;
+    }
+}
 
 typedef struct GIFRecordState{
     uint64_t delayInCentiseconds;
@@ -947,7 +957,25 @@ void DrawFPS(int posX, int posY){
 extern "C" Texture3D LoadTexture3DEx(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format){
     return LoadTexture3DPro(width, height, depth, format, TextureUsage_CopyDst | TextureUsage_TextureBinding | TextureUsage_StorageBinding, 1);
 }
-
+uint32_t GetUniformLocation(DescribedPipeline* pl, const char* uniformName){
+    return LOCATION_NOT_FOUND;
+    return pl->sh.uniformLocations->GetLocation(uniformName);
+}
+uint32_t GetUniformLocationCompute(DescribedComputePipeline* pl, const char* uniformName){
+    return pl->shaderModule.uniformLocations->GetLocation(uniformName);
+}
+NativeBindgroupHandle UpdateAndGetNativeBindGroup(DescribedBindGroup* bg){
+    if(bg->needsUpdate){
+        UpdateBindGroup(bg);
+        //bg->bindGroup = wgpuDeviceCreateBindGroup((WGPUDevice)GetDevice(), &(bg->desc));
+        bg->needsUpdate = false;
+    }
+    return bg->bindGroup;
+}
+extern "C" void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va){
+    auto plquart = GetPipelinesForLayout(pipeline, va->attributes);
+    pipeline->quartet = plquart;
+}
 constexpr char mipmapComputerSource[] = R"(
 @group(0) @binding(0) var previousMipLevel: texture_2d<f32>;
 @group(0) @binding(1) var nextMipLevel: texture_storage_2d<rgba8unorm, write>;
@@ -1552,6 +1580,24 @@ void NanoWaitImpl(uint64_t stmp){
 extern "C" void NanoWait(uint64_t time){
     NanoWaitImpl(NanoTime() + time);
     return;
+}
+RenderSettings GetDefaultSettings(){
+    RenderSettings ret zeroinit;
+    ret.faceCull = 1;
+    ret.frontFace = FrontFace_CCW;
+    ret.depthTest = 1;
+    ret.depthCompare = CompareFunction_LessEqual;
+    ret.sampleCount = (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
+
+    ret.blendFactorSrcAlpha = BlendFactor_One;
+    ret.blendFactorDstAlpha = BlendFactor_OneMinusSrcAlpha;
+    ret.blendOperationAlpha = BlendOperation_Add;
+
+    ret.blendFactorSrcColor = BlendFactor_SrcAlpha;
+    ret.blendFactorDstColor = BlendFactor_OneMinusSrcAlpha;
+    ret.blendOperationColor = BlendOperation_Add;
+    
+    return ret;
 }
 FILE* tracelogFile = stdout;
 int tracelogLevel = LOG_INFO;

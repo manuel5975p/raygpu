@@ -101,12 +101,13 @@ function(download_file_if_not_exists url filename)
     endif()
 endfunction()
 if(NOT EMSCRIPTEN AND SUPPORT_GLSL_PARSER)
-    #FetchContent_Declare(
-    #    khrGlslang
-    #    URL      https://github.com/KhronosGroup/glslang/archive/refs/tags/15.1.0.tar.gz
-    #    DOWNLOAD_EXTRACT_TIMESTAMP True
-    #)
-    #FetchContent_MakeAvailable(khrGlslang)
+    option(ENABLE_OPT "Enable glslang spirv optimizations (requires spirv-tools)" OFF)
+    FetchContent_Declare(
+        khrGlslang
+        URL      https://github.com/KhronosGroup/glslang/archive/refs/tags/15.1.0.tar.gz
+        DOWNLOAD_EXTRACT_TIMESTAMP True
+    )
+    FetchContent_MakeAvailable(khrGlslang)
 endif()
 if(SUPPORT_SDL2)
     FetchContent_Declare(
@@ -149,7 +150,7 @@ set(RG_SOURCES
     "src/msf_gif_impl.c"
     "src/rtext.c"
     "src/rshapes.cpp"
-    "src/pipeline.cpp"
+    
     "src/models.cpp"
     "src/windows_stuff.c"
 )
@@ -160,7 +161,10 @@ if(SUPPORT_VULKAN_BACKEND)
     list(APPEND RG_SOURCES "src/backend_vulkan/wgvk.cpp")
 endif()
 if(SUPPORT_WGPU_BACKEND)
-    list(APPEND RG_SOURCES "src/backend_wgpu.cpp")
+    list(APPEND RG_SOURCES
+        "src/backend_wgpu.cpp"
+        "src/pipeline.cpp"
+    )
 endif()
 if(SUPPORT_SDL2)
     list(APPEND RG_SOURCES "src/InitWindow_SDL2.cpp")
@@ -171,7 +175,10 @@ if(SUPPORT_SDL3)
     list(APPEND RG_SOURCES "src/sdl3webgpu.cpp")
 endif()
 if(SUPPORT_GLFW)
-    list(APPEND RG_SOURCES "src/dawn_glfwrip.cpp" "src/InitWindow_GLFW.cpp")
+    list(APPEND RG_SOURCES "src/InitWindow_GLFW.cpp")
+    if(SUPPORT_WGPU_BACKEND)
+        list(APPEND RG_SOURCES "src/dawn_glfwrip.cpp")
+    endif()
 endif()
 if (NOT EMSCRIPTEN)
     list(APPEND RG_SOURCES "src/glsl_support.cpp")
@@ -272,7 +279,7 @@ if(EMSCRIPTEN)
     #target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
 else()
 if(SUPPORT_VULKAN_BACKEND)
-    target_link_libraries(raygpu PUBLIC vulkan)
+    target_link_libraries(raygpu PUBLIC vulkan glslang)
 else()
     target_link_libraries(raygpu PUBLIC
         webgpu_dawn

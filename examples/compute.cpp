@@ -59,7 +59,7 @@ void mainloop(void){
 
     BeginPipelineMode(rpl);
     BindPipelineVertexArray(rpl, vao);
-    DrawArraysInstanced(WGPUPrimitiveTopology_TriangleStrip, 4, parts);
+    DrawArraysInstanced(RL_TRIANGLE_STRIP, 4, parts);
     EndPipelineMode();
 
     DrawFPS(10, 10);

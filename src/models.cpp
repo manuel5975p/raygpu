@@ -111,9 +111,9 @@ extern "C" void DrawMeshInstanced(Mesh mesh, Material material, const Matrix* tr
     SetTexture(GetUniformLocation(GetActivePipeline(), RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE0), material.maps[MATERIAL_MAP_DIFFUSE].texture);
     BindPipelineVertexArray(GetActivePipeline(), mesh.vao);
     if(mesh.ibo){
-        DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, *mesh.ibo, mesh.triangleCount * 3, instances);
+        DrawArraysIndexedInstanced(RL_TRIANGLES, *mesh.ibo, mesh.triangleCount * 3, instances);
     }else{
-        DrawArraysInstanced(WGPUPrimitiveTopology_TriangleList, mesh.vertexCount, instances);
+        DrawArraysInstanced(RL_TRIANGLES, mesh.vertexCount, instances);
     }
     //wgpuBufferRelease(trfBuffer.buffer);
 }
@@ -122,9 +122,9 @@ extern "C" void DrawMesh(Mesh mesh, Material material, Matrix transform){
     SetTexture(GetUniformLocation(GetActivePipeline(), RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE0), material.maps[MATERIAL_MAP_DIFFUSE].texture);
     BindPipelineVertexArray(GetActivePipeline(), mesh.vao);
     if(mesh.ibo){
-        DrawArraysIndexed(WGPUPrimitiveTopology_TriangleList, *mesh.ibo, mesh.triangleCount * 3);
+        DrawArraysIndexed(RL_TRIANGLES, *mesh.ibo, mesh.triangleCount * 3);
     }else{
-        DrawArrays(WGPUPrimitiveTopology_TriangleList, mesh.vertexCount);
+        DrawArrays(RL_TRIANGLES, mesh.vertexCount);
     }
 }
 void ProcessMaterialsOBJ(Material *materials, tinyobj_material_t *mats, int materialCount, const char* directory){

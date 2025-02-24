@@ -83,6 +83,10 @@ inline void UnloadBufferLayoutSet(VertexBufferLayoutSet set){
     std::free(set.attributePool);
 }
 
+ShaderSourceType detectShaderLanguage(std::string_view source);
+std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSources source);
+
+
 extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, const std::vector<AttributeAndResidence>& attribs);
 inline VertexBufferLayoutSet getBufferLayoutRepresentation(const AttributeAndResidence* attributes, const uint32_t number_of_attribs){
     uint32_t maxslot = 0;
@@ -268,6 +272,30 @@ typedef struct VertexArray{
     }
     
 }VertexArray;
+
+
+typedef struct StringToUniformMap{
+    std::unordered_map<std::string, ResourceTypeDescriptor> uniforms;
+    ResourceTypeDescriptor operator[](const std::string& v)const noexcept{
+        return uniforms.find(v)->second;
+    }
+    uint32_t GetLocation(const std::string& v)const noexcept{
+        auto it = uniforms.find(v);
+        if(it == uniforms.end())
+            return LOCATION_NOT_FOUND;
+        return it->second.location;
+    }
+    ResourceTypeDescriptor operator[](const char* v)const noexcept{
+        return uniforms.find(v)->second;
+    }
+    uint32_t GetLocation(const char* v)const noexcept{
+        auto it = uniforms.find(v);
+        if(it == uniforms.end())
+            return LOCATION_NOT_FOUND;
+        return it->second.location;
+        
+    }
+}StringToUniformMap;
 
 
 namespace std{
