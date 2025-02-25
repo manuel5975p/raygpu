@@ -403,6 +403,7 @@ VkInstance createInstance() {
     std::unordered_set<std::string> availableInstanceExtensions;
     for(auto ext : availableInstanceExtensions_vec){
         availableInstanceExtensions.emplace(ext.extensionName);
+        //std::cout << ext.extensionName << ", ";
     }
     #ifndef NDEBUG
     if(availableInstanceExtensions.find(VK_EXT_DEBUG_UTILS_EXTENSION_NAME) != availableInstanceExtensions.end()){
@@ -801,7 +802,14 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
         queueCreateInfo.pQueuePriorities = &queuePriority;
         queueCreateInfos.push_back(queueCreateInfo);
     }
-
+    uint32_t deviceExtensionCount = 0;
+    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &deviceExtensionCount, nullptr);
+    std::vector<VkExtensionProperties> deprops(deviceExtensionCount);
+    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &deviceExtensionCount, deprops.data());
+    
+    for(auto e : deprops){
+        //std::cout << e.extensionName << ", ";
+    }
     // Specify device extensions
     std::vector<const char *> deviceExtensions = {
         #ifndef FORCE_HEADLESS

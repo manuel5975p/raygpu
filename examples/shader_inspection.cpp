@@ -129,12 +129,13 @@ constexpr char shaderSourceWGSL[] = R"(
 int main(){
     InitWindow(800, 800, "as");
     ShaderSources sources zeroinit;
+    ShaderSources wgslSources zeroinit;
     //sources.computeSource = computeSource;
     sources.vertexSource = vertexSourceGLSL;
     sources.fragmentSource = fragmentSourceGLSL;
-    
+    wgslSources.vertexAndFragmentSource = shaderSourceWGSL;
     auto comp = getBindingsGLSL(sources);
-    auto wgcomp = getBindings(shaderSourceWGSL);
+    auto wgcomp = getBindings(wgslSources);
     for(auto [n, l] : wgcomp){
         std::cout << n << ": " << l.location << ", " << l.type <<  "\n";
     }

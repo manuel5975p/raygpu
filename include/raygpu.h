@@ -772,7 +772,7 @@ typedef struct VertexStateToPipelineMap{
  * @param shaderSource 
  * @return std::unordered_map<std::string, std::pair<uint32_t, UniformDescriptor>> 
  */
-std::unordered_map<std::string, ResourceTypeDescriptor> getBindings(const char* shaderSource);
+std::unordered_map<std::string, ResourceTypeDescriptor> getBindings(ShaderSources source);
 /**
  * @brief returning a map from 
  * Attribute name -> Attribute format (vec2f, vec3f, etc.) and attribute location
