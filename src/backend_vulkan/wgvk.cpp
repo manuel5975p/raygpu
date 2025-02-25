@@ -659,6 +659,9 @@ void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
         for(auto rp : commandBuffer->referencedRPs){
             wgvkReleaseRenderPassEncoder(rp);
         }
+        for(auto rp : commandBuffer->referencedCPs){
+            wgvkReleaseComputePassEncoder(rp);
+        }
         VkCommandPool pool = commandBuffer->device->frameCaches[commandBuffer->cacheIndex].commandPool;
         vkFreeCommandBuffers(commandBuffer->device->device, pool, 1, &commandBuffer->buffer);
         //vkDestroyCommandPool(g_vulkanstate.device->device, commandBuffer->pool, nullptr);
@@ -765,6 +768,33 @@ void wgvkRenderPassEncoderBindDescriptorSet(WGVKRenderPassEncoder rpe, uint32_t 
 
     rpe->resourceUsage.track(dset);
 }
+extern "C" void wgvkComputePassEncoderSetPipeline (WGVKComputePassEncoder cpe, VkPipeline pipeline){
+    
+}
+extern "C" void wgvkComputePassEncoderSetBindGroup(WGVKComputePassEncoder cpe, uint32_t groupIndex, WGVKBindGroup bindGroup){
+
+}
+extern "C" WGVKComputePassEncoder wgvkCommandEncoderBeginComputePass(WGVKCommandEncoder commandEncoder){
+    WGVKComputePassEncoder ret = callocnewpp(WGVKComputePassEncoderImpl);
+    ret->refCount = 1;
+    commandEncoder->referencedCPs.insert(ret);
+    ret->cmdEncoder = commandEncoder;
+    ret->cmdBuffer = commandEncoder->buffer;
+    ret->device = commandEncoder->device;
+    return ret;
+}
+extern "C" void wgvkCommandEncoderEndComputePass(WGVKCommandEncoder commandEncoder){
+    
+}
+extern "C" void wgvkReleaseComputePassEncoder(WGVKComputePassEncoder cpenc){
+    --cpenc->refCount;
+    if(cpenc->refCount == 0){
+        cpenc->resourceUsage.releaseAllAndClear();
+        cpenc->~WGVKComputePassEncoderImpl();
+        std::free(cpenc);
+    }
+}
+
 
 void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t binding, WGVKBuffer buffer, VkDeviceSize offset) {
     assert(rpe != nullptr && "RenderPassEncoderHandle is null");
