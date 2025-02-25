@@ -615,6 +615,10 @@ void wgvkRenderPassEncoderTransitionTextureLayout(WGVKRenderPassEncoder encoder,
 void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout oldLayout, VkImageLayout newLayout){
     impl_transition(encoder->buffer, texture, oldLayout, newLayout);
 }
+extern "C" void wgvkComputePassEncoderDispatchWorkgroups(WGVKComputePassEncoder cpe, uint32_t x, uint32_t y, uint32_t z){
+    vkCmdDispatch(cpe->cmdBuffer, x, y, z);
+}
+
 
 void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
     for(auto rp : commandEncoder->referencedRPs){

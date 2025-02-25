@@ -288,7 +288,7 @@ DescribedShaderModule LoadShaderModule(ShaderSources source){
         ret = LoadShaderModuleFromSPIRV_Vk(vsSpirv.data(), vsSpirv.size() * 4, fsSpirv.data(), fsSpirv.size() * 4);
     }
     ret.uniformLocations = callocnewpp(StringToUniformMap);
-    ret.uniformLocations->uniforms = getBindingsGLSL(source);
+    ret.uniformLocations->uniforms = getBindings(source);
     return ret;
 }
 
@@ -788,9 +788,29 @@ extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCod
     cpci.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     cpci.layout = layout;
     cpci.stage = computeStage;
-    
+    vkCreateComputePipelines(g_vulkanstate.device->device, nullptr, 1, &cpci, nullptr, (VkPipeline*)&ret->pipeline);
+    ret->bglayout = bgl;
+    std::vector<ResourceDescriptor> bge(uniformCount);
+
+    for(uint32_t i = 0;i < bge.size();i++){
+        bge[i] = ResourceDescriptor{};
+        bge[i].binding = uniforms[i].location;
+    }
+    ret->bindGroup = LoadBindGroup_Vk(&ret->bglayout, bge.data(), bge.size());
+    ret->shaderModule = computeShaderModule;
     return ret;
 }
 extern "C" DescribedComputePipeline* LoadComputePipeline(const char* shaderCode){
-    return nullptr;
+    ShaderSources source zeroinit;
+    source.computeSource = shaderCode;
+    std::unordered_map<std::string, ResourceTypeDescriptor> bindings = getBindings(shaderCode);
+    std::vector<ResourceTypeDescriptor> values;
+    values.reserve(bindings.size());
+    for(const auto& [x,y] : bindings){
+        values.push_back(y);
+    }
+    std::sort(values.begin(), values.end(),[](const ResourceTypeDescriptor& x, const ResourceTypeDescriptor& y){
+        return x.location < y.location;
+    });
+    return LoadComputePipelineEx(shaderCode, values.data(), values.size());
 }

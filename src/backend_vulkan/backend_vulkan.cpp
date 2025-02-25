@@ -1196,3 +1196,6 @@ extern "C" void EndRenderpassPro(DescribedRenderpass* rp, bool renderTexture){
     //}
     EndRenderpassEx(rp);
 }
+void DispatchCompute(uint32_t x, uint32_t y, uint32_t z){
+    wgvkComputePassEncoderDispatchWorkgroups((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder, x, y, z);
+}
