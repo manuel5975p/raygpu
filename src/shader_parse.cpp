@@ -252,7 +252,7 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
 #endif
     return ret;
 }
-std::unordered_map<std::string, ResourceTypeDescriptor> getBindings(const char* shaderSource){
+std::unordered_map<std::string, ResourceTypeDescriptor> getBindings(ShaderSources sources){
     //tint::Initialize();
     std::unordered_map<std::string, ResourceTypeDescriptor> ret;
     std::string_view source_view = std::string_view(shaderSource);
