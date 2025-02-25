@@ -882,6 +882,11 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     }
     return ret;
 }
+extern "C" void BindComputePipeline(DescribedComputePipeline* pipeline){
+    wgvkComputePassEncoderSetPipeline ((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder,    (VkPipeline)pipeline->pipeline);
+    wgvkComputePassEncoderSetBindGroup((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder, 0, (WGVKBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup));
+}
+
 void printVkPhysicalDeviceMemoryProperties(const VkPhysicalDeviceMemoryProperties* properties) {
     if (!properties) {
         printf("Invalid VkPhysicalDeviceMemoryProperties pointer\n");

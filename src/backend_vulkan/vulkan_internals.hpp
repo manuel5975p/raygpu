@@ -65,6 +65,7 @@ struct QueueIndices{
 struct WGVKBindGroupImpl;
 struct WGVKBufferImpl;
 struct WGVKRenderPassEncoderImpl;
+struct WGVKComputePassEncoderImpl;
 struct WGVKCommandEncoderImpl;
 struct WGVKCommandBufferImpl;
 struct WGVKTextureImpl;
@@ -78,6 +79,7 @@ typedef WGVKBufferImpl* WGVKBuffer;
 typedef WGVKQueueImpl* WGVKQueue;
 typedef WGVKDeviceImpl* WGVKDevice;
 typedef WGVKRenderPassEncoderImpl* WGVKRenderPassEncoder;
+typedef WGVKComputePassEncoderImpl* WGVKComputePassEncoder;
 typedef WGVKCommandBufferImpl* WGVKCommandBuffer;
 typedef WGVKCommandEncoderImpl* WGVKCommandEncoder;
 typedef WGVKTextureImpl* WGVKTexture;
@@ -267,23 +269,40 @@ typedef struct WGVKRenderPassEncoderImpl{
     WGVKCommandEncoder cmdEncoder;
 }RenderPassEncoderHandleImpl;
 
+typedef struct WGVKComputePassEncoderImpl{
+    VkCommandBuffer cmdBuffer;
+    
+    WGVKDevice device;
+    ResourceUsage resourceUsage;
+    refcount_type refCount;
+
+    VkPipelineLayout lastLayout;
+    WGVKCommandEncoder cmdEncoder;
+}WGVKComputePassEncoderImpl;
+
+
+
+typedef struct WGVKCommandEncoderImpl{
+    VkCommandBuffer buffer;
+    ref_holder<WGVKRenderPassEncoder> referencedRPs;
+    ref_holder<WGVKComputePassEncoder> referencedCPs;
+    ResourceUsage resourceUsage;
+    WGVKDevice device;
+    uint32_t cacheIndex;
+}WGVKCommandEncoderImpl;
+
 typedef struct WGVKCommandBufferImpl{
     VkCommandBuffer buffer;
     refcount_type refCount;
     ref_holder<WGVKRenderPassEncoder> referencedRPs;
+    ref_holder<WGVKComputePassEncoder> referencedCPs;
     ResourceUsage resourceUsage;
     
     WGVKDevice device;
     uint32_t cacheIndex;
 }WGVKCommandBufferImpl;
 
-typedef struct WGVKCommandEncoderImpl{
-    ref_holder<WGVKRenderPassEncoder> referencedRPs;
-    ResourceUsage resourceUsage;
-    VkCommandBuffer buffer;
-    WGVKDevice device;
-    uint32_t cacheIndex;
-}WGVKCommandEncoderImpl;
+
 struct xorshiftstate{
     uint64_t x64;
     void update(uint32_t x, uint32_t y)noexcept{
@@ -1018,6 +1037,8 @@ extern "C" void wgvkRenderPassEncoderBindPipeline(WGVKRenderPassEncoder rpe, Des
 extern "C" void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, VkPipeline pipeline, VkPipelineLayout layout);
 extern "C" void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer buffer, VkDeviceSize offset, VkIndexType indexType);
 extern "C" void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t binding, WGVKBuffer buffer, VkDeviceSize offset);
+extern "C" void wgvkComputePassEncoderSetPipeline (WGVKComputePassEncoder cpe, VkPipeline pipeline);
+extern "C" void wgvkComputePassEncoderSetBindGroup(WGVKComputePassEncoder cpe, uint32_t groupIndex, WGVKBindGroup bindGroup);
 
 extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry);
 extern "C" void GetNewTexture(FullSurface *fsurface);
