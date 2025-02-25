@@ -25,6 +25,8 @@
 
 //#include <ctre.hpp>
 
+#include "src/tint/lang/spirv/writer/helpers/generate_bindings.h"
+#include "src/tint/lang/spirv/writer/raise/raise.h"
 #include <raygpu.h>
 #include <internals.hpp>
 #include <vector>
@@ -36,6 +38,7 @@
 #include <tint/tint.h>
 #include "src/tint/lang/wgsl/ast/override.h"
 #include "src/tint/lang/wgsl/ast/var.h"
+#include "src/tint/lang/wgsl/program/program_builder.h"
 #include "src/tint/lang/wgsl/ast/const.h"
 #include "src/tint/lang/wgsl/ast/templated_identifier.h"
 #include "src/tint/lang/wgsl/ast/module.h"
@@ -255,21 +258,27 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
 std::unordered_map<std::string, ResourceTypeDescriptor> getBindings(ShaderSources sources){
     //tint::Initialize();
     std::unordered_map<std::string, ResourceTypeDescriptor> ret;
-    std::string_view source_view = std::string_view(shaderSource);
-    ShaderSourceType language = detectShaderLanguage(source_view);
-    if(language == sourceTypeGLSL){
-        ShaderSources sources zeroinit;
-        sources.computeSource = shaderSource;
-        return getBindingsGLSL(sources);
+    if(sources.computeSource || sources.fragmentSource || sources.vertexSource){
+        ShaderSourceType language = detectShaderLanguage(sources);
+        if(language == sourceTypeGLSL){
+            return getBindingsGLSL(sources);
+        }
+        //else{
+        //    return getBindings(sources);
+        //}
     }
 #if SUPPORT_WGSL_PARSER == 1
-    tint::Source::File f("path", shaderSource);
+    tint::Source::File f("path", sources.vertexAndFragmentSource ? sources.vertexAndFragmentSource : sources.computeSource);
     tint::wgsl::reader::Options options{};
     tint::wgsl::AllowedFeatures features;
     features.features.emplace(tint::wgsl::LanguageFeature::kReadonlyAndReadwriteStorageTextures);
     options.allowed_features = features;
-    
+
     tint::Program result = tint::wgsl::reader::Parse(&f, options);
+    //tint::Result<tint::core::ir::Module> modres = tint::wgsl::reader::ProgramToLoweredIR(result);
+    //tint::core::ir::Module mod = std::move(modres.Get());
+    //auto spirv_raise_result = tint::spirv::writer::Generate(mod, tint::spirv::writer::Options{});
+
     tint::inspector::Inspector insp(result);
     if(!result.IsValid()){
         TRACELOG(LOG_ERROR, "Could not parse shader:");

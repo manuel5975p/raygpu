@@ -52,6 +52,9 @@ extern "C" void ToggleFullscreenImpl(cwoid);
 renderstate g_renderstate{};
 
 ShaderSourceType detectShaderLanguage(std::string_view source){
+    if(source.length() == 0 || source.data() == nullptr){
+        return sourceTypeUnknown;
+    }
     if(source.find("@location") != std::string::npos || source.find("@binding") != std::string::npos){
         return sourceTypeWGSL;
     }
@@ -61,6 +64,31 @@ ShaderSourceType detectShaderLanguage(std::string_view source){
     else{
         return sourceTypeUnknown;
     }
+}
+ShaderSourceType detectShaderLanguage(const char* ptr){
+    if(ptr){
+        return detectShaderLanguage(std::string_view(ptr));
+    }
+    return sourceTypeUnknown;
+}
+ShaderSourceType detectShaderLanguage(ShaderSources sources){
+    ShaderSourceType detect = detectShaderLanguage(sources.computeSource);
+    if(detect != sourceTypeUnknown){
+        return detect;
+    }
+    detect = detectShaderLanguage(sources.vertexSource);
+    if(detect != sourceTypeUnknown){
+        return detect;
+    }
+    detect = detectShaderLanguage(sources.fragmentSource);
+    if(detect != sourceTypeUnknown){
+        return detect;
+    }
+    detect = detectShaderLanguage(sources.vertexAndFragmentSource);
+    if(detect != sourceTypeUnknown){
+        return detect;
+    }
+    return sourceTypeUnknown;
 }
 
 typedef struct GIFRecordState{

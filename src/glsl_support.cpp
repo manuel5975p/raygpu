@@ -128,6 +128,41 @@ std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char
 
     return {spirvV, spirvF};
 }
+std::vector<uint32_t> glsl_to_spirv(const char *cs){
+    if (!glslang_initialized){
+        glslang::InitializeProcess();
+        glslang_initialized = true;
+    }
+    glslang::TShader shader(EShLangCompute);
+    shader.setEnvInput(glslang::EShSourceGlsl, EShLangCompute, glslang::EShClientOpenGL, 450);
+    shader.setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
+    shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
+    TBuiltInResource Resources = {};
+    Resources.maxComputeWorkGroupSizeX = 1024;
+    Resources.maxComputeWorkGroupSizeY = 1024;
+    Resources.maxComputeWorkGroupSizeZ = 1024;
+    Resources.maxCombinedTextureImageUnits = 8;
+
+    Resources.limits.generalUniformIndexing = true;
+    Resources.limits.generalVariableIndexing = true;
+    Resources.maxDrawBuffers = true;
+
+    EShMessages messages = (EShMessages)(EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules);
+
+    if(!shader.parse(&Resources,  450, ECoreProfile, false, false, messages)){
+        
+        TRACELOG(LOG_ERROR, "Compute GLSL Parsing Failed: %s", shader.getInfoLog());
+    }
+    glslang::TProgram program;
+    program.addShader(&shader);
+    if(!program.link(messages)){
+        TRACELOG(LOG_ERROR, "Error linkin shader: %s", program.getInfoLog());
+    }
+    glslang::TIntermediate* intermediate = program.getIntermediate(EShLangCompute);
+    std::vector<uint32_t> output;
+    glslang::GlslangToSpv(*intermediate, output);
+    return output;
+}
 std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSources sources){
     const int glslVersion = 450;
     

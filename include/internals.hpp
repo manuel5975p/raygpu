@@ -84,6 +84,7 @@ inline void UnloadBufferLayoutSet(VertexBufferLayoutSet set){
 }
 
 ShaderSourceType detectShaderLanguage(std::string_view source);
+ShaderSourceType detectShaderLanguage(ShaderSources sources);
 std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSources source);
 
 
@@ -350,6 +351,7 @@ namespace std{
     };
 }
 std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char *vs, const char *fs);
+std::vector<uint32_t> glsl_to_spirv(const char *cs);
 extern "C" void negotiateSurfaceFormatAndPresentMode(const void* SurfaceHandle);
 extern "C" void ResetSyncState(cwoid);
 extern "C" void CharCallback(void* window, unsigned int codePoint);
