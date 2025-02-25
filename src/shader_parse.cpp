@@ -572,3 +572,18 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
     }
     return retval;
 }*/
+
+std::vector<uint32_t> wgsl_to_spirv(const char* wgslCode){
+    //Construct file without filename
+    tint::Source::File f("", wgslCode);
+
+    tint::Program prog = tint::wgsl::reader::Parse(&f);
+    tint::Result<tint::core::ir::Module> maybeModule = tint::wgsl::reader::ProgramToLoweredIR(prog);
+    tint::core::ir::Module module(std::move(maybeModule.Get()));
+    
+    tint::spirv::writer::Options options zeroinit;
+    tint::Result<tint::spirv::writer::Output> spirvMaybe = tint::spirv::writer::Generate(module, options);
+
+    return spirvMaybe.Get().spirv;
+}
+

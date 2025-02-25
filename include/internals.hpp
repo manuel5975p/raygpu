@@ -350,7 +350,21 @@ namespace std{
         }
     };
 }
-std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char *vs, const char *fs);
+
+
+
+// Shader compilation utilities
+
+/**
+ * WGSL compilation is single code only because an arbitrary set of entrypoints can be placed there anyway.
+ */
+
+/**
+ * @brief Compiles Vertex and Fragment shaders sources from GLSL (Vulkan rules) to SPIRV
+ * Returns _two_ spirv blobs containing the respective modules.
+ */
+std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char* vs, const char* fs);
+std::vector<uint32_t> wgsl_to_spirv(const char* anything);
 std::vector<uint32_t> glsl_to_spirv(const char *cs);
 extern "C" void negotiateSurfaceFormatAndPresentMode(const void* SurfaceHandle);
 extern "C" void ResetSyncState(cwoid);
