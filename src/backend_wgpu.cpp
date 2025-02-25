@@ -175,6 +175,7 @@ extern "C" Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t 
 void EndComputepassEx(DescribedComputepass* computePass){
     if(computePass->cpEncoder){
         wgpuComputePassEncoderEnd((WGPUComputePassEncoder)computePass->cpEncoder);
+        wgpuComputePassEncoderRelease(W(WGPUComputePassEncoder)computePass->cpEncoder);
         computePass->cpEncoder = 0;
     }
     

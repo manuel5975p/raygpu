@@ -131,6 +131,12 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
             imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             writes[i].pImageInfo = imageInfos.data() + i;
         }
+        if(bgdesc->layout->entries[i].type == storage_texture2d || bgdesc->layout->entries[i].type == storage_texture3d){
+            wvBindGroup->resourceUsage.track((WGVKTextureView)bgdesc->entries[i].textureView, TextureUsage_StorageBinding);
+            imageInfos[i].imageView = ((WGVKTextureView)bgdesc->entries[i].textureView)->view;
+            imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+            writes[i].pImageInfo = imageInfos.data() + i;
+        }
 
         if(bgdesc->layout->entries[i].type == texture_sampler){
             VkSampler vksampler = (VkSampler)bgdesc->entries[i].sampler;
@@ -774,11 +780,20 @@ void wgvkRenderPassEncoderBindDescriptorSet(WGVKRenderPassEncoder rpe, uint32_t 
 
     rpe->resourceUsage.track(dset);
 }
-extern "C" void wgvkComputePassEncoderSetPipeline (WGVKComputePassEncoder cpe, VkPipeline pipeline){
-    
+extern "C" void wgvkComputePassEncoderSetPipeline (WGVKComputePassEncoder cpe, VkPipeline pipeline, VkPipelineLayout layout){
+    vkCmdBindPipeline(cpe->cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+    cpe->lastLayout = layout;
 }
 extern "C" void wgvkComputePassEncoderSetBindGroup(WGVKComputePassEncoder cpe, uint32_t groupIndex, WGVKBindGroup bindGroup){
-
+vkCmdBindDescriptorSets(cpe->cmdBuffer,                  // Command buffer
+                            VK_PIPELINE_BIND_POINT_COMPUTE, // Pipeline bind point
+                            cpe->lastLayout,                 // Pipeline layout
+                            groupIndex,                           // First set
+                            1,                               // Descriptor set count
+                            &(bindGroup->set),                    // Pointer to descriptor set
+                            0,                               // Dynamic offset count
+                            nullptr                          // Pointer to dynamic offsets
+    );
 }
 extern "C" WGVKComputePassEncoder wgvkCommandEncoderBeginComputePass(WGVKCommandEncoder commandEncoder){
     WGVKComputePassEncoder ret = callocnewpp(WGVKComputePassEncoderImpl);
@@ -789,7 +804,7 @@ extern "C" WGVKComputePassEncoder wgvkCommandEncoderBeginComputePass(WGVKCommand
     ret->device = commandEncoder->device;
     return ret;
 }
-extern "C" void wgvkCommandEncoderEndComputePass(WGVKCommandEncoder commandEncoder){
+extern "C" void wgvkCommandEncoderEndComputePass(WGVKComputePassEncoder commandEncoder){
     
 }
 extern "C" void wgvkReleaseComputePassEncoder(WGVKComputePassEncoder cpenc){

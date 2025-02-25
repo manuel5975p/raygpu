@@ -155,10 +155,22 @@ extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t width, uint32_t he
     fsurface->renderTarget.depth = LoadTexturePro(width, height, Depth32, TextureUsage_RenderAttachment, 1, 1);
 }
 extern "C" void BeginComputepassEx(DescribedComputepass* computePass){
-    
+    computePass->cmdEncoder = wgvkDeviceCreateCommandEncoder((WGVKDevice)GetDevice(), nullptr);
+    computePass->cpEncoder = wgvkCommandEncoderBeginComputePass((WGVKCommandEncoder)computePass->cmdEncoder);
 }
 extern "C" void EndComputepassEx(DescribedComputepass* computePass){
+    if(computePass->cpEncoder){
+        wgvkCommandEncoderEndComputePass((WGVKComputePassEncoder)computePass->cpEncoder);
+        computePass->cpEncoder = 0;
+    }
     
+    //TODO
+    g_renderstate.activeComputepass = nullptr;
+
+    WGVKCommandBuffer command = wgvkCommandEncoderFinish((WGVKCommandEncoder)computePass->cmdEncoder);
+    wgvkQueueSubmit((WGVKQueue)g_vulkanstate.queue, 1, &command);
+    wgvkReleaseCommandBuffer(command);
+    wgvkReleaseCommandEncoder((WGVKCommandEncoder)computePass->cmdEncoder);
 }
 
 extern "C" DescribedRenderpass LoadRenderpassEx(RenderSettings settings, bool colorClear, DColor colorClearValue, bool depthClear, float depthClearValue){
@@ -891,7 +903,7 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     return ret;
 }
 extern "C" void BindComputePipeline(DescribedComputePipeline* pipeline){
-    wgvkComputePassEncoderSetPipeline ((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder,    (VkPipeline)pipeline->pipeline);
+    wgvkComputePassEncoderSetPipeline ((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder,    (VkPipeline)pipeline->pipeline, (VkPipelineLayout)pipeline->layout);
     wgvkComputePassEncoderSetBindGroup((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder, 0, (WGVKBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup));
 }
 
