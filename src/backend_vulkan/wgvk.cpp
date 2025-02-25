@@ -86,6 +86,8 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
         }
         else if(entry.sampler){
             // TODO
+            // Currently, WGVKSampler does not exist. It is simply a VkSampler and therefore a bit unsafe
+            // But since Samplers are not resource intensive objects, this can be neglected for now
         }
     }
     wvBindGroup->resourceUsage.releaseAllAndClear();

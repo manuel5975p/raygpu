@@ -4,9 +4,27 @@
 #include <vulkan/vulkan_core.h>
 #include "pipeline.h"
 #include "vulkan_internals.hpp"
+
+extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV(const uint32_t* spirvCode, size_t codeSizeInBytes){
+    DescribedShaderModule ret zeroinit;
+    VkShaderModuleCreateInfo csCreateInfo zeroinit;
+    csCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    csCreateInfo.codeSize = codeSizeInBytes;
+    csCreateInfo.pCode = spirvCode;
+    ret.sourceType = sourceTypeSPIRV;
+    assert(codeSizeInBytes % 4 == 0);
+
+    uint32_t* data = (uint32_t*)std::calloc(codeSizeInBytes / 4, 4);
+    std::memcpy(data, spirvCode, codeSizeInBytes);
+    ret.source = data;
+    vkCreateShaderModule(g_vulkanstate.device->device, &csCreateInfo, nullptr, (VkShaderModule*)&ret.computeModule);
+
+    return ret;
+}
+
 extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vscode, size_t vscodeSizeInBytes, const uint32_t* fscode, size_t fscodeSizeInBytes){
     
-    DescribedShaderModule ret{};
+    DescribedShaderModule ret zeroinit;
     ret.source = calloc(vscodeSizeInBytes, 1);
     std::memcpy(const_cast<void*>(ret.source), vscode, vscodeSizeInBytes);
     ret.sourceLengthInBytes = vscodeSizeInBytes;
@@ -297,8 +315,11 @@ DescribedShaderModule LoadShaderModule(ShaderSources source){
     else if(source.computeSource){
         if(csType == sourceTypeGLSL){
             std::vector<uint32_t> csSpirv = glsl_to_spirv(source.computeSource);
-
-            ret = LoadShaderModuleFromSPIRV_Vk();
+            ret = LoadShaderModuleFromSPIRV(csSpirv.data(), csSpirv.size() * sizeof(uint32_t));
+        }
+        else if(csType == sourceTypeWGSL){
+            std::vector<uint32_t> csSpirv = wgsl_to_spirv(source.computeSource);
+            ret = LoadShaderModuleFromSPIRV(csSpirv.data(), csSpirv.size() * sizeof(uint32_t));
         }
     }
     ret.uniformLocations = callocnewpp(StringToUniformMap);
@@ -579,7 +600,7 @@ extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCod
 
 
     computeStage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-    computeStage.pName = "Compute Stage";
+    computeStage.pName = "compute_main";
 
     VkComputePipelineCreateInfo cpci zeroinit;
     cpci.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
