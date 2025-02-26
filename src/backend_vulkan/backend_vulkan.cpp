@@ -903,8 +903,9 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     return ret;
 }
 extern "C" void BindComputePipeline(DescribedComputePipeline* pipeline){
+    WGVKBindGroup bindGroup = (WGVKBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup);
     wgvkComputePassEncoderSetPipeline ((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder,    (VkPipeline)pipeline->pipeline, (VkPipelineLayout)pipeline->layout);
-    wgvkComputePassEncoderSetBindGroup((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder, 0, (WGVKBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup));
+    wgvkComputePassEncoderSetBindGroup((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder, 0, bindGroup);
 }
 
 void printVkPhysicalDeviceMemoryProperties(const VkPhysicalDeviceMemoryProperties* properties) {
@@ -1155,10 +1156,11 @@ extern "C" void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode
 
 }
 extern "C" void CopyTextureToTexture(Texture source, Texture dest){
-    TRACELOG(LOG_FATAL, "Unimplemented function: %s", __FUNCTION__);
+    //TRACELOG(LOG_FATAL, "Unimplemented function: %s", __FUNCTION__);
 }
 void ComputepassEndOnlyComputing(cwoid){
-    TRACELOG(LOG_FATAL, "Unimplemented function: %s", __FUNCTION__);
+    WGVKComputePassEncoder computePassEncoder = (WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder;
+    wgvkCommandEncoderEndComputePass(computePassEncoder);
 }
 
 extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
