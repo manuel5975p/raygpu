@@ -616,6 +616,7 @@ extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCod
     }
     ret->bindGroup = LoadBindGroup_Vk(&ret->bglayout, bge.data(), bge.size());
     ret->shaderModule = computeShaderModule;
+    ret->layout = layout;
     return ret;
 }
 extern "C" DescribedComputePipeline* LoadComputePipeline(const char* shaderCode){

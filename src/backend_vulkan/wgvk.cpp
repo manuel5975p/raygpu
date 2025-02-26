@@ -349,6 +349,7 @@ extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder command
     ret->refCount = 1;
     vkEndCommandBuffer(commandEncoder->buffer);
     ret->referencedRPs = std::move(commandEncoder->referencedRPs);
+    ret->referencedCPs = std::move(commandEncoder->referencedCPs);
     ret->resourceUsage = std::move(commandEncoder->resourceUsage);
     ret->cacheIndex = commandEncoder->cacheIndex;
     ret->buffer = commandEncoder->buffer;
@@ -367,8 +368,23 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
         for(auto rp : buffer->referencedRPs){
             for(auto dset : rp->resourceUsage.referencedBindGroups){
                 for(auto tex : dset->resourceUsage.referencedTextureViews){
-                    if(tex.first->texture->layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL){
+                    if(tex.second == TextureUsage_TextureBinding && tex.first->texture->layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL){
                         wgvkCommandEncoderTransitionTextureLayout(queue->presubmitCache, tex.first->texture, tex.first->texture->layout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                    }
+                    if(tex.second == TextureUsage_StorageBinding && tex.first->texture->layout != VK_IMAGE_LAYOUT_GENERAL){
+                        wgvkCommandEncoderTransitionTextureLayout(queue->presubmitCache, tex.first->texture, tex.first->texture->layout, VK_IMAGE_LAYOUT_GENERAL);
+                    }
+                }
+            }
+        }
+        for(auto cp : buffer->referencedCPs){
+            for(auto dset : cp->resourceUsage.referencedBindGroups){
+                for(auto tex : dset->resourceUsage.referencedTextureViews){
+                    if(tex.second == TextureUsage_TextureBinding && tex.first->texture->layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL){
+                        wgvkCommandEncoderTransitionTextureLayout(queue->presubmitCache, tex.first->texture, tex.first->texture->layout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                    }
+                    if(tex.second == TextureUsage_StorageBinding && tex.first->texture->layout != VK_IMAGE_LAYOUT_GENERAL){
+                        wgvkCommandEncoderTransitionTextureLayout(queue->presubmitCache, tex.first->texture, tex.first->texture->layout, VK_IMAGE_LAYOUT_GENERAL);
                     }
                 }
             }
@@ -785,7 +801,8 @@ extern "C" void wgvkComputePassEncoderSetPipeline (WGVKComputePassEncoder cpe, V
     cpe->lastLayout = layout;
 }
 extern "C" void wgvkComputePassEncoderSetBindGroup(WGVKComputePassEncoder cpe, uint32_t groupIndex, WGVKBindGroup bindGroup){
-vkCmdBindDescriptorSets(cpe->cmdBuffer,                  // Command buffer
+    
+    vkCmdBindDescriptorSets(cpe->cmdBuffer,                  // Command buffer
                             VK_PIPELINE_BIND_POINT_COMPUTE, // Pipeline bind point
                             cpe->lastLayout,                 // Pipeline layout
                             groupIndex,                           // First set
@@ -794,6 +811,7 @@ vkCmdBindDescriptorSets(cpe->cmdBuffer,                  // Command buffer
                             0,                               // Dynamic offset count
                             nullptr                          // Pointer to dynamic offsets
     );
+    cpe->resourceUsage.track(bindGroup);
 }
 extern "C" WGVKComputePassEncoder wgvkCommandEncoderBeginComputePass(WGVKCommandEncoder commandEncoder){
     WGVKComputePassEncoder ret = callocnewpp(WGVKComputePassEncoderImpl);
