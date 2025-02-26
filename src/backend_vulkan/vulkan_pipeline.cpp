@@ -51,7 +51,9 @@ extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vs
 }
 extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, const std::vector<AttributeAndResidence> &attribs){
     RenderPipelineQuartet quartet zeroinit;
-
+    if(ret->createdPipelines->pipelines.find(attribs)){
+        
+    }
 
     auto& settings = ret->settings;
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
@@ -380,6 +382,8 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
 }
 
 extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry){
+
+    WGVKBindGroup bgImpl = (WGVKBindGroup)bg->bindGroup;
     if(index >= bg->entryCount){
         TRACELOG(LOG_WARNING, "Trying to set entry %d on a BindGroup with only %d entries", (int)index, (int)bg->entryCount);
         //return;
@@ -534,8 +538,9 @@ void UpdateBindGroup(DescribedBindGroup* bg){
     bgdesc.entries = bg->entries;
     bgdesc.layout = bg->layout;
     //bgdesc.entries 
-    if(bg->bindGroup && ((WGVKBindGroup)bg->bindGroup)->refCount == 1){        
-        wgvkWriteBindGroup(g_vulkanstate.device, (WGVKBindGroup)bg->bindGroup, &bgdesc);
+    if(bg->bindGroup && ((WGVKBindGroup)bg->bindGroup)->refCount == 1){  
+        WGVKBindGroup writeTo = (WGVKBindGroup)bg->bindGroup;      
+        wgvkWriteBindGroup(g_vulkanstate.device, writeTo, &bgdesc);
     }
     else{
         if(bg->bindGroup){

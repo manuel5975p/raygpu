@@ -81,20 +81,28 @@ void PresentSurface(FullSurface* surface){
 void PostPresentSurface(){
     WGVKDevice surfaceDevice = g_vulkanstate.device;
     WGVKQueue queue = surfaceDevice->queue;
-    std::vector<VkFence> fences;
-    fences.reserve(queue->pendingCommandBuffers.size());
-    for(auto [fence, bufferset] : queue->pendingCommandBuffers){
-        fences.push_back(fence);
+    uint64_t submittedFrames = surfaceDevice->submittedFrames;
+    uint32_t cacheIndex = submittedFrames % framesInFlight;
+
+    if(queue->pendingCommandBuffers[cacheIndex].size() > 0){
+        std::vector<VkFence> fences;
+        fences.reserve(queue->pendingCommandBuffers[cacheIndex].size());
+        for(auto [fence, bufferset] : queue->pendingCommandBuffers[cacheIndex]){
+            fences.push_back(fence);
+        }
+        vkWaitForFences(surfaceDevice->device, fences.size(), fences.data(), VK_TRUE, 1 << 25);
     }
 
-    vkWaitForFences(surfaceDevice->device, fences.size(), fences.data(), VK_TRUE, 1 << 25);
-    for(auto [fence, bufferset] : queue->pendingCommandBuffers){
+    for(auto [fence, bufferset] : queue->pendingCommandBuffers[cacheIndex]){
         vkDestroyFence(surfaceDevice->device, fence, nullptr);
-        for(auto buffer : bufferset)
+        for(auto buffer : bufferset){
+            rassert(buffer->refCount == 1, "CommandBuffer still in use after submit");
             wgvkReleaseCommandBuffer(buffer);
+        }
     }
-    
-    queue->pendingCommandBuffers.clear();
+
+    queue->pendingCommandBuffers[cacheIndex].clear();
+
 }
 
 DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsage usage){
@@ -1155,7 +1163,42 @@ extern "C" void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode
     //wgvkRenderPassEncoderSetBindGroup ((WGPURenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
 
 }
+WGVKBuffer tttIntermediate zeroinit;
 extern "C" void CopyTextureToTexture(Texture source, Texture dest){
+    VkImageBlit region zeroinit;
+    region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.srcSubresource.baseArrayLayer = 0;
+    region.srcSubresource.mipLevel = 0;
+    region.srcSubresource.layerCount = 1;
+
+    region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.dstSubresource.baseArrayLayer = 0;
+    region.dstSubresource.mipLevel = 0;
+    region.dstSubresource.layerCount = 1;
+
+    region.srcOffsets[1] = VkOffset3D{(int32_t)source.width, (int32_t)source.height, 1};
+    region.dstOffsets[1] = VkOffset3D{(int32_t)source.width, (int32_t)source.height, 1};
+    WGVKTexture sourceTexture = reinterpret_cast<WGVKTexture>(source.id);
+    WGVKTexture destTexture = reinterpret_cast<WGVKTexture>(dest.id);
+    VkCommandBuffer encodingDest = reinterpret_cast<WGVKCommandEncoder>(g_renderstate.computepass.cmdEncoder)->buffer;
+
+    EncodeTransitionImageLayout(encodingDest, destTexture->layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, destTexture);
+    
+    vkCmdBlitImage(
+        encodingDest, 
+        sourceTexture->image,
+        VK_IMAGE_LAYOUT_GENERAL, 
+        destTexture->image, 
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, VK_FILTER_NEAREST
+    );
+    
+    EncodeTransitionImageLayout(encodingDest, destTexture->layout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, destTexture);
+    if(!tttIntermediate){
+        BufferDescriptor desc zeroinit;
+        desc.size = source.width * source.height * GetPixelSizeInBytes(source.format);
+        desc.usage = BufferUsage_CopyDst | BufferUsage_CopySrc;
+        tttIntermediate = wgvkDeviceCreateBuffer(g_vulkanstate.device, &desc);
+    }
     //TRACELOG(LOG_FATAL, "Unimplemented function: %s", __FUNCTION__);
 }
 void ComputepassEndOnlyComputing(cwoid){

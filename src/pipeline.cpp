@@ -72,7 +72,9 @@
 
 
 extern "C" DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao){
-    std::unordered_map<std::string, ResourceTypeDescriptor> bindings = getBindings(shaderSource);
+    ShaderSources sources zeroinit;
+    sources.computeSource = shaderSource;
+    std::unordered_map<std::string, ResourceTypeDescriptor> bindings = getBindings(sources);
     std::vector<ResourceTypeDescriptor> values;
     values.reserve(bindings.size());
     for(const auto& [x,y] : bindings){
@@ -92,7 +94,9 @@ DescribedPipeline* LoadPipelineForVAOEx(const char* shaderSource, VertexArray* v
     return pl;
 }
 extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
-    std::unordered_map<std::string, ResourceTypeDescriptor> bindings = getBindings(shaderSource);
+    ShaderSources sources zeroinit;
+    sources.computeSource = shaderSource;
+    std::unordered_map<std::string, ResourceTypeDescriptor> bindings = getBindings(sources);
 
     std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> attribs = getAttributes(shaderSource);
     
@@ -167,8 +171,9 @@ DescribedShaderModule LoadShaderModuleFromMemory(const char* shaderSourceWGSL) {
     WGPUShaderModuleWGSLDescriptor shaderCodeDesc{};
 
     size_t sourceSize = strlen(shaderSourceWGSL);
-
-    std::unordered_map<std::string, ResourceTypeDescriptor> bindings = getBindings(shaderSourceWGSL);
+    ShaderSources sources zeroinit;
+    sources.vertexAndFragmentSource = shaderSourceWGSL;
+    std::unordered_map<std::string, ResourceTypeDescriptor> bindings = getBindings(sources);
     
     std::vector<ResourceTypeDescriptor> values;
     values.reserve(bindings.size());
@@ -411,7 +416,9 @@ DescribedPipeline* ClonePipelineWithSettings(const DescribedPipeline* pl, Render
     return cloned;
 }
 DescribedComputePipeline* LoadComputePipeline(const char* shaderCode){
-    auto bindmap = getBindings(shaderCode);
+    ShaderSources sources zeroinit;
+    sources.computeSource = shaderCode;
+    auto bindmap = getBindings(sources);
     std::vector<ResourceTypeDescriptor> udesc;
     for(auto& [x,y] : bindmap){
         udesc.push_back(y);
@@ -423,7 +430,9 @@ DescribedComputePipeline* LoadComputePipeline(const char* shaderCode){
     
 }
 DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount){
-    auto bindmap = getBindings(shaderCode);
+    ShaderSources sources zeroinit;
+    sources.computeSource = shaderCode;
+    auto bindmap = getBindings(sources);
     DescribedComputePipeline* ret = callocnew(DescribedComputePipeline);
     WGPUComputePipelineDescriptor desc{};
     WGPUPipelineLayoutDescriptor pldesc{};
@@ -451,7 +460,7 @@ Shader LoadShaderFromMemory(const char *vertexSource, const char *fragmentSource
     
     #if SUPPORT_GLSL_PARSER == 1
 
-    shader.id = LoadPipelineGLSL(vertexSource, fragmentSource);
+    //shader.id = LoadPipelineGLSL(vertexSource, fragmentSource);
     shader.locs = (int*)std::calloc(RL_MAX_SHADER_LOCATIONS, sizeof(int));
     for (int i = 0; i < RL_MAX_SHADER_LOCATIONS; i++) {
         shader.locs[i] = LOCATION_NOT_FOUND;

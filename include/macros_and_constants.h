@@ -13,7 +13,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
+#include <cstdio>
 using std::malloc;
+using std::fprintf;
 using std::calloc;
 using std::realloc;
 using std::memcpy;
@@ -30,6 +32,7 @@ constexpr float RAD2DEG = 180.0 / M_PI;
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include <math.h>
 #define EXTERN_C_BEGIN
 #define EXTERN_C_END
@@ -84,8 +87,31 @@ constexpr float RAD2DEG = 180.0 / M_PI;
 
 #define RL_MAX_SHADER_LOCATIONS 32
 #define VULKAN_BACKEND_ONLY
+
 #if defined(_MSC_VER) || defined(_MSC_FULL_VER) 
     #define __builtin_unreachable(...) __assume(false)
+    #define __builtin_assume(Condition) __assume(Condition)
+    #define __builtin_trap(...) __debugbreak();
+#endif
+
+
+
+#if RAYGPU_DISABLE_ASSERT == 1
+
+#define rassert(Condition, Message) __builtin_assume(Condition)
+
+#else
+#define rassert(Condition, Message)                                     \
+do {                                                                    \
+    if (!(Condition)) {                                                 \
+        TRACELOG(LOG_ERROR, "Assertion failed: %s", Message);         \
+        TRACELOG(LOG_ERROR, "Condition: %s", #Condition);             \
+        TRACELOG(LOG_ERROR, "Location: %s:%d", __FILE__, __LINE__);   \
+        __builtin_trap();                                               \
+        abort();                                                        \
+    }                                                                   \
+} while (0)
+
 #endif
 
 #endif // MACROS_AND_CONSTANTS

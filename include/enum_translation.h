@@ -26,7 +26,7 @@
 #define ENUM_HEADER_H
 
 //#define SUPPORT_WGPU_BACKEND 1
-#define SUPPORT_VULKAN_BACKEND 1
+//#define SUPPORT_VULKAN_BACKEND 1
 #ifdef __cplusplus
 #include <cassert>
 #include <cstdint>

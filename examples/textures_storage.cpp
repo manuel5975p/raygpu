@@ -102,7 +102,7 @@ int main(){
     pl = LoadComputePipeline(shaderCode);
 
     SetBindgroupTexture(&pl->bindGroup, 0, storageTex);
-    
+
     #ifndef __EMSCRIPTEN__
     while(!WindowShouldClose()){
         mainloop();

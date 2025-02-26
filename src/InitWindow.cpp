@@ -287,7 +287,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
 
     ResourceTypeDescriptor uniforms[4] = {
         ResourceTypeDescriptor{uniform_buffer, 64, 0, readonly, format_or_sample_type(0)},
-        ResourceTypeDescriptor{texture2d, 0, 1      , readonly, format_or_sample_type(0)},
+        ResourceTypeDescriptor{texture2d, 0, 1      , readonly, sample_f32},
         ResourceTypeDescriptor{texture_sampler, 0, 2, readonly, format_or_sample_type(0)},
         ResourceTypeDescriptor{storage_buffer, 64, 3, readonly, format_or_sample_type(0)}
     };
