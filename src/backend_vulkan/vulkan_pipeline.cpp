@@ -51,8 +51,9 @@ extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vs
 }
 extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, const std::vector<AttributeAndResidence> &attribs){
     RenderPipelineQuartet quartet zeroinit;
-    if(ret->createdPipelines->pipelines.find(attribs)){
-        
+    auto ait = ret->createdPipelines->pipelines.find(attribs);
+    if(ait != ret->createdPipelines->pipelines.end()){
+        return ait->second;
     }
 
     auto& settings = ret->settings;
@@ -340,8 +341,8 @@ void UpdatePipeline_Vk(DescribedPipeline* ret, const VertexArray* vao){
 
     RenderPipelineQuartet quartet = GetPipelinesForLayout(ret, vao->attributes);
 
-    ret->createdPipelines->pipelines[vao->attributes] = ret->quartet;
     ret->quartet = quartet;
+    ret->createdPipelines->pipelines[vao->attributes] = ret->quartet;
 }
 
 

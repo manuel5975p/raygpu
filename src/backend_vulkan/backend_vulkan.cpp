@@ -102,7 +102,10 @@ void PostPresentSurface(){
     }
 
     queue->pendingCommandBuffers[cacheIndex].clear();
-
+    wgvkReleaseCommandEncoder(queue->presubmitCache);
+    vkResetCommandPool(surfaceDevice->device, surfaceDevice->frameCaches[cacheIndex].commandPool, 0);
+    WGVKCommandEncoderDescriptor cedesc zeroinit;
+    queue->presubmitCache = wgvkDeviceCreateCommandEncoder(surfaceDevice, &cedesc);
 }
 
 DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsage usage){
