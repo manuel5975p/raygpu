@@ -19,7 +19,7 @@ WGPUQueue GetQueue(){
     return g_wgpustate.queue.Get();
 }
 
-WGPUSurface GetSurface(){
+void* GetSurface(){
     return (WGPUSurface)g_renderstate.mainWindow->surface.surface;
 }
 wgpu::Instance& GetCXXInstance(){
@@ -175,7 +175,7 @@ extern "C" Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t 
 void EndComputepassEx(DescribedComputepass* computePass){
     if(computePass->cpEncoder){
         wgpuComputePassEncoderEnd((WGPUComputePassEncoder)computePass->cpEncoder);
-        wgpuComputePassEncoderRelease(W(WGPUComputePassEncoder)computePass->cpEncoder);
+        wgpuComputePassEncoderRelease((WGPUComputePassEncoder)computePass->cpEncoder);
         computePass->cpEncoder = 0;
     }
     
@@ -355,19 +355,19 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, co
 
 
 void PostPresentSurface(){}
-extern "C" void BindPipeline(DescribedPipeline* pipeline, WGPUPrimitiveTopology drawMode){
+extern "C" void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode){
     switch(drawMode){
-        case WGPUPrimitiveTopology_TriangleList:
+        case RL_TRIANGLES:
         //std::cout << "Binding: " <<  pipeline->pipeline << "\n";
         wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleList);
         break;
-        case WGPUPrimitiveTopology_TriangleStrip:
+        case RL_TRIANGLE_STRIP:
         wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleStrip);
         break;
-        case WGPUPrimitiveTopology_LineList:
+        case RL_LINES:
         wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_LineList);
         break;
-        case WGPUPrimitiveTopology_PointList:
+        case RL_POINTS:
         wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_PointList);
         break;
         default:
@@ -629,9 +629,25 @@ void UnloadStagingBuffer(StagingBuffer* buf){
     wgpuBufferRelease((WGPUBuffer)buf->mappable.buffer);
 }
 
-
+constexpr char mipmapComputerSource2[] = R"(
+    @group(0) @binding(0) var previousMipLevel: texture_2d<f32>;
+    @group(0) @binding(1) var nextMipLevel: texture_storage_2d<rgba8unorm, write>;
+    
+    @compute @workgroup_size(8, 8)
+    fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
+        let offset = vec2<u32>(0, 1);
+        
+        let color = (
+            textureLoad(previousMipLevel, 2 * id.xy + offset.xx, 0) +
+            textureLoad(previousMipLevel, 2 * id.xy + offset.xy, 0) +
+            textureLoad(previousMipLevel, 2 * id.xy + offset.yx, 0) +
+            textureLoad(previousMipLevel, 2 * id.xy + offset.yy, 0)
+        ) * 0.25;
+        textureStore(nextMipLevel, id.xy, color);
+    }
+    )";
 void GenTextureMipmaps(Texture2D* tex){
-    static DescribedComputePipeline* cpl = LoadComputePipeline(mipmapComputerSource);
+    static DescribedComputePipeline* cpl = LoadComputePipeline(mipmapComputerSource2);
     BeginComputepass();
     
     for(int i = 0;i < tex->mipmaps - 1;i++){

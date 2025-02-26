@@ -31,10 +31,10 @@
 
 #include "GLFW/glfw3.h"
 //#include "dawn/common/Log.h"
-#include "dawn/common/Platform.h"
+//#include "dawn/common/Platform.h"
 #include "webgpu/webgpu_glfw.h"
 
-#if DAWN_PLATFORM_IS(WINDOWS)
+#if defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(WIN64) 
 #define GLFW_EXPOSE_NATIVE_WIN32
 #endif
 #if defined(RAYGPU_USE_X11)
@@ -69,7 +69,7 @@ SetupWindowAndGetSurfaceDescriptor(GLFWwindow* window) {
         //                    "setting the GLFW_CLIENT_API hint to GLFW_NO_API.";
         return {nullptr, [](wgpu::ChainedStruct*) {}};
     }
-#if DAWN_PLATFORM_IS(WINDOWS)
+#if defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(WIN64) 
     wgpu::SurfaceSourceWindowsHWND* desc = new wgpu::SurfaceSourceWindowsHWND();
     desc->hwnd = glfwGetWin32Window(window);
     desc->hinstance = GetModuleHandle(nullptr);

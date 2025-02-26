@@ -126,7 +126,7 @@ typedef struct WGVKBufferImpl{
     refcount_type refCount;
 }WGVKBufferImpl;
 
-constexpr uint32_t framesInFlight = 2;
+constexpr uint32_t framesInFlight = 1;
 struct PerframeCache{
     VkCommandPool commandPool;
     std::unordered_set<VkCommandBuffer> commandBuffers;
@@ -622,7 +622,7 @@ struct WGVKQueueImpl{
     WGVKDevice device;
 
     WGVKCommandEncoder presubmitCache;
-    std::unordered_map<VkFence, std::unordered_set<WGVKCommandBuffer>> pendingCommandBuffers;
+    std::unordered_map<VkFence, std::unordered_set<WGVKCommandBuffer>> pendingCommandBuffers[framesInFlight];
 };
 
 struct memory_types{

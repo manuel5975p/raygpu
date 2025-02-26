@@ -94,10 +94,10 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
     for(uint32_t i = 0;i < bgdesc->entryCount;i++){
         auto& entry = bgdesc->entries[i];
         if(entry.buffer){
-            wvBindGroup->resourceUsage.referencedBuffers.emplace((WGVKBuffer)entry.buffer);
+            //wvBindGroup->resourceUsage.referencedBuffers.emplace((WGVKBuffer)entry.buffer);
         }
         else if(entry.textureView){
-            wvBindGroup->resourceUsage.referencedTextureViews.emplace((WGVKTextureView)entry.textureView, TextureUsage_TextureBinding);
+            //wvBindGroup->resourceUsage.referencedTextureViews.emplace((WGVKTextureView)entry.textureView, TextureUsage_TextureBinding);
         }
     }
 
@@ -410,7 +410,7 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
             ++buffers[i]->refCount;
         }
         uint64_t frameCount = queue->device->submittedFrames;
-        queue->pendingCommandBuffers.emplace(fence, std::move(insert));
+        queue->pendingCommandBuffers[frameCount % framesInFlight].emplace(fence, std::move(insert));
         
         //TRACELOG(LOG_INFO, "Count: %d", (int)queue->pendingCommandBuffers.size());
         /*if(vkWaitForFences(g_vulkanstate.device->device, 1, &g_vulkanstate.queue->syncState.renderFinishedFence, VK_TRUE, 100000000) != VK_SUCCESS){

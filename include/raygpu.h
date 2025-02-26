@@ -1301,7 +1301,11 @@ EXTERN_C_BEGIN
     void* GetInstance(cwoid);
     void* GetAdapter (cwoid);
     void* GetDevice  (cwoid);
+    #if SUPPORT_VULKAN_BACKEND == 1
     void* GetQueue   (cwoid);
+    #else
+    WGPUQueue GetQueue   (cwoid);
+    #endif
     void* GetSurface (cwoid);
     
     
