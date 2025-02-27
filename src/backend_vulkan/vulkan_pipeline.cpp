@@ -279,6 +279,62 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, c
     return quartet;
 }
 
+extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
+    ShaderSources sources zeroinit;
+    sources.vertexAndFragmentSource = shaderSource;
+    
+    DescribedShaderModule mod = LoadShaderModule(sources);
+    
+    return LoadPipelineMod(mod, attribs, attribCount, uniforms, uniformCount, settings);
+}
+
+void UpdatePipeline_Vk(DescribedPipeline* ret, const std::vector<AttributeAndResidence>& attributes){
+    // Shader Stage Setup
+    auto it = ret->createdPipelines->pipelines.find(attributes);
+    if(it != ret->createdPipelines->pipelines.end()){
+        ret->quartet = it->second;
+        return;
+    }
+
+    RenderPipelineQuartet quartet = GetPipelinesForLayout(ret, attributes);
+
+    ret->quartet = quartet;
+    ret->createdPipelines->pipelines[attributes] = ret->quartet;
+}
+
+extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
+    DescribedPipeline* ret = callocnew(DescribedPipeline);
+    ret->settings = settings;
+    ret->createdPipelines = callocnewpp(VertexStateToPipelineMap);
+    ret->bglayout = LoadBindGroupLayout(uniforms, uniformCount, false);
+    ret->sh = mod;
+    //auto [spirV, spirF] = glsl_to_spirv(vsSource, fsSource);
+
+    
+    //ret->sh = LoadShaderModuleFromSPIRV_Vk(spirV.data(), spirV.size() * 4, spirF.data(), spirF.size() * 4);
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = (VkDescriptorSetLayout*)&(reinterpret_cast<WGVKBindGroupLayout>(ret->bglayout.layout)->layout);
+    pipelineLayoutInfo.pushConstantRangeCount = 0;
+    pipelineLayoutInfo.pPushConstantRanges = nullptr;
+    
+    if (vkCreatePipelineLayout(g_vulkanstate.device->device, &pipelineLayoutInfo, nullptr, (VkPipelineLayout*)&ret->layout.layout) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create pipeline layout!");
+    }
+    std::vector<ResourceDescriptor> bge(uniformCount);
+
+    for(uint32_t i = 0;i < bge.size();i++){
+        bge[i] = ResourceDescriptor{};
+        bge[i].binding = uniforms[i].location;
+    }
+    ret->bindGroup = LoadBindGroup_Vk(&ret->bglayout, bge.data(), bge.size());
+    UpdatePipeline_Vk(ret, std::vector<AttributeAndResidence>(attribs, attribs + attribCount));    
+    
+    return ret;
+
+}
 
 DescribedShaderModule LoadShaderModule(ShaderSources source){
     
@@ -331,55 +387,17 @@ DescribedShaderModule LoadShaderModule(ShaderSources source){
 }
 
 
-void UpdatePipeline_Vk(DescribedPipeline* ret, const VertexArray* vao){
-    // Shader Stage Setup
-    auto it = ret->createdPipelines->pipelines.find(vao->attributes);
-    if(it != ret->createdPipelines->pipelines.end()){
-        ret->quartet = it->second;
-        return;
-    }
-
-    RenderPipelineQuartet quartet = GetPipelinesForLayout(ret, vao->attributes);
-
-    ret->quartet = quartet;
-    ret->createdPipelines->pipelines[vao->attributes] = ret->quartet;
-}
 
 
 DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSource, const VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
-    DescribedPipeline* ret = callocnew(DescribedPipeline);
-    ret->settings = settings;
-    ret->createdPipelines = callocnewpp(VertexStateToPipelineMap);
-    ret->bglayout = LoadBindGroupLayout(uniforms, uniformCount, false);
+    
     ShaderSources sources zeroinit;
+    
     sources.vertexSource = vsSource;
     sources.fragmentSource = fsSource;
-
-    ret->sh = LoadShaderModule(sources);
-    //auto [spirV, spirF] = glsl_to_spirv(vsSource, fsSource);
+    DescribedShaderModule sh = LoadShaderModule(sources);
+    return LoadPipelineMod(sh, vao->attributes.data(), vao->attributes.size(), uniforms, uniformCount, settings);
     
-    //ret->sh = LoadShaderModuleFromSPIRV_Vk(spirV.data(), spirV.size() * 4, spirF.data(), spirF.size() * 4);
-
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 1;
-    pipelineLayoutInfo.pSetLayouts = (VkDescriptorSetLayout*)&(reinterpret_cast<WGVKBindGroupLayout>(ret->bglayout.layout)->layout);
-    pipelineLayoutInfo.pushConstantRangeCount = 0;
-    pipelineLayoutInfo.pPushConstantRanges = nullptr;
-    
-    if (vkCreatePipelineLayout(g_vulkanstate.device->device, &pipelineLayoutInfo, nullptr, (VkPipelineLayout*)&ret->layout.layout) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create pipeline layout!");
-    }
-    std::vector<ResourceDescriptor> bge(uniformCount);
-
-    for(uint32_t i = 0;i < bge.size();i++){
-        bge[i] = ResourceDescriptor{};
-        bge[i].binding = uniforms[i].location;
-    }
-    ret->bindGroup = LoadBindGroup_Vk(&ret->bglayout, bge.data(), bge.size());
-    UpdatePipeline_Vk(ret, vao);    
-    
-    return ret;
 }
 
 extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry){

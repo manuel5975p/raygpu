@@ -121,7 +121,7 @@ DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsage usage){
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     if (vkCreateBuffer(g_vulkanstate.device->device, &bufferInfo, nullptr, &vertexBuffer) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create vertex buffer!");
+        TRACELOG(LOG_FATAL, "failed to create vertex buffer!");
     }
     VkDeviceMemory vertexBufferMemory;
     VkMemoryRequirements memRequirements;
@@ -131,7 +131,7 @@ DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsage usage){
     allocInfo.allocationSize = memRequirements.size;
     allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
     if (vkAllocateMemory(g_vulkanstate.device->device, &allocInfo, nullptr, &vertexBufferMemory) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate vertex buffer memory!");
+        TRACELOG(LOG_FATAL, "failed to allocate vertex buffer memory!");
     }
     vkBindBufferMemory(g_vulkanstate.device->device, vertexBuffer, vertexBufferMemory, 0);
     if(data != nullptr){
@@ -253,7 +253,7 @@ DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode m
             case addressMode::repeat:
                 return VK_SAMPLER_ADDRESS_MODE_REPEAT;
             default:
-                __builtin_unreachable();
+                rg_unreachable();
         }
     };
     DescribedSampler ret{};// = callocnew(DescribedSampler);
@@ -281,7 +281,7 @@ DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode m
     ret.compare = CompareFunction_Undefined;//huh??
     VkResult scr = vkCreateSampler(g_vulkanstate.device->device, &sci, nullptr, (VkSampler*)&ret.sampler);
     if(scr != VK_SUCCESS){
-        throw std::runtime_error("Sampler creation failed: " + std::to_string(scr));
+        TRACELOG(LOG_FATAL, "Sampler creation failed: %s", (int)scr);
     }
     return ret;
 }
@@ -377,7 +377,7 @@ VkInstance createInstance() {
     #endif
     #if SUPPORT_GLFW == 1 || SUPPORT_SDL2 == 1 || SUPPORT_SDL3 == 1
     if (!windowExtensions) {
-        throw std::runtime_error("Failed to get required extensions for windowing!");
+        TRACELOG(LOG_FATAL, "Failed to get required extensions for windowing!");
     }
     #endif
 
@@ -443,7 +443,7 @@ VkInstance createInstance() {
     // (Optional) Enable validation layers here if needed
     VkResult instanceCreation = vkCreateInstance(&createInfo, nullptr, &ret);
     if (instanceCreation != VK_SUCCESS) {
-        throw std::runtime_error(std::string("Failed to create Vulkan instance : ") + std::to_string(instanceCreation));
+        TRACELOG(LOG_FATAL, "Failed to create Vulkan instance : %d", (int)instanceCreation);
     } else {
         TRACELOG(LOG_INFO, "Successfully created Vulkan instance");
     }
@@ -476,7 +476,7 @@ VkPhysicalDevice pickPhysicalDevice() {
     vkEnumeratePhysicalDevices(g_vulkanstate.instance, &deviceCount, nullptr);
 
     if (deviceCount == 0) {
-        throw std::runtime_error("Failed to find GPUs with Vulkan support!");
+        TRACELOG(LOG_FATAL, "Failed to find GPUs with Vulkan support!");
     }
 
     std::vector<VkPhysicalDevice> devices(deviceCount);
@@ -517,7 +517,7 @@ VkPhysicalDevice pickPhysicalDevice() {
     
 
     if (g_vulkanstate.physicalDevice == VK_NULL_HANDLE) {
-        throw std::runtime_error("Failed to find a suitable GPU!");
+        TRACELOG(LOG_FATAL, "Failed to find a suitable GPU!");
     }
 picked:
     VkPhysicalDeviceProperties pProperties;
@@ -534,7 +534,8 @@ picked:
                 return "?Unknown Adapter Type?";
         }
     };
-    TRACELOG(LOG_INFO, "Picked Adapter: %s, which is a %s", pProperties.deviceName, deviceTypeDescription(pProperties.deviceType));
+    const char* article = pProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU ? "an" : "a";
+    TRACELOG(LOG_INFO, "Picked Adapter: %s, which is %s %s", pProperties.deviceName, article, deviceTypeDescription(pProperties.deviceType));
     int major = VK_API_VERSION_MAJOR(pProperties.apiVersion);
     int minor = VK_API_VERSION_MINOR(pProperties.apiVersion);
     int patch = VK_API_VERSION_PATCH(pProperties.apiVersion);
@@ -607,7 +608,7 @@ QueueIndices findQueueFamilies() {
 
     // Validate that at least graphics and present families are found
     if (ret.graphicsIndex == UINT32_MAX) {
-        throw std::runtime_error("Failed to find graphics queue, probably something went wong");
+        TRACELOG(LOG_FATAL, "Failed to find graphics queue, probably something went wong");
     }
 
     return ret;
@@ -730,7 +731,7 @@ void createRenderPass() {
     
 
     if (vkCreateRenderPass(g_vulkanstate.device->device, &renderPassInfo, nullptr, &g_vulkanstate.renderPass) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create render pass!");
+        TRACELOG(LOG_FATAL, "failed to create render pass!");
     }
 }
 extern "C" void RenderPassSetIndexBuffer(DescribedRenderpass* drp, DescribedBuffer* buffer, IndexFormat format, uint64_t offset){
@@ -832,7 +833,7 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     ret.second = callocnewpp(WGVKQueueImpl);
     auto dcresult = vkCreateDevice(g_vulkanstate.physicalDevice, &createInfo, nullptr, &(ret.first->device));
     if (dcresult != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create logical device!");
+        TRACELOG(LOG_FATAL, "Failed to create logical device!");
     } else {
         TRACELOG(LOG_INFO, "Successfully created logical device");
     }
@@ -1194,14 +1195,14 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
     //VkFenceCreateInfo finfo{};
     //finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     //if(vkCreateFence(g_vulkanstate.device, &finfo, nullptr, &fence) != VK_SUCCESS){
-    //    throw std::runtime_error("Could not create fence");
+    //    TRACELOG(LOG_FATAL, "Could not create fence");
     //}
     wgvkQueueSubmit(g_vulkanstate.queue, 1, &cbuffer);
     //if(vkQueueSubmit(g_vulkanstate.queue.graphicsQueue, 1, &sinfo, g_vulkanstate.queue.syncState.renderFinishedFence) != VK_SUCCESS){
-    //    throw std::runtime_error("Could not submit commandbuffer");
+    //    TRACELOG(LOG_FATAL, "Could not submit commandbuffer");
     //}
     //if(vkWaitForFences(g_vulkanstate.device, 1, &g_vulkanstate.queue.syncState.renderFinishedFence, VK_TRUE, ~0) != VK_SUCCESS){
-    //    throw std::runtime_error("Could not wait for fence");
+    //    TRACELOG(LOG_FATAL, "Could not wait for fence");
     //}
     WGVKRenderPassEncoder rpe = (WGVKRenderPassEncoder)rp->rpEncoder;
     if(rpe){

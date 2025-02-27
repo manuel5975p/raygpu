@@ -255,7 +255,7 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
             case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
             default:
                 assert(false && "Unsupported");
-                __builtin_unreachable();
+                rg_unreachable();
         }
     };
 
