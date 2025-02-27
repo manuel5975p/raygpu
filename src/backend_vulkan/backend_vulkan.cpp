@@ -1036,7 +1036,7 @@ RenderTexture LoadRenderTexture(uint32_t width, uint32_t height){
 }
 extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
 
-    WGVKRenderPassEncoder ret = callocnewpp(WGVKRenderPassEncoderImpl);
+    //WGVKRenderPassEncoder ret = callocnewpp(WGVKRenderPassEncoderImpl);
 
     VkCommandBufferBeginInfo bbi{};
     bbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
