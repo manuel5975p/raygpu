@@ -45,7 +45,7 @@ inline WGPUVertexFormat f16format(uint32_t s){
         case 4:return WGPUVertexFormat_Float16x4;
         default: abort();
     }
-    __builtin_unreachable();
+    rg_unreachable();
 }
 inline WGPUVertexFormat f32format(uint32_t s){
     switch(s){
@@ -55,7 +55,7 @@ inline WGPUVertexFormat f32format(uint32_t s){
         case 4:return WGPUVertexFormat_Float32x4;
         default: abort();
     }
-    __builtin_unreachable();
+    rg_unreachable();
 }
 extern "C" void BindComputePipeline(DescribedComputePipeline* pipeline){
     wgpuComputePassEncoderSetPipeline ((WGPUComputePassEncoder)g_renderstate.computepass.cpEncoder, (WGPUComputePipeline)pipeline->pipeline);
@@ -462,6 +462,8 @@ DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* unifo
     for(size_t i = 0;i < uniformCount;i++){
         blayouts[i].binding = uniforms[i].location;
         switch(uniforms[i].type){
+            default:
+                rg_unreachable();
             case uniform_buffer:
                 blayouts[i].visibility = visible;
                 blayouts[i].buffer.type = WGPUBufferBindingType_Uniform;
@@ -882,7 +884,7 @@ void InitBackend(){
                     return true;
                 case wgpu::BackendType::Undefined:
                 default:
-                    __builtin_unreachable();
+                    rg_unreachable();
                     //return false;
             }
         };
@@ -1011,7 +1013,7 @@ void InitBackend(){
                     reasonName = "FailedCreation";
                     break;
                 default:
-                    __builtin_unreachable();
+                    rg_unreachable();
             }
             std::cerr << "Device lost because of " << reasonName << ": " << std::string(message.data, message.length) << std::endl;
         });
@@ -1032,7 +1034,7 @@ void InitBackend(){
                     errorTypeName = "No Error";
                     break;
                 default:
-                    __builtin_unreachable();
+                    rg_unreachable();
             }
             std::cerr << errorTypeName << " error: " << std::string(message.data, message.length);
             __builtin_trap();

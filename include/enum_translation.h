@@ -407,7 +407,7 @@ static inline VkDescriptorType toVulkanResourceType(uniform_type type) {
             return VK_DESCRIPTOR_TYPE_SAMPLER;
         }
         default:
-            __builtin_unreachable();
+            rg_unreachable();
     }
     
 }
@@ -467,7 +467,7 @@ static inline VkImageViewType toVulkanTextureViewDimension(TextureViewDimension 
     switch(dim){
         default:
         case 0:{
-            __builtin_unreachable();
+            rg_unreachable();
         }
         case TextureViewDimension_1D:{
             return VK_IMAGE_VIEW_TYPE_1D;
@@ -489,7 +489,7 @@ static inline VkImageType toVulkanTextureDimension(TextureDimension dim){
     switch(dim){
         default:
         case 0:{
-            __builtin_unreachable();
+            rg_unreachable();
         }
         case TextureDimension_1D:{
             return VK_IMAGE_TYPE_1D;
@@ -526,7 +526,7 @@ static inline PixelFormat fromVulkanPixelFormat(VkFormat format) {
             return Depth24;
         case VK_FORMAT_D32_SFLOAT:
             return Depth32;
-        default: __builtin_unreachable();
+        default: rg_unreachable();
     }
 }
 static inline VkPresentModeKHR toVulkanPresentMode(PresentMode mode){
@@ -577,7 +577,7 @@ static inline VkFormat toVulkanPixelFormat(PixelFormat format) {
         assert(0 && "RGB8 format not supported in Vulkan.");
         break;
     default:
-        __builtin_unreachable();
+        rg_unreachable();
     }
     return (VkFormat)0;
 }

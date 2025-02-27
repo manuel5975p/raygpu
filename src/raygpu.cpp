@@ -197,9 +197,6 @@ VertexArray* renderBatchVAO;
 DescribedBuffer* renderBatchVBO;
 PrimitiveType current_drawmode;
 //DescribedBuffer vbomap;
-#ifdef _WIN32
-#define __builtin_unreachable(...)
-#endif
 
 extern "C" VertexArray* LoadVertexArray(){
     VertexArray* ret = callocnew(VertexArray);

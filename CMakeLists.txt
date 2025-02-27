@@ -206,7 +206,7 @@ if(DAWN_ENABLE_METAL)
 endif()
 
 
-#set(SANITIZER_FLAGS "-fsanitize=address")
+
 add_library(raygpu ${RG_SOURCES})
 
 if(DAWN_USE_X11)
@@ -239,7 +239,7 @@ endif()
 if(NOT MSVC AND NOT EMSCRIPTEN)
     if(CMAKE_BUILD_TYPE MATCHES Debug)
         foreach(source_file IN LISTS RG_SOURCES)
-            set_source_files_properties(${source_file} PROPERTIES COMPILE_FLAGS "-g -fsanitize=address")
+            set_source_files_properties(${source_file} PROPERTIES COMPILE_FLAGS "-g -fsanitize=address,leak")
         endforeach()
     endif()
     if(CMAKE_BUILD_TYPE MATCHES Release)
@@ -366,7 +366,7 @@ endif()
 #target_compile_features(example PUBLIC cxx_std_20)
 #target_link_libraries(example PUBLIC raygpu)
 if(CMAKE_BUILD_TYPE MATCHES Debug)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,leak")
 endif()
 if(EMSCRIPTEN)
     set(CMAKE_EXECUTABLE_SUFFIX ".html") # This line is used to set your executable to build with the emscripten html template so that you can directly open it.

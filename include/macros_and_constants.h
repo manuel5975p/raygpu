@@ -89,9 +89,13 @@ constexpr float RAD2DEG = 180.0 / M_PI;
 #define VULKAN_BACKEND_ONLY
 
 #if defined(_MSC_VER) || defined(_MSC_FULL_VER) 
-    #define __builtin_unreachable(...) __assume(false)
-    #define __builtin_assume(Condition) __assume(Condition)
-    #define __builtin_trap(...) __debugbreak();
+    #define rg_unreachable(...) __assume(false)
+    #define rg_assume(Condition) __assume(Condition)
+    #define rg_trap(...) __debugbreak();
+#else 
+    #define rg_unreachable(...) __builtin_unreachable()
+    #define rg_assume(Condition) __builtin_assume(Condition)
+    #define rg_trap(...) __builtin_trap();
 #endif
 
 
@@ -104,9 +108,9 @@ constexpr float RAD2DEG = 180.0 / M_PI;
 #define rassert(Condition, Message)                                     \
 do {                                                                    \
     if (!(Condition)) {                                                 \
-        TRACELOG(LOG_ERROR, "Assertion failed: %s", Message);         \
-        TRACELOG(LOG_ERROR, "Condition: %s", #Condition);             \
-        TRACELOG(LOG_ERROR, "Location: %s:%d", __FILE__, __LINE__);   \
+        TRACELOG(LOG_ERROR, "Assertion failed: %s", Message);           \
+        TRACELOG(LOG_ERROR, "Condition: %s", #Condition);               \
+        TRACELOG(LOG_ERROR, "Location: %s:%d", __FILE__, __LINE__);     \
         __builtin_trap();                                               \
         abort();                                                        \
     }                                                                   \

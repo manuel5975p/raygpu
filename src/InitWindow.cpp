@@ -495,7 +495,7 @@ extern "C" size_t GetPixelSizeInBytes(PixelFormat format) {
         case PixelFormat::Depth32:
         return 4;
         default: 
-            __builtin_unreachable();
+            rg_unreachable();
             return 0;
     }
     /*
