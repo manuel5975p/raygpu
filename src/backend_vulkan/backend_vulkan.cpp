@@ -615,51 +615,12 @@ QueueIndices findQueueFamilies() {
 extern "C" DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* descs, uint32_t uniformCount, bool compute){
     DescribedBindGroupLayout retv{};
     DescribedBindGroupLayout* ret = &retv;
-    VkDescriptorSetLayout layout{};
-    VkDescriptorSetLayoutCreateInfo lci{};
-    lci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    lci.bindingCount = uniformCount;
-    
-    small_vector<VkDescriptorSetLayoutBinding> entries(uniformCount);
-    lci.pBindings = entries.data();
-    for(uint32_t i = 0;i < uniformCount;i++){
-        switch(descs[i].type){
-            case storage_texture2d:{
-                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-            }break;
-            case storage_texture2d_array:{
-                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-            }break;
-            case storage_texture3d:{
-                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-            }break;
-            case storage_buffer:{
-                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            }break;
-            case uniform_buffer:{
-                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            }break;
-            case texture2d:{
-                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-            }break;
-            case texture2d_array:{
-                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-            }break;
-            case texture3d:{
-                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-            }break;
-            case texture_sampler:{
-                entries[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-            }break;
-        }
-        entries[i].descriptorCount = 1;
-        entries[i].binding = descs[i].location;
-        entries[i].stageFlags = compute ? (VK_SHADER_STAGE_COMPUTE_BIT) : (VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-    }
+    WGVKBindGroupLayout retlayout = wgvkDeviceCreateBindGroupLayout(g_vulkanstate.device, descs, uniformCount);
+    ret->layout = retlayout;
     ret->entries = (ResourceTypeDescriptor*)std::calloc(uniformCount, sizeof(ResourceTypeDescriptor));
+    std::memcpy(const_cast<ResourceTypeDescriptor*>(ret->entries), descs, uniformCount * sizeof(ResourceTypeDescriptor));
     ret->entryCount = uniformCount;
-    std::memcpy(ret->entries, descs, uniformCount * sizeof(ResourceTypeDescriptor));
-    VkResult createResult = vkCreateDescriptorSetLayout(g_vulkanstate.device->device, &lci, nullptr, (VkDescriptorSetLayout*)&ret->layout);
+    std::vector<ResourceTypeDescriptor> a(retlayout->entries, retlayout->entries + ret->entryCount);
     return retv;
 }
 

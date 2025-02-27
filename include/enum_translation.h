@@ -47,7 +47,7 @@ using std::uint64_t;
 #endif
 // ------------------------- Enum Definitions -------------------------
 
-typedef enum uniform_type { uniform_buffer, storage_buffer, texture2d, texture2d_array, storage_texture2d, texture_sampler, texture3d, storage_texture3d, storage_texture2d_array} uniform_type;
+typedef enum uniform_type { uniform_type_undefined, uniform_buffer, storage_buffer, texture2d, texture2d_array, storage_texture2d, texture_sampler, texture3d, storage_texture3d, storage_texture2d_array} uniform_type;
 
 typedef enum access_type { readonly, readwrite, writeonly } access_type;
 
@@ -409,6 +409,7 @@ static inline VkDescriptorType toVulkanResourceType(uniform_type type) {
         default:
             __builtin_unreachable();
     }
+    
 }
 
 static inline VkBufferUsageFlags toVulkanBufferUsage(BufferUsage busg) {

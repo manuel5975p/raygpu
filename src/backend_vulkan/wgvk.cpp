@@ -45,7 +45,11 @@ extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_
 
 
 extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup, const WGVKBindGroupDescriptor* bgdesc){
+    
+    rassert(bgdesc->layout != nullptr, "WGVKBindGroupDescriptor::layout is null");
+    
     if(wvBindGroup->pool == nullptr){
+        wvBindGroup->layout = bgdesc->layout;
         VkDescriptorPoolCreateInfo dpci{};
         dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         dpci.maxSets = 1;
@@ -83,7 +87,13 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
             //wgvkBufferAddRef((WGVKBuffer)entry.buffer);
         }
         else if(entry.textureView){
-            newResourceUsage.track((WGVKTextureView)entry.textureView);
+            uniform_type utype = bgdesc->layout->entries[i].type;
+            if(utype == storage_texture2d || utype == storage_texture3d || utype == storage_texture2d_array){
+                newResourceUsage.track((WGVKTextureView)entry.textureView, TextureUsage_StorageBinding);
+            }
+            else if(utype == texture2d || utype == texture3d || utype == texture2d_array){
+                newResourceUsage.track((WGVKTextureView)entry.textureView, TextureUsage_TextureBinding);
+            }
             //wgvkTextureViewAddRef((WGVKTextureView)entry.textureView);
         }
         else if(entry.sampler){
@@ -93,17 +103,7 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
         }
     }
     wvBindGroup->resourceUsage.releaseAllAndClear();
-    for(uint32_t i = 0;i < bgdesc->entryCount;i++){
-        auto& entry = bgdesc->entries[i];
-        if(entry.buffer){
-            //wvBindGroup->resourceUsage.referencedBuffers.emplace((WGVKBuffer)entry.buffer);
-        }
-        else if(entry.textureView){
-            //wvBindGroup->resourceUsage.referencedTextureViews.emplace((WGVKTextureView)entry.textureView, TextureUsage_TextureBinding);
-        }
-    }
-
-
+    wvBindGroup->resourceUsage = std::move(newResourceUsage);
 
 
     uint32_t count = bgdesc->entryCount;
@@ -116,31 +116,33 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
         uint32_t binding = bgdesc->entries[i].binding;
         writes[i].dstBinding = binding;
         writes[i].dstSet = wvBindGroup->set;
+        const ResourceTypeDescriptor& entryi = bgdesc->layout->entries[i];
         writes[i].descriptorType = toVulkanResourceType(bgdesc->layout->entries[i].type);
         writes[i].descriptorCount = 1;
 
-        if(bgdesc->layout->entries[i].type == uniform_buffer || bgdesc->layout->entries[i].type == storage_buffer){
-            wvBindGroup->resourceUsage.track((WGVKBuffer)bgdesc->entries[i].buffer);
-            bufferInfos[i].buffer = ((WGVKBuffer)bgdesc->entries[i].buffer)->buffer;
+        if(entryi.type == uniform_buffer || entryi.type == storage_buffer){
+            WGVKBuffer bufferOfThatEntry = (WGVKBuffer)bgdesc->entries[i].buffer;
+            wvBindGroup->resourceUsage.track(bufferOfThatEntry);
+            bufferInfos[i].buffer = bufferOfThatEntry->buffer;
             bufferInfos[i].offset = bgdesc->entries[i].offset;
             bufferInfos[i].range =  bgdesc->entries[i].size;
             writes[i].pBufferInfo = bufferInfos.data() + i;
         }
 
-        if(bgdesc->layout->entries[i].type == texture2d || bgdesc->layout->entries[i].type == texture3d){
+        if(entryi.type == texture2d || entryi.type == texture3d){
             wvBindGroup->resourceUsage.track((WGVKTextureView)bgdesc->entries[i].textureView, TextureUsage_TextureBinding);
             imageInfos[i].imageView = ((WGVKTextureView)bgdesc->entries[i].textureView)->view;
             imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             writes[i].pImageInfo = imageInfos.data() + i;
         }
-        if(bgdesc->layout->entries[i].type == storage_texture2d || bgdesc->layout->entries[i].type == storage_texture3d){
+        if(entryi.type == storage_texture2d || entryi.type == storage_texture3d){
             wvBindGroup->resourceUsage.track((WGVKTextureView)bgdesc->entries[i].textureView, TextureUsage_StorageBinding);
             imageInfos[i].imageView = ((WGVKTextureView)bgdesc->entries[i].textureView)->view;
             imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
             writes[i].pImageInfo = imageInfos.data() + i;
         }
 
-        if(bgdesc->layout->entries[i].type == texture_sampler){
+        if(entryi.type == texture_sampler){
             VkSampler vksampler = (VkSampler)bgdesc->entries[i].sampler;
             imageInfos[i].sampler = vksampler;
             writes[i].pImageInfo = imageInfos.data() + i;
@@ -152,6 +154,7 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
 
 
 extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVKBindGroupDescriptor* bgdesc){
+    rassert(bgdesc->layout != nullptr, "WGVKBindGroupDescriptor::layout is null");
 
     WGVKBindGroup ret = callocnewpp(WGVKBindGroupImpl);
     ret->refCount = 1;
@@ -185,17 +188,21 @@ extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVK
     dsai.pSetLayouts = (VkDescriptorSetLayout*)&bgdesc->layout->layout;
     vkAllocateDescriptorSets(device->device, &dsai, &ret->set);
     wgvkWriteBindGroup(device, ret, bgdesc);
-
+    ret->layout = bgdesc->layout;
+    ++ret->layout->refCount;
+    rassert(ret->layout != nullptr, "ret->layout is nullptr");
     return ret;
 }
 extern "C" WGVKBindGroupLayout wgvkDeviceCreateBindGroupLayout(WGVKDevice device, const ResourceTypeDescriptor* entries, uint32_t entryCount){
     WGVKBindGroupLayout ret = callocnewpp(WGVKBindGroupLayoutImpl);
     ret->refCount = 1;
+    ret->device = device;
+    ret->entryCount = entryCount;
     VkDescriptorSetLayoutCreateInfo slci zeroinit;
     slci.bindingCount = entryCount;
     small_vector<VkDescriptorSetLayoutBinding> bindings(slci.bindingCount);
     for(uint32_t i = 0;i < slci.bindingCount;i++){
-        bindings[i].descriptorCount = 0;
+        bindings[i].descriptorCount = 1;
         bindings[i].binding = entries[i].location;
         bindings[i].descriptorType = toVulkanResourceType(entries[i].type);
         bindings[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
@@ -204,7 +211,10 @@ extern "C" WGVKBindGroupLayout wgvkDeviceCreateBindGroupLayout(WGVKDevice device
     slci.pBindings = bindings.data();
     slci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     vkCreateDescriptorSetLayout(device->device, &slci, nullptr, &ret->layout);
-    ret->entries = calloc()//ToDO
+    ResourceTypeDescriptor* entriesCopy = (ResourceTypeDescriptor*)std::calloc(entryCount, sizeof(ResourceTypeDescriptor));
+    std::memcpy(entriesCopy, entries, entryCount * sizeof(ResourceTypeDescriptor));
+    ret->entries = entriesCopy;
+    
     return ret;
 }
 
@@ -742,10 +752,20 @@ void wgvkReleaseDescriptorSet(WGVKBindGroup dshandle) {
     --dshandle->refCount;
     if (dshandle->refCount == 0) {
         dshandle->resourceUsage.releaseAllAndClear();
+        wgvkReleaseBindGroupLayout(dshandle->layout);
         //vkFreeDescriptorSets(g_vulkanstate.device->device, dshandle->pool, 1, &dshandle->set);
         vkDestroyDescriptorPool(g_vulkanstate.device->device, dshandle->pool, nullptr);
         dshandle->~WGVKBindGroupImpl();
         std::free(dshandle);
+    }
+}
+extern "C" void wgvkReleaseBindGroupLayout(WGVKBindGroupLayout bglayout){
+    --bglayout->refCount;
+    if(bglayout->refCount == 0){
+        vkDestroyDescriptorSetLayout(bglayout->device->device, bglayout->layout, nullptr);
+        bglayout->~WGVKBindGroupLayoutImpl();
+        std::free(const_cast<ResourceTypeDescriptor*>(bglayout->entries));
+        std::free(bglayout);
     }
 }
 

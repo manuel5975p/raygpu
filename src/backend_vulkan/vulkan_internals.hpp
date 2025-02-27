@@ -118,13 +118,14 @@ typedef struct ResourceUsage{
 typedef struct WGVKBindGroupImpl{
     VkDescriptorSet set;
     VkDescriptorPool pool;
+    WGVKBindGroupLayout layout;
     refcount_type refCount;
     ResourceUsage resourceUsage;
 }WGVKBindGroupImpl;
 
 typedef struct WGVKBindGroupLayoutImpl{
     VkDescriptorSetLayout layout;
-
+    WGVKDevice device;
     const ResourceTypeDescriptor* entries;
     uint32_t entryCount;
 
@@ -209,6 +210,7 @@ extern "C" void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc);
 extern "C" void wgvkReleaseComputePassEncoder(WGVKComputePassEncoder rpenc);
 extern "C" void wgvkReleaseBuffer(WGVKBuffer commandBuffer);
 extern "C" void wgvkReleaseDescriptorSet(WGVKBindGroup commandBuffer);
+extern "C" void wgvkReleaseBindGroupLayout(WGVKBindGroupLayout bglayout);
 extern "C" void wgvkReleaseTexture(WGVKTexture texture);
 extern "C" void wgvkReleaseTextureView(WGVKTextureView view);
 
@@ -244,6 +246,7 @@ inline void ResourceUsage::track(WGVKTextureView view, TextureUsage usage)noexce
     }
 }
 inline void ResourceUsage::track(WGVKBindGroup bindGroup)noexcept{
+    rassert(bindGroup->layout != nullptr, "Layout is nullptr");
     if(!contains(bindGroup)){
         ++bindGroup->refCount;
         referencedBindGroups.insert(bindGroup);
