@@ -363,7 +363,7 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = 1;
-    pipelineLayoutInfo.pSetLayouts = (VkDescriptorSetLayout*)&(ret->bglayout.layout);
+    pipelineLayoutInfo.pSetLayouts = (VkDescriptorSetLayout*)&(reinterpret_cast<WGVKBindGroupLayout>(ret->bglayout.layout)->layout);
     pipelineLayoutInfo.pushConstantRangeCount = 0;
     pipelineLayoutInfo.pPushConstantRanges = nullptr;
     
@@ -452,10 +452,10 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, Resou
     //bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
 }
 DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, const ResourceDescriptor* resources, uint32_t count){
-    DescribedBindGroup ret{};
-    VkDescriptorPool dpool{};
-    VkDescriptorSet dset{};
-    VkDescriptorPoolCreateInfo dpci{};
+    DescribedBindGroup         ret   zeroinit;
+    VkDescriptorPool           dpool zeroinit;
+    VkDescriptorSet            dset  zeroinit;
+    VkDescriptorPoolCreateInfo dpci  zeroinit;
     dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     dpci.flags |= VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
     std::unordered_map<VkDescriptorType, uint32_t> counts;
@@ -532,12 +532,17 @@ DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, cons
 
 void UpdateBindGroup(DescribedBindGroup* bg){
     const auto* layout = bg->layout;
+    const auto* layoutlayout = layout->layout;
+    rassert(layout != nullptr, "DescribedBindGroupLayout is nullptr");
+    rassert(layoutlayout != nullptr, "WGVKBindGroupLayout is nullptr");
     if(bg->needsUpdate == false)return;
     WGVKBindGroupDescriptor bgdesc zeroinit;
 
     bgdesc.entryCount = bg->entryCount;
     bgdesc.entries = bg->entries;
-    bgdesc.layout = bg->layout;
+    WGVKBindGroupLayout wvl = (WGVKBindGroupLayout)bg->layout->layout;
+    bgdesc.layout = wvl;
+    std::vector<ResourceTypeDescriptor> ldtypes(wvl->entries, wvl->entries + wvl->entryCount);
     //bgdesc.entries 
     if(bg->bindGroup && ((WGVKBindGroup)bg->bindGroup)->refCount == 1){  
         WGVKBindGroup writeTo = (WGVKBindGroup)bg->bindGroup;      
@@ -597,7 +602,7 @@ extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCod
     VkPipelineLayoutCreateInfo lci zeroinit;
     lci.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     lci.setLayoutCount = 1;
-    lci.pSetLayouts = (VkDescriptorSetLayout*)(&bgl.layout);
+    lci.pSetLayouts = &(reinterpret_cast<WGVKBindGroupLayout>(bgl.layout)->layout);
     VkPipelineLayout layout zeroinit;
     VkResult pipelineCreationResult = vkCreatePipelineLayout(g_vulkanstate.device->device, &lci, nullptr, &layout);
     VkPipelineShaderStageCreateInfo computeStage zeroinit;
