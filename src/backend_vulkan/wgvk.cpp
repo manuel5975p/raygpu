@@ -75,14 +75,16 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
         dsai.pSetLayouts = (VkDescriptorSetLayout*)&bgdesc->layout->layout;
         vkAllocateDescriptorSets(device->device, &dsai, &wvBindGroup->set);
     }
-
+    ResourceUsage newResourceUsage;
     for(uint32_t i = 0;i < bgdesc->entryCount;i++){
         auto& entry = bgdesc->entries[i];
         if(entry.buffer){
-            wgvkBufferAddRef((WGVKBuffer)entry.buffer);
+            newResourceUsage.track((WGVKBuffer)entry.buffer);
+            //wgvkBufferAddRef((WGVKBuffer)entry.buffer);
         }
         else if(entry.textureView){
-            wgvkTextureViewAddRef((WGVKTextureView)entry.textureView);
+            newResourceUsage.track((WGVKTextureView)entry.textureView);
+            //wgvkTextureViewAddRef((WGVKTextureView)entry.textureView);
         }
         else if(entry.sampler){
             // TODO
@@ -184,6 +186,25 @@ extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVK
     vkAllocateDescriptorSets(device->device, &dsai, &ret->set);
     wgvkWriteBindGroup(device, ret, bgdesc);
 
+    return ret;
+}
+extern "C" WGVKBindGroupLayout wgvkDeviceCreateBindGroupLayout(WGVKDevice device, const ResourceTypeDescriptor* entries, uint32_t entryCount){
+    WGVKBindGroupLayout ret = callocnewpp(WGVKBindGroupLayoutImpl);
+    ret->refCount = 1;
+    VkDescriptorSetLayoutCreateInfo slci zeroinit;
+    slci.bindingCount = entryCount;
+    small_vector<VkDescriptorSetLayoutBinding> bindings(slci.bindingCount);
+    for(uint32_t i = 0;i < slci.bindingCount;i++){
+        bindings[i].descriptorCount = 0;
+        bindings[i].binding = entries[i].location;
+        bindings[i].descriptorType = toVulkanResourceType(entries[i].type);
+        bindings[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    }
+
+    slci.pBindings = bindings.data();
+    slci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    vkCreateDescriptorSetLayout(device->device, &slci, nullptr, &ret->layout);
+    ret->entries = calloc()//ToDO
     return ret;
 }
 

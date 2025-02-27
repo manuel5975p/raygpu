@@ -121,9 +121,8 @@ if(NOT EMSCRIPTEN AND SUPPORT_GLSL_PARSER)
     option(SPIRV_REFLECT_BUILD_TESTS "" OFF)
     FetchContent_Declare(
         khrSpirvReflect
-        GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-Reflect.git
-        GIT_SHALLOW TRUE
-        GIT_TAG vulkan-sdk-1.4.304
+        URL https://github.com/KhronosGroup/SPIRV-Reflect/archive/refs/tags/vulkan-sdk-1.4.304.1.tar.gz
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     )
     FetchContent_MakeAvailable(khrSpirvReflect)
 endif()

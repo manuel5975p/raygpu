@@ -63,6 +63,7 @@ struct QueueIndices{
 
 //struct VertexAndFragmentShaderModuleImpl;
 struct WGVKBindGroupImpl;
+struct WGVKBindGroupLayoutImpl;
 struct WGVKBufferImpl;
 struct WGVKRenderPassEncoderImpl;
 struct WGVKComputePassEncoderImpl;
@@ -74,6 +75,7 @@ struct WGVKQueueImpl;
 struct WGVKDeviceImpl;
 
 //typedef VertexAndFragmentShaderModuleImpl* VertexAndFragmentShaderModule;
+typedef WGVKBindGroupLayoutImpl* WGVKBindGroupLayout;
 typedef WGVKBindGroupImpl* WGVKBindGroup;
 typedef WGVKBufferImpl* WGVKBuffer;
 typedef WGVKQueueImpl* WGVKQueue;
@@ -118,7 +120,16 @@ typedef struct WGVKBindGroupImpl{
     VkDescriptorPool pool;
     refcount_type refCount;
     ResourceUsage resourceUsage;
-}DescriptorSetHandleImpl;
+}WGVKBindGroupImpl;
+
+typedef struct WGVKBindGroupLayoutImpl{
+    VkDescriptorSetLayout layout;
+
+    const ResourceTypeDescriptor* entries;
+    uint32_t entryCount;
+
+    refcount_type refCount;
+}WGVKBindGroupLayoutImpl;
 
 typedef struct WGVKBufferImpl{
     VkBuffer buffer;
@@ -177,7 +188,7 @@ typedef struct AttachmentDescriptor{
 typedef struct WGVKBindGroupDescriptor{
     void* nextInChain;
     WGVKStringView label;
-    const DescribedBindGroupLayout* layout;
+    WGVKBindGroupLayout layout;
     size_t entryCount;
     const ResourceDescriptor* entries;
 }WGVKBindGroupDescriptor;
@@ -1018,6 +1029,7 @@ extern "C" WGVKTexture wgvkDeviceCreateTexture(WGVKDevice device, const WGVKText
 extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureViewDescriptor *descriptor);
 extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDescriptor* desc);
 extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, void const * data, size_t size);
+extern "C" WGVKBindGroupLayout wgvkDeviceCreateBindGroupLayout(WGVKDevice device, const ResourceTypeDescriptor* entries, uint32_t entryCount);
 extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVKBindGroupDescriptor* bgdesc);
 extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup, const WGVKBindGroupDescriptor* bgdesc);
 extern "C" void wgvkQueueTransitionLayout(WGVKQueue cSelf, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
