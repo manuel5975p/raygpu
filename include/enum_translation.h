@@ -107,6 +107,31 @@ typedef enum TextureViewDimension{
     TextureViewDimension_Force32 = 0x7FFFFFFF
 }TextureViewDimension;
 
+typedef enum ShaderStage{
+    ShaderStage_Vertex,
+    ShaderStage_TessControl,
+    ShaderStage_TessEvaluation,
+    ShaderStage_Geometry,
+    ShaderStage_Fragment,
+    ShaderStage_Compute,
+    ShaderStage_RayGen,
+    ShaderStage_RayGenNV = ShaderStage_RayGen,
+    ShaderStage_Intersect,
+    ShaderStage_IntersectNV = ShaderStage_Intersect,
+    ShaderStage_AnyHit,
+    ShaderStage_AnyHitNV = ShaderStage_AnyHit,
+    ShaderStage_ClosestHit,
+    ShaderStage_ClosestHitNV = ShaderStage_ClosestHit,
+    ShaderStage_Miss,
+    ShaderStage_MissNV = ShaderStage_Miss,
+    ShaderStage_Callable,
+    ShaderStage_CallableNV = ShaderStage_Callable,
+    ShaderStage_Task,
+    ShaderStage_TaskNV = ShaderStage_Task,
+    ShaderStage_Mesh,
+    ShaderStage_MeshNV = ShaderStage_Mesh,
+}ShaderStage;
+
 typedef enum BlendFactor {
     BlendFactor_Undefined = 0x00000000,
     BlendFactor_Zero = 0x00000001,

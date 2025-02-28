@@ -163,20 +163,14 @@ typedef enum ShaderSourceType{
     sourceTypeSPIRV   = 1,
     sourceTypeWGSL    = 2,
     sourceTypeGLSL    = 3,
-}ShaderSourceType;
+}ShaderLanguage;
+typedef struct StageInModule{
+    const char* entryPoint;
+    NativeShaderModuleHandle module;
+}StageInModule;
 
 typedef struct DescribedShaderModule{
-
-    /**
-     * @brief source is Either binary uint32_t* for SPIR-V or printable char* for WGSL
-     */
-    const void* source;
-    ShaderSourceType sourceType;
-    size_t sourceLengthInBytes;
-
-    NativeShaderModuleHandle vertexModule;
-    NativeShaderModuleHandle fragmentModule;
-    NativeShaderModuleHandle computeModule;
+    StageInModule stages[16];
     StringToUniformMap* uniformLocations;
 }DescribedShaderModule;
 
