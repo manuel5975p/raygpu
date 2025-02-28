@@ -8,9 +8,7 @@
 #include <enum_translation.h>
 
 const char* copyString(const char* str){
-    size_t len = 0;
-    while(str[len++]);
-    --len;
+    size_t len = std::strlen(str) + 1;
     char* ret = (char*)std::calloc(len, 1);
     std::memcpy(ret, str, len);
     return ret;
@@ -44,6 +42,8 @@ extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV(const uint32_t* spirv
                     return ShaderStage_Vertex;
             }
         }(epStage);
+        ret.stages[stage].module = insert;
+        ret.stages[stage].entryPoint = copyString(module.GetEntryPointName(i));
         //TRACELOG(LOG_INFO, "%s : %d", module.GetEntryPointName(i), module.GetEntryPointShaderStage(i));
     }
 
@@ -54,9 +54,6 @@ extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV(const uint32_t* spirv
 extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vscode, size_t vscodeSizeInBytes, const uint32_t* fscode, size_t fscodeSizeInBytes){
     
     DescribedShaderModule ret zeroinit;
-    //ret.source = calloc(vscodeSizeInBytes, 1);
-    //std::memcpy(const_cast<void*>(ret.source), vscode, vscodeSizeInBytes);
-    //ret.sourceLengthInBytes = vscodeSizeInBytes;
 
     VkShaderModuleCreateInfo vscreateInfo{};
     vscreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -68,14 +65,26 @@ extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vs
     fscreateInfo.codeSize = fscodeSizeInBytes;
     fscreateInfo.pCode = reinterpret_cast<const uint32_t*>(fscode);
 
+    VkShaderModule vertexModule zeroinit;
+    VkShaderModule fragmentModule zeroinit;
 
-    if (vkCreateShaderModule(g_vulkanstate.device->device, &vscreateInfo, nullptr, ((VkShaderModule*)&ret.vertexModule)) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create vertex shader module!");
-    }
-    if (vkCreateShaderModule(g_vulkanstate.device->device, &fscreateInfo, nullptr, ((VkShaderModule*)&ret.fragmentModule)) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create fragment shader module!");
-    }
 
+    VkResult vscr = vkCreateShaderModule(g_vulkanstate.device->device, &vscreateInfo, nullptr, &vertexModule);
+    VkResult fscr = vkCreateShaderModule(g_vulkanstate.device->device, &fscreateInfo, nullptr, &fragmentModule);
+    
+    spv_reflect::ShaderModule vmod(vscodeSizeInBytes, vscode);
+    spv_reflect::ShaderModule fmod(fscodeSizeInBytes, fscode);
+    
+    if(vscr == VK_SUCCESS && fscr == VK_SUCCESS){
+        ret.stages[ShaderStage_Vertex  ].module = vertexModule;
+        ret.stages[ShaderStage_Vertex  ].entryPoint = copyString(vmod.GetEntryPointName(0));
+        ret.stages[ShaderStage_Fragment].module = fragmentModule;
+        ret.stages[ShaderStage_Fragment].entryPoint = copyString(fmod.GetEntryPointName(0));
+    }
+    else{
+        rg_unreachable();
+    }
+    
     return ret;
 }
 extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, const std::vector<AttributeAndResidence> &attribs){
@@ -313,7 +322,7 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     sources.vertexAndFragmentSource = shaderSource;
     
     DescribedShaderModule mod = LoadShaderModule(sources);
-    
+    //std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> attribs = getAttributes(shaderSource);
     return LoadPipelineMod(mod, attribs, attribCount, uniforms, uniformCount, settings);
 }
 
@@ -414,9 +423,8 @@ DescribedShaderModule LoadShaderModule(ShaderSources source){
     else if(source.vertexAndFragmentSource && vsfsType == sourceTypeWGSL){
         std::vector<uint32_t> vsfsSpirv = wgsl_to_spirv(source.vertexAndFragmentSource);
         ret = LoadShaderModuleFromSPIRV(vsfsSpirv.data(), vsfsSpirv.size() * sizeof(uint32_t));
-        ret.fragmentModule = ret.computeModule;
-        ret.vertexModule = ret.computeModule;
-        ret.computeModule = nullptr;
+        
+        //hmmm
     }
     ret.uniformLocations = callocnewpp(StringToUniformMap);
     ret.uniformLocations->uniforms = getBindings(source);
@@ -662,11 +670,11 @@ extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCod
     VkResult pipelineCreationResult = vkCreatePipelineLayout(g_vulkanstate.device->device, &lci, nullptr, &layout);
     VkPipelineShaderStageCreateInfo computeStage zeroinit;
     computeStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    computeStage.module = (VkShaderModule)computeShaderModule.computeModule;
+    computeStage.module = (VkShaderModule)computeShaderModule.stages[ShaderStage_Compute].module;
 
 
     computeStage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-    computeStage.pName = "compute_main";
+    computeStage.pName = computeShaderModule.stages[ShaderStage_Compute].entryPoint;
 
     VkComputePipelineCreateInfo cpci zeroinit;
     cpci.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
