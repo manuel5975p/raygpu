@@ -4,20 +4,49 @@
 #include <vulkan/vulkan_core.h>
 #include "pipeline.h"
 #include "vulkan_internals.hpp"
+#include <spirv_reflect.h>
+#include <enum_translation.h>
 
+const char* copyString(const char* str){
+    size_t len = 0;
+    while(str[len++]);
+    --len;
+    char* ret = (char*)std::calloc(len, 1);
+    std::memcpy(ret, str, len);
+    return ret;
+}
 extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV(const uint32_t* spirvCode, size_t codeSizeInBytes){
     DescribedShaderModule ret zeroinit;
     VkShaderModuleCreateInfo csCreateInfo zeroinit;
     csCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     csCreateInfo.codeSize = codeSizeInBytes;
     csCreateInfo.pCode = spirvCode;
-    ret.sourceType = sourceTypeSPIRV;
+    
     assert(codeSizeInBytes % 4 == 0);
+    VkShaderModule insert zeroinit;
+    vkCreateShaderModule(g_vulkanstate.device->device, &csCreateInfo, nullptr, &insert);
+    spv_reflect::ShaderModule module(codeSizeInBytes, spirvCode);
+    uint32_t epCount = module.GetEntryPointCount();
+    for(uint32_t i = 0;i < epCount;i++){
+        SpvReflectShaderStageFlagBits epStage = module.GetEntryPointShaderStage(i);
+        ShaderStage stage = [](SpvReflectShaderStageFlagBits epStage){
+            switch(epStage){
+                case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_VERTEX_BIT:
+                    return ShaderStage_Vertex;
+                case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_FRAGMENT_BIT:
+                    return ShaderStage_Fragment;
+                case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT:
+                    return ShaderStage_Compute;
+                case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_GEOMETRY_BIT:
+                    return ShaderStage_Geometry;
+                default:
+                    TRACELOG(LOG_FATAL, "Unknown shader stage: %d", (int)epStage);
+                    return ShaderStage_Vertex;
+            }
+        }(epStage);
+        //TRACELOG(LOG_INFO, "%s : %d", module.GetEntryPointName(i), module.GetEntryPointShaderStage(i));
+    }
 
-    uint32_t* data = (uint32_t*)std::calloc(codeSizeInBytes / 4, 4);
-    std::memcpy(data, spirvCode, codeSizeInBytes);
-    ret.source = data;
-    vkCreateShaderModule(g_vulkanstate.device->device, &csCreateInfo, nullptr, (VkShaderModule*)&ret.computeModule);
 
     return ret;
 }
@@ -25,9 +54,9 @@ extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV(const uint32_t* spirv
 extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vscode, size_t vscodeSizeInBytes, const uint32_t* fscode, size_t fscodeSizeInBytes){
     
     DescribedShaderModule ret zeroinit;
-    ret.source = calloc(vscodeSizeInBytes, 1);
-    std::memcpy(const_cast<void*>(ret.source), vscode, vscodeSizeInBytes);
-    ret.sourceLengthInBytes = vscodeSizeInBytes;
+    //ret.source = calloc(vscodeSizeInBytes, 1);
+    //std::memcpy(const_cast<void*>(ret.source), vscode, vscodeSizeInBytes);
+    //ret.sourceLengthInBytes = vscodeSizeInBytes;
 
     VkShaderModuleCreateInfo vscreateInfo{};
     vscreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -60,14 +89,14 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, c
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertShaderStageInfo.module = (VkShaderModule)ret->sh.vertexModule;
-    vertShaderStageInfo.pName = "main";
+    vertShaderStageInfo.module = (VkShaderModule)ret->sh.stages[ShaderStage_Vertex].module;
+    vertShaderStageInfo.pName = ret->sh.stages[ShaderStage_Vertex].entryPoint;
 
     VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
     fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragShaderStageInfo.module = (VkShaderModule)ret->sh.fragmentModule;
-    fragShaderStageInfo.pName = "main";
+    fragShaderStageInfo.module = (VkShaderModule)ret->sh.stages[ShaderStage_Fragment].module;
+    fragShaderStageInfo.pName = ret->sh.stages[ShaderStage_Fragment].entryPoint;
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
@@ -380,6 +409,14 @@ DescribedShaderModule LoadShaderModule(ShaderSources source){
             std::vector<uint32_t> csSpirv = wgsl_to_spirv(source.computeSource);
             ret = LoadShaderModuleFromSPIRV(csSpirv.data(), csSpirv.size() * sizeof(uint32_t));
         }
+    }
+    
+    else if(source.vertexAndFragmentSource && vsfsType == sourceTypeWGSL){
+        std::vector<uint32_t> vsfsSpirv = wgsl_to_spirv(source.vertexAndFragmentSource);
+        ret = LoadShaderModuleFromSPIRV(vsfsSpirv.data(), vsfsSpirv.size() * sizeof(uint32_t));
+        ret.fragmentModule = ret.computeModule;
+        ret.vertexModule = ret.computeModule;
+        ret.computeModule = nullptr;
     }
     ret.uniformLocations = callocnewpp(StringToUniformMap);
     ret.uniformLocations->uniforms = getBindings(source);
