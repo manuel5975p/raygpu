@@ -22,15 +22,17 @@
  * SOFTWARE.
  */
 
+#include "webgpu/webgpu.h"
 #include <algorithm>
 #include <raygpu.h>
+#include <unordered_set>
 #include <webgpu/webgpu_cpp.h>
 #include <wgpustate.inc>
 #include <cstring>
 #include <cassert>
 #include <iostream>
 #include <internals.hpp>
-
+#include <spirv-reflect/spirv_reflect.h>
 
 
 
@@ -83,7 +85,7 @@ extern "C" DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, Verte
     std::sort(values.begin(), values.end(),[](const ResourceTypeDescriptor& x, const ResourceTypeDescriptor& y){
         return x.location < y.location;
     });
-    DescribedPipeline* pl = LoadPipelineForVAOEx(shaderSource, vao, values.data(), values.size(), GetDefaultSettings());
+    DescribedPipeline* pl = LoadPipelineForVAOEx(ShaderSources{.vertexAndFragmentSource = shaderSource}, vao, values.data(), values.size(), GetDefaultSettings());
 
     return pl;
 }
@@ -95,10 +97,12 @@ DescribedPipeline* LoadPipelineForVAOEx(const char* shaderSource, VertexArray* v
 }
 extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
     ShaderSources sources zeroinit;
-    sources.computeSource = shaderSource;
+
+    
+    sources.vertexAndFragmentSource = shaderSource;
     std::unordered_map<std::string, ResourceTypeDescriptor> bindings = getBindings(sources);
 
-    std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> attribs = getAttributes(shaderSource);
+    std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> attribs = getAttributes(sources);
     
     std::vector<AttributeAndResidence> allAttribsInOneBuffer;
     allAttribsInOneBuffer.reserve(attribs.size());
@@ -144,82 +148,68 @@ DescribedShaderModule LoadShaderModuleFromSPIRV(const uint32_t* shaderCodeSPIRV,
     WGPUStringView strv = STRVIEW("spirv_shader");
     WGPUShaderModule sh = wgpuDeviceCreateShaderModule((WGPUDevice)GetDevice(), &shaderDesc);
     DescribedShaderModule ret zeroinit;
-    ret.vertexModule = sh;
-    ret.fragmentModule = sh;
-    ret.source = calloc(codeSizeInBytes / sizeof(uint32_t), sizeof(uint32_t));
-    std::memcpy(const_cast<void*>(ret.source), shaderCodeSPIRV, codeSizeInBytes);
-    ret.sourceLengthInBytes = codeSizeInBytes;
-    ret.uniformLocations = callocnew(StringToUniformMap);
-    new (ret.uniformLocations) StringToUniformMap;
+    spv_reflect::ShaderModule spv_mod(codeSizeInBytes, shaderCodeSPIRV);
+    uint32_t entryPointCount = spv_mod.GetEntryPointCount();
+    for(uint32_t i = 0;i < entryPointCount;i++){
+        auto epStage = spv_mod.GetEntryPointShaderStage(i);
+        ShaderStage stage = [](SpvReflectShaderStageFlagBits epStage){
+            switch(epStage){
+                case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_VERTEX_BIT:
+                    return ShaderStage_Vertex;
+                case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_FRAGMENT_BIT:
+                    return ShaderStage_Fragment;
+                case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT:
+                    return ShaderStage_Compute;
+                case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_GEOMETRY_BIT:
+                    return ShaderStage_Geometry;
+                default:
+                    TRACELOG(LOG_FATAL, "Unknown shader stage: %d", (int)epStage);
+                    return ShaderStage_Vertex;
+            }
+        }(epStage);
+
+        ret.stages[stage].module = sh;
+        ret.stages[stage].entryPoint = copyString(spv_mod.GetEntryPointName(i));
+        
+
+    }
+    ret.stages[ShaderStage_Fragment].module = sh;
+    
+    //ret.source = calloc(codeSizeInBytes / sizeof(uint32_t), sizeof(uint32_t));
+    //std::memcpy(const_cast<void*>(ret.source), shaderCodeSPIRV, codeSizeInBytes);
+    //ret.sourceLengthInBytes = codeSizeInBytes;
+    ret.uniformLocations = callocnewpp(StringToUniformMap);
     return ret;
 }
 DescribedShaderModule LoadShaderModuleFromMemoryWGSL2(const char* shaderSourceWGSLVertex, const char* shaderSourceWGSLFragment){
     abort();
-    WGPUShaderModuleDescriptor shaderDesc zeroinit;
-
+    WGPUShaderModuleDescriptor shaderDesc1 zeroinit;
     WGPUShaderModuleWGSLDescriptor shaderCodeDesc1 zeroinit;
-    WGPUShaderModuleWGSLDescriptor shaderCodeDesc2 zeroinit;
-    WGPUShaderModuleSPIRVDescriptor shaderCodeDesc3 zeroinit;
 
-    shaderDesc.nextInChain = &shaderCodeDesc1.chain;
+    WGPUShaderModuleDescriptor shaderDesc2 zeroinit;
+    WGPUShaderModuleWGSLDescriptor shaderCodeDesc2 zeroinit;
+
+    shaderDesc1.nextInChain = &shaderCodeDesc1.chain;
+    shaderDesc2.nextInChain = &shaderCodeDesc2.chain;
+    shaderCodeDesc1.chain.sType = WGPUSType_ShaderSourceWGSL;
+    shaderCodeDesc2.chain.sType = WGPUSType_ShaderSourceWGSL;
+
     return {};
 }
 
 
 
-DescribedShaderModule LoadShaderModuleFromMemory(const char* shaderSourceWGSL) {
-    WGPUShaderModuleWGSLDescriptor shaderCodeDesc{};
 
-    size_t sourceSize = strlen(shaderSourceWGSL);
-    ShaderSources sources zeroinit;
-    sources.vertexAndFragmentSource = shaderSourceWGSL;
-    std::unordered_map<std::string, ResourceTypeDescriptor> bindings = getBindings(sources);
-    
-    std::vector<ResourceTypeDescriptor> values;
-    values.reserve(bindings.size());
-    for(const auto& [x,y] : bindings){
-        values.push_back(y);
-    }
-    std::sort(values.begin(), values.end(),[](const ResourceTypeDescriptor& x, const ResourceTypeDescriptor& y){
-        return x.location < y.location;
-    });
-    
-    shaderCodeDesc.chain.next = nullptr;
-    shaderCodeDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
-    shaderCodeDesc.code = WGPUStringView{shaderSourceWGSL, sourceSize};
-    WGPUShaderModuleDescriptor shaderDesc zeroinit;
-    shaderDesc.nextInChain = &shaderCodeDesc.chain;
-    #ifdef WEBGPU_BACKEND_WGPU
-    shaderDesc.hintCount = 0;
-    shaderDesc.hints = nullptr;
-    #endif
-    WGPUShaderModule mod = wgpuDeviceCreateShaderModule((WGPUDevice)GetDevice(), &shaderDesc);
-    DescribedShaderModule ret zeroinit;
-    ret.sourceType = sourceTypeWGSL;
-    ret.uniformLocations = callocnew(StringToUniformMap);
-    new (ret.uniformLocations) StringToUniformMap;
-    for(const auto& [x,y] : bindings){
-        ret.uniformLocations->uniforms[x] = y;
-    }
-    void* source = std::calloc(sourceSize + 1, 1);
-    std::memcpy(source, shaderSourceWGSL, sourceSize);
-    ret.vertexModule = mod;
-    ret.fragmentModule = mod;
-    ret.computeModule = mod;
-    ret.sourceLengthInBytes = sourceSize;
-    ret.source = source;
-    return ret;
-}
 void UnloadShaderModule(DescribedShaderModule mod){
-    //hmmmmmmmmmmmmmmmmmmmmmmmmmm
-    //const shouldn't exist!!1!
-    std::free(const_cast<void*>(mod.source));
-    if(mod.vertexModule) wgpuShaderModuleRelease((WGPUShaderModule)mod.vertexModule);
-    if(mod.fragmentModule && mod.fragmentModule != mod.vertexModule){
-        wgpuShaderModuleRelease((WGPUShaderModule)mod.fragmentModule);
-    }
-    if(mod.computeModule && mod.computeModule != mod.vertexModule && mod.computeModule != mod.fragmentModule){
-        wgpuShaderModuleRelease((WGPUShaderModule)mod.computeModule);
+    std::unordered_set<WGPUShaderModule> freed;
+    for(size_t i = 0;i < ShaderStage_EnumCount;i++){
+        if(mod.stages[i].module){
+            if(!freed.contains((WGPUShaderModule)mod.stages[i].module)){
+                freed.insert((WGPUShaderModule)mod.stages[i].module);
+                wgpuShaderModuleRelease((WGPUShaderModule)mod.stages[i].module);
+            }
+            std::free(const_cast<char*>(mod.stages[i].entryPoint));
+        }
     }
 }
 extern "C" void UpdatePipeline(DescribedPipeline* pl){
@@ -234,7 +224,7 @@ extern "C" void UpdatePipeline(DescribedPipeline* pl){
     WGPUFragmentState fragmentState{};
     WGPUBlendState blendState{};
 
-    vertexState.module = (WGPUShaderModule)pl->sh.vertexModule;
+    vertexState.module = (WGPUShaderModule)pl->sh.stages[WGPUShaderStage_Vertex].module;
 
     VertexBufferLayoutSet& vlayout_complete = pl->vertexLayout;
     vertexState.bufferCount = vlayout_complete.number_of_buffers;
@@ -257,7 +247,7 @@ extern "C" void UpdatePipeline(DescribedPipeline* pl){
 
 
     
-    fragmentState.module = (WGPUShaderModule)pl->sh.fragmentModule;
+    fragmentState.module = (WGPUShaderModule)pl->sh.stages[WGPUShaderStage_Fragment].module;
     fragmentState.entryPoint = STRVIEW("fs_main");
     fragmentState.constantCount = 0;
     fragmentState.constants = nullptr;
@@ -312,8 +302,18 @@ extern "C" void UpdatePipeline(DescribedPipeline* pl){
         pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
     }
 }
+extern "C" DescribedPipeline* LoadPipelineForVAOEx(ShaderSources sources, VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
+    //detectShaderLanguage()
+    
+    DescribedShaderModule module = LoadShaderModule(sources);
+    
+    DescribedPipeline* pl = LoadPipelineMod(module, vao->attributes.data(), vao->attributes.size(), uniforms, uniformCount, settings);
+    //DescribedPipeline* pl = LoadPipelineEx(shaderSource, nullptr, 0, uniforms, uniformCount, settings);
+    PreparePipeline(pl, vao);
+    return pl;
+}
 extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
-    DescribedShaderModule mod = LoadShaderModuleFromMemory(shaderSource);
+    DescribedShaderModule mod = LoadShaderModuleFromMemoryWGSL(shaderSource);
     return LoadPipelineMod(mod, attribs, attribCount, uniforms, uniformCount, settings);
 }
 extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
@@ -441,9 +441,9 @@ DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const Re
     pldesc.bindGroupLayoutCount = 1;
     pldesc.bindGroupLayouts = (WGPUBindGroupLayout*) &ret->bglayout.layout;
     WGPUPipelineLayout playout = wgpuDeviceCreatePipelineLayout((WGPUDevice)GetDevice(), &pldesc);
-    ret->shaderModule = LoadShaderModuleFromMemory(shaderCode);
-    desc.compute.module = (WGPUShaderModule)ret->shaderModule.computeModule;
-    desc.compute.entryPoint = STRVIEW("compute_main");
+    ret->shaderModule = LoadShaderModuleFromMemoryWGSL(shaderCode);
+    desc.compute.module = (WGPUShaderModule)ret->shaderModule.stages[WGPUShaderStage_Compute].module;
+    desc.compute.entryPoint = WGPUStringView{ret->shaderModule.stages[WGPUShaderStage_Compute].entryPoint, std::strlen(ret->shaderModule.stages[WGPUShaderStage_Compute].entryPoint)};
     desc.layout = playout;
     WGPUDevice device = (WGPUDevice)GetDevice();
     ret->pipeline = wgpuDeviceCreateComputePipeline((WGPUDevice)GetDevice(), &desc);

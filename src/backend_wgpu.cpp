@@ -1,3 +1,4 @@
+#include "enum_translation.h"
 #include <raygpu.h>
 #include <webgpu/webgpu.h>
 #include <webgpu/webgpu_cpp.h>
@@ -272,7 +273,7 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, co
     WGPUFragmentState fragmentState{};
     WGPUBlendState blendState{};
 
-    vertexState.module = (WGPUShaderModule)pl->sh.vertexModule;
+    vertexState.module = (WGPUShaderModule)pl->sh.stages[ShaderStage_Vertex].module;
 
     VertexBufferLayoutSet& vlayout_complete = pl->vertexLayout;
     vertexState.bufferCount = vlayout_complete.number_of_buffers;
@@ -295,7 +296,7 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, co
 
 
     
-    fragmentState.module = (WGPUShaderModule)pl->sh.fragmentModule;
+    fragmentState.module = (WGPUShaderModule)pl->sh.stages[ShaderStage_Fragment].module;
     fragmentState.entryPoint = STRVIEW("fs_main");
     fragmentState.constantCount = 0;
     fragmentState.constants = nullptr;

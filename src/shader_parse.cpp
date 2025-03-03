@@ -134,7 +134,66 @@ access_type extractAccess(const tint::ast::Identifier* iden){
     return access_type(12123);
 }
 #endif
+DescribedShaderModule LoadShaderModuleFromMemoryWGSL(const char* shaderSourceWGSL) {
+    WGPUShaderModuleWGSLDescriptor shaderCodeDesc{};
 
+    size_t sourceSize = strlen(shaderSourceWGSL);
+    ShaderSources sources zeroinit;
+    sources.vertexAndFragmentSource = shaderSourceWGSL;
+    std::unordered_map<std::string, ResourceTypeDescriptor> bindings = getBindings(sources);
+    
+    std::vector<ResourceTypeDescriptor> values;
+    values.reserve(bindings.size());
+    for(const auto& [x,y] : bindings){
+        values.push_back(y);
+    }
+    std::sort(values.begin(), values.end(),[](const ResourceTypeDescriptor& x, const ResourceTypeDescriptor& y){
+        return x.location < y.location;
+    });
+    
+    shaderCodeDesc.chain.next = nullptr;
+    shaderCodeDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
+    shaderCodeDesc.code = WGPUStringView{shaderSourceWGSL, sourceSize};
+    WGPUShaderModuleDescriptor shaderDesc zeroinit;
+    shaderDesc.nextInChain = &shaderCodeDesc.chain;
+    #ifdef WEBGPU_BACKEND_WGPU
+    shaderDesc.hintCount = 0;
+    shaderDesc.hints = nullptr;
+    #endif
+    WGPUShaderModule mod = wgpuDeviceCreateShaderModule((WGPUDevice)GetDevice(), &shaderDesc);
+    DescribedShaderModule ret zeroinit;
+    
+    
+    ret.uniformLocations = callocnew(StringToUniformMap);
+    new (ret.uniformLocations) StringToUniformMap;
+    for(const auto& [x,y] : bindings){
+        ret.uniformLocations->uniforms[x] = y;
+    }
+    tint::Source::File file("", shaderSourceWGSL);
+    tint::Program prog = tint::wgsl::reader::Parse(&file);
+    tint::inspector::Inspector inspector(prog);
+    std::vector<tint::inspector::EntryPoint> eps = inspector.GetEntryPoints();
+
+    for(auto& ep : eps){
+        switch(ep.stage){
+            case tint::inspector::PipelineStage::kVertex:
+                ret.stages[ShaderStage_Vertex].module = mod;
+                ret.stages[ShaderStage_Vertex].entryPoint = strdup(ep.name.c_str());
+                break;
+                case tint::inspector::PipelineStage::kFragment:
+                ret.stages[ShaderStage_Fragment].module = mod;
+                ret.stages[ShaderStage_Fragment].entryPoint = strdup(ep.name.c_str());
+                break;
+                case tint::inspector::PipelineStage::kCompute:
+                ret.stages[ShaderStage_Compute].module = mod;
+                ret.stages[ShaderStage_Compute].entryPoint = strdup(ep.name.c_str());
+            break;
+            default: rg_unreachable();
+        }
+    }
+
+    return ret;
+}
 std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributesWGSL(ShaderSources sources){
     const char* shaderSourceWGSL = sources.vertexAndFragmentSource;
     rassert(shaderSourceWGSL != nullptr, "vertexAndFragmentSource must be set for WGSL");
@@ -593,3 +652,35 @@ std::vector<uint32_t> wgsl_to_spirv(const char* wgslCode){
     return spirvMaybe.Get().spirv;
 }
 
+std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes(ShaderSources sources){
+    ShaderSourceType firstHit = ShaderSourceType::sourceTypeUnknown;
+    if(detectShaderLanguage(sources.vertexSource) != sourceTypeUnknown){
+        firstHit = detectShaderLanguage(sources.vertexSource);
+        goto detected;
+    }
+    else if(detectShaderLanguage(sources.fragmentSource) != sourceTypeUnknown){
+        firstHit = detectShaderLanguage(sources.fragmentSource);
+        goto detected;
+    }
+    else if(detectShaderLanguage(sources.vertexAndFragmentSource) != sourceTypeUnknown){
+        firstHit = detectShaderLanguage(sources.vertexAndFragmentSource);
+        goto detected;
+    }
+    else if(detectShaderLanguage(sources.computeSource) != sourceTypeUnknown){
+        firstHit = detectShaderLanguage(sources.computeSource);
+        goto detected;
+    }
+    detected:
+    #if SUPPORT_GLSL_PARSER == 1
+    if(firstHit == sourceTypeGLSL){
+        return getAttributesGLSL(sources);
+    }
+    #endif
+    #if SUPPORT_WGSL_PARSER == 1
+    if(firstHit == sourceTypeWGSL){
+        return getAttributesWGSL(sources);
+    }
+    #endif
+    TRACELOG(LOG_WARNING, "Attempted to get attributes with neither WGSL nor GLSL parser enabled");
+    return {};
+}

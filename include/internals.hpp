@@ -78,6 +78,7 @@ inline VertexBufferLayoutSet getBufferLayoutRepresentation(const AttributeAndRes
     };
     return ret;
 }
+extern "C" const char* copyString(const char* str);
 inline void UnloadBufferLayoutSet(VertexBufferLayoutSet set){
     std::free(set.layouts);
     std::free(set.attributePool);
@@ -86,7 +87,7 @@ inline void UnloadBufferLayoutSet(VertexBufferLayoutSet set){
 ShaderSourceType detectShaderLanguage(std::string_view source);
 ShaderSourceType detectShaderLanguage(ShaderSources sources);
 std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSources source);
-
+DescribedShaderModule LoadShaderModule(ShaderSources source);
 
 extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, const std::vector<AttributeAndResidence>& attribs);
 inline VertexBufferLayoutSet getBufferLayoutRepresentation(const AttributeAndResidence* attributes, const uint32_t number_of_attribs){
