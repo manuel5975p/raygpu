@@ -7,12 +7,7 @@
 #include <spirv_reflect.h>
 #include <enum_translation.h>
 
-const char* copyString(const char* str){
-    size_t len = std::strlen(str) + 1;
-    char* ret = (char*)std::calloc(len, 1);
-    std::memcpy(ret, str, len);
-    return ret;
-}
+
 extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV(const uint32_t* spirvCode, size_t codeSizeInBytes){
     DescribedShaderModule ret zeroinit;
     VkShaderModuleCreateInfo csCreateInfo zeroinit;
@@ -51,7 +46,7 @@ extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV(const uint32_t* spirv
     return ret;
 }
 
-extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV_Vk(const uint32_t* vscode, size_t vscodeSizeInBytes, const uint32_t* fscode, size_t fscodeSizeInBytes){
+extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV2(const uint32_t* vscode, size_t vscodeSizeInBytes, const uint32_t* fscode, size_t fscodeSizeInBytes){
     
     DescribedShaderModule ret zeroinit;
 
@@ -444,7 +439,7 @@ DescribedShaderModule LoadShaderModule(ShaderSources source){
     if(source.vertexSource && source.fragmentSource){
         assert(vsType == sourceTypeGLSL && fsType == sourceTypeGLSL);
         auto [vsSpirv, fsSpirv] = glsl_to_spirv(source.vertexSource, source.fragmentSource);
-        ret = LoadShaderModuleFromSPIRV_Vk(vsSpirv.data(), vsSpirv.size() * 4, fsSpirv.data(), fsSpirv.size() * 4);
+        ret = LoadShaderModuleFromSPIRV2(vsSpirv.data(), vsSpirv.size() * 4, fsSpirv.data(), fsSpirv.size() * 4);
         ret.attributeLocations = callocnewpp(StringToAttributeMap);
         ret.attributeLocations->attributes = getAttributesGLSL(source);
     }

@@ -130,6 +130,7 @@ typedef enum ShaderStage{
     ShaderStage_TaskNV = ShaderStage_Task,
     ShaderStage_Mesh,
     ShaderStage_MeshNV = ShaderStage_Mesh,
+    ShaderStage_EnumCount
 }ShaderStage;
 
 typedef enum BlendFactor {

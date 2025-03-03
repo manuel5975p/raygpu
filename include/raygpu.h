@@ -1087,9 +1087,10 @@ EXTERN_C_BEGIN
     void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode);
     void BindComputePipeline(DescribedComputePipeline* pipeline);
 
-    DescribedShaderModule LoadShaderModuleFromMemory(const char* shaderSourceWGSL);
+    DescribedShaderModule LoadShaderModuleFromMemoryWGSL(const char* shaderSourceWGSL);
     DescribedShaderModule LoadShaderModuleFromMemoryWGSL2(const char* shaderSourceWGSLVertex, const char* shaderSourceWGSLFragment);
     DescribedShaderModule LoadShaderModuleFromSPIRV(const uint32_t* shaderCodeSPIRV, size_t codeSizeInBytes);
+    DescribedShaderModule LoadShaderModuleFromSPIRV2(const uint32_t* vscode, size_t vscodeSizeInBytes, const uint32_t* fscode, size_t fscodeSizeInBytes);
     DescribedShaderModule LoadShaderModule(ShaderSources source);
     //WGPUShaderModule LoadShader(const char* path);
 

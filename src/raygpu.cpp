@@ -436,6 +436,74 @@ void adaptRenderPass(DescribedRenderpass* drp, RenderSettings settings){
     //drp->renderPassDesc.colorAttachments = settings.depthTest ? drp->rca : nullptr;
     //drp->renderPassDesc.depthStencilAttachment = settings.depthTest ? drp->dsa : nullptr;
 }
+
+DescribedShaderModule LoadShaderModule(ShaderSources source){
+    
+    DescribedShaderModule ret zeroinit;
+    std::string_view vsView;
+    ShaderSourceType vsType = sourceTypeUnknown;
+    std::string_view fsView;
+    ShaderSourceType fsType = sourceTypeUnknown;
+
+    std::string_view vsfsView;
+    ShaderSourceType vsfsType = sourceTypeUnknown;
+    std::string_view csView;
+    ShaderSourceType csType = sourceTypeUnknown;
+
+    if(source.vertexSource){
+        vsView = std::string_view(source.vertexSource);
+        vsType = detectShaderLanguage(vsView);
+    }
+    if(source.fragmentSource){
+        fsView = std::string_view(source.fragmentSource);
+        fsType = detectShaderLanguage(vsView);
+    }
+    if(source.vertexAndFragmentSource){
+        vsfsView = std::string_view(source.vertexAndFragmentSource);
+        vsfsType = detectShaderLanguage(vsfsView);
+    }
+    if(source.computeSource){
+        csView = std::string_view(source.computeSource);
+        csType = detectShaderLanguage(csView);
+    }
+    
+    if(source.vertexSource && source.fragmentSource){
+        rassert(vsType == sourceTypeGLSL && fsType == sourceTypeGLSL, "Splitting WGSL into separate fragment and vertex is not supported yet, please use single source.");
+        
+        //auto [vsSpirv, fsSpirv] = glsl_to_spirv(source.vertexSource, source.fragmentSource);
+        //ret = LoadShaderModuleFromSPIRV2(vsSpirv.data(), vsSpirv.size() * 4, fsSpirv.data(), fsSpirv.size() * 4);
+        //ret.attributeLocations = callocnewpp(StringToAttributeMap);
+        //ret.attributeLocations->attributes = getAttributesGLSL(source);
+    }
+    else if(source.computeSource){
+        if(csType == sourceTypeGLSL){
+            std::vector<uint32_t> csSpirv = glsl_to_spirv(source.computeSource);
+            ret = LoadShaderModuleFromSPIRV(csSpirv.data(), csSpirv.size() * sizeof(uint32_t));
+        }
+        else if(csType == sourceTypeWGSL){
+            std::vector<uint32_t> csSpirv = wgsl_to_spirv(source.computeSource);
+            ret = LoadShaderModuleFromSPIRV(csSpirv.data(), csSpirv.size() * sizeof(uint32_t));
+        }
+    }
+    
+    else if(source.vertexAndFragmentSource && vsfsType == sourceTypeWGSL){
+        std::vector<uint32_t> vsfsSpirv = wgsl_to_spirv(source.vertexAndFragmentSource);
+        ret = LoadShaderModuleFromSPIRV(vsfsSpirv.data(), vsfsSpirv.size() * sizeof(uint32_t));
+        ret.attributeLocations = callocnewpp(StringToAttributeMap);
+        ret.attributeLocations->attributes = getAttributesWGSL(source);
+        //hmmm
+    }
+    ret.uniformLocations = callocnewpp(StringToUniformMap);
+    ret.uniformLocations->uniforms = getBindings(source);
+    
+    
+    return ret;
+}
+
+
+
+
+
 extern "C" void BeginPipelineMode(DescribedPipeline* pipeline){
     drawCurrentBatch();
     if(!RenderSettingsComptatible(pipeline->settings, g_renderstate.renderpass.settings)){
@@ -996,6 +1064,14 @@ NativeBindgroupHandle UpdateAndGetNativeBindGroup(DescribedBindGroup* bg){
     }
     return bg->bindGroup;
 }
+
+extern "C" const char* copyString(const char* str){
+    size_t len = std::strlen(str) + 1;
+    char* ret = (char*)std::calloc(len, 1);
+    std::memcpy(ret, str, len);
+    return ret;
+}
+
 extern "C" void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va){
     auto plquart = GetPipelinesForLayout(pipeline, va->attributes);
     pipeline->quartet = plquart;
@@ -1022,6 +1098,7 @@ fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
 extern "C" Texture LoadTextureEx(uint32_t width, uint32_t height, PixelFormat format, bool to_be_used_as_rendertarget){
     return LoadTexturePro(width, height, format, (TextureUsage_RenderAttachment * to_be_used_as_rendertarget) | TextureUsage_TextureBinding | TextureUsage_CopyDst | TextureUsage_CopySrc, 1, 1);
 }
+
 Texture LoadTexture(const char* filename){
     Image img = LoadImage(filename);
     Texture tex = LoadTextureFromImage(img);
