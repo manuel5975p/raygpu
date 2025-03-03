@@ -32,7 +32,7 @@
 #include <cassert>
 #include <iostream>
 #include <internals.hpp>
-#include <spirv-reflect/spirv_reflect.h>
+#include <spirv_reflect.h>
 
 
 
@@ -224,7 +224,8 @@ extern "C" void UpdatePipeline(DescribedPipeline* pl){
     WGPUFragmentState fragmentState{};
     WGPUBlendState blendState{};
 
-    vertexState.module = (WGPUShaderModule)pl->sh.stages[WGPUShaderStage_Vertex].module;
+
+    vertexState.module = (WGPUShaderModule)pl->sh.stages[ShaderStage_Vertex].module;
 
     VertexBufferLayoutSet& vlayout_complete = pl->vertexLayout;
     vertexState.bufferCount = vlayout_complete.number_of_buffers;
@@ -247,7 +248,7 @@ extern "C" void UpdatePipeline(DescribedPipeline* pl){
 
 
     
-    fragmentState.module = (WGPUShaderModule)pl->sh.stages[WGPUShaderStage_Fragment].module;
+    fragmentState.module = (WGPUShaderModule)pl->sh.stages[ShaderStage_Fragment].module;
     fragmentState.entryPoint = STRVIEW("fs_main");
     fragmentState.constantCount = 0;
     fragmentState.constants = nullptr;
@@ -442,8 +443,8 @@ DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const Re
     pldesc.bindGroupLayouts = (WGPUBindGroupLayout*) &ret->bglayout.layout;
     WGPUPipelineLayout playout = wgpuDeviceCreatePipelineLayout((WGPUDevice)GetDevice(), &pldesc);
     ret->shaderModule = LoadShaderModuleFromMemoryWGSL(shaderCode);
-    desc.compute.module = (WGPUShaderModule)ret->shaderModule.stages[WGPUShaderStage_Compute].module;
-    desc.compute.entryPoint = WGPUStringView{ret->shaderModule.stages[WGPUShaderStage_Compute].entryPoint, std::strlen(ret->shaderModule.stages[WGPUShaderStage_Compute].entryPoint)};
+    desc.compute.module = (WGPUShaderModule) ret->shaderModule.stages[ShaderStage_Compute].module;
+    desc.compute.entryPoint = WGPUStringView{ret->shaderModule.stages[ShaderStage_Compute].entryPoint, std::strlen(ret->shaderModule.stages[ShaderStage_Compute].entryPoint)};
     desc.layout = playout;
     WGPUDevice device = (WGPUDevice)GetDevice();
     ret->pipeline = wgpuDeviceCreateComputePipeline((WGPUDevice)GetDevice(), &desc);

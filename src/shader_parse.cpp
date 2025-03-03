@@ -654,19 +654,19 @@ std::vector<uint32_t> wgsl_to_spirv(const char* wgslCode){
 
 std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes(ShaderSources sources){
     ShaderSourceType firstHit = ShaderSourceType::sourceTypeUnknown;
-    if(detectShaderLanguage(sources.vertexSource) != sourceTypeUnknown){
+    if(sources.vertexSource && detectShaderLanguage(sources.vertexSource) != sourceTypeUnknown){
         firstHit = detectShaderLanguage(sources.vertexSource);
         goto detected;
     }
-    else if(detectShaderLanguage(sources.fragmentSource) != sourceTypeUnknown){
+    else if(sources.fragmentSource && detectShaderLanguage(sources.fragmentSource) != sourceTypeUnknown){
         firstHit = detectShaderLanguage(sources.fragmentSource);
         goto detected;
     }
-    else if(detectShaderLanguage(sources.vertexAndFragmentSource) != sourceTypeUnknown){
+    else if(sources.vertexAndFragmentSource && detectShaderLanguage(sources.vertexAndFragmentSource) != sourceTypeUnknown){
         firstHit = detectShaderLanguage(sources.vertexAndFragmentSource);
         goto detected;
     }
-    else if(detectShaderLanguage(sources.computeSource) != sourceTypeUnknown){
+    else if(sources.computeSource && detectShaderLanguage(sources.computeSource) != sourceTypeUnknown){
         firstHit = detectShaderLanguage(sources.computeSource);
         goto detected;
     }
