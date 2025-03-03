@@ -86,8 +86,14 @@ int main(){
 
     settings.depthTest = 1;
     settings.depthCompare = CompareFunction_LessEqual;
-
-    DescribedPipeline* pl = LoadPipelineEx(source, nullptr, 0, nullptr, 0, settings);
+    AttributeAndResidence attributes[4] = {
+        AttributeAndResidence{.attr = VertexAttribute{.nextInChain = 0, .format = VertexFormat_Float32x2, .offset = 0, .shaderLocation = 0}, .bufferSlot = 0, .enabled = true},
+        AttributeAndResidence{.attr = VertexAttribute{.nextInChain = 0, .format = VertexFormat_Float32x2, .offset = 0, .shaderLocation = 1}, .bufferSlot = 1, .enabled = true},
+        AttributeAndResidence{.attr = VertexAttribute{.nextInChain = 0, .format = VertexFormat_Float32x3, .offset = 0, .shaderLocation = 2}, .bufferSlot = 2, .enabled = true},
+        AttributeAndResidence{.attr = VertexAttribute{.nextInChain = 0, .format = VertexFormat_Float32x4, .offset = 0, .shaderLocation = 3}, .bufferSlot = 3, .enabled = true}
+    };
+    DescribedPipeline* pl = LoadPipeline(source);
+    //DescribedPipeline* pl = LoadPipelineEx(source, attributes, 4, nullptr, 0, settings);
     //DescribedPipeline* pl = DefaultPipeline();
     //DescribedPipeline* pl = LoadPipelinePro(/*source, vao, nullptr, 0, settings*/);
     PreparePipeline(pl, vao);
