@@ -345,9 +345,14 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     //state->clearPass.rca->storeOp = WGPUStoreOp_Store;
     //state->activeRenderpass = nullptr;
     #if SUPPORT_VULKAN_BACKEND == 1
-    g_renderstate.defaultPipeline = LoadPipelineForVAO_Vk(vertexSourceGLSL, fragmentSourceGLSL, renderBatchVAO, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), GetDefaultSettings());
+    ShaderSources defaultGLSLSource zeroinit;
+    defaultGLSLSource.vertexSource = vertexSourceGLSL;
+    defaultGLSLSource.fragmentSource = fragmentSourceGLSL;
+    g_renderstate.defaultPipeline = LoadPipelineForVAOEx(defaultGLSLSource, renderBatchVAO, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), GetDefaultSettings());
     #else
-    g_renderstate.defaultPipeline = LoadPipelineForVAOEx(shaderSource, renderBatchVAO, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), GetDefaultSettings());
+    ShaderSources defaultWGSLSource zeroinit;
+    defaultWGSLSource.vertexAndFragmentSource = shaderSource;
+    g_renderstate.defaultPipeline = LoadPipelineForVAOEx(defaultWGSLSource, renderBatchVAO, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), GetDefaultSettings());
     #endif
     g_renderstate.activePipeline = g_renderstate.defaultPipeline;
     g_renderstate.quadindicesCache = GenBufferEx(nullptr, 10000, BufferUsage_CopyDst | BufferUsage_Index);//allocnew(DescribedBuffer);    //WGPUBufferDescriptor vbmdesc{};

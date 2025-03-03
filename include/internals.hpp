@@ -294,9 +294,30 @@ typedef struct StringToUniformMap{
         if(it == uniforms.end())
             return LOCATION_NOT_FOUND;
         return it->second.location;
-        
     }
 }StringToUniformMap;
+
+typedef struct StringToAttributeMap{
+    std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> attributes;
+    std::pair<VertexFormat, uint32_t> operator[](const std::string& v)const noexcept{
+        return attributes.find(v)->second;
+    }
+    uint32_t GetLocation(const std::string& v)const noexcept{
+        auto it = attributes.find(v);
+        if(it == attributes.end())
+            return LOCATION_NOT_FOUND;
+        return it->second.second;
+    }
+    std::pair<VertexFormat, uint32_t> operator[](const char* v)const noexcept{
+        return attributes.find(v)->second;
+    }
+    uint32_t GetLocation(const char* v)const noexcept{
+        auto it = attributes.find(v);
+        if(it == attributes.end())
+            return LOCATION_NOT_FOUND;
+        return it->second.second;
+    }
+}StringToAttributeMap;
 
 
 namespace std{

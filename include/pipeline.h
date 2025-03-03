@@ -154,6 +154,7 @@ typedef struct RenderPipelineQuartet{
  * @brief Hashmap: std::string -> UniformDescriptor, only visible for C++
  */
 typedef struct StringToUniformMap StringToUniformMap;
+typedef struct StringToAttributeMap StringToAttributeMap;
 /**
  * @brief Hashmap: std::pair<std::vector<AttributeAndResidence>, WGPUPrimitiveTopology> -> PipelineTriplet, only visible for C++
  */
@@ -172,6 +173,7 @@ typedef struct StageInModule{
 typedef struct DescribedShaderModule{
     StageInModule stages[16];
     StringToUniformMap* uniformLocations;
+    StringToAttributeMap* attributeLocations;
 }DescribedShaderModule;
 
 typedef struct VertexAttribute {
@@ -185,7 +187,7 @@ typedef struct VertexBufferLayout{
     uint64_t arrayStride;
     VertexStepMode stepMode;
     size_t attributeCount;
-    VertexAttribute* attributes; //NOT owned, point to a VertexBufferLayoutSet::attributePool
+    VertexAttribute* attributes; //NOT owned, points into data owned by VertexBufferLayoutSet::attributePool with an offset
 }VertexBufferLayout;
 
 typedef struct VertexBufferLayoutSet{

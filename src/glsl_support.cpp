@@ -237,14 +237,26 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
         TRACELOG(LOG_WARNING, "Linking program failed: %s", program.getInfoDebugLog());
     }
     else{
-        TRACELOG(LOG_INFO, "Program linked successfully");
+        //TRACELOG(LOG_INFO, "Program linked successfully");
     }
     program.buildReflection();
     std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> ret;
     uint32_t attributeCount = program.getNumLiveAttributes();
     for(uint32_t i = 0;i < attributeCount;i++){
-        program.getAttributeType(i);
-        program.getAttributeName(i);
+        VertexFormat type = [](int glType){
+            switch(glType){
+                default: 
+                    rassert(false, "unsupported gl vertex format");
+                    return VertexFormat(~0);
+                case GL_INT: return VertexFormat_Sint32;
+
+                case GL_FLOAT: return VertexFormat_Float32;
+                case GL_FLOAT_VEC2: return VertexFormat_Float32x2;
+                case GL_FLOAT_VEC3: return VertexFormat_Float32x3;
+                case GL_FLOAT_VEC4: return VertexFormat_Float32x4;
+            }
+        }(program.getAttributeType(i));
+        ret[program.getAttributeName(i)] = {type, i};
 
     }
     return ret;

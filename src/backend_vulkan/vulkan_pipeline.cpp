@@ -327,7 +327,40 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
 }
 extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
     ShaderSources source zeroinit;
-    source.computeSource = shaderSource;
+    ShaderSources sources{.vertexAndFragmentSource = shaderSource};
+    std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> attribs = getAttributesWGSL(sources);
+    std::vector<AttributeAndResidence> allAttribsInOneBuffer;
+
+    allAttribsInOneBuffer.reserve(attribs.size());
+    uint32_t offset = 0;
+    for(const auto& [name, attr] : attribs){
+        const auto& [format, location] = attr;
+        allAttribsInOneBuffer.push_back(AttributeAndResidence{
+            .attr = VertexAttribute{
+                .nextInChain = nullptr,
+                .format = format,
+                .offset = offset,
+                .shaderLocation = location
+            },
+            .bufferSlot = 0,
+            .stepMode = VertexStepMode_Vertex,
+            .enabled = true}
+        );
+        offset += attributeSize(format);
+    }
+    
+
+    auto bindings = getBindings(sources);
+
+    std::vector<ResourceTypeDescriptor> values;
+    values.reserve(bindings.size());
+    for(const auto& [x,y] : bindings){
+        values.push_back(y);
+    }
+    std::sort(values.begin(), values.end(),[](const ResourceTypeDescriptor& x, const ResourceTypeDescriptor& y){
+        return x.location < y.location;
+    });
+    return LoadPipelineEx(shaderSource, allAttribsInOneBuffer.data(), allAttribsInOneBuffer.size(), values.data(), values.size(), GetDefaultSettings());
 }
 
 void UpdatePipeline(DescribedPipeline* ret, const std::vector<AttributeAndResidence>& attributes){
@@ -412,6 +445,8 @@ DescribedShaderModule LoadShaderModule(ShaderSources source){
         assert(vsType == sourceTypeGLSL && fsType == sourceTypeGLSL);
         auto [vsSpirv, fsSpirv] = glsl_to_spirv(source.vertexSource, source.fragmentSource);
         ret = LoadShaderModuleFromSPIRV_Vk(vsSpirv.data(), vsSpirv.size() * 4, fsSpirv.data(), fsSpirv.size() * 4);
+        ret.attributeLocations = callocnewpp(StringToAttributeMap);
+        ret.attributeLocations->attributes = getAttributesGLSL(source);
     }
     else if(source.computeSource){
         if(csType == sourceTypeGLSL){
@@ -427,11 +462,14 @@ DescribedShaderModule LoadShaderModule(ShaderSources source){
     else if(source.vertexAndFragmentSource && vsfsType == sourceTypeWGSL){
         std::vector<uint32_t> vsfsSpirv = wgsl_to_spirv(source.vertexAndFragmentSource);
         ret = LoadShaderModuleFromSPIRV(vsfsSpirv.data(), vsfsSpirv.size() * sizeof(uint32_t));
-        
+        ret.attributeLocations = callocnewpp(StringToAttributeMap);
+        ret.attributeLocations->attributes = getAttributesWGSL(source);
         //hmmm
     }
     ret.uniformLocations = callocnewpp(StringToUniformMap);
     ret.uniformLocations->uniforms = getBindings(source);
+    
+    
     return ret;
 }
 
@@ -447,6 +485,17 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
     DescribedShaderModule sh = LoadShaderModule(sources);
     return LoadPipelineMod(sh, vao->attributes.data(), vao->attributes.size(), uniforms, uniformCount, settings);
     
+}
+
+extern "C" DescribedPipeline* LoadPipelineForVAOEx(ShaderSources sources, VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
+    //detectShaderLanguage()
+    
+    DescribedShaderModule module = LoadShaderModule(sources);
+    
+    DescribedPipeline* pl = LoadPipelineMod(module, vao->attributes.data(), vao->attributes.size(), uniforms, uniformCount, settings);
+    //DescribedPipeline* pl = LoadPipelineEx(shaderSource, nullptr, 0, uniforms, uniformCount, settings);
+    PreparePipeline(pl, vao);
+    return pl;
 }
 
 extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry){
