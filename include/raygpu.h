@@ -659,6 +659,15 @@ typedef struct ShaderSources{
     const char* computeSource;
 }ShaderSources;
 
+typedef struct ShaderEntryPoint{
+    ShaderStage stage;
+    char name[16];
+}ShaderEntryPoint;
+
+typedef struct ShaderRecflectionInfo{
+    ShaderEntryPoint ep[16];
+}ShaderRecflectionInfo;
+
 typedef struct SurfaceCapabilities{
     TextureUsage usages;
     size_t formatCount;
