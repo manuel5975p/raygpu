@@ -73,7 +73,7 @@ const std::unordered_map<std::string, std::unordered_map<std::string, VertexForm
     map["vec4"]["u32"] = VertexFormat_Uint32x4;
     return map;
 }();
-#if defined(SUPPORT_WGSL_PARSER) && SUPPORT_WGSL_PARSER == 1
+#if SUPPORT_WGSL_PARSER == 1
 format_or_sample_type extractFormat(const tint::ast::Identifier* iden){
     if(auto templiden = iden->As<tint::ast::TemplatedIdentifier>()){
         for(size_t i = 0;i < templiden->arguments.Length();i++){
@@ -133,67 +133,33 @@ access_type extractAccess(const tint::ast::Identifier* iden){
     TRACELOG(LOG_FATAL, "Shader parse failed");
     return access_type(12123);
 }
-#endif
-DescribedShaderModule LoadShaderModuleFromMemoryWGSL(const char* shaderSourceWGSL) {
-    WGPUShaderModuleWGSLDescriptor shaderCodeDesc{};
-
-    size_t sourceSize = strlen(shaderSourceWGSL);
-    ShaderSources sources zeroinit;
-    sources.vertexAndFragmentSource = shaderSourceWGSL;
-    std::unordered_map<std::string, ResourceTypeDescriptor> bindings = getBindings(sources);
-    
-    std::vector<ResourceTypeDescriptor> values;
-    values.reserve(bindings.size());
-    for(const auto& [x,y] : bindings){
-        values.push_back(y);
-    }
-    std::sort(values.begin(), values.end(),[](const ResourceTypeDescriptor& x, const ResourceTypeDescriptor& y){
-        return x.location < y.location;
-    });
-    
-    shaderCodeDesc.chain.next = nullptr;
-    shaderCodeDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
-    shaderCodeDesc.code = WGPUStringView{shaderSourceWGSL, sourceSize};
-    WGPUShaderModuleDescriptor shaderDesc zeroinit;
-    shaderDesc.nextInChain = &shaderCodeDesc.chain;
-    #ifdef WEBGPU_BACKEND_WGPU
-    shaderDesc.hintCount = 0;
-    shaderDesc.hints = nullptr;
-    #endif
-    WGPUShaderModule mod = wgpuDeviceCreateShaderModule((WGPUDevice)GetDevice(), &shaderDesc);
-    DescribedShaderModule ret zeroinit;
-    
-    
-    ret.uniformLocations = callocnew(StringToUniformMap);
-    new (ret.uniformLocations) StringToUniformMap;
-    for(const auto& [x,y] : bindings){
-        ret.uniformLocations->uniforms[x] = y;
-    }
+std::vector<std::pair<ShaderStage, std::string>> getEntryPointsWGSL(const char* shaderSourceWGSL){
+    std::vector<std::pair<ShaderStage, std::string>> entryPoints;
     tint::Source::File file("", shaderSourceWGSL);
     tint::Program prog = tint::wgsl::reader::Parse(&file);
     tint::inspector::Inspector inspector(prog);
     std::vector<tint::inspector::EntryPoint> eps = inspector.GetEntryPoints();
 
     for(auto& ep : eps){
+        ShaderStage stage;
         switch(ep.stage){
             case tint::inspector::PipelineStage::kVertex:
-                ret.stages[ShaderStage_Vertex].module = mod;
-                ret.stages[ShaderStage_Vertex].entryPoint = strdup(ep.name.c_str());
-                break;
-                case tint::inspector::PipelineStage::kFragment:
-                ret.stages[ShaderStage_Fragment].module = mod;
-                ret.stages[ShaderStage_Fragment].entryPoint = strdup(ep.name.c_str());
-                break;
-                case tint::inspector::PipelineStage::kCompute:
-                ret.stages[ShaderStage_Compute].module = mod;
-                ret.stages[ShaderStage_Compute].entryPoint = strdup(ep.name.c_str());
+            stage = ShaderStage_Vertex;
+            break;
+            case tint::inspector::PipelineStage::kFragment:
+            stage = ShaderStage_Fragment;
+            break;
+            case tint::inspector::PipelineStage::kCompute:
+            stage = ShaderStage_Compute;
             break;
             default: rg_unreachable();
         }
+        entryPoints.emplace_back(stage, ep.name);
     }
-
-    return ret;
+    return entryPoints;
 }
+#endif
+
 std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributesWGSL(ShaderSources sources){
     const char* shaderSourceWGSL = sources.vertexAndFragmentSource;
     rassert(shaderSourceWGSL != nullptr, "vertexAndFragmentSource must be set for WGSL");
