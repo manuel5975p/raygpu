@@ -165,6 +165,7 @@ typedef enum ShaderSourceType{
     sourceTypeWGSL    = 2,
     sourceTypeGLSL    = 3,
 }ShaderLanguage;
+
 typedef struct StageInModule{
     const char* entryPoint;
     NativeShaderModuleHandle module;
