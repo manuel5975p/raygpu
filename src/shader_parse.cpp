@@ -134,16 +134,21 @@ access_type extractAccess(const tint::ast::Identifier* iden){
     return access_type(12123);
 }
 #endif
-std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes(const char* shaderSource){
-    std::string_view source_view = std::string_view(shaderSource);
+
+std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributesWGSL(ShaderSources sources){
+    const char* shaderSourceWGSL = sources.vertexAndFragmentSource;
+    rassert(shaderSourceWGSL != nullptr, "vertexAndFragmentSource must be set for WGSL");
+    
+    std::string_view source_view = std::string_view(shaderSourceWGSL);
     ShaderSourceType language = detectShaderLanguage(source_view);
     if(language == sourceTypeGLSL){
-        //return getBindingsGLSL(ShaderSources{.computeSource = shaderSource});
+        //return getAttributesGLSL(ShaderSources{.computeSource = shaderSource});
     }
     
     std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> ret;
-#if defined(SUPPORT_WGSL_PARSER) && SUPPORT_WGSL_PARSER == 1
-    tint::Source::File f("path", shaderSource);
+
+#if SUPPORT_WGSL_PARSER == 1
+    tint::Source::File f("path", shaderSourceWGSL);
     tint::wgsl::reader::Options options{};
     tint::wgsl::AllowedFeatures features;
     features.features.emplace(tint::wgsl::LanguageFeature::kReadonlyAndReadwriteStorageTextures);
@@ -158,8 +163,9 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
     tint::inspector::Inspector insp(result);
     namespace ti = tint::inspector;
     const tint::sem::Info& psem = result.Sem();
+
     for(size_t i = 0;i < insp.GetEntryPoints().size();i++){
-        if(insp.GetEntryPoints()[i].stage == tint::inspector::PipelineStage::kVertex){
+        if(insp.GetEntryPoints()[i].stage == ti::PipelineStage::kVertex){
             for(size_t j = 0;j < insp.GetEntryPoints()[i].input_variables.size();j++){
                 //std::string name = insp.GetEntryPoints()[i].input_variables[j].name;
                 std::string varname = insp.GetEntryPoints()[i].input_variables[j].variable_name;

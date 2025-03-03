@@ -779,7 +779,9 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindings(ShaderSource
  * @param shaderSource 
  * @return std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> 
  */
-std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes(const char* shaderSource);
+std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributesWGSL(ShaderSources sources);
+std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributesGLSL(ShaderSources sources);
+std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes(ShaderSources sources);
 #endif
 
 EXTERN_C_BEGIN
@@ -1099,7 +1101,8 @@ EXTERN_C_BEGIN
     DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
     DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
     DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao);
-    DescribedPipeline* LoadPipelineForVAOEx(const char* shaderSource, VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
+
+    DescribedPipeline* LoadPipelineForVAOEx(ShaderSources sources, VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
     DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs);
     DescribedPipeline* LoadPipelinePro(cwoid);
     void UpdatePipeline(DescribedPipeline* pl);
