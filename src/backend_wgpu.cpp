@@ -527,7 +527,47 @@ DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* unifo
     return ret;
 }
 
+DescribedShaderModule LoadShaderModuleFromMemoryWGSL(const char* shaderSourceWGSL) {
+    WGPUShaderModuleWGSLDescriptor shaderCodeDesc{};
 
+    size_t sourceSize = strlen(shaderSourceWGSL);
+    ShaderSources sources zeroinit;
+    sources.vertexAndFragmentSource = shaderSourceWGSL;
+    std::unordered_map<std::string, ResourceTypeDescriptor> bindings = getBindings(sources);
+    
+    std::vector<ResourceTypeDescriptor> values;
+    values.reserve(bindings.size());
+    for(const auto& [x,y] : bindings){
+        values.push_back(y);
+    }
+    std::sort(values.begin(), values.end(),[](const ResourceTypeDescriptor& x, const ResourceTypeDescriptor& y){
+        return x.location < y.location;
+    });
+    
+    shaderCodeDesc.chain.next = nullptr;
+    shaderCodeDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
+    shaderCodeDesc.code = WGPUStringView{shaderSourceWGSL, sourceSize};
+    WGPUShaderModuleDescriptor shaderDesc zeroinit;
+    shaderDesc.nextInChain = &shaderCodeDesc.chain;
+    #ifdef WEBGPU_BACKEND_WGPU
+    shaderDesc.hintCount = 0;
+    shaderDesc.hints = nullptr;
+    #endif
+    WGPUShaderModule mod = wgpuDeviceCreateShaderModule((WGPUDevice)GetDevice(), &shaderDesc);
+    DescribedShaderModule ret zeroinit;
+    
+    
+    ret.uniformLocations = callocnew(StringToUniformMap);
+    new (ret.uniformLocations) StringToUniformMap;
+    for(const auto& [x,y] : bindings){
+        ret.uniformLocations->uniforms[x] = y;
+    }
+    
+    std::vector<std::pair<ShaderStage, std::string>> entryPoints = getEntryPointsWGSL(shaderSourceWGSL);
+    TODO
+
+    return ret;
+}
 
 
 extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t height){
