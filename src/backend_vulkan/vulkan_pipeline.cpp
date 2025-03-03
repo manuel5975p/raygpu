@@ -325,8 +325,12 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
     //std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> attribs = getAttributes(shaderSource);
     return LoadPipelineMod(mod, attribs, attribCount, uniforms, uniformCount, settings);
 }
+extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
+    ShaderSources source zeroinit;
+    source.computeSource = shaderSource;
+}
 
-void UpdatePipeline_Vk(DescribedPipeline* ret, const std::vector<AttributeAndResidence>& attributes){
+void UpdatePipeline(DescribedPipeline* ret, const std::vector<AttributeAndResidence>& attributes){
     // Shader Stage Setup
     auto it = ret->createdPipelines->pipelines.find(attributes);
     if(it != ret->createdPipelines->pipelines.end()){
@@ -368,7 +372,7 @@ extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const A
         bge[i].binding = uniforms[i].location;
     }
     ret->bindGroup = LoadBindGroup_Vk(&ret->bglayout, bge.data(), bge.size());
-    UpdatePipeline_Vk(ret, std::vector<AttributeAndResidence>(attribs, attribs + attribCount));    
+    UpdatePipeline(ret, std::vector<AttributeAndResidence>(attribs, attribs + attribCount));    
     
     return ret;
 

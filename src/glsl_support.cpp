@@ -163,6 +163,92 @@ std::vector<uint32_t> glsl_to_spirv(const char *cs){
     glslang::GlslangToSpv(*intermediate, output);
     return output;
 }
+
+std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributesGLSL(ShaderSources sources){
+    const int glslVersion = 450;
+    
+    if (!glslang_initialized){
+        glslang::InitializeProcess();
+        glslang_initialized = true;
+    }
+    
+    if(sources.vertexAndFragmentSource){
+        TRACELOG(LOG_ERROR, "VS and FS in one not supported for GLSL");
+    }
+    
+    std::vector<std::pair<EShLanguage, std::unique_ptr<glslang::TShader>>> shaders;
+    std::vector<const char*> stageSources;
+    if(sources.vertexSource && sources.fragmentSource){
+        shaders.push_back({EShLangVertex,   std::make_unique<glslang::TShader>(EShLangVertex)});
+        shaders.push_back({EShLangFragment, std::make_unique<glslang::TShader>(EShLangFragment)});
+        stageSources.push_back(sources.vertexSource);
+        stageSources.push_back(sources.fragmentSource);
+        shaders[0].second->setStrings(stageSources.data(), 1);
+        shaders[1].second->setStrings(stageSources.data() + 1, 1);
+        shaders[0].second->setEnvInput(glslang::EShSourceGlsl, EShLangVertex, glslang::EShClientOpenGL, glslVersion);
+        shaders[0].second->setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
+        shaders[0].second->setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
+        shaders[1].second->setEnvInput(glslang::EShSourceGlsl, EShLangFragment, glslang::EShClientOpenGL, glslVersion);
+        shaders[1].second->setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
+        shaders[1].second->setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
+    }
+    else if(sources.computeSource){
+        shaders.push_back({EShLangCompute, std::make_unique<glslang::TShader>(EShLangCompute)});
+        stageSources.push_back(sources.computeSource);
+        shaders[0].second->setStrings(stageSources.data(), 1);
+        shaders[0].second->setEnvInput(glslang::EShSourceGlsl, EShLangCompute, glslang::EShClientOpenGL, glslVersion);
+        shaders[0].second->setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
+        shaders[0].second->setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
+        
+    }
+
+    TBuiltInResource Resources = {};
+    Resources.maxComputeWorkGroupSizeX = 1024;
+    Resources.maxComputeWorkGroupSizeY = 1024;
+    Resources.maxComputeWorkGroupSizeZ = 1024;
+    Resources.maxCombinedTextureImageUnits = 8;
+
+    Resources.limits.generalUniformIndexing = true;
+    Resources.limits.generalVariableIndexing = true;
+    Resources.maxDrawBuffers = true;
+
+    EShMessages messages = (EShMessages)(EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules);
+
+    // Parse the shader
+    
+    for(size_t i = 0;i < shaders.size();i++){
+        auto& [language, shader] = shaders[i];
+
+        shader->setAutoMapLocations(false);
+        shader->setAutoMapBindings (false);
+        if(!shader->parse(&Resources,  glslVersion, ECoreProfile, false, false, messages)){
+            const char* lang = (language == EShLangCompute ? "Compute" : ((language == EShLangVertex) ? "Vertex" : "Fragment"));
+            TRACELOG(LOG_ERROR, "%s GLSL Parsing Failed: %s", lang, shader->getInfoLog());
+        }
+    }
+
+    // Link the program
+    glslang::TProgram program;
+    for(size_t i = 0;i < shaders.size();i++){
+        auto& [language, shader] = shaders[i];
+        program.addShader(shader.get());
+    }
+    if(!program.link(messages)){
+        TRACELOG(LOG_WARNING, "Linking program failed: %s", program.getInfoDebugLog());
+    }
+    else{
+        TRACELOG(LOG_INFO, "Program linked successfully");
+    }
+    program.buildReflection();
+    std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> ret;
+    uint32_t attributeCount = program.getNumLiveAttributes();
+    for(uint32_t i = 0;i < attributeCount;i++){
+        program.getAttributeType(i);
+        program.getAttributeName(i);
+
+    }
+    return ret;
+}
 std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSources sources){
     const int glslVersion = 450;
     
