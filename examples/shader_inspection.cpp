@@ -129,11 +129,23 @@ constexpr char shaderSourceWGSL[] = R"(
 int main(){
     InitWindow(800, 800, "as");
     ShaderSources sources zeroinit;
+    sources.language = sourceTypeGLSL;
+    sources.sourceCount = 2;
+    sources.sources[0].data = vertexSourceGLSL;
+    sources.sources[0].sizeInBytes = std::strlen(vertexSourceGLSL);
+    sources.sources[0].stageMask = ShaderStageMask_Vertex;
+    
+    sources.sources[1].data = fragmentSourceGLSL;
+    sources.sources[1].sizeInBytes = std::strlen(fragmentSourceGLSL);
+    sources.sources[1].stageMask = ShaderStageMask_Fragment;
+    
     ShaderSources wgslSources zeroinit;
+    wgslSources.language = sourceTypeWGSL;
+    wgslSources.sourceCount = 1;
+    sources.sources[0].data = shaderSourceWGSL;
+    sources.sources[0].sizeInBytes = std::strlen(shaderSourceWGSL);
+    sources.sources[0].stageMask = ShaderStageMask(ShaderStageMask_Vertex | ShaderStageMask_Fragment);
     //sources.computeSource = computeSource;
-    sources.vertexSource = vertexSourceGLSL;
-    sources.fragmentSource = fragmentSourceGLSL;
-    wgslSources.vertexAndFragmentSource = shaderSourceWGSL;
     auto comp = getBindingsGLSL(sources);
     auto wgcomp = getBindings(wgslSources);
     for(auto [n, l] : wgcomp){

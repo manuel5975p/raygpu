@@ -78,8 +78,8 @@ ShaderSourceType detectShaderLanguage(const void* data, size_t sizeInBytes){
 }
 void detectShaderLanguage(ShaderSources* sourcesPointer){
     ShaderSources& sources = *sourcesPointer;
-    for(uint32_t i = 0;i < ShaderStage_EnumCount;i++){
-        ShaderSourceType srctype = sources.sources[i].data ? sourceTypeUnknown : detectShaderLanguage(sources.sources[i].data, sources.sources[i].sizeInBytes);
+    for(uint32_t i = 0;i < sourcesPointer->sourceCount;i++){
+        ShaderSourceType srctype = (sources.sources[i].data == nullptr) ? sourceTypeUnknown : detectShaderLanguage(sources.sources[i].data, sources.sources[i].sizeInBytes);
         if(srctype != sourceTypeUnknown){
             sourcesPointer->language = srctype;
             return;
@@ -448,11 +448,11 @@ DescribedShaderModule LoadShaderModule(ShaderSources sources){
     
     switch (sources.language){
         case sourceTypeGLSL:
-        LoadShaderModuleGLSL(sources);
+        return LoadShaderModuleGLSL(sources);
         case sourceTypeWGSL:
-        LoadShaderModuleWGSL(sources);
+        return LoadShaderModuleWGSL(sources);
         case sourceTypeSPIRV:
-        LoadShaderModuleSPIRV(sources);
+        return LoadShaderModuleSPIRV(sources);
         default: rg_unreachable();
     }
 
@@ -1706,6 +1706,7 @@ void TraceLog(int logType, const char *text, ...){
     // If fatal logging, exit program
     if (logType == LOG_FATAL){
         fputs(TERMCTL_RED "Exiting due to fatal error!\n" TERMCTL_RESET, tracelogFile);
+        rg_trap();
         exit(EXIT_FAILURE); 
     }
 

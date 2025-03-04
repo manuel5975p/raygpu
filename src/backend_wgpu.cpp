@@ -533,7 +533,6 @@ DescribedShaderModule LoadShaderModuleWGSL(ShaderSources sources) {
 
     rassert(sources.language = sourceTypeWGSL, "Source language must be wgsl for this function");
     
-
     for(uint32_t i = 0;i < sources.sourceCount;i++){
         WGPUShaderModuleDescriptor mDesc zeroinit;
         WGPUShaderSourceWGSL source zeroinit;
@@ -542,8 +541,9 @@ DescribedShaderModule LoadShaderModuleWGSL(ShaderSources sources) {
 
         source.code = WGPUStringView{.data = (const char*)sources.sources[i].data, .length = sources.sources[i].sizeInBytes};
         WGPUShaderModule module = wgpuDeviceCreateShaderModule((WGPUDevice)GetDevice(), &mDesc);
-        for(uint32_t i = 0;i < ShaderStage_EnumCount;i++){
-            if(sources.sources[i].stageMask & (1u << i)){
+        ShaderStageMask sourceStageMask = sources.sources[i].stageMask;
+        for(uint32_t i = 0;i < ShaderStage_EnumCount;++i){
+            if(uint32_t(sourceStageMask) & (1u << i)){
                 ret.stages[i].module = module;
             }
         }
