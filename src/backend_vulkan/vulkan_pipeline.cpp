@@ -639,11 +639,19 @@ void SetBindGroupSampler_Vk(DescribedBindGroup* bg, uint32_t binding, DescribedS
     }
     bg->needsUpdate = true;
 }
+ShaderSources singleStage(const char* code, ShaderSourceType language, ShaderStage stage){
+    ShaderSources sources zeroinit;
+    sources.language = language;
+    sources.sourceCount = 1;
+    sources.sources[0].data = code;
+    sources.sources[0].sizeInBytes = std::strlen(code);
+    sources.sources[0].stageMask = ShaderStageMask(1u << uint32_t(+stage));
+    return sources;
+}
 
 extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount){
     DescribedComputePipeline* ret = callocnew(DescribedComputePipeline);
-    ShaderSources sources zeroinit;
-    sources.computeSource = shaderCode;
+    ShaderSources sources = singleStage(shaderCode, ShaderSourceType language, ShaderStage stage)
     DescribedShaderModule computeShaderModule = LoadShaderModule(sources);
 
 

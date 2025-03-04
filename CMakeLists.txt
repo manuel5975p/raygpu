@@ -299,63 +299,64 @@ if(EMSCRIPTEN)
     endif()
     #target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
 else()
-if(SUPPORT_VULKAN_BACKEND)
-    target_link_libraries(raygpu PUBLIC vulkan glslang)
-else()
-    target_link_libraries(raygpu PUBLIC
-        webgpu_dawn
-        #webgpu_cpp
-        #tint_api_common
-        #tint_lang_wgsl_reader
-        #dawn_internal_config
-        #tint_lang_wgsl
-        #tint_api
-        #glslang
-    
-        #dawn::dawn_native
-        #dawn::dawn_common
-        #dawn::dawn_system_utils
-        #dawn::dawn_wgpu_utils
-        #dawn::dawn_test_utils
-        #dawn::dawn_proc
-        
-        #target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
-    )
-    target_link_libraries(raygpu PRIVATE tint_api)
-    # target_include_directories(raygpu PUBLIC
-    #     $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/include/>  
-    #     $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/src>
-    #     $<BUILD_INTERFACE:${dawn_SOURCE_DIR}>
-    #     $<INSTALL_INTERFACE:include/raygpu/dawn/include>
-    #     $<INSTALL_INTERFACE:include/raygpu/dawn/src>
-    #     $<INSTALL_INTERFACE:include/raygpu/dawn/>
-    # )
+    if(SUPPORT_VULKAN_BACKEND)
+        target_link_libraries(raygpu PUBLIC vulkan glslang)
+    else()
+        target_link_libraries(raygpu PUBLIC
+            webgpu_dawn
+            #webgpu_cpp
+            #tint_api_common
+            #tint_lang_wgsl_reader
+            #dawn_internal_config
+            #tint_lang_wgsl
+            #tint_api
+            #glslang
 
-endif()
-if(SUPPORT_WGSL_PARSER)
-    target_link_libraries(raygpu PRIVATE tint_api) #tint_lang_wgsl_reader tint_lang_wgsl_inspector tint_lang_wgsl_resolver tint_lang_spirv_writer)
-    #target_include_directories(raygpu PUBLIC  
-    #    $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/include/>  
-    #    $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/src>
-    #    $<BUILD_INTERFACE:${dawn_SOURCE_DIR}>
-    #    $<INSTALL_INTERFACE:include/raygpu/dawn/include>
-    #    $<INSTALL_INTERFACE:include/raygpu/dawn/src>
-    #    $<INSTALL_INTERFACE:include/raygpu/dawn/>
-    #)
-endif()
+            #dawn::dawn_native
+            #dawn::dawn_common
+            #dawn::dawn_system_utils
+            #dawn::dawn_wgpu_utils
+            #dawn::dawn_test_utils
+            #dawn::dawn_proc
 
-if(SUPPORT_SDL2)
-    target_link_libraries(raygpu PUBLIC SDL2::SDL2)
-endif()
-if(SUPPORT_SDL3)
-    target_link_libraries(raygpu PUBLIC SDL3::SDL3)
-endif()
-if(SUPPORT_GLFW)
-    target_link_libraries(raygpu PUBLIC glfw)
-endif()
-if(SUPPORT_GLSL_PARSER)
-    target_link_libraries(raygpu PRIVATE glslang spirv-reflect-static)
-endif()
+            #target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
+        )
+        target_link_libraries(raygpu PRIVATE tint_api)
+        # target_include_directories(raygpu PUBLIC
+        #     $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/include/>  
+        #     $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/src>
+        #     $<BUILD_INTERFACE:${dawn_SOURCE_DIR}>
+        #     $<INSTALL_INTERFACE:include/raygpu/dawn/include>
+        #     $<INSTALL_INTERFACE:include/raygpu/dawn/src>
+        #     $<INSTALL_INTERFACE:include/raygpu/dawn/>
+        # )
+
+    endif()
+    if(SUPPORT_WGSL_PARSER)
+        target_link_libraries(raygpu PRIVATE tint_api) #tint_lang_wgsl_reader tint_lang_wgsl_inspector tint_lang_wgsl_resolver tint_lang_spirv_writer)
+        #target_include_directories(raygpu PUBLIC  
+        #    $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/include/>  
+        #    $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/src>
+        #    $<BUILD_INTERFACE:${dawn_SOURCE_DIR}>
+        #    $<INSTALL_INTERFACE:include/raygpu/dawn/include>
+        #    $<INSTALL_INTERFACE:include/raygpu/dawn/src>
+        #    $<INSTALL_INTERFACE:include/raygpu/dawn/>
+        #)
+    endif()
+
+    if(SUPPORT_SDL2)
+        target_link_libraries(raygpu PUBLIC SDL2::SDL2)
+    endif()
+    if(SUPPORT_SDL3)
+        target_link_libraries(raygpu PUBLIC SDL3::SDL3)
+    endif()
+    if(SUPPORT_GLFW)
+        target_link_libraries(raygpu PUBLIC glfw)
+    endif()
+    if(SUPPORT_GLSL_PARSER)
+        target_link_libraries(raygpu PRIVATE glslang)
+    endif()
+    target_link_libraries(raygpu PRIVATE spirv-reflect-static)
 endif()
 
 #add_executable(example "src/example.cpp")
