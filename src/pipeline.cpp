@@ -75,7 +75,13 @@
 
 extern "C" DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao){
     ShaderSources sources zeroinit;
-    sources.computeSource = shaderSource;
+    sources.sourceCount = 1;
+    sources.language = sourceTypeWGSL;
+
+    sources.sources[0].stageMask = (ShaderStageMask)(ShaderStageMask_Vertex | ShaderStageMask_Fragment);
+    sources.sources[0].data = shaderSource;
+    sources.sources[0].sizeInBytes = std::strlen(shaderSource);
+
     std::unordered_map<std::string, ResourceTypeDescriptor> bindings = getBindings(sources);
     std::vector<ResourceTypeDescriptor> values;
     values.reserve(bindings.size());
@@ -85,7 +91,7 @@ extern "C" DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, Verte
     std::sort(values.begin(), values.end(),[](const ResourceTypeDescriptor& x, const ResourceTypeDescriptor& y){
         return x.location < y.location;
     });
-    DescribedPipeline* pl = LoadPipelineForVAOEx(ShaderSources{.vertexAndFragmentSource = shaderSource}, vao, values.data(), values.size(), GetDefaultSettings());
+    DescribedPipeline* pl = LoadPipelineForVAOEx(sources, vao, values.data(), values.size(), GetDefaultSettings());
 
     return pl;
 }
@@ -97,9 +103,9 @@ DescribedPipeline* LoadPipelineForVAOEx(const char* shaderSource, VertexArray* v
 }
 extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
     ShaderSources sources zeroinit;
-
-    
-    sources.vertexAndFragmentSource = shaderSource;
+    auto& src = sources.sources[sources.sourceCount++];
+    src.data = shaderSource;
+    src.sizeInBytes = std::strlen(shaderSource);
     std::unordered_map<std::string, ResourceTypeDescriptor> bindings = getBindings(sources);
 
     std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> attribs = getAttributes(sources);
@@ -134,51 +140,48 @@ extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
     
     return pl;
 }
-DescribedShaderModule LoadShaderModuleFromSPIRV(const uint32_t* shaderCodeSPIRV, size_t codeSizeInBytes){
-
-    WGPUShaderModuleSPIRVDescriptor shaderCodeDesc zeroinit;
-    
-    shaderCodeDesc.chain.next = nullptr;
-    shaderCodeDesc.chain.sType = WGPUSType_ShaderSourceSPIRV;
-
-    shaderCodeDesc.code = (uint32_t*)shaderCodeSPIRV;
-    shaderCodeDesc.codeSize = codeSizeInBytes / sizeof(uint32_t);
-    WGPUShaderModuleDescriptor shaderDesc zeroinit;
-    shaderDesc.nextInChain = &shaderCodeDesc.chain;
-    WGPUStringView strv = STRVIEW("spirv_shader");
-    WGPUShaderModule sh = wgpuDeviceCreateShaderModule((WGPUDevice)GetDevice(), &shaderDesc);
+DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sourcesSpirv){
     DescribedShaderModule ret zeroinit;
-    spv_reflect::ShaderModule spv_mod(codeSizeInBytes, shaderCodeSPIRV);
-    uint32_t entryPointCount = spv_mod.GetEntryPointCount();
-    for(uint32_t i = 0;i < entryPointCount;i++){
-        auto epStage = spv_mod.GetEntryPointShaderStage(i);
-        ShaderStage stage = [](SpvReflectShaderStageFlagBits epStage){
-            switch(epStage){
-                case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_VERTEX_BIT:
-                    return ShaderStage_Vertex;
-                case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_FRAGMENT_BIT:
-                    return ShaderStage_Fragment;
-                case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT:
-                    return ShaderStage_Compute;
-                case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_GEOMETRY_BIT:
-                    return ShaderStage_Geometry;
-                default:
-                    TRACELOG(LOG_FATAL, "Unknown shader stage: %d", (int)epStage);
-                    return ShaderStage_Vertex;
-            }
-        }(epStage);
+    for(uint32_t i = 0;i < sourcesSpirv.sourceCount;i++){
+        WGPUShaderModuleDescriptor shaderDesc zeroinit;
+        WGPUShaderModuleSPIRVDescriptor shaderCodeDesc zeroinit;
+        shaderCodeDesc.chain.next = nullptr;
+        shaderCodeDesc.chain.sType = WGPUSType_ShaderSourceSPIRV;
 
-        ret.stages[stage].module = sh;
-        ret.stages[stage].entryPoint = copyString(spv_mod.GetEntryPointName(i));
-        
+        shaderCodeDesc.code = (const uint32_t*)sourcesSpirv.sources[i].data;
+        shaderCodeDesc.codeSize = sourcesSpirv.sources[i].sizeInBytes / sizeof(uint32_t);
 
+        WGPUShaderModule sh = wgpuDeviceCreateShaderModule((WGPUDevice)GetDevice(), &shaderDesc);
+
+        spv_reflect::ShaderModule spv_mod(sourcesSpirv.sources[i].sizeInBytes, (const uint32_t*)sourcesSpirv.sources[i].data);
+        uint32_t entryPointCount = spv_mod.GetEntryPointCount();
+        for(uint32_t i = 0;i < entryPointCount;i++){
+            auto epStage = spv_mod.GetEntryPointShaderStage(i);
+            ShaderStage stage = [](SpvReflectShaderStageFlagBits epStage){
+                switch(epStage){
+                    case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_VERTEX_BIT:
+                        return ShaderStage_Vertex;
+                    case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_FRAGMENT_BIT:
+                        return ShaderStage_Fragment;
+                    case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT:
+                        return ShaderStage_Compute;
+                    case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_GEOMETRY_BIT:
+                        return ShaderStage_Geometry;
+                    default:
+                        TRACELOG(LOG_FATAL, "Unknown shader stage: %d", (int)epStage);
+                        return ShaderStage_Vertex;
+                }
+            }(epStage);
+
+            ret.stages[stage].module = sh;
+            ret.reflectionInfo.ep[stage].stage = stage;
+            std::memset(ret.reflectionInfo.ep[stage].name, 0, sizeof(ret.reflectionInfo.ep[stage].name));
+            uint32_t eplength = std::strlen(spv_mod.GetEntryPointName(i));
+            rassert(eplength < 16, "Entry point name must be < 16 chars");
+            std::copy(spv_mod.GetEntryPointName(i), spv_mod.GetEntryPointName(i) + eplength, ret.reflectionInfo.ep[stage].name);
+        }
     }
-    ret.stages[ShaderStage_Fragment].module = sh;
-    
-    //ret.source = calloc(codeSizeInBytes / sizeof(uint32_t), sizeof(uint32_t));
-    //std::memcpy(const_cast<void*>(ret.source), shaderCodeSPIRV, codeSizeInBytes);
-    //ret.sourceLengthInBytes = codeSizeInBytes;
-    ret.uniformLocations = callocnewpp(StringToUniformMap);
+
     return ret;
 }
 DescribedShaderModule LoadShaderModuleFromMemoryWGSL2(const char* shaderSourceWGSLVertex, const char* shaderSourceWGSLFragment){
@@ -208,7 +211,6 @@ void UnloadShaderModule(DescribedShaderModule mod){
                 freed.insert((WGPUShaderModule)mod.stages[i].module);
                 wgpuShaderModuleRelease((WGPUShaderModule)mod.stages[i].module);
             }
-            std::free(const_cast<char*>(mod.stages[i].entryPoint));
         }
     }
 }
@@ -314,7 +316,15 @@ extern "C" DescribedPipeline* LoadPipelineForVAOEx(ShaderSources sources, Vertex
     return pl;
 }
 extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
-    DescribedShaderModule mod = LoadShaderModuleFromMemoryWGSL(shaderSource);
+    
+    ShaderSources sources zeroinit;
+    sources.sourceCount = 1;
+    sources.language = sourceTypeWGSL;
+    sources.sources[0].data = shaderSource;
+    sources.sources[0].sizeInBytes = std::strlen(shaderSource);
+    sources.sources[0].stageMask = ShaderStageMask(ShaderStageMask_Vertex | ShaderStageMask_Fragment);
+    DescribedShaderModule mod = LoadShaderModuleWGSL(sources);
+
     return LoadPipelineMod(mod, attribs, attribCount, uniforms, uniformCount, settings);
 }
 extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
@@ -404,9 +414,10 @@ DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
 
     UpdatePipeline(pipeline);
     
-    //hm
-    pipeline->sh.uniformLocations = callocnew(StringToUniformMap);
-    new(pipeline->sh.uniformLocations) StringToUniformMap(*_pipeline->sh.uniformLocations);
+    //TODO: Probably CloneShaderModule
+
+    //pipeline->sh.uniformLocations = callocnew(StringToUniformMap);
+    //new(pipeline->sh.uniformLocations) StringToUniformMap(*_pipeline->sh.uniformLocations);
     return pipeline;
 }
 DescribedPipeline* ClonePipelineWithSettings(const DescribedPipeline* pl, RenderSettings settings){
@@ -418,7 +429,13 @@ DescribedPipeline* ClonePipelineWithSettings(const DescribedPipeline* pl, Render
 }
 DescribedComputePipeline* LoadComputePipeline(const char* shaderCode){
     ShaderSources sources zeroinit;
-    sources.computeSource = shaderCode;
+    sources.sourceCount = 1;
+    sources.language = sourceTypeWGSL;
+
+    sources.sources[0].data = shaderCode;
+    sources.sources[0].sizeInBytes = std::strlen(shaderCode);
+    sources.sources[0].stageMask = ShaderStageMask_Compute;
+
     auto bindmap = getBindings(sources);
     std::vector<ResourceTypeDescriptor> udesc;
     for(auto& [x,y] : bindmap){
@@ -432,7 +449,12 @@ DescribedComputePipeline* LoadComputePipeline(const char* shaderCode){
 }
 DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount){
     ShaderSources sources zeroinit;
-    sources.computeSource = shaderCode;
+    sources.sourceCount = 1;
+    sources.language = sourceTypeWGSL;
+    sources.sources[0].data = shaderCode;
+    sources.sources[0].sizeInBytes = std::strlen(shaderCode);
+    sources.sources[0].stageMask = ShaderStageMask_Compute;
+
     auto bindmap = getBindings(sources);
     DescribedComputePipeline* ret = callocnew(DescribedComputePipeline);
     WGPUComputePipelineDescriptor desc{};
@@ -442,9 +464,10 @@ DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const Re
     pldesc.bindGroupLayoutCount = 1;
     pldesc.bindGroupLayouts = (WGPUBindGroupLayout*) &ret->bglayout.layout;
     WGPUPipelineLayout playout = wgpuDeviceCreatePipelineLayout((WGPUDevice)GetDevice(), &pldesc);
-    ret->shaderModule = LoadShaderModuleFromMemoryWGSL(shaderCode);
+    ret->shaderModule = LoadShaderModuleWGSL(sources);
     desc.compute.module = (WGPUShaderModule) ret->shaderModule.stages[ShaderStage_Compute].module;
-    desc.compute.entryPoint = WGPUStringView{ret->shaderModule.stages[ShaderStage_Compute].entryPoint, std::strlen(ret->shaderModule.stages[ShaderStage_Compute].entryPoint)};
+
+    desc.compute.entryPoint = WGPUStringView{ret->shaderModule.reflectionInfo.ep[ShaderStage_Compute].name, std::strlen(ret->shaderModule.reflectionInfo.ep[ShaderStage_Compute].name)};
     desc.layout = playout;
     WGPUDevice device = (WGPUDevice)GetDevice();
     ret->pipeline = wgpuDeviceCreateComputePipeline((WGPUDevice)GetDevice(), &desc);
@@ -541,8 +564,9 @@ void UniformAccessor::operator=(DescribedBuffer* buf){
     SetBindgroupStorageBuffer(bindgroup, index, buf);
 }
 UniformAccessor DescribedComputePipeline::operator[](const char* uniformName){
-    auto it = shaderModule.uniformLocations->uniforms.find(uniformName);
-    if(it == shaderModule.uniformLocations->uniforms.end()){
+
+    auto it = shaderModule.reflectionInfo.uniforms->uniforms.find(uniformName);
+    if(it == shaderModule.reflectionInfo.uniforms->uniforms.end()){
         TRACELOG(LOG_ERROR, "Accessing nonexistent uniform %s", uniformName);
         return UniformAccessor{.index = LOCATION_NOT_FOUND, .bindgroup = nullptr};
     }

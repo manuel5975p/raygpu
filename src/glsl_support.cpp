@@ -37,6 +37,7 @@
 #include <spirv_reflect.h>
 #include <raygpu.h>
 #include <memory>
+#include <bit>
 #include <fstream>
 #ifdef GLSL_TO_WGSL
 #include <tint/tint.h>
@@ -249,13 +250,9 @@ std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char
 
     return {spirvV, spirvF};
 }
-std::vector<uint32_t> glsl_to_spirv(const char *cs){
-    if (!glslang_initialized){
-        glslang::InitializeProcess();
-        glslang_initialized = true;
-    }
-    glslang::TShader shader(EShLangCompute);
-    shader.setEnvInput(glslang::EShSourceGlsl, EShLangCompute, glslang::EShClientOpenGL, 450);
+std::vector<uint32_t> glsl_to_spirv_single(const char* cs, EShLanguage stage){
+    glslang::TShader shader(stage);
+    shader.setEnvInput(glslang::EShSourceGlsl, stage, glslang::EShClientOpenGL, 450);
     shader.setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
     shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
     TBuiltInResource Resources = {};
@@ -270,7 +267,7 @@ std::vector<uint32_t> glsl_to_spirv(const char *cs){
 
     EShMessages messages = (EShMessages)(EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules);
 
-    if(!shader.parse(&Resources,  450, ECoreProfile, false, false, messages)){
+    if(!shader.parse(&Resources, 450, ECoreProfile, false, false, messages)){
         
         TRACELOG(LOG_ERROR, "Compute GLSL Parsing Failed: %s", shader.getInfoLog());
     }
@@ -279,12 +276,41 @@ std::vector<uint32_t> glsl_to_spirv(const char *cs){
     if(!program.link(messages)){
         TRACELOG(LOG_ERROR, "Error linkin shader: %s", program.getInfoLog());
     }
-    glslang::TIntermediate* intermediate = program.getIntermediate(EShLangCompute);
+    glslang::TIntermediate* intermediate = program.getIntermediate(stage);
     std::vector<uint32_t> output;
     glslang::GlslangToSpv(*intermediate, output);
     return output;
 }
+std::vector<uint32_t> glsl_to_spirv(const char *cs){
+    if (!glslang_initialized){
+        glslang::InitializeProcess();
+        glslang_initialized = true;
+    }
+    return glsl_to_spirv_single(cs, EShLangCompute);   
+}
 
+#ifndef CHAR_BIT
+#define CHAR_BIT 8
+#endif
+EShLanguage ShaderStageToGlslanguage(ShaderStage stage){
+    switch(stage){
+        case ShaderStage_Vertex: return EShLangVertex; 
+        case ShaderStage_TessControl: return EShLangTessControl; 
+        case ShaderStage_TessEvaluation: return EShLangTessEvaluation; 
+        case ShaderStage_Geometry: return EShLangGeometry; 
+        case ShaderStage_Fragment: return EShLangFragment; 
+        case ShaderStage_Compute: return EShLangCompute; 
+        case ShaderStage_RayGen: return EShLangRayGen; 
+        case ShaderStage_Intersect: return EShLangIntersect; 
+        case ShaderStage_AnyHit: return EShLangAnyHit; 
+        case ShaderStage_ClosestHit: return EShLangClosestHit; 
+        case ShaderStage_Miss: return EShLangMiss; 
+        case ShaderStage_Callable: return EShLangCallable; 
+        case ShaderStage_Task: return EShLangTask; 
+        case ShaderStage_Mesh: return EShLangMesh; 
+        default: rg_unreachable();     
+    }
+}
 std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributesGLSL(ShaderSources sources){
     const int glslVersion = 450;
     
@@ -293,37 +319,16 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
         glslang_initialized = true;
     }
 
-
-    
-    if(sources.vertexAndFragmentSource){
-        TRACELOG(LOG_ERROR, "VS and FS in one not supported for GLSL");
-    }
-    
     std::vector<std::pair<EShLanguage, std::unique_ptr<glslang::TShader>>> shaders;
     std::vector<const char*> stageSources;
-    if(sources.vertexSource && sources.fragmentSource){
-        shaders.push_back({EShLangVertex,   std::make_unique<glslang::TShader>(EShLangVertex)});
-        shaders.push_back({EShLangFragment, std::make_unique<glslang::TShader>(EShLangFragment)});
-        stageSources.push_back(sources.vertexSource);
-        stageSources.push_back(sources.fragmentSource);
-        shaders[0].second->setStrings(stageSources.data(), 1);
-        shaders[1].second->setStrings(stageSources.data() + 1, 1);
-        shaders[0].second->setEnvInput(glslang::EShSourceGlsl, EShLangVertex, glslang::EShClientOpenGL, glslVersion);
-        shaders[0].second->setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
-        shaders[0].second->setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
-        shaders[1].second->setEnvInput(glslang::EShSourceGlsl, EShLangFragment, glslang::EShClientOpenGL, glslVersion);
-        shaders[1].second->setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
-        shaders[1].second->setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
+    for(uint32_t i = 0;i < sources.sourceCount;i++){
+        if(std::bitset<sizeof(ShaderStageMask) * CHAR_BIT>(+sources.sources[i].stageMask).count() != 1){
+            TRACELOG(LOG_ERROR, "Only single stages are supported for GLSL");
+        }
+        ShaderStage stage = (ShaderStage)std::countr_zero(uint32_t(sources.sources[i].stageMask));
+        shaders.emplace_back(ShaderStageToGlslanguage(stage), std::make_unique<glslang::TShader>(ShaderStageToGlslanguage(stage)));
     }
-    else if(sources.computeSource){
-        shaders.push_back({EShLangCompute, std::make_unique<glslang::TShader>(EShLangCompute)});
-        stageSources.push_back(sources.computeSource);
-        shaders[0].second->setStrings(stageSources.data(), 1);
-        shaders[0].second->setEnvInput(glslang::EShSourceGlsl, EShLangCompute, glslang::EShClientOpenGL, glslVersion);
-        shaders[0].second->setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
-        shaders[0].second->setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
-        
-    }
+
     const TBuiltInResource* Resources = &DefaultTBuiltInResource_RG;
     
     EShMessages messages = (EShMessages)(EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules);
@@ -384,38 +389,15 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
         glslang_initialized = true;
     }
     
-    if(sources.vertexAndFragmentSource){
-        TRACELOG(LOG_ERROR, "VS and FS in one not supported for GLSL");
-    }
-    
     std::vector<std::pair<EShLanguage, std::unique_ptr<glslang::TShader>>> shaders;
     std::vector<const char*> stageSources;
-    if(sources.vertexSource && sources.fragmentSource){
-        shaders.push_back({EShLangVertex,   std::make_unique<glslang::TShader>(EShLangVertex)});
-        shaders.push_back({EShLangFragment, std::make_unique<glslang::TShader>(EShLangFragment)});
-        stageSources.push_back(sources.vertexSource);
-        stageSources.push_back(sources.fragmentSource);
-        shaders[0].second->setStrings(stageSources.data(), 1);
-        shaders[1].second->setStrings(stageSources.data() + 1, 1);
-        shaders[0].second->setEnvInput(glslang::EShSourceGlsl, EShLangVertex, glslang::EShClientOpenGL, glslVersion);
-        shaders[0].second->setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
-        shaders[0].second->setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
-        shaders[1].second->setEnvInput(glslang::EShSourceGlsl, EShLangFragment, glslang::EShClientOpenGL, glslVersion);
-        shaders[1].second->setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
-        shaders[1].second->setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
+    for(uint32_t i = 0;i < sources.sourceCount;i++){
+        if(std::bitset<sizeof(ShaderStageMask) * CHAR_BIT>(+sources.sources[i].stageMask).count() != 1){
+            TRACELOG(LOG_ERROR, "Only single stages are supported for GLSL");
+        }
+        ShaderStage stage = (ShaderStage)std::countr_zero(uint32_t(sources.sources[i].stageMask));
+        shaders.emplace_back(ShaderStageToGlslanguage(stage), std::make_unique<glslang::TShader>(ShaderStageToGlslanguage(stage)));
     }
-    else if(sources.computeSource){
-        shaders.push_back({EShLangCompute, std::make_unique<glslang::TShader>(EShLangCompute)});
-        stageSources.push_back(sources.computeSource);
-        shaders[0].second->setStrings(stageSources.data(), 1);
-        shaders[0].second->setEnvInput(glslang::EShSourceGlsl, EShLangCompute, glslang::EShClientOpenGL, glslVersion);
-        shaders[0].second->setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
-        shaders[0].second->setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
-        
-    }
-
-    
-    
 
     TBuiltInResource Resources = {};
     Resources.maxComputeWorkGroupSizeX = 1024;
@@ -559,6 +541,21 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
     //    std::cout << program.getUniformBlock(i).getBinding() << ": " << program.getUniformBlockName(i) << "\n";
     //}
     return ret;
+}
+ShaderSources glsl_to_spirv(ShaderSources sources){
+    ShaderSources ret zeroinit;
+    rassert(sources.language == sourceTypeGLSL, "Must be GLSL here");
+    ret.sourceCount = sources.sourceCount;
+    ret.language = sourceTypeSPIRV;
+
+    for(uint32_t i = 0;i < sources.sourceCount;i++){
+        ShaderStage stage = (ShaderStage)std::countr_zero((uint32_t)sources.sources[i].stageMask);
+        std::vector<uint32_t> stageToSpirv = glsl_to_spirv_single((const char*)sources.sources[i].data, ShaderStageToGlslanguage(stage));
+    }
+}
+
+DescribedShaderModule LoadShaderModuleGLSL(ShaderSources sourcesGLSL){
+    glsl_to_spirv(sourcesGLSL);
 }
 #ifdef GLSL_TO_WGSL
 extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){

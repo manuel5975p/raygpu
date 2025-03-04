@@ -351,7 +351,9 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     g_renderstate.defaultPipeline = LoadPipelineForVAOEx(defaultGLSLSource, renderBatchVAO, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), GetDefaultSettings());
     #else
     ShaderSources defaultWGSLSource zeroinit;
-    defaultWGSLSource.vertexAndFragmentSource = shaderSource;
+    defaultWGSLSource.sources[0].data = shaderSource;
+    defaultWGSLSource.sources[0].sizeInBytes = std::strlen(shaderSource);
+    defaultWGSLSource.sources[0].stageMask = ShaderStageMask(ShaderStageMask_Vertex | ShaderStageMask_Fragment);
     g_renderstate.defaultPipeline = LoadPipelineForVAOEx(defaultWGSLSource, renderBatchVAO, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), GetDefaultSettings());
     #endif
     g_renderstate.activePipeline = g_renderstate.defaultPipeline;

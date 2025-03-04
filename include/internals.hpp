@@ -84,7 +84,6 @@ inline void UnloadBufferLayoutSet(VertexBufferLayoutSet set){
     std::free(set.attributePool);
 }
 
-ShaderSourceType detectShaderLanguage(std::string_view source);
 void detectShaderLanguage(ShaderSources* sources);
 std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSources source);
 DescribedShaderModule LoadShaderModule(ShaderSources source);

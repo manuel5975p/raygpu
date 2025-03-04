@@ -8,7 +8,7 @@
 #include <enum_translation.h>
 
 
-extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV(const uint32_t* spirvCode, size_t codeSizeInBytes){
+extern "C" DescribedShaderModule LoadShaderModuleSPIRV(const uint32_t* spirvCode, size_t codeSizeInBytes){
     DescribedShaderModule ret zeroinit;
     VkShaderModuleCreateInfo csCreateInfo zeroinit;
     csCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -46,7 +46,7 @@ extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV(const uint32_t* spirv
     return ret;
 }
 
-extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV2(const uint32_t* vscode, size_t vscodeSizeInBytes, const uint32_t* fscode, size_t fscodeSizeInBytes){
+/*extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV2(const uint32_t* vscode, size_t vscodeSizeInBytes, const uint32_t* fscode, size_t fscodeSizeInBytes){
     
     DescribedShaderModule ret zeroinit;
 
@@ -81,7 +81,7 @@ extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV2(const uint32_t* vsco
     }
     
     return ret;
-}
+}*/
 extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, const std::vector<AttributeAndResidence> &attribs){
     RenderPipelineQuartet quartet zeroinit;
     auto ait = ret->createdPipelines->pipelines.find(attribs);
@@ -404,86 +404,6 @@ extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const A
     
     return ret;
 
-}
-
-DescribedShaderModule LoadShaderModule(ShaderSources source){
-    
-    DescribedShaderModule ret zeroinit;
-    
-    
-    if(source.language == ShaderSourceType::sourceTypeUnknown){
-        detectShaderLanguage(&source);
-        rassert(source.language != ShaderSourceType::sourceTypeUnknown, "Shader source could not be detected");
-    }
-    
-    switch (source.language){
-        case sourceTypeGLSL:
-        
-        case sourceTypeWGSL:
-        
-        case sourceTypeSPIRV:
-        LoadShaderModuleFromSPIRV(sources);
-        default: rg_unreachable();
-    }
-    
-    
-    std::string_view vsView;
-    ShaderSourceType vsType = sourceTypeUnknown;
-    std::string_view fsView;
-    ShaderSourceType fsType = sourceTypeUnknown;
-
-    std::string_view vsfsView;
-    ShaderSourceType vsfsType = sourceTypeUnknown;
-    std::string_view csView;
-    ShaderSourceType csType = sourceTypeUnknown;
-
-    if(source.vertexSource){
-        vsView = std::string_view(source.vertexSource);
-        vsType = detectShaderLanguage(vsView);
-    }
-    if(source.fragmentSource){
-        fsView = std::string_view(source.fragmentSource);
-        fsType = detectShaderLanguage(vsView);
-    }
-    if(source.vertexAndFragmentSource){
-        vsfsView = std::string_view(source.vertexAndFragmentSource);
-        vsfsType = detectShaderLanguage(vsfsView);
-    }
-    if(source.computeSource){
-        csView = std::string_view(source.computeSource);
-        csType = detectShaderLanguage(csView);
-    }
-    
-    if(source.vertexSource && source.fragmentSource){
-        assert(vsType == sourceTypeGLSL && fsType == sourceTypeGLSL);
-        auto [vsSpirv, fsSpirv] = glsl_to_spirv(source.vertexSource, source.fragmentSource);
-        ret = LoadShaderModuleFromSPIRV2(vsSpirv.data(), vsSpirv.size() * 4, fsSpirv.data(), fsSpirv.size() * 4);
-        ret.attributeLocations = callocnewpp(StringToAttributeMap);
-        ret.attributeLocations->attributes = getAttributesGLSL(source);
-    }
-    else if(source.computeSource){
-        if(csType == sourceTypeGLSL){
-            std::vector<uint32_t> csSpirv = glsl_to_spirv(source.computeSource);
-            ret = LoadShaderModuleFromSPIRV(csSpirv.data(), csSpirv.size() * sizeof(uint32_t));
-        }
-        else if(csType == sourceTypeWGSL){
-            std::vector<uint32_t> csSpirv = wgsl_to_spirv(source.computeSource);
-            ret = LoadShaderModuleFromSPIRV(csSpirv.data(), csSpirv.size() * sizeof(uint32_t));
-        }
-    }
-    
-    else if(source.vertexAndFragmentSource && vsfsType == sourceTypeWGSL){
-        std::vector<uint32_t> vsfsSpirv = wgsl_to_spirv(source.vertexAndFragmentSource);
-        ret = LoadShaderModuleFromSPIRV(vsfsSpirv.data(), vsfsSpirv.size() * sizeof(uint32_t));
-        ret.attributeLocations = callocnewpp(StringToAttributeMap);
-        ret.attributeLocations->attributes = getAttributesWGSL(source);
-        //hmmm
-    }
-    ret.uniformLocations = callocnewpp(StringToUniformMap);
-    ret.uniformLocations->uniforms = getBindings(source);
-    
-    
-    return ret;
 }
 
 

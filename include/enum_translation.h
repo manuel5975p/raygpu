@@ -133,6 +133,32 @@ typedef enum ShaderStage{
     ShaderStage_EnumCount
 }ShaderStage;
 
+typedef enum ShaderStageMask{
+    ShaderStageMask_Vertex = (1u << ShaderStage_Vertex),
+    ShaderStageMask_TessControl = (1u << ShaderStage_TessControl),
+    ShaderStageMask_TessEvaluation = (1u << ShaderStage_TessEvaluation),
+    ShaderStageMask_Geometry = (1u << ShaderStage_Geometry),
+    ShaderStageMask_Fragment = (1u << ShaderStage_Fragment),
+    ShaderStageMask_Compute = (1u << ShaderStage_Compute),
+    ShaderStageMask_RayGen = (1u << ShaderStage_RayGen),
+    ShaderStageMask_RayGenNV = (1u << ShaderStage_RayGenNV),
+    ShaderStageMask_Intersect = (1u << ShaderStage_Intersect),
+    ShaderStageMask_IntersectNV = (1u << ShaderStage_IntersectNV),
+    ShaderStageMask_AnyHit = (1u << ShaderStage_AnyHit),
+    ShaderStageMask_AnyHitNV = (1u << ShaderStage_AnyHitNV),
+    ShaderStageMask_ClosestHit = (1u << ShaderStage_ClosestHit),
+    ShaderStageMask_ClosestHitNV = (1u << ShaderStage_ClosestHitNV),
+    ShaderStageMask_Miss = (1u << ShaderStage_Miss),
+    ShaderStageMask_MissNV = (1u << ShaderStage_MissNV),
+    ShaderStageMask_Callable = (1u << ShaderStage_Callable),
+    ShaderStageMask_CallableNV = (1u << ShaderStage_CallableNV),
+    ShaderStageMask_Task = (1u << ShaderStage_Task),
+    ShaderStageMask_TaskNV = (1u << ShaderStage_TaskNV),
+    ShaderStageMask_Mesh = (1u << ShaderStage_Mesh),
+    ShaderStageMask_MeshNV = (1u << ShaderStage_MeshNV),
+    ShaderStageMask_EnumCount = (1u << ShaderStage_EnumCount)
+}ShaderStageMask;
+
 typedef enum BlendFactor {
     BlendFactor_Undefined = 0x00000000,
     BlendFactor_Zero = 0x00000001,

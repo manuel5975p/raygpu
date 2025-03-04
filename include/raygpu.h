@@ -620,7 +620,7 @@ typedef enum {
 #define MOUSE_LEFT_BUTTON MOUSE_BUTTON_LEFT
 #define MOUSE_RIGHT_BUTTON MOUSE_BUTTON_RIGHT
 
-typedef enum {
+typedef enum MouseButton{
     MOUSE_BUTTON_LEFT    = 0,       // Mouse button left
     MOUSE_BUTTON_RIGHT   = 1,       // Mouse button right
     MOUSE_BUTTON_MIDDLE  = 2,       // Mouse button middle (pressed wheel)
@@ -644,10 +644,11 @@ typedef enum BackendType {
     BackendType_Force32 = 0x7FFFFFFF
 } BackendType;
 
-typedef void* char_or_uint32_pointer;
+typedef const void* char_or_uint32_pointer;
 typedef struct ShaderStageSource{
     char_or_uint32_pointer data;
-    size_t sizeInBytes;
+    uint32_t sizeInBytes;
+    ShaderStageMask stageMask;
 }ShaderStageSource;
 
 /**
@@ -659,6 +660,7 @@ typedef struct ShaderStageSource{
  * 3. computeSource set with GLSL or WGSL source
  */
 typedef struct ShaderSources{
+    uint32_t sourceCount;
     ShaderStageSource sources[ShaderStage_EnumCount];
     //const char* vertexSource;
     //const char* fragmentSource;
@@ -689,8 +691,6 @@ typedef struct DescribedShaderModule{
     StageInModule stages[16];
 
     ShaderReflectionInfo reflectionInfo;
-    StringToUniformMap* uniformLocations;
-    StringToAttributeMap* attributeLocations;
 }DescribedShaderModule;
 
 typedef struct DescribedPipeline{
@@ -1151,15 +1151,14 @@ EXTERN_C_BEGIN
     void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode);
     void BindComputePipeline(DescribedComputePipeline* pipeline);
 
-    DescribedShaderModule LoadShaderModuleFromMemoryWGSL (const char* shaderSourceWGSL);
-    DescribedShaderModule LoadShaderModuleFromMemoryWGSL2(const char* shaderSourceWGSLVertex, const char* shaderSourceWGSLFragment);
-    DescribedShaderModule LoadShaderModuleFromSPIRV      (const uint32_t* shaderCodeSPIRV, size_t codeSizeInBytes);
-    DescribedShaderModule LoadShaderModuleFromSPIRV2     (const uint32_t* vscode, size_t vscodeSizeInBytes, const uint32_t* fscode, size_t fscodeSizeInBytes);
-    DescribedShaderModule LoadShaderModule               (ShaderSources source);
+    DescribedShaderModule LoadShaderModuleWGSL (ShaderSources sourcesWGSL);
+    DescribedShaderModule LoadShaderModuleGLSL (ShaderSources sourcesGLSL);
+    DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sourcesSpirv);
+    DescribedShaderModule LoadShaderModule     (ShaderSources source);
 
-    const char* GetStageEntryPointName(ShaderReflectionInfo reflectionInfo, ShaderStage stage);
-    uint32_t    GetUniformLocation    (ShaderReflectionInfo reflectionInfo, const char* name );
-    uint32_t    GetAttributeLocation  (ShaderReflectionInfo reflectionInfo, const char* name );
+    const char* GetStageEntryPointName         (ShaderReflectionInfo reflectionInfo, ShaderStage stage);
+    uint32_t    GetReflectionUniformLocation   (ShaderReflectionInfo reflectionInfo, const char* name );
+    uint32_t    GetReflectionAttributeLocation (ShaderReflectionInfo reflectionInfo, const char* name );
 
     //WGPUShaderModule LoadShader(const char* path);
 
