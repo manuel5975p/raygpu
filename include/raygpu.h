@@ -644,6 +644,12 @@ typedef enum BackendType {
     BackendType_Force32 = 0x7FFFFFFF
 } BackendType;
 
+typedef void* char_or_uint32_pointer;
+typedef struct ShaderStageSource{
+    char_or_uint32_pointer data;
+    size_t sizeInBytes;
+}ShaderStageSource;
+
 /**
  * @brief Generalized shader source struct. Not all members need to be set.
  * 
@@ -653,10 +659,12 @@ typedef enum BackendType {
  * 3. computeSource set with GLSL or WGSL source
  */
 typedef struct ShaderSources{
-    const char* vertexSource;
-    const char* fragmentSource;
-    const char* vertexAndFragmentSource;
-    const char* computeSource;
+    ShaderStageSource sources[ShaderStage_EnumCount];
+    //const char* vertexSource;
+    //const char* fragmentSource;
+    //const char* vertexAndFragmentSource;
+    //const char* computeSource;
+    ShaderSourceType language;
 }ShaderSources;
 
 typedef struct ShaderEntryPoint{
@@ -664,9 +672,56 @@ typedef struct ShaderEntryPoint{
     char name[16];
 }ShaderEntryPoint;
 
-typedef struct ShaderRecflectionInfo{
+typedef struct ShaderRecfletionInfo{
     ShaderEntryPoint ep[16];
-}ShaderRecflectionInfo;
+
+    StringToUniformMap* uniforms;
+    StringToAttributeMap* attributes;
+
+}ShaderReflectionInfo;
+
+typedef struct StageInModule{
+    //const char* entryPoint;
+    NativeShaderModuleHandle module;
+}StageInModule;
+
+typedef struct DescribedShaderModule{
+    StageInModule stages[16];
+
+    ShaderReflectionInfo reflectionInfo;
+    StringToUniformMap* uniformLocations;
+    StringToAttributeMap* attributeLocations;
+}DescribedShaderModule;
+
+typedef struct DescribedPipeline{
+    RenderSettings settings;
+    VertexBufferLayoutSet vertexLayout;
+
+    DescribedShaderModule sh;
+    DescribedBindGroup bindGroup;
+    DescribedPipelineLayout layout;
+    DescribedBindGroupLayout bglayout;
+
+    RenderPipelineQuartet quartet;
+    VertexStateToPipelineMap* createdPipelines;
+}DescribedPipeline;
+
+typedef struct Shader {
+    DescribedPipeline* id;  // Pipeline
+    int *locs;              // Shader locations array (RL_MAX_SHADER_LOCATIONS)
+} Shader;
+
+
+typedef struct DescribedComputePipeline{
+    NativeComputePipelineHandle pipeline;
+    NativePipelineLayoutHandle layout;
+    DescribedBindGroupLayout bglayout;
+    DescribedBindGroup bindGroup;
+    DescribedShaderModule shaderModule;
+    #ifdef __cplusplus
+    UniformAccessor operator[](const char* uniformName);
+    #endif
+}DescribedComputePipeline;
 
 typedef struct SurfaceCapabilities{
     TextureUsage usages;
@@ -1096,11 +1151,16 @@ EXTERN_C_BEGIN
     void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode);
     void BindComputePipeline(DescribedComputePipeline* pipeline);
 
-    DescribedShaderModule LoadShaderModuleFromMemoryWGSL(const char* shaderSourceWGSL);
+    DescribedShaderModule LoadShaderModuleFromMemoryWGSL (const char* shaderSourceWGSL);
     DescribedShaderModule LoadShaderModuleFromMemoryWGSL2(const char* shaderSourceWGSLVertex, const char* shaderSourceWGSLFragment);
-    DescribedShaderModule LoadShaderModuleFromSPIRV(const uint32_t* shaderCodeSPIRV, size_t codeSizeInBytes);
-    DescribedShaderModule LoadShaderModuleFromSPIRV2(const uint32_t* vscode, size_t vscodeSizeInBytes, const uint32_t* fscode, size_t fscodeSizeInBytes);
-    DescribedShaderModule LoadShaderModule(ShaderSources source);
+    DescribedShaderModule LoadShaderModuleFromSPIRV      (const uint32_t* shaderCodeSPIRV, size_t codeSizeInBytes);
+    DescribedShaderModule LoadShaderModuleFromSPIRV2     (const uint32_t* vscode, size_t vscodeSizeInBytes, const uint32_t* fscode, size_t fscodeSizeInBytes);
+    DescribedShaderModule LoadShaderModule               (ShaderSources source);
+
+    const char* GetStageEntryPointName(ShaderReflectionInfo reflectionInfo, ShaderStage stage);
+    uint32_t    GetUniformLocation    (ShaderReflectionInfo reflectionInfo, const char* name );
+    uint32_t    GetAttributeLocation  (ShaderReflectionInfo reflectionInfo, const char* name );
+
     //WGPUShaderModule LoadShader(const char* path);
 
     DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, bool compute);

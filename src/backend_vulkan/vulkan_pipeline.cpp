@@ -94,7 +94,7 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, c
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
     vertShaderStageInfo.module = (VkShaderModule)ret->sh.stages[ShaderStage_Vertex].module;
-    vertShaderStageInfo.pName = ret->sh.stages[ShaderStage_Vertex].entryPoint;
+    vertShaderStageInfo.pName = ret->sh.reflectionInfo.ep[ShaderStage_Vertex].name;
 
     VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
     fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -409,6 +409,24 @@ extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const A
 DescribedShaderModule LoadShaderModule(ShaderSources source){
     
     DescribedShaderModule ret zeroinit;
+    
+    
+    if(source.language == ShaderSourceType::sourceTypeUnknown){
+        detectShaderLanguage(&source);
+        rassert(source.language != ShaderSourceType::sourceTypeUnknown, "Shader source could not be detected");
+    }
+    
+    switch (source.language){
+        case sourceTypeGLSL:
+        
+        case sourceTypeWGSL:
+        
+        case sourceTypeSPIRV:
+        LoadShaderModuleFromSPIRV(sources);
+        default: rg_unreachable();
+    }
+    
+    
     std::string_view vsView;
     ShaderSourceType vsType = sourceTypeUnknown;
     std::string_view fsView;
@@ -722,7 +740,7 @@ extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCod
 
 
     computeStage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-    computeStage.pName = computeShaderModule.stages[ShaderStage_Compute].entryPoint;
+    computeStage.pName = computeShaderModule.reflectionInfo.ep[ShaderStage_Compute].name;
 
     VkComputePipelineCreateInfo cpci zeroinit;
     cpci.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;

@@ -71,24 +71,25 @@ ShaderSourceType detectShaderLanguage(const char* ptr){
     }
     return sourceTypeUnknown;
 }
-ShaderSourceType detectShaderLanguage(ShaderSources sources){
+extern "C" void detectShaderLanguage(ShaderSources* sourcesPointer){
+    ShaderSources& sources = *sourcesPointer;
+    
     ShaderSourceType detect = detectShaderLanguage(sources.computeSource);
     if(detect != sourceTypeUnknown){
-        return detect;
+        sources.language = detect;
     }
     detect = detectShaderLanguage(sources.vertexSource);
     if(detect != sourceTypeUnknown){
-        return detect;
+        sources.language = detect;
     }
     detect = detectShaderLanguage(sources.fragmentSource);
     if(detect != sourceTypeUnknown){
-        return detect;
+        sources.language = detect;
     }
     detect = detectShaderLanguage(sources.vertexAndFragmentSource);
     if(detect != sourceTypeUnknown){
-        return detect;
+        sources.language = detect;
     }
-    return sourceTypeUnknown;
 }
 
 typedef struct GIFRecordState{
