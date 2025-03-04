@@ -50,11 +50,22 @@ extern "C" void ToggleFullscreenImpl(cwoid);
 #endif  // __EMSCRIPTEN__
 #include <renderstate.inc>
 renderstate g_renderstate{};
-
-ShaderSourceType detectShaderLanguage(std::string_view source){
-    if(source.length() == 0 || source.data() == nullptr){
+constexpr uint32_t swap_uint32(uint32_t val){
+    val = ((val << 8) & 0xFF00FF00 ) | ((val >> 8) & 0xFF00FF ); 
+    return (val << 16) | (val >> 16);
+}
+ShaderSourceType detectShaderLanguage(const void* data, size_t sizeInBytes){
+    if(data == 0 || sizeInBytes == 0){
         return sourceTypeUnknown;
     }
+
+    if(sizeInBytes >= 4){
+        const uint32_t* u32ptr = reinterpret_cast<const uint32_t*>(data);
+        if(*u32ptr == 0x07230203 || *u32ptr == swap_uint32(0x07230203)){
+            return sourceTypeSPIRV;
+        }
+    }
+    std::string_view source(reinterpret_cast<const char*>(data), sizeInBytes);
     if(source.find("@location") != std::string::npos || source.find("@binding") != std::string::npos){
         return sourceTypeWGSL;
     }
@@ -65,30 +76,14 @@ ShaderSourceType detectShaderLanguage(std::string_view source){
         return sourceTypeUnknown;
     }
 }
-ShaderSourceType detectShaderLanguage(const char* ptr){
-    if(ptr){
-        return detectShaderLanguage(std::string_view(ptr));
-    }
-    return sourceTypeUnknown;
-}
-extern "C" void detectShaderLanguage(ShaderSources* sourcesPointer){
+void detectShaderLanguage(ShaderSources* sourcesPointer){
     ShaderSources& sources = *sourcesPointer;
-    
-    ShaderSourceType detect = detectShaderLanguage(sources.computeSource);
-    if(detect != sourceTypeUnknown){
-        sources.language = detect;
-    }
-    detect = detectShaderLanguage(sources.vertexSource);
-    if(detect != sourceTypeUnknown){
-        sources.language = detect;
-    }
-    detect = detectShaderLanguage(sources.fragmentSource);
-    if(detect != sourceTypeUnknown){
-        sources.language = detect;
-    }
-    detect = detectShaderLanguage(sources.vertexAndFragmentSource);
-    if(detect != sourceTypeUnknown){
-        sources.language = detect;
+    for(uint32_t i = 0;i < ShaderStage_EnumCount;i++){
+        ShaderSourceType srctype = sources.sources[i].data ? sourceTypeUnknown : detectShaderLanguage(sources.sources[i].data, sources.sources[i].sizeInBytes);
+        if(srctype != sourceTypeUnknown){
+            sourcesPointer->language = srctype;
+            return;
+        }
     }
 }
 
@@ -437,72 +432,32 @@ void adaptRenderPass(DescribedRenderpass* drp, RenderSettings settings){
     //drp->renderPassDesc.colorAttachments = settings.depthTest ? drp->rca : nullptr;
     //drp->renderPassDesc.depthStencilAttachment = settings.depthTest ? drp->dsa : nullptr;
 }
+void FillReflectionInfo(DescribedShaderModule* module){
 
-DescribedShaderModule LoadShaderModule(ShaderSources source){
-    
-    DescribedShaderModule ret zeroinit;
-    std::string_view vsView;
-    ShaderSourceType vsType = sourceTypeUnknown;
-    std::string_view fsView;
-    ShaderSourceType fsType = sourceTypeUnknown;
-
-    std::string_view vsfsView;
-    ShaderSourceType vsfsType = sourceTypeUnknown;
-    std::string_view csView;
-    ShaderSourceType csType = sourceTypeUnknown;
-
-    if(source.vertexSource){
-        vsView = std::string_view(source.vertexSource);
-        vsType = detectShaderLanguage(vsView);
-    }
-    if(source.fragmentSource){
-        fsView = std::string_view(source.fragmentSource);
-        fsType = detectShaderLanguage(vsView);
-    }
-    if(source.vertexAndFragmentSource){
-        vsfsView = std::string_view(source.vertexAndFragmentSource);
-        vsfsType = detectShaderLanguage(vsfsView);
-    }
-    if(source.computeSource){
-        csView = std::string_view(source.computeSource);
-        csType = detectShaderLanguage(csView);
-    }
-    
-    if(source.vertexSource && source.fragmentSource){
-        rassert(vsType == sourceTypeGLSL && fsType == sourceTypeGLSL, "Splitting WGSL into separate fragment and vertex is not supported yet, please use single source.");
-        
-        //auto [vsSpirv, fsSpirv] = glsl_to_spirv(source.vertexSource, source.fragmentSource);
-        //ret = LoadShaderModuleFromSPIRV2(vsSpirv.data(), vsSpirv.size() * 4, fsSpirv.data(), fsSpirv.size() * 4);
-        //ret.attributeLocations = callocnewpp(StringToAttributeMap);
-        //ret.attributeLocations->attributes = getAttributesGLSL(source);
-    }
-    else if(source.computeSource){
-        if(csType == sourceTypeGLSL){
-            std::vector<uint32_t> csSpirv = glsl_to_spirv(source.computeSource);
-            ret = LoadShaderModuleFromSPIRV(csSpirv.data(), csSpirv.size() * sizeof(uint32_t));
-        }
-        else if(csType == sourceTypeWGSL){
-            std::vector<uint32_t> csSpirv = wgsl_to_spirv(source.computeSource);
-            ret = LoadShaderModuleFromSPIRV(csSpirv.data(), csSpirv.size() * sizeof(uint32_t));
-        }
-    }
-    
-    else if(source.vertexAndFragmentSource && vsfsType == sourceTypeWGSL){
-        std::vector<uint32_t> vsfsSpirv = wgsl_to_spirv(source.vertexAndFragmentSource);
-        ret = LoadShaderModuleFromSPIRV(vsfsSpirv.data(), vsfsSpirv.size() * sizeof(uint32_t));
-        ret.attributeLocations = callocnewpp(StringToAttributeMap);
-        ret.attributeLocations->attributes = getAttributesWGSL(source);
-        //hmmm
-    }
-    ret.uniformLocations = callocnewpp(StringToUniformMap);
-    ret.uniformLocations->uniforms = getBindings(source);
-    
-    
-    return ret;
 }
 
+DescribedShaderModule LoadShaderModule(ShaderSources sources){
+    
+    DescribedShaderModule ret zeroinit;
+    
+    
+    if(sources.language == ShaderSourceType::sourceTypeUnknown){
+        detectShaderLanguage(&sources);
+        rassert(sources.language != ShaderSourceType::sourceTypeUnknown, "Shader source must be detectable: GLSL requires #version, wgsl an @binding or @location token");
+    }
+    
+    switch (sources.language){
+        case sourceTypeGLSL:
+        LoadShaderModuleGLSL(sources);
+        case sourceTypeWGSL:
+        LoadShaderModuleWGSL(sources);
+        case sourceTypeSPIRV:
+        LoadShaderModuleSPIRV(sources);
+        default: rg_unreachable();
+    }
 
-
+    return ret;
+}
 
 
 extern "C" void BeginPipelineMode(DescribedPipeline* pipeline){
@@ -1052,10 +1007,10 @@ extern "C" Texture3D LoadTexture3DEx(uint32_t width, uint32_t height, uint32_t d
     return LoadTexture3DPro(width, height, depth, format, TextureUsage_CopyDst | TextureUsage_TextureBinding | TextureUsage_StorageBinding, 1);
 }
 uint32_t GetUniformLocation(DescribedPipeline* pl, const char* uniformName){
-    return pl->sh.uniformLocations->GetLocation(uniformName);
+    return pl->sh.reflectionInfo.uniforms->GetLocation(uniformName);
 }
 uint32_t GetUniformLocationCompute(DescribedComputePipeline* pl, const char* uniformName){
-    return pl->shaderModule.uniformLocations->GetLocation(uniformName);
+    return pl->shaderModule.reflectionInfo.uniforms->GetLocation(uniformName);
 }
 NativeBindgroupHandle UpdateAndGetNativeBindGroup(DescribedBindGroup* bg){
     if(bg->needsUpdate){

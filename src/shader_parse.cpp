@@ -161,15 +161,12 @@ std::vector<std::pair<ShaderStage, std::string>> getEntryPointsWGSL(const char* 
 #endif
 
 std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributesWGSL(ShaderSources sources){
-    const char* shaderSourceWGSL = sources.vertexAndFragmentSource;
+    //TODo
+    const char* shaderSourceWGSL = (const char*)sources.sources[0].data;
     rassert(shaderSourceWGSL != nullptr, "vertexAndFragmentSource must be set for WGSL");
     
-    std::string_view source_view = std::string_view(shaderSourceWGSL);
-    ShaderSourceType language = detectShaderLanguage(source_view);
-    if(language == sourceTypeGLSL){
-        //return getAttributesGLSL(ShaderSources{.computeSource = shaderSource});
-    }
-    
+    std::string_view source_view = std::string_view((const char*)sources.sources[0].data, (const char*)sources.sources[0].data + sources.sources[0].sizeInBytes);
+
     std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> ret;
 
 #if SUPPORT_WGSL_PARSER == 1
@@ -287,19 +284,10 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
     return ret;
 }
 std::unordered_map<std::string, ResourceTypeDescriptor> getBindings(ShaderSources sources){
-    //tint::Initialize();
     std::unordered_map<std::string, ResourceTypeDescriptor> ret;
-    if(sources.computeSource || sources.fragmentSource || sources.vertexSource){
-        ShaderSourceType language = detectShaderLanguage(sources);
-        if(language == sourceTypeGLSL){
-            return getBindingsGLSL(sources);
-        }
-        //else{
-        //    return getBindings(sources);
-        //}
-    }
+    
 #if SUPPORT_WGSL_PARSER == 1
-    tint::Source::File f("path", sources.vertexAndFragmentSource ? sources.vertexAndFragmentSource : sources.computeSource);
+    tint::Source::File f("path", (const char*)sources.sources[0].data);
     tint::wgsl::reader::Options options{};
     tint::wgsl::AllowedFeatures features;
     features.features.emplace(tint::wgsl::LanguageFeature::kReadonlyAndReadwriteStorageTextures);
@@ -617,36 +605,32 @@ std::vector<uint32_t> wgsl_to_spirv(const char* wgslCode){
 
     return spirvMaybe.Get().spirv;
 }
+#define fprefix wgvk
+#define CAT_I(a, b) a ## b
+#define CAT(a, b) CAT_I(a, b)
+
+void CAT(fprefix, create)() {
+    // function body
+}
 
 std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes(ShaderSources sources){
-    ShaderSourceType firstHit = ShaderSourceType::sourceTypeUnknown;
-    if(sources.vertexSource && detectShaderLanguage(sources.vertexSource) != sourceTypeUnknown){
-        firstHit = detectShaderLanguage(sources.vertexSource);
-        goto detected;
-    }
-    else if(sources.fragmentSource && detectShaderLanguage(sources.fragmentSource) != sourceTypeUnknown){
-        firstHit = detectShaderLanguage(sources.fragmentSource);
-        goto detected;
-    }
-    else if(sources.vertexAndFragmentSource && detectShaderLanguage(sources.vertexAndFragmentSource) != sourceTypeUnknown){
-        firstHit = detectShaderLanguage(sources.vertexAndFragmentSource);
-        goto detected;
-    }
-    else if(sources.computeSource && detectShaderLanguage(sources.computeSource) != sourceTypeUnknown){
-        firstHit = detectShaderLanguage(sources.computeSource);
-        goto detected;
-    }
-    detected:
-    #if SUPPORT_GLSL_PARSER == 1
-    if(firstHit == sourceTypeGLSL){
+    
+    rassert(sources.language != ShaderSourceType::sourceTypeUnknown, "Source type must be known");
+    const ShaderSourceType language = sources.language;
+    if(language == sourceTypeGLSL){
+        #if SUPPORT_GLSL_PARSER == 1
         return getAttributesGLSL(sources);
+        #endif
+        TRACELOG(LOG_FATAL, "Attempted to get GLSL attributes without GLSL parser enabled");
     }
-    #endif
-    #if SUPPORT_WGSL_PARSER == 1
-    if(firstHit == sourceTypeWGSL){
+    if(language == sourceTypeWGSL){
+        #if SUPPORT_WGSL_PARSER == 1
         return getAttributesWGSL(sources);
+        #endif
+        TRACELOG(LOG_FATAL, "Attempted to get WGSL attributes without WGSL parser enabled");
     }
-    #endif
-    TRACELOG(LOG_WARNING, "Attempted to get attributes with neither WGSL nor GLSL parser enabled");
+    if(language == sourceTypeSPIRV){
+        TRACELOG(LOG_FATAL, "Attempted to get SPIRV attributes, not yet implemented");
+    }
     return {};
 }
