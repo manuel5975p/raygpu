@@ -392,8 +392,12 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
     std::vector<std::pair<EShLanguage, std::unique_ptr<glslang::TShader>>> shaders;
     std::vector<const char*> stageSources;
     for(uint32_t i = 0;i < sources.sourceCount;i++){
-        if(std::bitset<sizeof(ShaderStageMask) * CHAR_BIT>(+sources.sources[i].stageMask).count() != 1){
-            TRACELOG(LOG_ERROR, "Only single stages are supported for GLSL");
+        if(std::bitset<sizeof(ShaderStageMask) * CHAR_BIT>(+sources.sources[i].stageMask).count() == 0){
+            TRACELOG(LOG_FATAL, "Empty shader stage");
+        }
+        else if(std::bitset<sizeof(ShaderStageMask) * CHAR_BIT>(+sources.sources[i].stageMask).count() > 1){
+            std::cout << sources.sources[i].stageMask << "\n";
+            TRACELOG(LOG_FATAL, "Only single stages are supported for GLSL");
         }
         ShaderStage stage = (ShaderStage)std::countr_zero(uint32_t(sources.sources[i].stageMask));
         shaders.emplace_back(ShaderStageToGlslanguage(stage), std::make_unique<glslang::TShader>(ShaderStageToGlslanguage(stage)));
@@ -551,11 +555,18 @@ ShaderSources glsl_to_spirv(ShaderSources sources){
     for(uint32_t i = 0;i < sources.sourceCount;i++){
         ShaderStage stage = (ShaderStage)std::countr_zero((uint32_t)sources.sources[i].stageMask);
         std::vector<uint32_t> stageToSpirv = glsl_to_spirv_single((const char*)sources.sources[i].data, ShaderStageToGlslanguage(stage));
+        uint32_t* odata = (uint32_t*)std::calloc(stageToSpirv.size(), sizeof(uint32_t));
+        std::copy(stageToSpirv.begin(), stageToSpirv.end(), odata);
+        ret.sources[i].data = odata;
+        ret.sources[i].sizeInBytes = stageToSpirv.size() * sizeof(uint32_t);
+        ret.sources[i].stageMask = sources.sources[i].stageMask;
     }
+    return ret;
 }
 
 DescribedShaderModule LoadShaderModuleGLSL(ShaderSources sourcesGLSL){
-    glsl_to_spirv(sourcesGLSL);
+    ShaderSources spirv = glsl_to_spirv(sourcesGLSL);
+    return LoadShaderModuleSPIRV(spirv);
 }
 #ifdef GLSL_TO_WGSL
 extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
