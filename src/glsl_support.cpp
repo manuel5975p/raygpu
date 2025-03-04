@@ -403,23 +403,14 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
         shaders.emplace_back(ShaderStageToGlslanguage(stage), std::make_unique<glslang::TShader>(ShaderStageToGlslanguage(stage)));
     }
 
-    TBuiltInResource Resources = {};
-    Resources.maxComputeWorkGroupSizeX = 1024;
-    Resources.maxComputeWorkGroupSizeY = 1024;
-    Resources.maxComputeWorkGroupSizeZ = 1024;
-    Resources.maxCombinedTextureImageUnits = 8;
-
-    Resources.limits.generalUniformIndexing = true;
-    Resources.limits.generalVariableIndexing = true;
-    Resources.maxDrawBuffers = true;
+    TBuiltInResource Resources = DefaultTBuiltInResource_RG;
 
     EShMessages messages = (EShMessages)(EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules);
-
     // Parse the shader
     
     for(size_t i = 0;i < shaders.size();i++){
         auto& [language, shader] = shaders[i];
-
+        shader->setStrings(reinterpret_cast<char const*const*const>(&sources.sources[i].data), 1);
         shader->setAutoMapLocations(false);
         shader->setAutoMapBindings (false);
         if(!shader->parse(&Resources,  glslVersion, ECoreProfile, false, false, messages)){

@@ -142,9 +142,9 @@ int main(){
     ShaderSources wgslSources zeroinit;
     wgslSources.language = sourceTypeWGSL;
     wgslSources.sourceCount = 1;
-    sources.sources[0].data = shaderSourceWGSL;
-    sources.sources[0].sizeInBytes = std::strlen(shaderSourceWGSL);
-    sources.sources[0].stageMask = ShaderStageMask(ShaderStageMask_Vertex | ShaderStageMask_Fragment);
+    wgslSources.sources[0].data = shaderSourceWGSL;
+    wgslSources.sources[0].sizeInBytes = std::strlen(shaderSourceWGSL);
+    wgslSources.sources[0].stageMask = ShaderStageMask(ShaderStageMask_Vertex | ShaderStageMask_Fragment);
     //sources.computeSource = computeSource;
     auto comp = getBindingsGLSL(sources);
     auto wgcomp = getBindings(wgslSources);

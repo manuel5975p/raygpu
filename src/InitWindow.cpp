@@ -346,8 +346,13 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     //state->activeRenderpass = nullptr;
     #if SUPPORT_VULKAN_BACKEND == 1
     ShaderSources defaultGLSLSource zeroinit;
-    defaultGLSLSource.vertexSource = vertexSourceGLSL;
-    defaultGLSLSource.fragmentSource = fragmentSourceGLSL;
+    defaultGLSLSource.sourceCount = 2;
+    defaultGLSLSource.sources[0].data = vertexSourceGLSL;
+    defaultGLSLSource.sources[0].sizeInBytes = std::strlen(vertexSourceGLSL);
+    defaultGLSLSource.sources[0].stageMask = ShaderStageMask_Vertex;
+    defaultGLSLSource.sources[1].data = fragmentSourceGLSL;
+    defaultGLSLSource.sources[1].sizeInBytes = std::strlen(fragmentSourceGLSL);
+    defaultGLSLSource.sources[1].stageMask = ShaderStageMask_Fragment;
     g_renderstate.defaultPipeline = LoadPipelineForVAOEx(defaultGLSLSource, renderBatchVAO, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), GetDefaultSettings());
     #else
     ShaderSources defaultWGSLSource zeroinit;
