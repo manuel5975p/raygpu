@@ -564,7 +564,6 @@ DescribedShaderModule LoadShaderModuleFromMemoryWGSL(const char* shaderSourceWGS
     }
     
     std::vector<std::pair<ShaderStage, std::string>> entryPoints = getEntryPointsWGSL(shaderSourceWGSL);
-    TODO
 
     return ret;
 }

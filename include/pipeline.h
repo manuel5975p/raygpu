@@ -164,18 +164,8 @@ typedef enum ShaderSourceType{
     sourceTypeSPIRV   = 1,
     sourceTypeWGSL    = 2,
     sourceTypeGLSL    = 3,
-}ShaderLanguage;
+}ShaderSourceType;
 
-typedef struct StageInModule{
-    const char* entryPoint;
-    NativeShaderModuleHandle module;
-}StageInModule;
-
-typedef struct DescribedShaderModule{
-    StageInModule stages[16];
-    StringToUniformMap* uniformLocations;
-    StringToAttributeMap* attributeLocations;
-}DescribedShaderModule;
 
 typedef struct VertexAttribute {
     void* nextInChain;
@@ -196,38 +186,8 @@ typedef struct VertexBufferLayoutSet{
     VertexBufferLayout* layouts;
     VertexAttribute* attributePool;
 }VertexBufferLayoutSet;
-
-
-typedef struct DescribedPipeline{
-    RenderSettings settings;
-    VertexBufferLayoutSet vertexLayout;
-
-    //TODO: Multiple bindgrouplayouts
-    DescribedShaderModule sh;
-    DescribedBindGroup bindGroup;
-    DescribedPipelineLayout layout;
-    DescribedBindGroupLayout bglayout;
-
-    //WGPUVertexBufferLayout* vbLayouts;
-    //WGPUVertexAttribute* attributePool;
-    //WGPURenderPipeline pipeline; //TriangleList
-    //WGPURenderPipeline pipeline_TriangleStrip;
-    //WGPURenderPipeline pipeline_LineList;
-    //WGPUPrimitiveTopology lastUsedAs; //unused
-    //WGPUBlendState* blendState;
-    //WGPUFragmentState* fragmentState;
-    //WGPUColorTargetState* colorTarget;
-    //WGPUDepthStencilState* depthStencilState;
-    RenderPipelineQuartet quartet;
-    VertexStateToPipelineMap* createdPipelines;
-}DescribedPipeline;
-
-typedef struct Shader {
-    DescribedPipeline* id;  // Pipeline
-    int *locs;              // Shader locations array (RL_MAX_SHADER_LOCATIONS)
-} Shader;
-
-
+typedef struct DescribedPipeline DescribedPipeline;
+typedef struct DescribedComputePipeline DescribedComputePipeline;
 
 typedef struct DescribedBuffer DescribedBuffer;
 #ifdef __cplusplus
@@ -237,16 +197,7 @@ struct UniformAccessor{
     void operator=(DescribedBuffer* buf);
 };
 #endif
-typedef struct DescribedComputePipeline{
-    NativeComputePipelineHandle pipeline;
-    NativePipelineLayoutHandle layout;
-    DescribedBindGroupLayout bglayout;
-    DescribedBindGroup bindGroup;
-    DescribedShaderModule shaderModule;
-    #ifdef __cplusplus
-    UniformAccessor operator[](const char* uniformName);
-    #endif
-}DescribedComputePipeline;
+
 
 typedef struct VertexArray VertexArray;
 EXTERN_C_BEGIN
@@ -277,6 +228,6 @@ EXTERN_C_BEGIN
      * @param fragmentSource 
      * @return Shader 
      */
-    Shader LoadShaderFromMemory(const char* vertexSource, const char* fragmentSource);
+    //Shader LoadShaderFromMemory(const char* vertexSource, const char* fragmentSource);
 EXTERN_C_END
 #endif// PIPELINE_H
