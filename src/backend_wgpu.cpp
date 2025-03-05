@@ -78,20 +78,20 @@ extern "C" void CopyTextureToTexture(Texture source, Texture dest){
         wgpuBufferRelease(intermediary);
         intermediary = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &bdesc);
     }
-    
-    WGPUImageCopyTexture src zeroinit;
+
+    WGPUTexelCopyTextureInfo src zeroinit;
     src.texture = (WGPUTexture)source.id;
     src.aspect = WGPUTextureAspect_All;
     src.mipLevel = 0;
     src.origin = WGPUOrigin3D{0, 0, 0};
     
-    WGPUImageCopyBuffer bdst zeroinit;
+    WGPUTexelCopyBufferInfo bdst zeroinit;
     bdst.buffer = intermediary;
     bdst.layout.rowsPerImage = source.height;
     bdst.layout.bytesPerRow = rowBytes;
     bdst.layout.offset = 0;
 
-    WGPUImageCopyTexture tdst zeroinit;
+    WGPUTexelCopyTextureInfo tdst zeroinit;
     tdst.texture = (WGPUTexture)dest.id;
     tdst.aspect = WGPUTextureAspect_All;
     tdst.mipLevel = 0;
@@ -125,13 +125,13 @@ void BeginComputepassEx(DescribedComputepass* computePass){
     g_renderstate.computepass.cpEncoder = wgpuCommandEncoderBeginComputePass((WGPUCommandEncoder)g_renderstate.computepass.cmdEncoder, &desc);
 }
 void UpdateTexture(Texture tex, void* data){
-    WGPUImageCopyTexture destination{};
+    WGPUTexelCopyTextureInfo destination{};
     destination.texture = (WGPUTexture)tex.id;
     destination.aspect = WGPUTextureAspect_All;
     destination.mipLevel = 0;
     destination.origin = WGPUOrigin3D{0,0,0};
 
-    WGPUTextureDataLayout source{};
+    WGPUTexelCopyBufferLayout source{};
     source.offset = 0;
     source.bytesPerRow = GetPixelSizeInBytes(tex.format) * tex.width;
     source.rowsPerImage = tex.height;
@@ -1039,15 +1039,15 @@ void InitBackend(){
         }
         TRACELOG(LOG_INFO, "Features supported: %s ", featuresString.c_str());
     }
-    wgpu::SupportedLimits adapterLimits;
+    wgpu::Limits adapterLimits;
     sample->adapter.GetLimits(&adapterLimits);
     
     {
-        TraceLog(LOG_INFO, "Platform could support %u bindings per bindgroup",    (unsigned)adapterLimits.limits.maxBindingsPerBindGroup);
-        TraceLog(LOG_INFO, "Platform could support %u bindgroups",                (unsigned)adapterLimits.limits.maxBindGroups);
-        TraceLog(LOG_INFO, "Platform could support buffers up to %llu megabytes", (unsigned long long)adapterLimits.limits.maxBufferSize / (1000000ull));
-        TraceLog(LOG_INFO, "Platform could support textures up to %u x %u",       (unsigned)adapterLimits.limits.maxTextureDimension2D, (unsigned)adapterLimits.limits.maxTextureDimension2D);
-        TraceLog(LOG_INFO, "Platform could support %u VBO slots",                 (unsigned)adapterLimits.limits.maxVertexBuffers);
+        TraceLog(LOG_INFO, "Platform could support %u bindings per bindgroup",    (unsigned)adapterLimits.maxBindingsPerBindGroup);
+        TraceLog(LOG_INFO, "Platform could support %u bindgroups",                (unsigned)adapterLimits.maxBindGroups);
+        TraceLog(LOG_INFO, "Platform could support buffers up to %llu megabytes", (unsigned long long)adapterLimits.maxBufferSize / (1000000ull));
+        TraceLog(LOG_INFO, "Platform could support textures up to %u x %u",       (unsigned)adapterLimits.maxTextureDimension2D, (unsigned)adapterLimits.maxTextureDimension2D);
+        TraceLog(LOG_INFO, "Platform could support %u VBO slots",                 (unsigned)adapterLimits.maxVertexBuffers);
     }
     
     wgpu::DeviceDescriptor deviceDesc = {};
@@ -1112,16 +1112,16 @@ void InitBackend(){
     
     
     // Synchronously create the device
-    wgpu::RequiredLimits reqLimits;
+    wgpu::Limits reqLimits;
 
 
 
     if(limitsToBeRequested.has_value()){
-        limitsToBeRequested->maxStorageBuffersInVertexStage = adapterLimits.limits.maxStorageBuffersInVertexStage;
-        limitsToBeRequested->maxStorageBuffersInFragmentStage = adapterLimits.limits.maxStorageBuffersInFragmentStage;
-        limitsToBeRequested->maxStorageBuffersPerShaderStage = adapterLimits.limits.maxStorageBuffersPerShaderStage;
+        limitsToBeRequested->maxStorageBuffersInVertexStage = adapterLimits.maxStorageBuffersInVertexStage;
+        limitsToBeRequested->maxStorageBuffersInFragmentStage = adapterLimits.maxStorageBuffersInFragmentStage;
+        limitsToBeRequested->maxStorageBuffersPerShaderStage = adapterLimits.maxStorageBuffersPerShaderStage;
 
-        reqLimits.limits = limitsToBeRequested.value();
+        reqLimits = limitsToBeRequested.value();
         deviceDesc.requiredLimits = &reqLimits;
     }
     else{
@@ -1143,14 +1143,14 @@ void InitBackend(){
     if (sample->device == nullptr) {
         TRACELOG(LOG_FATAL, "Device is null");
     }
-    wgpu::SupportedLimits slimits;
+    wgpu::Limits slimits;
     
     sample->device.GetLimits(&slimits);
-    TraceLog(LOG_INFO, "Device supports %u bindings per bindgroup", (unsigned)slimits.limits.maxBindingsPerBindGroup);
-    TraceLog(LOG_INFO, "Device supports %u bindgroups", (unsigned)slimits.limits.maxBindGroups);
-    TraceLog(LOG_INFO, "Device supports buffers up to %llu megabytes", (unsigned long long)slimits.limits.maxBufferSize / (1000000ull));
-    TraceLog(LOG_INFO, "Device supports textures up to %u x %u", (unsigned)slimits.limits.maxTextureDimension2D, (unsigned)slimits.limits.maxTextureDimension2D);
-    TraceLog(LOG_INFO, "Device supports %u VBO slots", (unsigned)slimits.limits.maxVertexBuffers);
+    TraceLog(LOG_INFO, "Device supports %u bindings per bindgroup", (unsigned)slimits.maxBindingsPerBindGroup);
+    TraceLog(LOG_INFO, "Device supports %u bindgroups", (unsigned)slimits.maxBindGroups);
+    TraceLog(LOG_INFO, "Device supports buffers up to %llu megabytes", (unsigned long long)slimits.maxBufferSize / (1000000ull));
+    TraceLog(LOG_INFO, "Device supports textures up to %u x %u", (unsigned)slimits.maxTextureDimension2D, (unsigned)slimits.maxTextureDimension2D);
+    TraceLog(LOG_INFO, "Device supports %u VBO slots", (unsigned)slimits.maxVertexBuffers);
 
 }
 
@@ -1436,12 +1436,12 @@ Texture LoadTextureFromImage(Image img){
     vdesc.baseMipLevel = 0;
     vdesc.mipLevelCount = 1;
         
-    WGPUImageCopyTexture destination{};
+    WGPUTexelCopyTextureInfo destination{};
     destination.texture = (WGPUTexture)ret.id;
     destination.mipLevel = 0;
     destination.origin = { 0, 0, 0 }; // equivalent of the offset argument of Queue::writeBuffer
     destination.aspect = WGPUTextureAspect_All; // only relevant for depth/Stencil textures
-    WGPUTextureDataLayout source{};
+    WGPUTexelCopyBufferLayout source{};
     source.offset = 0;
     source.bytesPerRow = 4 * img.width;
     source.rowsPerImage = img.height;
@@ -1579,12 +1579,12 @@ Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t miplevel){
     WGPUCommandEncoderDescriptor commandEncoderDesc{};
     commandEncoderDesc.label = STRVIEW("Command Encoder");
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder((WGPUDevice)GetDevice(), &commandEncoderDesc);
-    WGPUImageCopyTexture tbsource{};
+    WGPUTexelCopyTextureInfo tbsource{};
     tbsource.texture = tex;
     tbsource.mipLevel = miplevel;
     tbsource.origin = { 0, 0, 0 }; // equivalent of the offset argument of Queue::writeBuffer
     tbsource.aspect = WGPUTextureAspect_All; // only relevant for depth/Stencil textures
-    WGPUImageCopyBuffer tbdest{};
+    WGPUTexelCopyBufferInfo tbdest{};
     tbdest.buffer = readtex.Get();
     tbdest.layout.offset = 0;
     tbdest.layout.bytesPerRow = RoundUpToNextMultipleOf256(formatSize * width);

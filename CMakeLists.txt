@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 include(FetchContent)
 project(webgpu_standalone)
-set(SUPPORT_WGSL_PARSER ON CACHE BOOL "Support wgsl parsing for uniform and attribute locations" FORCE)
+option(SUPPORT_WGSL_PARSER "Support wgsl parsing for uniform and attribute locations" ON)
 option(SUPPORT_GLSL_PARSER OFF)
 option(SUPPORT_SDL2 OFF)
 option(SUPPORT_SDL3 OFF)
@@ -65,7 +65,7 @@ if(SUPPORT_WGPU_BACKEND OR SUPPORT_WGSL_PARSER)
         set(FETCHCONTENT_QUIET FALSE)
         FetchContent_Declare(
             dawn
-            URL https://github.com/manuel5975p/dawn_monorepo/archive/refs/tags/v7011.tar.gz
+            URL https://github.com/manuel5975p/dawn_monorepo/archive/refs/tags/v7049.tar.gz
 
         )
         FetchContent_MakeAvailable(dawn)
