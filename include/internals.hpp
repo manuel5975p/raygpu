@@ -83,6 +83,39 @@ inline void UnloadBufferLayoutSet(VertexBufferLayoutSet set){
     std::free(set.layouts);
     std::free(set.attributePool);
 }
+static inline ShaderSources singleStage(const char* code, ShaderSourceType language, ShaderStage stage){
+    ShaderSources sources zeroinit;
+    sources.language = language;
+    sources.sourceCount = 1;
+    sources.sources[0].data = code;
+    sources.sources[0].sizeInBytes = std::strlen(code);
+    sources.sources[0].stageMask = ShaderStageMask(1u << uint32_t(+stage));
+    return sources;
+}
+
+static inline ShaderSources dualStage(const char* code, ShaderSourceType language, ShaderStage stage1, ShaderStage stage2){
+    ShaderSources sources zeroinit;
+    sources.language = language;
+    sources.sourceCount = 1;
+    sources.sources[0].data = code;
+    sources.sources[0].sizeInBytes = std::strlen(code);
+    sources.sources[0].stageMask = ShaderStageMask((1u << uint32_t(stage1)) | (1u << uint32_t(stage2)));
+    return sources;
+}
+static inline ShaderSources dualStage(const char* code1, const char* code2, ShaderSourceType language, ShaderStage stage1, ShaderStage stage2){
+    ShaderSources sources zeroinit;
+    sources.language = language;
+    sources.sourceCount = 2;
+    sources.sources[0].data = code1;
+    sources.sources[0].sizeInBytes = std::strlen(code1);
+    sources.sources[0].stageMask = ShaderStageMask(1u << uint32_t(+stage1));
+
+    sources.sources[1].data = code2;
+    sources.sources[1].sizeInBytes = std::strlen(code2);
+    sources.sources[1].stageMask = ShaderStageMask(1u << uint32_t(+stage2));
+ 
+    return sources;
+}
 
 void detectShaderLanguage(ShaderSources* sources);
 std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSources source);
@@ -387,6 +420,8 @@ namespace std{
 std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char* vs, const char* fs);
 std::vector<uint32_t> wgsl_to_spirv(const char* anything);
 std::vector<uint32_t> glsl_to_spirv(const char *cs);
+ShaderSources wgsl_to_spirv(ShaderSources sources);
+ShaderSources glsl_to_spirv(ShaderSources sources);
 extern "C" void negotiateSurfaceFormatAndPresentMode(const void* SurfaceHandle);
 extern "C" void ResetSyncState(cwoid);
 extern "C" void CharCallback(void* window, unsigned int codePoint);

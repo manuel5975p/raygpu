@@ -159,7 +159,37 @@ std::vector<std::pair<ShaderStage, std::string>> getEntryPointsWGSL(const char* 
     return entryPoints;
 }
 #endif
+std::pair<std::vector<uint32_t>, ShaderStageMask> wgsl_to_spirv_single(const char* source){
+    tint::Source::File sourceFile("", source);
+    tint::Program program = tint::wgsl::reader::Parse(&sourceFile);
+    tint::Result<tint::core::ir::Module> module = tint::wgsl::reader::ProgramToLoweredIR(program);
+    tint::spirv::writer::Options options{};
 
+
+    tint::Result<tint::spirv::writer::Output> spirvOutput = tint::spirv::writer::Generate(module.Get(), options);
+    std::pair<std::vector<uint32_t>, ShaderStageMask> ret;
+
+    ret.first = spirvOutput.Get().spirv;
+    
+    return ret;
+}
+ShaderSources wgsl_to_spirv(ShaderSources sources){
+    ShaderSources ret zeroinit;
+    rassert(sources.language == sourceTypeWGSL, "Must be WGSL here");
+    ret.sourceCount = sources.sourceCount;
+    ret.language = sourceTypeSPIRV;
+
+    for(uint32_t i = 0;i < sources.sourceCount;i++){
+        ShaderStage stage = (ShaderStage)std::countr_zero((uint32_t)sources.sources[i].stageMask);
+        std::vector<uint32_t> stageToSpirv = wgsl_to_spirv_single((const char*)sources.sources[i].data).first;
+        uint32_t* odata = (uint32_t*)std::calloc(stageToSpirv.size(), sizeof(uint32_t));
+        std::copy(stageToSpirv.begin(), stageToSpirv.end(), odata);
+        ret.sources[i].data = odata;
+        ret.sources[i].sizeInBytes = stageToSpirv.size() * sizeof(uint32_t);
+        ret.sources[i].stageMask = sources.sources[i].stageMask;
+    }
+    return ret;
+}
 std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributesWGSL(ShaderSources sources){
     //TODo
     const char* shaderSourceWGSL = (const char*)sources.sources[0].data;
