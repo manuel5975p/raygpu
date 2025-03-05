@@ -77,18 +77,18 @@ int main(){
     std::cout << churchModel.meshCount << std::endl;
     Mesh churchMesh = churchModel.meshes[0];
 
-    BindResourceDescriptor uniforms[5] = {
-        CLITERAL(BindResourceDescriptor){uniform_buffer, 64, 0, readonly, format_or_sample_type(0)},
-        CLITERAL(BindResourceDescriptor){texture2d, 0, 1,       readonly, format_or_sample_type(0)},
-        CLITERAL(BindResourceDescriptor){texture_sampler, 0, 2,         readonly, format_or_sample_type(0)},
-        CLITERAL(BindResourceDescriptor){storage_buffer, 64, 3, readonly, format_or_sample_type(0)},
-        CLITERAL(BindResourceDescriptor){storage_buffer, 32, 4, readonly, format_or_sample_type(0)}
+    ResourceTypeDescriptor uniforms[5] = {
+        CLITERAL(ResourceTypeDescriptor){uniform_buffer, 64, 0, readonly, format_or_sample_type(0)},
+        CLITERAL(ResourceTypeDescriptor){texture2d, 0, 1,       readonly, format_or_sample_type(0)},
+        CLITERAL(ResourceTypeDescriptor){texture_sampler, 0, 2,         readonly, format_or_sample_type(0)},
+        CLITERAL(ResourceTypeDescriptor){storage_buffer, 64, 3, readonly, format_or_sample_type(0)},
+        CLITERAL(ResourceTypeDescriptor){storage_buffer, 32, 4, readonly, format_or_sample_type(0)}
     };
     
     RenderSettings settings zeroinit;
     settings.depthTest = 1;
     settings.sampleCount = msaa ? 4 : 1;
-    settings.depthCompare = WGPUCompareFunction_LessEqual;
+    settings.depthCompare = CompareFunction_LessEqual;
     DescribedPipeline* pl = LoadPipelineForVAO(shaderSource, churchMesh.vao);
     Camera3D cam = CLITERAL(Camera3D){
         .position = CLITERAL(Vector3){20,20,30},
@@ -109,7 +109,7 @@ int main(){
     //samplerDesc.maxAnisotropy = 1;
     //WGPUSampler sampler = wgpuDeviceCreateSampler(GetDevice(), &samplerDesc);
 
-    DescribedSampler sampler = LoadSampler(repeat, linear);
+    DescribedSampler sampler = LoadSampler(repeat, filter_linear);
     Material defMaterial = LoadMaterialDefault();
     defMaterial.maps[MATERIAL_MAP_ALBEDO].texture = cdif;
     while(!WindowShouldClose()){
