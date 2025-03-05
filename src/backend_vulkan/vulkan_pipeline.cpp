@@ -87,7 +87,228 @@ extern "C" DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sources){
     
     return ret;
 }*/
-extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, const std::vector<AttributeAndResidence> &attribs){
+extern "C" void UpdatePipeline(DescribedPipeline *pl){
+    DescribedPipeline *pl2 = pl;
+    auto& settings = pl2->settings;
+    VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+    vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    vertShaderStageInfo.module = (VkShaderModule)pl2->sh.stages[ShaderStage_Vertex].module;
+    vertShaderStageInfo.pName = pl2->sh.reflectionInfo.ep[ShaderStage_Vertex].name;
+
+    VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
+    fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    fragShaderStageInfo.module = (VkShaderModule)pl2->sh.stages[ShaderStage_Fragment].module;
+    fragShaderStageInfo.pName = pl2->sh.reflectionInfo.ep[ShaderStage_Fragment].name;
+
+    VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
+
+    // Vertex Input Setup
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    VertexBufferLayoutSet vls = pl->vertexLayout;
+    auto [vad, vbd] = genericVertexLayoutSetToVulkan(vls);
+
+    vertexInputInfo.vertexBindingDescriptionCount = vbd.size();
+    vertexInputInfo.vertexAttributeDescriptionCount = vad.size();
+    vertexInputInfo.pVertexAttributeDescriptions = vad.data();
+    vertexInputInfo.pVertexBindingDescriptions = vbd.data();
+
+    // Input Assembly Setup
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+    inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+    // Viewport and Scissor Setup
+    VkPipelineViewportStateCreateInfo viewportState{};
+    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportState.viewportCount = 1;
+    viewportState.scissorCount = 1;
+    VkRect2D scissor{0, 0, g_vulkanstate.surface.surfaceConfig.width, g_vulkanstate.surface.surfaceConfig.height};
+    VkViewport fullView{
+        0.0f, 
+        (float)g_vulkanstate. surface.surfaceConfig.height, 
+        (float)g_vulkanstate. surface.surfaceConfig.width, 
+        -((float)g_vulkanstate.surface.surfaceConfig.height), 
+        0.0f, 
+        1.0f
+    };
+    viewportState.pScissors = &scissor;
+    viewportState.pViewports = &fullView;
+
+    // Rasterization State Setup
+    VkPipelineRasterizationStateCreateInfo rasterizer{};
+    rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizer.depthClampEnable = VK_FALSE;
+    rasterizer.rasterizerDiscardEnable = VK_FALSE;
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizer.lineWidth = 1.0f;
+
+    // Incorporate face culling from RenderSettings
+    if (settings.faceCull) {
+        rasterizer.cullMode = VK_CULL_MODE_NONE;//VK_CULL_MODE_BACK_BIT; // You can make this configurable
+    } else {
+        rasterizer.cullMode = VK_CULL_MODE_NONE;
+    }
+
+    // Set front face based on RenderSettings
+    rasterizer.frontFace = toVulkanFrontFace(settings.frontFace);
+
+    rasterizer.depthBiasEnable = VK_FALSE;
+
+    // Depth Stencil State Setup
+    VkPipelineDepthStencilStateCreateInfo depthStencil{};
+    depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthStencil.depthTestEnable = settings.depthTest ? VK_TRUE : VK_FALSE;
+    depthStencil.depthWriteEnable = settings.depthTest ? VK_TRUE : VK_FALSE;
+    depthStencil.depthCompareOp = toVulkanCompareFunction((CompareFunction)settings.depthCompare);
+    depthStencil.depthBoundsTestEnable = VK_FALSE;
+    depthStencil.minDepthBounds = 0.0f; // Optional
+    depthStencil.maxDepthBounds = 1.0f; // Optional
+    depthStencil.stencilTestEnable = VK_FALSE;
+    depthStencil.front = {}; // Optional
+    depthStencil.back = {}; // Optional
+
+    // Multisampling State Setup
+    VkPipelineMultisampleStateCreateInfo multisampling{};
+    multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampling.sampleShadingEnable = VK_FALSE;
+    
+    // Map sampleCount from RenderSettings to VkSampleCountFlagBits
+    switch (settings.sampleCount) {
+        case 1: multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT; break;
+        case 2: multisampling.rasterizationSamples = VK_SAMPLE_COUNT_2_BIT; break;
+        case 4: multisampling.rasterizationSamples = VK_SAMPLE_COUNT_4_BIT; break;
+        case 8: multisampling.rasterizationSamples = VK_SAMPLE_COUNT_8_BIT; break;
+        case 16: multisampling.rasterizationSamples = VK_SAMPLE_COUNT_16_BIT; break;
+        case 32: multisampling.rasterizationSamples = VK_SAMPLE_COUNT_32_BIT; break;
+        case 64: multisampling.rasterizationSamples = VK_SAMPLE_COUNT_64_BIT; break;
+        default: multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT; break;
+    }
+
+    // Color Blend Attachment Setup
+    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+    colorBlendAttachment.colorWriteMask = 
+        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | 
+        VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    
+    // Enable blending based on whether blend operations are set
+    bool blendingEnabled = 
+        settings.blendOperationAlpha != BlendOperation_Add || 
+        settings.blendFactorSrcAlpha != BlendFactor_One ||
+        settings.blendFactorDstAlpha != BlendFactor_Zero ||
+        settings.blendOperationColor != BlendOperation_Add ||
+        settings.blendFactorSrcColor != BlendFactor_One ||
+        settings.blendFactorDstColor != BlendFactor_Zero;
+
+    colorBlendAttachment.blendEnable = blendingEnabled ? VK_TRUE : VK_FALSE;
+
+    if (blendingEnabled) {
+        // Configure blending for color
+        colorBlendAttachment.srcColorBlendFactor = toVulkanBlendFactor(settings.blendFactorSrcColor);
+        colorBlendAttachment.dstColorBlendFactor = toVulkanBlendFactor(settings.blendFactorDstColor);
+        colorBlendAttachment.colorBlendOp =        toVulkanBlendOperation(settings.blendOperationColor);
+        
+        // Configure blending for alpha
+        colorBlendAttachment.srcAlphaBlendFactor = toVulkanBlendFactor(settings.blendFactorSrcAlpha);
+        colorBlendAttachment.dstAlphaBlendFactor = toVulkanBlendFactor(settings.blendFactorDstAlpha);
+        colorBlendAttachment.alphaBlendOp =        toVulkanBlendOperation(settings.blendOperationAlpha);
+    }
+
+    // Color Blending State Setup
+    VkPipelineColorBlendStateCreateInfo colorBlending{};
+    colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorBlending.logicOpEnable = VK_FALSE;
+    colorBlending.logicOp = VK_LOGIC_OP_COPY;
+    colorBlending.attachmentCount = 1;
+    colorBlending.pAttachments = &colorBlendAttachment;
+    colorBlending.blendConstants[0] = 1.0f;
+    colorBlending.blendConstants[1] = 1.0f;
+    colorBlending.blendConstants[2] = 1.0f;
+    colorBlending.blendConstants[3] = 1.0f;
+    
+    // Dynamic State Setup (optional based on RenderSettings)
+    std::vector<VkDynamicState> dynamicStates = {
+        VK_DYNAMIC_STATE_VIEWPORT, 
+        VK_DYNAMIC_STATE_SCISSOR,
+        //VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY, 
+        //VK_DYNAMIC_STATE_VERTEX_INPUT_EXT, 
+    };
+    
+    VkPipelineDynamicStateCreateInfo dynamicState{};
+    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    
+    // You can make dynamic states configurable via RenderSettings if needed
+    dynamicState.dynamicStateCount = static_cast<uint32_t>(2);
+    dynamicState.pDynamicStates = dynamicStates.data();
+    
+    // Pipeline Layout Setup
+    
+    
+    // Graphics Pipeline Creation
+    VkGraphicsPipelineCreateInfo pipelineInfo{};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.stageCount = 2;
+    pipelineInfo.pStages = shaderStages;
+    pipelineInfo.pVertexInputState = &vertexInputInfo;
+    pipelineInfo.pInputAssemblyState = &inputAssembly;
+    pipelineInfo.pViewportState = &viewportState;
+    pipelineInfo.pRasterizationState = &rasterizer;
+    pipelineInfo.pMultisampleState = &multisampling;
+    pipelineInfo.pDepthStencilState = settings.depthTest ? &depthStencil : nullptr; // Enable depth stencil if needed
+    pipelineInfo.pColorBlendState = &colorBlending;
+    pipelineInfo.pDynamicState = &dynamicState;
+    pipelineInfo.layout = (VkPipelineLayout)pl2->layout.layout;
+
+    RenderPassLayout rpLayout zeroinit;
+    rpLayout.colorAttachmentCount = 1;
+    rpLayout.depthAttachmentPresent = settings.depthTest;
+    
+    rpLayout.colorAttachments[0].format = toVulkanPixelFormat(BGRA8);
+    rpLayout.colorAttachments[0].loadop = LoadOp_Load;
+    rpLayout.colorAttachments[0].storeop = StoreOp_Store;
+    rpLayout.colorAttachments[0].sampleCount = settings.sampleCount;
+    
+    if(settings.depthTest){
+        rpLayout.depthAttachment.format = toVulkanPixelFormat(Depth32);
+        rpLayout.depthAttachment.loadop = LoadOp_Load;
+        rpLayout.depthAttachment.storeop = StoreOp_Store;
+        rpLayout.depthAttachment.sampleCount = settings.sampleCount;
+    }
+    if(settings.sampleCount > 1){
+        rpLayout.colorAttachments[1].format = toVulkanPixelFormat(BGRA8);
+        rpLayout.colorAttachments[1].loadop = LoadOp_Load;
+        rpLayout.colorAttachments[1].storeop = StoreOp_Store;
+        rpLayout.colorAttachments[1].sampleCount = 1;
+        rpLayout.colorResolveIndex = 1;
+    }
+    else{
+        rpLayout.colorResolveIndex = VK_ATTACHMENT_UNUSED;
+    }
+    VkRenderPass rp = LoadRenderPassFromLayout(g_vulkanstate.device, rpLayout);
+    pipelineInfo.renderPass = rp;
+    pipelineInfo.subpass = 0;
+    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+    
+    if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&pl->quartet.pipeline_TriangleList) != VK_SUCCESS) {
+        throw std::runtime_error("Trianglelist pipiline creation failed");
+    }
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+    if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&pl->quartet.pipeline_TriangleStrip) != VK_SUCCESS) {
+        throw std::runtime_error("Trianglelist pipiline creation failed");
+    }
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+    if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&pl->quartet.pipeline_LineList) != VK_SUCCESS) {
+        throw std::runtime_error("Trianglelist pipiline creation failed");
+    }
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+    if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&pl->quartet.pipeline_PointList) != VK_SUCCESS) {
+        throw std::runtime_error("Trianglelist pipiline creation failed");
+    }
+}
+extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, const std::vector<AttributeAndResidence>& attribs){
     RenderPipelineQuartet quartet zeroinit;
     auto ait = ret->createdPipelines->pipelines.find(attribs);
     if(ait != ret->createdPipelines->pipelines.end()){
@@ -361,7 +582,7 @@ extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
     return LoadPipelineEx(shaderSource, allAttribsInOneBuffer.data(), allAttribsInOneBuffer.size(), values.data(), values.size(), GetDefaultSettings());
 }
 
-void UpdatePipeline(DescribedPipeline* ret, const std::vector<AttributeAndResidence>& attributes){
+extern "C" void UpdatePipelineWithNewLayout(DescribedPipeline* ret, const std::vector<AttributeAndResidence>& attributes){
     // Shader Stage Setup
     auto it = ret->createdPipelines->pipelines.find(attributes);
     if(it != ret->createdPipelines->pipelines.end()){
@@ -403,7 +624,8 @@ extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const A
         bge[i].binding = uniforms[i].location;
     }
     ret->bindGroup = LoadBindGroup_Vk(&ret->bglayout, bge.data(), bge.size());
-    UpdatePipeline(ret, std::vector<AttributeAndResidence>(attribs, attribs + attribCount));    
+    ret->vertexLayout = getBufferLayoutRepresentation(attribs, attribCount);
+    UpdatePipeline(ret);//, std::vector<AttributeAndResidence>{attribs, attribs + attribCount});    
     
     return ret;
 

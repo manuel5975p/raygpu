@@ -1449,6 +1449,58 @@ void UseTexture(Texture tex){
     SetTexture(texture0loc, tex);
     
 }
+DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
+    DescribedPipeline* pipeline = callocnew(DescribedPipeline);
+    pipeline->createdPipelines = callocnew(VertexStateToPipelineMap);
+    new (pipeline->createdPipelines) VertexStateToPipelineMap;
+    
+    pipeline->settings = _pipeline->settings;
+    //TODO: this incurs an erroneous shallow copy of a DescribedBindGroupLayout
+    pipeline->layout = _pipeline->layout;
+    pipeline->bglayout = LoadBindGroupLayout(_pipeline->bglayout.entries, _pipeline->bglayout.entryCount, false);
+
+    pipeline->bindGroup = LoadBindGroup(&_pipeline->bglayout, _pipeline->bindGroup.entries, _pipeline->bindGroup.entryCount);
+    for(uint32_t i = 0;i < _pipeline->bindGroup.entryCount;i++){
+        //if(_pipeline->bindGroup.releaseOnClear & (1ull << i)){
+        //    if(_pipeline->bindGroup.entries[i].buffer){
+        //        if(_pipeline->bglayout.entries[i].type == uniform_buffer){
+        //            pipeline->bindGroup.entries[i].buffer = cloneBuffer((WGPUBuffer)pipeline->bindGroup.entries[i].buffer, WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc | WGPUBufferUsage_Uniform);
+        //        }
+        //        else if(_pipeline->bglayout.entries[i].type == storage_buffer){
+        //            pipeline->bindGroup.entries[i].buffer = cloneBuffer((WGPUBuffer)pipeline->bindGroup.entries[i].buffer, WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc | WGPUBufferUsage_Storage);
+        //        }
+        //    }
+        //}
+    }
+    pipeline->vertexLayout = VertexBufferLayoutSet zeroinit;
+    
+    pipeline->vertexLayout.layouts = (VertexBufferLayout*)std::calloc(_pipeline->vertexLayout.number_of_buffers, sizeof(VertexBufferLayout));
+    pipeline->vertexLayout.number_of_buffers = _pipeline->vertexLayout.number_of_buffers;
+    uint32_t attributeCount = 0;
+    for(size_t i = 0;i < pipeline->vertexLayout.number_of_buffers;i++){
+        attributeCount += _pipeline->vertexLayout.layouts[i].attributeCount;
+    }
+    pipeline->vertexLayout.attributePool = (VertexAttribute*)std::calloc(attributeCount, sizeof(VertexAttribute));
+    for(size_t i = 0;i < _pipeline->vertexLayout.number_of_buffers;i++){
+        pipeline->vertexLayout.layouts[i].attributes = pipeline->vertexLayout.attributePool + (_pipeline->vertexLayout.layouts[i].attributes - _pipeline->vertexLayout.attributePool);
+    }
+    //TODO: this incurs lifetime problem, so do other things in this
+    //TODO: Probably CloneShaderModule
+    
+    pipeline->sh = _pipeline->sh;
+    UpdatePipeline(pipeline);
+    
+
+    pipeline->sh.reflectionInfo.uniforms = callocnew(StringToUniformMap);
+    pipeline->sh.reflectionInfo.uniforms->uniforms = _pipeline->sh.reflectionInfo.uniforms->uniforms;
+    pipeline->sh.reflectionInfo.attributes = callocnew(StringToAttributeMap);
+    pipeline->sh.reflectionInfo.attributes->attributes = _pipeline->sh.reflectionInfo.attributes->attributes;
+
+    //new(pipeline->sh.uniformLocations) StringToUniformMap(*_pipeline->sh.uniformLocations);
+    return pipeline;
+}
+
+
 void UseNoTexture(){
     uint32_t textureLocation = GetUniformLocation(GetActivePipeline(), RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE0);
     if(textureLocation == LOCATION_NOT_FOUND){
