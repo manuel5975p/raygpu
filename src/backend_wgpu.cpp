@@ -542,10 +542,18 @@ DescribedShaderModule LoadShaderModuleWGSL(ShaderSources sources) {
         source.code = WGPUStringView{.data = (const char*)sources.sources[i].data, .length = sources.sources[i].sizeInBytes};
         WGPUShaderModule module = wgpuDeviceCreateShaderModule((WGPUDevice)GetDevice(), &mDesc);
         ShaderStageMask sourceStageMask = sources.sources[i].stageMask;
+        
         for(uint32_t i = 0;i < ShaderStage_EnumCount;++i){
             if(uint32_t(sourceStageMask) & (1u << i)){
                 ret.stages[i].module = module;
             }
+        }
+        std::vector<std::pair<ShaderStage, std::string>> entryPoints = getEntryPointsWGSL((const char*)sources.sources[i].data);
+        for(uint32_t i = 0;i < entryPoints.size();i++){
+            rassert(entryPoints[i].second.size() < 15, "Entrypoint name must be shorter than 15 characters");
+            char* dest = ret.reflectionInfo.ep[entryPoints[i].first].name;
+            char* end = std::copy(entryPoints[i].second.begin(), entryPoints[i].second.end(), dest);
+            *end = '\0';
         }
     }
     ret.reflectionInfo.uniforms = callocnewpp(StringToUniformMap);
