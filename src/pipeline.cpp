@@ -103,6 +103,7 @@ DescribedPipeline* LoadPipelineForVAOEx(const char* shaderSource, VertexArray* v
 }
 extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
     ShaderSources sources zeroinit;
+    sources.language = sourceTypeWGSL;
     auto& src = sources.sources[sources.sourceCount++];
     src.data = shaderSource;
     src.sizeInBytes = std::strlen(shaderSource);
