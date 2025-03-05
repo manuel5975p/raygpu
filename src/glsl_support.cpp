@@ -36,6 +36,7 @@
 #include <glslang/Public/resource_limits_c.h>
 #include <spirv_reflect.h>
 #include <raygpu.h>
+#include <internals.hpp>
 #include <memory>
 #include <bit>
 #include <fstream>
@@ -338,7 +339,8 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
     
     for(size_t i = 0;i < shaders.size();i++){
         auto& [language, shader] = shaders[i];
-
+        const char* dptr = (const char*)sources.sources[i].data;
+        shader->setStrings(reinterpret_cast<char const*const*const>(&(sources.sources[i].data)), 1);
         shader->setAutoMapLocations(false);
         shader->setAutoMapBindings (false);
         if(!shader->parse(Resources,  glslVersion, ECoreProfile, false, false, messages)){
@@ -558,7 +560,12 @@ ShaderSources glsl_to_spirv(ShaderSources sources){
 
 DescribedShaderModule LoadShaderModuleGLSL(ShaderSources sourcesGLSL){
     ShaderSources spirv = glsl_to_spirv(sourcesGLSL);
-    return LoadShaderModuleSPIRV(spirv);
+    DescribedShaderModule ret = LoadShaderModuleSPIRV(spirv);
+    ret.reflectionInfo.uniforms = callocnewpp(StringToUniformMap);
+    ret.reflectionInfo.attributes = callocnewpp(StringToAttributeMap);
+    ret.reflectionInfo.uniforms->uniforms = getBindingsGLSL(sourcesGLSL);
+    ret.reflectionInfo.attributes->attributes = getAttributesGLSL(sourcesGLSL);
+    return ret;
 }
 #ifdef GLSL_TO_WGSL
 extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){

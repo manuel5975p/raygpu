@@ -119,6 +119,7 @@ static inline ShaderSources dualStage(const char* code1, const char* code2, Shad
 
 void detectShaderLanguage(ShaderSources* sources);
 std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSources source);
+std::vector<std::pair<ShaderStage, std::string>> getEntryPointsWGSL(const char* shaderSourceWGSL);
 DescribedShaderModule LoadShaderModule(ShaderSources source);
 
 extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, const std::vector<AttributeAndResidence>& attribs);
