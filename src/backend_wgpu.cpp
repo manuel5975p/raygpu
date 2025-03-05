@@ -792,9 +792,11 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, Resou
 
     if(bg->entries[index].buffer){
         wgpuBufferRelease((WGPUBuffer)bg->entries[index].buffer);
+        bg->entries[index].buffer = 0;
     }
     if(bg->entries[index].textureView){
         wgpuTextureViewRelease((WGPUTextureView)bg->entries[index].textureView);
+        bg->entries[index].textureView = 0;
     }
     
     //bool donotcache = false;
@@ -1394,6 +1396,7 @@ void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, cons
     entry.buffer = storageBuffer;
     entry.size = size;
     UpdateBindGroupEntry(bg, index, entry);
+    
     wgpuBufferRelease(storageBuffer);
 }
 void UnloadBuffer(DescribedBuffer* buffer){

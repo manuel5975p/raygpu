@@ -393,13 +393,17 @@ DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
         pipeline->vertexLayout.layouts[i].attributes = pipeline->vertexLayout.attributePool + (_pipeline->vertexLayout.layouts[i].attributes - _pipeline->vertexLayout.attributePool);
     }
     //TODO: this incurs lifetime problem, so do other things in this
+    //TODO: Probably CloneShaderModule
+    
     pipeline->sh = _pipeline->sh;
-
     UpdatePipeline(pipeline);
     
-    //TODO: Probably CloneShaderModule
 
-    //pipeline->sh.uniformLocations = callocnew(StringToUniformMap);
+    pipeline->sh.reflectionInfo.uniforms = callocnew(StringToUniformMap);
+    pipeline->sh.reflectionInfo.uniforms->uniforms = _pipeline->sh.reflectionInfo.uniforms->uniforms;
+    pipeline->sh.reflectionInfo.attributes = callocnew(StringToAttributeMap);
+    pipeline->sh.reflectionInfo.attributes->attributes = _pipeline->sh.reflectionInfo.attributes->attributes;
+
     //new(pipeline->sh.uniformLocations) StringToUniformMap(*_pipeline->sh.uniformLocations);
     return pipeline;
 }
@@ -501,13 +505,7 @@ Shader LoadShaderFromMemory(const char *vertexSource, const char *fragmentSource
     #endif
     return shader;
 }
-Texture GetDefaultTexture(cwoid){
-    return g_renderstate.whitePixel;
-}
 
-DescribedPipeline* DefaultPipeline(){
-    return g_renderstate.defaultPipeline;
-}
 extern "C" void UnloadPipeline(DescribedPipeline* pl){
     
     //MASSIVE TODO

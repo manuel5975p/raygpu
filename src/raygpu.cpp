@@ -1664,6 +1664,15 @@ void SetTraceLogFile(FILE* file){
 void SetTraceLogLevel(int logLevel){
     tracelogLevel = logLevel;
 }
+
+Texture GetDefaultTexture(cwoid){
+    return g_renderstate.whitePixel;
+}
+
+DescribedPipeline* DefaultPipeline(){
+    return g_renderstate.defaultPipeline;
+}
+
 void TraceLog(int logType, const char *text, ...){
     // Message has level below current threshold, don't emit
     if(logType < tracelogLevel)return;
