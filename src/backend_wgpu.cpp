@@ -548,6 +548,10 @@ DescribedShaderModule LoadShaderModuleWGSL(ShaderSources sources) {
             }
         }
     }
+    ret.reflectionInfo.uniforms = callocnewpp(StringToUniformMap);
+    ret.reflectionInfo.attributes = callocnewpp(StringToAttributeMap);
+    ret.reflectionInfo.uniforms->uniforms = getBindings(sources);
+    ret.reflectionInfo.attributes->attributes = getAttributesWGSL(sources);
 
     //size_t sourceSize = strlen(shaderSourceWGSL);
     //ShaderSources sources zeroinit;
