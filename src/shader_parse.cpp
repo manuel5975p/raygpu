@@ -25,8 +25,7 @@
 
 //#include <ctre.hpp>
 
-#include "src/tint/lang/spirv/writer/helpers/generate_bindings.h"
-#include "src/tint/lang/spirv/writer/raise/raise.h"
+
 #include <raygpu.h>
 #include <internals.hpp>
 #include <vector>
@@ -35,6 +34,8 @@
 #include <string_view>
 
 #if defined(SUPPORT_WGSL_PARSER) && SUPPORT_WGSL_PARSER == 1
+#include "src/tint/lang/spirv/writer/helpers/generate_bindings.h"
+#include "src/tint/lang/spirv/writer/raise/raise.h"
 #include <tint/tint.h>
 #include "src/tint/lang/wgsl/ast/override.h"
 #include "src/tint/lang/wgsl/ast/var.h"
@@ -160,6 +161,8 @@ std::vector<std::pair<ShaderStage, std::string>> getEntryPointsWGSL(const char* 
 }
 #endif
 std::pair<std::vector<uint32_t>, ShaderStageMask> wgsl_to_spirv_single(const char* source){
+    std::pair<std::vector<uint32_t>, ShaderStageMask> ret;
+    #if SUPPORT_WGSL_PARSER == 1
     tint::Source::File sourceFile("", source);
     tint::Program program = tint::wgsl::reader::Parse(&sourceFile);
     tint::Result<tint::core::ir::Module> module = tint::wgsl::reader::ProgramToLoweredIR(program);
@@ -167,14 +170,19 @@ std::pair<std::vector<uint32_t>, ShaderStageMask> wgsl_to_spirv_single(const cha
 
 
     tint::Result<tint::spirv::writer::Output> spirvOutput = tint::spirv::writer::Generate(module.Get(), options);
-    std::pair<std::vector<uint32_t>, ShaderStageMask> ret;
+    
 
     ret.first = spirvOutput.Get().spirv;
     
     return ret;
+    #else
+    TRACELOG(LOG_FATAL, "WGSL Parser not enabled");
+    return ret;
+    #endif
 }
 ShaderSources wgsl_to_spirv(ShaderSources sources){
     ShaderSources ret zeroinit;
+    #if SUPPORT_WGSL_PARSER == 1
     rassert(sources.language == sourceTypeWGSL, "Must be WGSL here");
     ret.sourceCount = sources.sourceCount;
     ret.language = sourceTypeSPIRV;
@@ -189,6 +197,10 @@ ShaderSources wgsl_to_spirv(ShaderSources sources){
         ret.sources[i].stageMask = sources.sources[i].stageMask;
     }
     return ret;
+    #else
+    TRACELOG(LOG_FATAL, "WGSL Parser not enabled");
+    return ret;
+    #endif
 }
 std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributesWGSL(ShaderSources sources){
     //TODo
@@ -624,6 +636,7 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
 
 std::vector<uint32_t> wgsl_to_spirv(const char* wgslCode){
     //Construct file without filename
+    #if SUPPORT_WGSL_PARSER == 1
     tint::Source::File f("", wgslCode);
 
     tint::Program prog = tint::wgsl::reader::Parse(&f);
@@ -634,6 +647,10 @@ std::vector<uint32_t> wgsl_to_spirv(const char* wgslCode){
     tint::Result<tint::spirv::writer::Output> spirvMaybe = tint::spirv::writer::Generate(module, options);
 
     return spirvMaybe.Get().spirv;
+    #else
+    TRACELOG(LOG_FATAL, "WGSL Parser not enabled");
+    return {};
+    #endif
 }
 #define fprefix wgvk
 #define CAT_I(a, b) a ## b

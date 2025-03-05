@@ -185,24 +185,6 @@ DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sourcesSpirv){
 
     return ret;
 }
-DescribedShaderModule LoadShaderModuleFromMemoryWGSL2(const char* shaderSourceWGSLVertex, const char* shaderSourceWGSLFragment){
-    abort();
-    WGPUShaderModuleDescriptor shaderDesc1 zeroinit;
-    WGPUShaderModuleWGSLDescriptor shaderCodeDesc1 zeroinit;
-
-    WGPUShaderModuleDescriptor shaderDesc2 zeroinit;
-    WGPUShaderModuleWGSLDescriptor shaderCodeDesc2 zeroinit;
-
-    shaderDesc1.nextInChain = &shaderCodeDesc1.chain;
-    shaderDesc2.nextInChain = &shaderCodeDesc2.chain;
-    shaderCodeDesc1.chain.sType = WGPUSType_ShaderSourceWGSL;
-    shaderCodeDesc2.chain.sType = WGPUSType_ShaderSourceWGSL;
-
-    return {};
-}
-
-
-
 
 void UnloadShaderModule(DescribedShaderModule mod){
     std::unordered_set<WGPUShaderModule> freed;
