@@ -423,6 +423,7 @@ std::vector<uint32_t> wgsl_to_spirv(const char* anything);
 std::vector<uint32_t> glsl_to_spirv(const char *cs);
 ShaderSources wgsl_to_spirv(ShaderSources sources);
 ShaderSources glsl_to_spirv(ShaderSources sources);
+extern "C" void UpdatePipeline(DescribedPipeline* pl);
 extern "C" void negotiateSurfaceFormatAndPresentMode(const void* SurfaceHandle);
 extern "C" void ResetSyncState(cwoid);
 extern "C" void CharCallback(void* window, unsigned int codePoint);

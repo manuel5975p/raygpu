@@ -1174,7 +1174,7 @@ EXTERN_C_BEGIN
     DescribedPipeline* LoadPipelineForVAOEx(ShaderSources sources, VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
     DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs);
     DescribedPipeline* LoadPipelinePro(cwoid);
-    void UpdatePipeline(DescribedPipeline* pl);
+    
 
     DescribedPipeline* DefaultPipeline(cwoid);
     RenderSettings GetDefaultSettings(cwoid);
