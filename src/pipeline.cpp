@@ -476,11 +476,7 @@ extern "C" void UnloadPipeline(DescribedPipeline* pl){
 
 
 
-DescribedPipeline* Relayout(DescribedPipeline* pl, VertexArray* vao){
-    DescribedPipeline* klon = ClonePipeline(pl);
-    PreparePipeline(klon, vao);
-    return klon;
-}
+
 
 
 

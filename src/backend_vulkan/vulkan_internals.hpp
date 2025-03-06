@@ -23,6 +23,8 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
 #endif
+
+
 inline std::pair<std::vector<VkVertexInputAttributeDescription>, std::vector<VkVertexInputBindingDescription>> genericVertexLayoutSetToVulkan(const VertexBufferLayoutSet& vls){
     std::pair<std::vector<VkVertexInputAttributeDescription>, std::vector<VkVertexInputBindingDescription>> ret{};
 
@@ -318,15 +320,7 @@ typedef struct WGVKCommandBufferImpl{
 }WGVKCommandBufferImpl;
 
 
-struct xorshiftstate{
-    uint64_t x64;
-    void update(uint32_t x, uint32_t y)noexcept{
-        x64 ^= ((uint64_t(x) << 32) | uint64_t(y)) * 0x2545F4914F6CDD1D;
-        x64 ^= x64 << 13;
-        x64 ^= x64 >> 7;
-        x64 ^= x64 << 17;
-    }
-};
+
 namespace std{
     template<>
     struct hash<RenderPassLayout>{
@@ -1031,7 +1025,8 @@ extern "C" void UnloadBuffer(DescribedBuffer* buf);
 extern "C" WGVKTexture wgvkDeviceCreateTexture(WGVKDevice device, const WGVKTextureDescriptor* descriptor);
 extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureViewDescriptor *descriptor);
 extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDescriptor* desc);
-extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, void const * data, size_t size);
+extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, const void* data, size_t size);
+extern "C" void wgvkQueueWriteTexture(WGVKQueue cSelf, WGVKTexture texture, const void* data);
 extern "C" WGVKBindGroupLayout wgvkDeviceCreateBindGroupLayout(WGVKDevice device, const ResourceTypeDescriptor* entries, uint32_t entryCount);
 extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVKBindGroupDescriptor* bgdesc);
 extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup, const WGVKBindGroupDescriptor* bgdesc);
