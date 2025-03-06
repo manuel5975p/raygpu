@@ -54,7 +54,7 @@ void mainloop(){
     ClearBackground(BLANK);
     BeginPipelineMode(pl);
     BindPipelineVertexArray(pl, vao);
-    DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, *ibo, 6, offsets.size());
+    DrawArraysIndexedInstanced(RL_TRIANGLES, *ibo, 6, offsets.size());
     EndPipelineMode();
     DrawFPS(0, 0);
     EndDrawing();

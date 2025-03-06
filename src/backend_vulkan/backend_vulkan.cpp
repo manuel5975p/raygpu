@@ -655,6 +655,7 @@ extern "C" void BufferData(DescribedBuffer* buffer, const void* data, size_t siz
         wgvkQueueWriteBuffer(g_vulkanstate.queue, (WGVKBuffer)buffer->buffer, 0, data, size);
     }
 }
+
 void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size){
     ResourceDescriptor entry{};
     BufferDescriptor bufferDesc{};
@@ -666,7 +667,7 @@ void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, cons
     entry.buffer = wgvkBuffer;
     entry.size = size;
     UpdateBindGroupEntry(bg, index, entry);
-    //wgvkReleaseBuffer(wgvkBuffer);
+    wgvkReleaseBuffer(wgvkBuffer);
 }
 
 
