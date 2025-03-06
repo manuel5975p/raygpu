@@ -54,7 +54,7 @@ void mainloop(){
     ClearBackground(BLANK);
     BeginPipelineMode(pl);
     BindPipelineVertexArray(pl, vao);
-    DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, *ibo, 6, offsets.size());
+    DrawArraysIndexedInstanced(RL_TRIANGLES, *ibo, 6, offsets.size());
     EndPipelineMode();
     DrawFPS(0, 0);
     EndDrawing();
@@ -84,7 +84,7 @@ int main(){
     
     uint32_t trifanIndices[6] = {0,1,2,0,2,3};
     ibo = GenIndexBuffer(trifanIndices, sizeof(trifanIndices));
-    pl = LoadPipelineForVAO(source, vao);
+    pl = LoadPipeline(source);
     
     
     #ifndef __EMSCRIPTEN__
