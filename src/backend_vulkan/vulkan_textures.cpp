@@ -410,8 +410,10 @@ extern "C" Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat f
 void UnloadTexture(Texture tex){
     WGVKTextureView view = (WGVKTextureView)tex.view;
     WGVKTexture texture = (WGVKTexture)tex.id;
-    wgvkReleaseTextureView(view);
-    wgvkReleaseTexture(texture);   
+    if(view != nullptr)
+        wgvkReleaseTextureView(view);
+    if(texture != nullptr)
+        wgvkReleaseTexture(texture);   
 }
 extern "C" Texture2DArray LoadTextureArray(uint32_t width, uint32_t height, uint32_t layerCount, PixelFormat format){
     Texture2DArray ret zeroinit;
@@ -547,6 +549,7 @@ Texture LoadTextureFromImage(Image img) {
         altdata ? altdata : img.data
     );
     if(altdata)std::free(altdata);
+    TRACELOG(LOG_INFO, "Successfully loaded %u x %u texture from image", (unsigned)img.width, (unsigned)img.height);
     return ret;
 }
 Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format, TextureUsage usage, uint32_t sampleCount){

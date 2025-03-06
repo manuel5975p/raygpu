@@ -12,8 +12,8 @@ float angle = 0;
 Camera3D cam;
 std::vector<Matrix> trfs;
 
-constexpr size_t instanceCount = 10000;
-constexpr size_t rootInstanceCount = 100;
+constexpr size_t instanceCount = 2500;
+constexpr size_t rootInstanceCount = 50;
 
 void mainloop(){
     BeginDrawing();
@@ -27,7 +27,7 @@ void mainloop(){
     EndMode3D();
     //EndPipelineMode();
     DrawFPS(0, 0);
-    DrawText(TextFormat("Drawing %llu triangles", (unsigned long long)(instanceCount * churchMesh.triangleCount)), 0, 100, 40, WHITE);
+    DrawText(TextFormat("Drawing %llu triangles", (unsigned long long)(instanceCount * churchMesh.triangleCount)), 0, 100, 40, YELLOW);
     EndDrawing();
 }
 int main(cwoid){
@@ -56,6 +56,7 @@ int main(cwoid){
     churchMat.maps[MATERIAL_MAP_DIFFUSE].texture = cdiffuse;
     
     churchMesh = churchModel.meshes[0];
+    churchModel.materials[0] = churchMat;
     //UploadMesh(&cube, true);
 
     //DescribedPipeline* pl = Relayout(DefaultPipeline(), churchMesh.vao);

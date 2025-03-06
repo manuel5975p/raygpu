@@ -273,16 +273,18 @@ extern "C" void DrawArraysIndexed(PrimitiveType drawMode, DescribedBuffer indexB
 extern "C" void DrawArraysIndexedInstanced(PrimitiveType drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount, uint32_t instanceCount){
     BindPipeline(GetActivePipeline(), drawMode);
     if(GetActivePipeline()->bindGroup.needsUpdate){
-        RenderPassSetBindGroup(GetActiveRenderPass(), 0, &GetActivePipeline()->bindGroup);
+        UpdateBindGroup(&GetActivePipeline()->bindGroup);
     }
+    RenderPassSetBindGroup(GetActiveRenderPass(), 0, &GetActivePipeline()->bindGroup);
     RenderPassSetIndexBuffer(GetActiveRenderPass(), &indexBuffer, IndexFormat_Uint32, 0);
     RenderPassDrawIndexed(GetActiveRenderPass(), vertexCount, instanceCount, 0, 0, 0);
 }
 extern "C" void DrawArraysInstanced(PrimitiveType drawMode, uint32_t vertexCount, uint32_t instanceCount){
     BindPipeline(GetActivePipeline(), drawMode);
-    if(GetActivePipeline()->bindGroup.needsUpdate){
-        RenderPassSetBindGroup(GetActiveRenderPass(), 0, &GetActivePipeline()->bindGroup);
-    }
+    //if(GetActivePipeline()->bindGroup.needsUpdate){
+    //    UpdateBindGroup(&GetActivePipeline()->bindGroup);
+    //}
+    //RenderPassSetBindGroup(GetActiveRenderPass(), 0, &GetActivePipeline()->bindGroup);
     RenderPassDraw(GetActiveRenderPass(), vertexCount, instanceCount, 0, 0);
 }
 

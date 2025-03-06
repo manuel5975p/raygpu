@@ -1454,6 +1454,7 @@ Texture LoadTextureFromImage(Image img){
     ret.width = img.width;
     ret.height = img.height;
     if(altdata)free(altdata);
+    TRACELOG(LOG_INFO, "Successfully loaded %u x %u texture from image", (unsigned)img.width, (unsigned)img.height);
     return ret;
 }
 extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t newWidth, uint32_t newHeight){
