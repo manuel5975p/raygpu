@@ -101,7 +101,7 @@ int main(cwoid){
     pl = Relayout(DefaultPipeline(), cube.vao);
     checkersHDR = LoadTextureEx(9, 9, RGBA16F, false);
 
-    checkers = LoadTextureFromImage(GenImageChecker(RED, DARKBLUE, 100, 100, 4));
+    checkers = LoadTextureFromImage(GenImageChecker(RED, DARKBLUE, 9, 9, 4));
     IEEE_FP16 checkersHDRData[81 * 4];
     for(size_t i = 0;i < 81;i++){
         checkersHDRData[4 * i + 0] = (i & 1) ? float_to_fp16(1.0f) : float_to_fp16(1.5f);
@@ -109,7 +109,15 @@ int main(cwoid){
         checkersHDRData[4 * i + 2] = (i & 1) ? float_to_fp16(0.0f) : float_to_fp16(0.0f);
         checkersHDRData[4 * i + 3] = (i & 1) ? float_to_fp16(1.0f) : float_to_fp16(1.0f);
     }
+    uint8_t checkersData[81 * 4];
+    for(size_t i = 0;i < 81;i++){
+        checkersData[4 * i + 0] = (i & 1) ? 255 : 0;
+        checkersData[4 * i + 1] = (i & 1) ? 255 : 0;
+        checkersData[4 * i + 2] = (i & 1) ? 255 : 0;
+        checkersData[4 * i + 3] = 255;
+    }
     UpdateTexture(checkersHDR, checkersHDRData);
+    UpdateTexture(checkers, checkersData);
     angle = 0.0f;
 
     #ifndef __EMSCRIPTEN__

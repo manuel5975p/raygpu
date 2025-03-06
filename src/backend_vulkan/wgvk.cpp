@@ -1,5 +1,5 @@
+#include <macros_and_constants.h>
 #include "vulkan_internals.hpp"
-
 extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDescriptor* desc){
     WGVKBuffer wgvkBuffer = callocnewpp(WGVKBufferImpl);
     wgvkBuffer->refCount = 1;
@@ -42,26 +42,25 @@ extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_
     abort();
 }
 
-extern "C" void wgvkQueueWriteTexture(WGVKQueue cSelf, WGVKTexture texture, const void* data){
-    
-    WGVKBuffer staging = wgvkDeviceCreateBuffer(cSelf->device, &space);
-    VkImageCopy copy;
-    VkBufferImageCopy region{};
-    region.bufferOffset = 0;
-    region.bufferRowLength = 0;
-    region.bufferImageHeight = 0;
+extern "C" void wgvkQueueWriteTexture(WGVKQueue cSelf, const WGVKTexelCopyTextureInfo* destination, const void* data, size_t dataSize, const WGVKTexelCopyBufferLayout* dataLayout, const WGVKExtent3D* writeSize){
 
-    region.imageSubresource.aspectMask = is__depth(texture->format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
-    region.imageSubresource.mipLevel = 0;
-    region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = 1;
+    BufferDescriptor bdesc zeroinit;
+    bdesc.size = dataSize;
+    bdesc.usage = BufferUsage_CopySrc;
+    WGVKBuffer stagingBuffer = wgvkDeviceCreateBuffer(cSelf->device, &bdesc);
+    void* mappedMemory = nullptr;
+    VkResult result = vkMapMemory(cSelf->device->device, stagingBuffer->memory, 0, dataSize, 0, &mappedMemory);
+    if(result == VK_SUCCESS){
+        std::memcpy(mappedMemory, data, dataSize);
+        vkUnmapMemory(cSelf->device->device, stagingBuffer->memory);
+    }
+    WGVKTexelCopyBufferInfo source;
+    source.buffer = stagingBuffer;
+    source.layout = *dataLayout;
 
-    region.imageOffset = {0, 0, 0};
-    region.imageExtent = {
-        texture->width,
-        texture->height,
-        1
-    };
+    wgvkCommandEncoderCopyBufferToTexture(cSelf->presubmitCache, &source, destination, writeSize);
+    rassert(stagingBuffer->refCount > 1, "Sum Ting Wong");
+    wgvkReleaseBuffer(stagingBuffer);
 }
 
 
@@ -810,6 +809,53 @@ extern "C" void wgvkReleaseTextureView(WGVKTextureView view){
         std::free(view);
     }
 }
+
+extern "C" void wgvkCommandEncoderCopyBufferToBuffer  (WGVKCommandEncoder commandEncoder, WGVKBuffer source, uint64_t sourceOffset, WGVKBuffer destination, uint64_t destinationOffset, uint64_t size){
+    TRACELOG(LOG_FATAL, "Not implemented");
+    rg_unreachable();
+}
+extern "C" void wgvkCommandEncoderCopyBufferToTexture (WGVKCommandEncoder commandEncoder, WGVKTexelCopyBufferInfo const * source, WGVKTexelCopyTextureInfo const * destination, WGVKExtent3D const * copySize){
+    
+    VkImageCopy copy;
+    VkBufferImageCopy region{};
+
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
+
+    region.imageSubresource.aspectMask = is__depth(destination->texture->format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel = 0;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount = 1;
+
+    region.imageOffset = VkOffset3D{
+        (int32_t)destination->origin.x,
+        (int32_t)destination->origin.y,
+        (int32_t)destination->origin.z,
+    };
+
+    region.imageExtent = {
+        copySize->width,
+        copySize->height,
+        copySize->depthOrArrayLayers
+    };
+    commandEncoder->resourceUsage.track(source->buffer);
+    commandEncoder->resourceUsage.track(destination->texture);
+    if(destination->texture->layout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL){
+        wgvkCommandEncoderTransitionTextureLayout(commandEncoder, destination->texture, destination->texture->layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    }
+    vkCmdCopyBufferToImage(commandEncoder->buffer, source->buffer->buffer, destination->texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+}
+extern "C" void wgvkCommandEncoderCopyTextureToBuffer (WGVKCommandEncoder commandEncoder, WGVKTexelCopyTextureInfo const * source, WGVKTexelCopyBufferInfo const * destination, WGVKExtent3D const * copySize){
+    TRACELOG(LOG_FATAL, "Not implemented");
+    rg_unreachable();
+}
+extern "C" void wgvkCommandEncoderCopyTextureToTexture(WGVKCommandEncoder commandEncoder, WGVKTexelCopyTextureInfo const * source, WGVKTexelCopyTextureInfo const * destination, WGVKExtent3D const * copySize){
+    TRACELOG(LOG_FATAL, "Not implemented");
+    rg_unreachable();
+}
+
+
 
 // Implementation of RenderpassEncoderDraw
 void wgvkRenderpassEncoderDraw(WGVKRenderPassEncoder rpe, uint32_t vertices, uint32_t instances, uint32_t firstvertex, uint32_t firstinstance) {

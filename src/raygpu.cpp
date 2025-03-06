@@ -1483,7 +1483,9 @@ DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
     pipeline->vertexLayout.attributePool = (VertexAttribute*)std::calloc(attributeCount, sizeof(VertexAttribute));
     for(size_t i = 0;i < _pipeline->vertexLayout.number_of_buffers;i++){
         pipeline->vertexLayout.layouts[i].attributes = pipeline->vertexLayout.attributePool + (_pipeline->vertexLayout.layouts[i].attributes - _pipeline->vertexLayout.attributePool);
+        pipeline->vertexLayout.layouts[i].attributeCount = _pipeline->vertexLayout.layouts[i].attributeCount;
     }
+    std::memcpy(pipeline->vertexLayout.attributePool, _pipeline->vertexLayout.attributePool, attributeCount * sizeof(VertexAttribute));
     //TODO: this incurs lifetime problem, so do other things in this
     //TODO: Probably CloneShaderModule
     

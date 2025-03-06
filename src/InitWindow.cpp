@@ -79,14 +79,14 @@ layout(binding = 0) uniform PerspectiveViewBlock {
 
 // Storage buffer for model matrices (binding = 3).
 // Note: 'buffer' qualifier makes it a shader storage buffer.
-layout(binding = 3) readonly buffer ModelMatrixBlock {
-    mat4 modelMatrix[];  // Array of model matrices.
+layout(binding = 3) readonly buffer modelMatrix {
+    mat4 modelMatrices[];  // Array of model matrices.
 };
 void main() {
     gl_PointSize = 1.0f;
     
     // Compute transformed position using instance-specific model matrix.
-    gl_Position = Perspective_View * modelMatrix[gl_InstanceIndex] * vec4(in_position, 1.0);
+    gl_Position = Perspective_View * modelMatrices[gl_InstanceIndex] * vec4(in_position, 1.0);
     //gl_Position = vec4(in_position, 1.0);
     frag_uv = in_uv;
     frag_color = in_color;
