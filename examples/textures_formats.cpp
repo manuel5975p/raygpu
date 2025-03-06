@@ -1,6 +1,6 @@
 #include <raygpu.h>
 #define RAYGUI_IMPLEMENTATION
-#include <raygui.h>
+#include <external/raygui.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -33,8 +33,8 @@ void mainloop(){
 int main(cwoid){
     InitWindow(1000, 1000, "Textures");
     GuiSetStyle(DEFAULT, TEXT_SIZE, 30);
-    tex = LoadTextureEx(10, 10, WGPUTextureFormat_RGBA8Unorm, false);
-    texSrgb = LoadTextureEx(10, 10, WGPUTextureFormat_RGBA8UnormSrgb, false);
+    tex = LoadTextureEx(10, 10, RGBA8, false);
+    texSrgb = LoadTextureEx(10, 10, RGBA8, false);
     
     #ifndef __EMSCRIPTEN__
     while(!WindowShouldClose()){
