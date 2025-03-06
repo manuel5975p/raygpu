@@ -52,8 +52,8 @@ int main(cwoid){
 
     churchMat = LoadMaterialDefault();
     
-    //cdiffuse = LoadTextureFromImage(LoadImage((resourceDirectoryPath + "/church_diffuse.png").c_str()));
-    //churchMat.maps[MATERIAL_MAP_DIFFUSE].texture = cdiffuse;
+    cdiffuse = LoadTextureFromImage(LoadImage((resourceDirectoryPath + "/church_diffuse.png").c_str()));
+    churchMat.maps[MATERIAL_MAP_DIFFUSE].texture = cdiffuse;
     
     churchMesh = churchModel.meshes[0];
     //UploadMesh(&cube, true);

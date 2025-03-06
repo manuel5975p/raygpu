@@ -666,7 +666,7 @@ void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, cons
     entry.buffer = wgvkBuffer;
     entry.size = size;
     UpdateBindGroupEntry(bg, index, entry);
-    wgvkReleaseBuffer(wgvkBuffer);
+    //wgvkReleaseBuffer(wgvkBuffer);
 }
 
 
@@ -1216,6 +1216,27 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
     //vkDestroyFence(g_vulkanstate.device, fence, nullptr);
 
 }
+
+void UpdateTexture(Texture tex, void* data){
+    WGVKTexelCopyTextureInfo destination{};
+    destination.texture = (WGVKTexture)tex.id;
+    destination.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    destination.mipLevel = 0;
+    destination.origin = WGVKOrigin3D{0,0,0};
+
+    WGVKTexelCopyBufferLayout source{};
+    source.offset = 0;
+    source.bytesPerRow = GetPixelSizeInBytes(tex.format) * tex.width;
+    source.rowsPerImage = tex.height;
+    WGVKExtent3D writeSize{};
+    writeSize.depthOrArrayLayers = 1;
+    writeSize.width = tex.width;
+    writeSize.height = tex.height;
+    wgvkQueueWriteTexture(g_vulkanstate.queue, &destination, data, tex.width * tex.height * GetPixelSizeInBytes(tex.format), &source, &writeSize);
+}
+
+
+
 extern "C" void EndRenderpassPro(DescribedRenderpass* rp, bool renderTexture){
     //if(renderTexture){
     //    wgvkRenderPassEncoderEnd((WGVKRenderPassEncoder)rp->rpEncoder);
