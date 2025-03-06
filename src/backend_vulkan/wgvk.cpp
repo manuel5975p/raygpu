@@ -42,6 +42,28 @@ extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_
     abort();
 }
 
+extern "C" void wgvkQueueWriteTexture(WGVKQueue cSelf, WGVKTexture texture, const void* data){
+    
+    WGVKBuffer staging = wgvkDeviceCreateBuffer(cSelf->device, &space);
+    VkImageCopy copy;
+    VkBufferImageCopy region{};
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
+
+    region.imageSubresource.aspectMask = is__depth(texture->format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel = 0;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount = 1;
+
+    region.imageOffset = {0, 0, 0};
+    region.imageExtent = {
+        texture->width,
+        texture->height,
+        1
+    };
+}
+
 
 
 extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup, const WGVKBindGroupDescriptor* bgdesc){

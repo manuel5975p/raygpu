@@ -1510,7 +1510,11 @@ void UseNoTexture(){
     drawCurrentBatch();
     SetTexture(textureLocation, g_renderstate.whitePixel);
 }
-
+DescribedPipeline* Relayout(DescribedPipeline* pl, VertexArray* vao){
+    DescribedPipeline* klon = ClonePipeline(pl);
+    PreparePipeline(klon, vao);
+    return klon;
+}
 void BeginTextureMode(RenderTexture rtex){
     ++g_renderstate.renderTargetStackPosition;
     g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition] = rtex;

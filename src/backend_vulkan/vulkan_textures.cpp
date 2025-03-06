@@ -411,8 +411,7 @@ void UnloadTexture(Texture tex){
     WGVKTextureView view = (WGVKTextureView)tex.view;
     WGVKTexture texture = (WGVKTexture)tex.id;
     wgvkReleaseTextureView(view);
-    wgvkReleaseTexture(texture);
-    
+    wgvkReleaseTexture(texture);   
 }
 extern "C" Texture2DArray LoadTextureArray(uint32_t width, uint32_t height, uint32_t layerCount, PixelFormat format){
     Texture2DArray ret zeroinit;

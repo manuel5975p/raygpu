@@ -27,12 +27,24 @@
 
 #ifndef INTERNALS_HPP_INCLUDED
 #define INTERNALS_HPP_INCLUDED
+#include "pipeline.h"
 #include <raygpu.h>
 #include <algorithm>
 #include <vector>
 
 template<typename T>
 using small_vector = std::vector<T>;
+
+
+struct xorshiftstate{
+    uint64_t x64;
+    void update(uint32_t x, uint32_t y)noexcept{
+        x64 ^= ((uint64_t(x) << 32) | uint64_t(y)) * 0x2545F4914F6CDD1D;
+        x64 ^= x64 << 13;
+        x64 ^= x64 >> 7;
+        x64 ^= x64 << 17;
+    }
+};
 
 /**
  * @brief Get the Buffer Layout representation compatible with WebGPU or Vulkan
@@ -79,9 +91,23 @@ inline VertexBufferLayoutSet getBufferLayoutRepresentation(const AttributeAndRes
     return ret;
 }
 extern "C" const char* copyString(const char* str);
-inline void UnloadBufferLayoutSet(VertexBufferLayoutSet set){
+static inline void UnloadBufferLayoutSet(VertexBufferLayoutSet set){
     std::free(set.layouts);
     std::free(set.attributePool);
+}
+namespace std{
+    template<>
+    struct hash<VertexBufferLayoutSet>{
+        size_t operator()(const VertexBufferLayoutSet& set)const noexcept{
+            xorshiftstate xsstate{uint64_t(0x1919846573) * uint64_t(set.number_of_buffers << 14)};
+            for(uint32_t i = 0;i < set.number_of_buffers;i++){
+                for(uint32_t j = 0;j < set.layouts[i].attributeCount;j++){
+                    xsstate.update(set.layouts[i].attributes[j].offset, set.layouts[i].attributes[j].shaderLocation);
+                }
+            }
+            return xsstate.x64;
+        }
+    };
 }
 static inline ShaderSources singleStage(const char* code, ShaderSourceType language, ShaderStage stage){
     ShaderSources sources zeroinit;
