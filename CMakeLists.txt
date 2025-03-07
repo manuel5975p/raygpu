@@ -139,8 +139,8 @@ if(SUPPORT_SDL3)
     set(SDL_LIBURING OFF CACHE BOOL "Enable SDL liburing support" FORCE)
     FetchContent_Declare(
         sdl3fetch
-        #URL      https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.2.4.tar.gz
-        URL      "${CMAKE_CURRENT_LIST_DIR}/../release-3.2.4.tar.gz"
+        URL      https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.2.4.tar.gz
+        #URL      "${CMAKE_CURRENT_LIST_DIR}/../release-3.2.4.tar.gz"
         DOWNLOAD_EXTRACT_TIMESTAMP True
     )
     set(SDL_STATIC ON)

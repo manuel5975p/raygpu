@@ -63,13 +63,16 @@ typedef enum addressMode {
     repeat = 0x2,
     mirrorRepeat = 0x3,
 } addressMode;
+
 typedef enum PixelFormat {
-    RGBA8 =   0x12,
-    BGRA8 =   0x17, //WGPUTextureFormat_BGRA8Unorm,
-    RGBA16F = 0x22, //WGPUTextureFormat_RGBA16Float,
-    RGBA32F = 0x23, //WGPUTextureFormat_RGBA32Float,
-    Depth24 = 0x28, //WGPUTextureFormat_Depth24Plus,
-    Depth32 = 0x2A, //WGPUTextureFormat_Depth32Float,
+    RGBA8      = 0x12, //WGPUTextureFormat_RGBA8Unorm,
+    RGBA8_Srgb = 0x13, //WGPUTextureFormat_RGBA8UnormSrgb,
+    BGRA8      = 0x17, //WGPUTextureFormat_BGRA8Unorm,
+    BGRA8_Srgb = 0x18, //WGPUTextureFormat_BGRA8UnormSrgb,
+    RGBA16F    = 0x22, //WGPUTextureFormat_RGBA16Float,
+    RGBA32F    = 0x23, //WGPUTextureFormat_RGBA32Float,
+    Depth24    = 0x28, //WGPUTextureFormat_Depth24Plus,
+    Depth32    = 0x2A, //WGPUTextureFormat_Depth32Float,
 
     GRAYSCALE = 0x100000, // No WGPU_ equivalent
     RGB8 = 0x100001,      // No WGPU_ equivalent
@@ -612,8 +615,12 @@ static inline VkFormat toVulkanPixelFormat(PixelFormat format) {
     switch (format) {
     case RGBA8:
         return VK_FORMAT_R8G8B8A8_UNORM;
+    case RGBA8_Srgb:
+        return VK_FORMAT_R8G8B8A8_SRGB;
     case BGRA8:
         return VK_FORMAT_B8G8R8A8_UNORM;
+    case BGRA8_Srgb:
+        return VK_FORMAT_B8G8R8A8_SRGB;
     case RGBA16F:
         return VK_FORMAT_R16G16B16A16_SFLOAT;
     case RGBA32F:

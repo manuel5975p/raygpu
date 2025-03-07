@@ -433,6 +433,7 @@ extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* 
     createdWindow = OpenSubWindow_SDL2(width, height, title);
     #elif defined(MAIN_WINDOW_SDL3)
     createdWindow = OpenSubWindow_SDL3(width, height, title);
+    rassert(createdWindow.handle != nullptr, "Returned window can't have null handle");
     #endif
     void* wgpu_or_wgvk_surface = CreateSurfaceForWindow(createdWindow);
     #if SUPPORT_WGPU_BACKEND == 1
@@ -462,6 +463,7 @@ extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* 
     //fsurface.renderTarget.depth = LoadDepthTexture(width, height);
     g_renderstate.createdSubwindows[createdWindow.handle].surface = fsurface;
     #endif
+    
     return g_renderstate.createdSubwindows[createdWindow.handle];
 }
 extern "C" void ToggleFullscreenImpl(){
@@ -522,7 +524,9 @@ uint32_t GetMonitorHeight(cwoid){
 extern "C" size_t GetPixelSizeInBytes(PixelFormat format) {
     switch(format){
         case PixelFormat::BGRA8:
+        case PixelFormat::BGRA8_Srgb:
         case PixelFormat::RGBA8:
+        case PixelFormat::RGBA8_Srgb:
         return 4;
         case PixelFormat::RGBA16F:
         return 8;
@@ -537,8 +541,8 @@ extern "C" size_t GetPixelSizeInBytes(PixelFormat format) {
         case PixelFormat::Depth32:
         return 4;
         default: 
-            rg_unreachable();
-            return 0;
+        rg_unreachable();
+        return 0;
     }
     /*
     switch (format) {

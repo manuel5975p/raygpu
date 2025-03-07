@@ -387,7 +387,16 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     if (format == Depth24 || format == Depth32) {
         aspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
     }
-    WGVKTextureView view = CreateImageView(g_vulkanstate.device, image->image, vkFormat, aspectFlags);
+    WGVKTextureViewDescriptor descriptor zeroinit;
+    descriptor.format = format;
+    descriptor.arrayLayerCount = 1;
+    descriptor.baseArrayLayer = 0;
+    descriptor.mipLevelCount = mipmaps;
+    descriptor.baseMipLevel = 0;
+    descriptor.aspect = (format == Depth24 || format == Depth32) ? TextureAspect_DepthOnly : TextureAspect_All;
+    descriptor.dimension = TextureViewDimension_2D;
+    descriptor.usage = usage;
+    WGVKTextureView view = wgvkTextureCreateView(image, &descriptor);
     view->width = width;
     view->height = height;
     view->sampleCount = sampleCount;
@@ -472,8 +481,9 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
     size_t bufferSize = size * tex->width * tex->height;
     VkBuffer stagingBuffer = CreateBuffer(g_vulkanstate.device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, bufferMemory);
     VkCommandBuffer commandBuffer = BeginSingleTimeCommands(g_vulkanstate.device, transientPool);
-    
-    EncodeTransitionImageLayout(commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, tex);
+    VkImageLayout oldLayout = tex->layout;
+    if(oldLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+        EncodeTransitionImageLayout(commandBuffer, tex->layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, tex);
     
     vkCmdCopyImageToBuffer(
         commandBuffer,
@@ -483,8 +493,8 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
         1,
         &region
     );
-    
-    EncodeTransitionImageLayout(commandBuffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, tex);
+    if(oldLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+        EncodeTransitionImageLayout(commandBuffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, oldLayout, tex);
 
     EndSingleTimeCommands(g_vulkanstate.device, transientPool, commandBuffer);
     VkSubmitInfo sinfo zeroinit;
@@ -494,13 +504,14 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
     VkResult submitResult = vkQueueSubmit(g_vulkanstate.queue->graphicsQueue, 1, &sinfo, fence);
     if(submitResult == VK_SUCCESS){
         VkResult fenceWait = vkWaitForFences(g_vulkanstate.device->device, 1, &fence, VK_TRUE, UINT64_MAX);
-        if(fenceWait != VK_SUCCESS){
-            TRACELOG(LOG_ERROR, "Waiting for fence not successful");
-        }
-        else{
-            TRACELOG(LOG_INFO, "Successfully waited for fence");
-        }
+        //if(fenceWait != VK_SUCCESS){
+        //    TRACELOG(LOG_ERROR, "Waiting for fence not successful");
+        //}
+        //else{
+        //    TRACELOG(LOG_INFO, "Successfully waited for fence");
+        //}
         vkResetFences(g_vulkanstate.device->device, 1, &fence);
+
         vkFreeCommandBuffers(g_vulkanstate.device->device, transientPool, 1, &commandBuffer);
         void* mapPtr = nullptr;
         VkResult mapResult = vkMapMemory(g_vulkanstate.device->device, bufferMemory, 0, size * tex->width * tex->height, 0, &mapPtr);

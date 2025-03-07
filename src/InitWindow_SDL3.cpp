@@ -62,7 +62,7 @@ SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title)
     ret.type = windowType_sdl3;
     //WGPUInstance inst = (WGPUInstance)GetInstance();
     //WGPUSurfaceCapabilities capabilities zeroinit;
-    SDL_WindowFlags windowFlags;
+    SDL_WindowFlags windowFlags = 0;
     #if SUPPORT_VULKAN_BACKEND == 1
     windowFlags |= SDL_WINDOW_VULKAN;
     #endif
@@ -87,8 +87,8 @@ SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title)
     //WGPUSurface surface = SDL3_GetWGPUSurface(inst, (SDL_Window*)ret.handle);
     //
     //ret.surface = CreateSurface(surface, width, height);
-    //g_renderstate.createdSubwindows[ret.handle] = ret;
-    //g_renderstate.input_map[(GLFWwindow*)ret.handle];
+    g_renderstate.createdSubwindows[ret.handle] = ret;
+    g_renderstate.input_map[(GLFWwindow*)ret.handle];
     #endif
     //setup((GLFWwindow*)ret.handle);
     return ret;
@@ -316,7 +316,6 @@ void PenMotionCallback(SDL_Window* window, SDL_PenID penID, float x, float y){
 void FingerMotionCallback(SDL_Window* window, SDL_FingerID finger, float x, float y){
     std::cout << std::format("Finger {}: {},{}", finger, x, y) << std::endl;
 }
-
 void MouseButtonCallback(SDL_Window* window, int button, int action){
     if(action == 1){
         g_renderstate.input_map[window].mouseButtonDown[button] = 1;
@@ -419,7 +418,12 @@ extern "C" void PollEvents_SDL3() {
         case SDL_EVENT_MOUSE_BUTTON_UP: {
             SDL_Window *window = SDL_GetWindowFromID(event.button.windowID);
             Uint8 state = (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) ? 1 : 0;
-            MouseButtonCallback(window, event.button.button, state);
+
+            int btn = event.button.button - 1;
+            if (btn == 2) btn = 1;
+            else if (btn == 1) btn = 2;
+
+            MouseButtonCallback(window, btn, state);
         }
         break;
         case SDL_EVENT_PEN_AXIS:{
