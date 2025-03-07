@@ -426,14 +426,43 @@ extern "C" void CharCallback(void* window, unsigned int codePoint){
     g_renderstate.input_map[window].charQueue.push_back((int)codePoint);
 }
 extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* title){
+    SubWindow createdWindow zeroinit;
     #ifdef MAIN_WINDOW_GLFW
-    return OpenSubWindow_GLFW(width, height, title);
+    createdWindow = OpenSubWindow_GLFW(width, height, title);
     #elif defined(MAIN_WINDOW_SDL2)
-    return OpenSubWindow_SDL2(width, height, title);
+    createdWindow = OpenSubWindow_SDL2(width, height, title);
     #elif defined(MAIN_WINDOW_SDL3)
-    return OpenSubWindow_SDL3(width, height, title);
+    createdWindow = OpenSubWindow_SDL3(width, height, title);
     #endif
-    return SubWindow zeroinit;
+    void* wgpu_or_wgvk_surface = CreateSurfaceForWindow(createdWindow);
+    #if SUPPORT_WGPU_BACKEND == 1
+    WGPUSurface wSurface = (WGPUSurface)wgpu_or_wgvk_surface;
+    g_renderstate.createdSubwindows[createdWindow.handle].surface = CreateSurface(wSurface, width, height);
+    #else
+    WGVKSurface vSurface = (WGVKSurface)wgpu_or_wgvk_surface;
+    SurfaceConfiguration config{};
+    config.device = g_vulkanstate.device;
+    config.width = width;
+    config.height = height;
+    config.format = BGRA8;
+    config.presentMode = PresentMode_Immediate;
+    wgvkSurfaceConfigure(vSurface, &config);
+    FullSurface fsurface zeroinit;
+    fsurface.surfaceConfig = config;
+    fsurface.surface = vSurface;
+    if(g_renderstate.windowFlags & FLAG_MSAA_4X_HINT)
+        fsurface.renderTarget.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_renderstate.frameBufferFormat, TextureUsage_RenderAttachment | TextureUsage_TextureBinding | TextureUsage_CopyDst | TextureUsage_CopySrc, 4, 1);
+    fsurface.renderTarget.depth = LoadTexturePro(width,
+                                  height, 
+                                  Depth32, 
+                                  TextureUsage_RenderAttachment | TextureUsage_TextureBinding | TextureUsage_CopyDst | TextureUsage_CopySrc, 
+                                  (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
+                                  1
+    );
+    //fsurface.renderTarget.depth = LoadDepthTexture(width, height);
+    g_renderstate.createdSubwindows[createdWindow.handle].surface = fsurface;
+    #endif
+    return g_renderstate.createdSubwindows[createdWindow.handle];
 }
 extern "C" void ToggleFullscreenImpl(){
     #ifdef MAIN_WINDOW_GLFW

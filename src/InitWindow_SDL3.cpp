@@ -3,6 +3,7 @@
 #include <format>
 #include <raygpu.h>
 #include <internals.hpp>
+#include <renderstate.inc>
 #if SUPPORT_VULKAN_BACKEND == 1
 #include <vulkan/vulkan.h>
 #include <SDL3/SDL_vulkan.h>
@@ -10,8 +11,6 @@
 #elif SUPPORT_WGPU_BACKEND == 1 || defined(__EMSCRIPTEN__)
 #include "sdl3webgpu.h"
 #endif
-#include <webgpu/webgpu.h>
-#include <wgpustate.inc>
 
 constexpr uint32_t max_format_count = 16;
 
@@ -61,37 +60,37 @@ extern "C" void* CreateSurfaceForWindow_SDL3(void* windowHandle){
 SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title){
     SubWindow ret zeroinit;
     ret.type = windowType_sdl3;
-    WGPUInstance inst = (WGPUInstance)GetInstance();
-    WGPUSurfaceCapabilities capabilities zeroinit;
+    //WGPUInstance inst = (WGPUInstance)GetInstance();
+    //WGPUSurfaceCapabilities capabilities zeroinit;
     SDL_WindowFlags windowFlags;
     #if SUPPORT_VULKAN_BACKEND == 1
     windowFlags |= SDL_WINDOW_VULKAN;
     #endif
     ret.handle = SDL_CreateWindow(title, width, height, windowFlags);
     #if SUPPORT_VULKAN_BACKEND == 1
-    WGVKSurface vSurface = callocnew(WGVKSurfaceImpl);
-    bool surfaceCreated = SDL_Vulkan_CreateSurface((SDL_Window*)ret.handle, g_vulkanstate.instance, nullptr, &vSurface->surface);
-    SurfaceConfiguration config{};
-    config.width = width;
-    config.height = height;
-    config.format = BGRA8;
-    config.presentMode = PresentMode_Fifo;
-    config.device = g_vulkanstate.device;
-    wgvkSurfaceConfigure(vSurface, &config);
-    FullSurface fsurface zeroinit;
-    fsurface.surfaceConfig = config;
-    fsurface.surface = vSurface;
-    fsurface.renderTarget.depth = LoadDepthTexture(width, height);
-    ret.surface = fsurface;
-    g_renderstate.createdSubwindows[ret.handle] = ret;
-    #else
-    WGPUSurface surface = SDL3_GetWGPUSurface(inst, (SDL_Window*)ret.handle);
-    
-    ret.surface = CreateSurface(surface, width, height);
-    g_renderstate.createdSubwindows[ret.handle] = ret;
-    g_renderstate.input_map[(GLFWwindow*)ret.handle];
+    //WGVKSurface vSurface = callocnew(WGVKSurfaceImpl);
+    //bool surfaceCreated = SDL_Vulkan_CreateSurface((SDL_Window*)ret.handle, g_vulkanstate.instance, nullptr, &vSurface->surface);
+    //SurfaceConfiguration config{};
+    //config.width = width;
+    //config.height = height;
+    //config.format = BGRA8;
+    //config.presentMode = PresentMode_Fifo;
+    //config.device = g_vulkanstate.device;
+    //wgvkSurfaceConfigure(vSurface, &config);
+    //FullSurface fsurface zeroinit;
+    //fsurface.surfaceConfig = config;
+    //fsurface.surface = vSurface;
+    //fsurface.renderTarget.depth = LoadDepthTexture(width, height);
+    //ret.surface = fsurface;
+    //g_renderstate.createdSubwindows[ret.handle] = ret;
+    //#else
+    //WGPUSurface surface = SDL3_GetWGPUSurface(inst, (SDL_Window*)ret.handle);
+    //
+    //ret.surface = CreateSurface(surface, width, height);
+    //g_renderstate.createdSubwindows[ret.handle] = ret;
+    //g_renderstate.input_map[(GLFWwindow*)ret.handle];
     #endif
-    //setupGLFWCallbacks((GLFWwindow*)ret.handle);
+    //setup((GLFWwindow*)ret.handle);
     return ret;
 }
 
@@ -113,23 +112,6 @@ extern "C" SubWindow InitWindow_SDL3(uint32_t width, uint32_t height, const char
     
     ret.handle = window;
 
-    //#if SUPPORT_VULKAN_BACKEND == 1
-    //VkSurfaceKHR surf = nullptr;
-    //SDL_Vulkan_CreateSurface(window, (VkInstance)GetInstance(), nullptr, &surf);
-    //
-    //#else
-    //WGPUSurface surface = SDL3_GetWGPUSurface((WGPUInstance)GetInstance(), window);
-    //ret.surface = CreateSurface(surface, width, height);
-    //#endif
-    //ret.handle = window;
-    //#if SUPPORT_VULKAN_BACKEND
-    //SurfaceConfiguration config{};
-    //config.format = BGRA8;
-    //config.presentMode = PresentMode_Mailbox;
-    //config.width = width;
-    //config.height = height;
-    //ret.surface = LoadSurface((GLFWwindow*)window, config);
-    //#endif
     g_renderstate.createdSubwindows[ret.handle] = ret;
     g_renderstate.window = (GLFWwindow*)ret.handle;
     g_renderstate.mainWindow = &g_renderstate.createdSubwindows[ret.handle];

@@ -494,12 +494,13 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
 }
 extern "C" SubWindow OpenSubWindow_GLFW(uint32_t width, uint32_t height, const char* title){
     SubWindow ret{};
-    //#ifndef __EMSCRIPTEN__
-    //glfwInit();
-    //glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    #ifndef __EMSCRIPTEN__
+    glfwInit();
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     //glfwWindowHint(GLFW_RESIZABLE, (g_renderstate.windowFlags & FLAG_WINDOW_RESIZABLE ) ? GLFW_TRUE : GLFW_FALSE);
-    //glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
-    //ret.handle = glfwCreateWindow(width, height, title, nullptr, nullptr);
+    glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
+    ret.handle = glfwCreateWindow(width, height, title, nullptr, nullptr);
+    
     //WGPUInstance inst = (WGPUInstance)GetInstance();
     //wgpu::Surface secondSurface = wgpu::glfw::CreateSurfaceForWindow(inst, (GLFWwindow*)ret.handle);
     //wgpu::SurfaceCapabilities capabilities;
@@ -523,10 +524,10 @@ extern "C" SubWindow OpenSubWindow_GLFW(uint32_t width, uint32_t height, const c
     //};
     //ret.surface.surface = secondSurface.MoveToCHandle();
     //ret.surface.renderTarget = LoadRenderTexture(config.width, config.height);
-    //g_renderstate.createdSubwindows[ret.handle] = ret;
-    //g_renderstate.input_map[(GLFWwindow*)ret.handle] = window_input_state{};
-    //setupGLFWCallbacks((GLFWwindow*)ret.handle);
-    //#endif
+    g_renderstate.createdSubwindows[ret.handle] = ret;
+    g_renderstate.input_map[(GLFWwindow*)ret.handle] = window_input_state{};
+    setupGLFWCallbacks((GLFWwindow*)ret.handle);
+    #endif
     return ret;
 }
 extern "C" bool WindowShouldClose_GLFW(GLFWwindow* win){
