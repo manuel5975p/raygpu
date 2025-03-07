@@ -84,7 +84,7 @@ int main(){
     
     uint32_t trifanIndices[6] = {0,1,2,0,2,3};
     ibo = GenIndexBuffer(trifanIndices, sizeof(trifanIndices));
-    pl = LoadPipelineForVAO(source, vao);
+    pl = LoadPipeline(source);
     
     
     #ifndef __EMSCRIPTEN__
