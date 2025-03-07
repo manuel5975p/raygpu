@@ -54,7 +54,7 @@ extern "C" void* CreateSurfaceForWindow_SDL3(void* windowHandle){
     SDL_Vulkan_CreateSurface((SDL_Window*)windowHandle, g_vulkanstate.instance, nullptr, &retp->surface);
     return retp;
     #else
-    return SDL3_GetWGPUSurface(g_wgpustate.instance.Get(), (SDL_Window*)windowHandle);
+    return SDL3_GetWGPUSurface((WGPUInstance)GetInstance(), (SDL_Window*)windowHandle);
     #endif
 }
 SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title){
