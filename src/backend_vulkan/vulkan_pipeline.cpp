@@ -623,7 +623,7 @@ extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const A
         bge[i] = ResourceDescriptor{};
         bge[i].binding = uniforms[i].location;
     }
-    ret->bindGroup = LoadBindGroup_Vk(&ret->bglayout, bge.data(), bge.size());
+    ret->bindGroup = LoadBindGroup(&ret->bglayout, bge.data(), bge.size());
     ret->vertexLayout = getBufferLayoutRepresentation(attribs, attribCount);
     UpdatePipeline(ret);//, std::vector<AttributeAndResidence>{attribs, attribs + attribCount});    
     
@@ -731,7 +731,7 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, Resou
     
     //bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
 }
-DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, const ResourceDescriptor* resources, uint32_t count){
+/*DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, const ResourceDescriptor* resources, uint32_t count){
     DescribedBindGroup         ret   zeroinit;
     VkDescriptorPool           dpool zeroinit;
     VkDescriptorSet            dset  zeroinit;
@@ -808,7 +808,7 @@ DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, cons
     //vkUpdateDescriptorSets(g_vulkanstate.device, writes.size(), writes.data(), 0, nullptr);//count, &copy);
     ret.needsUpdate = true;
     return ret;
-}
+}*/
 
 void UpdateBindGroup(DescribedBindGroup* bg){
     const auto* layout = bg->layout;
@@ -905,7 +905,7 @@ extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCod
         bge[i] = ResourceDescriptor{};
         bge[i].binding = uniforms[i].location;
     }
-    ret->bindGroup = LoadBindGroup_Vk(&ret->bglayout, bge.data(), bge.size());
+    ret->bindGroup = LoadBindGroup(&ret->bglayout, bge.data(), bge.size());
     ret->shaderModule = computeShaderModule;
     ret->layout = layout;
     return ret;

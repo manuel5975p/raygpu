@@ -136,16 +136,16 @@ if(SUPPORT_SDL2)
     FetchContent_MakeAvailable(sdl2fetch)
 endif()
 if(SUPPORT_SDL3)
-    set(SDL3_LIBURING OFF CACHE BOOL "Enable SDL liburing support" FORCE)
+    set(SDL_LIBURING OFF CACHE BOOL "Enable SDL liburing support" FORCE)
     FetchContent_Declare(
         sdl3fetch
-        URL      https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.2.4.tar.gz
-        #URL      "${CMAKE_CURRENT_LIST_DIR}/../SDL-release-3.2.2.tar.gz"
+        #URL      https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.2.4.tar.gz
+        URL      "${CMAKE_CURRENT_LIST_DIR}/../release-3.2.4.tar.gz"
         DOWNLOAD_EXTRACT_TIMESTAMP True
     )
     set(SDL_STATIC ON)
     set(SDL_SHARED OFF)
-    set(SDL3_LIBURING OFF CACHE BOOL "Enable SDL liburing support" FORCE)
+    set(SDL_LIBURING OFF CACHE BOOL "Enable SDL liburing support" FORCE)
     FetchContent_MakeAvailable(sdl3fetch)
 endif()
 #download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_rect_pack.h" "stb_rect_pack.h")
@@ -191,7 +191,9 @@ if(SUPPORT_SDL2)
 endif()
 if(SUPPORT_SDL3)
     list(APPEND RG_SOURCES "src/InitWindow_SDL3.cpp")
-    list(APPEND RG_SOURCES "src/sdl3webgpu.cpp")
+    if(SUPPORT_WGPU_BACKEND)
+        list(APPEND RG_SOURCES "src/sdl3webgpu.cpp")
+    endif()
 endif()
 if(SUPPORT_GLFW)
     list(APPEND RG_SOURCES "src/InitWindow_GLFW.cpp")

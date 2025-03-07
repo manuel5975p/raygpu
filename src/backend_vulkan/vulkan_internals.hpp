@@ -1046,7 +1046,7 @@ extern "C" void UnloadTexture(Texture tex);
 
 
 extern "C" DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSource, const VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
-extern "C" DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, const ResourceDescriptor* resources, uint32_t count);
+//extern "C" DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, const ResourceDescriptor* resources, uint32_t count);
 extern "C" void UpdateBindGroup(DescribedBindGroup* bg);
 extern "C" DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsage usage);
 extern "C" void UnloadBuffer(DescribedBuffer* buf);

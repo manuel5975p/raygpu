@@ -579,8 +579,7 @@ QueueIndices findQueueFamilies() {
         // Check for presentation support
         #ifdef MAIN_WINDOW_SDL3
         bool presentSupport = true;//SDL_Vulkan_GetPresentationSupport(g_vulkanstate.instance, g_vulkanstate.physicalDevice, i);
-        #endif
-        #ifdef MAIN_WINDOW_SDL2 //uuh 
+        #elif defined(MAIN_WINDOW_SDL2) //uuh 
         VkBool32 presentSupport = VK_TRUE;
         #elif defined(MAIN_WINDOW_GLFW)
         VkBool32 presentSupport = glfwGetPhysicalDevicePresentationSupport(g_vulkanstate.instance, g_vulkanstate.physicalDevice, i) ? VK_TRUE : VK_FALSE;
