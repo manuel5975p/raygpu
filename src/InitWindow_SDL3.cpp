@@ -87,9 +87,9 @@ SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title)
     //WGPUSurface surface = SDL3_GetWGPUSurface(inst, (SDL_Window*)ret.handle);
     //
     //ret.surface = CreateSurface(surface, width, height);
+    #endif
     g_renderstate.createdSubwindows[ret.handle] = ret;
     g_renderstate.input_map[(GLFWwindow*)ret.handle];
-    #endif
     //setup((GLFWwindow*)ret.handle);
     return ret;
 }

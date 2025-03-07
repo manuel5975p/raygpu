@@ -400,7 +400,7 @@ VkInstance createInstance() {
         if (std::string(layer.layerName).find("valid") != std::string::npos) {
             #ifndef NDEBUG
             TRACELOG(LOG_INFO, "Selecting Validation Layer %s",layer.layerName);
-            validationLayers.push_back(layer.layerName);
+            //validationLayers.push_back(layer.layerName);
             #else
             TRACELOG(LOG_INFO, "Validation Layer %s available but not selections since NDEBUG is defined",layer.layerName);
             #endif
@@ -622,6 +622,42 @@ extern "C" DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescri
     ret->entryCount = uniformCount;
     std::vector<ResourceTypeDescriptor> a(retlayout->entries, retlayout->entries + ret->entryCount);
     return retv;
+}
+constexpr char mipmapComputerSource2[] = R"(
+@group(0) @binding(0) var previousMipLevel: texture_2d<f32>;
+@group(0) @binding(1) var nextMipLevel: texture_storage_2d<rgba8unorm, write>;
+
+@compute @workgroup_size(8, 8)
+fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
+    let offset = vec2<u32>(0, 1);
+    
+    let color = (
+        textureLoad(previousMipLevel, 2 * id.xy + offset.xx, 0) +
+        textureLoad(previousMipLevel, 2 * id.xy + offset.xy, 0) +
+        textureLoad(previousMipLevel, 2 * id.xy + offset.yx, 0) +
+        textureLoad(previousMipLevel, 2 * id.xy + offset.yy, 0)
+    ) * 0.25;
+    textureStore(nextMipLevel, id.xy, color);
+}
+)";
+extern "C" void ComputePassSetBindGroup(DescribedComputepass* drp, uint32_t group, DescribedBindGroup* bindgroup){
+    wgvkComputePassEncoderSetBindGroup((WGVKComputePassEncoder)drp->cpEncoder, group, (WGVKBindGroup)UpdateAndGetNativeBindGroup(bindgroup));
+}
+void GenTextureMipmaps(Texture2D* tex){
+    static DescribedComputePipeline* cpl = LoadComputePipeline(mipmapComputerSource2);
+    BeginComputepass();
+    
+    for(int i = 0;i < tex->mipmaps - 1;i++){
+        SetBindgroupTextureView(&cpl->bindGroup, 0, (WGVKTextureView)tex->mipViews[i    ]);
+        SetBindgroupTextureView(&cpl->bindGroup, 1, (WGVKTextureView)tex->mipViews[i + 1]);
+        if(i == 0){
+            BindComputePipeline(cpl);
+        }
+        ComputePassSetBindGroup(&g_renderstate.computepass, 0, &cpl->bindGroup);
+        uint32_t divisor = (1 << i) * 8;
+        DispatchCompute((tex->width + divisor - 1) & -(divisor) / 8, (tex->height + divisor - 1) & -(divisor) / 8, 1);
+    }
+    EndComputepass();
 }
 
 void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size){
