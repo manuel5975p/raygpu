@@ -41,7 +41,7 @@ void mainloop(){
     //DrawTexturePro(groundTruth.color, Rectangle(0,0, groundTruth.color.width, groundTruth.color.height), Rectangle(0,0,GetScreenWidth(), GetScreenHeight()), Vector2{0,0}, 0.0, WHITE);
     
     BeginMode3D(cam);
-    SetBindgroupTextureView(&GetActivePipeline()->bindGroup, 1, (WGPUTextureView)(drawMipMapped ? mipmappedTexture.view : mipmappedTexture.mipViews[0]));
+    SetBindgroupTextureView(&GetActivePipeline()->bindGroup, 1, (WGVKTextureView)(drawMipMapped ? mipmappedTexture.view : mipmappedTexture.mipViews[0]));
     //UseTexture(mipmappedTexture);
     rlBegin(RL_QUADS);
     rlColor3f(1.0f, 1.0f, 1.0f);

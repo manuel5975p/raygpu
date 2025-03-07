@@ -405,6 +405,13 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     ret.view = view;
     // Handle mipmaps if necessary (not implemented here)
     // For simplicity, only base mip level is created. Extend as needed.
+
+    if(mipmaps > 1){
+        for(uint32_t i = 0;i < mipmaps;i++){
+            ret.mipViews[] = wgvkTextureCreateView(image, &singleMipDescriptor);
+        }
+    }
+
     
     //TRACELOG(LOG_INFO, "Loaded WGVKTexture and view [%u y %u]", (unsigned)width, (unsigned)height);
     
