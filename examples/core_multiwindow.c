@@ -8,6 +8,7 @@ int main(void){
 
     int secondWidth = 400, secondHeight = 400;
     SubWindow second = OpenSubWindow(secondWidth, secondHeight, "Secondary Window");
+    rassert(second.handle != 0, "Window can't have null handle");
     SubWindow third = OpenSubWindow(secondWidth, secondHeight, "Third Window");
     RenderTexture rtex = LoadRenderTexture(800, 800);
     while(!WindowShouldClose()){

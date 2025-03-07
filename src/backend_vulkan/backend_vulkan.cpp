@@ -1145,19 +1145,22 @@ extern "C" void CopyTextureToTexture(Texture source, Texture dest){
     region.dstOffsets[1] = VkOffset3D{(int32_t)source.width, (int32_t)source.height, 1};
     WGVKTexture sourceTexture = reinterpret_cast<WGVKTexture>(source.id);
     WGVKTexture destTexture = reinterpret_cast<WGVKTexture>(dest.id);
-    VkCommandBuffer encodingDest = reinterpret_cast<WGVKCommandEncoder>(g_renderstate.computepass.cmdEncoder)->buffer;
+    WGVKCommandEncoder encodingDest = reinterpret_cast<WGVKCommandEncoder>(g_renderstate.computepass.cmdEncoder);
+    if(sourceTexture->layout != VK_IMAGE_LAYOUT_GENERAL && sourceTexture->layout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL){
+        wgvkCommandEncoderTransitionTextureLayout(encodingDest, sourceTexture, sourceTexture->layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    }
 
-    EncodeTransitionImageLayout(encodingDest, destTexture->layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, destTexture);
+    wgvkCommandEncoderTransitionTextureLayout(encodingDest, destTexture, destTexture->layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     
     vkCmdBlitImage(
-        encodingDest, 
+        encodingDest->buffer, 
         sourceTexture->image,
-        VK_IMAGE_LAYOUT_GENERAL, 
+        sourceTexture->layout,
         destTexture->image, 
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, VK_FILTER_NEAREST
     );
     
-    EncodeTransitionImageLayout(encodingDest, destTexture->layout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, destTexture);
+    wgvkCommandEncoderTransitionTextureLayout(encodingDest, destTexture, destTexture->layout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     if(!tttIntermediate){
         BufferDescriptor desc zeroinit;
         desc.size = source.width * source.height * GetPixelSizeInBytes(source.format);
