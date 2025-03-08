@@ -259,14 +259,17 @@ DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode m
     DescribedSampler ret{};// = callocnew(DescribedSampler);
     VkSamplerCreateInfo sci{};
     sci.compareEnable = VK_FALSE;
+    //sci.compareOp = VK_COMPARE_OP_LESS;
+    sci.maxLod = 10;
+    sci.minLod = 0;
     sci.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     sci.addressModeU = vkamode(amode);
     sci.addressModeV = vkamode(amode);
     sci.addressModeW = vkamode(amode);
     
-    sci.mipmapMode = ((fmode == filter_linear) ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST);
+    sci.mipmapMode = ((mipmapFilter == filter_linear) ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST);
 
-    sci.anisotropyEnable = false;
+    sci.anisotropyEnable = true;
     sci.maxAnisotropy = maxAnisotropy;
     sci.magFilter = ((fmode == filter_linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
     sci.minFilter = ((fmode == filter_linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
@@ -277,8 +280,7 @@ DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode m
     ret.addressModeV = amode;
     ret.addressModeW = amode;
     ret.maxAnisotropy = maxAnisotropy;
-    ret.minFilter = mipmapFilter;
-    ret.compare = CompareFunction_Undefined;//huh??
+    ret.compare = CompareFunction_Less;//huh??
     VkResult scr = vkCreateSampler(g_vulkanstate.device->device, &sci, nullptr, (VkSampler*)&ret.sampler);
     if(scr != VK_SUCCESS){
         TRACELOG(LOG_FATAL, "Sampler creation failed: %s", (int)scr);

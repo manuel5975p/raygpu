@@ -51,42 +51,6 @@ extern "C" DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sources){
     return ret;
 }
 
-/*extern "C" DescribedShaderModule LoadShaderModuleFromSPIRV2(const uint32_t* vscode, size_t vscodeSizeInBytes, const uint32_t* fscode, size_t fscodeSizeInBytes){
-    
-    DescribedShaderModule ret zeroinit;
-
-    VkShaderModuleCreateInfo vscreateInfo{};
-    vscreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    vscreateInfo.codeSize = vscodeSizeInBytes;
-    vscreateInfo.pCode = reinterpret_cast<const uint32_t*>(vscode);
-
-    VkShaderModuleCreateInfo fscreateInfo{};
-    fscreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    fscreateInfo.codeSize = fscodeSizeInBytes;
-    fscreateInfo.pCode = reinterpret_cast<const uint32_t*>(fscode);
-
-    VkShaderModule vertexModule zeroinit;
-    VkShaderModule fragmentModule zeroinit;
-
-
-    VkResult vscr = vkCreateShaderModule(g_vulkanstate.device->device, &vscreateInfo, nullptr, &vertexModule);
-    VkResult fscr = vkCreateShaderModule(g_vulkanstate.device->device, &fscreateInfo, nullptr, &fragmentModule);
-    
-    spv_reflect::ShaderModule vmod(vscodeSizeInBytes, vscode);
-    spv_reflect::ShaderModule fmod(fscodeSizeInBytes, fscode);
-    
-    if(vscr == VK_SUCCESS && fscr == VK_SUCCESS){
-        ret.stages[ShaderStage_Vertex  ].module = vertexModule;
-        ret.stages[ShaderStage_Vertex  ].entryPoint = copyString(vmod.GetEntryPointName(0));
-        ret.stages[ShaderStage_Fragment].module = fragmentModule;
-        ret.stages[ShaderStage_Fragment].entryPoint = copyString(fmod.GetEntryPointName(0));
-    }
-    else{
-        rg_unreachable();
-    }
-    
-    return ret;
-}*/
 extern "C" void UpdatePipeline(DescribedPipeline *pl){
     DescribedPipeline *pl2 = pl;
     auto& settings = pl2->settings;

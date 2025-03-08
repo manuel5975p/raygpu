@@ -64,8 +64,10 @@ void mainloop(){
     
     EndDrawing();
     BeginWindowMode(subwindow);
+    ClearBackground(BLANK);
     GuiSlider(Rectangle{100,20,300,50}, "0", "5", &cam.position.y, 0.0f, 5.0f);
     GuiCheckBox(Rectangle{100,120,50,50}, "Use mipmaps", &drawMipMapped);
+    DrawRectangle(100,200,50,50, drawMipMapped ? Color{255,0,0,255} : Color{255,0,0,40});
     EndWindowMode();
     //Image gt = LoadImageFromTexture(groundTruth.color);
     //SaveImage(gt, "Samthing.png");
