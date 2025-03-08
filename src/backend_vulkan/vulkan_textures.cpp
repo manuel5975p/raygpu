@@ -56,14 +56,14 @@ VkBuffer CreateBuffer(WGVKDevice device, VkDeviceSize size, VkBufferUsageFlags u
 }
 
 // Function to create a Vulkan image
-WGVKTexture CreateImage(WGVKDevice device, uint32_t width, uint32_t height, uint32_t sampleCount, VkFormat format, VkImageUsageFlags usage, VkDeviceMemory& imageMemory) {
-    WGVKTexture ret = callocnew(ImageHandleImpl);
+WGVKTexture CreateImage(WGVKDevice device, uint32_t width, uint32_t height, uint32_t sampleCount, uint32_t mipLevelCount, VkFormat format, VkImageUsageFlags usage, VkDeviceMemory& imageMemory) {
+    WGVKTexture ret = callocnew(WGVKTextureImpl);
 
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
     imageInfo.extent = { width, height, 1 };
-    imageInfo.mipLevels = 1;
+    imageInfo.mipLevels = mipLevelCount;
     imageInfo.arrayLayers = 1;
     imageInfo.format = format;
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
@@ -244,7 +244,7 @@ extern "C" WGVKTexture wgvkDeviceCreateTexture(WGVKDevice device, const WGVKText
     // Adjust usage flags based on format (e.g., depth formats might need different usages)
     
     
-    WGVKTexture image = CreateImage(device, descriptor->size.width, descriptor->size.height, descriptor->sampleCount, toVulkanPixelFormat(descriptor->format), descriptor->usage, imageMemory);
+    WGVKTexture image = CreateImage(device, descriptor->size.width, descriptor->size.height, descriptor->sampleCount,descriptor->mipLevelCount, toVulkanPixelFormat(descriptor->format), descriptor->usage, imageMemory);
     
     /*if (hasData && data != nullptr) {
         // Create staging buffer
@@ -306,12 +306,12 @@ void CopyBufferToImage(WGVKDevice device, VkCommandPool commandPool, VkQueue que
 
 // Main function to create Vulkan image from RGBA8 data or as empty
 WGVKTexture CreateVkImage(WGVKDevice device, VkPhysicalDevice physicalDevice, VkCommandPool commandPool, VkQueue queue, 
-                                                const uint8_t* data, uint32_t width, uint32_t height, uint32_t sampleCount, VkFormat format, VkImageUsageFlags usage, bool hasData) {
+                                                const uint8_t* data, uint32_t width, uint32_t height, uint32_t sampleCount,uint32_t mipLevelCount, VkFormat format, VkImageUsageFlags usage, bool hasData) {
     VkDeviceMemory imageMemory;
     // Adjust usage flags based on format (e.g., depth formats might need different usages)
     
     
-    WGVKTexture image = CreateImage(device, width, height, sampleCount, format, usage, imageMemory);
+    WGVKTexture image = CreateImage(device, width, height, sampleCount, mipLevelCount, format, usage, imageMemory);
     
     if (hasData && data != nullptr) {
         // Create staging buffer
@@ -371,6 +371,7 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
         width, 
         height,
         sampleCount,
+        mipmaps,
         vkFormat,
         vkUsage,
         hasData
@@ -408,7 +409,16 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
 
     if(mipmaps > 1){
         for(uint32_t i = 0;i < mipmaps;i++){
-            ret.mipViews[] = wgvkTextureCreateView(image, &singleMipDescriptor);
+            WGVKTextureViewDescriptor singleMipDescriptor zeroinit;
+            singleMipDescriptor.format = format;
+            singleMipDescriptor.arrayLayerCount = 1;
+            singleMipDescriptor.baseArrayLayer = 0;
+            singleMipDescriptor.mipLevelCount = 1;
+            singleMipDescriptor.baseMipLevel = i;
+            singleMipDescriptor.aspect = (format == Depth24 || format == Depth32) ? TextureAspect_DepthOnly : TextureAspect_All;
+            singleMipDescriptor.dimension = TextureViewDimension_2D;
+            singleMipDescriptor.usage = usage;
+            ret.mipViews[i] = wgvkTextureCreateView(image, &singleMipDescriptor);
         }
     }
 
