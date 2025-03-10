@@ -647,8 +647,8 @@ extern "C" void ComputePassSetBindGroup(DescribedComputepass* drp, uint32_t grou
 }
 void GenTextureMipmaps(Texture2D* tex){
     static DescribedComputePipeline* cpl = LoadComputePipeline(mipmapComputerSource2);
+    VkImageBlit blit;
     BeginComputepass();
-    
     for(int i = 0;i < tex->mipmaps - 1;i++){
         SetBindgroupTextureView(&cpl->bindGroup, 0, (WGVKTextureView)tex->mipViews[i    ]);
         SetBindgroupTextureView(&cpl->bindGroup, 1, (WGVKTextureView)tex->mipViews[i + 1]);
