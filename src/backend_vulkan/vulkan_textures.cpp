@@ -20,7 +20,8 @@ uint32_t FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, Vk
         }
     }
     
-    throw std::runtime_error("Failed to find suitable memory type!");
+    TRACELOG(LOG_FATAL, "Failed to find suitable memory type!");
+    return 0;
 }
 
 // Function to create a Vulkan buffer
@@ -33,7 +34,7 @@ VkBuffer CreateBuffer(WGVKDevice device, VkDeviceSize size, VkBufferUsageFlags u
     
     VkBuffer buffer;
     if (vkCreateBuffer(device->device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
-        throw std::runtime_error("Failed to create buffer!");
+        TRACELOG(LOG_FATAL, "Failed to create buffer!");
     
     VkMemoryRequirements memReq;
     vkGetBufferMemoryRequirements(device->device, buffer, &memReq);
@@ -48,7 +49,7 @@ VkBuffer CreateBuffer(WGVKDevice device, VkDeviceSize size, VkBufferUsageFlags u
     );
     
     if (vkAllocateMemory(device->device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
-        throw std::runtime_error("Failed to allocate buffer memory!");
+        TRACELOG(LOG_FATAL, "Failed to allocate buffer memory!");
     
     vkBindBufferMemory(device->device, buffer, bufferMemory, 0);
     
@@ -74,7 +75,7 @@ WGVKTexture CreateImage(WGVKDevice device, uint32_t width, uint32_t height, uint
     
     VkImage image;
     if (vkCreateImage(device->device, &imageInfo, nullptr, &image) != VK_SUCCESS)
-        throw std::runtime_error("Failed to create image!");
+        TRACELOG(LOG_FATAL, "Failed to create image!");
     
     VkMemoryRequirements memReq;
     vkGetImageMemoryRequirements(device->device, image, &memReq);
@@ -89,7 +90,7 @@ WGVKTexture CreateImage(WGVKDevice device, uint32_t width, uint32_t height, uint
     );
     
     if (vkAllocateMemory(device->device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS){
-        throw std::runtime_error("Failed to allocate image memory!");
+        TRACELOG(LOG_FATAL, "Failed to allocate image memory!");
         //abort();
     }
     vkBindImageMemory(device->device, image, imageMemory, 0);
@@ -125,7 +126,7 @@ WGVKTextureView CreateImageView(WGVKDevice device, VkImage image, VkFormat forma
     
     VkImageView imageView;
     if (vkCreateImageView(device->device, &viewInfo, nullptr, &ret->view) != VK_SUCCESS)
-        throw std::runtime_error("Failed to create image view!");
+        TRACELOG(LOG_FATAL, "Failed to create image view!");
     ret->format = viewInfo.format;
     ret->refCount = 1;
     return ret;
@@ -170,7 +171,7 @@ void EndSingleTimeCommandsAndSubmit(WGVKDevice device, VkCommandPool commandPool
     submitInfo.pCommandBuffers = &commandBuffer;
     
     if (vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS)
-        throw std::runtime_error("Failed to submit command buffer!");
+        TRACELOG(LOG_FATAL, "Failed to submit command buffer!");
     
     vkQueueWaitIdle(queue);
     vkFreeCommandBuffers(device->device, commandPool, 1, &commandBuffer);
@@ -358,7 +359,7 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     
     VkCommandPool commandPool;
     if (vkCreateCommandPool(g_vulkanstate.device->device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
-        throw std::runtime_error("Failed to create command pool!");
+        TRACELOG(LOG_FATAL, "Failed to create command pool!");
     
     bool hasData = data != nullptr;
     
@@ -564,7 +565,7 @@ Texture LoadTextureFromImage(Image img) {
         }
     }
     else if (img.format != RGBA8 && img.format != BGRA8 && img.format != RGBA16F && img.format != RGBA32F && img.format != Depth24) {
-        throw std::runtime_error("Unsupported image format.");
+        TRACELOG(LOG_FATAL, "Unsupported image format.");
     }
     TextureUsage x;
     auto ret = LoadTexturePro_Data(

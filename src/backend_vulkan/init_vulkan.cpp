@@ -13,7 +13,7 @@
 #include <format>
 //#define SUPPORT_VULKAN_BACKEND 1
 #include <raygpu.h>
-#include <small_vector.hpp>
+//#include <small_vector.hpp>
 #include <glslang/SPIRV/GlslangToSpv.h>
 #include <glslang/Public/ShaderLang.h>
 

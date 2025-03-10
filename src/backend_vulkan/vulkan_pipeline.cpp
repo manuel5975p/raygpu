@@ -257,19 +257,19 @@ extern "C" void UpdatePipeline(DescribedPipeline *pl){
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     
     if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&pl->quartet.pipeline_TriangleList) != VK_SUCCESS) {
-        throw std::runtime_error("Trianglelist pipiline creation failed");
+        TRACELOG(LOG_FATAL, "Trianglelist pipiline creation failed");
     }
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
     if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&pl->quartet.pipeline_TriangleStrip) != VK_SUCCESS) {
-        throw std::runtime_error("Trianglelist pipiline creation failed");
+        TRACELOG(LOG_FATAL, "Trianglelist pipiline creation failed");
     }
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
     if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&pl->quartet.pipeline_LineList) != VK_SUCCESS) {
-        throw std::runtime_error("Trianglelist pipiline creation failed");
+        TRACELOG(LOG_FATAL, "Trianglelist pipiline creation failed");
     }
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
     if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&pl->quartet.pipeline_PointList) != VK_SUCCESS) {
-        throw std::runtime_error("Trianglelist pipiline creation failed");
+        TRACELOG(LOG_FATAL, "Trianglelist pipiline creation failed");
     }
 }
 extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, const std::vector<AttributeAndResidence>& attribs){
@@ -483,19 +483,19 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, c
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     
     if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&quartet.pipeline_TriangleList) != VK_SUCCESS) {
-        throw std::runtime_error("Trianglelist pipiline creation failed");
+        TRACELOG(LOG_FATAL, "Trianglelist pipiline creation failed");
     }
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
     if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&quartet.pipeline_TriangleStrip) != VK_SUCCESS) {
-        throw std::runtime_error("Trianglelist pipiline creation failed");
+        TRACELOG(LOG_FATAL, "Trianglelist pipiline creation failed");
     }
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
     if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&quartet.pipeline_LineList) != VK_SUCCESS) {
-        throw std::runtime_error("Trianglelist pipiline creation failed");
+        TRACELOG(LOG_FATAL, "Trianglelist pipiline creation failed");
     }
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
     if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&quartet.pipeline_PointList) != VK_SUCCESS) {
-        throw std::runtime_error("Trianglelist pipiline creation failed");
+        TRACELOG(LOG_FATAL, "Trianglelist pipiline creation failed");
     }
     
 
@@ -579,7 +579,7 @@ extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const A
     pipelineLayoutInfo.pPushConstantRanges = nullptr;
     
     if (vkCreatePipelineLayout(g_vulkanstate.device->device, &pipelineLayoutInfo, nullptr, (VkPipelineLayout*)&ret->layout.layout) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create pipeline layout!");
+        TRACELOG(LOG_FATAL, "failed to create pipeline layout!");
     }
     std::vector<ResourceDescriptor> bge(uniformCount);
 

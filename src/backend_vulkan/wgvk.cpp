@@ -20,7 +20,7 @@ extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDesc
 
 
     if (vkAllocateMemory(device->device, &allocInfo, nullptr, &wgvkBuffer->memory) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate vertex buffer memory!");
+        TRACELOG(LOG_FATAL, "failed to allocate vertex buffer memory!");
     }
     vkBindBufferMemory(device->device, wgvkBuffer->buffer, wgvkBuffer->memory, 0);
     return wgvkBuffer;
@@ -466,11 +466,11 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
         
         //TRACELOG(LOG_INFO, "Count: %d", (int)queue->pendingCommandBuffers.size());
         /*if(vkWaitForFences(g_vulkanstate.device->device, 1, &g_vulkanstate.queue->syncState.renderFinishedFence, VK_TRUE, 100000000) != VK_SUCCESS){
-            throw std::runtime_error("Could not wait for fence");
+            TRACELOG(LOG_FATAL, "Could not wait for fence");
         }
         vkResetFences(g_vulkanstate.device->device, 1, &g_vulkanstate.queue->syncState.renderFinishedFence);*/
     }else{
-        throw std::runtime_error("vkQueueSubmit failed");
+        TRACELOG(LOG_FATAL, "vkQueueSubmit failed");
     }
     wgvkReleaseCommandEncoder(queue->presubmitCache);
     wgvkReleaseCommandBuffer(cachebuffer);
@@ -575,7 +575,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     VkResult scCreateResult = vkCreateSwapchainKHR(device->device, &createInfo, nullptr, &(surface->swapchain));
     if (scCreateResult != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create swap chain!");
+        TRACELOG(LOG_FATAL, "Failed to create swap chain!");
     } else {
         TRACELOG(LOG_INFO, "wgvkSurfaceConfigure(): Successfully created swap chain");
     }
@@ -625,7 +625,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
         //viewInfo.subresourceRange.baseArrayLayer = 0;
         //viewInfo.subresourceRange.layerCount = 1;
         //if (vkCreateImageView(device, &viewInfo, nullptr, &surface->imageViews[i]) != VK_SUCCESS) {
-        //    throw std::runtime_error("failed to create image views!");
+        //    TRACELOG(LOG_FATAL, "failed to create image views!");
         //}
         surface->imageViews[i] = wgvkTextureCreateView(surface->images[i], &viewDesc);
     }

@@ -37,6 +37,7 @@
 #include <unordered_map>
 #include <deque>
 #include <map>
+#include <optional>
 //#include <webgpu/webgpu_cpp.h>
 
 #include <external/stb_image_write.h>

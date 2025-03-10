@@ -57,7 +57,6 @@ void PresentSurface(FullSurface* surface){
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = swapChains;
     presentInfo.pImageIndices = &wgvksurf->activeImageIndex;
-    VkHostImageLayoutTransitionInfo transition zeroinit;
     VkImageSubresourceRange isr{};
     isr.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     isr.layerCount = 1;
