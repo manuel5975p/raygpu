@@ -500,9 +500,20 @@ uint32_t GetMonitorWidth(cwoid){
     return GetMonitorWidth_GLFW();
     #elif defined(MAIN_WINDOW_SDL2)
     return GetMonitorWidth_SDL2();
-    #else
-    return 0;
+    #elif defined (MAIN_WINDOW_SDL3)
+    return GetMonitorWidth_SDL3();
     #endif
+    return 0;
+}
+uint32_t GetMonitorHeight(cwoid){
+    #ifdef MAIN_WINDOW_GLFW
+    return GetMonitorHeight_GLFW();
+    #elif defined(MAIN_WINDOW_SDL2)
+    return GetMonitorHeight_SDL2();
+    #elif defined (MAIN_WINDOW_SDL3)
+    return GetMonitorHeight_SDL3();
+    #endif
+    return 0;
 }
 void SetWindowShouldClose(){
     #ifdef MAIN_WINDOW_GLFW
@@ -511,15 +522,7 @@ void SetWindowShouldClose(){
     g_renderstate.closeFlag = true;
     #endif
 }
-uint32_t GetMonitorHeight(cwoid){
-    #ifdef MAIN_WINDOW_GLFW
-    return GetMonitorHeight_GLFW();
-    #elif defined(MAIN_WINDOW_SDL2)
-    return GetMonitorHeight_SDL2();
-    #else
-    return 0;
-    #endif
-}
+
 
 
 extern "C" size_t GetPixelSizeInBytes(PixelFormat format) {
