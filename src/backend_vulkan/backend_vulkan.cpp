@@ -646,20 +646,60 @@ extern "C" void ComputePassSetBindGroup(DescribedComputepass* drp, uint32_t grou
     wgvkComputePassEncoderSetBindGroup((WGVKComputePassEncoder)drp->cpEncoder, group, (WGVKBindGroup)UpdateAndGetNativeBindGroup(bindgroup));
 }
 void GenTextureMipmaps(Texture2D* tex){
-    static DescribedComputePipeline* cpl = LoadComputePipeline(mipmapComputerSource2);
-    VkImageBlit blit;
-    BeginComputepass();
-    for(int i = 0;i < tex->mipmaps - 1;i++){
-        SetBindgroupTextureView(&cpl->bindGroup, 0, (WGVKTextureView)tex->mipViews[i    ]);
-        SetBindgroupTextureView(&cpl->bindGroup, 1, (WGVKTextureView)tex->mipViews[i + 1]);
-        if(i == 0){
-            BindComputePipeline(cpl);
-        }
-        ComputePassSetBindGroup(&g_renderstate.computepass, 0, &cpl->bindGroup);
-        uint32_t divisor = (1 << i) * 8;
-        DispatchCompute((tex->width + divisor - 1) & -(divisor) / 8, (tex->height + divisor - 1) & -(divisor) / 8, 1);
+    WGVKCommandEncoderDescriptor cdesc zeroinit;
+    WGVKCommandEncoder enc = wgvkDeviceCreateCommandEncoder(g_vulkanstate.device, &cdesc);
+    rassert(tex->mipmaps >= 1, "Mipmaps must always be at least 1, 0 probably means that's an invalid texture");
+    rassert(tex->width < (uint32_t(1) << 31), "Texture too humongous");
+    rassert(tex->height < (uint32_t(1) << 31), "Texture too humongous");
+    
+    WGVKTexture wgvkTex = reinterpret_cast<WGVKTexture>(tex->id);
+
+    VkOffset3D initial = VkOffset3D{(int32_t)tex->width, (int32_t)tex->height, 1};
+    auto mipExtent = [initial](const uint32_t mipLevel){
+        VkOffset3D i = initial;
+        i.x >>= mipLevel;
+        i.y >>= mipLevel;
+        i.x = std::max(i.x, 1);
+        i.y = std::max(i.y, 1);
+        return i;
+    };
+
+    for(uint32_t i = 0;i < tex->mipmaps - 1;i++){
+        VkImageBlit blitRegion zeroinit;
+        blitRegion.srcOffsets[1] = mipExtent(0    );
+        blitRegion.dstOffsets[1] = mipExtent(i + 1);
+        blitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        blitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        blitRegion.srcSubresource.baseArrayLayer = 0;
+        blitRegion.dstSubresource.baseArrayLayer = 0;
+        blitRegion.srcSubresource.layerCount = 1;
+        blitRegion.dstSubresource.layerCount = 1;
+        blitRegion.srcSubresource.mipLevel = 0;
+        blitRegion.dstSubresource.mipLevel = i + 1;
+        vkCmdBlitImage(enc->buffer, wgvkTex->image, wgvkTex->layout, wgvkTex->image, wgvkTex->layout, 1, &blitRegion, VK_FILTER_LINEAR);
     }
-    EndComputepass();
+    enc->resourceUsage.track(wgvkTex);
+    WGVKCommandBuffer buffer = wgvkCommandEncoderFinish(enc);
+    wgvkQueueSubmit(g_vulkanstate.queue, 1, &buffer);
+    wgvkReleaseCommandBuffer(buffer);
+    wgvkReleaseCommandEncoder(enc);
+
+    /* Compute based implementation
+        static DescribedComputePipeline* cpl = LoadComputePipeline(mipmapComputerSource2);
+        VkImageBlit blit;
+        BeginComputepass();
+        for(uint32_t i = 0;i < tex->mipmaps - 1;i++){
+            SetBindgroupTextureView(&cpl->bindGroup, 0, (WGVKTextureView)tex->mipViews[i    ]);
+            SetBindgroupTextureView(&cpl->bindGroup, 1, (WGVKTextureView)tex->mipViews[i + 1]);
+            if(i == 0){
+                BindComputePipeline(cpl);
+            }
+            ComputePassSetBindGroup(&g_renderstate.computepass, 0, &cpl->bindGroup);
+            uint32_t divisor = (1 << i) * 8;
+            DispatchCompute((tex->width + divisor - 1) & -(divisor) / 8, (tex->height + divisor - 1) & -(divisor) / 8, 1);
+        }
+        EndComputepass();
+    */
 }
 
 void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size){

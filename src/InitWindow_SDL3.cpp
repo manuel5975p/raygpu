@@ -46,8 +46,11 @@ uint32_t GetPresentQueueIndex(void* instanceHandle, void* adapterHandle){
 bool alreadyInited = false;
 void Initialize_SDL3(){
     if(!alreadyInited){
+        #ifdef __EMSCRIPTEN__
+        SDL_SetHint(SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT, "#canvas");
+        #endif
         alreadyInited = true;
-        SDL_InitFlags initFlags = SDL_INIT_VIDEO;
+        SDL_InitFlags initFlags = SDL_INIT_VIDEO | SDL_INIT_EVENTS;
         SDL_Init(initFlags);
     }
 }
@@ -100,7 +103,8 @@ SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title)
 
 
 extern "C" SubWindow InitWindow_SDL3(uint32_t width, uint32_t height, const char *title) {
-    
+    Initialize_SDL3();
+    TRACELOG(LOG_INFO, "INITED SDL3!!!!!!!!!!!!!!!!!");
     SubWindow ret{};
     ret.type = windowType_sdl3;
     //SDL_SetHint(SDL_HINT_TRACKPAD_IS_TOUCH_ONLY, "1");

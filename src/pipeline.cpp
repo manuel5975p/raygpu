@@ -32,8 +32,9 @@
 #include <cassert>
 #include <iostream>
 #include <internals.hpp>
+#ifndef __EMSCRIPTEN__
 #include <spirv_reflect.h>
-
+#endif
 
 
 
@@ -143,6 +144,7 @@ extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
 }
 DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sourcesSpirv){
     DescribedShaderModule ret zeroinit;
+    #ifndef __EMSCRIPTEN__
     for(uint32_t i = 0;i < sourcesSpirv.sourceCount;i++){
         WGPUShaderModuleDescriptor shaderDesc zeroinit;
         WGPUShaderModuleSPIRVDescriptor shaderCodeDesc zeroinit;
@@ -182,7 +184,7 @@ DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sourcesSpirv){
             std::copy(spv_mod.GetEntryPointName(i), spv_mod.GetEntryPointName(i) + eplength, ret.reflectionInfo.ep[stage].name);
         }
     }
-
+    #endif
     return ret;
 }
 

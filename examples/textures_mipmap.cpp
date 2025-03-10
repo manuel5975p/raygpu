@@ -83,7 +83,7 @@ int main(){
     SetTargetFPS(0);
     groundTruth = LoadRenderTexture(3840, 2160);
     
-    firstPassPipeline = LoadComputePipeline(computeCode);
+    //firstPassPipeline = LoadComputePipeline(computeCode);
     mipmappedTexture = LoadTexturePro(
         1000, 1000,
         RGBA8, TextureUsage_StorageBinding | TextureUsage_CopySrc | TextureUsage_CopyDst | TextureUsage_TextureBinding,

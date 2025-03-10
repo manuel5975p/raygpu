@@ -38,9 +38,15 @@ if(SUPPORT_WGPU_BACKEND OR SUPPORT_WGSL_PARSER)
     set(DAWN_ENABLE_OPENGLES OFF CACHE BOOL "" FORCE)
     set(DAWN_ENABLE_DESKTOP_GL OFF CACHE BOOL "" FORCE)
     set(DAWN_ENABLE_SPIRV_VALIDATION OFF CACHE BOOL "" FORCE)
-    set(DAWN_ENABLE_INSTALL ON CACHE BOOL "Enable install step for Dawn libraries"  FORCE)
+    if(EMSCRIPTEN)
+    set(DAWN_ENABLE_INSTALL OFF CACHE BOOL "Enable install step for Dawn libraries" FORCE)
+    set(TINT_ENABLE_INSTALL OFF CACHE BOOL "Enable install step for Tint libraries" FORCE)
+    set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
+    else()
+    set(DAWN_ENABLE_INSTALL ON CACHE BOOL "Enable install step for Dawn libraries" FORCE)
     set(TINT_ENABLE_INSTALL ON CACHE BOOL "Enable install step for Tint libraries" FORCE)
     set(BUILD_GMOCK ON CACHE BOOL "" FORCE)
+    endif()
     if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/dawn/CMakeLists.txt")
         # Use the local dawn directory
         add_subdirectory("dawn")
@@ -100,18 +106,19 @@ if(NOT EMSCRIPTEN AND SUPPORT_GLSL_PARSER)
     )
     #if(NOT DAWN_IS_IN_USE)
         FetchContent_MakeAvailable(khrGlslang)
-    #endif()
-    option(SPIRV_REFLECT_STATIC_LIB "" ON)
-    option(SPIRV_REFLECT_EXECUTABLE "" OFF)
-    option(SPIRV_REFLECT_EXAMPLES "" OFF)
-    option(SPIRV_REFLECT_BUILD_TESTS "" OFF)
-    FetchContent_Declare(
-        khrSpirvReflect
-        URL https://github.com/KhronosGroup/SPIRV-Reflect/archive/refs/tags/vulkan-sdk-1.4.304.1.tar.gz
-        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    )
-    FetchContent_MakeAvailable(khrSpirvReflect)
+    #endif()    
 endif()
+
+option(SPIRV_REFLECT_STATIC_LIB "" ON)
+option(SPIRV_REFLECT_EXECUTABLE "" OFF)
+option(SPIRV_REFLECT_EXAMPLES "" OFF)
+option(SPIRV_REFLECT_BUILD_TESTS "" OFF)
+FetchContent_Declare(
+    khrSpirvReflect
+    URL https://github.com/KhronosGroup/SPIRV-Reflect/archive/refs/tags/vulkan-sdk-1.4.304.1.tar.gz
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(khrSpirvReflect)
 if(SUPPORT_SDL2)
     FetchContent_Declare(
         sdl2fetch
@@ -386,40 +393,38 @@ message(STATUS "      SUPPORT_SDL3     = ${SUPPORT_SDL3}")
 message(STATUS "")
 message(STATUS "------ CONFIGURATION OVERVIEW -------")
 message(STATUS "")
-if(NOT SUPPORT_VULKAN_BACKEND AND FALSE)
-install(
-    TARGETS ${EXPORT_RG_TARGETS}
-    EXPORT DawnInstall
-    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
-    INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-)
-install(
-    EXPORT DawnInstall
-    FILE raygpuTargets.cmake
-    NAMESPACE raygpu::
-    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/raygpu"
-)
 
-
-install(
-    DIRECTORY ${CMAKE_SOURCE_DIR}/include/
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/raygpu"
-    FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
-)
-
-configure_package_config_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/raygpuConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/raygpuConfig.cmake"
-    INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/raygpu"
-)
-install(
-    EXPORT DawnInstall
-    FILE raygpuConfig.cmake
-    NAMESPACE raygpu::
-    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/raygpu"
-)
-endif()
+#if(NOT SUPPORT_VULKAN_BACKEND AND FALSE)
+#install(
+#    TARGETS ${EXPORT_RG_TARGETS}
+#    EXPORT DawnInstall
+#    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+#    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+#    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+#    INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+#)
+#install(
+#    EXPORT DawnInstall
+#    FILE raygpuTargets.cmake
+#    NAMESPACE raygpu::
+#    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/raygpu"
+#)
+#install(
+#    DIRECTORY ${CMAKE_SOURCE_DIR}/include/
+#    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/raygpu"
+#    FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
+#)
+#configure_package_config_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/raygpuConfig.cmake.in"
+#    "${CMAKE_CURRENT_BINARY_DIR}/raygpuConfig.cmake"
+#    INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/raygpu"
+#)
+#install(
+#    EXPORT DawnInstall
+#    FILE raygpuConfig.cmake
+#    NAMESPACE raygpu::
+#    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/raygpu"
+#)
+#endif()
 
 #install(TARGETS raygpu)
 #file(GLOB_RECURSE tint_wgsl_src 

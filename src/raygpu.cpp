@@ -450,7 +450,11 @@ DescribedShaderModule LoadShaderModule(ShaderSources sources){
     
     switch (sources.language){
         case sourceTypeGLSL:
+        #if SUPPORT_GLSL_PARSER
         return LoadShaderModuleGLSL(sources);
+        #else
+        return ret;
+        #endif
         case sourceTypeWGSL:
         return LoadShaderModuleWGSL(sources);
         case sourceTypeSPIRV:

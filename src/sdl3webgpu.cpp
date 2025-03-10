@@ -28,8 +28,9 @@ WGPUSurface SDL3_GetWGPUSurface(WGPUInstance instance, SDL_Window* window) {
     //#if defined(SDL_VIDEO_DRIVER_X11)
     std::string drv = SDL_GetCurrentVideoDriver();
     #ifdef __EMSCRIPTEN__
-    WGPUSurfaceDescriptorFromCanvasHTMLSelector canvasDesc = {0};
-    canvasDesc.chain.sType = WGPUSType_SurfaceSourceCanvasHTMLSelector_Emscripten;
+
+    WGPUEmscriptenSurfaceSourceCanvasHTMLSelector canvasDesc = {0};
+    canvasDesc.chain.sType = WGPUSType_EmscriptenSurfaceSourceCanvasHTMLSelector;
     canvasDesc.selector = (WGPUStringView){.data = "#canvas", .length = 7};
 
     WGPUSurfaceDescriptor surfaceDesc = {0};
