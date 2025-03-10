@@ -1,5 +1,6 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_events.h>
+#include <SDL3/SDL_error.h>
 #include <format>
 #include <raygpu.h>
 #include <internals.hpp>
@@ -42,10 +43,13 @@ uint32_t GetPresentQueueIndex(void* instanceHandle, void* adapterHandle){
     #endif
     return ~0;
 }
-
+bool alreadyInited = false;
 void Initialize_SDL3(){
-    SDL_InitFlags initFlags = SDL_INIT_VIDEO;
-    SDL_Init(initFlags);
+    if(!alreadyInited){
+        alreadyInited = true;
+        SDL_InitFlags initFlags = SDL_INIT_VIDEO;
+        SDL_Init(initFlags);
+    }
 }
 
 extern "C" void* CreateSurfaceForWindow_SDL3(void* windowHandle){
@@ -285,6 +289,28 @@ static const KeyboardKey mapScancodeToKey[SCANCODE_MAPPED_NUM] = {
     KEY_RIGHT_ALT,      //SDL_SCANCODE_RALT
     KEY_RIGHT_SUPER     //SDL_SCANCODE_RGUI
 };
+
+uint32_t GetMonitorWidth_SDL3(cwoid){
+    Initialize_SDL3();
+    int displayCount = 0;
+    SDL_GetDisplays(&displayCount);
+    SDL_Point zeropoint{};
+    SDL_DisplayID id = SDL_GetDisplayForPoint(&zeropoint);
+    const SDL_DisplayMode* mode = SDL_GetDesktopDisplayMode(id);
+    if(mode == nullptr){
+        const char* errormessage = SDL_GetError();
+        TRACELOG(LOG_WARNING, errormessage);
+    }
+    return mode->w;
+}
+uint32_t GetMonitorHeight_SDL3(cwoid){
+    Initialize_SDL3();
+    SDL_Point zeropoint{};
+    SDL_DisplayID id = SDL_GetDisplayForPoint(&zeropoint);
+    const SDL_DisplayMode* mode = SDL_GetDesktopDisplayMode(id);
+    return mode->h;
+}
+
 void ResizeCallback(SDL_Window* window, int width, int height){
 
     TRACELOG(LOG_INFO, "SDL3's ResizeCallback called with %d x %d", width, height);

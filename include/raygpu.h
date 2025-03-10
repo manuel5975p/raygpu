@@ -909,6 +909,8 @@ EXTERN_C_BEGIN
     void PollEvents_GLFW(cwoid);
     uint32_t GetMonitorWidth_GLFW(cwoid);
     uint32_t GetMonitorWidth_SDL2(cwoid);
+    uint32_t GetMonitorWidth_SDL3(cwoid);
+    uint32_t GetMonitorHeight_SDL3(cwoid);
     uint32_t GetMonitorHeight_GLFW(cwoid);
     uint32_t GetMonitorHeight_SDL2(cwoid);
     int GetTouchPointCount_SDL2(cwoid);

@@ -1144,19 +1144,17 @@ extern "C" void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode
 
     switch(drawMode){
         case RL_TRIANGLES:
-        //std::cout << "Binding: " <<  pipeline->pipeline << "\n";
-        
-        wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (VkPipeline)pipeline->quartet.pipeline_TriangleList, (VkPipelineLayout)pipeline->layout.layout);
+            wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (VkPipeline)pipeline->quartet.pipeline_TriangleList, (VkPipelineLayout)pipeline->layout.layout);
         break;
-        //case WGPUPrimitiveTopology_TriangleStrip:
-        //wgvkRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleStrip);
-        //break;
-        //case WGPUPrimitiveTopology_LineList:
-        //wgvkRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_LineList);
-        //break;
-        //case WGPUPrimitiveTopology_PointList:
-        //wgvkRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_PointList);
-        //break;
+        case RL_TRIANGLE_STRIP:
+            wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (VkPipeline)pipeline->quartet.pipeline_TriangleStrip, (VkPipelineLayout)pipeline->layout.layout);
+        break;
+        case RL_LINES:
+            wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (VkPipeline)pipeline->quartet.pipeline_LineList, (VkPipelineLayout)pipeline->layout.layout);
+        break;
+        case RL_POINTS:
+            wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (VkPipeline)pipeline->quartet.pipeline_PointList, (VkPipelineLayout)pipeline->layout.layout);
+        break;
         default:
             assert(false && "Unsupported Drawmode");
             abort();

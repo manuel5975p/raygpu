@@ -573,8 +573,8 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
     createInfo.presentMode = toVulkanPresentMode(config->presentMode); 
     createInfo.clipped = VK_TRUE;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-
-    if (vkCreateSwapchainKHR(device->device, &createInfo, nullptr, &(surface->swapchain)) != VK_SUCCESS) {
+    VkResult scCreateResult = vkCreateSwapchainKHR(device->device, &createInfo, nullptr, &(surface->swapchain));
+    if (scCreateResult != VK_SUCCESS) {
         throw std::runtime_error("Failed to create swap chain!");
     } else {
         TRACELOG(LOG_INFO, "wgvkSurfaceConfigure(): Successfully created swap chain");
