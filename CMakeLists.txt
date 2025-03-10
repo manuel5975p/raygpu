@@ -10,21 +10,6 @@ option(SUPPORT_VULKAN_BACKEND OFF)
 option(SUPPORT_WGPU_BACKEND "" ON)
 message(STATUS "SUPPORT_WGPU_BACKEND: ${SUPPORT_WGPU_BACKEND}")
 
-#if(EMSCRIPTEN)
-#    set(SUPPORT_SDL2 OFF CACHE BOOL "Support the SDL2 windowing backend" FORCE)
-#endif()
-#set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=leak")
-#FetchContent_Declare(
-#    dawn
-#    URL "${CMAKE_CURRENT_LIST_DIR}/dawn.tar.gz"
-#)
-#FetchContent_MakeAvailable(dawn)
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=leak")
-#if(CMAKE_BUILD_TYPE MATCHES DEBUG)
-#    if(ENABLE_FSANITIZE_LEAK)
-#        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=leak")
-#    endif()
-#endif()
 
 if(NOT SUPPORT_GLFW)
     set(DAWN_USE_GLFW OFF)
@@ -136,17 +121,20 @@ if(SUPPORT_SDL2)
     FetchContent_MakeAvailable(sdl2fetch)
 endif()
 if(SUPPORT_SDL3)
-    set(SDL_LIBURING OFF CACHE BOOL "Enable SDL liburing support" FORCE)
-    FetchContent_Declare(
-        sdl3fetch
-        URL      https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.2.4.tar.gz
-        #URL      "${CMAKE_CURRENT_LIST_DIR}/../release-3.2.4.tar.gz"
-        DOWNLOAD_EXTRACT_TIMESTAMP True
-    )
-    set(SDL_STATIC ON)
-    set(SDL_SHARED OFF)
-    set(SDL_LIBURING OFF CACHE BOOL "Enable SDL liburing support" FORCE)
-    FetchContent_MakeAvailable(sdl3fetch)
+    find_package(SDL3 QUIET)
+    if(NOT SDL3_FOUND)
+        set(SDL_LIBURING OFF CACHE BOOL "Enable SDL liburing support" FORCE)
+        FetchContent_Declare(
+            sdl3fetch
+            URL      https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.2.4.tar.gz
+            #URL      "${CMAKE_CURRENT_LIST_DIR}/../release-3.2.4.tar.gz"
+            DOWNLOAD_EXTRACT_TIMESTAMP True
+        )
+        set(SDL_STATIC ON)
+        set(SDL_SHARED OFF)
+        set(SDL_LIBURING OFF CACHE BOOL "Enable SDL liburing support" FORCE)
+        FetchContent_MakeAvailable(sdl3fetch)
+    endif()
 endif()
 #download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_rect_pack.h" "stb_rect_pack.h")
 #download_file_if_not_exists("https://raw.githubusercontent.com/nothings/stb/master/stb_truetype.h" "stb_truetype.h")
