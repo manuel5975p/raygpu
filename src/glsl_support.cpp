@@ -23,13 +23,16 @@
  */
 
 
-
-
-
-#include "glslang/Public/ResourceLimits.h"
+#include <memory>
+#include <map>
+#include <unordered_map>
+#include <bit>
+#include <fstream>
+#include <external/gl_corearb.h>
 #if SUPPORT_GLSL_PARSER == 1
 //#include <SPIRV/GlslangToSpv.h>
-#include <external/gl_corearb.h>
+#include "glslang/Public/ResourceLimits.h"
+
 #include <glslang/Public/ShaderLang.h>
 #include <glslang/SPIRV/GlslangToSpv.h>
 #include <glslang/MachineIndependent/localintermediate.h>
@@ -37,9 +40,7 @@
 #include <spirv_reflect.h>
 #include <raygpu.h>
 #include <internals.hpp>
-#include <memory>
-#include <bit>
-#include <fstream>
+
 #ifdef GLSL_TO_WGSL
 #include <tint/tint.h>
 #include <tint/lang/core/ir/module.h>

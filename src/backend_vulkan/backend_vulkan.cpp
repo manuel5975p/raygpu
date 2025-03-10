@@ -399,12 +399,12 @@ VkInstance createInstance() {
     std::vector<const char *> validationLayers;
     for (const auto &layer : availableLayers) {
         if (std::string(layer.layerName).find("valid") != std::string::npos) {
-            #ifndef NDEBUG
+            //#ifndef NDEBUG
             TRACELOG(LOG_INFO, "Selecting Validation Layer %s",layer.layerName);
             //validationLayers.push_back(layer.layerName);
-            #else
-            TRACELOG(LOG_INFO, "Validation Layer %s available but not selections since NDEBUG is defined",layer.layerName);
-            #endif
+            //#else
+            //TRACELOG(LOG_INFO, "Validation Layer %s available but not selections since NDEBUG is defined",layer.layerName);
+            //#endif
         }
     }
 

@@ -497,7 +497,7 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, c
     if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&quartet.pipeline_PointList) != VK_SUCCESS) {
         TRACELOG(LOG_FATAL, "Trianglelist pipiline creation failed");
     }
-    
+    ret->createdPipelines->pipelines.emplace(attribs, quartet);
 
     return quartet;
 }
