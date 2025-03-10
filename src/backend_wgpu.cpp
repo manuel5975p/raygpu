@@ -2,7 +2,6 @@
 #include <raygpu.h>
 #include <webgpu/webgpu.h>
 #include <webgpu/webgpu_cpp.h>
-#include <dawn/dawn_proc_table.h>
 #include <wgpustate.inc>
 #include <unordered_set>
 #include <internals.hpp>
@@ -973,20 +972,24 @@ void InitBackend(){
             break;
     }
 
-#ifndef __EMSCRIPTEN__
-    
+    #ifndef __EMSCRIPTEN__
     //dawnProcSetProcs(&dawn::native::GetProcs());
 
     // Create the instance with the toggles
     wgpu::InstanceDescriptor instanceDescriptor = {};
     instanceDescriptor.nextInChain = togglesChain;
     instanceDescriptor.capabilities.timedWaitAnyEnable = true;
+
+    sample->instance = wgpu::CreateInstance(&instanceDescriptor);
+    #else
+    // Create the instance
+    TRACELOG(LOG_INFO, "Creating instance");
+    wgpu::InstanceDescriptor instanceDescriptor = {};
+    instanceDescriptor.nextInChain = togglesChain;
+    instanceDescriptor.capabilities.timedWaitAnyEnable = true;
     
     sample->instance = wgpu::CreateInstance(&instanceDescriptor);
-#else
-    // Create the instance
-    sample->instance = wgpu::CreateInstance(nullptr);
-#endif  // __EMSCRIPTEN__
+    #endif  // __EMSCRIPTEN__
 
     //wgpu::WGSLFeatureName wgslfeatures[8];
     //sample->instance.EnumerateWGSLLanguageFeatures(wgslfeatures);

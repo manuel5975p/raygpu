@@ -107,12 +107,16 @@ format_or_sample_type extractFormat(const tint::ast::Identifier* iden){
 }
 
 std::vector<uint32_t> wgslToSpirv(const char* wgslSource){
+    #ifndef __EMSCRIPTEN__
     tint::Source::File file("", wgslSource);
     tint::Program program = tint::wgsl::reader::Parse(&file);
     tint::Result<tint::core::ir::Module> module = tint::wgsl::reader::ProgramToLoweredIR(program);
     tint::spirv::writer::Options options{};
     tint::Result<tint::spirv::writer::Output> spirv = tint::spirv::writer::Generate(module.Get(), options);
     return spirv.Get().spirv;
+    #else
+    return {};
+    #endif
 }
 access_type extractAccess(const tint::ast::Identifier* iden){
     if(auto templiden = iden->As<tint::ast::TemplatedIdentifier>()){
@@ -162,7 +166,7 @@ std::vector<std::pair<ShaderStage, std::string>> getEntryPointsWGSL(const char* 
 #endif
 std::pair<std::vector<uint32_t>, ShaderStageMask> wgsl_to_spirv_single(const char* source){
     std::pair<std::vector<uint32_t>, ShaderStageMask> ret;
-    #if SUPPORT_WGSL_PARSER == 1
+    #if SUPPORT_WGSL_PARSER == 1 && !defined(__EMSCRIPTEN__)
     tint::Source::File sourceFile("", source);
     tint::Program program = tint::wgsl::reader::Parse(&sourceFile);
     tint::Result<tint::core::ir::Module> module = tint::wgsl::reader::ProgramToLoweredIR(program);
@@ -636,7 +640,7 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
 
 std::vector<uint32_t> wgsl_to_spirv(const char* wgslCode){
     //Construct file without filename
-    #if SUPPORT_WGSL_PARSER == 1
+    #if SUPPORT_WGSL_PARSER == 1 && !defined(__EMSCRIPTEN__)
     tint::Source::File f("", wgslCode);
 
     tint::Program prog = tint::wgsl::reader::Parse(&f);
