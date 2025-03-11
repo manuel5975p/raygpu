@@ -10,3 +10,4 @@ debug/
 printsource.py
 gccbuild/
 android/
+*.png

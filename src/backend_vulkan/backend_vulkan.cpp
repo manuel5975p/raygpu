@@ -31,6 +31,9 @@ void ResetSyncState(){
     //g_vulkanstate.syncState.semaphoresInThisFrame.clear();
 }
 void PresentSurface(FullSurface* surface){
+    //static VkSemaphore transitionSemaphore[framesInFlight] = {CreateSemaphore()};
+    WGVKSurface wgvksurf = (WGVKSurface)surface->surface;
+    uint32_t cacheIndex = wgvksurf->device->submittedFrames % framesInFlight;
 
     VkSubmitInfo si zeroinit;
     si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -44,13 +47,15 @@ void PresentSurface(FullSurface* surface){
     si.commandBufferCount = 0;
     vkQueueSubmit(g_vulkanstate.queue->graphicsQueue, 1, &si, VK_NULL_HANDLE);
 
-    WGVKSurface wgvksurf = (WGVKSurface)surface->surface;
+    if(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore == 0){
+        g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore = CreateSemaphore();
+    }
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.waitSemaphoreCount = 2;
     VkSemaphore waiton[2] = {
         g_vulkanstate.queue->syncState.semaphoresInThisFrame[1],
-        //g_vulkanstate.syncState.imageAvailableSemaphores[0]
+        g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore
     };
     presentInfo.pWaitSemaphores = waiton;
     VkSwapchainKHR swapChains[] = {wgvksurf->swapchain};
@@ -61,14 +66,36 @@ void PresentSurface(FullSurface* surface){
     isr.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     isr.layerCount = 1;
     isr.levelCount = 1;
-    VkCommandPool oof{};
-    VkCommandPoolCreateInfo pci zeroinit;
-    pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    pci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-    vkCreateCommandPool(g_vulkanstate.device->device, &pci, nullptr, &oof);
-    TransitionImageLayout(g_vulkanstate.device, oof, g_vulkanstate.queue->graphicsQueue, wgvksurf->images[wgvksurf->activeImageIndex], VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+    if(wgvksurf->device->frameCaches[cacheIndex].finalTransitionBuffer == 0){
+        VkCommandBufferAllocateInfo cbai zeroinit;
+        cbai.commandBufferCount = 1;
+        cbai.commandPool = wgvksurf->device->frameCaches[cacheIndex].commandPool;
+        cbai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        cbai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        vkAllocateCommandBuffers(wgvksurf->device->device, &cbai, &wgvksurf->device->frameCaches[cacheIndex].finalTransitionBuffer);
+    }
+
+    VkCommandBuffer transitionBuffer = wgvksurf->device->frameCaches[cacheIndex].finalTransitionBuffer;
     
-    vkDestroyCommandPool(g_vulkanstate.device->device, oof, nullptr);
+    VkCommandBufferBeginInfo beginInfo zeroinit;
+    beginInfo.sType =  VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    vkBeginCommandBuffer(transitionBuffer, &beginInfo);
+    
+    EncodeTransitionImageLayout(transitionBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, wgvksurf->images[wgvksurf->activeImageIndex]);
+    vkEndCommandBuffer(transitionBuffer);
+    VkSubmitInfo cbsinfo zeroinit;
+    cbsinfo.commandBufferCount = 1;
+    cbsinfo.pCommandBuffers = &transitionBuffer;
+    cbsinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    cbsinfo.signalSemaphoreCount = 1;
+    cbsinfo.pSignalSemaphores = &g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore;
+
+    vkQueueSubmit(wgvksurf->device->queue->graphicsQueue, 1, &cbsinfo, VK_NULL_HANDLE);
+    //vkCreateCommandPool(g_vulkanstate.device->device, &pci, nullptr, &oof);
+    //TransitionImageLayout(g_vulkanstate.device, oof, g_vulkanstate.queue->graphicsQueue, wgvksurf->images[wgvksurf->activeImageIndex], VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    
+    //vkDestroyCommandPool(g_vulkanstate.device->device, oof, nullptr);
     VkResult presentRes = vkQueuePresentKHR(g_vulkanstate.queue->presentQueue, &presentInfo);
     ++wgvksurf->device->submittedFrames;
     if(presentRes != VK_SUCCESS){
@@ -291,11 +318,11 @@ DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode m
 extern "C" void GetNewTexture(FullSurface *fsurface){
 
     uint32_t imageIndex = ~0;
-    VkCommandPool oof{};
-    VkCommandPoolCreateInfo pci zeroinit;
-    pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    pci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-    vkCreateCommandPool(g_vulkanstate.device->device, &pci, nullptr, &oof);
+    //VkCommandPool oof{};
+    //VkCommandPoolCreateInfo pci zeroinit;
+    //pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    //pci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+    //vkCreateCommandPool(g_vulkanstate.device->device, &pci, nullptr, &oof);
     WGVKSurface wgvksurf = ((WGVKSurface)fsurface->surface);
     //TODO: Multiple frames in flight, this amounts to replacing 0 with frameCount % 2 or something similar
     VkResult acquireResult = vkAcquireNextImageKHR(g_vulkanstate.device->device, wgvksurf->swapchain, UINT64_MAX, g_vulkanstate.queue->syncState.getSemaphoreOfSubmitIndex(0), VK_NULL_HANDLE, &imageIndex);
@@ -303,11 +330,11 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
         std::cerr << "acquireResult is " << acquireResult << std::endl;
     }
     WGVKDevice surfaceDevice = ((WGVKSurface)fsurface->surface)->device;
-    VkCommandBuffer buf = BeginSingleTimeCommands(surfaceDevice, oof);
+    VkCommandBuffer buf = ((WGVKSurface)fsurface->surface)->device->queue->presubmitCache->buffer;//BeginSingleTimeCommands(surfaceDevice, oof);
     EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, wgvksurf->images[imageIndex]);
     EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, (WGVKTexture)fsurface->renderTarget.depth.id);
-    EndSingleTimeCommandsAndSubmit(surfaceDevice, oof, g_vulkanstate.queue->graphicsQueue, buf);
-    vkDestroyCommandPool(g_vulkanstate.device->device, oof, nullptr);
+    //EndSingleTimeCommandsAndSubmit(surfaceDevice, oof, g_vulkanstate.queue->graphicsQueue, buf);
+    //vkDestroyCommandPool(g_vulkanstate.device->device, oof, nullptr);
     
     fsurface->renderTarget.texture.id = wgvksurf->images[imageIndex];
     fsurface->renderTarget.texture.view = wgvksurf->imageViews[imageIndex];

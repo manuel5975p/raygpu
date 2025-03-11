@@ -170,9 +170,12 @@ typedef struct WGVKBufferImpl{
     refcount_type refCount;
 }WGVKBufferImpl;
 
-constexpr uint32_t framesInFlight = 1;
+constexpr uint32_t framesInFlight = 2;
 struct PerframeCache{
     VkCommandPool commandPool;
+    std::vector<VkCommandBuffer> buffers;
+    VkCommandBuffer finalTransitionBuffer;
+    VkSemaphore finalTransitionSemaphore;
     //td::unordered_set<VkCommandBuffer> commandBuffers;
 
 };

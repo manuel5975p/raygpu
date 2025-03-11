@@ -249,12 +249,20 @@ extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, 
     ret->cacheIndex = device->submittedFrames % framesInFlight;
     ret->device = device;
     //vkCreateCommandPool(device->device, &pci, nullptr, &cache.commandPool);
-    VkCommandBufferAllocateInfo bai{};
-    bai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    bai.commandPool = cache.commandPool;
-    bai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    bai.commandBufferCount = 1;
-    vkAllocateCommandBuffers(device->device, &bai, &ret->buffer);
+    if(device->frameCaches[ret->cacheIndex].buffers.empty()){
+        VkCommandBufferAllocateInfo bai{};
+        bai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        bai.commandPool = cache.commandPool;
+        bai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        bai.commandBufferCount = 1;
+        vkAllocateCommandBuffers(device->device, &bai, &ret->buffer);
+        TRACELOG(LOG_INFO, "Allocating new command buffer");
+    }
+    else{
+        //TRACELOG(LOG_INFO, "Reusing");
+        ret->buffer = device->frameCaches[ret->cacheIndex].buffers.back();
+        device->frameCaches[ret->cacheIndex].buffers.pop_back();
+    }
 
     VkCommandBufferBeginInfo bbi{};
     bbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -702,7 +710,8 @@ void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
         wgvkReleaseRenderPassEncoder(rp);
     }
     if(commandEncoder->buffer){
-        vkFreeCommandBuffers(commandEncoder->device->device, commandEncoder->device->frameCaches[commandEncoder->cacheIndex].commandPool, 1, &commandEncoder->buffer);
+        commandEncoder->device->frameCaches[commandEncoder->cacheIndex].buffers.push_back(commandEncoder->buffer);
+        //vkFreeCommandBuffers(commandEncoder->device->device, commandEncoder->device->frameCaches[commandEncoder->cacheIndex].commandPool, 1, &commandEncoder->buffer);
     }
     commandEncoder->~WGVKCommandEncoderImpl();
     std::free(commandEncoder);
@@ -744,7 +753,9 @@ void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
             wgvkReleaseComputePassEncoder(rp);
         }
         VkCommandPool pool = commandBuffer->device->frameCaches[commandBuffer->cacheIndex].commandPool;
-        vkFreeCommandBuffers(commandBuffer->device->device, pool, 1, &commandBuffer->buffer);
+        commandBuffer->device->frameCaches[commandBuffer->cacheIndex].buffers.push_back(commandBuffer->buffer);
+        
+        //vkFreeCommandBuffers(commandEncoder->device->device, commandEncoder->device->frameCaches[commandEncoder->cacheIndex].commandPool, 1, &commandEncoder->buffer);
         //vkDestroyCommandPool(g_vulkanstate.device->device, commandBuffer->pool, nullptr);
         commandBuffer->~WGVKCommandBufferImpl();
         std::free(commandBuffer);
