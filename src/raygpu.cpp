@@ -765,7 +765,7 @@ void EndDrawing(){
     }
     //if(!(g_renderstate.windowFlags & FLAG_HEADLESS))
     //    g_renderstate.drawmutex.unlock();
-    uint64_t nanosecondsPerFrame = std::floor(1e9 / GetTargetFPS());
+    uint64_t nanosecondsPerFrame = GetTargetFPS() > 0 ? std::floor(1e9 / GetTargetFPS()) : 0;
     //std::cout << nanosecondsPerFrame << "\n";
     uint64_t beginframe_stmp = g_renderstate.last_timestamps[(g_renderstate.total_frames) % 64];
     ++g_renderstate.total_frames;
@@ -976,7 +976,11 @@ uint32_t GetFPS(cwoid){
     auto firstzero = std::find(std::begin(g_renderstate.last_timestamps), std::end(g_renderstate.last_timestamps), int64_t(0));
     auto [minit, maxit] = std::minmax_element(std::begin(g_renderstate.last_timestamps), firstzero);
     //TRACELOG(LOG_INFO, "%d : %d", int(minit - std::begin(g_renderstate.last_timestamps)), int(maxit - std::begin(g_renderstate.last_timestamps)));
-    return uint32_t(std::round((firstzero - std::begin(g_renderstate.last_timestamps) - 1.0) * 1.0e9 / (*maxit - *minit)));
+    double dblv = (firstzero - std::begin(g_renderstate.last_timestamps) - 1.0) * 1.0e9 / (*maxit - *minit);
+    if(std::isnan(dblv) || std::isinf(dblv) || std::abs(dblv) > 1e9){
+        return 0;
+    }
+    return uint32_t(std::round(dblv));
 }
 void DrawFPS(int posX, int posY){
     char fpstext[128] = {0};

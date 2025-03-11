@@ -689,7 +689,6 @@ struct SyncState{
     //VkSemaphore imageAvailableSemaphores[1];
     //VkSemaphore presentSemaphores[1];
     
-    uint32_t submitsInThisFrame;
     std::vector<VkSemaphore> semaphoresInThisFrame;
     VkFence renderFinishedFence;
     const VkSemaphore& getSemaphoreOfSubmitIndex(uint32_t index);
@@ -699,7 +698,7 @@ struct WGVKQueueImpl{
     VkQueue computeQueue;
     VkQueue transferQueue;
     VkQueue presentQueue;
-    SyncState syncState;
+    SyncState syncState[framesInFlight];
     WGVKDevice device;
 
     WGVKCommandEncoder presubmitCache;

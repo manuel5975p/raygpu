@@ -79,6 +79,7 @@ extern "C" void UpdatePipeline(DescribedPipeline *pl){
     vertexInputInfo.pVertexAttributeDescriptions = vad.data();
     vertexInputInfo.pVertexBindingDescriptions = vbd.data();
 
+
     // Input Assembly Setup
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -252,7 +253,14 @@ extern "C" void UpdatePipeline(DescribedPipeline *pl){
         rpLayout.colorResolveIndex = VK_ATTACHMENT_UNUSED;
     }
     VkRenderPass rp = LoadRenderPassFromLayout(g_vulkanstate.device, rpLayout);
-    pipelineInfo.renderPass = rp;
+    //pipelineInfo.renderPass = rp;
+    VkPipelineRenderingCreateInfo rci zeroinit;
+    rci.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    rci.colorAttachmentCount = 1;
+    VkFormat colorAttachmentFormat = VK_FORMAT_B8G8R8A8_UNORM;
+    rci.pColorAttachmentFormats = &colorAttachmentFormat;
+    rci.depthAttachmentFormat = VK_FORMAT_D32_SFLOAT;
+    pipelineInfo.pNext = &rci;
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     
@@ -479,7 +487,14 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, c
         rpLayout.colorResolveIndex = VK_ATTACHMENT_UNUSED;
     }
     VkRenderPass rp = LoadRenderPassFromLayout(g_vulkanstate.device, rpLayout);
-    pipelineInfo.renderPass = rp;
+    //pipelineInfo.renderPass = rp;
+    VkPipelineRenderingCreateInfo rci zeroinit;
+    rci.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    rci.colorAttachmentCount = 1;
+    VkFormat colorAttachmentFormat = VK_FORMAT_B8G8R8A8_UNORM;
+    rci.pColorAttachmentFormats = &colorAttachmentFormat;
+    rci.depthAttachmentFormat = VK_FORMAT_D32_SFLOAT;
+    pipelineInfo.pNext = &rci;
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     

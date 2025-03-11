@@ -259,7 +259,7 @@ extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, 
         TRACELOG(LOG_INFO, "Allocating new command buffer");
     }
     else{
-        TRACELOG(LOG_INFO, "Reusing");
+        //TRACELOG(LOG_INFO, "Reusing");
         ret->buffer = device->frameCaches[ret->cacheIndex].buffers.back();
         device->frameCaches[ret->cacheIndex].buffers.pop_back();
     }
@@ -340,11 +340,11 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
         colorAttachments[i].storeOp = toVulkanStoreOperation(rpdesc->colorAttachments[i].storeOp);
     }
     info.pColorAttachments = colorAttachments;
-    VkRenderingAttachmentInfo depthAttachment;
+    VkRenderingAttachmentInfo depthAttachment zeroinit;
     depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
     depthAttachment.clearValue.depthStencil.depth = rpdesc->depthStencilAttachment->depthClearValue;
 
-    depthAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     depthAttachment.imageView = rpdesc->depthStencilAttachment->view->view;
     depthAttachment.loadOp = toVulkanLoadOperation(rpdesc->depthStencilAttachment->depthLoadOp);
     depthAttachment.storeOp = toVulkanStoreOperation(rpdesc->depthStencilAttachment->depthStoreOp);
@@ -514,7 +514,7 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
             insert.insert(buffers[i]);
             ++buffers[i]->refCount;
         }
-        uint64_t frameCount = queue->device->submittedFrames;
+        const uint64_t frameCount = queue->device->submittedFrames;
         auto it = queue->pendingCommandBuffers[frameCount % framesInFlight].find(fence);
         if(it == queue->pendingCommandBuffers[frameCount % framesInFlight].end()){
             queue->pendingCommandBuffers[frameCount % framesInFlight].emplace(fence, std::move(insert));
@@ -718,7 +718,7 @@ void impl_transition(VkCommandBuffer buffer, WGVKTexture texture, VkImageLayout 
         barrier.srcAccessMask = 0;
         barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         
-        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        sourceStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
         destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
     else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {

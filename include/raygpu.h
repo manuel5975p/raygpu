@@ -36,7 +36,7 @@
 #define CHAR_BIT 8
 #endif
 static inline uint64_t ROT_BYTES(uint64_t V, uint8_t C) {
-    return ((V << C) | ((V) >> (64 - C)));
+    return ((V << C) | ((V) >> ((64 - C) & 63)));
 }
 
 #if SUPPORT_WGPU_BACKEND == 1

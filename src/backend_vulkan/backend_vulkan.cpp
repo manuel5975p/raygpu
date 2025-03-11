@@ -27,7 +27,7 @@ void BufferData(DescribedBuffer* buffer, void* data, size_t size){
 
 
 void ResetSyncState(){
-    g_vulkanstate.queue->syncState.submitsInThisFrame = 0;
+    //g_vulkanstate.queue->syncState[0].submitsInThisFrame = 0;
     //g_vulkanstate.syncState.semaphoresInThisFrame.clear();
 }
 void PresentSurface(FullSurface* surface){
@@ -41,8 +41,8 @@ void PresentSurface(FullSurface* surface){
     si.signalSemaphoreCount = 1;
     VkPipelineStageFlags stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
     si.pWaitDstStageMask = &stage;
-    si.pWaitSemaphores = &g_vulkanstate.queue->syncState.getSemaphoreOfSubmitIndex(0);
-    si.pSignalSemaphores = &g_vulkanstate.queue->syncState.getSemaphoreOfSubmitIndex(1);
+    si.pWaitSemaphores = &g_vulkanstate.queue->syncState[cacheIndex].getSemaphoreOfSubmitIndex(0);
+    si.pSignalSemaphores = &g_vulkanstate.queue->syncState[cacheIndex].getSemaphoreOfSubmitIndex(1);
     si.pCommandBuffers = nullptr;
     si.commandBufferCount = 0;
     //vkQueueSubmit(g_vulkanstate.queue->graphicsQueue, 1, &si, VK_NULL_HANDLE);
@@ -92,7 +92,7 @@ void PresentSurface(FullSurface* surface){
     VkPipelineStageFlags wsmask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     cbsinfo.pWaitDstStageMask = &wsmask;
 
-    cbsinfo.pWaitSemaphores = &g_vulkanstate.queue->syncState.getSemaphoreOfSubmitIndex(0);
+    cbsinfo.pWaitSemaphores = &g_vulkanstate.queue->syncState[cacheIndex].getSemaphoreOfSubmitIndex(0);
     cbsinfo.pSignalSemaphores = &g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore;
     if(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence == 0){
         g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence = CreateFence();
@@ -227,7 +227,7 @@ extern "C" void EndComputepassEx(DescribedComputepass* computePass){
     g_renderstate.activeComputepass = nullptr;
 
     WGVKCommandBuffer command = wgvkCommandEncoderFinish((WGVKCommandEncoder)computePass->cmdEncoder);
-    wgvkQueueSubmit((WGVKQueue)g_vulkanstate.queue, 1, &command);
+    wgvkQueueSubmit(g_vulkanstate.queue, 1, &command);
     wgvkReleaseCommandBuffer(command);
     wgvkReleaseCommandEncoder((WGVKCommandEncoder)computePass->cmdEncoder);
 }
@@ -317,7 +317,7 @@ DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode m
     
     sci.mipmapMode = ((mipmapFilter == filter_linear) ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST);
 
-    sci.anisotropyEnable = true;
+    sci.anisotropyEnable = false;
     sci.maxAnisotropy = maxAnisotropy;
     sci.magFilter = ((fmode == filter_linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
     sci.minFilter = ((fmode == filter_linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
@@ -347,7 +347,7 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
     //vkCreateCommandPool(g_vulkanstate.device->device, &pci, nullptr, &oof);
     WGVKSurface wgvksurf = ((WGVKSurface)fsurface->surface);
     //TODO: Multiple frames in flight, this amounts to replacing 0 with frameCount % 2 or something similar
-    VkResult acquireResult = vkAcquireNextImageKHR(g_vulkanstate.device->device, wgvksurf->swapchain, UINT64_MAX, g_vulkanstate.queue->syncState.getSemaphoreOfSubmitIndex(0), VK_NULL_HANDLE, &imageIndex);
+    VkResult acquireResult = vkAcquireNextImageKHR(g_vulkanstate.device->device, wgvksurf->swapchain, UINT64_MAX, g_vulkanstate.queue->syncState[g_vulkanstate.queue->device->submittedFrames % framesInFlight].getSemaphoreOfSubmitIndex(0), VK_NULL_HANDLE, &imageIndex);
     if(acquireResult != VK_SUCCESS){
         std::cerr << "acquireResult is " << acquireResult << std::endl;
     }
@@ -450,7 +450,7 @@ VkInstance createInstance() {
         if (std::string(layer.layerName).find("valid") != std::string::npos) {
             #ifndef NDEBUG
             TRACELOG(LOG_INFO, "Selecting Validation Layer %s",layer.layerName);
-            //validationLayers.push_back(layer.layerName);
+            validationLayers.push_back(layer.layerName);
             #else
             TRACELOG(LOG_INFO, "Validation Layer %s available but not selections since NDEBUG is defined",layer.layerName);
             #endif
@@ -937,13 +937,15 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_PROPERTIES_EXT;
     props.dynamicPrimitiveTopologyUnrestricted = VK_TRUE;
     
-    
+    VkPhysicalDeviceVulkan13Features v13features{};
+    v13features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+    v13features.dynamicRendering = VK_TRUE;
     VkPhysicalDeviceFeatures deviceFeatures{};
 
 
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    //createInfo.pNext = &features;
+    createInfo.pNext = &v13features;
     //features.pNext = &props;
 
     createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
@@ -1083,13 +1085,15 @@ void InitBackend(){
     auto device_and_queues = createLogicalDevice(g_vulkanstate.physicalDevice, queues);
     g_vulkanstate.device = device_and_queues.first;
     g_vulkanstate.queue = device_and_queues.second;
-    g_vulkanstate.queue->syncState.semaphoresInThisFrame.resize(10);
-    for(uint32_t i = 0;i < 10;i++){
-        g_vulkanstate.queue->syncState.semaphoresInThisFrame[i] = CreateSemaphore(0);
+    for(uint32_t fif = 0;fif < framesInFlight;fif++){
+        g_vulkanstate.queue->syncState[fif].semaphoresInThisFrame.resize(10);
+        for(uint32_t i = 0;i < 10;i++){
+            g_vulkanstate.queue->syncState[fif].semaphoresInThisFrame[i] = CreateSemaphore(0);
+        }
+        //g_vulkanstate.syncState.imageAvailableSemaphores[0] = CreateSemaphore(0);
+        //g_vulkanstate.syncState.presentSemaphores[0] = CreateSemaphore(0);
+        g_vulkanstate.queue->syncState[fif].renderFinishedFence = CreateFence(0);
     }
-    //g_vulkanstate.syncState.imageAvailableSemaphores[0] = CreateSemaphore(0);
-    //g_vulkanstate.syncState.presentSemaphores[0] = CreateSemaphore(0);
-    g_vulkanstate.queue->syncState.renderFinishedFence = CreateFence(0);
 
     
     createRenderPass();
@@ -1276,21 +1280,21 @@ extern "C" void CopyTextureToTexture(Texture source, Texture dest){
 
     wgvkCommandEncoderTransitionTextureLayout(encodingDest, destTexture, destTexture->layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     
-    vkCmdBlitImage(
-        encodingDest->buffer, 
-        sourceTexture->image,
-        sourceTexture->layout,
-        destTexture->image, 
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, VK_FILTER_NEAREST
-    );
+    //vkCmdBlitImage(
+    //    encodingDest->buffer, 
+    //    sourceTexture->image,
+    //    sourceTexture->layout,
+    //    destTexture->image, 
+    //    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, VK_FILTER_NEAREST
+    //);
     
     wgvkCommandEncoderTransitionTextureLayout(encodingDest, destTexture, destTexture->layout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    if(!tttIntermediate){
-        BufferDescriptor desc zeroinit;
-        desc.size = source.width * source.height * GetPixelSizeInBytes(source.format);
-        desc.usage = BufferUsage_CopyDst | BufferUsage_CopySrc;
-        tttIntermediate = wgvkDeviceCreateBuffer(g_vulkanstate.device, &desc);
-    }
+    //if(!tttIntermediate){
+    //    BufferDescriptor desc zeroinit;
+    //    desc.size = source.width * source.height * GetPixelSizeInBytes(source.format);
+    //    desc.usage = BufferUsage_CopyDst | BufferUsage_CopySrc;
+    //    tttIntermediate = wgvkDeviceCreateBuffer(g_vulkanstate.device, &desc);
+    //}
     //TRACELOG(LOG_FATAL, "Unimplemented function: %s", __FUNCTION__);
 }
 void ComputepassEndOnlyComputing(cwoid){
@@ -1310,14 +1314,13 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
     sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     sinfo.commandBufferCount = 1;
     sinfo.pCommandBuffers = &cbuffer->buffer;
-    sinfo.waitSemaphoreCount = 1;
-    VkSemaphore waitsemaphore    = g_vulkanstate.queue->syncState.getSemaphoreOfSubmitIndex(g_vulkanstate.queue->syncState.submitsInThisFrame);
-    VkSemaphore signalesemaphore = g_vulkanstate.queue->syncState.getSemaphoreOfSubmitIndex(g_vulkanstate.queue->syncState.submitsInThisFrame + 1);
-    sinfo.pWaitSemaphores = &waitsemaphore;
-    sinfo.pWaitDstStageMask = &stageMask;
-    sinfo.signalSemaphoreCount = 1;
-    sinfo.pSignalSemaphores = &signalesemaphore;
-    ++g_vulkanstate.queue->syncState.submitsInThisFrame;
+    //sinfo.waitSemaphoreCount = 1;
+    //VkSemaphore waitsemaphore    = g_vulkanstate.queue->syncState.getSemaphoreOfSubmitIndex(g_vulkanstate.queue->syncState.submitsInThisFrame);
+    //VkSemaphore signalesemaphore = g_vulkanstate.queue->syncState.getSemaphoreOfSubmitIndex(g_vulkanstate.queue->syncState.submitsInThisFrame + 1);
+    //sinfo.pWaitSemaphores = &waitsemaphore;
+    //sinfo.pWaitDstStageMask = &stageMask;
+    //sinfo.signalSemaphoreCount = 1;
+    //sinfo.pSignalSemaphores = &signalesemaphore;
     //VkFence fence{};
     //VkFenceCreateInfo finfo{};
     //finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
