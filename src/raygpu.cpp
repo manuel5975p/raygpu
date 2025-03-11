@@ -305,7 +305,7 @@ void drawCurrentBatch(){
     
     DescribedBuffer* vbo;
     bool allocated_via_pool = false;
-    if(vertexCount < 32 && !g_renderstate.smallBufferPool.empty()){
+    if(vertexCount < VERTEX_BUFFER_CACHE_SIZE && !g_renderstate.smallBufferPool.empty()){
         allocated_via_pool = true;
         vbo = g_renderstate.smallBufferPool.back();
         g_renderstate.smallBufferPool.pop_back();
@@ -363,8 +363,7 @@ void drawCurrentBatch(){
         } break;
         case RL_QUADS:{
             const size_t quadCount = vertexCount / 4;
-            
-            if(true || g_renderstate.quadindicesCache->size < 6 * quadCount * sizeof(uint32_t)){
+            if(g_renderstate.quadindicesCache->size < 6 * quadCount * sizeof(uint32_t)){
                 std::vector<uint32_t> indices(6 * quadCount);
                 for(size_t i = 0;i < quadCount;i++){
                     indices[i * 6 + 0] = (i * 4 + 0);

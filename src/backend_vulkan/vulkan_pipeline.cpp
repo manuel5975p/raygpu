@@ -278,6 +278,7 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, c
     if(ait != ret->createdPipelines->pipelines.end()){
         return ait->second;
     }
+    TRACELOG(LOG_INFO, "Generating new pipelines");
 
     auto& settings = ret->settings;
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};

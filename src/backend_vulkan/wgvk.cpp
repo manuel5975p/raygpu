@@ -315,17 +315,17 @@ extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVK
 }
 extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, const WGVKRenderPassDescriptor* rpdesc){
     WGVKRenderPassEncoder ret = callocnewpp(WGVKRenderPassEncoderImpl);
-    //One for WGVKRenderPassEncoder the other for the command buffer
-    ret->refCount = 2;
+
+    ret->refCount = 2; //One for WGVKRenderPassEncoder the other for the command buffer
+    
     enc->referencedRPs.insert(ret);
     ret->device = enc->device;
 
     RenderPassLayout rplayout = GetRenderPassLayout(rpdesc);
     VkRenderPassBeginInfo rpbi{};
     rpbi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    //TODO DAAAAAAAAAAAAMN device
 
-    ret->renderPass = LoadRenderPassFromLayout(g_vulkanstate.device, rplayout);
+    ret->renderPass = LoadRenderPassFromLayout(enc->device, rplayout);
 
     VkImageView attachmentViews[max_color_attachments + 2];
     
@@ -457,7 +457,7 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
         submittable[i + 1] = buffers[i]->buffer;
     }
     si.pCommandBuffers = submittable.data();
-    VkFence fence = CreateFence();
+    VkFence fence = nullptr;// = CreateFence();
     VkResult submitResult = vkQueueSubmit(queue->graphicsQueue, 1, &si, fence);
     if(submitResult == VK_SUCCESS){
         std::unordered_set<WGVKCommandBuffer> insert;
@@ -470,7 +470,14 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
             ++buffers[i]->refCount;
         }
         uint64_t frameCount = queue->device->submittedFrames;
-        queue->pendingCommandBuffers[frameCount % framesInFlight].emplace(fence, std::move(insert));
+        auto it = queue->pendingCommandBuffers[frameCount % framesInFlight].find(fence);
+        if(it == queue->pendingCommandBuffers[frameCount % framesInFlight].end()){
+            queue->pendingCommandBuffers[frameCount % framesInFlight].emplace(fence, std::move(insert));
+        }
+        else{
+            for(auto element_from_insert : insert)
+                queue->pendingCommandBuffers[frameCount % framesInFlight][fence].insert(element_from_insert);
+        }
         
         //TRACELOG(LOG_INFO, "Count: %d", (int)queue->pendingCommandBuffers.size());
         /*if(vkWaitForFences(g_vulkanstate.device->device, 1, &g_vulkanstate.queue->syncState.renderFinishedFence, VK_TRUE, 100000000) != VK_SUCCESS){
@@ -710,6 +717,7 @@ void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
         wgvkReleaseRenderPassEncoder(rp);
     }
     if(commandEncoder->buffer){
+        auto& buffers = commandEncoder->device->frameCaches[commandEncoder->cacheIndex].buffers;
         commandEncoder->device->frameCaches[commandEncoder->cacheIndex].buffers.push_back(commandEncoder->buffer);
         //vkFreeCommandBuffers(commandEncoder->device->device, commandEncoder->device->frameCaches[commandEncoder->cacheIndex].commandPool, 1, &commandEncoder->buffer);
     }
@@ -752,7 +760,7 @@ void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
         for(auto rp : commandBuffer->referencedCPs){
             wgvkReleaseComputePassEncoder(rp);
         }
-        VkCommandPool pool = commandBuffer->device->frameCaches[commandBuffer->cacheIndex].commandPool;
+        //VkCommandPool pool = commandBuffer->device->frameCaches[commandBuffer->cacheIndex].commandPool;
         commandBuffer->device->frameCaches[commandBuffer->cacheIndex].buffers.push_back(commandBuffer->buffer);
         
         //vkFreeCommandBuffers(commandEncoder->device->device, commandEncoder->device->frameCaches[commandEncoder->cacheIndex].commandPool, 1, &commandEncoder->buffer);
@@ -767,7 +775,7 @@ void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc) {
     if (rpenc->refCount == 0) {
         rpenc->resourceUsage.releaseAllAndClear();
         vkDestroyFramebuffer(rpenc->device->device, rpenc->frameBuffer, nullptr);
-        vkDestroyRenderPass(rpenc->device->device, rpenc->renderPass, nullptr);
+        //vkDestroyRenderPass(rpenc->device->device, rpenc->renderPass, nullptr);
         rpenc->~WGVKRenderPassEncoderImpl();
         std::free(rpenc);
     }

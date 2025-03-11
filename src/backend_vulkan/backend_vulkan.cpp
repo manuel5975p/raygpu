@@ -52,9 +52,8 @@ void PresentSurface(FullSurface* surface){
     }
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    presentInfo.waitSemaphoreCount = 2;
-    VkSemaphore waiton[2] = {
-        g_vulkanstate.queue->syncState.semaphoresInThisFrame[1],
+    presentInfo.waitSemaphoreCount = 1;
+    VkSemaphore waiton[1] = {
         g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore
     };
     presentInfo.pWaitSemaphores = waiton;
@@ -89,9 +88,21 @@ void PresentSurface(FullSurface* surface){
     cbsinfo.pCommandBuffers = &transitionBuffer;
     cbsinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     cbsinfo.signalSemaphoreCount = 1;
+    cbsinfo.waitSemaphoreCount = 1;
+    cbsinfo.pWaitSemaphores = &g_vulkanstate.queue->syncState.getSemaphoreOfSubmitIndex(1);
     cbsinfo.pSignalSemaphores = &g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore;
-
-    vkQueueSubmit(wgvksurf->device->queue->graphicsQueue, 1, &cbsinfo, VK_NULL_HANDLE);
+    if(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence == 0){
+        g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence = CreateFence();
+    }
+    VkFence finalTransitionFence = g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence;
+    vkQueueSubmit(wgvksurf->device->queue->graphicsQueue, 1, &cbsinfo, finalTransitionFence);
+    
+    
+    auto it = wgvksurf->device->queue->pendingCommandBuffers[cacheIndex].find(finalTransitionFence);
+    if(it == wgvksurf->device->queue->pendingCommandBuffers[cacheIndex].end()){
+        wgvksurf->device->queue->pendingCommandBuffers[cacheIndex].emplace(finalTransitionFence, std::unordered_set<WGVKCommandBuffer>{});
+    }
+    
     //vkCreateCommandPool(g_vulkanstate.device->device, &pci, nullptr, &oof);
     //TransitionImageLayout(g_vulkanstate.device, oof, g_vulkanstate.queue->graphicsQueue, wgvksurf->images[wgvksurf->activeImageIndex], VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
     
@@ -114,13 +125,21 @@ void PostPresentSurface(){
         std::vector<VkFence> fences;
         fences.reserve(queue->pendingCommandBuffers[cacheIndex].size());
         for(auto [fence, bufferset] : queue->pendingCommandBuffers[cacheIndex]){
-            fences.push_back(fence);
+            if(fence){
+                fences.push_back(fence);
+            }
         }
         vkWaitForFences(surfaceDevice->device, fences.size(), fences.data(), VK_TRUE, 1 << 25);
     }
 
     for(auto [fence, bufferset] : queue->pendingCommandBuffers[cacheIndex]){
-        vkDestroyFence(surfaceDevice->device, fence, nullptr);
+        VkFence fense = fence;
+        if(fence){
+            vkResetFences(surfaceDevice->device, 1, &fence);
+        }
+        else{
+            //TRACELOG(LOG_INFO, "Amount of buffers to be cleared from null fence. %llu", (unsigned long long)queue->pendingCommandBuffers[cacheIndex].size());
+        }
         for(auto buffer : bufferset){
             rassert(buffer->refCount == 1, "CommandBuffer still in use after submit");
             wgvkReleaseCommandBuffer(buffer);
@@ -426,12 +445,12 @@ VkInstance createInstance() {
     std::vector<const char *> validationLayers;
     for (const auto &layer : availableLayers) {
         if (std::string(layer.layerName).find("valid") != std::string::npos) {
-            //#ifndef NDEBUG
+            #ifndef NDEBUG
             TRACELOG(LOG_INFO, "Selecting Validation Layer %s",layer.layerName);
-            //validationLayers.push_back(layer.layerName);
-            //#else
-            //TRACELOG(LOG_INFO, "Validation Layer %s available but not selections since NDEBUG is defined",layer.layerName);
-            //#endif
+            validationLayers.push_back(layer.layerName);
+            #else
+            TRACELOG(LOG_INFO, "Validation Layer %s available but not selections since NDEBUG is defined",layer.layerName);
+            #endif
         }
     }
 

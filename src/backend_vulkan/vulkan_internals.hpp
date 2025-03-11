@@ -111,6 +111,61 @@ typedef struct ResourceUsage{
     void releaseAllAndClear()noexcept;
 }ResourceUsage;
 
+constexpr uint32_t max_color_attachments = 4;
+typedef struct AttachmentDescriptor{
+    VkFormat format;
+    uint32_t sampleCount;
+    LoadOp loadop;
+    StoreOp storeop;
+    bool operator==(const AttachmentDescriptor& other)const noexcept{
+        return format == other.format
+            && sampleCount == other.sampleCount
+            && loadop == other.loadop
+            && storeop == other.storeop;
+    }
+    bool operator!=(const AttachmentDescriptor& other) const noexcept{
+        return !(*this == other);
+    }
+}AttachmentDescriptor;
+typedef struct RenderPassLayout{
+    uint32_t colorAttachmentCount;
+    AttachmentDescriptor colorAttachments[max_color_attachments];
+    uint32_t depthAttachmentPresent;
+    AttachmentDescriptor depthAttachment;
+    uint32_t colorResolveIndex;
+    bool operator==(const RenderPassLayout& other) const noexcept {
+        if(colorAttachmentCount != other.colorAttachmentCount)return false;
+        for(uint32_t i = 0;i < colorAttachmentCount;i++){
+            if(colorAttachments[i] != other.colorAttachments[i]){
+                return false;
+            }
+        }
+        if(depthAttachmentPresent != other.depthAttachmentPresent)return false;
+        if(depthAttachment != other.depthAttachment)return false;
+        if(colorResolveIndex != other.colorResolveIndex)return false;
+
+        return true;
+    }
+}RenderPassLayout;
+namespace std{
+    template<>
+    struct hash<RenderPassLayout>{
+        inline constexpr size_t operator()(const RenderPassLayout& layout)const noexcept{
+
+            xorshiftstate ret{0x2545F4918F6CDD1D};
+            for(uint32_t i = 0;i < layout.colorAttachmentCount;i++){
+                ret.update(layout.colorAttachments[i].format, layout.colorAttachments[i].sampleCount);
+                ret.update(layout.colorAttachments[i].loadop, layout.colorAttachments[i].storeop);
+            }
+            if(layout.depthAttachmentPresent){
+                ret.update(layout.depthAttachment.format, layout.depthAttachment.sampleCount);
+                ret.update(layout.depthAttachment.loadop, layout.depthAttachment.storeop);
+            }
+            return ret.x64;
+        }
+    };
+}
+
 
 //typedef struct VertexAndFragmentShaderModuleImpl{
 //    VkShaderModule vModule;
@@ -176,6 +231,7 @@ struct PerframeCache{
     std::vector<VkCommandBuffer> buffers;
     VkCommandBuffer finalTransitionBuffer;
     VkSemaphore finalTransitionSemaphore;
+    VkFence finalTransitionFence;
     //td::unordered_set<VkCommandBuffer> commandBuffers;
 
 };
@@ -184,6 +240,8 @@ typedef struct WGVKDeviceImpl{
     WGVKQueue queue;
     size_t submittedFrames = 0;
     PerframeCache frameCaches[framesInFlight];
+
+    std::unordered_map<RenderPassLayout, VkRenderPass> renderPassCache;
 }WGVKDeviceImpl;
 
 typedef struct WGVKTextureImpl{
@@ -206,12 +264,7 @@ typedef struct WGVKTextureViewImpl{
     uint32_t sampleCount;
 }WGVKTextureViewImpl;
 
-typedef struct AttachmentDescriptor{
-    VkFormat format;
-    uint32_t sampleCount;
-    LoadOp loadop;
-    StoreOp storeop;
-}AttachmentDescriptor;
+
 //typedef struct WGVKBindGroupEntry{
 //    void* nextInChain;
 //    uint32_t binding;
@@ -229,14 +282,8 @@ typedef struct WGVKBindGroupDescriptor{
     const ResourceDescriptor* entries;
 }WGVKBindGroupDescriptor;
 
-constexpr uint32_t max_color_attachments = 8;
-typedef struct RenderPassLayout{
-    uint32_t colorAttachmentCount;
-    AttachmentDescriptor colorAttachments[max_color_attachments];
-    uint32_t depthAttachmentPresent;
-    AttachmentDescriptor depthAttachment;
-    uint32_t colorResolveIndex;
-}RenderPassLayout;
+
+
 
 extern "C" void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandBuffer);
 extern "C" WGVKCommandEncoder wgvkResetCommandBuffer(WGVKCommandBuffer commandEncoder);
@@ -353,25 +400,6 @@ typedef struct WGVKCommandBufferImpl{
 }WGVKCommandBufferImpl;
 
 
-
-namespace std{
-    template<>
-    struct hash<RenderPassLayout>{
-        inline constexpr size_t operator()(const RenderPassLayout& layout)const noexcept{
-
-            xorshiftstate ret{0x2545F4918F6CDD1D};
-            for(uint32_t i = 0;i < layout.colorAttachmentCount;i++){
-                ret.update(layout.colorAttachments[i].format, layout.colorAttachments[i].sampleCount);
-                ret.update(layout.colorAttachments[i].loadop, layout.colorAttachments[i].storeop);
-            }
-            if(layout.depthAttachmentPresent){
-                ret.update(layout.depthAttachment.format, layout.depthAttachment.sampleCount);
-                ret.update(layout.depthAttachment.loadop, layout.depthAttachment.storeop);
-            }
-            return ret.x64;
-        }
-    };
-}
 typedef struct WGVKRenderPassColorAttachment{
     void* nextInChain;
     WGVKTextureView view;
@@ -506,6 +534,11 @@ static inline VkSampleCountFlagBits toVulkanSampleCount(uint32_t samples){
 }
 
 static inline VkRenderPass LoadRenderPassFromLayout(WGVKDevice device, RenderPassLayout layout) {
+    auto it = device->renderPassCache.find(layout);
+    if(it != device->renderPassCache.end()){
+        return it->second;
+    }
+    TRACELOG(LOG_INFO, "Loading new renderpass");
     VkAttachmentDescription vkAttachments[max_color_attachments + 1] = {}; // array for Vulkan attachments
 
     [[maybe_unused]] uint32_t colorAttachmentCount = 0;
@@ -617,6 +650,11 @@ static inline VkRenderPass LoadRenderPassFromLayout(WGVKDevice device, RenderPas
     VkRenderPass renderPass = VK_NULL_HANDLE;
     VkResult result = vkCreateRenderPass(device->device, &rpci, nullptr, &renderPass);
     // (Handle errors appropriately in production code)
+    if(result == VK_SUCCESS){
+        device->renderPassCache.emplace(layout, renderPass);
+        return renderPass;
+    }
+    rg_trap();
     return renderPass;
 }
 

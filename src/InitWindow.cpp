@@ -322,8 +322,8 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     
 
     LoadFontDefault();
-    for(size_t i = 0;i < 512;i++){
-        g_renderstate.smallBufferPool.push_back(GenVertexBuffer(nullptr, sizeof(vertex) * 32));
+    for(size_t i = 0;i < 64;i++){
+        g_renderstate.smallBufferPool.push_back(GenVertexBuffer(nullptr, sizeof(vertex) * VERTEX_BUFFER_CACHE_SIZE));
     }
 
     vboptr = (vertex*)std::calloc(10000, sizeof(vertex));
@@ -337,7 +337,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     VertexAttribPointer(renderBatchVAO, renderBatchVBO, 3, VertexFormat_Float32x4, 8 * sizeof(float), VertexStepMode_Vertex);
 
 
-    g_renderstate.renderpass = LoadRenderpassEx(GetDefaultSettings(), false, DColor{0,1,0,1}, false, 0.0f);
+    g_renderstate.renderpass = LoadRenderpassEx(GetDefaultSettings(), false, DColor{0,0,0,1}, false, 0.0f);
 
     g_renderstate.clearPass = LoadRenderpassEx(GetDefaultSettings(), true, DColor{0,0,0,1}, true, 1.0f);
     //}
@@ -366,7 +366,18 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     #error "Must support either glsl or wgsl"
     #endif
     g_renderstate.activePipeline = g_renderstate.defaultPipeline;
-    g_renderstate.quadindicesCache = GenBufferEx(nullptr, 10000, BufferUsage_CopyDst | BufferUsage_Index);//allocnew(DescribedBuffer);    //WGPUBufferDescriptor vbmdesc{};
+    uint32_t quadCount = 2000;
+    g_renderstate.quadindicesCache = GenBufferEx(nullptr, quadCount * 6 * sizeof(uint32_t), BufferUsage_CopyDst | BufferUsage_Index);//allocnew(DescribedBuffer);    //WGPUBufferDescriptor vbmdesc{};
+    std::vector<uint32_t> indices(6 * quadCount);
+    for(size_t i = 0;i < quadCount;i++){
+        indices[i * 6 + 0] = (i * 4 + 0);
+        indices[i * 6 + 1] = (i * 4 + 1);
+        indices[i * 6 + 2] = (i * 4 + 3);
+        indices[i * 6 + 3] = (i * 4 + 1);
+        indices[i * 6 + 4] = (i * 4 + 2);
+        indices[i * 6 + 5] = (i * 4 + 3);
+    }
+    BufferData(g_renderstate.quadindicesCache, indices.data(), 6 * quadCount * sizeof(uint32_t));
     //g_renderstate.quadindicesCache->usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
     //WGPUCommandEncoderDescriptor cedesc{};
     //cedesc.label = STRVIEW("Global Command Encoder");
