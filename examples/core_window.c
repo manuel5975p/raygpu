@@ -16,7 +16,7 @@ void mainloop(void){
     //if(IsKeyPressed(KEY_U)){
     //    ToggleFullscreen();
     //}
-    drawCurrentBatch();
+    //drawCurrentBatch();
     //UseNoTexture();
     //rlVertex2f(0, 0);
     //rlVertex2f(100, 0);
@@ -24,6 +24,9 @@ void mainloop(void){
     //rlVertex2f(0, 200);
     //drawCurrentBatch();
     EndDrawing();
+    if((GetFrameCount() & 0xfff) == 0){
+        printf("FPS: %u\n", GetFPS());
+    }
     
 }
 int main(void){

@@ -153,10 +153,12 @@ namespace std{
         inline constexpr size_t operator()(const RenderPassLayout& layout)const noexcept{
 
             xorshiftstate ret{0x2545F4918F6CDD1D};
+            ret.update(layout.depthAttachmentPresent << 6, layout.colorAttachmentCount);
             for(uint32_t i = 0;i < layout.colorAttachmentCount;i++){
                 ret.update(layout.colorAttachments[i].format, layout.colorAttachments[i].sampleCount);
                 ret.update(layout.colorAttachments[i].loadop, layout.colorAttachments[i].storeop);
             }
+            ret.update(layout.depthAttachmentPresent << 6, layout.depthAttachmentPresent);
             if(layout.depthAttachmentPresent){
                 ret.update(layout.depthAttachment.format, layout.depthAttachment.sampleCount);
                 ret.update(layout.depthAttachment.loadop, layout.depthAttachment.storeop);

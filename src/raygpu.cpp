@@ -983,7 +983,7 @@ void DrawFPS(int posX, int posY){
     std::snprintf(fpstext, 128, "%d FPS", GetFPS());
     double ratio = double(GetFPS()) / GetTargetFPS();
     ratio = std::max(0.0, std::min(1.0, ratio));
-    uint8_t v8 = ratio * 255;
+    uint8_t v8 = ratio * 200;
     DrawText(fpstext, posX, posY, 40, Color{uint8_t(255 - uint8_t(ratio * ratio * 255)), v8, 20, 255});
 }
 

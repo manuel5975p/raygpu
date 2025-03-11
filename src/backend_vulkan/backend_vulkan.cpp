@@ -45,7 +45,7 @@ void PresentSurface(FullSurface* surface){
     si.pSignalSemaphores = &g_vulkanstate.queue->syncState.getSemaphoreOfSubmitIndex(1);
     si.pCommandBuffers = nullptr;
     si.commandBufferCount = 0;
-    vkQueueSubmit(g_vulkanstate.queue->graphicsQueue, 1, &si, VK_NULL_HANDLE);
+    //vkQueueSubmit(g_vulkanstate.queue->graphicsQueue, 1, &si, VK_NULL_HANDLE);
 
     if(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore == 0){
         g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore = CreateSemaphore();
@@ -89,7 +89,7 @@ void PresentSurface(FullSurface* surface){
     cbsinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     cbsinfo.signalSemaphoreCount = 1;
     cbsinfo.waitSemaphoreCount = 1;
-    cbsinfo.pWaitSemaphores = &g_vulkanstate.queue->syncState.getSemaphoreOfSubmitIndex(1);
+    cbsinfo.pWaitSemaphores = &g_vulkanstate.queue->syncState.getSemaphoreOfSubmitIndex(0);
     cbsinfo.pSignalSemaphores = &g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore;
     if(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence == 0){
         g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence = CreateFence();
