@@ -245,8 +245,8 @@ extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, 
     //§pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     //§pci.flags = desc->recyclable ? VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT : VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
     //§ret->recyclable = desc->recyclable;
-    PerframeCache& cache = device->frameCaches[device->submittedFrames % framesInFlight];
     ret->cacheIndex = device->submittedFrames % framesInFlight;
+    PerframeCache& cache = device->frameCaches[ret->cacheIndex];
     ret->device = device;
     //vkCreateCommandPool(device->device, &pci, nullptr, &cache.commandPool);
     if(device->frameCaches[ret->cacheIndex].buffers.empty()){
@@ -259,7 +259,7 @@ extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, 
         TRACELOG(LOG_INFO, "Allocating new command buffer");
     }
     else{
-        //TRACELOG(LOG_INFO, "Reusing");
+        TRACELOG(LOG_INFO, "Reusing");
         ret->buffer = device->frameCaches[ret->cacheIndex].buffers.back();
         device->frameCaches[ret->cacheIndex].buffers.pop_back();
     }
@@ -314,6 +314,50 @@ extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVK
     return ret;
 }
 extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, const WGVKRenderPassDescriptor* rpdesc){
+    WGVKRenderPassEncoder ret = callocnewpp(WGVKRenderPassEncoderImpl);
+
+    ret->refCount = 2; //One for WGVKRenderPassEncoder the other for the command buffer
+    
+    enc->referencedRPs.insert(ret);
+    ret->device = enc->device;
+    ret->cmdBuffer = enc->buffer;
+    ret->cmdEncoder = enc;
+
+    VkRenderingInfo info zeroinit;
+    info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    info.colorAttachmentCount = rpdesc->colorAttachmentCount;
+
+    VkRenderingAttachmentInfo colorAttachments[max_color_attachments] zeroinit;
+    for(uint32_t i = 0;i < rpdesc->colorAttachmentCount;i++){
+        colorAttachments[i].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+        colorAttachments[i].clearValue.color.float32[0] = rpdesc->colorAttachments[i].clearValue.r;
+        colorAttachments[i].clearValue.color.float32[1] = rpdesc->colorAttachments[i].clearValue.g;
+        colorAttachments[i].clearValue.color.float32[2] = rpdesc->colorAttachments[i].clearValue.b;
+        colorAttachments[i].clearValue.color.float32[3] = rpdesc->colorAttachments[i].clearValue.a;
+        colorAttachments[i].imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        colorAttachments[i].imageView = rpdesc->colorAttachments[i].view->view;
+        colorAttachments[i].loadOp = toVulkanLoadOperation(rpdesc->colorAttachments[i].loadOp);
+        colorAttachments[i].storeOp = toVulkanStoreOperation(rpdesc->colorAttachments[i].storeOp);
+    }
+    info.pColorAttachments = colorAttachments;
+    VkRenderingAttachmentInfo depthAttachment;
+    depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    depthAttachment.clearValue.depthStencil.depth = rpdesc->depthStencilAttachment->depthClearValue;
+
+    depthAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    depthAttachment.imageView = rpdesc->depthStencilAttachment->view->view;
+    depthAttachment.loadOp = toVulkanLoadOperation(rpdesc->depthStencilAttachment->depthLoadOp);
+    depthAttachment.storeOp = toVulkanStoreOperation(rpdesc->depthStencilAttachment->depthStoreOp);
+    info.pDepthAttachment = &depthAttachment;
+    info.layerCount = 1;
+    info.renderArea = VkRect2D{
+        .offset = VkOffset2D{0, 0},
+        .extent = VkExtent2D{rpdesc->colorAttachments[0].view->width, rpdesc->colorAttachments[0].view->height}
+    };
+    vkCmdBeginRendering(ret->cmdBuffer, &info);
+    return ret;
+}
+extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPasss(WGVKCommandEncoder enc, const WGVKRenderPassDescriptor* rpdesc){
     WGVKRenderPassEncoder ret = callocnewpp(WGVKRenderPassEncoderImpl);
 
     ret->refCount = 2; //One for WGVKRenderPassEncoder the other for the command buffer
@@ -394,7 +438,8 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
 
 }
 extern "C" void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
-    vkCmdEndRenderPass(renderPassEncoder->cmdBuffer);
+    vkCmdEndRendering(renderPassEncoder->cmdBuffer);
+    //vkCmdEndRenderPass(renderPassEncoder->cmdBuffer);
 }
 /**
  * @brief Ends a CommandEncoder into a CommandBuffer
@@ -774,7 +819,8 @@ void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc) {
     --rpenc->refCount;
     if (rpenc->refCount == 0) {
         rpenc->resourceUsage.releaseAllAndClear();
-        vkDestroyFramebuffer(rpenc->device->device, rpenc->frameBuffer, nullptr);
+        if(rpenc->frameBuffer)
+            vkDestroyFramebuffer(rpenc->device->device, rpenc->frameBuffer, nullptr);
         //vkDestroyRenderPass(rpenc->device->device, rpenc->renderPass, nullptr);
         rpenc->~WGVKRenderPassEncoderImpl();
         std::free(rpenc);

@@ -89,6 +89,9 @@ void PresentSurface(FullSurface* surface){
     cbsinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     cbsinfo.signalSemaphoreCount = 1;
     cbsinfo.waitSemaphoreCount = 1;
+    VkPipelineStageFlags wsmask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    cbsinfo.pWaitDstStageMask = &wsmask;
+
     cbsinfo.pWaitSemaphores = &g_vulkanstate.queue->syncState.getSemaphoreOfSubmitIndex(0);
     cbsinfo.pSignalSemaphores = &g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore;
     if(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence == 0){
@@ -148,7 +151,7 @@ void PostPresentSurface(){
 
     queue->pendingCommandBuffers[cacheIndex].clear();
     wgvkReleaseCommandEncoder(queue->presubmitCache);
-    vkResetCommandPool(surfaceDevice->device, surfaceDevice->frameCaches[cacheIndex].commandPool, 0);
+    vkResetCommandPool(surfaceDevice->device, surfaceDevice->frameCaches[cacheIndex].commandPool, VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT);
     WGVKCommandEncoderDescriptor cedesc zeroinit;
     queue->presubmitCache = wgvkDeviceCreateCommandEncoder(surfaceDevice, &cedesc);
 }
@@ -447,7 +450,7 @@ VkInstance createInstance() {
         if (std::string(layer.layerName).find("valid") != std::string::npos) {
             #ifndef NDEBUG
             TRACELOG(LOG_INFO, "Selecting Validation Layer %s",layer.layerName);
-            validationLayers.push_back(layer.layerName);
+            //validationLayers.push_back(layer.layerName);
             #else
             TRACELOG(LOG_INFO, "Validation Layer %s available but not selections since NDEBUG is defined",layer.layerName);
             #endif

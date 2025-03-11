@@ -10,7 +10,6 @@ if(NOT SUPPORT_VULKAN_BACKEND)
     option(SUPPORT_WGPU_BACKEND "" ON)
     option(SUPPORT_VULKAN_BACKEND "" OFF)
 endif()
-
 message(STATUS "SUPPORT_WGPU_BACKEND: ${SUPPORT_WGPU_BACKEND}")
 
 
@@ -239,6 +238,7 @@ if(SUPPORT_WGSL_PARSER)
     target_compile_definitions(raygpu PUBLIC SUPPORT_WGSL_PARSER=1)
 endif()
 if(NOT MSVC AND NOT EMSCRIPTEN)
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address,undefined")
     foreach(source_file IN LISTS RG_SOURCES)
         set_source_files_properties(${source_file} PROPERTIES COMPILE_FLAGS "-fno-inline")
     endforeach()
