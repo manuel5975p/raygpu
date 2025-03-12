@@ -344,7 +344,8 @@ void PenMotionCallback(SDL_Window* window, SDL_PenID penID, float x, float y){
     g_renderstate.input_map[window].penStates[penID].position = Vector2{x,y };
 }
 void FingerMotionCallback(SDL_Window* window, SDL_FingerID finger, float x, float y){
-    std::cout << std::format("Finger {}: {},{}", finger, x, y) << std::endl;
+    
+    //std::cout << std::format("Finger {}: {},{}", finger, x, y) << std::endl;
 }
 void MouseButtonCallback(SDL_Window* window, int button, int action){
     if(action == 1){

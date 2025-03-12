@@ -502,8 +502,13 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
         submittable[i + 1] = buffers[i]->buffer;
     }
     si.pCommandBuffers = submittable.data();
-    VkFence fence = nullptr;// = CreateFence();
-    VkResult submitResult = vkQueueSubmit(queue->graphicsQueue, 1, &si, fence);
+    VkFence fence = VK_NULL_HANDLE;
+    int submitResult = VK_SUCCESS;
+    for(uint32_t i = 0;i < submittable.size();i++){
+        si.commandBufferCount = 1;
+        si.pCommandBuffers = submittable.data() + i;
+        submitResult |= vkQueueSubmit(queue->graphicsQueue, 1, &si, fence);
+    }
     if(submitResult == VK_SUCCESS){
         std::unordered_set<WGVKCommandBuffer> insert;
         insert.reserve(3);
@@ -718,7 +723,7 @@ void impl_transition(VkCommandBuffer buffer, WGVKTexture texture, VkImageLayout 
         barrier.srcAccessMask = 0;
         barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         
-        sourceStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
     else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {

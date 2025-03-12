@@ -1277,16 +1277,16 @@ extern "C" void CopyTextureToTexture(Texture source, Texture dest){
     if(sourceTexture->layout != VK_IMAGE_LAYOUT_GENERAL && sourceTexture->layout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL){
         wgvkCommandEncoderTransitionTextureLayout(encodingDest, sourceTexture, sourceTexture->layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
     }
-
+    
     wgvkCommandEncoderTransitionTextureLayout(encodingDest, destTexture, destTexture->layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     
-    //vkCmdBlitImage(
-    //    encodingDest->buffer, 
-    //    sourceTexture->image,
-    //    sourceTexture->layout,
-    //    destTexture->image, 
-    //    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, VK_FILTER_NEAREST
-    //);
+    vkCmdBlitImage(
+        encodingDest->buffer, 
+        sourceTexture->image,
+        sourceTexture->layout,
+        destTexture->image, 
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, VK_FILTER_NEAREST
+    );
     
     wgvkCommandEncoderTransitionTextureLayout(encodingDest, destTexture, destTexture->layout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     //if(!tttIntermediate){
