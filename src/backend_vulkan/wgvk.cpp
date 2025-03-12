@@ -713,7 +713,7 @@ void impl_transition(VkCommandBuffer buffer, WGVKTexture texture, VkImageLayout 
     barrier.subresourceRange.levelCount = 1;
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount = 1;
-    VkRenderPassCreateInfo rpci{};
+
     
     
     VkPipelineStageFlags sourceStage;
@@ -753,9 +753,11 @@ void impl_transition(VkCommandBuffer buffer, WGVKTexture texture, VkImageLayout 
 }
 void wgvkRenderPassEncoderTransitionTextureLayout(WGVKRenderPassEncoder encoder, WGVKTexture texture, VkImageLayout oldLayout, VkImageLayout newLayout){
     impl_transition(encoder->cmdBuffer, texture, oldLayout, newLayout);
+    encoder->resourceUsage.registerTransition(texture, oldLayout, newLayout);
 }
 void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout oldLayout, VkImageLayout newLayout){
     impl_transition(encoder->buffer, texture, oldLayout, newLayout);
+    encoder->resourceUsage.registerTransition(texture, oldLayout, newLayout);
 }
 extern "C" void wgvkComputePassEncoderDispatchWorkgroups(WGVKComputePassEncoder cpe, uint32_t x, uint32_t y, uint32_t z){
     vkCmdDispatch(cpe->cmdBuffer, x, y, z);

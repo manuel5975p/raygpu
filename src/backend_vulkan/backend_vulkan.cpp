@@ -696,6 +696,7 @@ extern "C" void ComputePassSetBindGroup(DescribedComputepass* drp, uint32_t grou
 void GenTextureMipmaps(Texture2D* tex){
     WGVKCommandEncoderDescriptor cdesc zeroinit;
     WGVKCommandEncoder enc = wgvkDeviceCreateCommandEncoder(g_vulkanstate.device, &cdesc);
+    
     rassert(tex->mipmaps >= 1, "Mipmaps must always be at least 1, 0 probably means that's an invalid texture");
     rassert(tex->width < (uint32_t(1) << 31), "Texture too humongous");
     rassert(tex->height < (uint32_t(1) << 31), "Texture too humongous");
@@ -711,7 +712,7 @@ void GenTextureMipmaps(Texture2D* tex){
         i.y = std::max(i.y, 1);
         return i;
     };
-
+    wgvkCommandEncoderTransitionTextureLayout(enc, wgvkTex, wgvkTex->layout, VK_IMAGE_LAYOUT_GENERAL);
     for(uint32_t i = 0;i < tex->mipmaps - 1;i++){
         VkImageBlit blitRegion zeroinit;
         blitRegion.srcOffsets[1] = mipExtent(0    );

@@ -99,6 +99,9 @@ typedef struct ResourceUsage{
     ref_holder<WGVKTexture> referencedTextures;
     typed_ref_holder<WGVKTextureView, TextureUsage> referencedTextureViews;
     ref_holder<WGVKBindGroup> referencedBindGroups;
+
+    std::unordered_map<WGVKTexture, std::pair<VkImageLayout, VkImageLayout>> entryAndFinalLayouts;
+
     bool contains(WGVKBuffer buffer)const noexcept;
     bool contains(WGVKTexture texture)const noexcept;
     bool contains(WGVKTextureView view)const noexcept;
@@ -108,6 +111,20 @@ typedef struct ResourceUsage{
     void track(WGVKTexture texture)noexcept;
     void track(WGVKTextureView view, TextureUsage usage)noexcept;
     void track(WGVKBindGroup bindGroup)noexcept;
+
+    void registerTransition(WGVKTexture tex, VkImageLayout from, VkImageLayout to){
+        auto it = entryAndFinalLayouts.find(tex);
+        if(it == entryAndFinalLayouts.end()){
+            entryAndFinalLayouts.emplace(tex, std::make_pair(from, to));
+        }
+        else{
+            rassert(
+                from == it->second.second, 
+                "The previous layout transition encoded into this ResourceUsage did not transition to the layout this transition assumes"
+            );
+            it->second.second = to;
+        }
+    }
     void releaseAllAndClear()noexcept;
 }ResourceUsage;
 
