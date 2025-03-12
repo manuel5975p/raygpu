@@ -103,6 +103,7 @@ WGVKTexture CreateImage(WGVKDevice device, uint32_t width, uint32_t height, uint
     ret->depthOrArrayLayers = 1;
     ret->layout = VK_IMAGE_LAYOUT_UNDEFINED;
     ret->refCount = 1;
+    ret->mipLevels = mipLevelCount;
     return ret;
 }
 
@@ -246,7 +247,7 @@ extern "C" WGVKTexture wgvkDeviceCreateTexture(WGVKDevice device, const WGVKText
     
     
     WGVKTexture image = CreateImage(device, descriptor->size.width, descriptor->size.height, descriptor->sampleCount,descriptor->mipLevelCount, toVulkanPixelFormat(descriptor->format), descriptor->usage, imageMemory);
-    
+    image->memory = imageMemory;
     /*if (hasData && data != nullptr) {
         // Create staging buffer
         VkDeviceSize imageSize = width * height * 4; // Adjust based on format if necessary

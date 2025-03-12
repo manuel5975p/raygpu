@@ -359,6 +359,11 @@ void MousePositionCallback(SDL_Window* window, double x, double y){
     g_renderstate.input_map[window].mousePos = Vector2{float(x), float(y)};
 }
 
+void ScrollCallback(SDL_Window* window, double xoffset, double yoffset){
+    g_renderstate.input_map[window].scrollThisFrame.x += xoffset;
+    g_renderstate.input_map[window].scrollThisFrame.y += yoffset;
+}
+
 void KeyUpCallback (SDL_Window* window, int key, int scancode, int mods){
     g_renderstate.input_map[window].keydown[key] = 0;
 }
@@ -434,12 +439,11 @@ extern "C" void PollEvents_SDL3() {
             SDL_GetWindowSize(lastTouched, &w, &h);
             FingerMotionCallback(lastTouched, event.tfinger.fingerID, event.tfinger.x * w, event.tfinger.y * h);
         }break;
-        //case SDL_MOUSEWHEEL: {
-        //    SDL_Window *window = SDL_GetWindowFromID(event.wheel.windowID);
-        //    // Note: SDL's yoffset is positive when scrolling up, negative when scrolling down
-        //    ScrollCallback(window, event.wheel.x, event.wheel.y);
-        //} break;
-//
+        case SDL_EVENT_MOUSE_WHEEL: {
+            SDL_Window *window = SDL_GetWindowFromID(event.wheel.windowID);
+            // Note: SDL's yoffset is positive when scrolling up, negative when scrolling down
+            ScrollCallback(window, event.wheel.x, event.wheel.y);
+        } break;
         case SDL_EVENT_MOUSE_MOTION: {
             SDL_Window *window = SDL_GetWindowFromID(event.motion.windowID);
             MousePositionCallback(window, event.motion.x, event.motion.y);

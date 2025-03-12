@@ -469,43 +469,49 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
     si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     si.commandBufferCount = commandCount + 1;
     small_vector<VkCommandBuffer> submittable(commandCount + 1);
-    for(size_t i = 0;i < commandCount;i++){
-        WGVKCommandBuffer buffer = buffers[i];
-        for(auto rp : buffer->referencedRPs){
-            for(auto dset : rp->resourceUsage.referencedBindGroups){
-                for(auto tex : dset->resourceUsage.referencedTextureViews){
-                    if(tex.second == TextureUsage_TextureBinding && tex.first->texture->layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL){
-                        wgvkCommandEncoderTransitionTextureLayout(queue->presubmitCache, tex.first->texture, tex.first->texture->layout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-                    }
-                    if(tex.second == TextureUsage_StorageBinding && tex.first->texture->layout != VK_IMAGE_LAYOUT_GENERAL){
-                        wgvkCommandEncoderTransitionTextureLayout(queue->presubmitCache, tex.first->texture, tex.first->texture->layout, VK_IMAGE_LAYOUT_GENERAL);
-                    }
-                }
-            }
-        }
-        for(auto cp : buffer->referencedCPs){
-            for(auto dset : cp->resourceUsage.referencedBindGroups){
-                for(auto tex : dset->resourceUsage.referencedTextureViews){
-                    if(tex.second == TextureUsage_TextureBinding && tex.first->texture->layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL){
-                        wgvkCommandEncoderTransitionTextureLayout(queue->presubmitCache, tex.first->texture, tex.first->texture->layout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-                    }
-                    if(tex.second == TextureUsage_StorageBinding && tex.first->texture->layout != VK_IMAGE_LAYOUT_GENERAL){
-                        wgvkCommandEncoderTransitionTextureLayout(queue->presubmitCache, tex.first->texture, tex.first->texture->layout, VK_IMAGE_LAYOUT_GENERAL);
-                    }
-                }
-            }
-        }
-    }
+    //for(size_t i = 0;i < commandCount;i++){
+    //    WGVKCommandBuffer buffer = buffers[i];
+    //    for(auto rp : buffer->referencedRPs){
+    //        for(auto dset : rp->resourceUsage.referencedBindGroups){
+    //            for(auto tex : dset->resourceUsage.referencedTextureViews){
+    //                if(tex.second == TextureUsage_TextureBinding && tex.first->texture->layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL){
+    //                    wgvkCommandEncoderTransitionTextureLayout(queue->presubmitCache, tex.first->texture, tex.first->texture->layout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    //                }
+    //                if(tex.second == TextureUsage_StorageBinding && tex.first->texture->layout != VK_IMAGE_LAYOUT_GENERAL){
+    //                    wgvkCommandEncoderTransitionTextureLayout(queue->presubmitCache, tex.first->texture, tex.first->texture->layout, VK_IMAGE_LAYOUT_GENERAL);
+    //                }
+    //                if(tex.second == TextureUsage_RenderAttachment){
+    //                    abort();
+    //                }
+    //            }
+    //        }
+    //    }
+    //    for(auto cp : buffer->referencedCPs){
+    //        for(auto dset : cp->resourceUsage.referencedBindGroups){
+    //            for(auto tex : dset->resourceUsage.referencedTextureViews){
+    //                if(tex.second == TextureUsage_TextureBinding && tex.first->texture->layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL){
+    //                    wgvkCommandEncoderTransitionTextureLayout(queue->presubmitCache, tex.first->texture, tex.first->texture->layout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    //                }
+    //                if(tex.second == TextureUsage_StorageBinding && tex.first->texture->layout != VK_IMAGE_LAYOUT_GENERAL){
+    //                    wgvkCommandEncoderTransitionTextureLayout(queue->presubmitCache, tex.first->texture, tex.first->texture->layout, VK_IMAGE_LAYOUT_GENERAL);
+    //                }
+    //            }
+    //        }
+    //    }
+    //}
     auto& pscache = queue->presubmitCache;
-    for(auto& [tex, layouts] : buffers[0]->resourceUsage.entryAndFinalLayouts){
-        auto it = pscache->resourceUsage.entryAndFinalLayouts.find(tex);
-        if(it == pscache->resourceUsage.entryAndFinalLayouts.end()){
-            if(it->second.second != layouts.first){
-                wgvkCommandEncoderTransitionTextureLayout(pscache, tex, it->second.second, layouts.first);
+    {
+        auto& sbuffer = buffers[0];
+        for(auto& [tex, layouts] : sbuffer->resourceUsage.entryAndFinalLayouts){
+            auto it = pscache->resourceUsage.entryAndFinalLayouts.find(tex);
+            if(it != pscache->resourceUsage.entryAndFinalLayouts.end()){
+                if(it->second.second != layouts.first){
+                    wgvkCommandEncoderTransitionTextureLayout(pscache, tex, it->second.second, layouts.first);
+                }
             }
-        }
-        else if(tex->layout != layouts.first){            
-            wgvkCommandEncoderTransitionTextureLayout(pscache, tex, it->second.second, layouts.first);
+            else if(tex->layout != layouts.first){            
+                wgvkCommandEncoderTransitionTextureLayout(pscache, tex, tex->layout, layouts.first);
+            }
         }
     }
     WGVKCommandBuffer cachebuffer = wgvkCommandEncoderFinish(queue->presubmitCache);
@@ -723,9 +729,10 @@ void impl_transition(VkCommandBuffer buffer, WGVKTexture texture, VkImageLayout 
     barrier.subresourceRange.aspectMask = 
         (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
     barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.levelCount = texture->mipLevels;
     barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
+    //TODO Handle 3D textures
+    barrier.subresourceRange.layerCount = texture->depthOrArrayLayers;
 
     
     

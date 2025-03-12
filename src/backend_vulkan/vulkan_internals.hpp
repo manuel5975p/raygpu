@@ -270,15 +270,16 @@ typedef struct WGVKTextureImpl{
     VkImageLayout layout;
     VkDeviceMemory memory;
     WGVKDevice device;
-    uint32_t refCount;
+    refcount_type refCount;
     uint32_t width, height, depthOrArrayLayers;
+    uint32_t mipLevels;
     uint32_t sampleCount;
 }ImageHandleImpl;
 
 typedef struct WGVKTextureViewImpl{
     VkImageView view;
     VkFormat format;
-    uint32_t refCount;
+    refcount_type refCount;
     WGVKTexture texture;
     uint32_t width, height, depthOrArrayLayers;
     uint32_t sampleCount;
