@@ -712,7 +712,8 @@ void GenTextureMipmaps(Texture2D* tex){
         i.y = std::max(i.y, 1);
         return i;
     };
-    wgvkCommandEncoderTransitionTextureLayout(enc, wgvkTex, wgvkTex->layout, VK_IMAGE_LAYOUT_GENERAL);
+    enc->initializeOrTransition(wgvkTex, VK_IMAGE_LAYOUT_GENERAL);
+    //wgvkCommandEncoderTransitionTextureLayout(enc, wgvkTex, wgvkTex->layout, VK_IMAGE_LAYOUT_GENERAL);
     for(uint32_t i = 0;i < tex->mipmaps - 1;i++){
         VkImageBlit blitRegion zeroinit;
         blitRegion.srcOffsets[1] = mipExtent(0    );

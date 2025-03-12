@@ -94,6 +94,7 @@ template<typename T>
 using ref_holder = std::unordered_set<T>;
 template<typename T, typename R>
 using typed_ref_holder = std::unordered_map<T, R>;
+
 typedef struct ResourceUsage{
     ref_holder<WGVKBuffer> referencedBuffers;
     ref_holder<WGVKTexture> referencedTextures;
@@ -111,7 +112,7 @@ typedef struct ResourceUsage{
     void track(WGVKTexture texture)noexcept;
     void track(WGVKTextureView view, TextureUsage usage)noexcept;
     void track(WGVKBindGroup bindGroup)noexcept;
-
+    
     void registerTransition(WGVKTexture tex, VkImageLayout from, VkImageLayout to){
         auto it = entryAndFinalLayouts.find(tex);
         if(it == entryAndFinalLayouts.end()){
@@ -371,7 +372,6 @@ inline void ResourceUsage::releaseAllAndClear()noexcept{
     referencedTextureViews.clear();
     referencedBindGroups.clear();
 }
-
 typedef struct WGVKRenderPassEncoderImpl{
     VkCommandBuffer cmdBuffer;
     VkRenderPass renderPass;
@@ -396,7 +396,7 @@ typedef struct WGVKComputePassEncoderImpl{
     WGVKCommandEncoder cmdEncoder;
 }WGVKComputePassEncoderImpl;
 
-
+extern "C" void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
 
 typedef struct WGVKCommandEncoderImpl{
     VkCommandBuffer buffer;
@@ -405,6 +405,20 @@ typedef struct WGVKCommandEncoderImpl{
     ResourceUsage resourceUsage;
     WGVKDevice device;
     uint32_t cacheIndex;
+
+    void initializeOrTransition(WGVKTexture texture, VkImageLayout layout){
+        auto it = resourceUsage.entryAndFinalLayouts.find(texture);
+        if(it == resourceUsage.entryAndFinalLayouts.end()){
+            resourceUsage.entryAndFinalLayouts.emplace(texture, std::make_pair(layout, layout));
+        }
+        else{
+            if(it->second.second != layout){
+                wgvkCommandEncoderTransitionTextureLayout(this, texture, it->second.second, layout);
+                it->second.second = layout;
+            }
+        }
+    }
+
 }WGVKCommandEncoderImpl;
 
 typedef struct WGVKCommandBufferImpl{

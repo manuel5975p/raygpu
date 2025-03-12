@@ -262,6 +262,7 @@ extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, 
         //TRACELOG(LOG_INFO, "Reusing");
         ret->buffer = device->frameCaches[ret->cacheIndex].buffers.back();
         device->frameCaches[ret->cacheIndex].buffers.pop_back();
+        vkResetCommandBuffer(ret->buffer, 0);
     }
 
     VkCommandBufferBeginInfo bbi{};
@@ -495,8 +496,19 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
             }
         }
     }
+    auto& pscache = queue->presubmitCache;
+    for(auto& [tex, layouts] : buffers[0]->resourceUsage.entryAndFinalLayouts){
+        auto it = pscache->resourceUsage.entryAndFinalLayouts.find(tex);
+        if(it == pscache->resourceUsage.entryAndFinalLayouts.end()){
+            if(it->second.second != layouts.first){
+                wgvkCommandEncoderTransitionTextureLayout(pscache, tex, it->second.second, layouts.first);
+            }
+        }
+        else if(tex->layout != layouts.first){            
+            wgvkCommandEncoderTransitionTextureLayout(pscache, tex, it->second.second, layouts.first);
+        }
+    }
     WGVKCommandBuffer cachebuffer = wgvkCommandEncoderFinish(queue->presubmitCache);
-
     submittable[0] = cachebuffer->buffer;
     for(size_t i = 0;i < commandCount;i++){
         submittable[i + 1] = buffers[i]->buffer;
@@ -508,6 +520,7 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
         si.commandBufferCount = 1;
         si.pCommandBuffers = submittable.data() + i;
         submitResult |= vkQueueSubmit(queue->graphicsQueue, 1, &si, fence);
+        
     }
     if(submitResult == VK_SUCCESS){
         std::unordered_set<WGVKCommandBuffer> insert;
@@ -749,7 +762,6 @@ void impl_transition(VkCommandBuffer buffer, WGVKTexture texture, VkImageLayout 
         0, nullptr,
         1, &barrier
     );
-    texture->layout = newLayout;
 }
 void wgvkRenderPassEncoderTransitionTextureLayout(WGVKRenderPassEncoder encoder, WGVKTexture texture, VkImageLayout oldLayout, VkImageLayout newLayout){
     impl_transition(encoder->cmdBuffer, texture, oldLayout, newLayout);
@@ -994,6 +1006,13 @@ extern "C" void wgvkComputePassEncoderSetBindGroup(WGVKComputePassEncoder cpe, u
                             nullptr                          // Pointer to dynamic offsets
     );
     cpe->resourceUsage.track(bindGroup);
+    for(auto viewAndUsage : bindGroup->resourceUsage.referencedTextureViews){
+        if(viewAndUsage.second == TextureUsage_TextureBinding)
+            cpe->cmdEncoder->initializeOrTransition(viewAndUsage.first->texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        else if(viewAndUsage.second == TextureUsage_StorageBinding){
+            cpe->cmdEncoder->initializeOrTransition(viewAndUsage.first->texture, VK_IMAGE_LAYOUT_GENERAL);
+        }
+    }
 }
 extern "C" WGVKComputePassEncoder wgvkCommandEncoderBeginComputePass(WGVKCommandEncoder commandEncoder){
     WGVKComputePassEncoder ret = callocnewpp(WGVKComputePassEncoderImpl);
