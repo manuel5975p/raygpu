@@ -1181,17 +1181,20 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     if(rtex.colorMultisample.view){
         rca.view = (WGVKTextureView)rtex.colorMultisample.view;
         rca.resolveTarget = (WGVKTextureView)rtex.texture.view;
+        reinterpret_cast<WGVKCommandEncoder>(renderPass->cmdEncoder)->initializeOrTransition(rca.view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        reinterpret_cast<WGVKCommandEncoder>(renderPass->cmdEncoder)->initializeOrTransition(rca.resolveTarget->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         if(rca.view->texture->layout != VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL){
-            wgvkCommandEncoderTransitionTextureLayout((WGVKCommandEncoder)renderPass->cmdEncoder, rca.view->texture, rca.view->texture->layout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+            //wgvkCommandEncoderTransitionTextureLayout((WGVKCommandEncoder)renderPass->cmdEncoder, rca.view->texture, rca.view->texture->layout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         }
         if(rca.resolveTarget->texture->layout != VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL){
-            wgvkCommandEncoderTransitionTextureLayout((WGVKCommandEncoder)renderPass->cmdEncoder, rca.resolveTarget->texture, rca.resolveTarget->texture->layout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+            //wgvkCommandEncoderTransitionTextureLayout((WGVKCommandEncoder)renderPass->cmdEncoder, rca.resolveTarget->texture, rca.resolveTarget->texture->layout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         }
     }
     else{
         rca.view = (WGVKTextureView)rtex.texture.view;
+        reinterpret_cast<WGVKCommandEncoder>(renderPass->cmdEncoder)->initializeOrTransition(rca.view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         if(rca.view->texture->layout != VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL){
-            wgvkCommandEncoderTransitionTextureLayout((WGVKCommandEncoder)renderPass->cmdEncoder, rca.view->texture, rca.view->texture->layout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+            //wgvkCommandEncoderTransitionTextureLayout((WGVKCommandEncoder)renderPass->cmdEncoder, rca.view->texture, rca.view->texture->layout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         }
     }
 

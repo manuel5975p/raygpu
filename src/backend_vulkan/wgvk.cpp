@@ -259,7 +259,7 @@ extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, 
         TRACELOG(LOG_INFO, "Allocating new command buffer");
     }
     else{
-        //TRACELOG(LOG_INFO, "Reusing");
+        TRACELOG(LOG_INFO, "Reusing");
         ret->buffer = device->frameCaches[ret->cacheIndex].buffers.back();
         device->frameCaches[ret->cacheIndex].buffers.pop_back();
         vkResetCommandBuffer(ret->buffer, 0);
@@ -469,6 +469,7 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
     si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     si.commandBufferCount = commandCount + 1;
     small_vector<VkCommandBuffer> submittable(commandCount + 1);
+    small_vector<WGVKCommandBuffer> submittableWGVK(commandCount + 1);
     //for(size_t i = 0;i < commandCount;i++){
     //    WGVKCommandBuffer buffer = buffers[i];
     //    for(auto rp : buffer->referencedRPs){
@@ -514,11 +515,24 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
             }
         }
     }
+    
+    
     WGVKCommandBuffer cachebuffer = wgvkCommandEncoderFinish(queue->presubmitCache);
     submittable[0] = cachebuffer->buffer;
     for(size_t i = 0;i < commandCount;i++){
         submittable[i + 1] = buffers[i]->buffer;
     }
+
+    submittableWGVK[0] = cachebuffer;
+    for(size_t i = 0;i < commandCount;i++){
+        submittableWGVK[i + 1] = buffers[i];
+    }
+    for(uint32_t i = 0;i < submittableWGVK.size();i++){
+        for(auto [tex, layoutpair] : submittableWGVK[i]->resourceUsage.entryAndFinalLayouts){
+            tex->layout = layoutpair.second;
+        }
+    }
+
     si.pCommandBuffers = submittable.data();
     VkFence fence = VK_NULL_HANDLE;
     int submitResult = VK_SUCCESS;
@@ -796,31 +810,31 @@ void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
     std::free(commandEncoder);
 }
 
-extern "C" WGVKCommandEncoder wgvkResetCommandBuffer(WGVKCommandBuffer commandBuffer) {
-    WGVKCommandEncoder ret = callocnewpp(WGVKCommandEncoderImpl);
-    assert(commandBuffer->refCount == 1);
-
-    for(auto rp : commandBuffer->referencedRPs){
-        wgvkReleaseRenderPassEncoder(rp);
-    }
-    commandBuffer->referencedRPs.clear();
-    if(commandBuffer->buffer)
-        vkResetCommandBuffer(commandBuffer->buffer, 0);
-    ret->buffer = commandBuffer->buffer;
-    ret->cacheIndex = commandBuffer->cacheIndex;
-
-    commandBuffer->~WGVKCommandBufferImpl();
-    std::free(commandBuffer);
-    
-    VkCommandBufferBeginInfo cbbi zeroinit;
-    cbbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    cbbi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    VkResult beginResult = vkBeginCommandBuffer(ret->buffer, &cbbi);
-    if(beginResult != VK_SUCCESS){
-        TRACELOG(LOG_FATAL, "Could not start command recording");
-    }
-    return ret;
-}
+//extern "C" WGVKCommandEncoder wgvkResetCommandBuffer(WGVKCommandBuffer commandBuffer) {
+//    WGVKCommandEncoder ret = callocnewpp(WGVKCommandEncoderImpl);
+//    assert(commandBuffer->refCount == 1);
+//
+//    for(auto rp : commandBuffer->referencedRPs){
+//        wgvkReleaseRenderPassEncoder(rp);
+//    }
+//    commandBuffer->referencedRPs.clear();
+//    if(commandBuffer->buffer)
+//        vkResetCommandBuffer(commandBuffer->buffer, 0);
+//    ret->buffer = commandBuffer->buffer;
+//    ret->cacheIndex = commandBuffer->cacheIndex;
+//
+//    commandBuffer->~WGVKCommandBufferImpl();
+//    std::free(commandBuffer);
+//    
+//    VkCommandBufferBeginInfo cbbi zeroinit;
+//    cbbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+//    cbbi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+//    VkResult beginResult = vkBeginCommandBuffer(ret->buffer, &cbbi);
+//    if(beginResult != VK_SUCCESS){
+//        TRACELOG(LOG_FATAL, "Could not start command recording");
+//    }
+//    return ret;
+//}
 
 void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
     --commandBuffer->refCount;
@@ -831,8 +845,9 @@ void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
         for(auto rp : commandBuffer->referencedCPs){
             wgvkReleaseComputePassEncoder(rp);
         }
-        //VkCommandPool pool = commandBuffer->device->frameCaches[commandBuffer->cacheIndex].commandPool;
-        commandBuffer->device->frameCaches[commandBuffer->cacheIndex].buffers.push_back(commandBuffer->buffer);
+        
+        PerframeCache& frameCache = commandBuffer->device->frameCaches[commandBuffer->cacheIndex];
+        frameCache.buffers.push_back(commandBuffer->buffer);
         
         //vkFreeCommandBuffers(commandEncoder->device->device, commandEncoder->device->frameCaches[commandEncoder->cacheIndex].commandPool, 1, &commandEncoder->buffer);
         //vkDestroyCommandPool(g_vulkanstate.device->device, commandBuffer->pool, nullptr);
@@ -996,6 +1011,13 @@ void wgvkRenderPassEncoderBindDescriptorSet(WGVKRenderPassEncoder rpe, uint32_t 
 
 
     rpe->resourceUsage.track(dset);
+    for(auto viewAndUsage : dset->resourceUsage.referencedTextureViews){
+        if(viewAndUsage.second == TextureUsage_TextureBinding)
+            rpe->cmdEncoder->initializeOrTransition(viewAndUsage.first->texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        else if(viewAndUsage.second == TextureUsage_StorageBinding){
+            rpe->cmdEncoder->initializeOrTransition(viewAndUsage.first->texture, VK_IMAGE_LAYOUT_GENERAL);
+        }
+    }
 }
 extern "C" void wgvkComputePassEncoderSetPipeline (WGVKComputePassEncoder cpe, VkPipeline pipeline, VkPipelineLayout layout){
     vkCmdBindPipeline(cpe->cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
