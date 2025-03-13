@@ -1,11 +1,53 @@
 ###############################################################################
 # Variables and Compiler Flags
 ###############################################################################
-CC           = clang
-CXX          = clang++
-CFLAGS       = -fPIC -O3 -DSUPPORT_VULKAN_BACKEND=1 -DSUPPORT_GLSL_PARSER=1 -DENABLE_SPIRV -DGLSLANG_OSINCLUDE_UNIX -DSUPPORT_GLFW=1
-CXXFLAGS     = -fPIC -std=c++20 -fno-rtti -fno-exceptions -O3 -DSUPPORT_VULKAN_BACKEND=1 -DSUPPORT_GLSL_PARSER=1 -DSUPPORT_GLFW=1 -DENABLE_SPIRV -DGLSLANG_OSINCLUDE_UNIX
-INCLUDEFLAGS = -Iinclude -Iamalgamation/ -Iamalgamation/glslang -Iamalgamation/SPIRV-Reflect
+CC          ?= clang
+AR          ?= ar
+CXX         ?= clang++
+CFLAGS       = -fPIC -O3 -DSUPPORT_VULKAN_BACKEND=1 -DSUPPORT_GLSL_PARSER=1 -DENABLE_SPIRV -DSUPPORT_GLFW=1
+CXXFLAGS     = -fPIC -std=c++20 -fno-rtti -fno-exceptions -O3 -DSUPPORT_VULKAN_BACKEND=1 -DSUPPORT_GLSL_PARSER=1 -DSUPPORT_GLFW=1 -DENABLE_SPIRV
+INCLUDEFLAGS = -Iinclude -Iamalgamation/glfw-3.4/include -Iamalgamation/ -Iamalgamation/glslang -Iamalgamation/SPIRV-Reflect -I /home/manuel/Documents/raygpu/relbuild/_deps/dawn-src/third_party/vulkan-headers/src/include/
+
+PLATFORM_OS ?= WINDOWS
+TARGET_PLATFORM ?= PLATFORM_DESKTOP
+
+# Determine PLATFORM_OS when required
+ifeq ($(TARGET_PLATFORM),$(filter $(TARGET_PLATFORM), PLATFORM_DESKTOP))
+    # No uname.exe on MinGW!, but OS=Windows_NT on Windows!
+    # ifeq ($(UNAME),Msys) -> Windows
+    ifeq ($(OS),Windows_NT)
+        PLATFORM_OS = WINDOWS
+        ifndef PLATFORM_SHELL
+            PLATFORM_SHELL = cmd
+        endif
+    else
+        UNAMEOS = $(shell uname)
+        ifeq ($(UNAMEOS),Linux)
+            PLATFORM_OS = LINUX
+        endif
+        ifeq ($(UNAMEOS),FreeBSD)
+            PLATFORM_OS = BSD
+        endif
+        ifeq ($(UNAMEOS),OpenBSD)
+            PLATFORM_OS = BSD
+        endif
+        ifeq ($(UNAMEOS),NetBSD)
+            PLATFORM_OS = BSD
+        endif
+        ifeq ($(UNAMEOS),DragonFly)
+            PLATFORM_OS = BSD
+        endif
+        ifeq ($(UNAMEOS),Darwin)
+            PLATFORM_OS = OSX
+        endif
+        ifndef PLATFORM_SHELL
+            PLATFORM_SHELL = sh
+        endif
+    endif
+endif
+
+
+
 
 ###############################################################################
 # Source Files
@@ -64,13 +106,10 @@ SRC_GLSL = amalgamation/glslang/glslang/MachineIndependent/parseConst.cpp \
            amalgamation/glslang/SPIRV/SPVRemapper.cpp \
            amalgamation/glslang/SPIRV/SpvTools.cpp
 
-# GLFW sources
 SRC_GLFW = amalgamation/glfw-3.4/src/context.c \
            amalgamation/glfw-3.4/src/egl_context.c \
-           amalgamation/glfw-3.4/src/glx_context.c \
            amalgamation/glfw-3.4/src/init.c \
            amalgamation/glfw-3.4/src/input.c \
-           amalgamation/glfw-3.4/src/linux_joystick.c \
            amalgamation/glfw-3.4/src/monitor.c \
            amalgamation/glfw-3.4/src/null_init.c \
            amalgamation/glfw-3.4/src/null_joystick.c \
@@ -78,19 +117,38 @@ SRC_GLFW = amalgamation/glfw-3.4/src/context.c \
            amalgamation/glfw-3.4/src/null_window.c \
            amalgamation/glfw-3.4/src/osmesa_context.c \
            amalgamation/glfw-3.4/src/platform.c \
-           amalgamation/glfw-3.4/src/posix_module.c \
            amalgamation/glfw-3.4/src/posix_poll.c \
            amalgamation/glfw-3.4/src/posix_thread.c \
            amalgamation/glfw-3.4/src/posix_time.c \
            amalgamation/glfw-3.4/src/vulkan.c \
-           amalgamation/glfw-3.4/src/window.c \
-           amalgamation/glfw-3.4/src/wl_init.c \
-           amalgamation/glfw-3.4/src/wl_monitor.c \
-           amalgamation/glfw-3.4/src/wl_window.c \
-           amalgamation/glfw-3.4/src/x11_init.c \
-           amalgamation/glfw-3.4/src/x11_monitor.c \
-           amalgamation/glfw-3.4/src/x11_window.c \
-           amalgamation/glfw-3.4/src/xkb_unicode.c
+           amalgamation/glfw-3.4/src/window.c
+
+ifeq ($(PLATFORM_OS), LINUX)
+# Always include both X11 and Wayland files on Linux
+SRC_GLFW += amalgamation/glfw-3.4/src/glx_context.c \
+            amalgamation/glfw-3.4/src/linux_joystick.c \
+            amalgamation/glfw-3.4/src/wl_init.c \
+            amalgamation/glfw-3.4/src/wl_monitor.c \
+            amalgamation/glfw-3.4/src/wl_window.c \
+            amalgamation/glfw-3.4/src/x11_init.c \
+            amalgamation/glfw-3.4/src/x11_monitor.c \
+            amalgamation/glfw-3.4/src/x11_window.c \
+            amalgamation/glfw-3.4/src/xkb_unicode.c \
+            amalgamation/glfw-3.4/src/posix_module.c
+GLFW_BUILD_FLAGS += -D_GLFW_WAYLAND=1 -D_GLFW_X11=1
+endif
+
+ifeq ($(PLATFORM_OS), WINDOWS)
+# Add Windows-specific source files
+SRC_GLFW += amalgamation/glfw-3.4/src/win32_init.c \
+            amalgamation/glfw-3.4/src/win32_joystick.c \
+            amalgamation/glfw-3.4/src/win32_monitor.c \
+            amalgamation/glfw-3.4/src/win32_window.c \
+            amalgamation/glfw-3.4/src/wgl_context.c
+GLFW_BUILD_FLAGS += -D_GLFW_WIN32
+endif
+
+
 
 # C sources
 SRC_C = src/sinfl_impl.c \
@@ -153,7 +211,7 @@ all: $(TARGET)
 
 # Create the static library archive; ensure Wayland files are generated first
 $(TARGET): $(OBJS) $(WL_ALL)
-	ar rcs $@ $^
+	$(AR) rcs $@ $^
 
 ###############################################################################
 # Compile Rules
@@ -168,7 +226,7 @@ amalgamation/glslang/%.o: amalgamation/glslang/%.cpp
 
 # GLFW sources (depends on generated Wayland files)
 amalgamation/glfw-3.4/src/%.o: amalgamation/glfw-3.4/src/%.c $(WL_ALL)
-	$(CC) $(CFLAGS) -c $< -o $@ $(INCLUDEFLAGS) -D_GLFW_X11 -D_GLFW_WAYLAND -Iwl_include
+	$(CC) $(CFLAGS) -c $< -o $@ $(INCLUDEFLAGS) $(GLFW_BUILD_FLAGS) -Iwl_include
 
 # C sources (general rule)
 %.o: %.c
@@ -182,4 +240,4 @@ amalgamation/glfw-3.4/src/%.o: amalgamation/glfw-3.4/src/%.c $(WL_ALL)
 # Clean
 ###############################################################################
 clean:
-	rm -f $(OBJS) $(TARGET) $(WL_ALL)
+	rm -f $(OBJS) $(TARGET) $(WL_ALL) amalgamation/glfw-3.4/src/*.o
