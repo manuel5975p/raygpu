@@ -1,6 +1,6 @@
 # RayGPU
 A fast and simple [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API) based graphics library for **C and C++**, inspired by and based on [raylib](https://github.com/raysan5/raylib/). Primarily targeting WebGPU for browsers and desktop through [Dawn](https://dawn.googlesource.com/dawn), it also supports a direct and lightweight Vulkan backend.
-### Outline
+
 - [Getting Started](#getting-started)
 - [Building](#building)
 - [OpenGL compatibility](#opengl-compatibility-and-similarity)
@@ -103,8 +103,27 @@ int main(){
     #endif
 }
 ```
-### Building
+## Building
 The primarily supported way to build is through CMake. Using the vulkan backend with GLSL Shaders and GLFW is also buildable with a plain Makefile.
+
+The CMake config supports a couple of options, namely
+
+- `SUPPORT_WGPU_BACKEND`
+- `SUPPORT_VULKAN_BACKEND`
+- `SUPPORT_GLFW`
+- `SUPPORT_SDL3`
+- `SUPPORT_GLSL_PARSER`
+- `SUPPORT_WGSL_PARSER`
+
+The options `SUPPORT_WGPU_BACKEND` and `SUPPORT_VULKAN_BACKEND` are mutually exclusive and one must be set.
+
+Those options can be appended to a cmake command line like this example:
+
+`cmake .. -DSUPPORT_VULKAN_BACKEND=ON -DSUPPORT_GLSL_PARSER=ON -DSUPPORT_GLFW=ON`
+
+**Omitting both the `SUPPORT_WGPU_BACKEND` and `SUPPORT_WGSL_BACKEND` drastically reduces build-time, as dawn and tint are not built!**
+
+For more info on cmake, scroll down to [the CMake section](#cmake)
 
 #### Makefile
 ```
@@ -139,8 +158,6 @@ FetchContent_MakeAvailable(raygpu_git)
 
 target_link_libraries(<your target> PUBLIC raygpu)
 ```
-Most likely
-
 ___
 #### Building for Linux
 ```bash
