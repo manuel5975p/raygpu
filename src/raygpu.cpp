@@ -1528,6 +1528,9 @@ DescribedPipeline* Relayout(DescribedPipeline* pl, VertexArray* vao){
     return klon;
 }
 void BeginTextureMode(RenderTexture rtex){
+    if(g_renderstate.renderpass.rpEncoder){
+        EndRenderpass();
+    }
     ++g_renderstate.renderTargetStackPosition;
     g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition] = rtex;
     g_renderstate.renderExtentX = rtex.texture.width;

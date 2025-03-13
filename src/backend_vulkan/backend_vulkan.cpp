@@ -1136,7 +1136,6 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     bbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     VkRenderPassBeginInfo rpbi{};
     WGVKCommandEncoderDescriptor cedesc zeroinit;
-
     renderPass->cmdEncoder = wgvkDeviceCreateCommandEncoder(g_vulkanstate.device, &cedesc);
     
     //if(renderPass->cmdEncoder == nullptr){

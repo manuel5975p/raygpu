@@ -259,7 +259,7 @@ extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, 
         TRACELOG(LOG_INFO, "Allocating new command buffer");
     }
     else{
-        TRACELOG(LOG_INFO, "Reusing");
+        //TRACELOG(LOG_INFO, "Reusing");
         ret->buffer = device->frameCaches[ret->cacheIndex].buffers.back();
         device->frameCaches[ret->cacheIndex].buffers.pop_back();
         vkResetCommandBuffer(ret->buffer, 0);
@@ -269,6 +269,7 @@ extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, 
     bbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     bbi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     vkBeginCommandBuffer(ret->buffer, &bbi);
+    
     return ret;
 }
 extern "C" void wgvkQueueTransitionLayout(WGVKQueue cSelf, WGVKTexture texture, VkImageLayout from, VkImageLayout to){
@@ -442,6 +443,7 @@ extern "C" void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder
     vkCmdEndRendering(renderPassEncoder->cmdBuffer);
     //vkCmdEndRenderPass(renderPassEncoder->cmdBuffer);
 }
+std::unordered_set<WGVKCommandBuffer> buffers__;
 /**
  * @brief Ends a CommandEncoder into a CommandBuffer
  * @details This is a one-way transition for WebGPU, therefore we can move resource tracking
@@ -461,6 +463,7 @@ extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder command
     ret->buffer = commandEncoder->buffer;
     ret->device = commandEncoder->device;
     commandEncoder->buffer = nullptr;
+    buffers__.emplace(ret);
     return ret;
 }
 
@@ -643,7 +646,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
     VkSurfaceCapabilitiesKHR vkCapabilities;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(g_vulkanstate.physicalDevice, surface->surface, &vkCapabilities);
     
-    createInfo.minImageCount = vkCapabilities.minImageCount;
+    createInfo.minImageCount = 4;//vkCapabilities.minImageCount;
     createInfo.imageFormat = toVulkanPixelFormat(config->format);//swapchainImageFormat;
     surface->width = config->width;
     surface->height = config->height;
@@ -668,7 +671,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
 
     createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    createInfo.presentMode = toVulkanPresentMode(config->presentMode); 
+    createInfo.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;//toVulkanPresentMode(config->presentMode); 
     createInfo.clipped = VK_TRUE;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     VkResult scCreateResult = vkCreateSwapchainKHR(device->device, &createInfo, nullptr, &(surface->swapchain));
@@ -807,6 +810,7 @@ void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
         //vkFreeCommandBuffers(commandEncoder->device->device, commandEncoder->device->frameCaches[commandEncoder->cacheIndex].commandPool, 1, &commandEncoder->buffer);
     }
     commandEncoder->~WGVKCommandEncoderImpl();
+    
     std::free(commandEncoder);
 }
 
@@ -852,6 +856,11 @@ void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
         //vkFreeCommandBuffers(commandEncoder->device->device, commandEncoder->device->frameCaches[commandEncoder->cacheIndex].commandPool, 1, &commandEncoder->buffer);
         //vkDestroyCommandPool(g_vulkanstate.device->device, commandBuffer->pool, nullptr);
         commandBuffer->~WGVKCommandBufferImpl();
+        //buffers__.erase(commandBuffer);
+        //for(auto b : buffers__){
+        //    TRACELOG(LOG_INFO, "Current state: %llu", b);
+        //}
+        //TRACELOG(LOG_INFO, "%llu\n", buffers__.size());
         std::free(commandBuffer);
     }
 }
