@@ -111,7 +111,7 @@ do {                                                                    \
         TRACELOG(LOG_ERROR, "Assertion failed: %s", Message);           \
         TRACELOG(LOG_ERROR, "Condition: %s", #Condition);               \
         TRACELOG(LOG_ERROR, "Location: %s:%d", __FILE__, __LINE__);     \
-        __builtin_trap();                                               \
+        rg_trap();                                               \
         abort();                                                        \
     }                                                                   \
 } while (0)

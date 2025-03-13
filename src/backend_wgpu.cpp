@@ -1107,7 +1107,7 @@ void InitBackend(){
                     rg_unreachable();
             }
             std::cerr << errorTypeName << " error: " << std::string(message.data, message.length);
-            __builtin_trap();
+            rg_trap();
         });
 
     

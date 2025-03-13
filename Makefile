@@ -6,7 +6,7 @@ AR          ?= ar
 CXX         ?= clang++
 CFLAGS       = -fPIC -O3 -DSUPPORT_VULKAN_BACKEND=1 -DSUPPORT_GLSL_PARSER=1 -DENABLE_SPIRV -DSUPPORT_GLFW=1
 CXXFLAGS     = -fPIC -std=c++20 -fno-rtti -fno-exceptions -O3 -DSUPPORT_VULKAN_BACKEND=1 -DSUPPORT_GLSL_PARSER=1 -DSUPPORT_GLFW=1 -DENABLE_SPIRV
-INCLUDEFLAGS = -Iinclude -Iamalgamation/glfw-3.4/include -Iamalgamation/ -Iamalgamation/glslang -Iamalgamation/SPIRV-Reflect -I /home/manuel/Documents/raygpu/relbuild/_deps/dawn-src/third_party/vulkan-headers/src/include/
+INCLUDEFLAGS = -Iinclude -Iamalgamation/glfw-3.4/include -Iamalgamation/ -Iamalgamation/vulkan_headers/include -Iamalgamation/glslang -Iamalgamation/SPIRV-Reflect -I /home/manuel/Documents/raygpu/relbuild/_deps/dawn-src/third_party/vulkan-headers/src/include/
 
 PLATFORM_OS ?= WINDOWS
 TARGET_PLATFORM ?= PLATFORM_DESKTOP
@@ -137,17 +137,18 @@ SRC_GLFW += amalgamation/glfw-3.4/src/glx_context.c \
             amalgamation/glfw-3.4/src/posix_module.c
 GLFW_BUILD_FLAGS += -D_GLFW_WAYLAND=1 -D_GLFW_X11=1
 endif
-
 ifeq ($(PLATFORM_OS), WINDOWS)
 # Add Windows-specific source files
 SRC_GLFW += amalgamation/glfw-3.4/src/win32_init.c \
+            amalgamation/glfw-3.4/src/win32_module.c \
+            amalgamation/glfw-3.4/src/win32_time.c \
+            amalgamation/glfw-3.4/src/win32_thread.c \
             amalgamation/glfw-3.4/src/win32_joystick.c \
             amalgamation/glfw-3.4/src/win32_monitor.c \
             amalgamation/glfw-3.4/src/win32_window.c \
             amalgamation/glfw-3.4/src/wgl_context.c
-GLFW_BUILD_FLAGS += -D_GLFW_WIN32
+GLFW_BUILD_FLAGS += -D_GLFW_WIN32=1
 endif
-
 
 
 # C sources
@@ -210,8 +211,13 @@ TARGET = libraygpu.a
 all: $(TARGET)
 
 # Create the static library archive; ensure Wayland files are generated first
+ifeq (PLATFORM_OS, LINUX)
 $(TARGET): $(OBJS) $(WL_ALL)
 	$(AR) rcs $@ $^
+else
+$(TARGET): $(OBJS)
+	$(AR) rcs $@ $^
+endif
 
 ###############################################################################
 # Compile Rules
@@ -225,9 +231,13 @@ amalgamation/glslang/%.o: amalgamation/glslang/%.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@ $(INCLUDEFLAGS)
 
 # GLFW sources (depends on generated Wayland files)
+ifeq (PLATFORM_OS, LINUX)
 amalgamation/glfw-3.4/src/%.o: amalgamation/glfw-3.4/src/%.c $(WL_ALL)
-	$(CC) $(CFLAGS) -c $< -o $@ $(INCLUDEFLAGS) $(GLFW_BUILD_FLAGS) -Iwl_include
-
+	$(CC) $(CFLAGS) -c $< $(GLFW_BUILD_FLAGS) -o $@ $(INCLUDEFLAGS) -Iwl_include
+else
+amalgamation/glfw-3.4/src/%.o: amalgamation/glfw-3.4/src/%.c
+	$(CC) $(CFLAGS) -c $< $(GLFW_BUILD_FLAGS) -o $@ $(INCLUDEFLAGS)
+endif
 # C sources (general rule)
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@ $(INCLUDEFLAGS)
