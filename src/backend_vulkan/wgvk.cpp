@@ -651,7 +651,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
     VkSurfaceCapabilitiesKHR vkCapabilities;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(g_vulkanstate.physicalDevice, surface->surface, &vkCapabilities);
     
-    createInfo.minImageCount = 4;//vkCapabilities.minImageCount;
+    createInfo.minImageCount = vkCapabilities.minImageCount;
     createInfo.imageFormat = toVulkanPixelFormat(config->format);//swapchainImageFormat;
     surface->width = config->width;
     surface->height = config->height;
@@ -676,7 +676,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
 
     createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    createInfo.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;//toVulkanPresentMode(config->presentMode); 
+    createInfo.presentMode = toVulkanPresentMode(config->presentMode); 
     createInfo.clipped = VK_TRUE;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     VkResult scCreateResult = vkCreateSwapchainKHR(device->device, &createInfo, nullptr, &(surface->swapchain));

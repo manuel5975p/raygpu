@@ -112,8 +112,11 @@ void PresentSurface(FullSurface* surface){
     //vkDestroyCommandPool(g_vulkanstate.device->device, oof, nullptr);
     VkResult presentRes = vkQueuePresentKHR(g_vulkanstate.queue->presentQueue, &presentInfo);
     ++wgvksurf->device->submittedFrames;
-    if(presentRes != VK_SUCCESS){
+    if(presentRes != VK_SUCCESS && presentRes != VK_SUBOPTIMAL_KHR){
         TRACELOG(LOG_ERROR, "presentRes is %d", presentRes);
+    }
+    else if(presentRes == VK_SUBOPTIMAL_KHR){
+        TRACELOG(LOG_WARNING, "presentRes is VK_SUBOPTIMAL_KHR");
     }
     PostPresentSurface();
 
@@ -1112,6 +1115,46 @@ void InitBackend(){
     
     createRenderPass();
 }
+extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t height){
+    FullSurface ret{};
+    ret.surface = (WGVKSurface)nsurface;
+    negotiateSurfaceFormatAndPresentMode(nsurface);
+    SurfaceCapabilities capa{};
+    VkPhysicalDevice adapter = g_vulkanstate.physicalDevice;
+
+    wgvkSurfaceGetCapabilities((WGVKSurface)ret.surface, adapter, &capa);
+    SurfaceConfiguration config{};
+
+    PresentMode thm = g_renderstate.throttled_PresentMode;
+    PresentMode um  = g_renderstate.unthrottled_PresentMode;
+    if (g_renderstate.windowFlags & FLAG_VSYNC_LOWLATENCY_HINT) {
+        config.presentMode = (((g_renderstate.unthrottled_PresentMode == PresentMode_Mailbox) ? um : thm));
+    } else if (g_renderstate.windowFlags & FLAG_VSYNC_HINT) {
+        config.presentMode = thm;
+    } else {
+        config.presentMode = um;
+    }
+    //TRACELOG(LOG_INFO, "Initialized surface with %s", presentModeSpellingTable.at(config.presentMode).c_str());
+    //config.alphaMode = WGPUCompositeAlphaMode_Opaque;
+    config.format = g_renderstate.frameBufferFormat;
+    //config.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
+    config.width = width;
+    config.height = height;
+    //config.viewFormats = &config.format;
+    //config.viewFormatCount = 1;
+    config.device = g_vulkanstate.device;
+
+    ret.surfaceConfig.presentMode = (PresentMode)config.presentMode;
+    ret.surfaceConfig.device = (void*)config.device;
+    ret.surfaceConfig.width = config.width;
+    ret.surfaceConfig.height = config.width;
+    ret.surfaceConfig.format = (PixelFormat)config.format;
+    
+    ret.renderTarget = LoadRenderTexture(width, height);
+    wgvkSurfaceConfigure((WGVKSurface)ret.surface, &config);
+    return ret;
+}
+
 const VkSemaphore& SyncState::getSemaphoreOfSubmitIndex(uint32_t index){
     uint32_t capacity = semaphoresInThisFrame.capacity();
     if(semaphoresInThisFrame.size() <= index){

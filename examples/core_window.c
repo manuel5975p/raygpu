@@ -10,12 +10,12 @@ void mainloop(void){
     //EndWindowMode();
 
     BeginDrawing();
-    //ClearBackground((Color){230, 230, 230,255});
-    //DrawText("Hello Vulkan enjoyer", 100, 300, 50, (Color){190, 190, 190,255});
-    //DrawFPS(5, 5);
-    //if(IsKeyPressed(KEY_U)){
-    //    ToggleFullscreen();
-    //}
+    ClearBackground((Color){230, 230, 230,255});
+    DrawText("Hello Vulkan enjoyer", 100, 300, 50, (Color){190, 190, 190,255});
+    DrawFPS(5, 5);
+    if(IsKeyPressed(KEY_U)){
+        ToggleFullscreen();
+    }
     //drawCurrentBatch();
     //UseNoTexture();
     //rlVertex2f(0, 0);
@@ -34,7 +34,7 @@ int main(void){
     //RequestLimit(maxBufferSize, 1 << 13);
     //RequestBackend(WGPUBackendType_Vulkan);
     //SetConfigFlags(FLAG_MSAA_4X_HINT);
-    //SetConfigFlags(FLAG_VSYNC_HINT);
+    SetConfigFlags(FLAG_VSYNC_HINT);
     //SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(800, 600, "Vulkan window");
     //SetTargetFPS(0);

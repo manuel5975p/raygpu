@@ -732,7 +732,7 @@ typedef struct SurfaceCapabilities{
 }SurfaceCapabilities;
 // Unified Surface Configuration Structure
 typedef struct SurfaceConfiguration {
-    void* device;                   // Device that surface belongs to (WPGUDevice or VkDevice)
+    void* device;                   // Device that surface belongs to (WPGUDevice or WGVKDevice)
     uint32_t width;                 // Width of the rendering surface
     uint32_t height;                // Height of the rendering surface
     PixelFormat format;             // Pixel format of the surface
