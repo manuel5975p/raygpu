@@ -52,6 +52,7 @@
 #include <tint/lang/core/type/reference.h>
 #endif
 #include <regex>
+#include <bitset>
 
 #if SUPPORT_GLSL_PARSER == 1
 const TBuiltInResource DefaultTBuiltInResource_RG = {

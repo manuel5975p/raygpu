@@ -402,7 +402,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     void* pUserData) {
     if(messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT){
         TRACELOG(LOG_ERROR, pCallbackData->pMessage);
-        __builtin_trap();
+        rg_trap();
     }
     else if(messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT){
         TRACELOG(LOG_WARNING, pCallbackData->pMessage);

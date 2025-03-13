@@ -46,6 +46,15 @@ WGPUSurface SDL3_GetWGPUSurface(WGPUInstance instance, SDL_Window* window) {
     WGPUSurfaceDescriptor surfaceDescriptor{};
     surfaceDescriptor.nextInChain = &fromAndroidWindow.chain;
     return wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
+    #elif defined(_WIN32)
+    void* hwndPointer = SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
+    void* instancePointer = SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_INSTANCE_POINTER, NULL);
+    WGPUSurfaceSourceWindowsHWND fromHwnd{};
+    fromHwnd.hwnd = hwndPointer;
+    fromHwnd.hinstance = hwndPointer;
+    WGPUSurfaceDescriptor surfaceDescriptor{};
+    surfaceDescriptor.nextInChain = &fromHwnd.chain;
+    return wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
     #else
     if (drv == "x11") {
         Display *xdisplay = (Display *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_X11_DISPLAY_POINTER, NULL);
