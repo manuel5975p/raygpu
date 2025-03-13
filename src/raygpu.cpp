@@ -742,6 +742,7 @@ void EndDrawing(){
         #endif
     }
     else{
+        DummySubmitOnQueue();
         PostPresentSurface();
     }
     

@@ -864,6 +864,7 @@ EXTERN_C_BEGIN
     void GetNewTexture(FullSurface* fsurface);
     void PresentSurface(FullSurface* fsurface);
     void PostPresentSurface(cwoid);
+    void DummySubmitOnQueue(cwoid);
     uint32_t GetScreenWidth (cwoid);                             //Window width
     uint32_t GetScreenHeight(cwoid);                             //Window height
     uint32_t GetMonitorWidth (cwoid);                            //Monitor height

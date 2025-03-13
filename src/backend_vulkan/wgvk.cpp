@@ -125,7 +125,7 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
     }
     wvBindGroup->resourceUsage.releaseAllAndClear();
     wvBindGroup->resourceUsage = std::move(newResourceUsage);
-
+    new(&newResourceUsage) ResourceUsage{};
 
     uint32_t count = bgdesc->entryCount;
     small_vector<VkWriteDescriptorSet> writes(count, VkWriteDescriptorSet{});
@@ -338,6 +338,7 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
         colorAttachments[i].clearValue.color.float32[3] = rpdesc->colorAttachments[i].clearValue.a;
         colorAttachments[i].imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         colorAttachments[i].imageView = rpdesc->colorAttachments[i].view->view;
+        ret->resourceUsage.track(rpdesc->colorAttachments[i].view, TextureUsage_RenderAttachment);
         colorAttachments[i].loadOp = toVulkanLoadOperation(rpdesc->colorAttachments[i].loadOp);
         colorAttachments[i].storeOp = toVulkanStoreOperation(rpdesc->colorAttachments[i].storeOp);
     }
@@ -348,6 +349,7 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
 
     depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     depthAttachment.imageView = rpdesc->depthStencilAttachment->view->view;
+    ret->resourceUsage.track(rpdesc->depthStencilAttachment->view, TextureUsage_RenderAttachment);
     depthAttachment.loadOp = toVulkanLoadOperation(rpdesc->depthStencilAttachment->depthLoadOp);
     depthAttachment.storeOp = toVulkanStoreOperation(rpdesc->depthStencilAttachment->depthStoreOp);
     info.pDepthAttachment = &depthAttachment;
@@ -459,6 +461,9 @@ extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder command
     ret->referencedRPs = std::move(commandEncoder->referencedRPs);
     ret->referencedCPs = std::move(commandEncoder->referencedCPs);
     ret->resourceUsage = std::move(commandEncoder->resourceUsage);
+    new (&commandEncoder->referencedRPs)(ref_holder<WGVKRenderPassEncoder>){};
+    new (&commandEncoder->referencedCPs)(ref_holder<WGVKComputePassEncoder>){};
+    new (&commandEncoder->resourceUsage)(ResourceUsage){};
     ret->cacheIndex = commandEncoder->cacheIndex;
     ret->buffer = commandEncoder->buffer;
     ret->device = commandEncoder->device;
@@ -809,6 +814,7 @@ void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
         commandEncoder->device->frameCaches[commandEncoder->cacheIndex].buffers.push_back(commandEncoder->buffer);
         //vkFreeCommandBuffers(commandEncoder->device->device, commandEncoder->device->frameCaches[commandEncoder->cacheIndex].commandPool, 1, &commandEncoder->buffer);
     }
+    
     commandEncoder->~WGVKCommandEncoderImpl();
     
     std::free(commandEncoder);
@@ -849,7 +855,7 @@ void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
         for(auto rp : commandBuffer->referencedCPs){
             wgvkReleaseComputePassEncoder(rp);
         }
-        
+        commandBuffer->resourceUsage.releaseAllAndClear();
         PerframeCache& frameCache = commandBuffer->device->frameCaches[commandBuffer->cacheIndex];
         frameCache.buffers.push_back(commandBuffer->buffer);
         

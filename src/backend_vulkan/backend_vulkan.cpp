@@ -118,6 +118,17 @@ void PresentSurface(FullSurface* surface){
     PostPresentSurface();
 
 }
+void DummySubmitOnQueue(){
+    uint32_t cacheIndex = g_vulkanstate.device->submittedFrames % framesInFlight;
+    if(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence == 0){
+        g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence = CreateFence();
+    }
+    VkSubmitInfo emptySubmit zeroinit;
+    emptySubmit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    vkQueueSubmit(g_vulkanstate.device->queue->graphicsQueue, 1, &emptySubmit, g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence);
+    g_vulkanstate.queue->pendingCommandBuffers[cacheIndex].emplace(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence, std::unordered_set<WGVKCommandBuffer>{});
+}
+
 void PostPresentSurface(){
     WGVKDevice surfaceDevice = g_vulkanstate.device;
     WGVKQueue queue = surfaceDevice->queue;
@@ -132,7 +143,8 @@ void PostPresentSurface(){
                 fences.push_back(fence);
             }
         }
-        vkWaitForFences(surfaceDevice->device, fences.size(), fences.data(), VK_TRUE, 1 << 25);
+        if(fences.size() > 0)
+            vkWaitForFences(surfaceDevice->device, fences.size(), fences.data(), VK_TRUE, 1 << 25);
     }
 
     for(auto [fence, bufferset] : queue->pendingCommandBuffers[cacheIndex]){

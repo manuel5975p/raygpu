@@ -127,6 +127,20 @@ typedef struct ResourceUsage{
         }
     }
     void releaseAllAndClear()noexcept;
+    ~ResourceUsage(){
+        if(referencedBuffers.size()){
+            abort();
+        }
+        if(referencedTextures.size()){
+            abort();
+        }
+        if(referencedTextureViews.size()){
+            abort();
+        }
+        if(referencedBindGroups.size()){
+            abort();
+        }
+    }
 }ResourceUsage;
 
 constexpr uint32_t max_color_attachments = 4;
