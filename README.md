@@ -1,5 +1,5 @@
 # RayGPU
-A fast and simple [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API) based graphics library for **C and C++**, inspired by and based on [raylib](https://github.com/raysan5/raylib/).
+A fast and simple [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API) based graphics library for **C and C++**, inspired by and based on [raylib](https://github.com/raysan5/raylib/). Primarily targeting WebGPU for browsers and desktop through [Dawn](https://dawn.googlesource.com/dawn), it also supports a direct and lightweight Vulkan backend.
 ### Outline
 - [Getting Started](#getting-started)
 - [Building](#building)
@@ -104,7 +104,23 @@ int main(){
 }
 ```
 ### Building
-CMake is required for all platforms. If you want to add `raygpu` to your current project, add these snippets to your `CMakeLists.txt`:
+The primarily supported way to build is through CMake. Using the vulkan backend with GLSL Shaders and GLFW is also buildable with a plain Makefile.
+
+#### Makefile
+```
+git clone https://github.com/manuel5975p/raygpu/
+cd raygpu
+make
+# or
+make -j $(nproc)
+```
+builds a static library `libraygpu.a` with the glfw and glslang libraries baked in.
+From there, an example can be built using
+```
+g++ examples/core_window.c -o core_window -DSUPPORT_VULKAN_BACKEND=1 -I include/ -L . -lraygpu
+```
+#### CMake
+If you want to add `raygpu` to your current project, add these snippets to your `CMakeLists.txt`:
 ```cmake
 # This is to support FetchContent in the first place.
 # Ignore if you already include it.
@@ -180,9 +196,9 @@ Instead of an active shader, WebGPU has an active pipeline. This Pipeline is an 
 - Blend Mode
 - Cull Mode
 - Depth testing mode
-- Shader Module containing both vs and fs code
+- Shader Modules, containing both Vertex and Fragment or Compute code 
 
-The Vertex Buffer Layouts are especially tricky since in OpenGL "Vertex Array Objects" are responsible for attribute offsets, strides and what buffer they reside in.
+The Vertex Buffer Layouts are especially tricky since in OpenGL "Vertex Array Objects" are responsible for attribute offsets, strides and what buffer they reside in. For Vulkan and Webgpu the interpretation of the Vertex Buffers is up to the pipeline.
 
 Nevertheless, it's still possible to load a Pipeline with a single line
 ```c
@@ -282,16 +298,3 @@ int main(void){
 ```
 ___
 More examples can be found in [here](https://github.com/manuel5975p/raygpu/tree/master/examples).
-
-## Single compile command
-```bash
-# Compile .cpp files
-g++ -std=c++20 -c -DSUPPORT_SDL=0 -DSUPPORT_GLFW=0 ../src/InitWindow.cpp ../src/models.cpp ../src/pipeline.cpp ../src/raygpu.cpp ../src/rshapes.cpp ../src/shader_parse.cpp -I ../include/ -I ../external/ -I/raygpu/include -I/raygpu/gccbuild -I/raygpu/external -I/raygpu/dawn/include -I/raygpu/gccbuild/dawn/gen/include -I/raygpu/dawn -I/raygpu/dawn/src -I/raygpu/gccbuild/dawn/gen/src
-
-# Compile .c files
-gcc -c -DSUPPORT_SDL=0 -DSUPPORT_GLFW=0 ../src/cgltf_impl.c ../src/msf_gif_impl.c ../src/rtext.c ../src/sinfl_impl.c ../src/stb_impl.c ../src/windows_stuff.c -I ../include/ -I ../external/ -I/raygpu/gccbuild/dawn/gen/include -I/raygpu/dawn/include
-```
-Finally, an example of choice can be compiled:
-```bash
-g++ *.o ../examples/core_window.c -I ../include/ -I ../external/ -I/raygpu/gccbuild/dawn/gen/include -I/raygpu /dawn/include -L/raygpu/gccbuild/dawn/src/dawn/native/ -Wl,-rpath=/raygpu/gccbuild/dawn/src/dawn/native/ -lwebgpu_dawn
-```
