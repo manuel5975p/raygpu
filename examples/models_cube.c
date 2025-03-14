@@ -87,7 +87,7 @@ void mainloop(void){
 }
 int main(cwoid){
     SetConfigFlags(FLAG_VSYNC_HINT);
-    SetConfigFlags(FLAG_MSAA_4X_HINT);
+    //SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(1200, 800, "VAO");
     //SetTargetFPS(300);
     cam = CLITERAL(Camera3D){

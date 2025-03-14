@@ -823,13 +823,14 @@ extern "C" void wgvkComputePassEncoderDispatchWorkgroups(WGVKComputePassEncoder 
 
 void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
     rassert(commandEncoder->movedFrom, "Commandencoder still valid");
-    for(auto rp : commandEncoder->referencedRPs){
-        wgvkReleaseRenderPassEncoder(rp);
-    }
-    for(auto rp : commandEncoder->referencedCPs){
-        wgvkReleaseComputePassEncoder(rp);
-    }
-    commandEncoder->resourceUsage.releaseAllAndClear();
+
+    //for(auto rp : commandEncoder->referencedRPs){
+    //    wgvkReleaseRenderPassEncoder(rp);
+    //}
+    //for(auto rp : commandEncoder->referencedCPs){
+    //    wgvkReleaseComputePassEncoder(rp);
+    //}
+    //commandEncoder->resourceUsage.releaseAllAndClear();
 
     if(commandEncoder->buffer){
         auto& buffers = commandEncoder->device->frameCaches[commandEncoder->cacheIndex].buffers;
