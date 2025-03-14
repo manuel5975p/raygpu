@@ -7,9 +7,12 @@ AR ?= ar
 CXX ?= clang++
 
 # Compiler/Linker flags
-CFLAGS        = -fPIC -O3 -DSUPPORT_VULKAN_BACKEND=1 -DSUPPORT_GLSL_PARSER=1 -DENABLE_SPIRV -DSUPPORT_GLFW=1
-CXXFLAGS      = -fPIC -std=c++20 -fno-rtti -fno-exceptions -O3 -DSUPPORT_VULKAN_BACKEND=1 -DSUPPORT_GLSL_PARSER=1 -DSUPPORT_GLFW=1 -DENABLE_SPIRV
-
+CFLAGS        = -fPIC -O3 -DSUPPORT_VULKAN_BACKEND=1 -DSUPPORT_GLSL_PARSER=1 -DENABLE_SPIRV
+CXXFLAGS      = -fPIC -std=c++20 -fno-rtti -fno-exceptions -O3 -DSUPPORT_VULKAN_BACKEND=1 -DSUPPORT_GLSL_PARSER=1 -DENABLE_SPIRV
+ifeq ($(SUPPORT_GLFW), 1)
+CFLAGS += -DSUPPORT_GLFW=1
+CXXFLAGS += -DSUPPORT_GLFW=1
+endif
 # Include paths
 INCLUDEFLAGS  = -Iinclude \
                 -Iamalgamation/glfw-3.4/include \
@@ -205,8 +208,10 @@ OBJ_GLFW = $(patsubst %.c,   $(OBJ_DIR)/%.o, $(SRC_GLFW))
 OBJ_C    = $(patsubst %.c,   $(OBJ_DIR)/%.o, $(SRC_C))
 
 # All objects combined
-OBJS     = $(OBJ_CPP) $(OBJ_GLSL) $(OBJ_GLFW) $(OBJ_C)
-
+OBJS     = $(OBJ_CPP) $(OBJ_GLSL) $(OBJ_C)
+ifeq ($(SUPPORT_GLFW), 1)
+OBJS += $(OBJ_GLFW)
+endif
 ###############################################################################
 # Phony Targets
 ###############################################################################
@@ -220,10 +225,15 @@ clean:
 ###############################################################################
 # Library Build
 ###############################################################################
-$(LIB_OUTPUT): glfw_objs glsl_objs cpp_objs c_objs | $(LIB_DIR)
+ifeq ($(SUPPORT_GLFW), 1)
+$(LIB_OUTPUT): glsl_objs glfw_objs cpp_objs c_objs | $(LIB_DIR)
 	@echo "Archiving objects into $(LIB_OUTPUT)"
 	$(AR) rcs $@ $(OBJS)
-
+else
+$(LIB_OUTPUT): glsl_objs cpp_objs c_objs | $(LIB_DIR)
+	@echo "Archiving objects into $(LIB_OUTPUT)"
+	$(AR) rcs $@ $(OBJS)
+endif
 # Make sure the library directory exists
 $(LIB_DIR):
 	@mkdir -p $(LIB_DIR)
@@ -254,10 +264,11 @@ $(OBJ_DIR)/%.o: %.c
 # We match the path "amalgamation/glfw-3.4/src" so we can apply the extra flags.
 # This uses a more specific pattern and must come *before* the default rule
 # or be more specialized, so it only applies to GLFW files.
+ifeq ($(SUPPORT_GLFW), 1)
 $(OBJ_DIR)/amalgamation/glfw-3.4/src/%.o: amalgamation/glfw-3.4/src/%.c $(WAYLAND_DEPS)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(INCLUDEFLAGS) $(GLFW_BUILD_FLAGS) -I $(WL_OUT_DIR) -c $< -o $@
-
+endif
 ###############################################################################
 # Wayland Protocol Generation (Linux)
 ###############################################################################

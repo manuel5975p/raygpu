@@ -313,31 +313,30 @@ if(EMSCRIPTEN)
     #target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
 else()
     if(SUPPORT_VULKAN_BACKEND)
+        if(WIN32)
+            # Glob all directories in C:\VulkanSDK\
+            file(GLOB VULKAN_SDK_DIRS "C:/VulkanSDK/*")
 
-    if(WIN32)
-        # Glob all directories in C:\VulkanSDK\
-        file(GLOB VULKAN_SDK_DIRS "C:/VulkanSDK/*")
+            # Sort the list and try the highest version first
+            list(SORT VULKAN_SDK_DIRS)
+            list(REVERSE VULKAN_SDK_DIRS)
 
-        # Sort the list and try the highest version first
-        list(SORT VULKAN_SDK_DIRS)
-        list(REVERSE VULKAN_SDK_DIRS)
+            set(VULKAN_SDK_FOUND FALSE)
+            foreach(SDK_DIR ${VULKAN_SDK_DIRS})
+                # Check if the directory contains the Vulkan header
+                if(EXISTS "${SDK_DIR}/Include/vulkan/vulkan.h")
+                    set(VULKAN_SDK ${SDK_DIR})
+                    set(VULKAN_SDK_FOUND TRUE)
+                    break()
+                endif()
+            endforeach()
 
-        set(VULKAN_SDK_FOUND FALSE)
-        foreach(SDK_DIR ${VULKAN_SDK_DIRS})
-          # Check if the directory contains the Vulkan header
-          if(EXISTS "${SDK_DIR}/Include/vulkan/vulkan.h")
-            set(VULKAN_SDK ${SDK_DIR})
-            set(VULKAN_SDK_FOUND TRUE)
-            break()
-          endif()
-        endforeach()
-
-        if(NOT VULKAN_SDK_FOUND)
-          message(FATAL_ERROR "Vulkan SDK not found in C:/VulkanSDK/!")
+            if(NOT VULKAN_SDK_FOUND)
+                message(FATAL_ERROR "Vulkan SDK not found in C:/VulkanSDK/!")
+            endif()
+            message(STATUS "Found Vulkan SDK at: ${VULKAN_SDK}")
+            list(APPEND CMAKE_PREFIX_PATH ${VULKAN_SDK})
         endif()
-        message(STATUS "Found Vulkan SDK at: ${VULKAN_SDK}")
-        list(APPEND CMAKE_PREFIX_PATH ${VULKAN_SDK})
-    endif()
         find_package(Vulkan REQUIRED)
     endif()
     if(SUPPORT_VULKAN_BACKEND)
