@@ -99,6 +99,7 @@ WGVKTexture CreateImage(WGVKDevice device, uint32_t width, uint32_t height, uint
     ret->device = device;
     ret->width = width;
     ret->height = height;
+    ret->format = format;
     ret->sampleCount = sampleCount;
     ret->depthOrArrayLayers = 1;
     ret->layout = VK_IMAGE_LAYOUT_UNDEFINED;

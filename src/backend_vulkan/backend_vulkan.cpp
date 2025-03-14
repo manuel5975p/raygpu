@@ -165,12 +165,14 @@ void PostPresentSurface(){
     }
 
     queue->pendingCommandBuffers[cacheIndex].clear();
-    vkResetCommandPool(surfaceDevice->device, surfaceDevice->frameCaches[cacheIndex].commandPool, VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT);
-    WGVKCommandEncoderDescriptor cedesc zeroinit;
-
+    
     WGVKCommandBuffer buffer = wgvkCommandEncoderFinish(queue->presubmitCache);
     wgvkReleaseCommandEncoder(queue->presubmitCache);
     wgvkReleaseCommandBuffer(buffer);
+    vkResetCommandPool(surfaceDevice->device, surfaceDevice->frameCaches[cacheIndex].commandPool, VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT);
+    WGVKCommandEncoderDescriptor cedesc zeroinit;
+
+    
     queue->presubmitCache = wgvkDeviceCreateCommandEncoder(surfaceDevice, &cedesc);
 }
 

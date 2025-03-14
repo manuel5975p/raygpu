@@ -471,6 +471,7 @@ extern "C" void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder
 extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder commandEncoder){
     WGVKCommandBuffer ret = callocnewpp(WGVKCommandBufferImpl);
     ret->refCount = 1;
+    rassert(commandEncoder->movedFrom == 0, "Command encoder is already invalidated");
     commandEncoder->movedFrom = 1;
     vkEndCommandBuffer(commandEncoder->buffer);
     ret->referencedRPs = std::move(commandEncoder->referencedRPs);
@@ -627,7 +628,7 @@ extern "C" void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, VkPhysicalDe
     vkGetPhysicalDeviceSurfacePresentModesKHR(adapter, surface, &presentModeCount, nullptr);
     if (presentModeCount != 0) {
         wgvkSurface->presentModeCache = (PresentMode*)std::calloc(presentModeCount, sizeof(PresentMode));
-        std::vector<VkPresentModeKHR> presentModes(formatCount);
+        std::vector<VkPresentModeKHR> presentModes(presentModeCount);
         vkGetPhysicalDeviceSurfacePresentModesKHR(adapter, surface, &presentModeCount, presentModes.data());
         for(size_t i = 0;i < presentModeCount;i++){
             wgvkSurface->presentModeCache[i] = fromVulkanPresentMode(presentModes[i]);
