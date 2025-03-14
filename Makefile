@@ -1,20 +1,42 @@
 ###############################################################################
-# Variables and Compiler Flags
+# Variables
 ###############################################################################
-CC          ?= clang
-AR          ?= ar
-CXX         ?= clang++
-CFLAGS       = -fPIC -O3 -DSUPPORT_VULKAN_BACKEND=1 -DSUPPORT_GLSL_PARSER=1 -DENABLE_SPIRV -DSUPPORT_GLFW=1
-CXXFLAGS     = -fPIC -std=c++20 -fno-rtti -fno-exceptions -O3 -DSUPPORT_VULKAN_BACKEND=1 -DSUPPORT_GLSL_PARSER=1 -DSUPPORT_GLFW=1 -DENABLE_SPIRV
-INCLUDEFLAGS = -Iinclude -Iamalgamation/glfw-3.4/include -Iamalgamation/ -Iamalgamation/vulkan_headers/include -Iamalgamation/glslang -Iamalgamation/SPIRV-Reflect -I /home/manuel/Documents/raygpu/relbuild/_deps/dawn-src/third_party/vulkan-headers/src/include/
 
-PLATFORM_OS ?= WINDOWS
+CC ?= clang
+AR ?= ar
+CXX ?= clang++
+
+# Compiler/Linker flags
+CFLAGS        = -fPIC -O3 -DSUPPORT_VULKAN_BACKEND=1 -DSUPPORT_GLSL_PARSER=1 -DENABLE_SPIRV -DSUPPORT_GLFW=1
+CXXFLAGS      = -fPIC -std=c++20 -fno-rtti -fno-exceptions -O3 -DSUPPORT_VULKAN_BACKEND=1 -DSUPPORT_GLSL_PARSER=1 -DSUPPORT_GLFW=1 -DENABLE_SPIRV
+
+# Include paths
+INCLUDEFLAGS  = -Iinclude \
+                -Iamalgamation/glfw-3.4/include \
+                -Iamalgamation/ \
+                -Iamalgamation/vulkan_headers/include \
+                -Iamalgamation/glslang \
+                -Iamalgamation/SPIRV-Reflect \
+                -I/home/manuel/Documents/raygpu/relbuild/_deps/dawn-src/third_party/vulkan-headers/src/include/
+
+# Platform detection
+PLATFORM_OS   ?= WINDOWS
 TARGET_PLATFORM ?= PLATFORM_DESKTOP
 
+# Output directories
+OBJ_DIR       = obj
+LIB_DIR       = lib
+
+# Wayland directory for generated protocol files (only used on Linux)
+WL_OUT_DIR    = wl_include
+
+# Library output name
+LIB_OUTPUT    = $(LIB_DIR)/libraygpu.a
+
+###############################################################################
 # Determine PLATFORM_OS when required
+###############################################################################
 ifeq ($(TARGET_PLATFORM),$(filter $(TARGET_PLATFORM), PLATFORM_DESKTOP))
-    # No uname.exe on MinGW!, but OS=Windows_NT on Windows!
-    # ifeq ($(UNAME),Msys) -> Windows
     ifeq ($(OS),Windows_NT)
         PLATFORM_OS = WINDOWS
         ifndef PLATFORM_SHELL
@@ -46,13 +68,9 @@ ifeq ($(TARGET_PLATFORM),$(filter $(TARGET_PLATFORM), PLATFORM_DESKTOP))
     endif
 endif
 
-
-
-
 ###############################################################################
 # Source Files
 ###############################################################################
-# Main C++ source files
 SRC_CPP = src/InitWindow.cpp \
           src/InitWindow_GLFW.cpp \
           src/glsl_support.cpp \
@@ -65,7 +83,6 @@ SRC_CPP = src/InitWindow.cpp \
           src/rshapes.cpp \
           src/shader_parse.cpp
 
-# glslang sources
 SRC_GLSL = amalgamation/glslang/glslang/MachineIndependent/parseConst.cpp \
            amalgamation/glslang/glslang/MachineIndependent/Versions.cpp \
            amalgamation/glslang/glslang/MachineIndependent/IntermTraverse.cpp \
@@ -124,7 +141,6 @@ SRC_GLFW = amalgamation/glfw-3.4/src/context.c \
            amalgamation/glfw-3.4/src/window.c
 
 ifeq ($(PLATFORM_OS), LINUX)
-# Always include both X11 and Wayland files on Linux
 SRC_GLFW += amalgamation/glfw-3.4/src/glx_context.c \
             amalgamation/glfw-3.4/src/linux_joystick.c \
             amalgamation/glfw-3.4/src/wl_init.c \
@@ -137,8 +153,8 @@ SRC_GLFW += amalgamation/glfw-3.4/src/glx_context.c \
             amalgamation/glfw-3.4/src/posix_module.c
 GLFW_BUILD_FLAGS += -D_GLFW_WAYLAND=1 -D_GLFW_X11=1
 endif
+
 ifeq ($(PLATFORM_OS), WINDOWS)
-# Add Windows-specific source files
 SRC_GLFW += amalgamation/glfw-3.4/src/win32_init.c \
             amalgamation/glfw-3.4/src/win32_module.c \
             amalgamation/glfw-3.4/src/win32_time.c \
@@ -150,8 +166,6 @@ SRC_GLFW += amalgamation/glfw-3.4/src/win32_init.c \
 GLFW_BUILD_FLAGS += -D_GLFW_WIN32=1
 endif
 
-
-# C sources
 SRC_C = src/sinfl_impl.c \
         src/msf_gif_impl.c \
         src/cgltf_impl.c \
@@ -160,94 +174,111 @@ SRC_C = src/sinfl_impl.c \
         src/stb_impl.c \
         amalgamation/SPIRV-Reflect/spirv_reflect.c
 
-# Precompiled objects (if any)
-PRE_OBJS = src/rtext.o src/msf_gif_impl.o src/cgltf_impl.o
-
 ###############################################################################
-# Wayland Protocols and Generated Files
+# Wayland Protocols (Linux only)
 ###############################################################################
-# List of Wayland protocol names
-WL_PROTOS = xdg-shell fractional-scale-v1 idle-inhibit-unstable-v1 pointer-constraints-unstable-v1 relative-pointer-unstable-v1 viewporter wayland xdg-activation-v1 xdg-decoration-unstable-v1
+WL_PROTOS       = xdg-shell fractional-scale-v1 idle-inhibit-unstable-v1 \
+                  pointer-constraints-unstable-v1 relative-pointer-unstable-v1 \
+                  viewporter wayland xdg-activation-v1 xdg-decoration-unstable-v1
 
-# Output directory for generated Wayland files
-WL_OUT_DIR = wl_include
-WL_XML_DIR = amalgamation/glfw-3.4/deps/wayland
-
-# Generated headers and code files
+WL_XML_DIR      = amalgamation/glfw-3.4/deps/wayland
 WL_CLIENT_HEADERS = $(addprefix $(WL_OUT_DIR)/, $(addsuffix -client-protocol.h, $(WL_PROTOS)))
 WL_CLIENT_CODES   = $(addprefix $(WL_OUT_DIR)/, $(addsuffix -client-protocol-code.h, $(WL_PROTOS)))
 WL_ALL            = $(WL_CLIENT_HEADERS) $(WL_CLIENT_CODES)
 
-# Pattern rule: generate client protocol header using wayland-scanner
-$(WL_OUT_DIR)/%-client-protocol.h: $(WL_XML_DIR)/%.xml
-	@mkdir -p $(WL_OUT_DIR)
-	wayland-scanner client-header $< $@
-
-# Pattern rule: generate client protocol code using wayland-scanner (private-code)
-$(WL_OUT_DIR)/%-client-protocol-code.h: $(WL_XML_DIR)/%.xml
-	@mkdir -p $(WL_OUT_DIR)
-	wayland-scanner private-code $< $@
-
-###############################################################################
-# Object File Lists
-###############################################################################
-OBJ_CPP  = $(SRC_CPP:.cpp=.o)
-OBJ_GLSL = $(SRC_GLSL:.cpp=.o)
-OBJ_GLFW = $(SRC_GLFW:.c=.o)
-OBJ_C    = $(SRC_C:.c=.o)
-# Uncomment if you have Objective-C++ sources
-# OBJ_MM  = $(SRC_MM:.mm=.o)
-
-# Combine all objects (adjust if OBJ_MM is used)
-OBJS = $(OBJ_CPP) $(OBJ_GLSL) $(OBJ_GLFW) $(OBJ_C) $(PRE_OBJS)
-
-###############################################################################
-# Final Targets
-###############################################################################
-TARGET = libraygpu.a
-
-#LIBGLSLANG = libglslang.a
-
-all: $(TARGET)
-
-# Create the static library archive; ensure Wayland files are generated first
-ifeq (PLATFORM_OS, LINUX)
-$(TARGET): $(OBJS) $(WL_ALL)
-	$(AR) rcs $@ $^
+ifeq ($(PLATFORM_OS), LINUX)
+WAYLAND_DEPS = $(WL_ALL)
 else
-$(TARGET): $(OBJS)
-	$(AR) rcs $@ $^
+WAYLAND_DEPS =
 endif
+
+###############################################################################
+# Object Files
+###############################################################################
+
+# We will create separate object lists for better organization
+OBJ_CPP  = $(patsubst %.cpp, $(OBJ_DIR)/%.o, $(SRC_CPP))
+OBJ_GLSL = $(patsubst %.cpp, $(OBJ_DIR)/%.o, $(SRC_GLSL))
+# GLFW object files
+OBJ_GLFW = $(patsubst %.c,   $(OBJ_DIR)/%.o, $(SRC_GLFW))
+# Other C object files
+OBJ_C    = $(patsubst %.c,   $(OBJ_DIR)/%.o, $(SRC_C))
+
+# All objects combined
+OBJS     = $(OBJ_CPP) $(OBJ_GLSL) $(OBJ_GLFW) $(OBJ_C)
+
+###############################################################################
+# Phony Targets
+###############################################################################
+.PHONY: all clean glfw_objs glsl_objs cpp_objs c_objs wayland-protocols
+
+all: $(LIB_OUTPUT)
+
+clean:
+	rm -rf $(OBJ_DIR) $(LIB_DIR) $(WL_OUT_DIR)
+
+###############################################################################
+# Library Build
+###############################################################################
+$(LIB_OUTPUT): glfw_objs glsl_objs cpp_objs c_objs | $(LIB_DIR)
+	@echo "Archiving objects into $(LIB_OUTPUT)"
+	$(AR) rcs $@ $(OBJS)
+
+# Make sure the library directory exists
+$(LIB_DIR):
+	@mkdir -p $(LIB_DIR)
+
+###############################################################################
+# Build Group Targets
+###############################################################################
+glfw_objs: $(OBJ_GLFW)
+glsl_objs: $(OBJ_GLSL)
+cpp_objs:  $(OBJ_CPP)
+c_objs:    $(OBJ_C)
 
 ###############################################################################
 # Compile Rules
 ###############################################################################
-# Main C++ sources
-src/%.o: src/%.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@ $(INCLUDEFLAGS)
 
-# glslang sources
-amalgamation/glslang/%.o: amalgamation/glslang/%.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@ $(INCLUDEFLAGS)
+# Default C++ compile rule (for both normal .cpp and GLSL .cpp)
+$(OBJ_DIR)/%.o: %.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(INCLUDEFLAGS) -c $< -o $@
 
-# GLFW sources (depends on generated Wayland files)
-ifeq (PLATFORM_OS, LINUX)
-amalgamation/glfw-3.4/src/%.o: amalgamation/glfw-3.4/src/%.c $(WL_ALL)
-	$(CC) $(CFLAGS) -c $< $(GLFW_BUILD_FLAGS) -o $@ $(INCLUDEFLAGS) -Iwl_include
-else
-amalgamation/glfw-3.4/src/%.o: amalgamation/glfw-3.4/src/%.c
-	$(CC) $(CFLAGS) -c $< $(GLFW_BUILD_FLAGS) -o $@ $(INCLUDEFLAGS)
+# Default C compile rule (for non-GLFW C files)
+$(OBJ_DIR)/%.o: %.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(INCLUDEFLAGS) -c $< -o $@
+
+# GLFW C compile rule with extra GLFW_BUILD_FLAGS
+# We match the path "amalgamation/glfw-3.4/src" so we can apply the extra flags.
+# This uses a more specific pattern and must come *before* the default rule
+# or be more specialized, so it only applies to GLFW files.
+$(OBJ_DIR)/amalgamation/glfw-3.4/src/%.o: amalgamation/glfw-3.4/src/%.c $(WAYLAND_DEPS)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(INCLUDEFLAGS) $(GLFW_BUILD_FLAGS) -I $(WL_OUT_DIR) -c $< -o $@
+
+###############################################################################
+# Wayland Protocol Generation (Linux)
+###############################################################################
+ifeq ($(PLATFORM_OS), LINUX)
+# Ensure that glfw objects depend on the generated Wayland protocol files
+$(OBJ_GLFW): wayland-protocols
+
+wayland-protocols: $(WL_ALL)
+	@echo "Wayland protocols generated."
+
+# Create the wl_include directory
+$(WL_OUT_DIR):
+	@mkdir -p $(WL_OUT_DIR)
+
+# Generate headers
+$(WL_OUT_DIR)/%-client-protocol.h: $(WL_XML_DIR)/%.xml | $(WL_OUT_DIR)
+	@echo "Generating $@ ..."
+	wayland-scanner client-header $< $@
+
+# Generate private-code
+$(WL_OUT_DIR)/%-client-protocol-code.h: $(WL_XML_DIR)/%.xml | $(WL_OUT_DIR)
+	@echo "Generating $@ ..."
+	wayland-scanner private-code $< $@
 endif
-# C sources (general rule)
-%.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@ $(INCLUDEFLAGS)
-
-# (Optional) Objective-C++ sources
-%.o: %.mm
-	$(CXX) $(CXXFLAGS) -x objective-c++ -c $< -o $@ $(INCLUDEFLAGS)
-
-###############################################################################
-# Clean
-###############################################################################
-clean:
-	rm -f $(OBJS) $(TARGET) $(WL_ALL) amalgamation/glfw-3.4/src/*.o
