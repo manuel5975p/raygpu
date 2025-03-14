@@ -321,7 +321,8 @@ if(EMSCRIPTEN)
     #target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
 else()
     if(SUPPORT_VULKAN_BACKEND)
-        if(WIN32)
+        if(WIN32 AND NOT VULKAN_SDK)
+            message(WARNING "Vulkan SDK path not set. Looking for them in C:/VulkanSDK/")
             # Glob all directories in C:\VulkanSDK\
             file(GLOB VULKAN_SDK_DIRS "C:/VulkanSDK/*")
 

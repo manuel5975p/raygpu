@@ -125,7 +125,6 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
     }
     wvBindGroup->resourceUsage.releaseAllAndClear();
     wvBindGroup->resourceUsage = std::move(newResourceUsage);
-    new(&newResourceUsage) ResourceUsage{};
 
     uint32_t count = bgdesc->entryCount;
     small_vector<VkWriteDescriptorSet> writes(count, VkWriteDescriptorSet{});
@@ -176,38 +175,52 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
 
 extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVKBindGroupDescriptor* bgdesc){
     rassert(bgdesc->layout != nullptr, "WGVKBindGroupDescriptor::layout is null");
-
+    
     WGVKBindGroup ret = callocnewpp(WGVKBindGroupImpl);
     ret->refCount = 1;
 
-    VkDescriptorPoolCreateInfo dpci{};
-    dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    dpci.maxSets = 1;
+    ret->device = device;
+    ret->cacheIndex = device->submittedFrames % framesInFlight;
 
-    std::unordered_map<VkDescriptorType, uint32_t> counts;
-    for(uint32_t i = 0;i < bgdesc->layout->entryCount;i++){
-        ++counts[toVulkanResourceType(bgdesc->layout->entries[i].type)];
-    }
-    std::vector<VkDescriptorPoolSize> sizes;
-    sizes.reserve(counts.size());
-    for(const auto& [t, s] : counts){
-        sizes.push_back(VkDescriptorPoolSize{.type = t, .descriptorCount = s});
-    }
+    PerframeCache& fcache = device->frameCaches[ret->cacheIndex];
+    auto it = fcache.bindGroupCache.find(bgdesc->layout);
+    if(it == fcache.bindGroupCache.end() || it->second.size() == 0){ //Cache miss
+        TRACELOG(LOG_INFO, "Allocating new VkDescriptorPool and -Set");
+        VkDescriptorPoolCreateInfo dpci{};
+        dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        dpci.maxSets = 1;
 
-    dpci.poolSizeCount = sizes.size();
-    dpci.pPoolSizes = sizes.data();
-    dpci.maxSets = 1;
-    vkCreateDescriptorPool(device->device, &dpci, nullptr, &ret->pool);
-    
-    //VkCopyDescriptorSet copy{};
-    //copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
-    
-    VkDescriptorSetAllocateInfo dsai{};
-    dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    dsai.descriptorPool = ret->pool;
-    dsai.descriptorSetCount = 1;
-    dsai.pSetLayouts = (VkDescriptorSetLayout*)&bgdesc->layout->layout;
-    vkAllocateDescriptorSets(device->device, &dsai, &ret->set);
+        std::unordered_map<VkDescriptorType, uint32_t> counts;
+        for(uint32_t i = 0;i < bgdesc->layout->entryCount;i++){
+            ++counts[toVulkanResourceType(bgdesc->layout->entries[i].type)];
+        }
+        std::vector<VkDescriptorPoolSize> sizes;
+        sizes.reserve(counts.size());
+        for(const auto& [t, s] : counts){
+            sizes.push_back(VkDescriptorPoolSize{.type = t, .descriptorCount = s});
+        }
+
+        dpci.poolSizeCount = sizes.size();
+        dpci.pPoolSizes = sizes.data();
+        dpci.maxSets = 1;
+        vkCreateDescriptorPool(device->device, &dpci, nullptr, &ret->pool);
+
+        //VkCopyDescriptorSet copy{};
+        //copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
+
+        VkDescriptorSetAllocateInfo dsai{};
+        dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        dsai.descriptorPool = ret->pool;
+        dsai.descriptorSetCount = 1;
+        dsai.pSetLayouts = (VkDescriptorSetLayout*)&bgdesc->layout->layout;
+        vkAllocateDescriptorSets(device->device, &dsai, &ret->set);
+    }
+    else{
+        //TRACELOG(LOG_INFO, "Reusing Descriptorset");
+        ret->pool = it->second.back().first;
+        ret->set = it->second.back().second;
+        it->second.pop_back();
+    }
     wgvkWriteBindGroup(device, ret, bgdesc);
     ret->layout = bgdesc->layout;
     ++ret->layout->refCount;
@@ -241,6 +254,7 @@ extern "C" WGVKBindGroupLayout wgvkDeviceCreateBindGroupLayout(WGVKDevice device
 
 extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, const WGVKCommandEncoderDescriptor* desc){
     WGVKCommandEncoder ret = callocnewpp(WGVKCommandEncoderImpl);
+    //TRACELOG(LOG_INFO, "Creating new commandencoder");
     //§VkCommandPoolCreateInfo pci{};
     //§pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     //§pci.flags = desc->recyclable ? VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT : VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
@@ -248,6 +262,7 @@ extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, 
     ret->cacheIndex = device->submittedFrames % framesInFlight;
     PerframeCache& cache = device->frameCaches[ret->cacheIndex];
     ret->device = device;
+    ret->movedFrom = 0;
     //vkCreateCommandPool(device->device, &pci, nullptr, &cache.commandPool);
     if(device->frameCaches[ret->cacheIndex].buffers.empty()){
         VkCommandBufferAllocateInfo bai{};
@@ -256,7 +271,7 @@ extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, 
         bai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         bai.commandBufferCount = 1;
         vkAllocateCommandBuffers(device->device, &bai, &ret->buffer);
-        TRACELOG(LOG_INFO, "Allocating new command buffer");
+        //TRACELOG(LOG_INFO, "Allocating new command buffer");
     }
     else{
         //TRACELOG(LOG_INFO, "Reusing");
@@ -445,7 +460,6 @@ extern "C" void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder
     vkCmdEndRendering(renderPassEncoder->cmdBuffer);
     //vkCmdEndRenderPass(renderPassEncoder->cmdBuffer);
 }
-std::unordered_set<WGVKCommandBuffer> buffers__;
 /**
  * @brief Ends a CommandEncoder into a CommandBuffer
  * @details This is a one-way transition for WebGPU, therefore we can move resource tracking
@@ -457,18 +471,19 @@ std::unordered_set<WGVKCommandBuffer> buffers__;
 extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder commandEncoder){
     WGVKCommandBuffer ret = callocnewpp(WGVKCommandBufferImpl);
     ret->refCount = 1;
+    commandEncoder->movedFrom = 1;
     vkEndCommandBuffer(commandEncoder->buffer);
     ret->referencedRPs = std::move(commandEncoder->referencedRPs);
     ret->referencedCPs = std::move(commandEncoder->referencedCPs);
     ret->resourceUsage = std::move(commandEncoder->resourceUsage);
-    new (&commandEncoder->referencedRPs)(ref_holder<WGVKRenderPassEncoder>){};
-    new (&commandEncoder->referencedCPs)(ref_holder<WGVKComputePassEncoder>){};
-    new (&commandEncoder->resourceUsage)(ResourceUsage){};
+    
+    //new (&commandEncoder->referencedRPs)(ref_holder<WGVKRenderPassEncoder>){};
+    //new (&commandEncoder->referencedCPs)(ref_holder<WGVKComputePassEncoder>){};
+    //new (&commandEncoder->resourceUsage)(ResourceUsage){};
     ret->cacheIndex = commandEncoder->cacheIndex;
     ret->buffer = commandEncoder->buffer;
     ret->device = commandEncoder->device;
     commandEncoder->buffer = nullptr;
-    buffers__.emplace(ret);
     return ret;
 }
 
@@ -792,6 +807,7 @@ void impl_transition(VkCommandBuffer buffer, WGVKTexture texture, VkImageLayout 
         1, &barrier
     );
 }
+
 void wgvkRenderPassEncoderTransitionTextureLayout(WGVKRenderPassEncoder encoder, WGVKTexture texture, VkImageLayout oldLayout, VkImageLayout newLayout){
     impl_transition(encoder->cmdBuffer, texture, oldLayout, newLayout);
     encoder->resourceUsage.registerTransition(texture, oldLayout, newLayout);
@@ -806,9 +822,15 @@ extern "C" void wgvkComputePassEncoderDispatchWorkgroups(WGVKComputePassEncoder 
 
 
 void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
+    rassert(commandEncoder->movedFrom, "Commandencoder still valid");
     for(auto rp : commandEncoder->referencedRPs){
         wgvkReleaseRenderPassEncoder(rp);
     }
+    for(auto rp : commandEncoder->referencedCPs){
+        wgvkReleaseComputePassEncoder(rp);
+    }
+    commandEncoder->resourceUsage.releaseAllAndClear();
+
     if(commandEncoder->buffer){
         auto& buffers = commandEncoder->device->frameCaches[commandEncoder->cacheIndex].buffers;
         commandEncoder->device->frameCaches[commandEncoder->cacheIndex].buffers.push_back(commandEncoder->buffer);
@@ -849,6 +871,7 @@ void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
 void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
     --commandBuffer->refCount;
     if(commandBuffer->refCount == 0){
+        //TRACELOG(LOG_INFO, "Destroying commandbuffer");
         for(auto rp : commandBuffer->referencedRPs){
             wgvkReleaseRenderPassEncoder(rp);
         }
@@ -896,8 +919,12 @@ void wgvkReleaseDescriptorSet(WGVKBindGroup dshandle) {
     if (dshandle->refCount == 0) {
         dshandle->resourceUsage.releaseAllAndClear();
         wgvkReleaseBindGroupLayout(dshandle->layout);
+        dshandle->device->frameCaches[dshandle->cacheIndex].bindGroupCache[dshandle->layout].emplace_back(dshandle->pool, dshandle->set);
+        
+        //DONT delete them, they are cached
         //vkFreeDescriptorSets(g_vulkanstate.device->device, dshandle->pool, 1, &dshandle->set);
-        vkDestroyDescriptorPool(g_vulkanstate.device->device, dshandle->pool, nullptr);
+        //vkDestroyDescriptorPool(g_vulkanstate.device->device, dshandle->pool, nullptr);
+        
         dshandle->~WGVKBindGroupImpl();
         std::free(dshandle);
     }

@@ -698,9 +698,9 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, Resou
 
     bg->entries[index] = entry;
     //bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
-
-    if(bg->bindGroup && ((WGVKBindGroup)bg->bindGroup)->refCount > 1){
-        wgvkReleaseDescriptorSet((WGVKBindGroup)bg->bindGroup);
+    WGVKBindGroup wB = (WGVKBindGroup)bg->bindGroup;
+    if(bg->bindGroup && wB->refCount > 1){
+        wgvkReleaseDescriptorSet(wB);
         bg->bindGroup = nullptr;
     }
     //else if(!bg->needsUpdate && bg->bindGroup){

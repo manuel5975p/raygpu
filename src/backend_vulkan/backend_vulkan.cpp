@@ -165,9 +165,12 @@ void PostPresentSurface(){
     }
 
     queue->pendingCommandBuffers[cacheIndex].clear();
-    wgvkReleaseCommandEncoder(queue->presubmitCache);
     vkResetCommandPool(surfaceDevice->device, surfaceDevice->frameCaches[cacheIndex].commandPool, VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT);
     WGVKCommandEncoderDescriptor cedesc zeroinit;
+
+    WGVKCommandBuffer buffer = wgvkCommandEncoderFinish(queue->presubmitCache);
+    wgvkReleaseCommandEncoder(queue->presubmitCache);
+    wgvkReleaseCommandBuffer(buffer);
     queue->presubmitCache = wgvkDeviceCreateCommandEncoder(surfaceDevice, &cedesc);
 }
 
@@ -1191,6 +1194,7 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     bbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     VkRenderPassBeginInfo rpbi{};
     WGVKCommandEncoderDescriptor cedesc zeroinit;
+    WGVKCommandEncoder encoder = (WGVKCommandEncoder)renderPass->cmdEncoder;
     renderPass->cmdEncoder = wgvkDeviceCreateCommandEncoder(g_vulkanstate.device, &cedesc);
     
     //if(renderPass->cmdEncoder == nullptr){
@@ -1396,6 +1400,7 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
         wgvkReleaseRenderPassEncoder(rpe);
     }
     WGVKCommandEncoder cmdEncoder = (WGVKCommandEncoder)rp->cmdEncoder;
+    rp->cmdEncoder = nullptr;
     wgvkReleaseCommandEncoder(cmdEncoder);
     wgvkReleaseCommandBuffer(cbuffer);
     //vkResetFences(g_vulkanstate.device, 1, &g_vulkanstate.queue.syncState.renderFinishedFence);

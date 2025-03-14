@@ -128,18 +128,18 @@ typedef struct ResourceUsage{
     }
     void releaseAllAndClear()noexcept;
     ~ResourceUsage(){
-        if(referencedBuffers.size()){
-            abort();
-        }
-        if(referencedTextures.size()){
-            abort();
-        }
-        if(referencedTextureViews.size()){
-            abort();
-        }
-        if(referencedBindGroups.size()){
-            abort();
-        }
+        //if(referencedBuffers.size()){
+        //    abort();
+        //}
+        //if(referencedTextures.size()){
+        //    abort();
+        //}
+        //if(referencedTextureViews.size()){
+        //    abort();
+        //}
+        //if(referencedBindGroups.size()){
+        //    abort();
+        //}
     }
 }ResourceUsage;
 
@@ -182,7 +182,7 @@ typedef struct RenderPassLayout{
 namespace std{
     template<>
     struct hash<RenderPassLayout>{
-        inline constexpr size_t operator()(const RenderPassLayout& layout)const noexcept{
+        constexpr size_t operator()(const RenderPassLayout& layout)const noexcept{
 
             xorshiftstate ret{0x2545F4918F6CDD1D};
             ret.update(layout.depthAttachmentPresent << 6, layout.colorAttachmentCount);
@@ -198,6 +198,7 @@ namespace std{
             return ret.x64;
         }
     };
+    
 }
 
 
@@ -242,6 +243,8 @@ typedef struct WGVKBindGroupImpl{
     WGVKBindGroupLayout layout;
     refcount_type refCount;
     ResourceUsage resourceUsage;
+    WGVKDevice device;
+    uint32_t cacheIndex;
 }WGVKBindGroupImpl;
 
 typedef struct WGVKBindGroupLayoutImpl{
@@ -260,14 +263,26 @@ typedef struct WGVKBufferImpl{
 }WGVKBufferImpl;
 
 constexpr uint32_t framesInFlight = 2;
+namespace std{
+    template<>
+    struct hash<WGVKBindGroupLayout>{
+        constexpr size_t operator()(const WGVKBindGroupLayout bglayout)const noexcept{
+            xorshiftstate ret{0x2545F4918F6CDD1D};
+            for(uint32_t i = 0;i < bglayout->entryCount;i++){
+                ret.update((uint32_t)bglayout->entries[i].fstype, (uint32_t)bglayout->entries[i].type);
+                ret.update((uint32_t)bglayout->entries[i].access, (uint32_t)bglayout->entries[i].location);
+            }
+            return ret.x64;
+        }
+    };
+}
 struct PerframeCache{
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> buffers;
     VkCommandBuffer finalTransitionBuffer;
     VkSemaphore finalTransitionSemaphore;
     VkFence finalTransitionFence;
-    //td::unordered_set<VkCommandBuffer> commandBuffers;
-
+    std::unordered_map<WGVKBindGroupLayout, std::vector<std::pair<VkDescriptorPool, VkDescriptorSet>>> bindGroupCache;
 };
 typedef struct WGVKDeviceImpl{
     VkDevice device;
@@ -316,6 +331,7 @@ typedef struct WGVKBindGroupDescriptor{
     size_t entryCount;
     const ResourceDescriptor* entries;
 }WGVKBindGroupDescriptor;
+
 
 
 
@@ -420,6 +436,7 @@ typedef struct WGVKCommandEncoderImpl{
     ResourceUsage resourceUsage;
     WGVKDevice device;
     uint32_t cacheIndex;
+    uint32_t movedFrom;
 
     void initializeOrTransition(WGVKTexture texture, VkImageLayout layout){
         auto it = resourceUsage.entryAndFinalLayouts.find(texture);

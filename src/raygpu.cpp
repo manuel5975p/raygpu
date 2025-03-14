@@ -777,7 +777,7 @@ void EndDrawing(){
         NanoWait(nanosecondsPerFrame - elapsed);
     
     --g_renderstate.renderTargetStackPosition;
-    //std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    //std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 }
 void StartGIFRecording(){
     startRecording(g_renderstate.grst, 4);
