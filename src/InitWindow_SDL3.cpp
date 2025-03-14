@@ -497,3 +497,38 @@ extern "C" void PollEvents_SDL3() {
         }
     }
 }
+void ToggleFullscreen_SDL3(cwoid){
+    bool alreadyFullscreen = SDL_GetWindowFlags((SDL_Window*)g_renderstate.window) & SDL_WINDOW_FULLSCREEN;
+    if(alreadyFullscreen){
+        //We need to exit fullscreen
+        g_renderstate.windowFlags &= ~FLAG_FULLSCREEN_MODE;
+        //SDL_SetWindowResizable((SDL_Window*)g_renderstate.window, SDL_FALSE);
+        SDL_SetWindowFullscreen((SDL_Window*)g_renderstate.window, 0);
+
+        SDL_SetWindowSize((SDL_Window*)g_renderstate.window, g_renderstate.input_map[g_renderstate.window].windowPosition.width, g_renderstate.input_map[g_renderstate.window].windowPosition.height);
+        //SDL_SetWindowSize((SDL_Window*)g_renderstate.window, g_renderstate.input_map[g_renderstate.window].windowPosition.width, g_renderstate.input_map[g_renderstate.window].windowPosition.height);
+        //SDL_SetWindowSize((SDL_Window*)g_renderstate.window, g_renderstate.input_map[g_renderstate.window].windowPosition.width, g_renderstate.input_map[g_renderstate.window].windowPosition.height);
+        //SDL_SetWindowSize((SDL_Window*)g_renderstate.window, g_renderstate.input_map[g_renderstate.window].windowPosition.width, g_renderstate.input_map[g_renderstate.window].windowPosition.height);
+        //TRACELOG(LOG_WARNING, "Setting the size to  %d x %d", (int)g_renderstate.input_map[g_renderstate.window].windowPosition.width, (int)g_renderstate.input_map[g_renderstate.window].windowPosition.height);
+    }
+    else{
+        //We need to enter fullscreen
+        int xpos = 0, ypos = 0;
+        int xs, ys;
+        #ifndef DAWN_USE_WAYLAND
+        SDL_GetWindowPosition((SDL_Window*)g_renderstate.window, &xpos, &ypos);
+        #endif
+        SDL_GetWindowSize((SDL_Window*)g_renderstate.window, &xs, &ys);
+        g_renderstate.input_map[g_renderstate.window].windowPosition = Rectangle{float(xpos), float(ypos), float(xs), float(ys)};
+        SDL_SetWindowSize((SDL_Window*)g_renderstate.window, GetMonitorWidth_SDL3(), GetMonitorHeight_SDL3());
+        SDL_SetWindowFullscreen((SDL_Window*)g_renderstate.window, SDL_WINDOW_FULLSCREEN);
+        //int monitorCount = 0;
+        //int monitorIndex = GetCurrentMonitor_GLFW(g_renderstate.window);
+        //GLFWmonitor **monitors = glfwGetMonitors(&monitorCount);
+        //// Use current monitor, so we correctly get the display the window is on
+        //GLFWmonitor *monitor = (monitorIndex < monitorCount)? monitors[monitorIndex] : NULL;
+        //auto vm = glfwGetVideoMode(monitor);
+        //glfwSetWindowMonitor(g_renderstate.window, glfwGetPrimaryMonitor(), 0, 0, vm->width, vm->height, vm->refreshRate);
+    }
+}
+

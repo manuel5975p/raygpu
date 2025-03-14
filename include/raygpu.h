@@ -643,7 +643,11 @@ typedef enum BackendType {
     BackendType_OpenGLES = 0x00000008,
     BackendType_Force32 = 0x7FFFFFFF
 } BackendType;
-
+typedef enum AdapterType{
+    DISCRETE_GPU,
+    INTEGRATED_GPU,
+    SOFTWARE_RENDERER
+}AdapterType;
 typedef const void* char_or_uint32_pointer;
 typedef struct ShaderStageSource{
     char_or_uint32_pointer data;
@@ -924,6 +928,7 @@ EXTERN_C_BEGIN
     SubWindow InitWindow_GLFW(int width, int height, const char* title);
     void ToggleFullscreen_GLFW(cwoid);
     void ToggleFullscreen_SDL2(cwoid);
+    void ToggleFullscreen_SDL3(cwoid);
     SubWindow OpenSubWindow_GLFW(uint32_t width, uint32_t height, const char* title);
     SubWindow OpenSubWindow_SDL2(uint32_t width, uint32_t height, const char* title);
     SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title);
@@ -969,7 +974,7 @@ EXTERN_C_BEGIN
      * Not all types are guaranteed to exist.
      * @param type The adapter type
      */
-    //void RequestAdapterType(WGPUAdapterType type);
+    void RequestAdapterType(AdapterType type);
     void SetConfigFlags(int /* enum WindowFlag */ flag);
     
     

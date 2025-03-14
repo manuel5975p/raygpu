@@ -14,6 +14,7 @@ void mainloop(void){
     DrawText("Hello Vulkan enjoyer", 100, 300, 50, (Color){190, 190, 190,255});
     DrawFPS(5, 5);
     if(IsKeyPressed(KEY_U)){
+        TRACELOG(LOG_INFO, "Key U pressed");
         ToggleFullscreen();
     }
     //drawCurrentBatch();
@@ -36,6 +37,7 @@ int main(void){
     //SetConfigFlags(FLAG_MSAA_4X_HINT);
     //SetConfigFlags(FLAG_VSYNC_HINT);
     //SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    //RequestAdapterType(SOFTWARE_RENDERER);
     InitWindow(800, 600, "Vulkan window");
     //SetTargetFPS(0);
     //sdlwin = OpenSubWindow_GLFW(400, 400, "SDL fenschter");

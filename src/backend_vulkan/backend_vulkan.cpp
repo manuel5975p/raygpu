@@ -538,7 +538,24 @@ VkInstance createInstance() {
     return ret;
 }
 
-
+VkPhysicalDeviceType preferredPhysicalDeviceTypes[3] = {
+    VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU,
+    VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU,
+    VK_PHYSICAL_DEVICE_TYPE_CPU
+};
+static inline VkPhysicalDeviceType tvkpdt(AdapterType atype){
+    switch(atype){
+        case DISCRETE_GPU: return VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
+        case INTEGRATED_GPU: return VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;
+        case SOFTWARE_RENDERER: return VK_PHYSICAL_DEVICE_TYPE_CPU;
+        rg_unreachable();
+    }
+}
+extern "C" void RequestAdapterType(AdapterType type){
+    VkPhysicalDeviceType vktype = tvkpdt(type);
+    auto it = std::find(std::begin(preferredPhysicalDeviceTypes), std::end(preferredPhysicalDeviceTypes), vktype);
+    std::iter_swap(std::begin(preferredPhysicalDeviceTypes), it);
+}
 
 // Function to pick a suitable physical device (GPU)
 VkPhysicalDevice pickPhysicalDevice() {
@@ -557,31 +574,14 @@ VkPhysicalDevice pickPhysicalDevice() {
         vkGetPhysicalDeviceProperties(device, &props);
         TRACELOG(LOG_INFO, "Found device: %s", props.deviceName);
     }
-    for (const auto &device : devices) {
-        VkPhysicalDeviceProperties props{};
-        vkGetPhysicalDeviceProperties(device, &props);
-        if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
-            ret = device;
-            goto picked;
-        }
-    }
-    for (const auto &device : devices) {
-        VkPhysicalDeviceProperties props;
-        vkGetPhysicalDeviceProperties(device, &props);
-        if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU) {
-            ret = device;
-            goto picked;
-        }
-    }
-
-    
-    
-    for (const auto &device : devices) {
-        VkPhysicalDeviceProperties props;
-        vkGetPhysicalDeviceProperties(device, &props);
-        if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) {
-            ret = device;
-            goto picked;
+    for(uint32_t i = 0;i < (sizeof(preferredPhysicalDeviceTypes) / sizeof(preferredPhysicalDeviceTypes[0]));i++){
+        for (const auto &device : devices) {
+            VkPhysicalDeviceProperties props{};
+            vkGetPhysicalDeviceProperties(device, &props);
+            if (props.deviceType == preferredPhysicalDeviceTypes[i]) {
+                ret = device;
+                goto picked;
+            }
         }
     }
     
@@ -1089,6 +1089,7 @@ memory_types discoverMemoryTypes(VkPhysicalDevice physicalDevice) {
     }
     return ret;
 }
+
 void InitBackend(){
     #if SUPPORT_SDL2 == 1 || SUPPORT_SDL3 == 1
     SDL_Init(SDL_INIT_VIDEO);
@@ -1120,6 +1121,7 @@ void InitBackend(){
     
     createRenderPass();
 }
+
 extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t height){
     FullSurface ret{};
     ret.surface = (WGVKSurface)nsurface;

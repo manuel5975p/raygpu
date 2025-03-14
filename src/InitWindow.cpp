@@ -490,6 +490,8 @@ extern "C" void ToggleFullscreenImpl(){
     ToggleFullscreen_GLFW();
     #elif defined(MAIN_WINDOW_SDL2)
     ToggleFullscreen_SDL2();
+    #elif defined(MAIN_WINDOW_SDL3)
+    ToggleFullscreen_SDL3();
     #endif
 }
 extern "C" void ToggleFullscreen(){
