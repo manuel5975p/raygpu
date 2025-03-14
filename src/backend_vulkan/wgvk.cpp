@@ -339,7 +339,7 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
     ret->device = enc->device;
     ret->cmdBuffer = enc->buffer;
     ret->cmdEncoder = enc;
-
+    #if VULKAN_USE_DYNAMIC_RENDERING == 1
     VkRenderingInfo info zeroinit;
     info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
     info.colorAttachmentCount = rpdesc->colorAttachmentCount;
@@ -374,16 +374,7 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
         .extent = VkExtent2D{rpdesc->colorAttachments[0].view->width, rpdesc->colorAttachments[0].view->height}
     };
     vkCmdBeginRendering(ret->cmdBuffer, &info);
-    return ret;
-}
-extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPasss(WGVKCommandEncoder enc, const WGVKRenderPassDescriptor* rpdesc){
-    WGVKRenderPassEncoder ret = callocnewpp(WGVKRenderPassEncoderImpl);
-
-    ret->refCount = 2; //One for WGVKRenderPassEncoder the other for the command buffer
-    
-    enc->referencedRPs.insert(ret);
-    ret->device = enc->device;
-
+    #else
     RenderPassLayout rplayout = GetRenderPassLayout(rpdesc);
     VkRenderPassBeginInfo rpbi{};
     rpbi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -428,8 +419,6 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPasss(WGVKCommandE
         .extent = VkExtent2D{rpdesc->colorAttachments[0].view->width, rpdesc->colorAttachments[0].view->height}
     };
 
-    
-
     rpbi.framebuffer = ret->frameBuffer;
     VkClearValue clearValues[max_color_attachments + 2];
     for(uint32_t i = 0;i < rplayout.colorAttachmentCount;i++){
@@ -451,14 +440,16 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPasss(WGVKCommandE
     vkCmdBeginRenderPass(enc->buffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
     ret->cmdBuffer = enc->buffer;
     ret->cmdEncoder = enc;
-    //allColorAndDepthAttachments[max_color_attachments + 1];
-    //uint32_t i = 0;
+    #endif
     return ret;
-
 }
+
 extern "C" void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
+    #if VULKAN_USE_DYNAMIC_RENDERING == 1
     vkCmdEndRendering(renderPassEncoder->cmdBuffer);
-    //vkCmdEndRenderPass(renderPassEncoder->cmdBuffer);
+    #else
+    vkCmdEndRenderPass(renderPassEncoder->cmdBuffer);
+    #endif
 }
 /**
  * @brief Ends a CommandEncoder into a CommandBuffer

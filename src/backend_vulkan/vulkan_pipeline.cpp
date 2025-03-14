@@ -252,8 +252,7 @@ extern "C" void UpdatePipeline(DescribedPipeline *pl){
     else{
         rpLayout.colorResolveIndex = VK_ATTACHMENT_UNUSED;
     }
-    VkRenderPass rp = LoadRenderPassFromLayout(g_vulkanstate.device, rpLayout);
-    //pipelineInfo.renderPass = rp;
+    #if VULKAN_USE_DYNAMIC_RENDERING == 1
     VkPipelineRenderingCreateInfo rci zeroinit;
     rci.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
     rci.colorAttachmentCount = 1;
@@ -261,7 +260,11 @@ extern "C" void UpdatePipeline(DescribedPipeline *pl){
     rci.pColorAttachmentFormats = &colorAttachmentFormat;
     rci.depthAttachmentFormat = VK_FORMAT_D32_SFLOAT;
     pipelineInfo.pNext = &rci;
+    #else
+    VkRenderPass rp = LoadRenderPassFromLayout(g_vulkanstate.device, rpLayout);
+    pipelineInfo.renderPass = rp;
     pipelineInfo.subpass = 0;
+    #endif
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     
     if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&pl->quartet.pipeline_TriangleList) != VK_SUCCESS) {
@@ -486,8 +489,7 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, c
     else{
         rpLayout.colorResolveIndex = VK_ATTACHMENT_UNUSED;
     }
-    VkRenderPass rp = LoadRenderPassFromLayout(g_vulkanstate.device, rpLayout);
-    //pipelineInfo.renderPass = rp;
+    #if VULKAN_USE_DYNAMIC_RENDERING == 1
     VkPipelineRenderingCreateInfo rci zeroinit;
     rci.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
     rci.colorAttachmentCount = 1;
@@ -495,7 +497,12 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, c
     rci.pColorAttachmentFormats = &colorAttachmentFormat;
     rci.depthAttachmentFormat = VK_FORMAT_D32_SFLOAT;
     pipelineInfo.pNext = &rci;
+    #else
+    VkRenderPass rp = LoadRenderPassFromLayout(g_vulkanstate.device, rpLayout);
+    pipelineInfo.renderPass = rp;
     pipelineInfo.subpass = 0;
+    #endif
+    
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     
     if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&quartet.pipeline_TriangleList) != VK_SUCCESS) {

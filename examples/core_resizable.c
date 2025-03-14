@@ -18,7 +18,7 @@ void mainloop(void){
     EndDrawing();
 }
 int main(void){
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT | FLAG_MSAA_4X_HINT);
     InitWindow(800, 600, title);
     #ifndef __EMSCRIPTEN__
     while(!WindowShouldClose()){

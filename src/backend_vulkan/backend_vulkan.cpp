@@ -959,15 +959,19 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_PROPERTIES_EXT;
     props.dynamicPrimitiveTopologyUnrestricted = VK_TRUE;
     
-    VkPhysicalDeviceVulkan13Features v13features{};
-    v13features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-    v13features.dynamicRendering = VK_TRUE;
+    
     VkPhysicalDeviceFeatures deviceFeatures{};
 
 
-    VkDeviceCreateInfo createInfo{};
+    VkDeviceCreateInfo createInfo zeroinit;
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+
+    #if VULKAN_USE_DYNAMIC_RENDERING == 1
+    VkPhysicalDeviceVulkan13Features v13features{};
+    v13features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+    v13features.dynamicRendering = VK_TRUE;
     createInfo.pNext = &v13features;
+    #endif
     //features.pNext = &props;
 
     createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
