@@ -154,7 +154,7 @@ SRC_GLFW += amalgamation/glfw-3.4/src/glx_context.c \
             amalgamation/glfw-3.4/src/x11_window.c \
             amalgamation/glfw-3.4/src/xkb_unicode.c \
             amalgamation/glfw-3.4/src/posix_module.c
-GLFW_BUILD_FLAGS += -D_GLFW_WAYLAND=1 -D_GLFW_X11=1
+GLFW_BUILD_FLAGS += -D_GLFW_WAYLAND=1 -D_GLFW_X11=1 -DGLFW_INCLUDE_NONE
 endif
 
 ifeq ($(PLATFORM_OS), WINDOWS)
