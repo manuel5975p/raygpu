@@ -336,7 +336,7 @@ else()
           message(FATAL_ERROR "Vulkan SDK not found in C:/VulkanSDK/!")
         endif()
         message(STATUS "Found Vulkan SDK at: ${VULKAN_SDK}")
-        
+        list(APPEND CMAKE_PREFIX_PATH ${VULKAN_SDK})
     endif()
         find_package(Vulkan REQUIRED)
     endif()
