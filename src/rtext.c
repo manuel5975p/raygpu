@@ -820,7 +820,7 @@ GlyphInfo *LoadFontData(const unsigned char *fileData, int dataSize, int fontSiz
 Image GenImageFontAtlas(const GlyphInfo *glyphs, Rectangle **glyphRecs, int glyphCount, int fontSize, int padding, int packMethod)
 {
     Image atlas zeroinit;
-
+    atlas.mipmaps = 1;
     if (glyphs == NULL)
     {
         TRACELOG(LOG_WARNING, "FONT: Provided chars info not valid, returning empty image atlas");

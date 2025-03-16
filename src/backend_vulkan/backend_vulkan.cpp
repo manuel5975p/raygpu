@@ -30,22 +30,18 @@ void ResetSyncState(){
     //g_vulkanstate.queue->syncState[0].submitsInThisFrame = 0;
     //g_vulkanstate.syncState.semaphoresInThisFrame.clear();
 }
+__attribute__((noinline)) VkResult vkQueuePresentKHR_Profilable(VkQueue queue, const VkPresentInfoKHR *pPresentInfo){
+    return vkQueuePresentKHR(queue, pPresentInfo);
+}
+
+__attribute__((noinline)) VkResult vkQueueSubmit_Profilable(VkQueue queue, uint32_t submitCount, const VkSubmitInfo *pSubmits, VkFence fence){
+    return vkQueueSubmit(queue, submitCount, pSubmits, fence);
+}
+
 void PresentSurface(FullSurface* surface){
     //static VkSemaphore transitionSemaphore[framesInFlight] = {CreateSemaphore()};
     WGVKSurface wgvksurf = (WGVKSurface)surface->surface;
     uint32_t cacheIndex = wgvksurf->device->submittedFrames % framesInFlight;
-
-    VkSubmitInfo si zeroinit;
-    si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    si.waitSemaphoreCount = 1;
-    si.signalSemaphoreCount = 1;
-    VkPipelineStageFlags stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-    si.pWaitDstStageMask = &stage;
-    si.pWaitSemaphores = &g_vulkanstate.queue->syncState[cacheIndex].getSemaphoreOfSubmitIndex(0);
-    si.pSignalSemaphores = &g_vulkanstate.queue->syncState[cacheIndex].getSemaphoreOfSubmitIndex(1);
-    si.pCommandBuffers = nullptr;
-    si.commandBufferCount = 0;
-    //vkQueueSubmit(g_vulkanstate.queue->graphicsQueue, 1, &si, VK_NULL_HANDLE);
 
     if(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore == 0){
         g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore = CreateSemaphore();
@@ -66,19 +62,12 @@ void PresentSurface(FullSurface* surface){
     isr.layerCount = 1;
     isr.levelCount = 1;
 
-    if(wgvksurf->device->frameCaches[cacheIndex].finalTransitionBuffer == 0){
-        VkCommandBufferAllocateInfo cbai zeroinit;
-        cbai.commandBufferCount = 1;
-        cbai.commandPool = wgvksurf->device->frameCaches[cacheIndex].commandPool;
-        cbai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        cbai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        vkAllocateCommandBuffers(wgvksurf->device->device, &cbai, &wgvksurf->device->frameCaches[cacheIndex].finalTransitionBuffer);
-    }
-
+    
     VkCommandBuffer transitionBuffer = wgvksurf->device->frameCaches[cacheIndex].finalTransitionBuffer;
     
     VkCommandBufferBeginInfo beginInfo zeroinit;
     beginInfo.sType =  VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags =  VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     vkBeginCommandBuffer(transitionBuffer, &beginInfo);
     
     EncodeTransitionImageLayout(transitionBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, wgvksurf->images[wgvksurf->activeImageIndex]);
@@ -92,24 +81,19 @@ void PresentSurface(FullSurface* surface){
     VkPipelineStageFlags wsmask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     cbsinfo.pWaitDstStageMask = &wsmask;
 
-    cbsinfo.pWaitSemaphores = &g_vulkanstate.queue->syncState[cacheIndex].getSemaphoreOfSubmitIndex(0);
+    cbsinfo.pWaitSemaphores = &g_vulkanstate.queue->syncState[cacheIndex].imageAcquiredSemaphore;
     cbsinfo.pSignalSemaphores = &g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore;
-    if(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence == 0){
-        g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence = CreateFence();
-    }
+    
     VkFence finalTransitionFence = g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence;
     vkQueueSubmit(wgvksurf->device->queue->graphicsQueue, 1, &cbsinfo, finalTransitionFence);
+    TRACELOG(LOG_TRACE, "Submit waiting on fence: %p", finalTransitionFence);
     
     
     auto it = wgvksurf->device->queue->pendingCommandBuffers[cacheIndex].find(finalTransitionFence);
     if(it == wgvksurf->device->queue->pendingCommandBuffers[cacheIndex].end()){
         wgvksurf->device->queue->pendingCommandBuffers[cacheIndex].emplace(finalTransitionFence, std::unordered_set<WGVKCommandBuffer>{});
     }
-    
-    //vkCreateCommandPool(g_vulkanstate.device->device, &pci, nullptr, &oof);
-    //TransitionImageLayout(g_vulkanstate.device, oof, g_vulkanstate.queue->graphicsQueue, wgvksurf->images[wgvksurf->activeImageIndex], VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-    
-    //vkDestroyCommandPool(g_vulkanstate.device->device, oof, nullptr);
+
     VkResult presentRes = vkQueuePresentKHR(g_vulkanstate.queue->presentQueue, &presentInfo);
     ++wgvksurf->device->submittedFrames;
     if(presentRes != VK_SUCCESS && presentRes != VK_SUBOPTIMAL_KHR){
@@ -135,8 +119,8 @@ void DummySubmitOnQueue(){
 void PostPresentSurface(){
     WGVKDevice surfaceDevice = g_vulkanstate.device;
     WGVKQueue queue = surfaceDevice->queue;
-    uint64_t submittedFrames = surfaceDevice->submittedFrames;
-    uint32_t cacheIndex = submittedFrames % framesInFlight;
+
+    const uint32_t cacheIndex = surfaceDevice->submittedFrames % framesInFlight;
 
     if(queue->pendingCommandBuffers[cacheIndex].size() > 0){
         std::vector<VkFence> fences;
@@ -146,12 +130,15 @@ void PostPresentSurface(){
                 fences.push_back(fence);
             }
         }
-        if(fences.size() > 0)
+        if(fences.size() > 0){
             vkWaitForFences(surfaceDevice->device, fences.size(), fences.data(), VK_TRUE, 1 << 25);
+            if(fences.size() == 1){
+                TRACELOG(LOG_TRACE, "Waiting for fence %p\n", fences[0]);
+            }
+        }
     }
 
     for(auto [fence, bufferset] : queue->pendingCommandBuffers[cacheIndex]){
-        VkFence fense = fence;
         if(fence){
             vkResetFences(surfaceDevice->device, 1, &fence);
         }
@@ -169,7 +156,7 @@ void PostPresentSurface(){
     WGVKCommandBuffer buffer = wgvkCommandEncoderFinish(queue->presubmitCache);
     wgvkReleaseCommandEncoder(queue->presubmitCache);
     wgvkReleaseCommandBuffer(buffer);
-    vkResetCommandPool(surfaceDevice->device, surfaceDevice->frameCaches[cacheIndex].commandPool, VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT);
+    vkResetCommandPool(surfaceDevice->device, surfaceDevice->frameCaches[cacheIndex].commandPool, 0);
     WGVKCommandEncoderDescriptor cedesc zeroinit;
 
     
@@ -367,7 +354,7 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
     //vkCreateCommandPool(g_vulkanstate.device->device, &pci, nullptr, &oof);
     WGVKSurface wgvksurf = ((WGVKSurface)fsurface->surface);
     //TODO: Multiple frames in flight, this amounts to replacing 0 with frameCount % 2 or something similar
-    VkResult acquireResult = vkAcquireNextImageKHR(g_vulkanstate.device->device, wgvksurf->swapchain, UINT64_MAX, g_vulkanstate.queue->syncState[g_vulkanstate.queue->device->submittedFrames % framesInFlight].getSemaphoreOfSubmitIndex(0), VK_NULL_HANDLE, &imageIndex);
+    VkResult acquireResult = vkAcquireNextImageKHR(g_vulkanstate.device->device, wgvksurf->swapchain, UINT64_MAX, g_vulkanstate.queue->syncState[g_vulkanstate.queue->device->submittedFrames % framesInFlight].imageAcquiredSemaphore, VK_NULL_HANDLE, &imageIndex);
     if(acquireResult != VK_SUCCESS){
         std::cerr << "acquireResult is " << acquireResult << std::endl;
     }
@@ -1010,10 +997,22 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     WGVKCommandEncoderDescriptor cedesc zeroinit;
     cedesc.recyclable = true;
     for(uint32_t i = 0;i < framesInFlight;i++){
+        WGVKDevice device = ret.first;
         VkCommandPoolCreateInfo pci zeroinit;
         pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         pci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         vkCreateCommandPool(ret.first->device, &pci, nullptr, &ret.first->frameCaches[i].commandPool);
+        
+        VkCommandBufferAllocateInfo cbai zeroinit;
+        cbai.commandBufferCount = 1;
+        cbai.commandPool = device->frameCaches[i].commandPool;
+        cbai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        cbai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        vkAllocateCommandBuffers(device->device, &cbai, &device->frameCaches[i].finalTransitionBuffer);
+        VkFenceCreateInfo sci zeroinit;
+        VkFence ret zeroinit;
+        sci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        VkResult res = vkCreateFence(device->device, &sci, nullptr, &device->frameCaches[i].finalTransitionFence);
     }
     ret.second->presubmitCache = wgvkDeviceCreateCommandEncoder(ret.first, &cedesc);
     //__builtin_dump_struct(&g_vulkanstate, printf);
@@ -1113,12 +1112,7 @@ void InitBackend(){
     g_vulkanstate.device = device_and_queues.first;
     g_vulkanstate.queue = device_and_queues.second;
     for(uint32_t fif = 0;fif < framesInFlight;fif++){
-        g_vulkanstate.queue->syncState[fif].semaphoresInThisFrame.resize(10);
-        for(uint32_t i = 0;i < 10;i++){
-            g_vulkanstate.queue->syncState[fif].semaphoresInThisFrame[i] = CreateSemaphore(0);
-        }
-        //g_vulkanstate.syncState.imageAvailableSemaphores[0] = CreateSemaphore(0);
-        //g_vulkanstate.syncState.presentSemaphores[0] = CreateSemaphore(0);
+        g_vulkanstate.queue->syncState[fif].imageAcquiredSemaphore = CreateSemaphore(0);
         g_vulkanstate.queue->syncState[fif].renderFinishedFence = CreateFence(0);
     }
 
@@ -1166,18 +1160,6 @@ extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t he
     return ret;
 }
 
-const VkSemaphore& SyncState::getSemaphoreOfSubmitIndex(uint32_t index){
-    uint32_t capacity = semaphoresInThisFrame.capacity();
-    if(semaphoresInThisFrame.size() <= index){
-        semaphoresInThisFrame.resize(index + 1);
-    }
-    if(semaphoresInThisFrame.size() > capacity){
-        for(uint32_t i = capacity;i < semaphoresInThisFrame.size();i++){
-            semaphoresInThisFrame[i] = CreateSemaphore(0);
-        }
-    }
-    return semaphoresInThisFrame[index];
-}
 RenderTexture LoadRenderTexture(uint32_t width, uint32_t height){
     RenderTexture ret{
         .texture = LoadTextureEx(width, height, (PixelFormat)g_renderstate.frameBufferFormat, true),

@@ -21,8 +21,10 @@ endif()
 message(STATUS "SUPPORT_WGPU_BACKEND: ${SUPPORT_WGPU_BACKEND}")
 
 if(NOT MSVC AND NOT EMSCRIPTEN)
-    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address,undefined")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-rtti -fsanitize=address,undefined")
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-rtti -fsanitize=address")
+    set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 -DNDEBUG -g3 -fno-inline")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -DNDEBUG -g3 -fno-inline")
 endif()
 
 if(NOT SUPPORT_GLFW)

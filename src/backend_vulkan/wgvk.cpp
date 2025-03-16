@@ -698,7 +698,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
     std::vector<VkImage> tmpImages(surface->imagecount);
 
     //surface->imageViews = (VkImageView*)std::calloc(surface->imagecount, sizeof(VkImageView));
-
+    TRACELOG(LOG_INFO, "Imagecount: %d", (int)surface->imagecount);
     vkGetSwapchainImagesKHR(g_vulkanstate.device->device, surface->swapchain, &surface->imagecount, tmpImages.data());
     surface->images = (WGVKTexture*)std::calloc(surface->imagecount, sizeof(WGVKTexture));
     for (uint32_t i = 0; i < surface->imagecount; i++) {

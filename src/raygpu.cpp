@@ -612,18 +612,18 @@ void BeginDrawing(){
     ++g_renderstate.renderTargetStackPosition;
     
     if(g_renderstate.windowFlags & FLAG_HEADLESS){
-        if(headless_rtex.texture.id){
-            UnloadTexture(headless_rtex.texture);
-        }
-        if(headless_rtex.colorMultisample.id){
-            UnloadTexture(headless_rtex.colorMultisample);
-        }
-        if(headless_rtex.depth.id){
-            UnloadTexture(headless_rtex.depth);
-        }
+        //if(headless_rtex.texture.id){
+        //    UnloadTexture(headless_rtex.texture);
+        //}
+        //if(headless_rtex.colorMultisample.id){
+        //    UnloadTexture(headless_rtex.colorMultisample);
+        //}
+        //if(headless_rtex.depth.id){
+        //    UnloadTexture(headless_rtex.depth);
+        //}
         
-
-        headless_rtex = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
+        if(headless_rtex.texture.id == nullptr)
+            headless_rtex = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
         g_renderstate.mainWindowRenderTarget = headless_rtex;
         //setTargetTextures(g_renderstate.rstate, headless_rtex.texture.view, headless_rtex.colorMultisample.view, headless_rtex.depth.view);
 
@@ -1369,9 +1369,11 @@ void UnloadImage(Image img){
     img.data = nullptr;
 }
 extern "C" Image LoadImageFromMemory(const char* extension, const void* data, size_t dataSize){
-    Image image;
+    Image image zeroinit;
+    image.mipmaps = 1;
     uint32_t comp;
     image.data = stbi_load_from_memory((stbi_uc*)data, dataSize, (int*)&image.width, (int*)&image.height, (int*)&comp, 0);
+    image.rowStrideInBytes = comp * image.width;
     if(comp == 4){
         image.format = RGBA8;
     }else if(comp == 3){

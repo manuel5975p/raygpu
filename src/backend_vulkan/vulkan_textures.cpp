@@ -349,6 +349,7 @@ WGVKTexture CreateVkImage(WGVKDevice device, VkPhysicalDevice physicalDevice, Vk
 // Generalized LoadTexturePro function
 
 extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFormat format, TextureUsage usage, uint32_t sampleCount, uint32_t mipmaps, void* data) {
+    rassert(mipmaps < MAX_MIP_LEVELS, "Too many mip levels");
     Texture ret{};
     
     VkFormat vkFormat = toVulkanPixelFormat(format);
@@ -407,8 +408,7 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     view->depthOrArrayLayers = 1;
     view->texture = image;
     ret.view = view;
-    // Handle mipmaps if necessary (not implemented here)
-    // For simplicity, only base mip level is created. Extend as needed.
+
 
     if(mipmaps > 1){
         for(uint32_t i = 0;i < mipmaps;i++){
@@ -570,6 +570,7 @@ Texture LoadTextureFromImage(Image img) {
         TRACELOG(LOG_FATAL, "Unsupported image format.");
     }
     TextureUsage x;
+    rassert(img.mipmaps < MAX_MIP_LEVELS, "Too many mip levels");
     auto ret = LoadTexturePro_Data(
         img.width,
         img.height,

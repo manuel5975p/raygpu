@@ -749,12 +749,10 @@ typedef WGVKSurfaceImpl* WGVKSurface;
 //    VkDevice device;
 //};
 struct SyncState{
-    //VkSemaphore imageAvailableSemaphores[1];
-    //VkSemaphore presentSemaphores[1];
     
-    std::vector<VkSemaphore> semaphoresInThisFrame;
+    VkSemaphore imageAcquiredSemaphore;
     VkFence renderFinishedFence;
-    const VkSemaphore& getSemaphoreOfSubmitIndex(uint32_t index);
+    
 };
 struct WGVKQueueImpl{
     VkQueue graphicsQueue;

@@ -11,7 +11,7 @@ void mainloop(void){
 
     BeginDrawing();
     ClearBackground((Color){230, 230, 230,255});
-    DrawText("Hello Vulkan enjoyer", 100, 300, 50, (Color){190, 190, 190,255});
+    //DrawText("Hello Vulkan enjoyer", 100, 300, 50, (Color){190, 190, 190,255});
     DrawFPS(5, 5);
     if(IsKeyPressed(KEY_U)){
         TRACELOG(LOG_INFO, "Key U pressed");
@@ -25,7 +25,7 @@ void mainloop(void){
     //rlVertex2f(0, 200);
     //drawCurrentBatch();
     EndDrawing();
-    if((GetFrameCount() & 0xfff) == 0){
+    if((GetFrameCount() & 0x7ff) == 0){
         printf("FPS: %u\n", GetFPS());
     }
     
@@ -37,7 +37,7 @@ int main(void){
     //SetConfigFlags(FLAG_MSAA_4X_HINT);
     //SetConfigFlags(FLAG_VSYNC_HINT);
     //SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-    //RequestAdapterType(SOFTWARE_RENDERER);
+    RequestAdapterType(SOFTWARE_RENDERER);
     InitWindow(800, 600, "Vulkan window");
     //SetTargetFPS(0);
     //sdlwin = OpenSubWindow_GLFW(400, 400, "SDL fenschter");
