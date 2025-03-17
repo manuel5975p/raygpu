@@ -154,7 +154,9 @@ DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sourcesSpirv){
         shaderCodeDesc.code = (const uint32_t*)sourcesSpirv.sources[i].data;
         shaderCodeDesc.codeSize = sourcesSpirv.sources[i].sizeInBytes / sizeof(uint32_t);
 
+        shaderDesc.nextInChain = &shaderCodeDesc.chain;
         WGPUShaderModule sh = wgpuDeviceCreateShaderModule((WGPUDevice)GetDevice(), &shaderDesc);
+        
 
         spv_reflect::ShaderModule spv_mod(sourcesSpirv.sources[i].sizeInBytes, (const uint32_t*)sourcesSpirv.sources[i].data);
         uint32_t entryPointCount = spv_mod.GetEntryPointCount();

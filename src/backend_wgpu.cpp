@@ -526,71 +526,7 @@ DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* unifo
     return ret;
 }
 
-DescribedShaderModule LoadShaderModuleWGSL(ShaderSources sources) {
-    WGPUShaderModuleWGSLDescriptor shaderCodeDesc zeroinit;
-    DescribedShaderModule ret zeroinit;
 
-    rassert(sources.language = sourceTypeWGSL, "Source language must be wgsl for this function");
-    
-    for(uint32_t i = 0;i < sources.sourceCount;i++){
-        WGPUShaderModuleDescriptor mDesc zeroinit;
-        WGPUShaderSourceWGSL source zeroinit;
-        mDesc.nextInChain = &source.chain;
-        source.chain.sType = WGPUSType_ShaderSourceWGSL;
-
-        source.code = WGPUStringView{.data = (const char*)sources.sources[i].data, .length = sources.sources[i].sizeInBytes};
-        WGPUShaderModule module = wgpuDeviceCreateShaderModule((WGPUDevice)GetDevice(), &mDesc);
-        ShaderStageMask sourceStageMask = sources.sources[i].stageMask;
-        
-        for(uint32_t i = 0;i < ShaderStage_EnumCount;++i){
-            if(uint32_t(sourceStageMask) & (1u << i)){
-                ret.stages[i].module = module;
-            }
-        }
-        std::vector<std::pair<ShaderStage, std::string>> entryPoints = getEntryPointsWGSL((const char*)sources.sources[i].data);
-        for(uint32_t i = 0;i < entryPoints.size();i++){
-            rassert(entryPoints[i].second.size() < 15, "Entrypoint name must be shorter than 15 characters");
-            char* dest = ret.reflectionInfo.ep[entryPoints[i].first].name;
-            char* end = std::copy(entryPoints[i].second.begin(), entryPoints[i].second.end(), dest);
-            *end = '\0';
-        }
-    }
-    ret.reflectionInfo.uniforms = callocnewpp(StringToUniformMap);
-    ret.reflectionInfo.attributes = callocnewpp(StringToAttributeMap);
-    ret.reflectionInfo.uniforms->uniforms = getBindings(sources);
-    ret.reflectionInfo.attributes->attributes = getAttributesWGSL(sources);
-
-    //size_t sourceSize = strlen(shaderSourceWGSL);
-    //ShaderSources sources zeroinit;
-    //sources.vertexAndFragmentSource = shaderSourceWGSL;
-    //std::unordered_map<std::string, ResourceTypeDescriptor> bindings = getBindings(sources);
-    //std::vector<ResourceTypeDescriptor> values;
-    //values.reserve(bindings.size());
-    //for(const auto& [x,y] : bindings){
-    //    values.push_back(y);
-    //}
-    //std::sort(values.begin(), values.end(),[](const ResourceTypeDescriptor& x, const ResourceTypeDescriptor& y){
-    //    return x.location < y.location;
-    //});
-    //shaderCodeDesc.chain.next = nullptr;
-    //shaderCodeDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
-    //shaderCodeDesc.code = WGPUStringView{shaderSourceWGSL, sourceSize};
-    //WGPUShaderModuleDescriptor shaderDesc zeroinit;
-    //shaderDesc.nextInChain = &shaderCodeDesc.chain;
-    //#ifdef WEBGPU_BACKEND_WGPU
-    //shaderDesc.hintCount = 0;
-    //shaderDesc.hints = nullptr;
-    //#endif
-    //WGPUShaderModule mod = wgpuDeviceCreateShaderModule((WGPUDevice)GetDevice(), &shaderDesc);
-    //DescribedShaderModule ret zeroinit;
-    //ret.uniformLocations = callocnew(StringToUniformMap);
-    //new (ret.uniformLocations) StringToUniformMap;
-    //for(const auto& [x,y] : bindings){
-    //    ret.uniformLocations->uniforms[x] = y;
-    //}
-    //std::vector<std::pair<ShaderStage, std::string>> entryPoints = getEntryPointsWGSL(shaderSourceWGSL);
-    return ret;
-}
 
 
 extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t height){
@@ -894,8 +830,15 @@ extern "C" void RequestLimit(LimitType limit, uint64_t value){
     }
     setlimit(limitsToBeRequested.value(), limit, value);
 }
-extern "C" void RequestAdapterType(WGPUAdapterType type){
-    requestedAdapterType = type;
+extern "C" void RequestAdapterType(AdapterType type){
+    switch(type){
+        case SOFTWARE_RENDERER: requestedAdapterType = WGPUAdapterType_CPU; break;
+        case INTEGRATED_GPU: requestedAdapterType = WGPUAdapterType_IntegratedGPU; break;
+        case DISCRETE_GPU: requestedAdapterType = WGPUAdapterType_DiscreteGPU; break;
+    }
+}
+void DummySubmitOnQueue(){
+
 }
 extern "C" void RequestBackend(BackendType backend){
     switch(backend){

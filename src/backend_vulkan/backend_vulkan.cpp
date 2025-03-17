@@ -12,10 +12,17 @@ void BufferData(DescribedBuffer* buffer, void* data, size_t size){
     if(buffer->size >= size){
         WGVKBuffer handle = (WGVKBuffer)buffer->buffer;
         void* udata = 0;
-        VkResult mapresult = vkMapMemory(g_vulkanstate.device->device, handle->memory, 0, size, 0, &udata);
+        VmaAllocationInfo info zeroinit;
+
+        vmaGetAllocationInfo(handle->device->allocator, handle->allocation, &info);
+
+        VkDeviceMemory baseMemory = info.deviceMemory;
+        uint64_t baseOffset = info.offset;
+
+        VkResult mapresult = vkMapMemory(g_vulkanstate.device->device, baseMemory, baseOffset, size, 0, &udata);
         if(mapresult == VK_SUCCESS){
             std::memcpy(data, udata, size);
-            vkUnmapMemory(g_vulkanstate.device->device, handle->memory);
+            vkUnmapMemory(g_vulkanstate.device->device, baseMemory);
         }
         else{
             abort();

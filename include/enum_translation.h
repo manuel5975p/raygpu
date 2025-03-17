@@ -89,6 +89,11 @@ typedef enum CompareFunction {
     CompareFunction_GreaterEqual = 0x00000007,
     CompareFunction_Always = 0x00000008
 } CompareFunction;
+typedef enum MapMode{
+    MapMode_Read,
+    MapMode_Write,
+    MapMode_ReadWrite,
+}MapMode;
 
 typedef enum TextureDimension{
     TextureDimension_Undefined = 0x00000000,

@@ -75,6 +75,41 @@ const std::unordered_map<std::string, std::unordered_map<std::string, VertexForm
     return map;
 }();
 #if SUPPORT_WGSL_PARSER == 1
+DescribedShaderModule LoadShaderModuleWGSL(ShaderSources sources) {
+    WGPUShaderModuleWGSLDescriptor shaderCodeDesc zeroinit;
+    DescribedShaderModule ret zeroinit;
+
+    rassert(sources.language = sourceTypeWGSL, "Source language must be wgsl for this function");
+    
+    for(uint32_t i = 0;i < sources.sourceCount;i++){
+        WGPUShaderModuleDescriptor mDesc zeroinit;
+        WGPUShaderSourceWGSL source zeroinit;
+        mDesc.nextInChain = &source.chain;
+        source.chain.sType = WGPUSType_ShaderSourceWGSL;
+
+        source.code = WGPUStringView{.data = (const char*)sources.sources[i].data, .length = sources.sources[i].sizeInBytes};
+        WGPUShaderModule module = wgpuDeviceCreateShaderModule((WGPUDevice)GetDevice(), &mDesc);
+        ShaderStageMask sourceStageMask = sources.sources[i].stageMask;
+        
+        for(uint32_t i = 0;i < ShaderStage_EnumCount;++i){
+            if(uint32_t(sourceStageMask) & (1u << i)){
+                ret.stages[i].module = module;
+            }
+        }
+        std::vector<std::pair<ShaderStage, std::string>> entryPoints = getEntryPointsWGSL((const char*)sources.sources[i].data);
+        for(uint32_t i = 0;i < entryPoints.size();i++){
+            rassert(entryPoints[i].second.size() < 15, "Entrypoint name must be shorter than 15 characters");
+            char* dest = ret.reflectionInfo.ep[entryPoints[i].first].name;
+            char* end = std::copy(entryPoints[i].second.begin(), entryPoints[i].second.end(), dest);
+            *end = '\0';
+        }
+    }
+    ret.reflectionInfo.uniforms = callocnewpp(StringToUniformMap);
+    ret.reflectionInfo.attributes = callocnewpp(StringToAttributeMap);
+    ret.reflectionInfo.uniforms->uniforms = getBindings(sources);
+    ret.reflectionInfo.attributes->attributes = getAttributesWGSL(sources);
+    return ret;
+}
 format_or_sample_type extractFormat(const tint::ast::Identifier* iden){
     if(auto templiden = iden->As<tint::ast::TemplatedIdentifier>()){
         for(size_t i = 0;i < templiden->arguments.Length();i++){

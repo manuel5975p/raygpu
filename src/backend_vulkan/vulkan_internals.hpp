@@ -285,10 +285,11 @@ namespace std{
 }
 typedef struct MappableBufferMemory{
     VkBuffer buffer;
-    VkDeviceMemory memory;
+    VmaAllocation allocation;
     VkMemoryPropertyFlags propertyFlags;
     size_t capacity;
 }MappableBufferMemory;
+
 struct PerframeCache{
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> buffers;
@@ -1174,6 +1175,8 @@ extern "C" WGVKTexture wgvkDeviceCreateTexture(WGVKDevice device, const WGVKText
 extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureViewDescriptor *descriptor);
 extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDescriptor* desc);
 extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, const void* data, size_t size);
+extern "C" void wgvkBufferMap(WGVKBuffer buffer, MapMode mapmode, size_t offset, size_t size, void** data);
+extern "C" void wgvkBufferUnmap(WGVKBuffer buffer);
 extern "C" void wgvkQueueWriteTexture(WGVKQueue queue, WGVKTexelCopyTextureInfo const * destination, void const * data, size_t dataSize, WGVKTexelCopyBufferLayout const * dataLayout, WGVKExtent3D const * writeSize);
 extern "C" WGVKBindGroupLayout wgvkDeviceCreateBindGroupLayout(WGVKDevice device, const ResourceTypeDescriptor* entries, uint32_t entryCount);
 extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVKBindGroupDescriptor* bgdesc);
