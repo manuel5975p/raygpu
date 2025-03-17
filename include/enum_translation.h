@@ -497,11 +497,10 @@ static inline VkBufferUsageFlags toVulkanBufferUsage(BufferUsage busg) {
             usage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
             break;
         case BufferUsage_MapRead:
-            // Vulkan does not have a direct equivalent for MapRead.
-            // Handle as needed (e.g., log a warning or manage differently).
+            usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
             break;
-        case BufferUsage_MapWrite:
-            // Similar to BufferUsage_MapRead.
+            case BufferUsage_MapWrite:
+            usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
             break;
         case BufferUsage_QueryResolve:
             // Handle Vulkan-specific flags for query resolve if applicable.

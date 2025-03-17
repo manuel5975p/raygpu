@@ -35,7 +35,25 @@
 template<typename T>
 using small_vector = std::vector<T>;
 
+static inline uint32_t bitcount32(uint32_t x){
+    #ifdef _MSC_VER
+    return __popcnt(x);
+    #elif defined(__GNUC__) 
+    return __builtin_popcount(x);
+    #else
+    return std::popcount(x);
+    #endif
+}
 
+static inline uint32_t bitcount64(uint64_t x){
+    #ifdef _MSC_VER
+    return __popcnt64(x);
+    #elif defined(__GNUC__) 
+    return __builtin_popcountll(x);
+    #else
+    return std::popcount(x);
+    #endif
+}
 struct xorshiftstate{
     uint64_t x64;
     constexpr void update(uint32_t x, uint32_t y)noexcept{

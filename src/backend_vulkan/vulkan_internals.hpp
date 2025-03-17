@@ -5,6 +5,7 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <utility>
+#include <map>
 #include <raygpu.h>
 #include <internals.hpp>
 //#define SUPPORT_VULKAN_BACKEND 1
@@ -258,7 +259,12 @@ typedef struct WGVKBindGroupLayoutImpl{
 
 typedef struct WGVKBufferImpl{
     VkBuffer buffer;
+    WGVKDevice device;
+    uint32_t cacheIndex;
+    BufferUsage usage;
+    size_t capacity;
     VkDeviceMemory memory;
+    VkMemoryPropertyFlags memoryProperties;
     refcount_type refCount;
 }WGVKBufferImpl;
 
@@ -276,12 +282,19 @@ namespace std{
         }
     };
 }
+typedef struct MappableBufferMemory{
+    VkBuffer buffer;
+    VkDeviceMemory memory;
+    VkMemoryPropertyFlags propertyFlags;
+    size_t capacity;
+}MappableBufferMemory;
 struct PerframeCache{
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> buffers;
     VkCommandBuffer finalTransitionBuffer;
     VkSemaphore finalTransitionSemaphore;
     VkFence finalTransitionFence;
+    std::map<uint64_t, small_vector<MappableBufferMemory>> stagingBufferCache;
     std::unordered_map<WGVKBindGroupLayout, std::vector<std::pair<VkDescriptorPool, VkDescriptorSet>>> bindGroupCache;
 };
 typedef struct WGVKDeviceImpl{

@@ -11,13 +11,13 @@ void mainloop(void){
 
     BeginDrawing();
     ClearBackground((Color){230, 230, 230,255});
-    //DrawText("Hello Vulkan enjoyer", 100, 300, 50, (Color){190, 190, 190,255});
+    DrawText("Hello Vulkan enjoyer", 100, 300, 50, (Color){190, 190, 190,255});
     DrawFPS(5, 5);
     if(IsKeyPressed(KEY_U)){
         TRACELOG(LOG_INFO, "Key U pressed");
         ToggleFullscreen();
     }
-    //drawCurrentBatch();
+    drawCurrentBatch();
     //UseNoTexture();
     //rlVertex2f(0, 0);
     //rlVertex2f(100, 0);

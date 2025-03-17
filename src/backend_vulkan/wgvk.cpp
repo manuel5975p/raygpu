@@ -1,8 +1,35 @@
 #include <macros_and_constants.h>
 #include "vulkan_internals.hpp"
+#include <algorithm>
+#include <numeric>
 extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDescriptor* desc){
     WGVKBuffer wgvkBuffer = callocnewpp(WGVKBufferImpl);
+    
+    uint32_t cacheIndex = device->submittedFrames % framesInFlight;
+
+    wgvkBuffer->device = device;
+    wgvkBuffer->cacheIndex = cacheIndex;
     wgvkBuffer->refCount = 1;
+    wgvkBuffer->usage = desc->usage;
+
+    if(desc->usage == BufferUsage_MapWrite){
+        auto& relevantCache = device->frameCaches[cacheIndex].stagingBufferCache;
+        size_t size = std::accumulate(relevantCache.begin(), relevantCache.end(), size_t(0), [](size_t left, const std::pair<uint64_t, std::vector<MappableBufferMemory>>& right){
+            return left + right.second.size();
+        });
+        //TRACELOG(LOG_INFO, "Total cache size: %llu", size);
+        auto it = relevantCache.lower_bound(desc->size);
+        if(it != relevantCache.end() && it->second.size() > 0){
+            wgvkBuffer->buffer           = it->second.back().buffer;
+            wgvkBuffer->memory           = it->second.back().memory;
+            wgvkBuffer->capacity         = it->second.back().capacity;
+            wgvkBuffer->memoryProperties = it->second.back().propertyFlags;
+            
+            it->second.pop_back();
+            
+            return wgvkBuffer;
+        }
+    }
 
     VkBufferCreateInfo bufferDesc zeroinit;
     bufferDesc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -13,40 +40,66 @@ extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDesc
     VkResult bufferCreateResult = vkCreateBuffer(device->device, &bufferDesc, nullptr, &wgvkBuffer->buffer);
     VkMemoryRequirements memRequirements;
     vkGetBufferMemoryRequirements(g_vulkanstate.device->device, wgvkBuffer->buffer, &memRequirements);
+    VkMemoryPropertyFlags propertyToFind = 0;
+
+    if(desc->usage & (BufferUsage_MapRead | BufferUsage_MapWrite)){
+        propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+    }
+    else{
+        propertyToFind = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        //propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+    }
+    
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, propertyToFind);
+    wgvkBuffer->memoryProperties = propertyToFind;
 
 
     if (vkAllocateMemory(device->device, &allocInfo, nullptr, &wgvkBuffer->memory) != VK_SUCCESS) {
         TRACELOG(LOG_FATAL, "failed to allocate vertex buffer memory!");
     }
+    wgvkBuffer->capacity = desc->size;
     vkBindBufferMemory(device->device, wgvkBuffer->buffer, wgvkBuffer->memory, 0);
     return wgvkBuffer;
 }
 
-extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, void const * data, size_t size){
+extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, const void* data, size_t size){
     void* mappedMemory = nullptr;
-
-    VkResult result = vkMapMemory(g_vulkanstate.device->device, buffer->memory, bufferOffset, size, 0, &mappedMemory);
-    
-    if (result == VK_SUCCESS && mappedMemory != nullptr) {
-        // Memory is host mappable: copy data and unmap.
-        std::memcpy(mappedMemory, data, size);
-        vkUnmapMemory(g_vulkanstate.device->device, buffer->memory);
-        return;
+    if(buffer->memoryProperties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT){
+        VkResult result = vkMapMemory(g_vulkanstate.device->device, buffer->memory, bufferOffset, size, 0, &mappedMemory);
+        
+        if (result == VK_SUCCESS && mappedMemory != nullptr) {
+            // Memory is host mappable: copy data and unmap.
+            std::memcpy(mappedMemory, data, size);
+            if(!(buffer->memoryProperties & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)){
+                VkMappedMemoryRange range zeroinit;
+                range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+                range.memory = buffer->memory;
+                range.offset = bufferOffset;
+                range.size = size;
+                vkFlushMappedMemoryRanges(g_vulkanstate.device->device, 1, &range);
+            }
+            vkUnmapMemory(g_vulkanstate.device->device, buffer->memory);
+        }
     }
-    assert(false && "Not yet implemented");
-    
-    abort();
+    else{
+        BufferDescriptor stDesc zeroinit;
+        stDesc.size = size;
+        stDesc.usage = BufferUsage_MapWrite;
+        WGVKBuffer stagingBuffer = wgvkDeviceCreateBuffer(cSelf->device, &stDesc);
+        wgvkQueueWriteBuffer(cSelf, stagingBuffer, 0, data, size);
+        wgvkCommandEncoderCopyBufferToBuffer(cSelf->presubmitCache, stagingBuffer, 0, buffer, bufferOffset, size);
+        wgvkBufferRelease(stagingBuffer);
+    }
 }
 
 extern "C" void wgvkQueueWriteTexture(WGVKQueue cSelf, const WGVKTexelCopyTextureInfo* destination, const void* data, size_t dataSize, const WGVKTexelCopyBufferLayout* dataLayout, const WGVKExtent3D* writeSize){
 
     BufferDescriptor bdesc zeroinit;
     bdesc.size = dataSize;
-    bdesc.usage = BufferUsage_CopySrc;
+    bdesc.usage = BufferUsage_CopySrc | BufferUsage_MapWrite;
     WGVKBuffer stagingBuffer = wgvkDeviceCreateBuffer(cSelf->device, &bdesc);
     void* mappedMemory = nullptr;
     VkResult result = vkMapMemory(cSelf->device->device, stagingBuffer->memory, 0, dataSize, 0, &mappedMemory);
@@ -63,7 +116,58 @@ extern "C" void wgvkQueueWriteTexture(WGVKQueue cSelf, const WGVKTexelCopyTextur
     wgvkBufferRelease(stagingBuffer);
 }
 
+extern "C" WGVKTexture wgvkDeviceCreateTexture(WGVKDevice device, const WGVKTextureDescriptor* descriptor){
+    VkDeviceMemory imageMemory zeroinit;
+    // Adjust usage flags based on format (e.g., depth formats might need different usages)
+    WGVKTexture ret = callocnew(WGVKTextureImpl);
 
+    VkImageCreateInfo imageInfo zeroinit;
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.extent = { descriptor->size.width, descriptor->size.height, descriptor->size.depthOrArrayLayers };
+    imageInfo.mipLevels = descriptor->mipLevelCount;
+    imageInfo.arrayLayers = 1;
+    imageInfo.format = toVulkanPixelFormat(descriptor->format);
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage = toVulkanTextureUsage(descriptor->usage, descriptor->format);
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    imageInfo.samples = toVulkanSampleCount(descriptor->sampleCount);
+    
+    VkImage image zeroinit;
+    if (vkCreateImage(device->device, &imageInfo, nullptr, &image) != VK_SUCCESS)
+        TRACELOG(LOG_FATAL, "Failed to create image!");
+    
+    VkMemoryRequirements memReq;
+    vkGetImageMemoryRequirements(device->device, image, &memReq);
+    
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memReq.size;
+    allocInfo.memoryTypeIndex = findMemoryType(
+        memReq.memoryTypeBits, 
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+    );
+    
+    if (vkAllocateMemory(device->device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS){
+        TRACELOG(LOG_FATAL, "Failed to allocate image memory!");
+    }
+    vkBindImageMemory(device->device, image, imageMemory, 0);
+
+    ret->image = image;
+    ret->memory = imageMemory;
+    ret->device = device;
+    ret->width =  descriptor->size.width;
+    ret->height = descriptor->size.height;
+    ret->format = toVulkanPixelFormat(descriptor->format);
+    ret->sampleCount = descriptor->sampleCount;
+    ret->depthOrArrayLayers = descriptor->size.depthOrArrayLayers;
+    ret->layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    ret->refCount = 1;
+    ret->mipLevels = descriptor->mipLevelCount;
+    ret->memory = imageMemory;
+    return ret;
+}
 
 extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup, const WGVKBindGroupDescriptor* bgdesc){
     
@@ -485,36 +589,7 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
     si.commandBufferCount = commandCount + 1;
     small_vector<VkCommandBuffer> submittable(commandCount + 1);
     small_vector<WGVKCommandBuffer> submittableWGVK(commandCount + 1);
-    //for(size_t i = 0;i < commandCount;i++){
-    //    WGVKCommandBuffer buffer = buffers[i];
-    //    for(auto rp : buffer->referencedRPs){
-    //        for(auto dset : rp->resourceUsage.referencedBindGroups){
-    //            for(auto tex : dset->resourceUsage.referencedTextureViews){
-    //                if(tex.second == TextureUsage_TextureBinding && tex.first->texture->layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL){
-    //                    wgvkCommandEncoderTransitionTextureLayout(queue->presubmitCache, tex.first->texture, tex.first->texture->layout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    //                }
-    //                if(tex.second == TextureUsage_StorageBinding && tex.first->texture->layout != VK_IMAGE_LAYOUT_GENERAL){
-    //                    wgvkCommandEncoderTransitionTextureLayout(queue->presubmitCache, tex.first->texture, tex.first->texture->layout, VK_IMAGE_LAYOUT_GENERAL);
-    //                }
-    //                if(tex.second == TextureUsage_RenderAttachment){
-    //                    abort();
-    //                }
-    //            }
-    //        }
-    //    }
-    //    for(auto cp : buffer->referencedCPs){
-    //        for(auto dset : cp->resourceUsage.referencedBindGroups){
-    //            for(auto tex : dset->resourceUsage.referencedTextureViews){
-    //                if(tex.second == TextureUsage_TextureBinding && tex.first->texture->layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL){
-    //                    wgvkCommandEncoderTransitionTextureLayout(queue->presubmitCache, tex.first->texture, tex.first->texture->layout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    //                }
-    //                if(tex.second == TextureUsage_StorageBinding && tex.first->texture->layout != VK_IMAGE_LAYOUT_GENERAL){
-    //                    wgvkCommandEncoderTransitionTextureLayout(queue->presubmitCache, tex.first->texture, tex.first->texture->layout, VK_IMAGE_LAYOUT_GENERAL);
-    //                }
-    //            }
-    //        }
-    //    }
-    //}
+
     auto& pscache = queue->presubmitCache;
     {
         auto& sbuffer = buffers[0];
@@ -551,12 +626,9 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
     si.pCommandBuffers = submittable.data();
     VkFence fence = VK_NULL_HANDLE;
     int submitResult = VK_SUCCESS;
-    for(uint32_t i = 0;i < submittable.size();i++){
-        si.commandBufferCount = 1;
-        si.pCommandBuffers = submittable.data() + i;
-        submitResult |= vkQueueSubmit(queue->graphicsQueue, 1, &si, fence);
-        
-    }
+    si.commandBufferCount = submittable.size();
+    si.pCommandBuffers = submittable.data();
+    submitResult = vkQueueSubmit(queue->graphicsQueue, 1, &si, fence);
     if(submitResult == VK_SUCCESS){
         std::unordered_set<WGVKCommandBuffer> insert;
         insert.reserve(3);
@@ -723,23 +795,6 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
         viewDesc.dimension = TextureViewDimension_2D;
         viewDesc.format = config->format;
         viewDesc.usage = TextureUsage_RenderAttachment | TextureUsage_CopySrc;
-        //VkImageViewCreateInfo viewInfo{};
-        //viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        //viewInfo.image = surface->images[i]->image;
-        //viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        //viewInfo.format = toVulkanPixelFormat(BGRA8);
-        //viewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-        //viewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-        //viewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-        //viewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-        //viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        //viewInfo.subresourceRange.baseMipLevel = 0;
-        //viewInfo.subresourceRange.levelCount = 1;
-        //viewInfo.subresourceRange.baseArrayLayer = 0;
-        //viewInfo.subresourceRange.layerCount = 1;
-        //if (vkCreateImageView(device, &viewInfo, nullptr, &surface->imageViews[i]) != VK_SUCCESS) {
-        //    TRACELOG(LOG_FATAL, "failed to create image views!");
-        //}
         surface->imageViews[i] = wgvkTextureCreateView(surface->images[i], &viewDesc);
     }
 
@@ -835,32 +890,6 @@ void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
     std::free(commandEncoder);
 }
 
-//extern "C" WGVKCommandEncoder wgvkResetCommandBuffer(WGVKCommandBuffer commandBuffer) {
-//    WGVKCommandEncoder ret = callocnewpp(WGVKCommandEncoderImpl);
-//    assert(commandBuffer->refCount == 1);
-//
-//    for(auto rp : commandBuffer->referencedRPs){
-//        wgvkReleaseRenderPassEncoder(rp);
-//    }
-//    commandBuffer->referencedRPs.clear();
-//    if(commandBuffer->buffer)
-//        vkResetCommandBuffer(commandBuffer->buffer, 0);
-//    ret->buffer = commandBuffer->buffer;
-//    ret->cacheIndex = commandBuffer->cacheIndex;
-//
-//    commandBuffer->~WGVKCommandBufferImpl();
-//    std::free(commandBuffer);
-//    
-//    VkCommandBufferBeginInfo cbbi zeroinit;
-//    cbbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-//    cbbi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-//    VkResult beginResult = vkBeginCommandBuffer(ret->buffer, &cbbi);
-//    if(beginResult != VK_SUCCESS){
-//        TRACELOG(LOG_FATAL, "Could not start command recording");
-//    }
-//    return ret;
-//}
-
 void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
     --commandBuffer->refCount;
     if(commandBuffer->refCount == 0){
@@ -875,14 +904,7 @@ void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
         PerframeCache& frameCache = commandBuffer->device->frameCaches[commandBuffer->cacheIndex];
         frameCache.buffers.push_back(commandBuffer->buffer);
         
-        //vkFreeCommandBuffers(commandEncoder->device->device, commandEncoder->device->frameCaches[commandEncoder->cacheIndex].commandPool, 1, &commandEncoder->buffer);
-        //vkDestroyCommandPool(g_vulkanstate.device->device, commandBuffer->pool, nullptr);
         commandBuffer->~WGVKCommandBufferImpl();
-        //buffers__.erase(commandBuffer);
-        //for(auto b : buffers__){
-        //    TRACELOG(LOG_INFO, "Current state: %llu", b);
-        //}
-        //TRACELOG(LOG_INFO, "%llu\n", buffers__.size());
         std::free(commandBuffer);
     }
 }
@@ -901,8 +923,18 @@ void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc) {
 void wgvkBufferRelease(WGVKBuffer buffer) {
     --buffer->refCount;
     if (buffer->refCount == 0) {
-        vkDestroyBuffer(g_vulkanstate.device->device, buffer->buffer, nullptr);
-        vkFreeMemory(g_vulkanstate.device->device, buffer->memory, nullptr);
+        if(buffer->usage == BufferUsage_MapWrite){
+            buffer->device->frameCaches[buffer->cacheIndex].stagingBufferCache[buffer->capacity].push_back(MappableBufferMemory{
+                .buffer = buffer->buffer,
+                .memory = buffer->memory,
+                .propertyFlags = buffer->memoryProperties,
+                .capacity = buffer->capacity
+            });
+        }
+        else{
+            vkDestroyBuffer(g_vulkanstate.device->device, buffer->buffer, nullptr);
+            vkFreeMemory(g_vulkanstate.device->device, buffer->memory, nullptr);
+        }
         buffer->~WGVKBufferImpl();
         std::free(buffer);
     }
@@ -953,8 +985,14 @@ extern "C" void wgvkReleaseTextureView(WGVKTextureView view){
 }
 
 extern "C" void wgvkCommandEncoderCopyBufferToBuffer  (WGVKCommandEncoder commandEncoder, WGVKBuffer source, uint64_t sourceOffset, WGVKBuffer destination, uint64_t destinationOffset, uint64_t size){
-    TRACELOG(LOG_FATAL, "Not implemented");
-    rg_unreachable();
+    commandEncoder->resourceUsage.track(source);
+    commandEncoder->resourceUsage.track(destination);
+
+    VkBufferCopy copy zeroinit;
+    copy.srcOffset = sourceOffset;
+    copy.dstOffset = destinationOffset;
+    copy.size = size;
+    vkCmdCopyBuffer(commandEncoder->buffer, source->buffer, destination->buffer, 1, &copy);
 }
 extern "C" void wgvkCommandEncoderCopyBufferToTexture (WGVKCommandEncoder commandEncoder, WGVKTexelCopyBufferInfo const * source, WGVKTexelCopyTextureInfo const * destination, WGVKExtent3D const * copySize){
     
@@ -1060,14 +1098,14 @@ extern "C" void wgvkComputePassEncoderSetPipeline (WGVKComputePassEncoder cpe, V
 }
 extern "C" void wgvkComputePassEncoderSetBindGroup(WGVKComputePassEncoder cpe, uint32_t groupIndex, WGVKBindGroup bindGroup){
     
-    vkCmdBindDescriptorSets(cpe->cmdBuffer,                  // Command buffer
-                            VK_PIPELINE_BIND_POINT_COMPUTE, // Pipeline bind point
-                            cpe->lastLayout,                 // Pipeline layout
-                            groupIndex,                           // First set
-                            1,                               // Descriptor set count
-                            &(bindGroup->set),                    // Pointer to descriptor set
-                            0,                               // Dynamic offset count
-                            nullptr                          // Pointer to dynamic offsets
+    vkCmdBindDescriptorSets(cpe->cmdBuffer,                // Command buffer
+                            VK_PIPELINE_BIND_POINT_COMPUTE,// Pipeline bind point
+                            cpe->lastLayout,               // Pipeline layout
+                            groupIndex,                    // First set
+                            1,                             // Descriptor set count
+                            &(bindGroup->set),             // Pointer to descriptor set
+                            0,                             // Dynamic offset count
+                            nullptr                        // Pointer to dynamic offsets
     );
     cpe->resourceUsage.track(bindGroup);
     for(auto viewAndUsage : bindGroup->resourceUsage.referencedTextureViews){
