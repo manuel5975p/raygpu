@@ -3,6 +3,7 @@
 #include <external/small_vector.hpp>
 #include <unordered_set>
 #include <vulkan/vulkan.h>
+#include <external/VmaUsage.h>
 #include <vector>
 #include <utility>
 #include <map>
@@ -263,7 +264,7 @@ typedef struct WGVKBufferImpl{
     uint32_t cacheIndex;
     BufferUsage usage;
     size_t capacity;
-    VkDeviceMemory memory;
+    VmaAllocation allocation;
     VkMemoryPropertyFlags memoryProperties;
     refcount_type refCount;
 }WGVKBufferImpl;
@@ -301,6 +302,7 @@ typedef struct WGVKDeviceImpl{
     VkDevice device;
     WGVKQueue queue;
     size_t submittedFrames = 0;
+    VmaAllocator allocator;
     PerframeCache frameCaches[framesInFlight];
 
     std::unordered_map<RenderPassLayout, VkRenderPass> renderPassCache;

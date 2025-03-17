@@ -2,9 +2,13 @@
 #include "vulkan_internals.hpp"
 #include <algorithm>
 #include <numeric>
+#include <external/VmaUsage.h>
+
+
 extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDescriptor* desc){
+    //vmaCreateAllocator(const VmaAllocatorCreateInfo * _Nonnull pCreateInfo, VmaAllocator  _Nullable * _Nonnull pAllocator)
     WGVKBuffer wgvkBuffer = callocnewpp(WGVKBufferImpl);
-    
+
     uint32_t cacheIndex = device->submittedFrames % framesInFlight;
 
     wgvkBuffer->device = device;
@@ -12,24 +16,24 @@ extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDesc
     wgvkBuffer->refCount = 1;
     wgvkBuffer->usage = desc->usage;
 
-    if(desc->usage == BufferUsage_MapWrite){
-        auto& relevantCache = device->frameCaches[cacheIndex].stagingBufferCache;
-        size_t size = std::accumulate(relevantCache.begin(), relevantCache.end(), size_t(0), [](size_t left, const std::pair<uint64_t, std::vector<MappableBufferMemory>>& right){
-            return left + right.second.size();
-        });
-        //TRACELOG(LOG_INFO, "Total cache size: %llu", size);
-        auto it = relevantCache.lower_bound(desc->size);
-        if(it != relevantCache.end() && it->second.size() > 0){
-            wgvkBuffer->buffer           = it->second.back().buffer;
-            wgvkBuffer->memory           = it->second.back().memory;
-            wgvkBuffer->capacity         = it->second.back().capacity;
-            wgvkBuffer->memoryProperties = it->second.back().propertyFlags;
-            
-            it->second.pop_back();
-            
-            return wgvkBuffer;
-        }
-    }
+    //if(desc->usage == BufferUsage_MapWrite){
+    //    auto& relevantCache = device->frameCaches[cacheIndex].stagingBufferCache;
+    //    size_t size = std::accumulate(relevantCache.begin(), relevantCache.end(), size_t(0), [](size_t left, const std::pair<uint64_t, std::vector<MappableBufferMemory>>& right){
+    //        return left + right.second.size();
+    //    });
+    //    //TRACELOG(LOG_INFO, "Total cache size: %llu", size);
+    //    auto it = relevantCache.lower_bound(desc->size);
+    //    if(it != relevantCache.end() && it->second.size() > 0){
+    //        wgvkBuffer->buffer           = it->second.back().buffer;
+    //        wgvkBuffer->memory           = it->second.back().memory;
+    //        wgvkBuffer->capacity         = it->second.back().capacity;
+    //        wgvkBuffer->memoryProperties = it->second.back().propertyFlags;
+    //        
+    //        it->second.pop_back();
+    //        
+    //        return wgvkBuffer;
+    //    }
+    //}
 
     VkBufferCreateInfo bufferDesc zeroinit;
     bufferDesc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -37,38 +41,46 @@ extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDesc
     bufferDesc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     bufferDesc.usage = toVulkanBufferUsage(desc->usage);
     
-    VkResult bufferCreateResult = vkCreateBuffer(device->device, &bufferDesc, nullptr, &wgvkBuffer->buffer);
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(g_vulkanstate.device->device, wgvkBuffer->buffer, &memRequirements);
-    VkMemoryPropertyFlags propertyToFind = 0;
-
-    if(desc->usage & (BufferUsage_MapRead | BufferUsage_MapWrite)){
-        propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-    }
-    else{
-        propertyToFind = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-        //propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-    }
+    //VkResult bufferCreateResult = vkCreateBuffer(device->device, &bufferDesc, nullptr, &wgvkBuffer->buffer);
+    //VkMemoryRequirements memRequirements;
+    //vkGetBufferMemoryRequirements(g_vulkanstate.device->device, wgvkBuffer->buffer, &memRequirements);
+    //VkMemoryPropertyFlags propertyToFind = 0;
+//
+    //if(desc->usage & (BufferUsage_MapRead | BufferUsage_MapWrite)){
+    //    propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+    //}
+    //else{
+    //    propertyToFind = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    //    //propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+    //}
+    VmaAllocationCreateInfo vallocInfo = {};
+    vallocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    VmaAllocation allocation zeroinit;
+    VmaAllocationInfo allocationInfo zeroinit;
+    VkResult vmabufferCreateResult = vmaCreateBuffer(device->allocator, &bufferDesc, &vallocInfo, &wgvkBuffer->buffer, &allocation, &allocationInfo);
     
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, propertyToFind);
-    wgvkBuffer->memoryProperties = propertyToFind;
-
-
-    if (vkAllocateMemory(device->device, &allocInfo, nullptr, &wgvkBuffer->memory) != VK_SUCCESS) {
-        TRACELOG(LOG_FATAL, "failed to allocate vertex buffer memory!");
-    }
-    wgvkBuffer->capacity = desc->size;
-    vkBindBufferMemory(device->device, wgvkBuffer->buffer, wgvkBuffer->memory, 0);
+    
+    //VkMemoryAllocateInfo allocInfo{};
+    //allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    //allocInfo.allocationSize = memRequirements.size;
+    //allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, propertyToFind);
+    //wgvkBuffer->memoryProperties = propertyToFind;
+    //if (vkAllocateMemory(device->device, &allocInfo, nullptr, &wgvkBuffer->memory) != VK_SUCCESS) {
+    //    TRACELOG(LOG_FATAL, "failed to allocate vertex buffer memory!");
+    //}
+    //wgvkBuffer->capacity = desc->size;
+    //vkBindBufferMemory(device->device, wgvkBuffer->buffer, wgvkBuffer->memory, 0);
     return wgvkBuffer;
 }
 
 extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, const void* data, size_t size){
     void* mappedMemory = nullptr;
     if(buffer->memoryProperties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT){
-        VkResult result = vkMapMemory(g_vulkanstate.device->device, buffer->memory, bufferOffset, size, 0, &mappedMemory);
+        VmaAllocationInfo allocationInfo zeroinit;
+        vmaGetAllocationInfo(cSelf->device->allocator, buffer->allocation, &allocationInfo);
+        uint64_t baseOffset = allocationInfo.offset;
+        VkDeviceMemory bufferMemory = allocationInfo.deviceMemory;
+        VkResult result = vkMapMemory(g_vulkanstate.device->device, bufferMemory, bufferOffset, size, 0, &mappedMemory);
         
         if (result == VK_SUCCESS && mappedMemory != nullptr) {
             // Memory is host mappable: copy data and unmap.
@@ -76,7 +88,7 @@ extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_
             if(!(buffer->memoryProperties & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)){
                 VkMappedMemoryRange range zeroinit;
                 range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-                range.memory = buffer->memory;
+                range.memory = bufferMemory;
                 range.offset = bufferOffset;
                 range.size = size;
                 vkFlushMappedMemoryRanges(g_vulkanstate.device->device, 1, &range);

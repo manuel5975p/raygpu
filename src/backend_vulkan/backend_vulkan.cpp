@@ -1056,6 +1056,17 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
         VkResult res = vkCreateFence(device->device, &sci, nullptr, &device->frameCaches[i].finalTransitionFence);
     }
     ret.second->presubmitCache = wgvkDeviceCreateCommandEncoder(ret.first, &cedesc);
+
+    VmaAllocatorCreateInfo aci zeroinit;
+    aci.instance = g_vulkanstate.instance;
+    aci.physicalDevice = physicalDevice;
+    aci.device = ret.first->device;
+
+    VkResult allocatorCreateResult = vmaCreateAllocator(&aci, &ret.first->allocator);
+
+    if(allocatorCreateResult != VK_SUCCESS){
+        TRACELOG(LOG_FATAL, "Error creating the allocator: %d", (int)allocatorCreateResult);
+    }
     //__builtin_dump_struct(&g_vulkanstate, printf);
     // std::cin.get();
 
