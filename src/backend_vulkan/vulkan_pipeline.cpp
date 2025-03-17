@@ -664,7 +664,7 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, Resou
     uint64_t oldHash = bg->descriptorHash;
     if(bg->entries[index].buffer){
         WGVKBuffer wBuffer = (WGVKBuffer)bg->entries[index].buffer;
-        wgvkReleaseBuffer(wBuffer);
+        wgvkBufferRelease(wBuffer);
     }
     else if(bg->entries[index].textureView){
         //TODO: currently not the case anyway, but this is nadinöf
@@ -707,7 +707,7 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, Resou
     //bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
     WGVKBindGroup wB = (WGVKBindGroup)bg->bindGroup;
     if(bg->bindGroup && wB->refCount > 1){
-        wgvkReleaseDescriptorSet(wB);
+        wgvkBindGroupRelease(wB);
         bg->bindGroup = nullptr;
     }
     //else if(!bg->needsUpdate && bg->bindGroup){
@@ -818,7 +818,7 @@ void UpdateBindGroup(DescribedBindGroup* bg){
     else{
         if(bg->bindGroup){
             TRACELOG(LOG_WARNING, "Weird. This shouldn't be the case");
-            wgvkReleaseDescriptorSet((WGVKBindGroup)bg->bindGroup);
+            wgvkBindGroupRelease((WGVKBindGroup)bg->bindGroup);
         }
         bg->bindGroup = wgvkDeviceCreateBindGroup(g_vulkanstate.device, &bgdesc);
     }
@@ -831,7 +831,7 @@ void SetBindGroupTexture_Vk(DescribedBindGroup* bg, uint32_t binding, Texture te
 
     bg->entries[binding].textureView = tex.view;
     if(bg->bindGroup){
-        wgvkReleaseDescriptorSet((WGVKBindGroup)bg->bindGroup);
+        wgvkBindGroupRelease((WGVKBindGroup)bg->bindGroup);
         bg->bindGroup = nullptr;
     }
     bg->needsUpdate = true;
@@ -841,7 +841,7 @@ void SetBindGroupBuffer_Vk(DescribedBindGroup* bg, uint32_t binding, DescribedBu
     //TODO: actually, one would need to iterate entries to find out where .binding == binding
     bg->entries[binding].buffer = buf->buffer;
     if(bg->bindGroup){
-        wgvkReleaseDescriptorSet((WGVKBindGroup)bg->bindGroup);
+        wgvkBindGroupRelease((WGVKBindGroup)bg->bindGroup);
         bg->bindGroup = nullptr;
     }
     bg->needsUpdate = true;
@@ -852,7 +852,7 @@ void SetBindGroupSampler_Vk(DescribedBindGroup* bg, uint32_t binding, DescribedS
     bg->entries[binding].sampler = buf.sampler;
 
     if(bg->bindGroup){
-        wgvkReleaseDescriptorSet((WGVKBindGroup)bg->bindGroup);
+        wgvkBindGroupRelease((WGVKBindGroup)bg->bindGroup);
         bg->bindGroup = nullptr;
     }
     bg->needsUpdate = true;

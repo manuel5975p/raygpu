@@ -341,8 +341,8 @@ extern "C" WGVKCommandEncoder wgvkResetCommandBuffer(WGVKCommandBuffer commandEn
 extern "C" void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer);
 extern "C" void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc);
 extern "C" void wgvkReleaseComputePassEncoder(WGVKComputePassEncoder rpenc);
-extern "C" void wgvkReleaseBuffer(WGVKBuffer commandBuffer);
-extern "C" void wgvkReleaseDescriptorSet(WGVKBindGroup commandBuffer);
+extern "C" void wgvkBufferRelease(WGVKBuffer commandBuffer);
+extern "C" void wgvkBindGroupRelease(WGVKBindGroup commandBuffer);
 extern "C" void wgvkReleaseBindGroupLayout(WGVKBindGroupLayout bglayout);
 extern "C" void wgvkReleaseTexture(WGVKTexture texture);
 extern "C" void wgvkReleaseTextureView(WGVKTextureView view);
@@ -387,10 +387,10 @@ inline void ResourceUsage::track(WGVKBindGroup bindGroup)noexcept{
 }
 inline void ResourceUsage::releaseAllAndClear()noexcept{
     for(auto buffer : referencedBuffers){
-        wgvkReleaseBuffer(buffer);
+        wgvkBufferRelease(buffer);
     }
     for(auto bindGroup : referencedBindGroups){
-        wgvkReleaseDescriptorSet(bindGroup);
+        wgvkBindGroupRelease(bindGroup);
     }
     for(auto texture : referencedTextures){
         wgvkReleaseTexture(texture);
@@ -1178,7 +1178,7 @@ extern "C" void wgvkCommandEncoderCopyTextureToTexture(WGVKCommandEncoder comman
 
 extern "C" void wgvkRenderpassEncoderDraw(WGVKRenderPassEncoder rpe, uint32_t vertices, uint32_t instances, uint32_t firstvertex, uint32_t firstinstance);
 extern "C" void wgvkRenderpassEncoderDrawIndexed(WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t firstinstance);
-extern "C" void wgvkRenderPassEncoderBindDescriptorSet(WGVKRenderPassEncoder rpe, uint32_t group, WGVKBindGroup dset);
+extern "C" void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group, WGVKBindGroup dset);
 extern "C" void wgvkRenderPassEncoderBindPipeline(WGVKRenderPassEncoder rpe, DescribedPipeline* pipeline);
 extern "C" void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, VkPipeline pipeline, VkPipelineLayout layout);
 extern "C" void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer buffer, VkDeviceSize offset, VkIndexType indexType);

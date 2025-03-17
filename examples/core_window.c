@@ -35,9 +35,10 @@ int main(void){
     //RequestLimit(maxBufferSize, 1 << 13);
     //RequestBackend(WGPUBackendType_Vulkan);
     //SetConfigFlags(FLAG_MSAA_4X_HINT);
-    //SetConfigFlags(FLAG_VSYNC_HINT);
+    SetConfigFlags(FLAG_VSYNC_LOWLATENCY_HINT);
     //SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-    RequestAdapterType(SOFTWARE_RENDERER);
+    //RequestAdapterType(SOFTWARE_RENDERER);
+    //SetTraceLogLevel(LOG_TRACE);
     InitWindow(800, 600, "Vulkan window");
     //SetTargetFPS(0);
     //sdlwin = OpenSubWindow_GLFW(400, 400, "SDL fenschter");

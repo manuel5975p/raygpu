@@ -373,8 +373,28 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
     wgvksurf->activeImageIndex = imageIndex;
 }
 void negotiateSurfaceFormatAndPresentMode(const void* SurfaceHandle){
-    g_renderstate.throttled_PresentMode = PresentMode_Fifo;
-    g_renderstate.unthrottled_PresentMode = PresentMode_Immediate;
+    WGVKSurface surface = (WGVKSurface)SurfaceHandle;
+    uint32_t presentModeCount = 0;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(g_vulkanstate.physicalDevice, surface->surface, &presentModeCount, nullptr);
+    std::vector<VkPresentModeKHR> presentModes(presentModeCount);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(g_vulkanstate.physicalDevice, surface->surface, &presentModeCount, presentModes.data());
+    
+    if(std::find(presentModes.begin(), presentModes.end(), VK_PRESENT_MODE_FIFO_RELAXED_KHR) != presentModes.end()){
+        g_renderstate.throttled_PresentMode = PresentMode_FifoRelaxed;
+    }
+    else{
+        g_renderstate.throttled_PresentMode = PresentMode_Fifo;
+    }
+    if(std::find(presentModes.begin(), presentModes.end(), VK_PRESENT_MODE_MAILBOX_KHR) != presentModes.end()){
+        g_renderstate.unthrottled_PresentMode = PresentMode_Mailbox;
+    }
+    else if(std::find(presentModes.begin(), presentModes.end(), VK_PRESENT_MODE_IMMEDIATE_KHR) != presentModes.end()){
+        g_renderstate.unthrottled_PresentMode = PresentMode_Immediate;
+    }
+    else{
+        g_renderstate.unthrottled_PresentMode = PresentMode_Fifo;
+    }
+
     g_renderstate.frameBufferFormat = BGRA8;
 }
 void* GetInstance(){
@@ -771,7 +791,7 @@ void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, cons
     entry.buffer = wgvkBuffer;
     entry.size = size;
     UpdateBindGroupEntry(bg, index, entry);
-    wgvkReleaseBuffer(wgvkBuffer);
+    wgvkBufferRelease(wgvkBuffer);
 }
 extern "C" void BufferData(DescribedBuffer* buffer, const void* data, size_t size){
     if(buffer->buffer != nullptr && buffer->size >= size){
@@ -779,7 +799,7 @@ extern "C" void BufferData(DescribedBuffer* buffer, const void* data, size_t siz
     }
     else{
         if(buffer->buffer)
-            wgvkReleaseBuffer((WGVKBuffer)buffer->buffer);
+            wgvkBufferRelease((WGVKBuffer)buffer->buffer);
         BufferDescriptor nbdesc zeroinit;
         nbdesc.size = size;
         nbdesc.usage = buffer->usage;
@@ -801,13 +821,13 @@ void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, cons
     entry.buffer = wgvkBuffer;
     entry.size = size;
     UpdateBindGroupEntry(bg, index, entry);
-    wgvkReleaseBuffer(wgvkBuffer);
+    wgvkBufferRelease(wgvkBuffer);
 }
 
 
 extern "C" void UnloadBuffer(DescribedBuffer* buf){
     WGVKBuffer handle = (WGVKBuffer)buf->buffer;
-    wgvkReleaseBuffer(handle);
+    wgvkBufferRelease(handle);
     std::free(buf);
 }
 
@@ -878,7 +898,7 @@ extern "C" void RenderPassSetVertexBuffer(DescribedRenderpass* drp, uint32_t slo
     //wgpuRenderPassEncoderSetVertexBuffer((WGPURenderPassEncoder)drp->rpEncoder, slot, (WGPUBuffer)buffer->buffer, offset, buffer->size);
 }
 extern "C" void RenderPassSetBindGroup(DescribedRenderpass* drp, uint32_t group, DescribedBindGroup* bindgroup){
-    wgvkRenderPassEncoderBindDescriptorSet((WGVKRenderPassEncoder)drp->rpEncoder, group, (WGVKBindGroup)bindgroup->bindGroup);
+    wgvkRenderPassEncoderSetBindGroup((WGVKRenderPassEncoder)drp->rpEncoder, group, (WGVKBindGroup)bindgroup->bindGroup);
     //wgpuRenderPassEncoderSetBindGroup((WGPURenderPassEncoder)drp->rpEncoder, group, (WGPUBindGroup)UpdateAndGetNativeBindGroup(bindgroup), 0, nullptr);
 }
 extern "C" void RenderPassDraw        (DescribedRenderpass* drp, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance){
@@ -1305,7 +1325,7 @@ extern "C" void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode
             abort();
     }
     //pipeline->lastUsedAs = drawMode;
-    wgvkRenderPassEncoderBindDescriptorSet((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, (WGVKBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup));
+    wgvkRenderPassEncoderSetBindGroup((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, (WGVKBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup));
     //wgvkRenderPassEncoderSetBindGroup ((WGPURenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
 
 }

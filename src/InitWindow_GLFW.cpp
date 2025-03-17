@@ -449,30 +449,6 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
         g_renderstate.window = (GLFWwindow*)window;
     #endif
     
-    //ret.surface.surfaceConfig = SurfaceConfiguration{};
-    //SurfaceConfiguration& config = ret.surface.surfaceConfig;
-    //if(g_renderstate.windowFlags & FLAG_VSYNC_LOWLATENCY_HINT){
-    //    config.presentMode = (SurfacePresentMode)(((g_renderstate.unthrottled_PresentMode == PresentMode_Mailbox) ? g_renderstate.unthrottled_PresentMode : g_renderstate.throttled_PresentMode));
-    //}
-    //else if(g_renderstate.windowFlags & FLAG_VSYNC_HINT){
-    //    config.presentMode = (SurfacePresentMode)g_renderstate.throttled_PresentMode;
-    //}
-    //else{
-    //    config.presentMode = (SurfacePresentMode)g_renderstate.unthrottled_PresentMode;
-    //}
-
-    //TRACELOG(LOG_INFO, "Initialized GLFW window with surface %s", presentModeSpellingTable.at((WGPUPresentMode)config.presentMode).c_str());
-    //config.alphaMode = WGPUCompositeAlphaMode_Opaque;
-    
-    //config.format = (PixelFormat)g_renderstate.frameBufferFormat;
-    //config.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
-    //config.width = width;
-    //config.height = height;
-    //config.viewFormats = &config.format;
-    //config.viewFormatCount = 1;
-    //config.device = GetDevice();
-    //TRACELOG(LOG_INFO, "Configuring surface");
-    
 
     
     int wposx = 0, wposy = 0;

@@ -60,7 +60,7 @@ extern "C" void wgvkQueueWriteTexture(WGVKQueue cSelf, const WGVKTexelCopyTextur
 
     wgvkCommandEncoderCopyBufferToTexture(cSelf->presubmitCache, &source, destination, writeSize);
     rassert(stagingBuffer->refCount > 1, "Sum Ting Wong");
-    wgvkReleaseBuffer(stagingBuffer);
+    wgvkBufferRelease(stagingBuffer);
 }
 
 
@@ -277,7 +277,7 @@ extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, 
         //TRACELOG(LOG_INFO, "Reusing");
         ret->buffer = device->frameCaches[ret->cacheIndex].buffers.back();
         device->frameCaches[ret->cacheIndex].buffers.pop_back();
-        vkResetCommandBuffer(ret->buffer, 0);
+        //vkResetCommandBuffer(ret->buffer, 0);
     }
 
     VkCommandBufferBeginInfo bbi{};
@@ -898,7 +898,7 @@ void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc) {
         std::free(rpenc);
     }
 }
-void wgvkReleaseBuffer(WGVKBuffer buffer) {
+void wgvkBufferRelease(WGVKBuffer buffer) {
     --buffer->refCount;
     if (buffer->refCount == 0) {
         vkDestroyBuffer(g_vulkanstate.device->device, buffer->buffer, nullptr);
@@ -907,7 +907,7 @@ void wgvkReleaseBuffer(WGVKBuffer buffer) {
         std::free(buffer);
     }
 }
-void wgvkReleaseDescriptorSet(WGVKBindGroup dshandle) {
+void wgvkBindGroupRelease(WGVKBindGroup dshandle) {
     --dshandle->refCount;
     if (dshandle->refCount == 0) {
         dshandle->resourceUsage.releaseAllAndClear();
@@ -1028,7 +1028,7 @@ void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, VkPipeline pipe
 }
 
 // Implementation of RenderPassDescriptorBindDescriptorSet
-void wgvkRenderPassEncoderBindDescriptorSet(WGVKRenderPassEncoder rpe, uint32_t group, WGVKBindGroup dset) {
+void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group, WGVKBindGroup dset) {
     assert(rpe != nullptr && "RenderPassEncoderHandle is null");
     assert(dset != nullptr && "DescriptorSetHandle is null");
     assert(rpe->lastLayout != VK_NULL_HANDLE && "Pipeline layout is not set");
