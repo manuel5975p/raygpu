@@ -1027,13 +1027,14 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
     std::vector<VkDeviceSize> heapsizes(memoryProperties.memoryHeapCount, limit);
     aci.pHeapSizeLimit = heapsizes.data();
+    PFN_vmaAllocateDeviceMemoryFunction c;
     VmaDeviceMemoryCallbacks callbacks{
         /// Optional, can be null.
-        .pfnAllocate = [](VmaAllocator allocator, unsigned int, VkDeviceMemory_T * _Nonnull, size_t size, void * _Nullable){
-            TRACELOG(LOG_WARNING, "Allocating %llu of memory", size);
+        .pfnAllocate = [](VmaAllocator allocator, unsigned int type, VkDeviceMemory_T * _Nonnull, size_t size, void * _Nullable){
+            TRACELOG(LOG_WARNING, "Allocating %llu of memory type %u", size, type);
         },
-        .pfnFree = [](VmaAllocator_T * _Nonnull, unsigned int, VkDeviceMemory_T * _Nonnull, size_t size, void * _Nullable){
-            TRACELOG(LOG_WARNING, "Freeing %llu of memory", size);
+        .pfnFree = [](VmaAllocator_T * _Nonnull, unsigned int type, VkDeviceMemory_T * _Nonnull, size_t size, void * _Nullable){
+            TRACELOG(LOG_WARNING, "Freeing %llu of memory type %u", size, type);
         }
     };
     aci.pDeviceMemoryCallbacks = &callbacks;
