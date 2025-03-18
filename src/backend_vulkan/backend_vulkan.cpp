@@ -101,6 +101,7 @@ void PresentSurface(FullSurface* surface){
 
     VkResult presentRes = vkQueuePresentKHR(g_vulkanstate.queue->presentQueue, &presentInfo);
     ++wgvksurf->device->submittedFrames;
+    //vmaSetCurrentFrameIndex(g_vulkanstate.device->allocator, wgvksurf->device->submittedFrames % framesInFlight);
     if(presentRes != VK_SUCCESS && presentRes != VK_SUBOPTIMAL_KHR){
         TRACELOG(LOG_ERROR, "presentRes is %d", presentRes);
     }
@@ -1072,7 +1073,19 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     aci.instance = g_vulkanstate.instance;
     aci.physicalDevice = physicalDevice;
     aci.device = ret.first->device;
-
+    VkDeviceSize limit = 1 << 20;
+    aci.preferredLargeHeapBlockSize = 512;
+    aci.pHeapSizeLimit = &limit;
+    VmaDeviceMemoryCallbacks callbacks{
+        /// Optional, can be null.
+        .pfnAllocate = [](VmaAllocator allocator, unsigned int, VkDeviceMemory_T * _Nonnull, size_t size, void * _Nullable){
+            TRACELOG(LOG_WARNING, "Allocating %llu of memory", size);
+        },
+        .pfnFree = [](VmaAllocator_T * _Nonnull, unsigned int, VkDeviceMemory_T * _Nonnull, size_t size, void * _Nullable){
+            TRACELOG(LOG_WARNING, "Freeing %llu of memory", size);
+        }
+    };
+    aci.pDeviceMemoryCallbacks = &callbacks;
     VkResult allocatorCreateResult = vmaCreateAllocator(&aci, &ret.first->allocator);
 
     if(allocatorCreateResult != VK_SUCCESS){

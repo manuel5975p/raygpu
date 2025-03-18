@@ -269,7 +269,7 @@ typedef struct WGVKBufferImpl{
     refcount_type refCount;
 }WGVKBufferImpl;
 
-constexpr uint32_t framesInFlight = 3;
+constexpr uint32_t framesInFlight = 4;
 namespace std{
     template<>
     struct hash<WGVKBindGroupLayout>{
@@ -845,7 +845,6 @@ inline SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device, Vk
 
     // Capabilities
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
-
     // Formats
     uint32_t formatCount;
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, nullptr);

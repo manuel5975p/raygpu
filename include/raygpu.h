@@ -524,7 +524,6 @@ typedef enum LimitType{
     maxBufferSize,
     maxVertexAttributes,
     maxVertexBufferArrayStride,
-    maxInterStageShaderComponents,
     maxInterStageShaderVariables,
     maxColorAttachments,
     maxColorAttachmentBytesPerSample,

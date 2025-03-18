@@ -145,10 +145,10 @@ std::vector<uint32_t> wgslToSpirv(const char* wgslSource){
     #ifndef __EMSCRIPTEN__
     tint::Source::File file("", wgslSource);
     tint::Program program = tint::wgsl::reader::Parse(&file);
-    tint::Result<tint::core::ir::Module> module = tint::wgsl::reader::ProgramToLoweredIR(program);
+    auto rmodule = tint::wgsl::reader::ProgramToLoweredIR(program);
     tint::spirv::writer::Options options{};
-    tint::Result<tint::spirv::writer::Output> spirv = tint::spirv::writer::Generate(module.Get(), options);
-    return spirv.Get().spirv;
+    auto spirvResult = tint::spirv::writer::Generate(rmodule.Get(), options);
+    return spirvResult.Get().spirv;
     #else
     return {};
     #endif
@@ -204,11 +204,11 @@ std::pair<std::vector<uint32_t>, ShaderStageMask> wgsl_to_spirv_single(const cha
     #if SUPPORT_WGSL_PARSER == 1 && !defined(__EMSCRIPTEN__)
     tint::Source::File sourceFile("", source);
     tint::Program program = tint::wgsl::reader::Parse(&sourceFile);
-    tint::Result<tint::core::ir::Module> module = tint::wgsl::reader::ProgramToLoweredIR(program);
+    auto module = tint::wgsl::reader::ProgramToLoweredIR(program);
     tint::spirv::writer::Options options{};
 
 
-    tint::Result<tint::spirv::writer::Output> spirvOutput = tint::spirv::writer::Generate(module.Get(), options);
+    auto spirvOutput = tint::spirv::writer::Generate(module.Get(), options);
     
 
     ret.first = spirvOutput.Get().spirv;
@@ -679,11 +679,11 @@ std::vector<uint32_t> wgsl_to_spirv(const char* wgslCode){
     tint::Source::File f("", wgslCode);
 
     tint::Program prog = tint::wgsl::reader::Parse(&f);
-    tint::Result<tint::core::ir::Module> maybeModule = tint::wgsl::reader::ProgramToLoweredIR(prog);
+    auto maybeModule = tint::wgsl::reader::ProgramToLoweredIR(prog);
     tint::core::ir::Module module(std::move(maybeModule.Get()));
     
     tint::spirv::writer::Options options zeroinit;
-    tint::Result<tint::spirv::writer::Output> spirvMaybe = tint::spirv::writer::Generate(module, options);
+    auto spirvMaybe = tint::spirv::writer::Generate(module, options);
 
     return spirvMaybe.Get().spirv;
     #else

@@ -223,8 +223,8 @@ extern "C" void UpdatePipeline(DescribedPipeline* pl){
     for(uint32_t i = 0;i < vlayout_complete.number_of_buffers;i++){
         layouts_converted.push_back(WGPUVertexBufferLayout{
             .nextInChain    = nullptr,
-            .arrayStride    = vlayout_complete.layouts[i].arrayStride,
             .stepMode       = (WGPUVertexStepMode)vlayout_complete.layouts[i].stepMode,
+            .arrayStride    = vlayout_complete.layouts[i].arrayStride,
             .attributeCount = vlayout_complete.layouts[i].attributeCount,
             //TODO: this relies on the fact that VertexAttribute and WGPUVertexAttribute are exactly compatible
             .attributes     = (WGPUVertexAttribute*)vlayout_complete.layouts[i].attributes,

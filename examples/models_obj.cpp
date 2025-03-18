@@ -12,8 +12,8 @@ float angle = 0;
 Camera3D cam;
 std::vector<Matrix> trfs;
 
-constexpr size_t instanceCount = 900;
-constexpr size_t rootInstanceCount = 30;
+constexpr size_t instanceCount = 10000;
+constexpr size_t rootInstanceCount = 100;
 
 void mainloop(){
     BeginDrawing();

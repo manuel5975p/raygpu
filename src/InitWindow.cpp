@@ -350,7 +350,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     //state->clearPass.rca->loadOp = WGPULoadOp_Clear;
     //state->clearPass.rca->storeOp = WGPUStoreOp_Store;
     //state->activeRenderpass = nullptr;
-    #if SUPPORT_VULKAN_BACKEND == 1 && SUPPORT_GLSL_PARSER == 1
+    #if SUPPORT_GLSL_PARSER == 1
     ShaderSources defaultGLSLSource zeroinit;
     defaultGLSLSource.sourceCount = 2;
     defaultGLSLSource.sources[0].data = vertexSourceGLSL;

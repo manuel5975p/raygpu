@@ -281,8 +281,8 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, co
     for(uint32_t i = 0;i < vlayout_complete.number_of_buffers;i++){
         layouts_converted.push_back(WGPUVertexBufferLayout{
             .nextInChain = nullptr,
-            .arrayStride    = vlayout_complete.layouts[i].arrayStride,
             .stepMode       = (WGPUVertexStepMode)vlayout_complete.layouts[i].stepMode,
+            .arrayStride    = vlayout_complete.layouts[i].arrayStride,
             .attributeCount = vlayout_complete.layouts[i].attributeCount,
             //TODO: this relies on the fact that VertexAttribute and WGPUVertexAttribute are exactly compatible
             .attributes     = (WGPUVertexAttribute*)vlayout_complete.layouts[i].attributes,
@@ -808,7 +808,6 @@ void setlimit(wgpu::Limits& limits, LimitType limit, uint64_t value){
         case maxBufferSize:limits.maxBufferSize = value;break;
         case maxVertexAttributes:limits.maxVertexAttributes = value;break;
         case maxVertexBufferArrayStride:limits.maxVertexBufferArrayStride = value;break;
-        case maxInterStageShaderComponents:limits.maxInterStageShaderComponents = value;break;
         case maxInterStageShaderVariables:limits.maxInterStageShaderVariables = value;break;
         case maxColorAttachments:limits.maxColorAttachments = value;break;
         case maxColorAttachmentBytesPerSample:limits.maxColorAttachmentBytesPerSample = value;break;
