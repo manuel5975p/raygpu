@@ -30,8 +30,8 @@ extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDesc
         propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
     }
     else{
-        propertyToFind = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-        //propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+        //propertyToFind = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
     }
     VmaAllocationCreateInfo vallocInfo zeroinit;
     vallocInfo.preferredFlags = propertyToFind;
@@ -637,7 +637,7 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
     si.commandBufferCount = submittable.size();
     si.pCommandBuffers = submittable.data();
     
-    VkPipelineStageFlags wsmaskp = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+    VkPipelineStageFlags wsmaskp = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 
     if(queue->semaphoreThatTheNextBufferWillNeedToWaitFor){
         si.pWaitSemaphores = &queue->semaphoreThatTheNextBufferWillNeedToWaitFor;

@@ -771,6 +771,21 @@ void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, cons
     UpdateBindGroupEntry(bg, index, entry);
     wgvkBufferRelease(wgvkBuffer);
 }
+
+void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size){
+    ResourceDescriptor entry{};
+    BufferDescriptor bufferDesc{};
+    bufferDesc.size = size;
+    bufferDesc.usage = BufferUsage_CopyDst | BufferUsage_Storage;
+    WGVKBuffer wgvkBuffer = wgvkDeviceCreateBuffer(g_vulkanstate.device, &bufferDesc);
+    wgvkQueueWriteBuffer(g_vulkanstate.queue, wgvkBuffer, 0, data, size);
+    entry.binding = index;
+    entry.buffer = wgvkBuffer;
+    entry.size = size;
+    UpdateBindGroupEntry(bg, index, entry);
+    wgvkBufferRelease(wgvkBuffer);
+}
+
 extern "C" void BufferData(DescribedBuffer* buffer, const void* data, size_t size){
     if(buffer->buffer != nullptr && buffer->size >= size){
         wgvkQueueWriteBuffer(g_vulkanstate.queue, (WGVKBuffer)buffer->buffer, 0, data, size);
@@ -786,20 +801,6 @@ extern "C" void BufferData(DescribedBuffer* buffer, const void* data, size_t siz
         buffer->size = size;
         wgvkQueueWriteBuffer(g_vulkanstate.queue, (WGVKBuffer)buffer->buffer, 0, data, size);
     }
-}
-
-void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size){
-    ResourceDescriptor entry{};
-    BufferDescriptor bufferDesc{};
-    bufferDesc.size = size;
-    bufferDesc.usage = BufferUsage_CopyDst | BufferUsage_Storage;
-    WGVKBuffer wgvkBuffer = wgvkDeviceCreateBuffer(g_vulkanstate.device, &bufferDesc);
-    wgvkQueueWriteBuffer(g_vulkanstate.queue, wgvkBuffer, 0, data, size);
-    entry.binding = index;
-    entry.buffer = wgvkBuffer;
-    entry.size = size;
-    UpdateBindGroupEntry(bg, index, entry);
-    wgvkBufferRelease(wgvkBuffer);
 }
 
 
@@ -1018,8 +1019,10 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     aci.instance = g_vulkanstate.instance;
     aci.physicalDevice = physicalDevice;
     aci.device = ret.first->device;
-    VkDeviceSize limit = 1 << 20;
-    aci.preferredLargeHeapBlockSize = 512;
+
+    VkDeviceSize limit = 1 << 26;
+    aci.preferredLargeHeapBlockSize = 64;
+    
     aci.pHeapSizeLimit = &limit;
     VmaDeviceMemoryCallbacks callbacks{
         /// Optional, can be null.
@@ -1035,6 +1038,10 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
 
     if(allocatorCreateResult != VK_SUCCESS){
         TRACELOG(LOG_FATAL, "Error creating the allocator: %d", (int)allocatorCreateResult);
+    }
+    for(uint32_t i = 0;i < framesInFlight;i++){
+        VmaPoolCreateInfo vpci zeroinit;
+        // TODO
     }
     //__builtin_dump_struct(&g_vulkanstate, printf);
     // std::cin.get();
