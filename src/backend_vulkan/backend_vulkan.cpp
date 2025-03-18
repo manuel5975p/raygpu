@@ -101,7 +101,7 @@ void PresentSurface(FullSurface* surface){
 
     VkResult presentRes = vkQueuePresentKHR(g_vulkanstate.queue->presentQueue, &presentInfo);
     ++wgvksurf->device->submittedFrames;
-    //vmaSetCurrentFrameIndex(g_vulkanstate.device->allocator, wgvksurf->device->submittedFrames % framesInFlight);
+    vmaSetCurrentFrameIndex(g_vulkanstate.device->allocator, wgvksurf->device->submittedFrames % framesInFlight);
     if(presentRes != VK_SUCCESS && presentRes != VK_SUBOPTIMAL_KHR){
         TRACELOG(LOG_ERROR, "presentRes is %d", presentRes);
     }
@@ -187,63 +187,6 @@ extern "C" DescribedBuffer* GenBufferEx(const void* data, size_t size, BufferUsa
     }
     return ret;
 }
-//DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsage usage){
-//
-//    VkBufferUsageFlags vusage = toVulkanBufferUsage(usage);
-//    DescribedBuffer* ret = callocnew(DescribedBuffer);
-//    VkBuffer vertexBuffer{};
-//
-//    VkBufferCreateInfo bufferInfo{};
-//    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-//    bufferInfo.size = size;
-//    bufferInfo.usage = vusage;
-//    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-//
-//    if (vkCreateBuffer(g_vulkanstate.device->device, &bufferInfo, nullptr, &vertexBuffer) != VK_SUCCESS) {
-//        TRACELOG(LOG_FATAL, "failed to create vertex buffer!");
-//    }
-//    VkDeviceMemory vertexBufferMemory;
-//    VkMemoryRequirements memRequirements;
-//    vkGetBufferMemoryRequirements(g_vulkanstate.device->device, vertexBuffer, &memRequirements);
-//    VkMemoryAllocateInfo allocInfo{};
-//    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-//    allocInfo.allocationSize = memRequirements.size;
-//    VkMemoryPropertyFlags propertyToFind = 0;
-//
-//    if(usage & (BufferUsage_MapRead | BufferUsage_MapWrite)){
-//        propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-//    }
-//    else{
-//        propertyToFind = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-//    }
-//
-//    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, propertyToFind);
-//    if (vkAllocateMemory(g_vulkanstate.device->device, &allocInfo, nullptr, &vertexBufferMemory) != VK_SUCCESS) {
-//        TRACELOG(LOG_FATAL, "failed to allocate vertex buffer memory!");
-//    }
-//    vkBindBufferMemory(g_vulkanstate.device->device, vertexBuffer, vertexBufferMemory, 0);
-//    if(data != nullptr){
-//        void* mapdata;
-//        VkResult vkres = vkMapMemory(g_vulkanstate.device->device, vertexBufferMemory, 0, bufferInfo.size, 0, &mapdata);
-//        if(vkres != VK_SUCCESS)abort();
-//        memcpy(mapdata, data, (size_t)bufferInfo.size);
-//        vkUnmapMemory(g_vulkanstate.device->device, vertexBufferMemory);
-//    }
-//
-//    ret->buffer = callocnewpp(WGVKBufferImpl);
-//    ((WGVKBuffer)ret->buffer)->buffer = vertexBuffer;
-//    ((WGVKBuffer)ret->buffer)->memory = vertexBufferMemory;
-//    ((WGVKBuffer)ret->buffer)->refCount = 1;
-//    //vkMapMemory(g_vulkanstate.device, vertexBufferMemory, 0, size, void **ppData)
-//    ret->size = bufferInfo.size;
-//    ret->usage = usage;
-//
-//    //void* mdata;
-//    //vkMapMemory(g_vulkanstate.device, vertexBufferMemory, 0, bufferInfo.size, 0, &mdata);
-//    //memcpy(mdata, data, (size_t)bufferInfo.size);
-//    //vkUnmapMemory(g_vulkanstate.device, vertexBufferMemory);
-//    return ret;
-//}
 
 extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t width, uint32_t height){
     fsurface->surfaceConfig.width = width;
@@ -387,7 +330,9 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
     //vkCreateCommandPool(g_vulkanstate.device->device, &pci, nullptr, &oof);
     WGVKSurface wgvksurf = ((WGVKSurface)fsurface->surface);
     //TODO: Multiple frames in flight, this amounts to replacing 0 with frameCount % 2 or something similar
-    VkResult acquireResult = vkAcquireNextImageKHR(g_vulkanstate.device->device, wgvksurf->swapchain, UINT64_MAX, g_vulkanstate.queue->syncState[g_vulkanstate.queue->device->submittedFrames % framesInFlight].imageAcquiredSemaphore, VK_NULL_HANDLE, &imageIndex);
+    VkResult acquireResult = vkAcquireNextImageKHR(g_vulkanstate.device->device, wgvksurf->swapchain, UINT64_MAX, g_vulkanstate.queue->syncState[reinterpret_cast<WGVKSurface>(fsurface->surface)->device->submittedFrames % framesInFlight].imageAcquiredSemaphore, VK_NULL_HANDLE, &imageIndex);
+    wgvksurf->device->queue->semaphoreThatTheNextBufferWillNeedToWaitFor = g_vulkanstate.queue->syncState[reinterpret_cast<WGVKSurface>(fsurface->surface)->device->submittedFrames % framesInFlight].imageAcquiredSemaphore;
+    
     if(acquireResult != VK_SUCCESS){
         std::cerr << "acquireResult is " << acquireResult << std::endl;
     }
@@ -1436,31 +1381,15 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
     WGVKCommandBuffer cbuffer = wgvkCommandEncoderFinish((WGVKCommandEncoder)rp->cmdEncoder);
 
     g_renderstate.activeRenderpass = nullptr;
-    VkPipelineStageFlags stageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     VkSubmitInfo sinfo{};
     sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     sinfo.commandBufferCount = 1;
     sinfo.pCommandBuffers = &cbuffer->buffer;
-    //sinfo.waitSemaphoreCount = 1;
-    //VkSemaphore waitsemaphore    = g_vulkanstate.queue->syncState.getSemaphoreOfSubmitIndex(g_vulkanstate.queue->syncState.submitsInThisFrame);
-    //VkSemaphore signalesemaphore = g_vulkanstate.queue->syncState.getSemaphoreOfSubmitIndex(g_vulkanstate.queue->syncState.submitsInThisFrame + 1);
-    //sinfo.pWaitSemaphores = &waitsemaphore;
-    //sinfo.pWaitDstStageMask = &stageMask;
-    //sinfo.signalSemaphoreCount = 1;
-    //sinfo.pSignalSemaphores = &signalesemaphore;
-    //VkFence fence{};
-    //VkFenceCreateInfo finfo{};
-    //finfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    //if(vkCreateFence(g_vulkanstate.device, &finfo, nullptr, &fence) != VK_SUCCESS){
-    //    TRACELOG(LOG_FATAL, "Could not create fence");
-    //}
+
+
     wgvkQueueSubmit(g_vulkanstate.queue, 1, &cbuffer);
-    //if(vkQueueSubmit(g_vulkanstate.queue.graphicsQueue, 1, &sinfo, g_vulkanstate.queue.syncState.renderFinishedFence) != VK_SUCCESS){
-    //    TRACELOG(LOG_FATAL, "Could not submit commandbuffer");
-    //}
-    //if(vkWaitForFences(g_vulkanstate.device, 1, &g_vulkanstate.queue.syncState.renderFinishedFence, VK_TRUE, ~0) != VK_SUCCESS){
-    //    TRACELOG(LOG_FATAL, "Could not wait for fence");
-    //}
+
+
     WGVKRenderPassEncoder rpe = (WGVKRenderPassEncoder)rp->rpEncoder;
     if(rpe){
         wgvkReleaseRenderPassEncoder(rpe);

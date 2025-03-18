@@ -16,25 +16,6 @@ extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDesc
     wgvkBuffer->refCount = 1;
     wgvkBuffer->usage = desc->usage;
 
-    //if(desc->usage == BufferUsage_MapWrite){
-    //    auto& relevantCache = device->frameCaches[cacheIndex].stagingBufferCache;
-    //    size_t size = std::accumulate(relevantCache.begin(), relevantCache.end(), size_t(0), [](size_t left, const std::pair<uint64_t, std::vector<MappableBufferMemory>>& right){
-    //        return left + right.second.size();
-    //    });
-    //    //TRACELOG(LOG_INFO, "Total cache size: %llu", size);
-    //    auto it = relevantCache.lower_bound(desc->size);
-    //    if(it != relevantCache.end() && it->second.size() > 0){
-    //        wgvkBuffer->buffer           = it->second.back().buffer;
-    //        wgvkBuffer->memory           = it->second.back().memory;
-    //        wgvkBuffer->capacity         = it->second.back().capacity;
-    //        wgvkBuffer->memoryProperties = it->second.back().propertyFlags;
-    //        
-    //        it->second.pop_back();
-    //        
-    //        return wgvkBuffer;
-    //    }
-    //}
-
     VkBufferCreateInfo bufferDesc zeroinit;
     bufferDesc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferDesc.size = desc->size;
@@ -55,12 +36,6 @@ extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDesc
     VmaAllocationCreateInfo vallocInfo zeroinit;
     vallocInfo.preferredFlags = propertyToFind;
 
-    //if(desc->usage & (BufferUsage_MapWrite | BufferUsage_MapWrite)){
-    //    vallocInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
-    //}
-    //else{
-    //    vallocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    //}
     VmaAllocation allocation zeroinit;
     VmaAllocationInfo allocationInfo zeroinit;
     VkResult vmabufferCreateResult = vmaCreateBuffer(device->allocator, &bufferDesc, &vallocInfo, &wgvkBuffer->buffer, &allocation, &allocationInfo);
@@ -74,16 +49,8 @@ extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDesc
     }
     wgvkBuffer->allocation = allocation;
     
-    //VkMemoryAllocateInfo allocInfo{};
-    //allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    //allocInfo.allocationSize = memRequirements.size;
-    //allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, propertyToFind);
     wgvkBuffer->memoryProperties = propertyToFind;
-    //if (vkAllocateMemory(device->device, &allocInfo, nullptr, &wgvkBuffer->memory) != VK_SUCCESS) {
-    //    TRACELOG(LOG_FATAL, "failed to allocate vertex buffer memory!");
-    //}
-    //wgvkBuffer->capacity = desc->size;
-    //vkBindBufferMemory(device->device, wgvkBuffer->buffer, wgvkBuffer->memory, 0);
+    
     return wgvkBuffer;
 }
 std::unordered_set<VkDeviceMemory> mappedMemories;
@@ -666,10 +633,17 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
 
     si.pCommandBuffers = submittable.data();
     VkFence fence = VK_NULL_HANDLE;
-    int submitResult = VK_SUCCESS;
+    
     si.commandBufferCount = submittable.size();
     si.pCommandBuffers = submittable.data();
-    submitResult = vkQueueSubmit(queue->graphicsQueue, 1, &si, fence);
+    
+    VkPipelineStageFlags wsmaskp = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+
+    if(queue->semaphoreThatTheNextBufferWillNeedToWaitFor){
+        si.pWaitSemaphores = &queue->semaphoreThatTheNextBufferWillNeedToWaitFor;
+        si.pWaitDstStageMask = &wsmaskp;
+    }
+    VkResult submitResult = vkQueueSubmit(queue->graphicsQueue, 1, &si, fence);
     if(submitResult == VK_SUCCESS){
         std::unordered_set<WGVKCommandBuffer> insert;
         insert.reserve(3);
@@ -702,6 +676,7 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
     wgvkReleaseCommandBuffer(cachebuffer);
     WGVKCommandEncoderDescriptor cedesc zeroinit;
     queue->presubmitCache = wgvkDeviceCreateCommandEncoder(g_vulkanstate.device, &cedesc);
+    queue->semaphoreThatTheNextBufferWillNeedToWaitFor = VK_NULL_HANDLE;
     //queue->presubmitCache = wgvkResetCommandBuffer(cachebuffer);
     //VkPipelineStageFlags bop[1] = {VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT};
     //si.pWaitDstStageMask = bop;
@@ -844,59 +819,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
 
 }
 void impl_transition(VkCommandBuffer buffer, WGVKTexture texture, VkImageLayout oldLayout, VkImageLayout newLayout){
-    VkImageMemoryBarrier barrier{};
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.oldLayout = oldLayout;
-    barrier.newLayout = newLayout;
-    
-    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    
-    VkImage image = texture->image;
-    barrier.image = image;
-    barrier.subresourceRange.aspectMask = 
-        (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
-    barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.levelCount = texture->mipLevels;
-    barrier.subresourceRange.baseArrayLayer = 0;
-    //TODO Handle 3D textures
-    barrier.subresourceRange.layerCount = texture->depthOrArrayLayers;
-
-    
-    
-    VkPipelineStageFlags sourceStage;
-    VkPipelineStageFlags destinationStage;
-    
-    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-        barrier.srcAccessMask = 0;
-        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        
-        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    }
-    else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        
-        sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    }
-    else {
-        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        
-        sourceStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-        destinationStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-    }
-    
-    vkCmdPipelineBarrier(
-        buffer,
-        sourceStage, destinationStage,
-        0,
-        0, nullptr,
-        0, nullptr,
-        1, &barrier
-    );
+    EncodeTransitionImageLayout(buffer, oldLayout, newLayout, texture);
 }
 
 void wgvkRenderPassEncoderTransitionTextureLayout(WGVKRenderPassEncoder encoder, WGVKTexture texture, VkImageLayout oldLayout, VkImageLayout newLayout){

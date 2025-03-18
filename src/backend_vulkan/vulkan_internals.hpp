@@ -269,7 +269,7 @@ typedef struct WGVKBufferImpl{
     refcount_type refCount;
 }WGVKBufferImpl;
 
-constexpr uint32_t framesInFlight = 4;
+constexpr uint32_t framesInFlight = 2;
 namespace std{
     template<>
     struct hash<WGVKBindGroupLayout>{
@@ -775,6 +775,9 @@ struct WGVKQueueImpl{
     VkQueue computeQueue;
     VkQueue transferQueue;
     VkQueue presentQueue;
+
+    VkSemaphore semaphoreThatTheNextBufferWillNeedToWaitFor;
+
     SyncState syncState[framesInFlight];
     WGVKDevice device;
 
