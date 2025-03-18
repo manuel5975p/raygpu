@@ -11,7 +11,7 @@ int main(void){
 
     while(!WindowShouldClose()){
         BeginDrawing();
-        ClearBackground(BLACK);
+        //ClearBackground(BLACK);
         BeginMode2D(cam);
         DrawRectangleV((Vector2){-90.0f,-40.0f},   (Vector2){180.0f,80.0f}, (Color) { 80, 80, 80, 255 });
         DrawText("This is in world space", -50, 5, 10, GREEN);

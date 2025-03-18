@@ -49,16 +49,17 @@ extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDesc
         propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
     }
     else{
-        propertyToFind = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-        //propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+        //propertyToFind = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
     }
     VmaAllocationCreateInfo vallocInfo = {};
-    if(desc->usage & (BufferUsage_MapWrite | BufferUsage_MapWrite)){
-        vallocInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
-    }
-    else{
-        vallocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    }
+    vallocInfo.preferredFlags = propertyToFind;
+    //if(desc->usage & (BufferUsage_MapWrite | BufferUsage_MapWrite)){
+    //    vallocInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
+    //}
+    //else{
+    //    vallocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    //}
     VmaAllocation allocation zeroinit;
     VmaAllocationInfo allocationInfo zeroinit;
     VkResult vmabufferCreateResult = vmaCreateBuffer(device->allocator, &bufferDesc, &vallocInfo, &wgvkBuffer->buffer, &allocation, &allocationInfo);
@@ -751,6 +752,8 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
     createInfo.surface = surface->surface;
     VkSurfaceCapabilitiesKHR vkCapabilities;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(g_vulkanstate.physicalDevice, surface->surface, &vkCapabilities);
+    
+    TRACELOG(LOG_INFO, "Capabilities minImageCount: %d", (int)vkCapabilities.minImageCount);
     
     createInfo.minImageCount = vkCapabilities.minImageCount;
     createInfo.imageFormat = toVulkanPixelFormat(config->format);//swapchainImageFormat;

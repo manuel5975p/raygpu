@@ -327,13 +327,13 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     
 
     LoadFontDefault();
-    for(size_t i = 0;i < 64;i++){
+    for(size_t i = 0;i < 4;i++){
         g_renderstate.smallBufferPool.push_back(GenVertexBuffer(nullptr, sizeof(vertex) * VERTEX_BUFFER_CACHE_SIZE));
     }
 
     vboptr = (vertex*)std::calloc(10000, sizeof(vertex));
     vboptr_base = vboptr;
-    renderBatchVBO = GenVertexBuffer(nullptr, 10000 * sizeof(vertex));
+    renderBatchVBO = GenVertexBuffer(nullptr, RENDERBATCH_SIZE * sizeof(vertex));
     
     renderBatchVAO = LoadVertexArray();
     VertexAttribPointer(renderBatchVAO, renderBatchVBO, 0, VertexFormat_Float32x3, 0 * sizeof(float), VertexStepMode_Vertex);

@@ -56,10 +56,8 @@ void PresentSurface(FullSurface* surface){
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.waitSemaphoreCount = 1;
-    VkSemaphore waiton[1] = {
-        g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore
-    };
-    presentInfo.pWaitSemaphores = waiton;
+
+    presentInfo.pWaitSemaphores = &g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore;
     VkSwapchainKHR swapChains[] = {wgvksurf->swapchain};
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = swapChains;
@@ -85,7 +83,7 @@ void PresentSurface(FullSurface* surface){
     cbsinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     cbsinfo.signalSemaphoreCount = 1;
     cbsinfo.waitSemaphoreCount = 1;
-    VkPipelineStageFlags wsmask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    VkPipelineStageFlags wsmask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
     cbsinfo.pWaitDstStageMask = &wsmask;
 
     cbsinfo.pWaitSemaphores = &g_vulkanstate.queue->syncState[cacheIndex].imageAcquiredSemaphore;
@@ -143,6 +141,12 @@ void PostPresentSurface(){
                 TRACELOG(LOG_TRACE, "Waiting for fence %p\n", fences[0]);
             }
         }
+        else{
+            TRACELOG(LOG_INFO, "No fences!");
+        }
+    }
+    else{
+        TRACELOG(LOG_INFO, "No fences!");
     }
 
     for(auto [fence, bufferset] : queue->pendingCommandBuffers[cacheIndex]){
