@@ -103,7 +103,11 @@ void PresentSurface(FullSurface* surface){
     ++wgvksurf->device->submittedFrames;
     vmaSetCurrentFrameIndex(g_vulkanstate.device->allocator, wgvksurf->device->submittedFrames % framesInFlight);
     if(presentRes != VK_SUCCESS && presentRes != VK_SUBOPTIMAL_KHR){
-        TRACELOG(LOG_ERROR, "presentRes is %d", presentRes);
+        if(presentRes == VK_ERROR_OUT_OF_DATE_KHR){
+            TRACELOG(LOG_ERROR, "presentRes is VK_ERROR_OUT_OF_DATE_KHR");
+        }
+        else
+            TRACELOG(LOG_ERROR, "presentRes is %d", presentRes);
     }
     else if(presentRes == VK_SUBOPTIMAL_KHR){
         TRACELOG(LOG_WARNING, "presentRes is VK_SUBOPTIMAL_KHR");
