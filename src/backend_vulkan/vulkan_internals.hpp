@@ -269,7 +269,7 @@ typedef struct WGVKBufferImpl{
     refcount_type refCount;
 }WGVKBufferImpl;
 
-constexpr uint32_t framesInFlight = 2;
+constexpr uint32_t framesInFlight = 4;
 namespace std{
     template<>
     struct hash<WGVKBindGroupLayout>{

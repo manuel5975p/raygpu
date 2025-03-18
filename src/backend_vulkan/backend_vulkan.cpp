@@ -458,6 +458,7 @@ VkInstance createInstance() {
             validationLayers.push_back(layer.layerName);
             #else
             TRACELOG(LOG_INFO, "Validation Layer %s available but not selections since NDEBUG is defined",layer.layerName);
+            //validationLayers.push_back(layer.layerName);
             #endif
         }
     }
@@ -1020,10 +1021,12 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     aci.physicalDevice = physicalDevice;
     aci.device = ret.first->device;
 
-    VkDeviceSize limit = 1 << 26;
+    VkDeviceSize limit = (uint64_t(1) << 21);
     aci.preferredLargeHeapBlockSize = 64;
-    
-    aci.pHeapSizeLimit = &limit;
+    VkPhysicalDeviceMemoryProperties memoryProperties zeroinit;
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
+    std::vector<VkDeviceSize> heapsizes(memoryProperties.memoryHeapCount, limit);
+    aci.pHeapSizeLimit = heapsizes.data();
     VmaDeviceMemoryCallbacks callbacks{
         /// Optional, can be null.
         .pfnAllocate = [](VmaAllocator allocator, unsigned int, VkDeviceMemory_T * _Nonnull, size_t size, void * _Nullable){

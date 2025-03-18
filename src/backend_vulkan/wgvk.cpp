@@ -637,7 +637,7 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
     si.commandBufferCount = submittable.size();
     si.pCommandBuffers = submittable.data();
     
-    VkPipelineStageFlags wsmaskp = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    VkPipelineStageFlags wsmaskp = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
     if(queue->semaphoreThatTheNextBufferWillNeedToWaitFor){
         si.pWaitSemaphores = &queue->semaphoreThatTheNextBufferWillNeedToWaitFor;
@@ -749,7 +749,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* confi
     
     TRACELOG(LOG_INFO, "Capabilities minImageCount: %d", (int)vkCapabilities.minImageCount);
     
-    createInfo.minImageCount = vkCapabilities.minImageCount;
+    createInfo.minImageCount = vkCapabilities.minImageCount + 1;
     createInfo.imageFormat = toVulkanPixelFormat(config->format);//swapchainImageFormat;
     surface->width = config->width;
     surface->height = config->height;
