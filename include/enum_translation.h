@@ -30,6 +30,7 @@
 #ifdef __cplusplus
 #include <cassert>
 #include <cstdint>
+
 using std::uint32_t;
 using std::uint64_t;
 #else

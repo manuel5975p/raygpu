@@ -64,7 +64,8 @@ struct xorshiftstate{
     }
 };
 extern "C" void PrepareFrameGlobals();
-extern "C" void UpdateVulkanRenderbatch();
+extern "C" DescribedBuffer* UpdateVulkanRenderbatch();
+extern "C" void PushUsedBuffer(void* nativeBuffer);
 /**
  * @brief Get the Buffer Layout representation compatible with WebGPU or Vulkan
  * 

@@ -42,7 +42,7 @@ extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDesc
 
     
     if(vmabufferCreateResult != VK_SUCCESS){
-        TRACELOG(LOG_ERROR, "Could not allocate buffer");
+        TRACELOG(LOG_ERROR, "Could not allocate buffer: %d", vmabufferCreateResult);
         wgvkBuffer->~WGVKBufferImpl();
         std::free(wgvkBuffer);
         return nullptr;
@@ -79,6 +79,11 @@ extern "C" void wgvkBufferUnmap(WGVKBuffer buffer){
     //vmaGetAllocationInfo(buffer->device->allocator, buffer->allocation, &allocationInfo);
     //vkUnmapMemory(buffer->device->device, allocationInfo.deviceMemory);
     //mappedMemories.erase(allocationInfo.deviceMemory);
+}
+extern "C" size_t wgvkBufferGetSize(WGVKBuffer buffer){
+    VmaAllocationInfo info zeroinit;
+    vmaGetAllocationInfo(buffer->device->allocator, buffer->allocation, &info);
+    return info.size;
 }
 
 extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, const void* data, size_t size){

@@ -167,6 +167,11 @@ void PostPresentSurface(){
             wgvkReleaseCommandBuffer(buffer);
         }
     }
+    auto& usedBuffers = surfaceDevice->frameCaches[cacheIndex].usedBatchBuffers;
+    auto& unusedBuffers = surfaceDevice->frameCaches[cacheIndex].unusedBatchBuffers;
+    
+    std::copy(usedBuffers.begin(), usedBuffers.end(), std::back_inserter(unusedBuffers));
+    usedBuffers.clear();
 
     queue->pendingCommandBuffers[cacheIndex].clear();
     
@@ -902,21 +907,65 @@ extern "C" void PrepareFrameGlobals(){
             .usage = BufferUsage_CopyDst | BufferUsage_MapWrite | BufferUsage_Vertex,
             .size = (RENDERBATCH_SIZE * sizeof(vertex))
         };
+
         vbo_buf = wgvkDeviceCreateBuffer(g_vulkanstate.device,  &bdesc);
+        
+        cache.usedBatchBuffers.push_back(vbo_buf);
+        wgvkBufferAddRef(vbo_buf);
+
         wgvkBufferMap(vbo_buf, MapMode_Write, 0, bdesc.size, (void**)&vboptr_base);
         vboptr = vboptr_base;
+        
     }
     else{
         vbo_buf = cache.unusedBatchBuffers.back();
         cache.unusedBatchBuffers.pop_back();
+        cache.usedBatchBuffers.push_back(vbo_buf);
+        VmaAllocationInfo allocationInfo zeroinit;
+        vmaGetAllocationInfo(g_vulkanstate.device->allocator, vbo_buf->allocation, &allocationInfo);
+        wgvkBufferMap(vbo_buf, MapMode_Write, 0, allocationInfo.size, (void**)&vboptr_base);
+        vboptr = vboptr_base;
+        wgvkBufferAddRef(vbo_buf);
+    }
+}
+extern "C" DescribedBuffer* UpdateVulkanRenderbatch(){
+    uint32_t cacheIndex = g_vulkanstate.device->submittedFrames % framesInFlight;
+    auto& cache = g_vulkanstate.device->frameCaches[cacheIndex];
+    DescribedBuffer* db = callocnewpp(DescribedBuffer); 
+    db->usage = vbo_buf->usage;
+    db->size = wgvkBufferGetSize(vbo_buf);
+    db->buffer = vbo_buf;
+
+    if(cache.unusedBatchBuffers.empty()){
+        BufferDescriptor bdesc{
+            .usage = BufferUsage_CopyDst | BufferUsage_MapWrite | BufferUsage_Vertex,
+            .size = (RENDERBATCH_SIZE * sizeof(vertex))
+        };
+
+        vbo_buf = wgvkDeviceCreateBuffer(g_vulkanstate.device,  &bdesc);
+        wgvkBufferMap(vbo_buf, MapMode_Write, 0, bdesc.size, (void**)&vboptr_base);
+        vboptr = vboptr_base;
+        cache.usedBatchBuffers.push_back(vbo_buf);
+        wgvkBufferAddRef(vbo_buf);
+    }
+    else{
+        vbo_buf = cache.unusedBatchBuffers.back();
+        cache.unusedBatchBuffers.pop_back();
+        cache.usedBatchBuffers.push_back(vbo_buf);
         VmaAllocationInfo allocationInfo zeroinit;
         vmaGetAllocationInfo(g_vulkanstate.device->allocator,vbo_buf->allocation, &allocationInfo);
         wgvkBufferMap(vbo_buf, MapMode_Write, 0, allocationInfo.size, (void**)&vboptr_base);
         vboptr = vboptr_base;
+        wgvkBufferAddRef(vbo_buf);
     }
-}
-extern "C" void UpdateVulkanRenderbatch(){
 
+    return db;
+}
+void PushUsedBuffer(void* nativeBuffer){
+    uint32_t cacheIndex = g_vulkanstate.device->submittedFrames % framesInFlight;
+    auto& cache = g_vulkanstate.device->frameCaches[cacheIndex];
+    WGVKBuffer buffer = (WGVKBuffer)nativeBuffer;
+    
 }
 // Function to create logical device and retrieve queues
 std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDevice, QueueIndices indices) {

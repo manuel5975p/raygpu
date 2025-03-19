@@ -306,8 +306,8 @@ void drawCurrentBatch(){
     //std::cout << "vcoun = " << vertexCount << "\n";
     if(vertexCount == 0)return;
     #if SUPPORT_VULKAN_BACKEND == 1
-    DescribedBuffer* vbo = nullptr;
-    UpdateVulkanRenderbatch();
+    DescribedBuffer* vbo = UpdateVulkanRenderbatch();
+    constexpr bool allocated_via_pool = false;
     #else
     DescribedBuffer* vbo = nullptr;
     bool allocated_via_pool = false;
@@ -405,6 +405,9 @@ void drawCurrentBatch(){
         default:break;
     }
     if(!allocated_via_pool){
+        #if SUPPORT_VULKAN_BACKEND == 1
+        PushUsedBuffer(vbo->buffer);
+        #endif
         UnloadBuffer(vbo);
     }
     else{
