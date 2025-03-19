@@ -55,8 +55,8 @@ void PresentSurface(FullSurface* surface){
     }
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    
     presentInfo.waitSemaphoreCount = 1;
-
     presentInfo.pWaitSemaphores = &g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore;
     VkSwapchainKHR swapChains[] = {wgvksurf->swapchain};
     presentInfo.swapchainCount = 1;
@@ -74,8 +74,8 @@ void PresentSurface(FullSurface* surface){
     beginInfo.sType =  VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags =  VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     vkBeginCommandBuffer(transitionBuffer, &beginInfo);
-    
     EncodeTransitionImageLayout(transitionBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, wgvksurf->images[wgvksurf->activeImageIndex]);
+    EncodeTransitionImageLayout(transitionBuffer, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, (WGVKTexture)surface->renderTarget.depth.id);
     vkEndCommandBuffer(transitionBuffer);
     VkSubmitInfo cbsinfo zeroinit;
     cbsinfo.commandBufferCount = 1;
@@ -142,7 +142,10 @@ void PostPresentSurface(){
             }
         }
         if(fences.size() > 0){
-            vkWaitForFences(surfaceDevice->device, fences.size(), fences.data(), VK_TRUE, 1 << 25);
+            VkResult waitResult = vkWaitForFences(surfaceDevice->device, fences.size(), fences.data(), VK_TRUE, ~uint64_t(0));
+            if(waitResult != VK_SUCCESS){
+                TRACELOG(LOG_FATAL, "Waitresult: %d", waitResult);
+            }
             if(fences.size() == 1){
                 TRACELOG(LOG_TRACE, "Waiting for fence %p\n", fences[0]);
             }
@@ -170,7 +173,7 @@ void PostPresentSurface(){
     auto& usedBuffers = surfaceDevice->frameCaches[cacheIndex].usedBatchBuffers;
     auto& unusedBuffers = surfaceDevice->frameCaches[cacheIndex].unusedBatchBuffers;
     
-    std::copy(usedBuffers.begin(), usedBuffers.end(), std::back_inserter(unusedBuffers));
+    //std::copy(usedBuffers.begin(), usedBuffers.end(), std::back_inserter(unusedBuffers));
     usedBuffers.clear();
 
     queue->pendingCommandBuffers[cacheIndex].clear();
@@ -967,6 +970,7 @@ extern "C" DescribedBuffer* UpdateVulkanRenderbatch(){
     return db;
 }
 void PushUsedBuffer(void* nativeBuffer){
+    return;
     uint32_t cacheIndex = g_vulkanstate.device->submittedFrames % framesInFlight;
     auto& cache = g_vulkanstate.device->frameCaches[cacheIndex];
     WGVKBuffer buffer = (WGVKBuffer)nativeBuffer;
@@ -1103,8 +1107,8 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     aci.physicalDevice = physicalDevice;
     aci.device = ret.first->device;
 
-    VkDeviceSize limit = (uint64_t(1) << 21);
-    aci.preferredLargeHeapBlockSize = 64;
+    VkDeviceSize limit = (uint64_t(1) << 30);
+    aci.preferredLargeHeapBlockSize = 1 << 15;
     VkPhysicalDeviceMemoryProperties memoryProperties zeroinit;
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
     std::vector<VkDeviceSize> heapsizes(memoryProperties.memoryHeapCount, limit);
@@ -1472,7 +1476,24 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
         wgvkRenderPassEncoderEnd((WGVKRenderPassEncoder)rp->rpEncoder);
     }
     WGVKCommandBuffer cbuffer = wgvkCommandEncoderFinish((WGVKCommandEncoder)rp->cmdEncoder);
+    VkImageMemoryBarrier rpAttachmentBarriers[2] zeroinit;
+    rpAttachmentBarriers[0].image = reinterpret_cast<WGVKTexture>(rp->renderTarget.texture.id)->image;
+    rpAttachmentBarriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    rpAttachmentBarriers[0].oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    rpAttachmentBarriers[0].newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    rpAttachmentBarriers[0].srcQueueFamilyIndex = g_vulkanstate.graphicsFamily;
+    rpAttachmentBarriers[0].dstQueueFamilyIndex = g_vulkanstate.graphicsFamily;
+    rpAttachmentBarriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    rpAttachmentBarriers[0].subresourceRange.baseMipLevel = 0;
+    rpAttachmentBarriers[0].subresourceRange.levelCount = 1;
+    rpAttachmentBarriers[0].subresourceRange.baseArrayLayer = 0;
+    rpAttachmentBarriers[0].subresourceRange.layerCount = 1;
+    rpAttachmentBarriers[0].srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    rpAttachmentBarriers[0].dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    rpAttachmentBarriers[0].subresourceRange.layerCount = 1;
+    //rpAttachmentBarriers[1].image = reinterpret_cast<WGVKTexture>(rp->renderTarget.depth.id)->image;
 
+    vkCmdPipelineBarrier(cbuffer->buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, 0, 0, 0, 1, rpAttachmentBarriers);
     g_renderstate.activeRenderpass = nullptr;
     VkSubmitInfo sinfo{};
     sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;

@@ -86,8 +86,8 @@ void main() {
     gl_PointSize = 1.0f;
     
     // Compute transformed position using instance-specific model matrix.
-    gl_Position = Perspective_View * modelMatrices[gl_InstanceIndex] * vec4(in_position, 1.0);
-    //gl_Position = vec4(0.01f * vec4(in_position, 1.0).xy, 0, 1);
+    //gl_Position = Perspective_View * modelMatrices[gl_InstanceIndex] * vec4(in_position, 1.0);
+    gl_Position = vec4(0.001f * vec4(in_position, 1.0).xy - vec2(1, 1), 0, 1);
     //gl_Position = vec4(in_position, 1.0);
     frag_uv = in_uv;
     frag_color = in_color;

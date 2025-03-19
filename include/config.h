@@ -66,7 +66,7 @@
 // Because of that, it needs to be a multiple of both 3 and 4
 
 #ifndef RENDERBATCH_SIZE_MULTIPLIER
-    #define RENDERBATCH_SIZE_MULTIPLIER 200
+    #define RENDERBATCH_SIZE_MULTIPLIER 10
 #endif
 
 #define RENDERBATCH_SIZE (RENDERBATCH_SIZE_MULTIPLIER * 12)

@@ -190,8 +190,7 @@ extern "C" void EncodeTransitionImageLayout(VkCommandBuffer commandBuffer, VkIma
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     
     barrier.image = image;
-    barrier.subresourceRange.aspectMask = 
-        (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.aspectMask = (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = 1;
     barrier.subresourceRange.baseArrayLayer = 0;
@@ -218,8 +217,8 @@ extern "C" void EncodeTransitionImageLayout(VkCommandBuffer commandBuffer, VkIma
     }
     else if(oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR){
         barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-        barrier.dstAccessMask = 0;
-        
+        barrier.dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+
         sourceStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
         destinationStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
     }
@@ -239,7 +238,6 @@ extern "C" void EncodeTransitionImageLayout(VkCommandBuffer commandBuffer, VkIma
         0, nullptr,
         1, &barrier
     );
-    texture->layout = newLayout;
 }
 // Function to transition image layout
 extern "C" void TransitionImageLayout(WGVKDevice device, VkCommandPool commandPool, VkQueue queue, WGVKTexture texture, 
