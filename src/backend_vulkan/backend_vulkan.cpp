@@ -902,6 +902,9 @@ extern "C" void RenderPassDrawIndexed (DescribedRenderpass* drp, uint32_t indexC
 extern "C" void PrepareFrameGlobals(){
     uint32_t cacheIndex = g_vulkanstate.device->submittedFrames % framesInFlight;
     auto& cache = g_vulkanstate.device->frameCaches[cacheIndex];
+    if(vbo_buf != 0){
+        wgvkBufferUnmap(vbo_buf);
+    }
     if(cache.unusedBatchBuffers.empty()){
         BufferDescriptor bdesc{
             .usage = BufferUsage_CopyDst | BufferUsage_MapWrite | BufferUsage_Vertex,
@@ -935,7 +938,9 @@ extern "C" DescribedBuffer* UpdateVulkanRenderbatch(){
     db->usage = vbo_buf->usage;
     db->size = wgvkBufferGetSize(vbo_buf);
     db->buffer = vbo_buf;
-
+    if(vbo_buf != 0){
+        wgvkBufferUnmap(vbo_buf);
+    }
     if(cache.unusedBatchBuffers.empty()){
         BufferDescriptor bdesc{
             .usage = BufferUsage_CopyDst | BufferUsage_MapWrite | BufferUsage_Vertex,

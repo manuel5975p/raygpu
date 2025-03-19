@@ -188,10 +188,10 @@ void endRecording(GIFRecordState* grst, const char* filename){
 Vector2 nextuv;
 Vector3 nextnormal;
 Vector4 nextcol;
-vertex* vboptr;
-vertex* vboptr_base;
+vertex* vboptr = 0;
+vertex* vboptr_base = 0;
 #if SUPPORT_VULKAN_BACKEND == 1
-WGVKBuffer vbo_buf;
+WGVKBuffer vbo_buf = 0;
 #endif
 VertexArray* renderBatchVAO;
 DescribedBuffer* renderBatchVBO;
