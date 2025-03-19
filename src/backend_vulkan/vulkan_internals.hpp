@@ -292,7 +292,11 @@ typedef struct MappableBufferMemory{
 
 struct PerframeCache{
     VkCommandPool commandPool;
-    std::vector<VkCommandBuffer> buffers;
+    std::vector<VkCommandBuffer> commandBuffers;
+
+    std::vector<WGVKBuffer> unusedBatchBuffers;
+    std::vector<WGVKBuffer> usedBatchBuffers;
+    
     VkCommandBuffer finalTransitionBuffer;
     VkSemaphore finalTransitionSemaphore;
     VkFence finalTransitionFence;

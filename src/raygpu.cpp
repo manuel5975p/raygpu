@@ -190,6 +190,9 @@ Vector3 nextnormal;
 Vector4 nextcol;
 vertex* vboptr;
 vertex* vboptr_base;
+#if SUPPORT_VULKAN_BACKEND == 1
+WGVKBuffer vbo_buf;
+#endif
 VertexArray* renderBatchVAO;
 DescribedBuffer* renderBatchVBO;
 PrimitiveType current_drawmode;
@@ -302,24 +305,24 @@ void drawCurrentBatch(){
     size_t vertexCount = vboptr - vboptr_base;
     //std::cout << "vcoun = " << vertexCount << "\n";
     if(vertexCount == 0)return;
-    
-    DescribedBuffer* vbo;
+    #if SUPPORT_VULKAN_BACKEND == 1
+    DescribedBuffer* vbo = nullptr;
+    UpdateVulkanRenderbatch();
+    #else
+    DescribedBuffer* vbo = nullptr;
     bool allocated_via_pool = false;
     if(vertexCount < VERTEX_BUFFER_CACHE_SIZE && !g_renderstate.smallBufferPool.empty()){
         allocated_via_pool = true;
         vbo = g_renderstate.smallBufferPool.back();
         g_renderstate.smallBufferPool.pop_back();
-        #if SUPPORT_VULKAN_BACKEND == 1
-        BufferData(vbo, vboptr_base, vertexCount * sizeof(vertex));
-        #else
         wgpuQueueWriteBuffer(GetQueue(), (WGPUBuffer)vbo->buffer, 0, vboptr_base, vertexCount * sizeof(vertex));
-        #endif
     }
     else{
         vbo = GenVertexBuffer(vboptr_base, vertexCount * sizeof(vertex));
     }
+    #endif
 
-    BufferData(vbo, vboptr_base, vertexCount * sizeof(vertex));
+    //BufferData(vbo, vboptr_base, vertexCount * sizeof(vertex));
     renderBatchVAO->buffers.front().first = vbo;
     SetStorageBuffer(3, g_renderstate.identityMatrix);
     UpdateBindGroup(&GetActivePipeline()->bindGroup);
@@ -662,6 +665,9 @@ void BeginDrawing(){
             StartGIFRecording();
         }
     }
+    #if SUPPORT_VULKAN_BACKEND == 1
+    PrepareFrameGlobals();
+    #endif
     //EndRenderPass(&g_renderstate.clearPass);
     //BeginRenderPass(&g_renderstate.renderpass);
     //UseNoTexture();

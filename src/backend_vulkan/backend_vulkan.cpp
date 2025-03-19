@@ -100,6 +100,7 @@ void PresentSurface(FullSurface* surface){
     }
 
     VkResult presentRes = vkQueuePresentKHR(g_vulkanstate.queue->presentQueue, &presentInfo);
+    //vkQueueWaitIdle(g_vulkanstate.queue->graphicsQueue);
     ++wgvksurf->device->submittedFrames;
     vmaSetCurrentFrameIndex(g_vulkanstate.device->allocator, wgvksurf->device->submittedFrames % framesInFlight);
     if(presentRes != VK_SUCCESS && presentRes != VK_SUBOPTIMAL_KHR){
@@ -893,7 +894,30 @@ extern "C" void RenderPassDrawIndexed (DescribedRenderpass* drp, uint32_t indexC
     wgvkRenderpassEncoderDrawIndexed((WGVKRenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, baseVertex, firstInstance);
     //wgpuRenderPassEncoderDrawIndexed((WGPURenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
 }
+extern "C" void PrepareFrameGlobals(){
+    uint32_t cacheIndex = g_vulkanstate.device->submittedFrames % framesInFlight;
+    auto& cache = g_vulkanstate.device->frameCaches[cacheIndex];
+    if(cache.unusedBatchBuffers.empty()){
+        BufferDescriptor bdesc{
+            .usage = BufferUsage_CopyDst | BufferUsage_MapWrite | BufferUsage_Vertex,
+            .size = (RENDERBATCH_SIZE * sizeof(vertex))
+        };
+        vbo_buf = wgvkDeviceCreateBuffer(g_vulkanstate.device,  &bdesc);
+        wgvkBufferMap(vbo_buf, MapMode_Write, 0, bdesc.size, (void**)&vboptr_base);
+        vboptr = vboptr_base;
+    }
+    else{
+        vbo_buf = cache.unusedBatchBuffers.back();
+        cache.unusedBatchBuffers.pop_back();
+        VmaAllocationInfo allocationInfo zeroinit;
+        vmaGetAllocationInfo(g_vulkanstate.device->allocator,vbo_buf->allocation, &allocationInfo);
+        wgvkBufferMap(vbo_buf, MapMode_Write, 0, allocationInfo.size, (void**)&vboptr_base);
+        vboptr = vboptr_base;
+    }
+}
+extern "C" void UpdateVulkanRenderbatch(){
 
+}
 // Function to create logical device and retrieve queues
 std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDevice, QueueIndices indices) {
     // Find queue families

@@ -294,6 +294,11 @@ externcvar Vector4 nextcol;
 externcvar StagingBuffer vboStaging; //unused
 externcvar vertex* vboptr;
 externcvar vertex* vboptr_base;
+
+#if SUPPORT_VULKAN_BACKEND == 1
+externcvar WGVKBuffer vbo_buf;
+#endif
+
 externcvar VertexArray* renderBatchVAO;
 externcvar DescribedBuffer* renderBatchVBO;
 typedef enum PrimitiveType{

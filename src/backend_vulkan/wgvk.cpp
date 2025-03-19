@@ -56,26 +56,29 @@ extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDesc
 std::unordered_set<VkDeviceMemory> mappedMemories;
 
 extern "C" void wgvkBufferMap(WGVKBuffer buffer, MapMode mapmode, size_t offset, size_t size, void** data){
-    VmaAllocationInfo allocationInfo zeroinit;
-    vmaGetAllocationInfo(buffer->device->allocator, buffer->allocation, &allocationInfo);
-    uint64_t baseOffset = allocationInfo.offset;
     
-    VkDeviceMemory bufferMemory = allocationInfo.deviceMemory;
-    rassert(mappedMemories.find(bufferMemory) == mappedMemories.end(), "The VkDeviceMemory of this buffer is already mapped");
-    VkResult result = vkMapMemory(buffer->device->device, bufferMemory, baseOffset + offset, size, 0, data);
-    if(result != VK_SUCCESS){
-        *data = nullptr;
-    }
-    else{
-        mappedMemories.insert(bufferMemory);
-    }
+    vmaMapMemory(buffer->device->allocator, buffer->allocation, data);
+    //VmaAllocationInfo allocationInfo zeroinit;
+    //vmaGetAllocationInfo(buffer->device->allocator, buffer->allocation, &allocationInfo);
+    //uint64_t baseOffset = allocationInfo.offset;
+    //
+    //VkDeviceMemory bufferMemory = allocationInfo.deviceMemory;
+    //rassert(mappedMemories.find(bufferMemory) == mappedMemories.end(), "The VkDeviceMemory of this buffer is already mapped");
+    //VkResult result = vkMapMemory(buffer->device->device, bufferMemory, baseOffset + offset, size, 0, data);
+    //if(result != VK_SUCCESS){
+    //    *data = nullptr;
+    //}
+    //else{
+    //    mappedMemories.insert(bufferMemory);
+    //}
 }
 
 extern "C" void wgvkBufferUnmap(WGVKBuffer buffer){
-    VmaAllocationInfo allocationInfo zeroinit;
-    vmaGetAllocationInfo(buffer->device->allocator, buffer->allocation, &allocationInfo);
-    vkUnmapMemory(buffer->device->device, allocationInfo.deviceMemory);
-    mappedMemories.erase(allocationInfo.deviceMemory);
+    vmaUnmapMemory(buffer->device->allocator, buffer->allocation);
+    //VmaAllocationInfo allocationInfo zeroinit;
+    //vmaGetAllocationInfo(buffer->device->allocator, buffer->allocation, &allocationInfo);
+    //vkUnmapMemory(buffer->device->device, allocationInfo.deviceMemory);
+    //mappedMemories.erase(allocationInfo.deviceMemory);
 }
 
 extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, const void* data, size_t size){
@@ -376,7 +379,7 @@ extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, 
     ret->device = device;
     ret->movedFrom = 0;
     //vkCreateCommandPool(device->device, &pci, nullptr, &cache.commandPool);
-    if(device->frameCaches[ret->cacheIndex].buffers.empty()){
+    if(device->frameCaches[ret->cacheIndex].commandBuffers.empty()){
         VkCommandBufferAllocateInfo bai{};
         bai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         bai.commandPool = cache.commandPool;
@@ -387,8 +390,8 @@ extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, 
     }
     else{
         //TRACELOG(LOG_INFO, "Reusing");
-        ret->buffer = device->frameCaches[ret->cacheIndex].buffers.back();
-        device->frameCaches[ret->cacheIndex].buffers.pop_back();
+        ret->buffer = device->frameCaches[ret->cacheIndex].commandBuffers.back();
+        device->frameCaches[ret->cacheIndex].commandBuffers.pop_back();
         //vkResetCommandBuffer(ret->buffer, 0);
     }
 
@@ -847,8 +850,8 @@ void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
     //commandEncoder->resourceUsage.releaseAllAndClear();
 
     if(commandEncoder->buffer){
-        auto& buffers = commandEncoder->device->frameCaches[commandEncoder->cacheIndex].buffers;
-        commandEncoder->device->frameCaches[commandEncoder->cacheIndex].buffers.push_back(commandEncoder->buffer);
+        auto& buffers = commandEncoder->device->frameCaches[commandEncoder->cacheIndex].commandBuffers;
+        commandEncoder->device->frameCaches[commandEncoder->cacheIndex].commandBuffers.push_back(commandEncoder->buffer);
         //vkFreeCommandBuffers(commandEncoder->device->device, commandEncoder->device->frameCaches[commandEncoder->cacheIndex].commandPool, 1, &commandEncoder->buffer);
     }
     
@@ -869,7 +872,7 @@ void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
         }
         commandBuffer->resourceUsage.releaseAllAndClear();
         PerframeCache& frameCache = commandBuffer->device->frameCaches[commandBuffer->cacheIndex];
-        frameCache.buffers.push_back(commandBuffer->buffer);
+        frameCache.commandBuffers.push_back(commandBuffer->buffer);
         
         commandBuffer->~WGVKCommandBufferImpl();
         std::free(commandBuffer);
@@ -1118,8 +1121,8 @@ void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t b
     rpe->resourceUsage.track(buffer);
 }
 void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer buffer, VkDeviceSize offset, VkIndexType indexType) {
-    assert(rpe != nullptr && "RenderPassEncoderHandle is null");
-    assert(buffer != nullptr && "BufferHandle is null");
+    rassert(rpe != nullptr, "RenderPassEncoderHandle is null");
+    rassert(buffer != nullptr, "BufferHandle is null");
 
     // Bind the index buffer to the command buffer
     vkCmdBindIndexBuffer(rpe->cmdBuffer, buffer->buffer, offset, indexType);

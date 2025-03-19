@@ -63,7 +63,8 @@ struct xorshiftstate{
         x64 ^= x64 << 17;
     }
 };
-
+extern "C" void PrepareFrameGlobals();
+extern "C" void UpdateVulkanRenderbatch();
 /**
  * @brief Get the Buffer Layout representation compatible with WebGPU or Vulkan
  * 
