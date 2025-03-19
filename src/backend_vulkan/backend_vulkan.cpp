@@ -1475,25 +1475,28 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
     if(rp->rpEncoder){
         wgvkRenderPassEncoderEnd((WGVKRenderPassEncoder)rp->rpEncoder);
     }
-    WGVKCommandBuffer cbuffer = wgvkCommandEncoderFinish((WGVKCommandEncoder)rp->cmdEncoder);
     VkImageMemoryBarrier rpAttachmentBarriers[2] zeroinit;
-    rpAttachmentBarriers[0].image = reinterpret_cast<WGVKTexture>(rp->renderTarget.texture.id)->image;
+    auto rtex = g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition];
+    rpAttachmentBarriers[0].image = reinterpret_cast<WGVKTexture>(rtex.texture.id)->image;
     rpAttachmentBarriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     rpAttachmentBarriers[0].oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     rpAttachmentBarriers[0].newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    rpAttachmentBarriers[0].srcQueueFamilyIndex = g_vulkanstate.graphicsFamily;
-    rpAttachmentBarriers[0].dstQueueFamilyIndex = g_vulkanstate.graphicsFamily;
+    rpAttachmentBarriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    rpAttachmentBarriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     rpAttachmentBarriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     rpAttachmentBarriers[0].subresourceRange.baseMipLevel = 0;
     rpAttachmentBarriers[0].subresourceRange.levelCount = 1;
     rpAttachmentBarriers[0].subresourceRange.baseArrayLayer = 0;
     rpAttachmentBarriers[0].subresourceRange.layerCount = 1;
-    rpAttachmentBarriers[0].srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    rpAttachmentBarriers[0].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     rpAttachmentBarriers[0].dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
     rpAttachmentBarriers[0].subresourceRange.layerCount = 1;
-    //rpAttachmentBarriers[1].image = reinterpret_cast<WGVKTexture>(rp->renderTarget.depth.id)->image;
+    vkCmdPipelineBarrier(((WGVKCommandEncoder)rp->cmdEncoder)->buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, 0, 0, 0, 1, rpAttachmentBarriers);
+    
 
-    vkCmdPipelineBarrier(cbuffer->buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, 0, 0, 0, 1, rpAttachmentBarriers);
+
+    WGVKCommandBuffer cbuffer = wgvkCommandEncoderFinish((WGVKCommandEncoder)rp->cmdEncoder);
+    
     g_renderstate.activeRenderpass = nullptr;
     VkSubmitInfo sinfo{};
     sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
