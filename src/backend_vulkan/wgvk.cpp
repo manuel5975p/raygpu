@@ -647,9 +647,18 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
     
     VkPipelineStageFlags wsmaskp = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
-    if(queue->semaphoreThatTheNextBufferWillNeedToWaitFor){
-        si.pWaitSemaphores = &queue->semaphoreThatTheNextBufferWillNeedToWaitFor;
-        si.pWaitDstStageMask = &wsmaskp;
+    const uint64_t frameCount = queue->device->submittedFrames;
+    const uint32_t cacheIndex = frameCount % framesInFlight;
+    for(uint32_t i = 0;i < submittable.size();i++){
+        VkPipelineStageFlags waitFlags = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+        si.commandBufferCount = 1;
+        si.waitSemaphoreCount = 1;
+        si.signalSemaphoreCount = 1;
+        si.pWaitSemaphores = queue->syncState[cacheIndex].semaphores.data() + queue->syncState[cacheIndex].submits;
+        si.pSignalSemaphores = queue->syncState[cacheIndex].semaphores.data() + queue->syncState[cacheIndex].submits + 1;
+        si.pWaitDstStageMask = &waitFlags;
+        si.pCommandBuffers = submittable.data() + i;
+        ++queue->syncState[cacheIndex].submits;
     }
     VkResult submitResult = vkQueueSubmit(queue->graphicsQueue, 1, &si, fence);
     if(submitResult == VK_SUCCESS){
@@ -662,7 +671,6 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
             insert.insert(buffers[i]);
             ++buffers[i]->refCount;
         }
-        const uint64_t frameCount = queue->device->submittedFrames;
         auto it = queue->pendingCommandBuffers[frameCount % framesInFlight].find(fence);
         if(it == queue->pendingCommandBuffers[frameCount % framesInFlight].end()){
             queue->pendingCommandBuffers[frameCount % framesInFlight].emplace(fence, std::move(insert));
@@ -684,7 +692,7 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
     wgvkReleaseCommandBuffer(cachebuffer);
     WGVKCommandEncoderDescriptor cedesc zeroinit;
     queue->presubmitCache = wgvkDeviceCreateCommandEncoder(g_vulkanstate.device, &cedesc);
-    queue->semaphoreThatTheNextBufferWillNeedToWaitFor = VK_NULL_HANDLE;
+    //queue->semaphoreThatTheNextBufferWillNeedToWaitFor = VK_NULL_HANDLE;
     //queue->presubmitCache = wgvkResetCommandBuffer(cachebuffer);
     //VkPipelineStageFlags bop[1] = {VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT};
     //si.pWaitDstStageMask = bop;

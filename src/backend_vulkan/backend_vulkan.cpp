@@ -86,7 +86,8 @@ void PresentSurface(FullSurface* surface){
     VkPipelineStageFlags wsmask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
     cbsinfo.pWaitDstStageMask = &wsmask;
 
-    cbsinfo.pWaitSemaphores = &g_vulkanstate.queue->syncState[cacheIndex].imageAcquiredSemaphore;
+    cbsinfo.pWaitSemaphores = &g_vulkanstate.queue->syncState[cacheIndex].semaphores.back();
+    
     cbsinfo.pSignalSemaphores = &g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore;
     
     VkFence finalTransitionFence = g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence;
@@ -343,8 +344,19 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
     //vkCreateCommandPool(g_vulkanstate.device->device, &pci, nullptr, &oof);
     WGVKSurface wgvksurf = ((WGVKSurface)fsurface->surface);
     //TODO: Multiple frames in flight, this amounts to replacing 0 with frameCount % 2 or something similar
-    VkResult acquireResult = vkAcquireNextImageKHR(g_vulkanstate.device->device, wgvksurf->swapchain, UINT64_MAX, g_vulkanstate.queue->syncState[reinterpret_cast<WGVKSurface>(fsurface->surface)->device->submittedFrames % framesInFlight].imageAcquiredSemaphore, VK_NULL_HANDLE, &imageIndex);
-    wgvksurf->device->queue->semaphoreThatTheNextBufferWillNeedToWaitFor = g_vulkanstate.queue->syncState[reinterpret_cast<WGVKSurface>(fsurface->surface)->device->submittedFrames % framesInFlight].imageAcquiredSemaphore;
+    const uint32_t cacheIndex = reinterpret_cast<WGVKSurface>(fsurface->surface)->device->submittedFrames % framesInFlight;
+    g_vulkanstate.queue->syncState[cacheIndex].submits = 0;
+
+    VkResult acquireResult = vkAcquireNextImageKHR(
+        g_vulkanstate.device->device, 
+        wgvksurf->swapchain, 
+        UINT64_MAX, 
+        g_vulkanstate.queue->syncState[cacheIndex].semaphores[0], 
+        VK_NULL_HANDLE, 
+        &imageIndex
+    );
+    
+    //wgvksurf->device->queue->semaphoreThatTheNextBufferWillNeedToWaitFor = g_vulkanstate.queue->syncState[reinterpret_cast<WGVKSurface>(fsurface->surface)->device->submittedFrames % framesInFlight].semaphores[0];
     
     if(acquireResult != VK_SUCCESS){
         std::cerr << "acquireResult is " << acquireResult << std::endl;
@@ -1130,9 +1142,17 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
         TRACELOG(LOG_FATAL, "Error creating the allocator: %d", (int)allocatorCreateResult);
     }
     for(uint32_t i = 0;i < framesInFlight;i++){
+        ret.second->syncState[i].semaphores.resize(100);
+        for(uint32_t j = 0;j < ret.second->syncState[i].semaphores.size();j++){
+            ret.second->syncState[i].semaphores[j] = CreateSemaphoreD(ret.first->device);
+        }
+
         VmaPoolCreateInfo vpci zeroinit;
         // TODO
     }
+
+    
+
     //__builtin_dump_struct(&g_vulkanstate, printf);
     // std::cin.get();
 
@@ -1230,7 +1250,6 @@ void InitBackend(){
     g_vulkanstate.device = device_and_queues.first;
     g_vulkanstate.queue = device_and_queues.second;
     for(uint32_t fif = 0;fif < framesInFlight;fif++){
-        g_vulkanstate.queue->syncState[fif].imageAcquiredSemaphore = CreateSemaphore(0);
         g_vulkanstate.queue->syncState[fif].renderFinishedFence = CreateFence(0);
     }
 

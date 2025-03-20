@@ -768,19 +768,18 @@ typedef WGVKSurfaceImpl* WGVKSurface;
 //struct WGVKDevice{
 //    VkDevice device;
 //};
+static inline VkSemaphore CreateSemaphore(VkSemaphoreCreateFlags flags = 0);
 struct SyncState{
-    
-    VkSemaphore imageAcquiredSemaphore;
-    VkFence renderFinishedFence;
-    
+    std::vector<VkSemaphore> semaphores;
+    uint32_t submits;
+    VkFence renderFinishedFence;    
 };
+
 struct WGVKQueueImpl{
     VkQueue graphicsQueue;
     VkQueue computeQueue;
     VkQueue transferQueue;
     VkQueue presentQueue;
-
-    VkSemaphore semaphoreThatTheNextBufferWillNeedToWaitFor;
 
     SyncState syncState[framesInFlight];
     WGVKDevice device;
@@ -1101,17 +1100,22 @@ extern "C" void TransitionImageLayout(WGVKDevice device, VkCommandPool commandPo
 extern "C" void EncodeTransitionImageLayout(VkCommandBuffer commandBuffer, VkImageLayout oldLayout, VkImageLayout newLayout, WGVKTexture texture);
 extern "C" VkCommandBuffer BeginSingleTimeCommands(WGVKDevice device, VkCommandPool commandPool);
 extern "C" void EndSingleTimeCommandsAndSubmit(WGVKDevice device, VkCommandPool commandPool, VkQueue queue, VkCommandBuffer commandBuffer);
-static inline VkSemaphore CreateSemaphore(VkSemaphoreCreateFlags flags = 0){
+static inline VkSemaphore CreateSemaphoreD(VkDevice device, VkSemaphoreCreateFlags flags = 0){
     VkSemaphoreCreateInfo sci zeroinit;
     VkSemaphore ret zeroinit;
     sci.flags = flags;
     sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    VkResult res = vkCreateSemaphore(g_vulkanstate.device->device, &sci, nullptr, &ret);
+    VkResult res = vkCreateSemaphore(device, &sci, nullptr, &ret);
     if(res != VK_SUCCESS){
         TRACELOG(LOG_ERROR, "Error creating semaphore");
     }
     return ret;
 }
+
+static inline VkSemaphore CreateSemaphore(VkSemaphoreCreateFlags flags){
+    return CreateSemaphoreD(g_vulkanstate.device->device, flags);
+}
+
 static inline VkFence CreateFence(VkFenceCreateFlags flags = 0){
     VkFenceCreateInfo sci zeroinit;
     VkFence ret zeroinit;
