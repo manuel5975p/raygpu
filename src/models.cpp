@@ -85,7 +85,7 @@ void UploadMesh(Mesh *mesh, bool dynamic){
             VertexAttribPointer(mesh->vao, mesh->vbos[5], 5, mesh->boneIDFormat, sizeof(float) * 0, VertexStepMode_Vertex);
             EnableVertexAttribArray(mesh->vao, 5);
         }
-        if(mesh->boneMatrices){
+        if(mesh->boneMatrices && mesh->boneCount){
             mesh->boneMatrixBuffer = GenStorageBuffer(mesh->boneMatrices, sizeof(Matrix) * mesh->boneCount);
         }
     }

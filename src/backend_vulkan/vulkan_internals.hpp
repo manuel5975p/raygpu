@@ -366,7 +366,7 @@ extern "C" void wgvkBindGroupRelease(WGVKBindGroup commandBuffer);
 extern "C" void wgvkReleaseBindGroupLayout(WGVKBindGroupLayout bglayout);
 extern "C" void wgvkReleaseTexture(WGVKTexture texture);
 extern "C" void wgvkReleaseTextureView(WGVKTextureView view);
-
+extern "C" const char* vkErrorString(VkResult code);
 inline bool ResourceUsage::contains(WGVKBuffer buffer)const noexcept{
     return referencedBuffers.find(buffer) != referencedBuffers.end();
 }

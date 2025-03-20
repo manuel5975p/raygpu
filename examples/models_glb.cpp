@@ -53,11 +53,10 @@ int main(){
     //SetConfigFlags(FLAG_STDOUT_TO_FFMPEG | FLAG_HEADLESS);
     InitWindow(1024, 800, "glTF Model Loading");
     
-    TRACELOG(LOG_INFO, "Hello");
     const char* ptr = FindDirectory("resources", 3);
     std::string resourceDirectoryPath = ptr ? ptr : "";
     TRACELOG(LOG_INFO, "Directory path: %s", resourceDirectoryPath.c_str());
-    SetTargetFPS(60);
+    //SetTargetFPS(60);
     
     //return 0;
     carmodel = LoadModel((resourceDirectoryPath + "/old_car_new.glb").c_str());

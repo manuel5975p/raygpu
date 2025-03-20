@@ -42,7 +42,7 @@ extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDesc
 
     
     if(vmabufferCreateResult != VK_SUCCESS){
-        TRACELOG(LOG_ERROR, "Could not allocate buffer: %d", vmabufferCreateResult);
+        TRACELOG(LOG_ERROR, "Could not allocate buffer: %s", vkErrorString(vmabufferCreateResult));
         wgvkBuffer->~WGVKBufferImpl();
         std::free(wgvkBuffer);
         return nullptr;
