@@ -649,6 +649,7 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
 
     const uint64_t frameCount = queue->device->submittedFrames;
     const uint32_t cacheIndex = frameCount % framesInFlight;
+    int submitResult = 0;
     for(uint32_t i = 0;i < submittable.size();i++){
         VkPipelineStageFlags waitFlags = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
         si.commandBufferCount = 1;
@@ -659,8 +660,8 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
         si.pWaitDstStageMask = &waitFlags;
         si.pCommandBuffers = submittable.data() + i;
         ++queue->syncState[cacheIndex].submits;
+        submitResult |= vkQueueSubmit(queue->graphicsQueue, 1, &si, fence);
     }
-    VkResult submitResult = vkQueueSubmit(queue->graphicsQueue, 1, &si, fence);
     if(submitResult == VK_SUCCESS){
         std::unordered_set<WGVKCommandBuffer> insert;
         insert.reserve(3);

@@ -86,7 +86,7 @@ void PresentSurface(FullSurface* surface){
     VkPipelineStageFlags wsmask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
     cbsinfo.pWaitDstStageMask = &wsmask;
 
-    cbsinfo.pWaitSemaphores = &g_vulkanstate.queue->syncState[cacheIndex].semaphores.back();
+    cbsinfo.pWaitSemaphores = &g_vulkanstate.queue->syncState[cacheIndex].semaphores[g_vulkanstate.queue->syncState[cacheIndex].submits];
     
     cbsinfo.pSignalSemaphores = &g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore;
     
