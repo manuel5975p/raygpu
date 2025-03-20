@@ -1133,14 +1133,14 @@ void SetStorageBufferData         (uint32_t index, const void* data, size_t size
 void SetBindgroupUniformBuffer (DescribedBindGroup* bg, uint32_t index, DescribedBuffer* buffer){
     ResourceDescriptor entry{};
     entry.binding = index;
-    entry.buffer = buffer->buffer;
+    entry.buffer = (WGVKBuffer)buffer->buffer;
     entry.size = buffer->size;
     UpdateBindGroupEntry(bg, index, entry);
 }
 void SetBindgroupStorageBuffer (DescribedBindGroup* bg, uint32_t index, DescribedBuffer* buffer){
     ResourceDescriptor entry{};
     entry.binding = index;
-    entry.buffer = buffer->buffer;
+    entry.buffer = (WGVKBuffer)buffer->buffer;
     entry.size = buffer->size;
     UpdateBindGroupEntry(bg, index, entry);
 }
@@ -1148,7 +1148,7 @@ void SetBindgroupStorageBuffer (DescribedBindGroup* bg, uint32_t index, Describe
 extern "C" void SetBindgroupTexture3D(DescribedBindGroup* bg, uint32_t index, Texture3D tex){
     ResourceDescriptor entry{};
     entry.binding = index;
-    entry.textureView = tex.view;
+    entry.textureView = (WGVKTextureView)tex.view;
     
     UpdateBindGroupEntry(bg, index, entry);
 }
@@ -1162,7 +1162,7 @@ extern "C" void SetBindgroupTextureView(DescribedBindGroup* bg, uint32_t index, 
 extern "C" void SetBindgroupTexture(DescribedBindGroup* bg, uint32_t index, Texture tex){
     ResourceDescriptor entry{};
     entry.binding = index;
-    entry.textureView = tex.view;
+    entry.textureView = (WGVKTextureView)tex.view;
     
     UpdateBindGroupEntry(bg, index, entry);
 }

@@ -202,7 +202,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         working_dir += '/';
     }
     TRACELOG(LOG_INFO, "Working directory: %s", working_dir.c_str());
-    g_renderstate.last_timestamps[0] = NanoTime();
+    g_renderstate.last_timestamps[0] = (int64_t)NanoTime();
     
     InitBackend();
     g_renderstate.width = width;
@@ -334,7 +334,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
 
     vboptr = (vertex*)std::calloc(10000, sizeof(vertex));
     vboptr_base = vboptr;
-    renderBatchVBO = GenVertexBuffer(nullptr, RENDERBATCH_SIZE * sizeof(vertex));
+    renderBatchVBO = GenVertexBuffer(nullptr, size_t(RENDERBATCH_SIZE) * sizeof(vertex));
     
     renderBatchVAO = LoadVertexArray();
     VertexAttribPointer(renderBatchVAO, renderBatchVBO, 0, VertexFormat_Float32x3, 0 * sizeof(float), VertexStepMode_Vertex);

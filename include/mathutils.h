@@ -168,9 +168,6 @@ typedef struct Matrix{
     }
     #endif// __cplusplus
 } Matrix;
-inline void asdfasdfhlkjhsdsdf(Matrix x){
-    
-}
 
 //typedef struct Quaternion{
 //    float x,y,z,w;

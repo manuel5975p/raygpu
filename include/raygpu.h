@@ -120,10 +120,7 @@ typedef struct Texture2DArray{
 typedef struct Rectangle {
     float x, y, width, height;
 } Rectangle;
-typedef struct WGVKStringView{
-    const char* data;
-    size_t length;
-}WGVKStringView;
+
 
 typedef struct RenderTexture{
     Texture texture;
@@ -131,9 +128,7 @@ typedef struct RenderTexture{
     Texture depth;
 }RenderTexture;
 
-typedef struct DColor{
-    double r,g,b,a;
-}DColor;
+
 typedef struct DescribedRenderpass{
     RenderSettings settings;
     
@@ -731,21 +726,6 @@ typedef struct DescribedComputePipeline{
     #endif
 }DescribedComputePipeline;
 
-typedef struct SurfaceCapabilities{
-    TextureUsage usages;
-    size_t formatCount;
-    PixelFormat const* formats;
-    size_t presentModeCount;
-    PresentMode const * presentModes;
-}SurfaceCapabilities;
-// Unified Surface Configuration Structure
-typedef struct SurfaceConfiguration {
-    void* device;                   // Device that surface belongs to (WPGUDevice or WGVKDevice)
-    uint32_t width;                 // Width of the rendering surface
-    uint32_t height;                // Height of the rendering surface
-    PixelFormat format;             // Pixel format of the surface
-    PresentMode presentMode; // Present mode for image presentation
-} SurfaceConfiguration;
 
 
 typedef struct AttributeAndResidence{

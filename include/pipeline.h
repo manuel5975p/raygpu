@@ -28,7 +28,7 @@
 #include <stdint.h>
 #include <macros_and_constants.h>
 #include <enum_translation.h>
-
+#include <wgvk.h>
 typedef void* NativeShaderModuleHandle;
 typedef void* NativeBindgroupLayoutHandle;
 typedef void* NativeBindgroupHandle;
@@ -45,33 +45,6 @@ typedef void* NativeImageViewHandle;
 typedef void* NativeCommandEncoderHandle;
 typedef void* NativeRenderPassEncoderHandle;
 typedef void* NativeComputePassEncoderHandle;
-
-
-
-typedef struct ResourceTypeDescriptor{
-    uniform_type type;
-    uint32_t minBindingSize;
-    uint32_t location; //only for @binding attribute in bindgroup 0
-
-    //Applicable for storage buffers and textures
-    access_type access;
-    format_or_sample_type fstype;
-}ResourceTypeDescriptor;
-
-typedef struct ResourceDescriptor {
-    void const * nextInChain; //hmm
-    uint32_t binding;
-    /*NULLABLE*/  NativeBufferHandle buffer;
-    uint64_t offset;
-    uint64_t size;
-    /*NULLABLE*/ NativeSamplerHandle sampler;
-    /*NULLABLE*/ NativeImageViewHandle textureView;
-} ResourceDescriptor;
-
-typedef struct BufferDescriptor{
-    BufferUsage usage;
-    uint64_t size;
-}BufferDescriptor;
 
 
 //TODO: Stencil attachment

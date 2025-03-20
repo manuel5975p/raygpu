@@ -9,8 +9,10 @@
 #include <map>
 #include <raygpu.h>
 #include <internals.hpp>
+#include <wgvk.h>
 //#define SUPPORT_VULKAN_BACKEND 1
 #include <enum_translation.h>
+#include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan_core.h>
 #if SUPPORT_GLFW == 1
 #define GLFW_INCLUDE_VULKAN
@@ -65,31 +67,6 @@ struct QueueIndices{
     uint32_t presentIndex;
 };
 
-//struct VertexAndFragmentShaderModuleImpl;
-struct WGVKBindGroupImpl;
-struct WGVKBindGroupLayoutImpl;
-struct WGVKBufferImpl;
-struct WGVKRenderPassEncoderImpl;
-struct WGVKComputePassEncoderImpl;
-struct WGVKCommandEncoderImpl;
-struct WGVKCommandBufferImpl;
-struct WGVKTextureImpl;
-struct WGVKTextureViewImpl;
-struct WGVKQueueImpl;
-struct WGVKDeviceImpl;
-
-//typedef VertexAndFragmentShaderModuleImpl* VertexAndFragmentShaderModule;
-typedef WGVKBindGroupLayoutImpl* WGVKBindGroupLayout;
-typedef WGVKBindGroupImpl* WGVKBindGroup;
-typedef WGVKBufferImpl* WGVKBuffer;
-typedef WGVKQueueImpl* WGVKQueue;
-typedef WGVKDeviceImpl* WGVKDevice;
-typedef WGVKRenderPassEncoderImpl* WGVKRenderPassEncoder;
-typedef WGVKComputePassEncoderImpl* WGVKComputePassEncoder;
-typedef WGVKCommandBufferImpl* WGVKCommandBuffer;
-typedef WGVKCommandEncoderImpl* WGVKCommandEncoder;
-typedef WGVKTextureImpl* WGVKTexture;
-typedef WGVKTextureViewImpl* WGVKTextureView;
 
 using refcount_type = uint32_t;
 template<typename T>
@@ -209,34 +186,7 @@ namespace std{
 //    VkShaderModule fModule;
 //}VertexAndFragmentShaderModuleImpl;
 
-typedef struct WGVKTexelCopyBufferLayout {
-    uint64_t offset;
-    uint32_t bytesPerRow;
-    uint32_t rowsPerImage;
-} WGVKTexelCopyBufferLayout;
 
-typedef struct WGVKTexelCopyBufferInfo {
-    WGVKTexelCopyBufferLayout layout;
-    WGVKBuffer buffer;
-} WGVKTexelCopyBufferInfo;
-
-typedef struct WGVKOrigin3D {
-    uint32_t x;
-    uint32_t y;
-    uint32_t z;
-} WGVKOrigin3D;
-typedef struct WGVKExtent3D {
-    uint32_t width;
-    uint32_t height;
-    uint32_t depthOrArrayLayers;
-} WGVKExtent3D;
-
-typedef struct WGVKTexelCopyTextureInfo {
-    WGVKTexture texture;
-    uint32_t mipLevel;
-    WGVKOrigin3D origin;
-    VkImageAspectFlagBits aspect;
-} WGVKTexelCopyTextureInfo;
 
 
 typedef struct WGVKBindGroupImpl{
@@ -335,37 +285,13 @@ typedef struct WGVKTextureViewImpl{
 }WGVKTextureViewImpl;
 
 
-//typedef struct WGVKBindGroupEntry{
-//    void* nextInChain;
-//    uint32_t binding;
-//    WGVKBuffer buffer;
-//    uint64_t offset;
-//    uint64_t size;
-//    VkSampler sampler;
-//    WGVKTextureView textureView;
-//}WGVKBindGroupEntry;
-typedef struct WGVKBindGroupDescriptor{
-    void* nextInChain;
-    WGVKStringView label;
-    WGVKBindGroupLayout layout;
-    size_t entryCount;
-    const ResourceDescriptor* entries;
-}WGVKBindGroupDescriptor;
 
 
 
 
 
-extern "C" void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandBuffer);
-extern "C" WGVKCommandEncoder wgvkResetCommandBuffer(WGVKCommandBuffer commandEncoder);
-extern "C" void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer);
-extern "C" void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc);
-extern "C" void wgvkReleaseComputePassEncoder(WGVKComputePassEncoder rpenc);
-extern "C" void wgvkBufferRelease(WGVKBuffer commandBuffer);
-extern "C" void wgvkBindGroupRelease(WGVKBindGroup commandBuffer);
-extern "C" void wgvkReleaseBindGroupLayout(WGVKBindGroupLayout bglayout);
-extern "C" void wgvkReleaseTexture(WGVKTexture texture);
-extern "C" void wgvkReleaseTextureView(WGVKTextureView view);
+
+
 extern "C" const char* vkErrorString(VkResult code);
 inline bool ResourceUsage::contains(WGVKBuffer buffer)const noexcept{
     return referencedBuffers.find(buffer) != referencedBuffers.end();
@@ -447,7 +373,7 @@ typedef struct WGVKComputePassEncoderImpl{
     WGVKCommandEncoder cmdEncoder;
 }WGVKComputePassEncoderImpl;
 
-extern "C" void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
+
 
 typedef struct WGVKCommandEncoderImpl{
     VkCommandBuffer buffer;
@@ -485,74 +411,8 @@ typedef struct WGVKCommandBufferImpl{
 }WGVKCommandBufferImpl;
 
 
-typedef struct WGVKRenderPassColorAttachment{
-    void* nextInChain;
-    WGVKTextureView view;
-    WGVKTextureView resolveTarget;
-    uint32_t depthSlice;
-    LoadOp loadOp;
-    StoreOp storeOp;
-    DColor clearValue;
-}WGVKRenderPassColorAttachment;
 
-typedef struct WGVKRenderPassDepthStencilAttachment{
-    void* nextInChain;
-    WGVKTextureView view;
-    LoadOp depthLoadOp;
-    StoreOp depthStoreOp;
-    float depthClearValue;
-    uint32_t depthReadOnly;
-    LoadOp stencilLoadOp;
-    StoreOp stencilStoreOp;
-    uint32_t stencilClearValue;
-    uint32_t stencilReadOnly;
-}WGVKRenderPassDepthStencilAttachment;
 
-typedef struct WGVKRenderPassDescriptor{
-    void* nextInChain;
-    WGVKStringView label;
-    size_t colorAttachmentCount;
-    WGVKRenderPassColorAttachment const* colorAttachments;
-    WGVKRenderPassDepthStencilAttachment const * depthStencilAttachment;
-    
-    //idgaf members
-    void* occlusionQuerySet;
-    void const *timestampWrites;
-}WGVKRenderPassDescriptor;
-
-typedef struct WGVKCommandEncoderDescriptor{
-    void* nextInChain;
-    WGVKStringView label;
-    bool recyclable;
-}WGVKCommandEncoderDescriptor;
-
-typedef struct Extent3D{
-    uint32_t width, height, depthOrArrayLayers;
-}Extent3D;
-typedef struct WGVKTextureDescriptor{
-    void* nextInChain;
-    WGVKStringView label;
-    TextureUsage usage;
-    TextureDimension dimension;
-    Extent3D size;
-    PixelFormat format;
-    uint32_t mipLevelCount;
-    uint32_t sampleCount;
-    size_t viewFormatCount;
-}WGVKTextureDescriptor;
-
-typedef struct WGVKTextureViewDescriptor{
-    void* nextInChain;
-    WGVKStringView label;
-    PixelFormat format;
-    TextureViewDimension dimension;
-    uint32_t baseMipLevel;
-    uint32_t mipLevelCount;
-    uint32_t baseArrayLayer;
-    uint32_t arrayLayerCount;
-    TextureAspect aspect;
-    TextureUsage usage;
-}WGVKTextureViewDescriptor;
 
 static inline RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescriptor* rpdesc){
     RenderPassLayout ret{};
@@ -763,7 +623,7 @@ struct WGVKSurfaceImpl{
     uint32_t presentModeCount;
     PresentMode* presentModeCache;
 };
-typedef WGVKSurfaceImpl* WGVKSurface;
+
 
 //struct WGVKDevice{
 //    VkDevice device;
@@ -844,7 +704,7 @@ struct SwapChainSupportDetails {
     std::vector<VkSurfaceFormatKHR> formats;
     std::vector<VkPresentModeKHR> presentModes;
 };
-extern "C" void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, VkPhysicalDevice adapter, SurfaceCapabilities* capabilities);
+
 
 inline SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface) {
     SwapChainSupportDetails details;
@@ -1181,52 +1041,12 @@ extern "C" DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsa
 extern "C" void UnloadBuffer(DescribedBuffer* buf);
 
 //wgvk I guess
-extern "C" WGVKTexture wgvkDeviceCreateTexture(WGVKDevice device, const WGVKTextureDescriptor* descriptor);
-extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureViewDescriptor *descriptor);
-extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDescriptor* desc);
-extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, const void* data, size_t size);
-extern "C" void wgvkBufferMap(WGVKBuffer buffer, MapMode mapmode, size_t offset, size_t size, void** data);
-extern "C" void wgvkBufferUnmap(WGVKBuffer buffer);
-extern "C" size_t wgvkBufferGetSize(WGVKBuffer buffer);
-extern "C" void wgvkQueueWriteTexture(WGVKQueue queue, WGVKTexelCopyTextureInfo const * destination, void const * data, size_t dataSize, WGVKTexelCopyBufferLayout const * dataLayout, WGVKExtent3D const * writeSize);
-extern "C" WGVKBindGroupLayout wgvkDeviceCreateBindGroupLayout(WGVKDevice device, const ResourceTypeDescriptor* entries, uint32_t entryCount);
-extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVKBindGroupDescriptor* bgdesc);
-extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup, const WGVKBindGroupDescriptor* bgdesc);
-extern "C" void wgvkQueueTransitionLayout(WGVKQueue cSelf, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
-
-extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, const WGVKCommandEncoderDescriptor* cdesc);
-extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, const WGVKRenderPassDescriptor* rpdesc);
-extern "C" void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder);
-extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder commandEncoder);
-extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVKCommandBuffer* buffers);
-extern "C" void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
-extern "C" void wgvkCommandEncoderCopyBufferToBuffer  (WGVKCommandEncoder commandEncoder, WGVKBuffer source, uint64_t sourceOffset, WGVKBuffer destination, uint64_t destinationOffset, uint64_t size);
-extern "C" void wgvkCommandEncoderCopyBufferToTexture (WGVKCommandEncoder commandEncoder, WGVKTexelCopyBufferInfo const * source, WGVKTexelCopyTextureInfo const * destination, WGVKExtent3D const * copySize);
-extern "C" void wgvkCommandEncoderCopyTextureToBuffer (WGVKCommandEncoder commandEncoder, WGVKTexelCopyTextureInfo const * source, WGVKTexelCopyBufferInfo const * destination, WGVKExtent3D const * copySize);
-extern "C" void wgvkCommandEncoderCopyTextureToTexture(WGVKCommandEncoder commandEncoder, WGVKTexelCopyTextureInfo const * source, WGVKTexelCopyTextureInfo const * destination, WGVKExtent3D const * copySize);
-
-extern "C" void wgvkRenderpassEncoderDraw(WGVKRenderPassEncoder rpe, uint32_t vertices, uint32_t instances, uint32_t firstvertex, uint32_t firstinstance);
-extern "C" void wgvkRenderpassEncoderDrawIndexed(WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t firstinstance);
-extern "C" void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group, WGVKBindGroup dset);
-extern "C" void wgvkRenderPassEncoderBindPipeline(WGVKRenderPassEncoder rpe, DescribedPipeline* pipeline);
-extern "C" void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, VkPipeline pipeline, VkPipelineLayout layout);
-extern "C" void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer buffer, VkDeviceSize offset, VkIndexType indexType);
-extern "C" void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t binding, WGVKBuffer buffer, VkDeviceSize offset);
-extern "C" void wgvkComputePassEncoderSetPipeline (WGVKComputePassEncoder cpe, VkPipeline pipeline, VkPipelineLayout layout);
-extern "C" void wgvkComputePassEncoderSetBindGroup(WGVKComputePassEncoder cpe, uint32_t groupIndex, WGVKBindGroup bindGroup);
-extern "C" void wgvkComputePassEncoderDispatchWorkgroups(WGVKComputePassEncoder cpe, uint32_t x, uint32_t y, uint32_t z);
-extern "C" void wgvkReleaseComputePassEncoder(WGVKComputePassEncoder cpenc);
-extern "C" WGVKComputePassEncoder wgvkCommandEncoderBeginComputePass(WGVKCommandEncoder enc);
-extern "C" void wgvkCommandEncoderEndComputePass(WGVKComputePassEncoder commandEncoder);
 
 extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry);
 extern "C" void GetNewTexture(FullSurface *fsurface);
 extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t width, uint32_t height);
 
-extern "C" void wgvkTextureAddRef(WGVKTexture texture);
-extern "C" void wgvkTextureViewAddRef(WGVKTextureView textureView);
-extern "C" void wgvkBufferAddRef(WGVKBuffer buffer);
-extern "C" void wgvkBindGroupAddRef(WGVKBindGroup bindGroup);
+
 
 static inline void SetBindgroupSampler_Vk(DescribedBindGroup* bg, uint32_t index, DescribedSampler smp){
     ResourceDescriptor entry{};
@@ -1238,7 +1058,7 @@ static inline void SetBindgroupSampler_Vk(DescribedBindGroup* bg, uint32_t index
 static inline void SetBindgroupTexture_Vk(DescribedBindGroup* bg, uint32_t index, Texture tex){
     ResourceDescriptor entry{};
     entry.binding = index;
-    entry.textureView = tex.view;
+    entry.textureView = (WGVKTextureView)tex.view;
     
     UpdateBindGroupEntry(bg, index, entry);
 }

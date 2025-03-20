@@ -829,7 +829,7 @@ void UpdateBindGroup(DescribedBindGroup* bg){
 //TODO: actually, one would need to iterate entries to find out where .binding == binding
 void SetBindGroupTexture_Vk(DescribedBindGroup* bg, uint32_t binding, Texture tex){
 
-    bg->entries[binding].textureView = tex.view;
+    bg->entries[binding].textureView = (WGVKTextureView)tex.view;
     if(bg->bindGroup){
         wgvkBindGroupRelease((WGVKBindGroup)bg->bindGroup);
         bg->bindGroup = nullptr;
@@ -839,7 +839,7 @@ void SetBindGroupTexture_Vk(DescribedBindGroup* bg, uint32_t binding, Texture te
 void SetBindGroupBuffer_Vk(DescribedBindGroup* bg, uint32_t binding, DescribedBuffer* buf){
     
     //TODO: actually, one would need to iterate entries to find out where .binding == binding
-    bg->entries[binding].buffer = buf->buffer;
+    bg->entries[binding].buffer = (WGVKBuffer)buf->buffer;
     if(bg->bindGroup){
         wgvkBindGroupRelease((WGVKBindGroup)bg->bindGroup);
         bg->bindGroup = nullptr;
