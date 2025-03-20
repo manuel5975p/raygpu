@@ -1278,7 +1278,7 @@ extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t he
     VkPhysicalDevice adapter = g_vulkanstate.physicalDevice;
 
     wgvkSurfaceGetCapabilities((WGVKSurface)ret.surface, adapter, &capa);
-    SurfaceConfiguration config{};
+    WGVKSurfaceConfiguration config{};
 
     PresentMode thm = g_renderstate.throttled_PresentMode;
     PresentMode um  = g_renderstate.unthrottled_PresentMode;

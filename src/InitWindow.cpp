@@ -461,7 +461,7 @@ extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* 
     g_renderstate.createdSubwindows[createdWindow.handle].surface = CreateSurface(wSurface, width, height);
     #else
     WGVKSurface vSurface = (WGVKSurface)wgpu_or_wgvk_surface;
-    SurfaceConfiguration config{};
+    WGVKSurfaceConfiguration config{};
     config.device = g_vulkanstate.device;
     config.width = width;
     config.height = height;

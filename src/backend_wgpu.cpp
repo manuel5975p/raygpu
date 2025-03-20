@@ -290,13 +290,13 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, co
     }
     vertexState.buffers = layouts_converted.data();
     vertexState.constantCount = 0;
-    vertexState.entryPoint = STRVIEW("vs_main");
+    vertexState.entryPoint = WGPUStringView{pl->sh.reflectionInfo.ep[ShaderStage_Vertex].name, std::strlen(pl->sh.reflectionInfo.ep[ShaderStage_Vertex].name)};
     pipelineDesc.vertex = vertexState;
 
 
     
     fragmentState.module = (WGPUShaderModule)pl->sh.stages[ShaderStage_Fragment].module;
-    fragmentState.entryPoint = STRVIEW("fs_main");
+    fragmentState.entryPoint = WGPUStringView{pl->sh.reflectionInfo.ep[ShaderStage_Fragment].name, std::strlen(pl->sh.reflectionInfo.ep[ShaderStage_Fragment].name)};
     fragmentState.constantCount = 0;
     fragmentState.constants = nullptr;
 
@@ -558,7 +558,7 @@ extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t he
     config.device = (WGPUDevice)GetDevice();
 
     ret.surfaceConfig.presentMode = (PresentMode)config.presentMode;
-    ret.surfaceConfig.device = (void*)config.device;
+    ret.surfaceConfig.device = config.device;
     ret.surfaceConfig.width = config.width;
     ret.surfaceConfig.height = config.width;
     ret.surfaceConfig.format = (PixelFormat)config.format;

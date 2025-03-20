@@ -9,7 +9,37 @@ extern "C"{
 #include <vulkan/vulkan.h>
 #include <enum_translation.h>
 #include <macros_and_constants.h>
+#if SUPPORT_WGPU_BACKEND == 1
+typedef struct WGPUBufferImpl WGVKBufferImpl;
+typedef struct WGPUTextureImpl WGVKTextureImpl;
+typedef struct WGPUTextureViewImpl WGVKTextureViewImpl;
 
+
+
+
+typedef WGPUSurface WGVKSurface;
+typedef WGPUBindGroupLayout WGVKBindGroupLayout;
+typedef WGPUBindGroup WGVKBindGroup;
+typedef WGPUBuffer WGVKBuffer;
+typedef WGPUQueue WGVKQueue;
+typedef WGPUDevice WGVKDevice;
+typedef WGPURenderPassEncoder WGVKRenderPassEncoder;
+typedef WGPUComputePassEncoder WGVKComputePassEncoder;
+typedef WGPUCommandBuffer WGVKCommandBuffer;
+typedef WGPUCommandEncoder WGVKCommandEncoder;
+typedef WGPUTexture WGVKTexture;
+typedef WGPUTextureView WGVKTextureView;
+
+
+
+
+#elif SUPPORT_VULKAN_BACKEND == 1
+struct WGVKTextureImpl;
+struct WGVKTextureViewImpl;
+struct WGVKBufferImpl;
+typedef struct WGVKTextureImpl* WGVKTexture;
+typedef struct WGVKTextureViewImpl* WGVKTextureView;
+typedef struct WGVKBufferImpl* WGVKBuffer;
 struct WGVKBindGroupImpl;
 struct WGVKBindGroupLayoutImpl;
 struct WGVKBufferImpl;
@@ -36,6 +66,7 @@ typedef struct WGVKCommandBufferImpl* WGVKCommandBuffer;
 typedef struct WGVKCommandEncoderImpl* WGVKCommandEncoder;
 typedef struct WGVKTextureImpl* WGVKTexture;
 typedef struct WGVKTextureViewImpl* WGVKTextureView;
+#endif
 
 
 typedef struct WGVKStringView{
@@ -198,18 +229,20 @@ typedef struct SurfaceCapabilities{
     PresentMode const * presentModes;
 }SurfaceCapabilities;
 
-typedef struct SurfaceConfiguration {
-    void* device;                     // Device that surface belongs to (WPGUDevice or WGVKDevice)
+typedef struct WGVKSurfaceConfiguration {
+    WGVKDevice device;                     // Device that surface belongs to (WPGUDevice or WGVKDevice)
     uint32_t width;                   // Width of the rendering surface
     uint32_t height;                  // Height of the rendering surface
     PixelFormat format;               // Pixel format of the surface
     PresentMode presentMode;          // Present mode for image presentation
-} SurfaceConfiguration;
+} WGVKSurfaceConfiguration;
 
+
+void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, VkPhysicalDevice adapter, SurfaceCapabilities* capabilities);
+void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* config);
 
 
 void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
-void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, VkPhysicalDevice adapter, SurfaceCapabilities* capabilities);
 WGVKTexture wgvkDeviceCreateTexture(WGVKDevice device, const WGVKTextureDescriptor* descriptor);
 WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureViewDescriptor *descriptor);
 WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDescriptor* desc);

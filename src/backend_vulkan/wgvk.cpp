@@ -738,7 +738,7 @@ extern "C" void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, VkPhysicalDe
     capabilities->usages = fromVulkanTextureUsage(scap.supportedUsageFlags);
 }
 
-void wgvkSurfaceConfigure(WGVKSurface surface, const SurfaceConfiguration* config){
+void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* config){
     auto device = WGVKDevice(config->device);
 
     vkDeviceWaitIdle(device->device);

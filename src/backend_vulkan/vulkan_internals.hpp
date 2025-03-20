@@ -897,7 +897,6 @@ inline VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities,
     return retf;
 }*/
 
-extern "C" void wgvkSurfaceConfigure(WGVKSurfaceImpl* surface, const SurfaceConfiguration* config);
 
 
 struct FullVkRenderPass{

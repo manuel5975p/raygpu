@@ -182,7 +182,7 @@ DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sourcesSpirv){
             ret.reflectionInfo.ep[stage].stage = stage;
             std::memset(ret.reflectionInfo.ep[stage].name, 0, sizeof(ret.reflectionInfo.ep[stage].name));
             uint32_t eplength = std::strlen(spv_mod.GetEntryPointName(i));
-            rassert(eplength < 16, "Entry point name must be < 16 chars");
+            rassert(eplength < 15, "Entry point name must be < 15 chars");
             std::copy(spv_mod.GetEntryPointName(i), spv_mod.GetEntryPointName(i) + eplength, ret.reflectionInfo.ep[stage].name);
         }
     }
@@ -232,13 +232,13 @@ extern "C" void UpdatePipeline(DescribedPipeline* pl){
     }
     vertexState.buffers = layouts_converted.data();
     vertexState.constantCount = 0;
-    vertexState.entryPoint = STRVIEW("vs_main");
+    vertexState.entryPoint = WGPUStringView{pl->sh.reflectionInfo.ep[ShaderStage_Vertex].name, std::strlen(pl->sh.reflectionInfo.ep[ShaderStage_Vertex].name)};
     pipelineDesc.vertex = vertexState;
 
 
     
     fragmentState.module = (WGPUShaderModule)pl->sh.stages[ShaderStage_Fragment].module;
-    fragmentState.entryPoint = STRVIEW("fs_main");
+    fragmentState.entryPoint = WGPUStringView{pl->sh.reflectionInfo.ep[ShaderStage_Fragment].name, std::strlen(pl->sh.reflectionInfo.ep[ShaderStage_Fragment].name)};
     fragmentState.constantCount = 0;
     fragmentState.constants = nullptr;
 

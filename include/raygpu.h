@@ -39,22 +39,6 @@ static inline uint64_t ROT_BYTES(uint64_t V, uint8_t C) {
     return ((V << C) | ((V) >> ((64 - C) & 63)));
 }
 
-#if SUPPORT_WGPU_BACKEND == 1
-typedef struct WGPUBufferImpl WGVKBufferImpl;
-typedef struct WGPUTextureImpl WGVKTextureImpl;
-typedef struct WGPUTextureViewImpl WGVKTextureViewImpl;
-typedef WGPUBuffer WGVKBuffer;
-typedef WGPUTexture WGVKTexture;
-typedef WGPUTextureView WGVKTextureView;
-#elif SUPPORT_VULKAN_BACKEND == 1
-struct WGVKTextureImpl;
-struct WGVKTextureViewImpl;
-struct WGVKBufferImpl;
-typedef struct WGVKTextureImpl* WGVKTexture;
-typedef struct WGVKTextureViewImpl* WGVKTextureView;
-typedef struct WGVKBufferImpl* WGVKBuffer;
-#endif
-
 typedef struct vertex{
     Vector3 pos;
     Vector2 uv ;
@@ -737,7 +721,7 @@ typedef struct AttributeAndResidence{
 
 typedef struct FullSurface{
     void* surface;
-    SurfaceConfiguration surfaceConfig;
+    WGVKSurfaceConfiguration surfaceConfig;
     RenderTexture renderTarget;
 }FullSurface;
 typedef enum windowType {
