@@ -366,7 +366,8 @@ extern "C" WGVKBindGroupLayout wgvkDeviceCreateBindGroupLayout(WGVKDevice device
     slci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     vkCreateDescriptorSetLayout(device->device, &slci, nullptr, &ret->layout);
     ResourceTypeDescriptor* entriesCopy = (ResourceTypeDescriptor*)std::calloc(entryCount, sizeof(ResourceTypeDescriptor));
-    std::memcpy(entriesCopy, entries, entryCount * sizeof(ResourceTypeDescriptor));
+    if(entryCount > 0)
+        std::memcpy(entriesCopy, entries, entryCount * sizeof(ResourceTypeDescriptor));
     ret->entries = entriesCopy;
     
     return ret;

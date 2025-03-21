@@ -456,13 +456,16 @@ DescribedShaderModule LoadShaderModule(ShaderSources sources){
     
     switch (sources.language){
         case sourceTypeGLSL:
-        #if SUPPORT_GLSL_PARSER
+        #if SUPPORT_GLSL_PARSER == 1
         return LoadShaderModuleGLSL(sources);
         #else
         return ret;
         #endif
         case sourceTypeWGSL:
+        #if SUPPORT_WGSL_PARSER == 1
         return LoadShaderModuleWGSL(sources);
+        #endif
+        return ret;
         case sourceTypeSPIRV:
         return LoadShaderModuleSPIRV(sources);
         default: rg_unreachable();
@@ -1213,8 +1216,10 @@ inline uint64_t bgEntryHash(const ResourceDescriptor& bge){
 
 extern "C" DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const ResourceDescriptor* entries, size_t entryCount){
     DescribedBindGroup ret zeroinit;
-    ret.entries = (ResourceDescriptor*)std::calloc(entryCount, sizeof(ResourceDescriptor));
-    std::memcpy(ret.entries, entries, entryCount * sizeof(ResourceDescriptor));
+    if(entryCount > 0){
+        ret.entries = (ResourceDescriptor*)std::calloc(entryCount, sizeof(ResourceDescriptor));
+        std::memcpy(ret.entries, entries, entryCount * sizeof(ResourceDescriptor));
+    }
     ret.entryCount = entryCount;
     ret.layout = bglayout;
 
