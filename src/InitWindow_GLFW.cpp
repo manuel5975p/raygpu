@@ -427,7 +427,7 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
         WGPUSurface wsurfaceHandle = rs.MoveToCHandle();
         //ret.surface = CreateSurface(wsurfaceHandle, width, height);
         #elif SUPPORT_VULKAN_BACKEND == 1
-        SurfaceConfiguration config{};
+        WGVKSurfaceConfiguration config{};
         config.format = BGRA8;
         config.presentMode = PresentMode_Fifo;
         config.width = width;

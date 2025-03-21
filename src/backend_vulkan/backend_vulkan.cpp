@@ -1300,7 +1300,7 @@ extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t he
     config.device = g_vulkanstate.device;
 
     ret.surfaceConfig.presentMode = (PresentMode)config.presentMode;
-    ret.surfaceConfig.device = (void*)config.device;
+    ret.surfaceConfig.device = config.device;
     ret.surfaceConfig.width = config.width;
     ret.surfaceConfig.height = config.width;
     ret.surfaceConfig.format = (PixelFormat)config.format;
