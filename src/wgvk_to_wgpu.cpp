@@ -1,7 +1,7 @@
 #include <webgpu/webgpu.h>
 #include <wgvk.h>
-
-
+#include <vector>
+#include <raygpu.h>
 
 void wgvkQueueWriteTexture(WGVKQueue queue, WGVKTexelCopyTextureInfo const * destination, void const * data, size_t dataSize, WGVKTexelCopyBufferLayout const * dataLayout, WGVKExtent3D const * writeSize){
     wgpuQueueWriteTexture(queue, destination, data, dataSize, dataLayout, writeSize);
@@ -58,16 +58,80 @@ size_t wgvkBufferGetSize(WGVKBuffer buffer){
     return wgpuBufferGetSize(buffer);
 }
 WGVKBindGroupLayout wgvkDeviceCreateBindGroupLayout(WGVKDevice device, const ResourceTypeDescriptor* entries, uint32_t entryCount){
-    return wgpuDeviceCreateBindGroupLayout(device, entries, entryCount);
+    WGPUShaderStage vfragmentOnly = WGPUShaderStage_Fragment;
+    WGPUShaderStage visible = visible = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment | WGPUShaderStage_Compute;
+    
+    std::vector<WGPUBindGroupLayoutEntry> blayouts(entryCount);
+    for(size_t i = 0;i < entryCount;i++){
+        blayouts[i].binding = entries[i].location;
+        switch(entries[i].type){
+            default:
+                rg_unreachable();
+            case uniform_buffer:
+                blayouts[i].visibility = visible;
+                blayouts[i].buffer.type = WGPUBufferBindingType_Uniform;
+                blayouts[i].buffer.minBindingSize = entries[i].minBindingSize;
+            break;
+            case storage_buffer:{
+                blayouts[i].visibility = visible;
+                blayouts[i].buffer.type = toStorageBufferAccess(entries[i].access);
+                blayouts[i].buffer.minBindingSize = 0;
+            }
+            break;
+            case texture2d:
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].texture.sampleType = toTextureSampleType(entries[i].fstype);
+                blayouts[i].texture.viewDimension = WGPUTextureViewDimension_2D;
+            break;
+            case texture2d_array:
+                blayouts[i].storageTexture.access = toStorageTextureAccess(entries[i].access);
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].storageTexture.format = toStorageTextureFormat(entries[i].fstype);
+                blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;
+            break;
+            case texture_sampler:
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].sampler.type = WGPUSamplerBindingType_Filtering;
+            break;
+            case texture3d:
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].texture.sampleType = toTextureSampleType(entries[i].fstype);
+                blayouts[i].texture.viewDimension = WGPUTextureViewDimension_3D;
+            break;
+            case storage_texture2d:
+                blayouts[i].storageTexture.access = toStorageTextureAccess(entries[i].access);
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].storageTexture.format = toStorageTextureFormat(entries[i].fstype);
+                blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+            break;
+            case storage_texture2d_array:
+                blayouts[i].storageTexture.access = toStorageTextureAccess(entries[i].access);
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].storageTexture.format = toStorageTextureFormat(entries[i].fstype);
+                blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;
+            break;
+            case storage_texture3d:
+                blayouts[i].storageTexture.access = toStorageTextureAccess(entries[i].access);
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].storageTexture.format = toStorageTextureFormat(entries[i].fstype);
+                blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_3D;
+            break;
+        }
+    }
+    WGPUBindGroupLayoutDescriptor bgld zeroinit;
+    bgld.entries = blayouts.data();
+    bgld.entryCount = blayouts.size();
+
+    return wgpuDeviceCreateBindGroupLayout(device, &bgld);
 }
 WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVKBindGroupDescriptor* bgdesc){
     return wgpuDeviceCreateBindGroup(device, bgdesc);
 }
 void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup bindGroup, const WGVKBindGroupDescriptor* bgdesc){
-    wgpuWriteBindGroup(device, bindGroup, bgdesc);
+    //wgpuWriteBindGroup(device, bindGroup, bgdesc);
 }
 void wgvkQueueTransitionLayout(WGVKQueue cSelf, WGVKTexture texture, VkImageLayout from, VkImageLayout to){
-    wgpuQueueTransitionLayout(cSelf, texture, from, to);
+    //wgpuQueueTransitionLayout(cSelf, texture, from, to);
 }
 WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, const WGVKCommandEncoderDescriptor* cdesc){
     return wgpuDeviceCreateCommandEncoder(device, cdesc);
@@ -79,13 +143,10 @@ void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
     wgpuRenderPassEncoderEnd(renderPassEncoder);
 }
 WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder commandEncoder){
-    return wgpuCommandEncoderFinish(commandEncoder);
+    return wgpuCommandEncoderFinish(commandEncoder, nullptr);
 }
 void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVKCommandBuffer* buffers){
     wgpuQueueSubmit(queue, commandCount, buffers);
-}
-void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout from, VkImageLayout to){
-    wgpuCommandEncoderTransitionTextureLayout(encoder, texture, from, to);
 }
 void wgvkCommandEncoderCopyBufferToBuffer(WGVKCommandEncoder commandEncoder, WGVKBuffer source, uint64_t sourceOffset, WGVKBuffer destination, uint64_t destinationOffset, uint64_t size){
     wgpuCommandEncoderCopyBufferToBuffer(commandEncoder, source, sourceOffset, destination, destinationOffset, size);
@@ -100,40 +161,42 @@ void wgvkCommandEncoderCopyTextureToTexture(WGVKCommandEncoder commandEncoder, W
     wgpuCommandEncoderCopyTextureToTexture(commandEncoder, source, destination, copySize);
 }
 void wgvkRenderpassEncoderDraw(WGVKRenderPassEncoder rpe, uint32_t vertices, uint32_t instances, uint32_t firstvertex, uint32_t firstinstance){
-    wgpuRenderpassEncoderDraw(rpe, vertices, instances, firstvertex, firstinstance);
+    wgpuRenderPassEncoderDraw(rpe, vertices, instances, firstvertex, firstinstance);
 }
 void wgvkRenderpassEncoderDrawIndexed(WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t firstinstance){
-    wgpuRenderpassEncoderDrawIndexed(rpe, indices, instances, firstindex, firstinstance);
+    //TODO basevertex?
+    wgpuRenderPassEncoderDrawIndexed(rpe, indices, instances, firstindex, 0, firstinstance);
 }
 void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group, WGVKBindGroup dset){
-    wgpuRenderPassEncoderSetBindGroup(rpe, group, dset);
+    wgpuRenderPassEncoderSetBindGroup(rpe, group, dset, 0, nullptr);
 }
 void wgvkRenderPassEncoderBindPipeline(WGVKRenderPassEncoder rpe, struct DescribedPipeline* pipeline){
-    wgpuRenderPassEncoderBindPipeline(rpe, pipeline);
+    wgpuRenderPassEncoderSetPipeline(rpe, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleList);
 }
 void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, VkPipeline pipeline, VkPipelineLayout layout){
-    wgpuRenderPassEncoderSetPipeline(rpe, pipeline, layout);
+    //TODO 
+    //wgpuRenderPassEncoderSetPipeline(rpe, pipeline, layout);
 }
-void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer buffer, VkDeviceSize offset, VkIndexType indexType){
-    wgpuRenderPassEncoderBindIndexBuffer(rpe, buffer, offset, indexType);
+void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer buffer, VkDeviceSize offset, IndexFormat indexType){
+    wgpuRenderPassEncoderSetIndexBuffer(rpe, buffer, toWebGPUIndexFormat(indexType), offset, wgpuBufferGetSize(buffer));
 }
 void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t binding, WGVKBuffer buffer, VkDeviceSize offset){
-    wgpuRenderPassEncoderBindVertexBuffer(rpe, binding, buffer, offset);
+    wgpuRenderPassEncoderSetVertexBuffer(rpe, binding, buffer, offset, wgpuBufferGetSize(buffer));
 }
-void wgvkComputePassEncoderSetPipeline(WGVKComputePassEncoder cpe, VkPipeline pipeline, VkPipelineLayout layout){
-    wgpuComputePassEncoderSetPipeline(cpe, pipeline, layout);
+void wgvkComputePassEncoderSetPipeline(WGVKComputePassEncoder cpe, WGVKComputePipeline computePipeline){
+    wgpuComputePassEncoderSetPipeline(cpe, computePipeline);
 }
 void wgvkComputePassEncoderSetBindGroup(WGVKComputePassEncoder cpe, uint32_t groupIndex, WGVKBindGroup bindGroup){
-    wgpuComputePassEncoderSetBindGroup(cpe, groupIndex, bindGroup);
+    wgpuComputePassEncoderSetBindGroup(cpe, groupIndex, bindGroup, 0, nullptr);
 }
 void wgvkComputePassEncoderDispatchWorkgroups(WGVKComputePassEncoder cpe, uint32_t x, uint32_t y, uint32_t z){
     wgpuComputePassEncoderDispatchWorkgroups(cpe, x, y, z);
 }
 void wgvkReleaseComputePassEncoder(WGVKComputePassEncoder cpenc){
-    wgpuReleaseComputePassEncoder(cpenc);
+    wgpuComputePassEncoderRelease(cpenc);
 }
 WGVKComputePassEncoder wgvkCommandEncoderBeginComputePass(WGVKCommandEncoder enc){
-    return wgpuCommandEncoderBeginComputePass(enc);
+    return wgpuCommandEncoderBeginComputePass(enc, nullptr);
 }
 void wgvkCommandEncoderEndComputePass(WGVKComputePassEncoder commandEncoder){
     wgpuCommandEncoderEndComputePass(commandEncoder);

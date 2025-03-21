@@ -190,42 +190,7 @@ void EndComputepassEx(DescribedComputepass* computePass){
     wgpuCommandEncoderRelease((WGPUCommandEncoder)computePass->cmdEncoder);
 }
 
-inline WGPUStorageTextureAccess toStorageTextureAccess(access_type acc){
-    switch(acc){
-        case access_type::readonly:return WGPUStorageTextureAccess_ReadOnly;
-        case access_type::readwrite:return WGPUStorageTextureAccess_ReadWrite;
-        case access_type::writeonly:return WGPUStorageTextureAccess_WriteOnly;
-        default: TRACELOG(LOG_FATAL, "Invalid enum type");
-    }
-    return WGPUStorageTextureAccess_Force32;
-}
-inline WGPUBufferBindingType toStorageBufferAccess(access_type acc){
-    switch(acc){
-        case access_type::readonly: return WGPUBufferBindingType_ReadOnlyStorage;
-        case access_type::readwrite:return WGPUBufferBindingType_Storage;
-        case access_type::writeonly:return WGPUBufferBindingType_Storage;
-        default: TRACELOG(LOG_FATAL, "Invalid enum type");
-    }
-    return WGPUBufferBindingType_Force32;
-}
-inline WGPUTextureFormat toStorageTextureFormat(format_or_sample_type fmt){
-    switch(fmt){
-        case format_or_sample_type::format_r32float: return WGPUTextureFormat_R32Float;
-        case format_or_sample_type::format_r32uint: return WGPUTextureFormat_R32Uint;
-        case format_or_sample_type::format_rgba8unorm: return WGPUTextureFormat_RGBA8Unorm;
-        case format_or_sample_type::format_rgba32float: return WGPUTextureFormat_RGBA32Float;
-        default: TRACELOG(LOG_FATAL, "Invalid enum type");
-    }
-    return WGPUTextureFormat_Force32;
-}
-inline WGPUTextureSampleType toTextureSampleType(format_or_sample_type fmt){
-    switch(fmt){
-        case format_or_sample_type::sample_f32: return WGPUTextureSampleType_Float;
-        case format_or_sample_type::sample_u32: return WGPUTextureSampleType_Uint;
-        default: TRACELOG(LOG_FATAL, "Invalid enum type");
-    }
-    return WGPUTextureSampleType_Force32;
-}
+
 
 
 extern "C" void UnloadTexture(Texture tex){

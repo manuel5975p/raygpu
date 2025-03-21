@@ -267,6 +267,13 @@ typedef struct WGVKTextureImpl{
     uint32_t sampleCount;
 }ImageHandleImpl;
 
+typedef struct WGVKRenderPipelineImpl{
+
+}WGVKRenderPipelineImpl;
+typedef struct WGVKComputePipelineImpl{
+
+}WGVKComputePipelineImpl;
+
 typedef struct WGVKTextureViewImpl{
     VkImageView view;
     VkFormat format;

@@ -30,7 +30,8 @@ typedef WGPUCommandBuffer WGVKCommandBuffer;
 typedef WGPUCommandEncoder WGVKCommandEncoder;
 typedef WGPUTexture WGVKTexture;
 typedef WGPUTextureView WGVKTextureView;
-
+typedef WGPURenderPipeline WGVKRenderPipeline;
+typedef WGPUComputePipeline WGVKComputePipeline;
 
 
 typedef WGPUExtent3D WGVKExtent3D;
@@ -96,6 +97,8 @@ struct WGVKTextureViewImpl;
 struct WGVKQueueImpl;
 struct WGVKDeviceImpl;
 struct WGVKSurfaceImpl;
+struct WGVKRenderPipelineImpl;
+struct WGVKComputePipelineImpl;
 struct DescribedPipeline;
 
 typedef struct WGVKSurfaceImpl* WGVKSurface;
@@ -110,7 +113,8 @@ typedef struct WGVKCommandBufferImpl* WGVKCommandBuffer;
 typedef struct WGVKCommandEncoderImpl* WGVKCommandEncoder;
 typedef struct WGVKTextureImpl* WGVKTexture;
 typedef struct WGVKTextureViewImpl* WGVKTextureView;
-
+typedef struct WGVKRenderPipelineImpl* WGVKRenderPipeline;
+typedef struct WGVKComputePipelineImpl* WGVKComputePipeline;
 
 
 typedef struct WGVKStringView{
@@ -280,6 +284,8 @@ typedef struct WGVKSurfaceConfiguration {
     PixelFormat format;               // Pixel format of the surface
     PresentMode presentMode;          // Present mode for image presentation
 } WGVKSurfaceConfiguration;
+
+
 #endif
 
 void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, VkPhysicalDevice adapter, WGVKSurfaceCapabilities* capabilities);
@@ -311,10 +317,10 @@ void wgvkRenderpassEncoderDraw(WGVKRenderPassEncoder rpe, uint32_t vertices, uin
 void wgvkRenderpassEncoderDrawIndexed(WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t firstinstance);
 void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group, WGVKBindGroup dset);
 void wgvkRenderPassEncoderBindPipeline(WGVKRenderPassEncoder rpe, struct DescribedPipeline* pipeline);
-void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, VkPipeline pipeline, VkPipelineLayout layout);
-void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer buffer, VkDeviceSize offset, VkIndexType indexType);
+void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, WGVKRenderPipeline renderPipeline);
+void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer buffer, VkDeviceSize offset, IndexFormat indexType);
 void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t binding, WGVKBuffer buffer, VkDeviceSize offset);
-void wgvkComputePassEncoderSetPipeline (WGVKComputePassEncoder cpe, VkPipeline pipeline, VkPipelineLayout layout);
+void wgvkComputePassEncoderSetPipeline (WGVKComputePassEncoder cpe, WGVKComputePipeline computePIpeline);
 void wgvkComputePassEncoderSetBindGroup(WGVKComputePassEncoder cpe, uint32_t groupIndex, WGVKBindGroup bindGroup);
 void wgvkComputePassEncoderDispatchWorkgroups(WGVKComputePassEncoder cpe, uint32_t x, uint32_t y, uint32_t z);
 void wgvkReleaseComputePassEncoder(WGVKComputePassEncoder cpenc);
