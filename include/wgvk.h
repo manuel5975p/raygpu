@@ -21,8 +21,9 @@ typedef WGPUSurface WGVKSurface;
 typedef WGPUBindGroupLayout WGVKBindGroupLayout;
 typedef WGPUBindGroup WGVKBindGroup;
 typedef WGPUBuffer WGVKBuffer;
-typedef WGPUQueue WGVKQueue;
+typedef WGPUAdapter WGVKAdapter;
 typedef WGPUDevice WGVKDevice;
+typedef WGPUQueue WGVKQueue;
 typedef WGPURenderPassEncoder WGVKRenderPassEncoder;
 typedef WGPUComputePassEncoder WGVKComputePassEncoder;
 typedef WGPUCommandBuffer WGVKCommandBuffer;
@@ -32,8 +33,51 @@ typedef WGPUTextureView WGVKTextureView;
 
 
 
+typedef WGPUExtent3D WGVKExtent3D;
+typedef WGPUSurfaceConfiguration WGVKSurfaceConfiguration;
+typedef WGPUSurfaceCapabilities WGVKSurfaceCapabilities;
+typedef WGPUStringView WGVKStringView;
+typedef WGPUTexelCopyBufferLayout WGVKTexelCopyBufferLayout;
+typedef WGPUTexelCopyBufferInfo WGVKTexelCopyBufferInfo;
+typedef WGPUOrigin3D WGVKOrigin3D;
+typedef WGPUTexelCopyTextureInfo WGVKTexelCopyTextureInfo;
+typedef WGPUBindGroupEntry WGVKBindGroupEntry;
+
+typedef struct ResourceTypeDescriptor{
+    uniform_type type;
+    uint32_t minBindingSize;
+    uint32_t location; //only for @binding attribute in bindgroup 0
+
+    //Applicable for storage buffers and textures
+    access_type access;
+    format_or_sample_type fstype;
+}ResourceTypeDescriptor;
+
+typedef struct ResourceDescriptor {
+    void const * nextInChain; //hmm
+    uint32_t binding;
+    /*NULLABLE*/  WGVKBuffer buffer;
+    uint64_t offset;
+    uint64_t size;
+    /*NULLABLE*/ void* sampler;
+    /*NULLABLE*/ WGVKTextureView textureView;
+} ResourceDescriptor;
+
+typedef struct DColor{
+    double r,g,b,a;
+}DColor;
+typedef WGPURenderPassColorAttachment WGVKRenderPassColorAttachment;
+typedef WGPURenderPassDepthStencilAttachment WGVKRenderPassDepthStencilAttachment;
+typedef WGPURenderPassDescriptor WGVKRenderPassDescriptor;
+typedef WGPUCommandEncoderDescriptor WGVKCommandEncoderDescriptor;
+typedef WGPUExtent3D WGVKExtent3D;
+typedef WGPUTextureDescriptor WGVKTextureDescriptor;
+typedef WGPUTextureViewDescriptor WGVKTextureViewDescriptor;
+typedef WGPUBufferDescriptor WGVKBufferDescriptor;
+typedef WGPUBindGroupDescriptor WGVKBindGroupDescriptor;
 
 #elif SUPPORT_VULKAN_BACKEND == 1
+
 struct WGVKTextureImpl;
 struct WGVKTextureViewImpl;
 struct WGVKBufferImpl;
@@ -66,7 +110,7 @@ typedef struct WGVKCommandBufferImpl* WGVKCommandBuffer;
 typedef struct WGVKCommandEncoderImpl* WGVKCommandEncoder;
 typedef struct WGVKTextureImpl* WGVKTexture;
 typedef struct WGVKTextureViewImpl* WGVKTextureView;
-#endif
+
 
 
 typedef struct WGVKStringView{
@@ -208,10 +252,10 @@ typedef struct WGVKTextureViewDescriptor{
     TextureUsage usage;
 }WGVKTextureViewDescriptor;
 
-typedef struct BufferDescriptor{
+typedef struct WGVKBufferDescriptor{
     BufferUsage usage;
     uint64_t size;
-}BufferDescriptor;
+}WGVKBufferDescriptor;
 
 typedef struct WGVKBindGroupDescriptor{
     void* nextInChain;
@@ -221,13 +265,13 @@ typedef struct WGVKBindGroupDescriptor{
     const ResourceDescriptor* entries;
 }WGVKBindGroupDescriptor;
 
-typedef struct SurfaceCapabilities{
+typedef struct WGVKSurfaceCapabilities{
     TextureUsage usages;
     size_t formatCount;
     PixelFormat const* formats;
     size_t presentModeCount;
     PresentMode const * presentModes;
-}SurfaceCapabilities;
+}WGVKSurfaceCapabilities;
 
 typedef struct WGVKSurfaceConfiguration {
     WGVKDevice device;                     // Device that surface belongs to (WPGUDevice or WGVKDevice)
@@ -236,16 +280,14 @@ typedef struct WGVKSurfaceConfiguration {
     PixelFormat format;               // Pixel format of the surface
     PresentMode presentMode;          // Present mode for image presentation
 } WGVKSurfaceConfiguration;
+#endif
 
-
-void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, VkPhysicalDevice adapter, SurfaceCapabilities* capabilities);
+void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, VkPhysicalDevice adapter, WGVKSurfaceCapabilities* capabilities);
 void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* config);
-
-
 void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
 WGVKTexture wgvkDeviceCreateTexture(WGVKDevice device, const WGVKTextureDescriptor* descriptor);
 WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureViewDescriptor *descriptor);
-WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDescriptor* desc);
+WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const WGVKBufferDescriptor* desc);
 void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, const void* data, size_t size);
 void wgvkBufferMap(WGVKBuffer buffer, MapMode mapmode, size_t offset, size_t size, void** data);
 void wgvkBufferUnmap(WGVKBuffer buffer);

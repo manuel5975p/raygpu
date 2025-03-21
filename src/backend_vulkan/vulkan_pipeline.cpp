@@ -1,5 +1,7 @@
 #include <vulkan/vulkan.h>
+#define Font rlFont
 #include <raygpu.h>
+#undef Font
 #include <internals.hpp>
 #include <vulkan/vulkan_core.h>
 #include "pipeline.h"
@@ -7,10 +9,8 @@
 #include <spirv_reflect.h>
 #include <enum_translation.h>
 
-
 extern "C" DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sources){
     DescribedShaderModule ret zeroinit;
-    
     
     for(uint32_t i = 0;i < sources.sourceCount;i++){
         VkShaderModuleCreateInfo csCreateInfo zeroinit;

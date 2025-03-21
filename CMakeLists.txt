@@ -5,6 +5,9 @@ project(webgpu_standalone)
 option(SUPPORT_SDL2 "Enable windowing with SDL2" OFF)
 option(SUPPORT_SDL3 "Enable windowing with SDL3" OFF)
 option(SUPPORT_GLFW "Enable windowing with GLFW" OFF)
+
+option(RAYGPU_ENABLE_INSTALL "(EXPERIMENTAL!) Enable install targets for raygpu" OFF)
+
 if(NOT SUPPORT_WGPU_BACKEND)
     option(SUPPORT_WGPU_BACKEND "Enable the WebGPU backend" OFF)
     option(SUPPORT_WGSL_PARSER "Support WGSL parsing with tint" OFF)
@@ -17,12 +20,9 @@ else()
     option(SUPPORT_VULKAN_BACKEND "Enable the Vulkan Backend" OFF)
 endif()
 
-
-message(STATUS "SUPPORT_WGPU_BACKEND: ${SUPPORT_WGPU_BACKEND}")
-
 if(NOT MSVC AND NOT EMSCRIPTEN)
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=undefined,address")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-rtti -fsanitize=undefined,address")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-rtti -fno-exceptions -fsanitize=undefined,address")
     set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 -DNDEBUG -g")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -DNDEBUG -fno-rtti -fno-exceptions -g")
 endif()
@@ -48,7 +48,11 @@ if(SUPPORT_WGPU_BACKEND OR SUPPORT_WGSL_PARSER)
     set(TINT_BUILD_GLSL_VALIDATOR OFF CACHE BOOL "" FORCE)
     set(TINT_BUILD_GLSL_WRITER OFF CACHE BOOL "" FORCE)
     set(TINT_BUILD_MSL_WRITER OFF CACHE BOOL "" FORCE)
-    set(TINT_BUILD_SPV_READER ON CACHE BOOL "" FORCE)
+    if(SUPPORT_GLSL_PARSER)
+        set(TINT_BUILD_SPV_READER ON CACHE BOOL "" FORCE)
+    else()
+        set(TINT_BUILD_SPV_READER OFF CACHE BOOL "" FORCE)
+    endif()
     set(TINT_BUILD_HLSL_WRITER OFF CACHE BOOL "" FORCE)
     #set(TINT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(DAWN_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -58,10 +62,13 @@ if(SUPPORT_WGPU_BACKEND OR SUPPORT_WGSL_PARSER)
     set(DAWN_ENABLE_OPENGLES OFF CACHE BOOL "" FORCE)
     set(DAWN_ENABLE_DESKTOP_GL OFF CACHE BOOL "" FORCE)
     set(DAWN_ENABLE_SPIRV_VALIDATION OFF CACHE BOOL "" FORCE)
-    if(EMSCRIPTEN)
+    if(EMSCRIPTEN OR NOT RAYGPU_ENABLE_INSTALL)
     set(DAWN_ENABLE_INSTALL OFF CACHE BOOL "Enable install step for Dawn libraries" FORCE)
     set(TINT_ENABLE_INSTALL OFF CACHE BOOL "Enable install step for Tint libraries" FORCE)
     set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
+    set(TINT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(TINT_BUILD_CMD_TOOLS OFF CACHE BOOL "" FORCE)
+    set(TINT_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
     else()
     set(DAWN_ENABLE_INSTALL ON CACHE BOOL "Enable install step for Dawn libraries" FORCE)
     set(TINT_ENABLE_INSTALL ON CACHE BOOL "Enable install step for Tint libraries" FORCE)
@@ -133,12 +140,7 @@ option(SPIRV_REFLECT_STATIC_LIB "" ON)
 option(SPIRV_REFLECT_EXECUTABLE "" OFF)
 option(SPIRV_REFLECT_EXAMPLES "" OFF)
 option(SPIRV_REFLECT_BUILD_TESTS "" OFF)
-FetchContent_Declare(
-    khrSpirvReflect
-    URL https://github.com/KhronosGroup/SPIRV-Reflect/archive/refs/tags/vulkan-sdk-1.4.304.1.tar.gz
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-)
-FetchContent_MakeAvailable(khrSpirvReflect)
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/amalgamation/SPIRV-Reflect")
 if(SUPPORT_SDL2)
     FetchContent_Declare(
         sdl2fetch
@@ -198,6 +200,7 @@ endif()
 if(SUPPORT_WGPU_BACKEND)
     list(APPEND RG_SOURCES
         "src/backend_wgpu.cpp"
+        "src/wgvk_to_wgpu.cpp"
         "src/pipeline.cpp"
     )
 endif()

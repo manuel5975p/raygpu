@@ -192,7 +192,7 @@ void PostPresentSurface(){
 }
 extern "C" DescribedBuffer* GenBufferEx(const void* data, size_t size, BufferUsage usage){
     DescribedBuffer* ret = callocnew(DescribedBuffer);
-    BufferDescriptor descriptor{};
+    WGVKBufferDescriptor descriptor{};
     descriptor.size = size;
     descriptor.usage = usage;
     ret->buffer = wgvkDeviceCreateBuffer((WGVKDevice)GetDevice(), &descriptor);
@@ -804,7 +804,7 @@ void GenTextureMipmaps(Texture2D* tex){
 
 void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size){
     ResourceDescriptor entry{};
-    BufferDescriptor bufferDesc{};
+    WGVKBufferDescriptor bufferDesc{};
     bufferDesc.size = size;
     bufferDesc.usage = BufferUsage_CopyDst | BufferUsage_Uniform;
     WGVKBuffer wgvkBuffer = wgvkDeviceCreateBuffer(g_vulkanstate.device, &bufferDesc);
@@ -819,7 +819,7 @@ void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, cons
 
 void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size){
     ResourceDescriptor entry{};
-    BufferDescriptor bufferDesc{};
+    WGVKBufferDescriptor bufferDesc{};
     bufferDesc.size = size;
     bufferDesc.usage = BufferUsage_CopyDst | BufferUsage_Storage;
     WGVKBuffer wgvkBuffer = wgvkDeviceCreateBuffer(g_vulkanstate.device, &bufferDesc);
@@ -838,7 +838,7 @@ extern "C" void BufferData(DescribedBuffer* buffer, const void* data, size_t siz
     else{
         if(buffer->buffer)
             wgvkBufferRelease((WGVKBuffer)buffer->buffer);
-        BufferDescriptor nbdesc zeroinit;
+        WGVKBufferDescriptor nbdesc zeroinit;
         nbdesc.size = size;
         nbdesc.usage = buffer->usage;
 
@@ -940,7 +940,7 @@ extern "C" void PrepareFrameGlobals(){
         wgvkBufferUnmap(vbo_buf);
     }
     if(cache.unusedBatchBuffers.empty()){
-        BufferDescriptor bdesc{
+        WGVKBufferDescriptor bdesc{
             .usage = BufferUsage_CopyDst | BufferUsage_MapWrite | BufferUsage_Vertex,
             .size = (RENDERBATCH_SIZE * sizeof(vertex))
         };
@@ -976,7 +976,7 @@ extern "C" DescribedBuffer* UpdateVulkanRenderbatch(){
         wgvkBufferUnmap(vbo_buf);
     }
     if(cache.unusedBatchBuffers.empty()){
-        BufferDescriptor bdesc{
+        WGVKBufferDescriptor bdesc{
             .usage = BufferUsage_CopyDst | BufferUsage_MapWrite | BufferUsage_Vertex,
             .size = (RENDERBATCH_SIZE * sizeof(vertex))
         };
@@ -1280,7 +1280,7 @@ extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t he
     FullSurface ret{};
     ret.surface = (WGVKSurface)nsurface;
     negotiateSurfaceFormatAndPresentMode(nsurface);
-    SurfaceCapabilities capa{};
+    WGVKSurfaceCapabilities capa{};
     VkPhysicalDevice adapter = g_vulkanstate.physicalDevice;
 
     wgvkSurfaceGetCapabilities((WGVKSurface)ret.surface, adapter, &capa);

@@ -181,14 +181,6 @@ namespace std{
 }
 
 
-//typedef struct VertexAndFragmentShaderModuleImpl{
-//    VkShaderModule vModule;
-//    VkShaderModule fModule;
-//}VertexAndFragmentShaderModuleImpl;
-
-
-
-
 typedef struct WGVKBindGroupImpl{
     VkDescriptorSet set;
     VkDescriptorPool pool;

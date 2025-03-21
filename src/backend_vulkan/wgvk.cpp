@@ -5,7 +5,7 @@
 #include <external/VmaUsage.h>
 #include <unordered_set>
 
-extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const BufferDescriptor* desc){
+extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const WGVKBufferDescriptor* desc){
     //vmaCreateAllocator(const VmaAllocatorCreateInfo * _Nonnull pCreateInfo, VmaAllocator  _Nullable * _Nonnull pAllocator)
     WGVKBuffer wgvkBuffer = callocnewpp(WGVKBufferImpl);
 
@@ -100,7 +100,7 @@ extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_
         }
     }
     else{
-        BufferDescriptor stDesc zeroinit;
+        WGVKBufferDescriptor stDesc zeroinit;
         stDesc.size = size;
         stDesc.usage = BufferUsage_MapWrite;
         WGVKBuffer stagingBuffer = wgvkDeviceCreateBuffer(cSelf->device, &stDesc);
@@ -112,7 +112,7 @@ extern "C" void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_
 
 extern "C" void wgvkQueueWriteTexture(WGVKQueue cSelf, const WGVKTexelCopyTextureInfo* destination, const void* data, size_t dataSize, const WGVKTexelCopyBufferLayout* dataLayout, const WGVKExtent3D* writeSize){
 
-    BufferDescriptor bdesc zeroinit;
+    WGVKBufferDescriptor bdesc zeroinit;
     bdesc.size = dataSize;
     bdesc.usage = BufferUsage_CopySrc | BufferUsage_MapWrite;
     WGVKBuffer stagingBuffer = wgvkDeviceCreateBuffer(cSelf->device, &bdesc);
@@ -702,7 +702,7 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
 
 
 
-extern "C" void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, VkPhysicalDevice adapter, SurfaceCapabilities* capabilities){
+extern "C" void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, VkPhysicalDevice adapter, WGVKSurfaceCapabilities* capabilities){
     VkSurfaceKHR surface = wgvkSurface->surface;
     VkSurfaceCapabilitiesKHR scap{};
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(adapter, surface, &scap);

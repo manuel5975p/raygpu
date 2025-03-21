@@ -557,11 +557,11 @@ extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t he
     config.viewFormatCount = 1;
     config.device = (WGPUDevice)GetDevice();
 
-    ret.surfaceConfig.presentMode = (PresentMode)config.presentMode;
+    ret.surfaceConfig.presentMode = config.presentMode;
     ret.surfaceConfig.device = config.device;
     ret.surfaceConfig.width = config.width;
     ret.surfaceConfig.height = config.width;
-    ret.surfaceConfig.format = (PixelFormat)config.format;
+    ret.surfaceConfig.format = config.format;
     
     ret.renderTarget = LoadRenderTexture(width, height);
     wgpuSurfaceConfigure((WGPUSurface)ret.surface, &config);
@@ -1430,7 +1430,7 @@ extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t newWidth, uint32_t
     UnloadTexture(fsurface->renderTarget.colorMultisample);
     UnloadTexture(fsurface->renderTarget.depth);
     if(g_renderstate.windowFlags & FLAG_MSAA_4X_HINT){
-        fsurface->renderTarget.colorMultisample = LoadTexturePro(newWidth, newHeight, fsurface->surfaceConfig.format, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4, 1);
+        fsurface->renderTarget.colorMultisample = LoadTexturePro(newWidth, newHeight, fromWGPUPixelFormat(fsurface->surfaceConfig.format), WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4, 1);
     }
     fsurface->renderTarget.depth = LoadTexturePro(newWidth,
                            newHeight, 

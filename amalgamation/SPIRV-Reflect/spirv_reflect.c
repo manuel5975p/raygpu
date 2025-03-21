@@ -2453,7 +2453,9 @@ static SpvReflectResult ParseUAVCounterBindings(SpvReflectShaderModule* p_module
       const size_t descriptor_name_length = p_descriptor->name ? strlen(p_descriptor->name) : 0;
 
       memset(name, 0, MAX_NODE_NAME_LENGTH);
-      memcpy(name, p_descriptor->name, descriptor_name_length);
+      if(descriptor_name_length > 0){ //Avoid ubsan
+        memcpy(name, p_descriptor->name, descriptor_name_length);
+      }
 #if defined(_WIN32)
       strcat_s(name, MAX_NODE_NAME_LENGTH, k_count_tag);
 #else
@@ -3582,9 +3584,10 @@ static SpvReflectResult ParseStaticallyUsedResources(SpvReflectPrvParser* p_pars
     while (p_parser->functions[j].id != p_called_functions[i]) {
       ++j;
     }
-
-    memcpy(&p_used_accesses[used_acessed_count], p_parser->functions[j].accessed_variables,
-           p_parser->functions[j].accessed_variable_count * sizeof(SpvReflectPrvAccessedVariable));
+    if(p_parser->functions[j].accessed_variable_count > 0){ // Avoid ubsan
+      memcpy(&p_used_accesses[used_acessed_count], p_parser->functions[j].accessed_variables,
+             p_parser->functions[j].accessed_variable_count * sizeof(SpvReflectPrvAccessedVariable));
+    }
     used_acessed_count += p_parser->functions[j].accessed_variable_count;
   }
   SafeFree(p_called_functions);
