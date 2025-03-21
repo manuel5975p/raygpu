@@ -205,13 +205,18 @@ extern "C" DescribedBuffer* GenBufferEx(const void* data, size_t size, BufferUsa
 }
 
 extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t width, uint32_t height){
+    vkQueueWaitIdle(reinterpret_cast<WGVKSurface>(fsurface->surface)->device->queue->graphicsQueue);
+    vkQueueWaitIdle(reinterpret_cast<WGVKSurface>(fsurface->surface)->device->queue->presentQueue);
+    VkSemaphoreWaitInfo info;
     fsurface->surfaceConfig.width = width;
     fsurface->surfaceConfig.height = height;
 
     wgvkSurfaceConfigure((WGVKSurface)fsurface->surface, &fsurface->surfaceConfig);
     UnloadTexture(fsurface->renderTarget.depth);
-    fsurface->renderTarget.depth = LoadTexturePro(width, height, Depth32, TextureUsage_RenderAttachment, 1, 1);
+    fsurface->renderTarget.depth = LoadTexturePro(width, height, Depth32, TextureUsage_RenderAttachment, GetDefaultSettings().sampleCount, 1);
+    fsurface->renderTarget.colorMultisample = LoadTexturePro(width, height, BGRA8, TextureUsage_RenderAttachment, GetDefaultSettings().sampleCount, 1);
 }
+
 extern "C" void BeginComputepassEx(DescribedComputepass* computePass){
     computePass->cmdEncoder = wgvkDeviceCreateCommandEncoder((WGVKDevice)GetDevice(), nullptr);
     computePass->cpEncoder = wgvkCommandEncoderBeginComputePass((WGVKCommandEncoder)computePass->cmdEncoder);

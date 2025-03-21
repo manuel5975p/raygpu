@@ -912,10 +912,10 @@ extern "C" DescribedComputePipeline* LoadComputePipeline(const char* shaderCode)
     return LoadComputePipelineEx(shaderCode, values.data(), values.size());
 }
 
-DescribedShaderModule LoadShaderModuleWGSL(ShaderSources sourcesWGSL){
-    ShaderSources spirv = wgsl_to_spirv(sourcesWGSL);
-    DescribedShaderModule mod = LoadShaderModuleSPIRV(spirv);
-    mod.reflectionInfo.uniforms = callocnewpp(StringToUniformMap);
-    mod.reflectionInfo.uniforms->uniforms = getBindings(sourcesWGSL);
-    return mod;
-}
+//DescribedShaderModule LoadShaderModuleWGSL(ShaderSources sourcesWGSL){
+//    ShaderSources spirv = wgsl_to_spirv(sourcesWGSL);
+//    DescribedShaderModule mod = LoadShaderModuleSPIRV(spirv);
+//    mod.reflectionInfo.uniforms = callocnewpp(StringToUniformMap);
+//    mod.reflectionInfo.uniforms->uniforms = getBindings(sourcesWGSL);
+//    return mod;
+//}

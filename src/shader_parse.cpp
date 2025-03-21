@@ -76,8 +76,10 @@ const std::unordered_map<std::string, std::unordered_map<std::string, VertexForm
 }();
 #if SUPPORT_WGSL_PARSER == 1
 DescribedShaderModule LoadShaderModuleWGSL(ShaderSources sources) {
-    WGPUShaderModuleWGSLDescriptor shaderCodeDesc zeroinit;
+    
     DescribedShaderModule ret zeroinit;
+    #if SUPPORT_WGPU_BACKEND == 1
+    WGPUShaderModuleWGSLDescriptor shaderCodeDesc zeroinit;
 
     rassert(sources.language = sourceTypeWGSL, "Source language must be wgsl for this function");
     
@@ -104,6 +106,10 @@ DescribedShaderModule LoadShaderModuleWGSL(ShaderSources sources) {
             *end = '\0';
         }
     }
+    #else
+    ShaderSources spirvSources = wgsl_to_spirv(sources);
+    ret = LoadShaderModuleSPIRV(spirvSources);
+    #endif
     ret.reflectionInfo.uniforms = callocnewpp(StringToUniformMap);
     ret.reflectionInfo.attributes = callocnewpp(StringToAttributeMap);
     ret.reflectionInfo.uniforms->uniforms = getBindings(sources);

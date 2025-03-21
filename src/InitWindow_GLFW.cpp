@@ -38,7 +38,6 @@ void ResizeCallback(GLFWwindow* window, int width, int height){
     
     TRACELOG(LOG_INFO, "GLFW's ResizeCallback called with %d x %d", width, height);
     ResizeSurface(&g_renderstate.createdSubwindows[window].surface, width, height);
-    
     //wgpuSurfaceConfigure(g_renderstate.createdSubwindows[window].surface, (WGPUSurfaceConfiguration*)&config);
     //TRACELOG(LOG_WARNING, "configured: %llu with extents %u x %u", g_renderstate.createdSubwindows[window].surface, width, height);
     //g_renderstate.surface = wgpu::Surface(g_renderstate.createdSubwindows[window].surface);
