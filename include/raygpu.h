@@ -795,7 +795,7 @@ struct attributeVectorCompare{
     }
 };
 typedef struct VertexStateToPipelineMap{
-    std::unordered_map<std::vector<AttributeAndResidence>, RenderPipelineQuartet, std::hash<std::vector<AttributeAndResidence>>, attributeVectorCompare> pipelines;
+    std::unordered_map<VertexBufferLayoutSet, RenderPipelineQuartet, std::hash<std::vector<AttributeAndResidence>>, attributeVectorCompare> pipelines;
 
 }VertexStateToPipelineMap;
 #endif

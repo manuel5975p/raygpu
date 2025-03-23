@@ -408,6 +408,46 @@ void ResizeBufferAndConserve(DescribedBuffer* buffer, size_t newSize){
     wgpuBufferRelease((WGPUBuffer)buffer->buffer);
     *buffer = newbuffer;
 }
+
+static inline WGPUStorageTextureAccess toStorageTextureAccess(access_type acc){
+    switch(acc){
+        case access_type::readonly:return WGPUStorageTextureAccess_ReadOnly;
+        case access_type::readwrite:return WGPUStorageTextureAccess_ReadWrite;
+        case access_type::writeonly:return WGPUStorageTextureAccess_WriteOnly;
+        default: rg_unreachable();
+    }
+    return WGPUStorageTextureAccess_Force32;
+}
+static inline WGPUBufferBindingType toStorageBufferAccess(access_type acc){
+    switch(acc){
+        case access_type::readonly: return WGPUBufferBindingType_ReadOnlyStorage;
+        case access_type::readwrite:return WGPUBufferBindingType_Storage;
+        case access_type::writeonly:return WGPUBufferBindingType_Storage;
+        default: rg_unreachable();
+    }
+    return WGPUBufferBindingType_Force32;
+}
+static inline WGPUTextureFormat toStorageTextureFormat(format_or_sample_type fmt){
+    switch(fmt){
+        case format_or_sample_type::format_r32float: return WGPUTextureFormat_R32Float;
+        case format_or_sample_type::format_r32uint: return WGPUTextureFormat_R32Uint;
+        case format_or_sample_type::format_rgba8unorm: return WGPUTextureFormat_RGBA8Unorm;
+        case format_or_sample_type::format_rgba32float: return WGPUTextureFormat_RGBA32Float;
+        default: rg_unreachable();
+    }
+    return WGPUTextureFormat_Force32;
+}
+static inline WGPUTextureSampleType toTextureSampleType(format_or_sample_type fmt){
+    switch(fmt){
+        case format_or_sample_type::sample_f32: return WGPUTextureSampleType_Float;
+        case format_or_sample_type::sample_u32: return WGPUTextureSampleType_Uint;
+        default: rg_unreachable();
+    }
+    return WGPUTextureSampleType_Force32;
+}
+
+
+
 DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, bool compute){
     DescribedBindGroupLayout ret{};
     WGPUShaderStage visible;

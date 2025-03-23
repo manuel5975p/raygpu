@@ -914,7 +914,7 @@ void createRenderPass() {
     }
 }
 extern "C" void RenderPassSetIndexBuffer(DescribedRenderpass* drp, DescribedBuffer* buffer, IndexFormat format, uint64_t offset){
-    wgvkRenderPassEncoderBindIndexBuffer((WGVKRenderPassEncoder)drp->rpEncoder, (WGVKBuffer)buffer->buffer, 0, toVulkanIndexFormat(format));
+    wgvkRenderPassEncoderBindIndexBuffer((WGVKRenderPassEncoder)drp->rpEncoder, (WGVKBuffer)buffer->buffer, 0, format);
     //wgpuRenderPassEncoderSetIndexBuffer((WGPURenderPassEncoder)drp->rpEncoder, (WGPUBuffer)buffer->buffer, format, offset, buffer->size);
 }
 extern "C" void RenderPassSetVertexBuffer(DescribedRenderpass* drp, uint32_t slot, DescribedBuffer* buffer, uint64_t offset){
@@ -1187,7 +1187,7 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
 }
 extern "C" void BindComputePipeline(DescribedComputePipeline* pipeline){
     WGVKBindGroup bindGroup = (WGVKBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup);
-    wgvkComputePassEncoderSetPipeline ((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder,    (VkPipeline)pipeline->pipeline, (VkPipelineLayout)pipeline->layout);
+    wgvkComputePassEncoderSetPipeline ((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder, (WGVKComputePipeline)pipeline->pipeline);
     wgvkComputePassEncoderSetBindGroup((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder, 0, bindGroup);
 }
 
@@ -1441,20 +1441,20 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     //drawCurrentBatch();
     //BindPipeline(g_renderstate.defaultPipeline, WGPUPrimitiveTopology_TriangleList);
 }
-extern "C" void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode){
 
+extern "C" void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode){
     switch(drawMode){
         case RL_TRIANGLES:
-            wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (VkPipeline)pipeline->quartet.pipeline_TriangleList, (VkPipelineLayout)pipeline->layout.layout);
+            wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (WGVKRenderPipeline)pipeline->quartet.pipeline_TriangleList);
         break;
         case RL_TRIANGLE_STRIP:
-            wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (VkPipeline)pipeline->quartet.pipeline_TriangleStrip, (VkPipelineLayout)pipeline->layout.layout);
+            wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (WGVKRenderPipeline)pipeline->quartet.pipeline_TriangleStrip);
         break;
         case RL_LINES:
-            wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (VkPipeline)pipeline->quartet.pipeline_LineList, (VkPipelineLayout)pipeline->layout.layout);
+            wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (WGVKRenderPipeline)pipeline->quartet.pipeline_LineList);
         break;
         case RL_POINTS:
-            wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (VkPipeline)pipeline->quartet.pipeline_PointList, (VkPipelineLayout)pipeline->layout.layout);
+            wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (WGVKRenderPipeline)pipeline->quartet.pipeline_PointList);
         break;
         default:
             assert(false && "Unsupported Drawmode");

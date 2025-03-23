@@ -268,10 +268,13 @@ typedef struct WGVKTextureImpl{
 }ImageHandleImpl;
 
 typedef struct WGVKRenderPipelineImpl{
-
+    VkPipeline renderPipeline;
+    VkPipelineLayout layout;
 }WGVKRenderPipelineImpl;
-typedef struct WGVKComputePipelineImpl{
 
+typedef struct WGVKComputePipelineImpl{
+    VkPipeline graphicsPipeline;
+    VkPipelineLayout layout;
 }WGVKComputePipelineImpl;
 
 typedef struct WGVKTextureViewImpl{

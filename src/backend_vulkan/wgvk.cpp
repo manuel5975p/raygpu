@@ -1048,9 +1048,9 @@ void wgvkRenderPassEncoderBindPipeline(WGVKRenderPassEncoder rpe, DescribedPipel
     vkCmdBindPipeline(rpe->cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipeline)pipeline->quartet.pipeline_TriangleList);
 }
 
-void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, VkPipeline pipeline, VkPipelineLayout layout) { 
-    rpe->lastLayout = layout; 
-    vkCmdBindPipeline(rpe->cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipeline)pipeline);
+extern "C" void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, WGVKRenderPipeline renderPipeline) { 
+    vkCmdBindPipeline(rpe->cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, renderPipeline->renderPipeline);
+    rpe->lastLayout = renderPipeline->layout; 
 }
 
 // Implementation of RenderPassDescriptorBindDescriptorSet
@@ -1080,11 +1080,12 @@ void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group
         }
     }
 }
-extern "C" void wgvkComputePassEncoderSetPipeline (WGVKComputePassEncoder cpe, VkPipeline pipeline, VkPipelineLayout layout){
-    vkCmdBindPipeline(cpe->cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
-    cpe->lastLayout = layout;
+extern "C" void wgvkComputePassEncoderSetPipeline (WGVKComputePassEncoder cpe, WGVKComputePipeline computePipeline){
+    vkCmdBindPipeline(cpe->cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, computePipeline->graphicsPipeline);
+    cpe->lastLayout = computePipeline->layout;
 }
 extern "C" void wgvkComputePassEncoderSetBindGroup(WGVKComputePassEncoder cpe, uint32_t groupIndex, WGVKBindGroup bindGroup){
+    rassert(cpe->lastLayout != nullptr, "Must bind at least one pipeline with wgvkComputePassEncoderSetPipeline before wgvkComputePassEncoderSetBindGroup");
     
     vkCmdBindDescriptorSets(cpe->cmdBuffer,                // Command buffer
                             VK_PIPELINE_BIND_POINT_COMPUTE,// Pipeline bind point
@@ -1135,12 +1136,12 @@ void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t b
 
     rpe->resourceUsage.track(buffer);
 }
-void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer buffer, VkDeviceSize offset, VkIndexType indexType) {
+extern "C" void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer buffer, VkDeviceSize offset, IndexFormat indexType){
     rassert(rpe != nullptr, "RenderPassEncoderHandle is null");
     rassert(buffer != nullptr, "BufferHandle is null");
 
     // Bind the index buffer to the command buffer
-    vkCmdBindIndexBuffer(rpe->cmdBuffer, buffer->buffer, offset, indexType);
+    vkCmdBindIndexBuffer(rpe->cmdBuffer, buffer->buffer, offset, toVulkanIndexFormat(indexType));
 
     rpe->resourceUsage.track(buffer);
 }

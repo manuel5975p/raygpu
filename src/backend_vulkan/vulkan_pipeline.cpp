@@ -283,12 +283,8 @@ extern "C" void UpdatePipeline(DescribedPipeline *pl){
         TRACELOG(LOG_FATAL, "Trianglelist pipiline creation failed");
     }
 }
-extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, const std::vector<AttributeAndResidence>& attribs){
-    RenderPipelineQuartet quartet zeroinit;
-    auto ait = ret->createdPipelines->pipelines.find(attribs);
-    if(ait != ret->createdPipelines->pipelines.end()){
-        return ait->second;
-    }
+extern "C" RenderPipelineQuartet GetPipelinesForLayoutSet(DescribedPipeline* ret, const VertexBufferLayoutSet vls){
+
     TRACELOG(LOG_INFO, "Generating new pipelines");
 
     auto& settings = ret->settings;
@@ -523,6 +519,17 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, c
     ret->createdPipelines->pipelines.emplace(attribs, quartet);
 
     return quartet;
+}
+extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, const std::vector<AttributeAndResidence>& attribs){
+    RenderPipelineQuartet quartet zeroinit;
+    VertexBufferLayoutSet layoutset = getBufferLayoutRepresentation(attribs.data(), attribs.size());
+
+    auto ait = ret->createdPipelines->pipelines.find(layoutset);
+    if(ait != ret->createdPipelines->pipelines.end()){
+        UnloadBufferLayoutSet(layoutset);
+        return ait->second;
+    }
+    
 }
 
 extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){

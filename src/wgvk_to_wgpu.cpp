@@ -3,6 +3,42 @@
 #include <vector>
 #include <raygpu.h>
 
+static inline WGPUStorageTextureAccess toStorageTextureAccess(access_type acc){
+    switch(acc){
+        case access_type::readonly:return WGPUStorageTextureAccess_ReadOnly;
+        case access_type::readwrite:return WGPUStorageTextureAccess_ReadWrite;
+        case access_type::writeonly:return WGPUStorageTextureAccess_WriteOnly;
+        default: rg_unreachable();
+    }
+    return WGPUStorageTextureAccess_Force32;
+}
+static inline WGPUBufferBindingType toStorageBufferAccess(access_type acc){
+    switch(acc){
+        case access_type::readonly: return WGPUBufferBindingType_ReadOnlyStorage;
+        case access_type::readwrite:return WGPUBufferBindingType_Storage;
+        case access_type::writeonly:return WGPUBufferBindingType_Storage;
+        default: rg_unreachable();
+    }
+    return WGPUBufferBindingType_Force32;
+}
+static inline WGPUTextureFormat toStorageTextureFormat(format_or_sample_type fmt){
+    switch(fmt){
+        case format_or_sample_type::format_r32float: return WGPUTextureFormat_R32Float;
+        case format_or_sample_type::format_r32uint: return WGPUTextureFormat_R32Uint;
+        case format_or_sample_type::format_rgba8unorm: return WGPUTextureFormat_RGBA8Unorm;
+        case format_or_sample_type::format_rgba32float: return WGPUTextureFormat_RGBA32Float;
+        default: rg_unreachable();
+    }
+    return WGPUTextureFormat_Force32;
+}
+static inline WGPUTextureSampleType toTextureSampleType(format_or_sample_type fmt){
+    switch(fmt){
+        case format_or_sample_type::sample_f32: return WGPUTextureSampleType_Float;
+        case format_or_sample_type::sample_u32: return WGPUTextureSampleType_Uint;
+        default: rg_unreachable();
+    }
+    return WGPUTextureSampleType_Force32;
+}
 void wgvkQueueWriteTexture(WGVKQueue queue, WGVKTexelCopyTextureInfo const * destination, void const * data, size_t dataSize, WGVKTexelCopyBufferLayout const * dataLayout, WGVKExtent3D const * writeSize){
     wgpuQueueWriteTexture(queue, destination, data, dataSize, dataLayout, writeSize);
 }
@@ -199,7 +235,7 @@ WGVKComputePassEncoder wgvkCommandEncoderBeginComputePass(WGVKCommandEncoder enc
     return wgpuCommandEncoderBeginComputePass(enc, nullptr);
 }
 void wgvkCommandEncoderEndComputePass(WGVKComputePassEncoder commandEncoder){
-    wgpuCommandEncoderEndComputePass(commandEncoder);
+    wgpuComputePassEncoderEnd(commandEncoder);
 }
 void wgvkTextureAddRef(WGVKTexture texture){
     wgpuTextureAddRef(texture);
@@ -214,19 +250,16 @@ void wgvkBindGroupAddRef(WGVKBindGroup bindGroup){
     wgpuBindGroupAddRef(bindGroup);
 }
 void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandBuffer){
-    wgpuReleaseCommandEncoder(commandBuffer);
+    wgpuCommandEncoderRelease(commandBuffer);
 }
 WGVKCommandEncoder wgvkResetCommandBuffer(WGVKCommandBuffer commandEncoder){
-    return wgpuResetCommandBuffer(commandEncoder);
+    return nullptr;
 }
 void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer){
-    wgpuReleaseCommandBuffer(commandBuffer);
+    wgpuCommandBufferRelease(commandBuffer);
 }
 void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc){
-    wgpuReleaseRenderPassEncoder(rpenc);
-}
-void wgvkReleaseComputePassEncoder(WGVKComputePassEncoder rpenc){
-    wgpuReleaseComputePassEncoder(rpenc);
+    wgpuRenderPassEncoderRelease(rpenc);
 }
 void wgvkBufferRelease(WGVKBuffer buffer){
     wgpuBufferRelease(buffer);
@@ -235,11 +268,11 @@ void wgvkBindGroupRelease(WGVKBindGroup bindGroup){
     wgpuBindGroupRelease(bindGroup);
 }
 void wgvkReleaseBindGroupLayout(WGVKBindGroupLayout bglayout){
-    wgpuReleaseBindGroupLayout(bglayout);
+    wgpuBindGroupLayoutRelease(bglayout);
 }
 void wgvkReleaseTexture(WGVKTexture texture){
-    wgpuReleaseTexture(texture);
+    wgpuTextureRelease(texture);
 }
 void wgvkReleaseTextureView(WGVKTextureView view){
-    wgpuReleaseTextureView(view);
+    wgpuTextureViewRelease(view);
 }
