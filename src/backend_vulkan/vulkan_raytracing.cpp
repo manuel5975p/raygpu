@@ -3,7 +3,6 @@
 #include <vulkan/vulkan.h>
 #include <wgvk.h>
 static struct {
-    VkDevice device;
     PFN_vkCmdBuildAccelerationStructuresKHR PFN_vkCmdBuildAccelerationStructuresKHR_ptr;
     PFN_vkGetAccelerationStructureBuildSizesKHR PFN_vkGetAccelerationStructureBuildSizesKHR_ptr;
     PFN_vkCreateAccelerationStructureKHR PFN_vkCreateAccelerationStructureKHR_ptr;
@@ -12,61 +11,63 @@ static struct {
 } g_rt_table;
 
 /**
- * Lazy-loads and forwards acceleration structure building commands
- */
+* Lazy-loads and forwards acceleration structure building commands
+*/
 extern "C" void vkCmdBuildAccelerationStructuresKHR(VkCommandBuffer commandBuffer, uint32_t infoCount, const VkAccelerationStructureBuildGeometryInfoKHR *pInfos, const VkAccelerationStructureBuildRangeInfoKHR *const *ppBuildRangeInfos) {
 
     if (!g_rt_table.PFN_vkCmdBuildAccelerationStructuresKHR_ptr) {
-        g_rt_table.PFN_vkCmdBuildAccelerationStructuresKHR_ptr = (PFN_vkCmdBuildAccelerationStructuresKHR)vkGetDeviceProcAddr(g_rt_table.device, "vkCmdBuildAccelerationStructuresKHR");
+        g_rt_table.PFN_vkCmdBuildAccelerationStructuresKHR_ptr = (PFN_vkCmdBuildAccelerationStructuresKHR)vkGetDeviceProcAddr(g_vulkanstate.device->device, "vkCmdBuildAccelerationStructuresKHR");
     }
-
+    rassert(g_rt_table.PFN_vkCmdBuildAccelerationStructuresKHR_ptr != nullptr, "Function pointer could not be loaded for");
+    
     if (g_rt_table.PFN_vkCmdBuildAccelerationStructuresKHR_ptr) {
         g_rt_table.PFN_vkCmdBuildAccelerationStructuresKHR_ptr(commandBuffer, infoCount, pInfos, ppBuildRangeInfos);
     }
 }
 
 /**
- * Lazy-loads and forwards acceleration structure build size calculations
- */
-extern "C" void vkGetAccelerationStructureBuildSizesKHR(
+* Lazy-loads and forwards acceleration structure build size calculations
+*/
+extern "C" void vkGetAccelerationStructureBuildSizesKHR_s(
     VkDevice device, VkAccelerationStructureBuildTypeKHR buildType, const VkAccelerationStructureBuildGeometryInfoKHR *pBuildInfo, const uint32_t *pMaxPrimitiveCounts, VkAccelerationStructureBuildSizesInfoKHR *pSizeInfo) {
-
+        
     if (!g_rt_table.PFN_vkGetAccelerationStructureBuildSizesKHR_ptr) {
-        g_rt_table.PFN_vkGetAccelerationStructureBuildSizesKHR_ptr = (PFN_vkGetAccelerationStructureBuildSizesKHR)vkGetDeviceProcAddr(g_rt_table.device, "vkGetAccelerationStructureBuildSizesKHR");
+        g_rt_table.PFN_vkGetAccelerationStructureBuildSizesKHR_ptr = (PFN_vkGetAccelerationStructureBuildSizesKHR)vkGetDeviceProcAddr(g_vulkanstate.device->device, "vkGetAccelerationStructureBuildSizesKHR");
     }
-
+    rassert(g_rt_table.PFN_vkGetAccelerationStructureBuildSizesKHR_ptr != nullptr, "Function pointer could not be loaded for");
     if (g_rt_table.PFN_vkGetAccelerationStructureBuildSizesKHR_ptr) {
-        g_rt_table.PFN_vkGetAccelerationStructureBuildSizesKHR_ptr(g_rt_table.device, buildType, pBuildInfo, pMaxPrimitiveCounts, pSizeInfo);
+        g_rt_table.PFN_vkGetAccelerationStructureBuildSizesKHR_ptr(g_vulkanstate.device->device, buildType, pBuildInfo, pMaxPrimitiveCounts, pSizeInfo);
     }
 }
-
+    
 /**
- * Lazy-loads and forwards acceleration structure creation
- */
+* Lazy-loads and forwards acceleration structure creation
+*/
 extern "C" VkResult vkCreateAccelerationStructureKHR(VkDevice device, const VkAccelerationStructureCreateInfoKHR *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkAccelerationStructureKHR *pAccelerationStructure) {
-
+    
     if (!g_rt_table.PFN_vkCreateAccelerationStructureKHR_ptr) {
-        g_rt_table.PFN_vkCreateAccelerationStructureKHR_ptr = (PFN_vkCreateAccelerationStructureKHR)vkGetDeviceProcAddr(g_rt_table.device, "vkCreateAccelerationStructureKHR");
+        g_rt_table.PFN_vkCreateAccelerationStructureKHR_ptr = (PFN_vkCreateAccelerationStructureKHR)vkGetDeviceProcAddr(g_vulkanstate.device->device, "vkCreateAccelerationStructureKHR");
     }
-
+    rassert(g_rt_table.PFN_vkCreateAccelerationStructureKHR_ptr != nullptr, "Function pointer could not be loaded for");
     if (g_rt_table.PFN_vkCreateAccelerationStructureKHR_ptr) {
-        return g_rt_table.PFN_vkCreateAccelerationStructureKHR_ptr(g_rt_table.device, pCreateInfo, pAllocator, pAccelerationStructure);
+        return g_rt_table.PFN_vkCreateAccelerationStructureKHR_ptr(g_vulkanstate.device->device, pCreateInfo, pAllocator, pAccelerationStructure);
     }
-
+    
     return VK_ERROR_EXTENSION_NOT_PRESENT;
 }
 
 /**
- * Lazy-loads and forwards acceleration structure destruction
- */
+* Lazy-loads and forwards acceleration structure destruction
+*/
 extern "C" void vkDestroyAccelerationStructureKHR(VkDevice device, VkAccelerationStructureKHR accelerationStructure, const VkAllocationCallbacks *pAllocator) {
-
+    
     if (!g_rt_table.PFN_vkDestroyAccelerationStructureKHR_ptr) {
-        g_rt_table.PFN_vkDestroyAccelerationStructureKHR_ptr = (PFN_vkDestroyAccelerationStructureKHR)vkGetDeviceProcAddr(g_rt_table.device, "vkDestroyAccelerationStructureKHR");
+        g_rt_table.PFN_vkDestroyAccelerationStructureKHR_ptr = (PFN_vkDestroyAccelerationStructureKHR)vkGetDeviceProcAddr(g_vulkanstate.device->device, "vkDestroyAccelerationStructureKHR");
     }
-
+    
+    rassert(g_rt_table.PFN_vkCreateAccelerationStructureKHR_ptr != nullptr, "Function pointer could not be loaded for");
     if (g_rt_table.PFN_vkDestroyAccelerationStructureKHR_ptr) {
-        g_rt_table.PFN_vkDestroyAccelerationStructureKHR_ptr(g_rt_table.device, accelerationStructure, pAllocator);
+        g_rt_table.PFN_vkDestroyAccelerationStructureKHR_ptr(g_vulkanstate.device->device, accelerationStructure, pAllocator);
     }
 }
 
@@ -76,11 +77,11 @@ extern "C" void vkDestroyAccelerationStructureKHR(VkDevice device, VkAcceleratio
 extern "C" VkDeviceAddress VKAPI_CALL vkGetAccelerationStructureDeviceAddressKHR(VkDevice device, const VkAccelerationStructureDeviceAddressInfoKHR *pInfo) {
 
     if (!g_rt_table.PFN_vkGetAccelerationStructureDeviceAddressKHR_ptr) {
-        g_rt_table.PFN_vkGetAccelerationStructureDeviceAddressKHR_ptr = (PFN_vkGetAccelerationStructureDeviceAddressKHR)vkGetDeviceProcAddr(g_rt_table.device, "vkGetAccelerationStructureDeviceAddressKHR");
+        g_rt_table.PFN_vkGetAccelerationStructureDeviceAddressKHR_ptr = (PFN_vkGetAccelerationStructureDeviceAddressKHR)vkGetDeviceProcAddr(g_vulkanstate.device->device, "vkGetAccelerationStructureDeviceAddressKHR");
     }
 
     if (g_rt_table.PFN_vkGetAccelerationStructureDeviceAddressKHR_ptr) {
-        return g_rt_table.PFN_vkGetAccelerationStructureDeviceAddressKHR_ptr(g_rt_table.device, pInfo);
+        return g_rt_table.PFN_vkGetAccelerationStructureDeviceAddressKHR_ptr(g_vulkanstate.device->device, pInfo);
     }
 
     return 0;
@@ -232,7 +233,7 @@ extern "C" WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAcceleratio
     VkAccelerationStructureBuildSizesInfoKHR buildSizesInfo = {};
     buildSizesInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
 
-    vkGetAccelerationStructureBuildSizesKHR(device->device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildGeometryInfo, &buildRangeInfo.primitiveCount, &buildSizesInfo);
+    vkGetAccelerationStructureBuildSizesKHR_s(device->device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildGeometryInfo, &buildRangeInfo.primitiveCount, &buildSizesInfo);
 
     // Create buffer for acceleration structure
     VkBufferCreateInfo bufferCreateInfo = {};
@@ -430,7 +431,7 @@ extern "C" WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccel
     VkAccelerationStructureBuildSizesInfoKHR buildSizesInfo = {};
     buildSizesInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
 
-    vkGetAccelerationStructureBuildSizesKHR(device->device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildGeometryInfo, &buildRangeInfo.primitiveCount, &buildSizesInfo);
+    vkGetAccelerationStructureBuildSizesKHR_s(device->device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildGeometryInfo, &buildRangeInfo.primitiveCount, &buildSizesInfo);
 
     // Create buffer for acceleration structure
     VkBufferCreateInfo bufferCreateInfo = {};

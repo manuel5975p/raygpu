@@ -330,6 +330,7 @@ constexpr TextureUsage TextureUsage_StorageAttachment = 0x0000000000000040;
 #define TextureUsage_RenderAttachment 0x0000000000000010
 #define TextureUsage_TransientAttachment 0x0000000000000020
 #define TextureUsage_StorageAttachment 0x0000000000000040
+#define BufferUsage_ShaderDeviceAddress 0x0000000001000000
 #endif
 
 
@@ -507,7 +508,7 @@ static inline VkBufferUsageFlags toVulkanBufferUsage(BufferUsage busg) {
         case BufferUsage_MapRead:
             usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
             break;
-            case BufferUsage_MapWrite:
+        case BufferUsage_MapWrite:
             usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
             break;
         case BufferUsage_QueryResolve:

@@ -1046,7 +1046,7 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &deviceExtensionCount, deprops.data());
     
     for(auto e : deprops){
-        //std::cout << e.extensionName << ", ";
+        std::cout << e.extensionName << ", ";
     }
     // Specify device extensions
     
@@ -1097,10 +1097,14 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
 
     createInfo.pEnabledFeatures = &deviceFeatures;
     #if VULKAN_ENABLE_RAYTRACING == 1
-    VkPhysicalDeviceBufferDeviceAddressFeaturesEXT deviceFeaturesAddressExt zeroinit;
-    deviceFeaturesAddressExt.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_EXT;
-    deviceFeaturesAddressExt.bufferDeviceAddress = VK_TRUE;
-    v13features.pNext = &deviceFeaturesAddressExt;
+    VkPhysicalDeviceBufferDeviceAddressFeaturesKHR deviceFeaturesAddressKhr zeroinit;
+    VkPhysicalDeviceAccelerationStructureFeaturesKHR accelerationrStructureFeatures zeroinit;
+    accelerationrStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+    accelerationrStructureFeatures.accelerationStructure = VK_TRUE;
+    deviceFeaturesAddressKhr.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_KHR;
+    deviceFeaturesAddressKhr.bufferDeviceAddress = VK_TRUE;
+    v13features.pNext = &deviceFeaturesAddressKhr;
+    deviceFeaturesAddressKhr.pNext = &accelerationrStructureFeatures;
     #endif
 
     // (Optional) Enable validation layers for device-specific debugging
@@ -1154,7 +1158,9 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     aci.instance = g_vulkanstate.instance;
     aci.physicalDevice = physicalDevice;
     aci.device = ret.first->device;
-
+    #if VULKAN_ENABLE_RAYTRACING == 1
+    aci.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+    #endif
     VkDeviceSize limit = (uint64_t(1) << 30);
     aci.preferredLargeHeapBlockSize = 1 << 15;
     VkPhysicalDeviceMemoryProperties memoryProperties zeroinit;
