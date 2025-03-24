@@ -1039,6 +1039,7 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
         queueCreateInfo.pQueuePriorities = &queuePriority;
         queueCreateInfos.push_back(queueCreateInfo);
     }
+    
     uint32_t deviceExtensionCount = 0;
     vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &deviceExtensionCount, nullptr);
     std::vector<VkExtensionProperties> deprops(deviceExtensionCount);
@@ -1048,16 +1049,25 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
         //std::cout << e.extensionName << ", ";
     }
     // Specify device extensions
+    
     std::vector<const char *> deviceExtensions = {
         #ifndef FORCE_HEADLESS
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        #endif
+        #if VULKAN_ENABLE_RAYTRACING == 1
+        VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,      // "VK_KHR_acceleration_structure"
+        VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,        // "VK_KHR_ray_tracing_pipeline"
+        VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,    // "VK_KHR_deferred_host_operations" - required by acceleration structure
+        VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,         // "VK_EXT_descriptor_indexing" - needed for bindless descriptors
+        VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,       // "VK_KHR_buffer_device_address" - needed by AS
+        VK_KHR_SPIRV_1_4_EXTENSION_NAME,                   // "VK_KHR_spirv_1_4" - required for ray tracing shaders
+        VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME,        // "VK_KHR_shader_float_controls" - required by spirv_1_4
         #endif
         // Add other required extensions here
     };
 
     // Specify device features
-    VkPhysicalDeviceFeatures2 features{};
-    features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+
 
     VkPhysicalDeviceExtendedDynamicState3PropertiesEXT props{};
     props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_PROPERTIES_EXT;
@@ -1070,12 +1080,13 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     VkDeviceCreateInfo createInfo zeroinit;
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
-    #if VULKAN_USE_DYNAMIC_RENDERING == 1
     VkPhysicalDeviceVulkan13Features v13features{};
     v13features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+    #if VULKAN_USE_DYNAMIC_RENDERING == 1
     v13features.dynamicRendering = VK_TRUE;
-    createInfo.pNext = &v13features;
     #endif
+
+    createInfo.pNext = &v13features;
     //features.pNext = &props;
 
     createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
@@ -1085,6 +1096,12 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     createInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
     createInfo.pEnabledFeatures = &deviceFeatures;
+    #if VULKAN_ENABLE_RAYTRACING == 1
+    VkPhysicalDeviceBufferDeviceAddressFeaturesEXT deviceFeaturesAddressExt zeroinit;
+    deviceFeaturesAddressExt.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_EXT;
+    deviceFeaturesAddressExt.bufferDeviceAddress = VK_TRUE;
+    v13features.pNext = &deviceFeaturesAddressExt;
+    #endif
 
     // (Optional) Enable validation layers for device-specific debugging
     ret.first = callocnewpp(WGVKDeviceImpl);
@@ -1181,6 +1198,7 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     {
         auto [device, queue] = ret;
         device->queue = queue;
+        device->physicalDevice = physicalDevice;
         queue->device = device;
     }
     return ret;

@@ -1,3 +1,5 @@
+// clang-format off
+
 #ifndef WGVK_H_INCLUDED
 #define WGVK_H_INCLUDED
 #ifdef __cplusplus
@@ -82,9 +84,6 @@ typedef WGPUBindGroupDescriptor WGVKBindGroupDescriptor;
 struct WGVKTextureImpl;
 struct WGVKTextureViewImpl;
 struct WGVKBufferImpl;
-typedef struct WGVKTextureImpl* WGVKTexture;
-typedef struct WGVKTextureViewImpl* WGVKTextureView;
-typedef struct WGVKBufferImpl* WGVKBuffer;
 struct WGVKBindGroupImpl;
 struct WGVKBindGroupLayoutImpl;
 struct WGVKBufferImpl;
@@ -99,6 +98,8 @@ struct WGVKDeviceImpl;
 struct WGVKSurfaceImpl;
 struct WGVKRenderPipelineImpl;
 struct WGVKComputePipelineImpl;
+struct WGVKTopLevelAccelerationStructureImpl;
+struct WGVKBottomLevelAccelerationStructureImpl;
 struct DescribedPipeline;
 
 typedef struct WGVKSurfaceImpl* WGVKSurface;
@@ -115,6 +116,8 @@ typedef struct WGVKTextureImpl* WGVKTexture;
 typedef struct WGVKTextureViewImpl* WGVKTextureView;
 typedef struct WGVKRenderPipelineImpl* WGVKRenderPipeline;
 typedef struct WGVKComputePipelineImpl* WGVKComputePipeline;
+typedef struct WGVKTopLevelAccelerationStructureImpl* WGVKTopLevelAccelerationStructure;
+typedef struct WGVKBottomLevelAccelerationStructureImpl* WGVKBottomLevelAccelerationStructure;
 
 
 typedef struct WGVKStringView{
@@ -285,6 +288,23 @@ typedef struct WGVKSurfaceConfiguration {
     PresentMode presentMode;          // Present mode for image presentation
 } WGVKSurfaceConfiguration;
 
+typedef struct WGVKBottomLevelAccelerationStructureDescriptor {
+    WGVKBuffer vertexBuffer;            // Buffer containing vertex data
+    uint32_t vertexCount;             // Number of vertices
+    WGVKBuffer indexBuffer;             // Optional index buffer
+    uint32_t indexCount;              // Number of indices
+    VkDeviceSize vertexStride;        // Size of each vertex
+}WGVKBottomLevelAccelerationStructureDescriptor;
+
+typedef struct WGVKTopLevelAccelerationStructureDescriptor {
+    VkAccelerationStructureKHR *bottomLevelAS;         // Array of bottom level acceleration structures
+    uint32_t blasCount;                                // Number of BLAS instances
+    VkTransformMatrixKHR *transformMatrices;           // Optional transformation matrices
+    uint32_t *instanceCustomIndexes;                   // Optional custom instance indexes
+    uint32_t *instanceShaderBindingTableRecordOffsets; // Optional SBT record offsets
+    VkGeometryInstanceFlagsKHR *instanceFlags;         // Optional instance flags
+}WGVKTopLevelAccelerationStructureDescriptor;
+
 
 #endif
 
@@ -340,6 +360,8 @@ void wgvkReleaseBindGroupLayout(WGVKBindGroupLayout bglayout);
 void wgvkReleaseTexture(WGVKTexture texture);
 void wgvkReleaseTextureView(WGVKTextureView view);
 
+WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAccelerationStructure(WGVKDevice device, const WGVKTopLevelAccelerationStructureDescriptor *descriptor);
+WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccelerationStructure(WGVKDevice device, const WGVKBottomLevelAccelerationStructureDescriptor *descriptor);
 #ifdef __cplusplus
 } //extern "C"
 #endif

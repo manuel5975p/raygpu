@@ -4,3 +4,5 @@ IndentWidth: 4
 UseTab: Never
 BreakBeforeBraces: Attach
 AllowShortIfStatementsOnASingleLine: false
+BinPackArguments: false
+BinPackParameters: false

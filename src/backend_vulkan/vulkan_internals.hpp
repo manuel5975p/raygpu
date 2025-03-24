@@ -247,6 +247,7 @@ struct PerframeCache{
 };
 typedef struct WGVKDeviceImpl{
     VkDevice device;
+    VkPhysicalDevice physicalDevice;
     WGVKQueue queue;
     size_t submittedFrames = 0;
     VmaAllocator allocator;
@@ -689,7 +690,17 @@ struct VulkanState {
     //std::vector<VkFramebuffer> swapchainImageFramebuffers;
 
 };  extern VulkanState g_vulkanstate; 
-
+static inline uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+    VkPhysicalDeviceMemoryProperties memProperties zeroinit;
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+            return i;
+        }
+    }
+    assert(false && "failed to find suitable memory type!");
+    return ~0u;
+}
 static inline uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
     const VkPhysicalDeviceMemoryProperties& memProperties = g_vulkanstate.memProperties;
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {

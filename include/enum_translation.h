@@ -299,6 +299,7 @@ constexpr BufferUsage BufferUsage_Uniform = 0x0000000000000040;
 constexpr BufferUsage BufferUsage_Storage = 0x0000000000000080;
 constexpr BufferUsage BufferUsage_Indirect = 0x0000000000000100;
 constexpr BufferUsage BufferUsage_QueryResolve = 0x0000000000000200;
+constexpr BufferUsage BufferUsage_ShaderDeviceAddress = 0x0000000001000000;
 
 constexpr TextureUsage TextureUsage_None = 0x0000000000000000;
 constexpr TextureUsage TextureUsage_CopySrc = 0x0000000000000001;
@@ -511,6 +512,9 @@ static inline VkBufferUsageFlags toVulkanBufferUsage(BufferUsage busg) {
             break;
         case BufferUsage_QueryResolve:
             // Handle Vulkan-specific flags for query resolve if applicable.
+            break;
+        case BufferUsage_ShaderDeviceAddress:
+            usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
             break;
         default:
             // Handle any unrecognized flags if necessary.

@@ -276,7 +276,10 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayoutSet(DescribedPipeline* ret
         .pipeline_LineList = callocnew(WGVKRenderPipelineImpl),
         .pipeline_PointList = callocnew(WGVKRenderPipelineImpl)
     };
-
+    quartet.pipeline_TriangleList->layout = pipelineInfo.layout;
+    quartet.pipeline_TriangleStrip->layout = pipelineInfo.layout;
+    quartet.pipeline_LineList->layout = pipelineInfo.layout;
+    quartet.pipeline_PointList->layout = pipelineInfo.layout;
     if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&quartet.pipeline_TriangleList->renderPipeline) != VK_SUCCESS) {
         TRACELOG(LOG_FATAL, "Trianglelist pipiline creation failed");
     }

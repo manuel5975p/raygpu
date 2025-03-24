@@ -193,6 +193,7 @@ set(RG_SOURCES
 if(SUPPORT_VULKAN_BACKEND)
     list(APPEND RG_SOURCES "src/backend_vulkan/vulkan_textures.cpp")
     list(APPEND RG_SOURCES "src/backend_vulkan/vulkan_pipeline.cpp")
+    list(APPEND RG_SOURCES "src/backend_vulkan/vulkan_raytracing.cpp")
     list(APPEND RG_SOURCES "src/backend_vulkan/backend_vulkan.cpp")
     list(APPEND RG_SOURCES "src/backend_vulkan/vma_impl.cpp")
     list(APPEND RG_SOURCES "src/backend_vulkan/wgvk.cpp")
