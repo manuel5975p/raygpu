@@ -9,7 +9,7 @@ int main(){
 
     WGVKBufferDescriptor bdesc1 zeroinit;
     bdesc1.size = 12;
-    bdesc1.usage = BufferUsage_CopyDst | BufferUsage_ShaderDeviceAddress;
+    bdesc1.usage = BufferUsage_CopyDst | BufferUsage_ShaderDeviceAddress | BufferUsage_AccelerationStructureInput;
     WGVKBuffer vertexBuffer = wgvkDeviceCreateBuffer((WGVKDevice)GetDevice(), &bdesc1);
     blasdesc.vertexBuffer = vertexBuffer;
     blasdesc.vertexCount = 3;

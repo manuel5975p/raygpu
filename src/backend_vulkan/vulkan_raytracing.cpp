@@ -437,7 +437,7 @@ extern "C" WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccel
     VkBufferCreateInfo bufferCreateInfo = {};
     bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferCreateInfo.size = buildSizesInfo.accelerationStructureSize;
-    bufferCreateInfo.usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    bufferCreateInfo.usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
     vkCreateBuffer(device->device, &bufferCreateInfo, nullptr, &impl->accelerationStructureBuffer);
 
@@ -448,7 +448,10 @@ extern "C" WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccel
     allocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocateInfo.allocationSize = memoryRequirements.size;
     allocateInfo.memoryTypeIndex = findMemoryType(device->physicalDevice, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
+    VkMemoryAllocateFlagsInfoKHR infoKhr zeroinit;
+    infoKhr.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO_KHR;
+    infoKhr.flags |= VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
+    allocateInfo.pNext = &infoKhr;
     vkAllocateMemory(device->device, &allocateInfo, nullptr, &impl->accelerationStructureBufferMemory);
     vkBindBufferMemory(device->device, impl->accelerationStructureBuffer, impl->accelerationStructureBufferMemory, 0);
 
@@ -466,7 +469,7 @@ extern "C" WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccel
     VkBufferCreateInfo scratchBufferCreateInfo = {};
     scratchBufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     scratchBufferCreateInfo.size = buildSizesInfo.buildScratchSize;
-    scratchBufferCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    scratchBufferCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
 
     vkCreateBuffer(device->device, &scratchBufferCreateInfo, nullptr, &impl->scratchBuffer);
 
