@@ -54,15 +54,7 @@ static inline uint32_t bitcount64(uint64_t x){
     return std::popcount(x);
     #endif
 }
-struct xorshiftstate{
-    uint64_t x64;
-    constexpr void update(uint32_t x, uint32_t y)noexcept{
-        x64 ^= ((uint64_t(x) << 32) | uint64_t(y)) * 0x2545F4914F6CDD1D;
-        x64 ^= x64 << 13;
-        x64 ^= x64 >> 7;
-        x64 ^= x64 << 17;
-    }
-};
+
 extern "C" void PrepareFrameGlobals();
 extern "C" DescribedBuffer* UpdateVulkanRenderbatch();
 extern "C" void PushUsedBuffer(void* nativeBuffer);
@@ -115,20 +107,7 @@ static inline void UnloadBufferLayoutSet(VertexBufferLayoutSet set){
     std::free(set.layouts);
     std::free(set.attributePool);
 }
-namespace std{
-    template<>
-    struct hash<VertexBufferLayoutSet>{
-        size_t operator()(const VertexBufferLayoutSet& set)const noexcept{
-            xorshiftstate xsstate{uint64_t(0x1919846573) * uint64_t(set.number_of_buffers << 14)};
-            for(uint32_t i = 0;i < set.number_of_buffers;i++){
-                for(uint32_t j = 0;j < set.layouts[i].attributeCount;j++){
-                    xsstate.update(set.layouts[i].attributes[j].offset, set.layouts[i].attributes[j].shaderLocation);
-                }
-            }
-            return xsstate.x64;
-        }
-    };
-}
+
 static inline ShaderSources singleStage(const char* code, ShaderSourceType language, ShaderStage stage){
     ShaderSources sources zeroinit;
     sources.language = language;

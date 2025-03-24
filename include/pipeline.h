@@ -117,10 +117,10 @@ typedef struct DescribedPipelineLayout{
 }DescribedPipelineLayout;
 
 typedef struct RenderPipelineQuartet{
-    NativeRenderPipelineHandle pipeline_TriangleList;
-    NativeRenderPipelineHandle pipeline_TriangleStrip;
-    NativeRenderPipelineHandle pipeline_LineList;
-    NativeRenderPipelineHandle pipeline_PointList;
+    WGVKRenderPipeline pipeline_TriangleList;
+    WGVKRenderPipeline pipeline_TriangleStrip;
+    WGVKRenderPipeline pipeline_LineList;
+    WGVKRenderPipeline pipeline_PointList;
 }RenderPipelineQuartet;
 
 /**
