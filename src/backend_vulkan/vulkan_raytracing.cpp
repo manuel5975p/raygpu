@@ -2,6 +2,24 @@
 #include <macros_and_constants.h>
 #include <vulkan/vulkan.h>
 #include <wgvk.h>
+
+#define RTFunctions \
+X(CreateRayTracingPipelinesKHR) \
+X(CmdBuildAccelerationStructuresKHR) \
+X(GetAccelerationStructureBuildSizesKHR) \
+X(CreateAccelerationStructureKHR) \
+X(DestroyAccelerationStructureKHR) \
+X(GetAccelerationStructureDeviceAddressKHR) \
+X(GetRayTracingShaderGroupHandlesKHR)
+#define X(A) PFN_vk##A fulk##A;
+RTFunctions
+#undef X
+
+extern "C" void raytracing_LoadDeviceFunctions(VkDevice device){
+    #define X(A) fulk##A = (PFN_vk##A)vkGetDeviceProcAddr(device, "vk" #A);
+    RTFunctions
+    #undef X
+}
 static struct {
     PFN_vkCreateRayTracingPipelinesKHR PFN_vkCreateRayTracingPipelinesKHR_ptr;
     PFN_vkCmdBuildAccelerationStructuresKHR PFN_vkCmdBuildAccelerationStructuresKHR_ptr;
@@ -10,105 +28,6 @@ static struct {
     PFN_vkDestroyAccelerationStructureKHR PFN_vkDestroyAccelerationStructureKHR_ptr;
     PFN_vkGetAccelerationStructureDeviceAddressKHR PFN_vkGetAccelerationStructureDeviceAddressKHR_ptr;
 } g_rt_table;
-
-/**
-* Lazy-loads and forwards vkCreateRayTracingPipelinesKHR
-*/
-extern "C" VkResult vkCreateRayTracingPipelinesKHR(
-    VkDevice                                    device,
-    VkDeferredOperationKHR                      deferredOperation,
-    VkPipelineCache                             pipelineCache,
-    uint32_t                                    createInfoCount,
-    const VkRayTracingPipelineCreateInfoKHR*    pCreateInfos,
-    const VkAllocationCallbacks*                pAllocator,
-    VkPipeline*                                 pPipelines){
-
-    if (!g_rt_table.PFN_vkCreateRayTracingPipelinesKHR_ptr) {
-         g_rt_table.PFN_vkCreateRayTracingPipelinesKHR_ptr = (PFN_vkCreateRayTracingPipelinesKHR)vkGetDeviceProcAddr(g_vulkanstate.device->device, "vkCreateRayTracingPipelinesKHR");
-    }
-    rassert(g_rt_table.PFN_vkCreateRayTracingPipelinesKHR_ptr != nullptr, "Function pointer could not be loaded for");
-    
-    if (g_rt_table.PFN_vkCreateRayTracingPipelinesKHR_ptr) {
-        return g_rt_table.PFN_vkCreateRayTracingPipelinesKHR_ptr(device,deferredOperation,pipelineCache,createInfoCount,pCreateInfos,pAllocator,pPipelines);
-    }
-    return VK_ERROR_EXTENSION_NOT_PRESENT;
-}
-/**
-* Lazy-loads and forwards acceleration structure building commands
-*/
-extern "C" void vkCmdBuildAccelerationStructuresKHR(VkCommandBuffer commandBuffer, uint32_t infoCount, const VkAccelerationStructureBuildGeometryInfoKHR *pInfos, const VkAccelerationStructureBuildRangeInfoKHR *const *ppBuildRangeInfos) {
-
-    if (!g_rt_table.PFN_vkCmdBuildAccelerationStructuresKHR_ptr) {
-        g_rt_table.PFN_vkCmdBuildAccelerationStructuresKHR_ptr = (PFN_vkCmdBuildAccelerationStructuresKHR)vkGetDeviceProcAddr(g_vulkanstate.device->device, "vkCmdBuildAccelerationStructuresKHR");
-    }
-    rassert(g_rt_table.PFN_vkCmdBuildAccelerationStructuresKHR_ptr != nullptr, "Function pointer could not be loaded for");
-    
-    if (g_rt_table.PFN_vkCmdBuildAccelerationStructuresKHR_ptr) {
-        g_rt_table.PFN_vkCmdBuildAccelerationStructuresKHR_ptr(commandBuffer, infoCount, pInfos, ppBuildRangeInfos);
-    }
-}
-
-/**
-* Lazy-loads and forwards acceleration structure build size calculations
-*/
-extern "C" void vkGetAccelerationStructureBuildSizesKHR_s(
-    VkDevice device, VkAccelerationStructureBuildTypeKHR buildType, const VkAccelerationStructureBuildGeometryInfoKHR *pBuildInfo, const uint32_t *pMaxPrimitiveCounts, VkAccelerationStructureBuildSizesInfoKHR *pSizeInfo) {
-        
-    if (!g_rt_table.PFN_vkGetAccelerationStructureBuildSizesKHR_ptr) {
-        g_rt_table.PFN_vkGetAccelerationStructureBuildSizesKHR_ptr = (PFN_vkGetAccelerationStructureBuildSizesKHR)vkGetDeviceProcAddr(g_vulkanstate.device->device, "vkGetAccelerationStructureBuildSizesKHR");
-    }
-    rassert(g_rt_table.PFN_vkGetAccelerationStructureBuildSizesKHR_ptr != nullptr, "Function pointer could not be loaded for");
-    if (g_rt_table.PFN_vkGetAccelerationStructureBuildSizesKHR_ptr) {
-        g_rt_table.PFN_vkGetAccelerationStructureBuildSizesKHR_ptr(g_vulkanstate.device->device, buildType, pBuildInfo, pMaxPrimitiveCounts, pSizeInfo);
-    }
-}
-    
-/**
-* Lazy-loads and forwards acceleration structure creation
-*/
-extern "C" VkResult vkCreateAccelerationStructureKHR(VkDevice device, const VkAccelerationStructureCreateInfoKHR *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkAccelerationStructureKHR *pAccelerationStructure) {
-    
-    if (!g_rt_table.PFN_vkCreateAccelerationStructureKHR_ptr) {
-        g_rt_table.PFN_vkCreateAccelerationStructureKHR_ptr = (PFN_vkCreateAccelerationStructureKHR)vkGetDeviceProcAddr(g_vulkanstate.device->device, "vkCreateAccelerationStructureKHR");
-    }
-    rassert(g_rt_table.PFN_vkCreateAccelerationStructureKHR_ptr != nullptr, "Function pointer could not be loaded for");
-    if (g_rt_table.PFN_vkCreateAccelerationStructureKHR_ptr) {
-        return g_rt_table.PFN_vkCreateAccelerationStructureKHR_ptr(g_vulkanstate.device->device, pCreateInfo, pAllocator, pAccelerationStructure);
-    }
-    
-    return VK_ERROR_EXTENSION_NOT_PRESENT;
-}
-
-/**
-* Lazy-loads and forwards acceleration structure destruction
-*/
-extern "C" void vkDestroyAccelerationStructureKHR(VkDevice device, VkAccelerationStructureKHR accelerationStructure, const VkAllocationCallbacks *pAllocator) {
-    
-    if (!g_rt_table.PFN_vkDestroyAccelerationStructureKHR_ptr) {
-        g_rt_table.PFN_vkDestroyAccelerationStructureKHR_ptr = (PFN_vkDestroyAccelerationStructureKHR)vkGetDeviceProcAddr(g_vulkanstate.device->device, "vkDestroyAccelerationStructureKHR");
-    }
-    
-    rassert(g_rt_table.PFN_vkCreateAccelerationStructureKHR_ptr != nullptr, "Function pointer could not be loaded for");
-    if (g_rt_table.PFN_vkDestroyAccelerationStructureKHR_ptr) {
-        g_rt_table.PFN_vkDestroyAccelerationStructureKHR_ptr(g_vulkanstate.device->device, accelerationStructure, pAllocator);
-    }
-}
-
-/**
- * Lazy-loads and forwards retrieval of acceleration structure device address
- */
-extern "C" VkDeviceAddress VKAPI_CALL vkGetAccelerationStructureDeviceAddressKHR(VkDevice device, const VkAccelerationStructureDeviceAddressInfoKHR *pInfo) {
-
-    if (!g_rt_table.PFN_vkGetAccelerationStructureDeviceAddressKHR_ptr) {
-        g_rt_table.PFN_vkGetAccelerationStructureDeviceAddressKHR_ptr = (PFN_vkGetAccelerationStructureDeviceAddressKHR)vkGetDeviceProcAddr(g_vulkanstate.device->device, "vkGetAccelerationStructureDeviceAddressKHR");
-    }
-
-    if (g_rt_table.PFN_vkGetAccelerationStructureDeviceAddressKHR_ptr) {
-        return g_rt_table.PFN_vkGetAccelerationStructureDeviceAddressKHR_ptr(g_vulkanstate.device->device, pInfo);
-    }
-
-    return 0;
-}
 
 struct triangle {
     vertex v1, v2, v3;
@@ -195,7 +114,7 @@ extern "C" WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAcceleratio
         VkAccelerationStructureDeviceAddressInfoKHR addressInfo zeroinit;
         addressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
         addressInfo.accelerationStructure = descriptor->bottomLevelAS[i]->accelerationStructure;
-        uint64_t blasAddress = vkGetAccelerationStructureDeviceAddressKHR(device->device, &addressInfo);
+        uint64_t blasAddress = fulkGetAccelerationStructureDeviceAddressKHR(device->device, &addressInfo);
 
         VkAccelerationStructureInstanceKHR &instance = instanceData[i];
         // Set transform matrix (identity if not provided)
@@ -256,7 +175,7 @@ extern "C" WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAcceleratio
     VkAccelerationStructureBuildSizesInfoKHR buildSizesInfo = {};
     buildSizesInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
 
-    vkGetAccelerationStructureBuildSizesKHR_s(device->device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildGeometryInfo, &buildRangeInfo.primitiveCount, &buildSizesInfo);
+    fulkGetAccelerationStructureBuildSizesKHR(device->device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildGeometryInfo, &buildRangeInfo.primitiveCount, &buildSizesInfo);
 
     // Create buffer for acceleration structure
     VkBufferCreateInfo bufferCreateInfo = {};
@@ -289,7 +208,7 @@ extern "C" WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAcceleratio
     createInfo.size = buildSizesInfo.accelerationStructureSize;
     createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
 
-    vkCreateAccelerationStructureKHR(device->device, &createInfo, nullptr, &impl->accelerationStructure);
+    fulkCreateAccelerationStructureKHR(device->device, &createInfo, nullptr, &impl->accelerationStructure);
 
     // Create scratch buffer
     VkBufferCreateInfo scratchBufferCreateInfo = {};
@@ -341,7 +260,7 @@ extern "C" WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAcceleratio
     const VkAccelerationStructureBuildRangeInfoKHR *pBuildRangeInfo = &buildRangeInfo;
     vkGetDeviceProcAddr(device->device, "vkCmdBuildAccelerationStructuresKHR");
 
-    vkCmdBuildAccelerationStructuresKHR(commandBuffer, 1, &buildGeometryInfo, &pBuildRangeInfo);
+    fulkCmdBuildAccelerationStructuresKHR(commandBuffer, 1, &buildGeometryInfo, &pBuildRangeInfo);
 
     vkEndCommandBuffer(commandBuffer);
 
@@ -364,7 +283,7 @@ void wgvkDestroyTopLevelAccelerationStructure(WGVKTopLevelAccelerationStructureI
     if (!impl)
         return;
 
-    vkDestroyAccelerationStructureKHR(impl->device, impl->accelerationStructure, nullptr);
+    fulkDestroyAccelerationStructureKHR(impl->device, impl->accelerationStructure, nullptr);
     vkDestroyBuffer(impl->device, impl->accelerationStructureBuffer, nullptr);
     vkFreeMemory(impl->device, impl->accelerationStructureBufferMemory, nullptr);
     vkDestroyBuffer(impl->device, impl->scratchBuffer, nullptr);
@@ -385,7 +304,7 @@ uint64_t wgvkGetAccelerationStructureDeviceAddress(VkDevice device, VkAccelerati
     addressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
     addressInfo.accelerationStructure = accelerationStructure;
 
-    return vkGetAccelerationStructureDeviceAddressKHR(device, &addressInfo);
+    return fulkGetAccelerationStructureDeviceAddressKHR(device, &addressInfo);
 }
 
 /**
@@ -459,8 +378,7 @@ extern "C" WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccel
     VkAccelerationStructureBuildSizesInfoKHR buildSizesInfo = {};
     buildSizesInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
 
-    vkGetAccelerationStructureBuildSizesKHR_s(device->device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildGeometryInfo, &buildRangeInfo.primitiveCount, &buildSizesInfo);
-
+    fulkGetAccelerationStructureBuildSizesKHR(device->device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildGeometryInfo, &buildRangeInfo.primitiveCount, &buildSizesInfo);
     // Create buffer for acceleration structure
     VkBufferCreateInfo bufferCreateInfo = {};
     bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -491,7 +409,7 @@ extern "C" WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccel
     createInfo.size = buildSizesInfo.accelerationStructureSize;
     createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
 
-    vkCreateAccelerationStructureKHR(device->device, &createInfo, nullptr, &impl->accelerationStructure);
+    fulkCreateAccelerationStructureKHR(device->device, &createInfo, nullptr, &impl->accelerationStructure);
 
     // Create scratch buffer
     VkBufferCreateInfo scratchBufferCreateInfo = {};
@@ -539,7 +457,7 @@ extern "C" WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccel
     vkBeginCommandBuffer(commandBuffer, &beginInfo);
 
     const VkAccelerationStructureBuildRangeInfoKHR *pBuildRangeInfo = &buildRangeInfo;
-    vkCmdBuildAccelerationStructuresKHR(commandBuffer, 1, &buildGeometryInfo, &pBuildRangeInfo);
+    fulkCmdBuildAccelerationStructuresKHR(commandBuffer, 1, &buildGeometryInfo, &pBuildRangeInfo);
 
     vkEndCommandBuffer(commandBuffer);
 
@@ -560,7 +478,7 @@ void wgvkDestroyAccelerationStructure(WGVKBottomLevelAccelerationStructure impl)
     if (!impl)
         return;
 
-    vkDestroyAccelerationStructureKHR(impl->device, impl->accelerationStructure, nullptr);
+    fulkDestroyAccelerationStructureKHR(impl->device, impl->accelerationStructure, nullptr);
     vkDestroyBuffer(impl->device, impl->accelerationStructureBuffer, nullptr);
     vkFreeMemory(impl->device, impl->accelerationStructureBufferMemory, nullptr);
     vkDestroyBuffer(impl->device, impl->scratchBuffer, nullptr);
@@ -708,7 +626,7 @@ void wgvkDestroyAccelerationStructure(WGVKBottomLevelAccelerationStructure impl)
     pipelineInfo.pDynamicState = &dynamicState;
     
     // Create the ray tracing pipeline
-    VkResult result = vkCreateRayTracingPipelinesKHR(
+    VkResult result = fulkCreateRayTracingPipelinesKHR(
         g_vulkanstate.device->device,                  // Need to get this from elsewhere
         VK_NULL_HANDLE,          // Deferred operation handle
         VK_NULL_HANDLE,           // Pipeline cache (optional)
@@ -720,6 +638,7 @@ void wgvkDestroyAccelerationStructure(WGVKBottomLevelAccelerationStructure impl)
     
     if (result != VK_SUCCESS) {
         // Handle error
+        rg_trap();
         return VK_NULL_HANDLE;
     }
     

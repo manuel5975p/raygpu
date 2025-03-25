@@ -410,7 +410,7 @@ void negotiateSurfaceFormatAndPresentMode(const void* SurfaceHandle){
 void* GetInstance(){
     return g_vulkanstate.instance;
 }
-void* GetDevice(){
+WGVKDevice GetDevice(){
     return g_vulkanstate.device;
 }
 void* GetAdapter(){

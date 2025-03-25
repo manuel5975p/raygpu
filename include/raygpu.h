@@ -1385,11 +1385,11 @@ EXTERN_C_BEGIN
     void DrawSplineSegmentBezierQuadratic(Vector2 p1, Vector2 c2, Vector2 p3, float thick, Color color);
     void DrawSplineSegmentBezierCubic(Vector2 p1, Vector2 c2, Vector2 c3, Vector2 p4, float thick, Color color);
 
-    void* GetInstance(cwoid);
-    void* GetAdapter (cwoid);
-    void* GetDevice  (cwoid);
+    void* GetInstance   (cwoid);
+    void* GetAdapter    (cwoid);
+    WGVKDevice GetDevice(cwoid);
     #if SUPPORT_VULKAN_BACKEND == 1
-    void* GetQueue   (cwoid);
+    void* GetQueue      (cwoid);
     #else
     WGPUQueue GetQueue   (cwoid);
     #endif

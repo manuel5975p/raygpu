@@ -158,7 +158,7 @@ int main(){
     WGVKCommandEncoderDescriptor cedecs zeroinit;
     WGVKCommandEncoder cmdEncoder = wgvkDeviceCreateCommandEncoder((WGVKDevice)GetDevice(), &cedecs);
     vkCmdBindPipeline(cmdEncoder->buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, rtpl);
-
+    //vkGetRayTracingShaderGroupHandlesKHR(VkDevice device, VkPipeline pipeline, uint32_t firstGroup, uint32_t groupCount, size_t dataSize, void *pData) s;
     while(!WindowShouldClose()){
         BeginDrawing();
         ClearBackground(DARKGRAY);
@@ -166,3 +166,5 @@ int main(){
         EndDrawing();
     }
 }
+
+
