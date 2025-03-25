@@ -36,11 +36,17 @@ extern "C" DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sources){
                         return ShaderStage_Geometry;
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_RAYGEN_BIT_KHR:
                         return ShaderStage_RayGen;
+                    case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_CLOSEST_HIT_BIT_KHR:
+                        return ShaderStage_ClosestHit;
+                    case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_MISS_BIT_KHR:
+                        return ShaderStage_Miss;
                     default:
                         TRACELOG(LOG_FATAL, "Unknown shader stage: %d", (int)epStage);
-                        return ShaderStage_Vertex;
+                        return ShaderStage_EnumCount;
                 }
             }(epStage);
+            
+            ret.reflectionInfo.ep[stage].stage = stage;
             ret.stages[stage].module = insert;
             std::memset(ret.reflectionInfo.ep[stage].name, 0, sizeof(ret.reflectionInfo.ep[stage].name));
             uint32_t eplength = std::strlen(module.GetEntryPointName(i));

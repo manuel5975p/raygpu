@@ -702,6 +702,26 @@ static inline VkCompareOp toVulkanCompareFunction(CompareFunction cf) {
     }
 }
 
+static inline VkShaderStageFlagBits toVulkanShaderStage(ShaderStage stage) {
+    switch (stage){
+        case ShaderStage_Vertex:         return VK_SHADER_STAGE_VERTEX_BIT;
+        case ShaderStage_TessControl:    return VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+        case ShaderStage_TessEvaluation: return VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+        case ShaderStage_Geometry:       return VK_SHADER_STAGE_GEOMETRY_BIT;
+        case ShaderStage_Fragment:       return VK_SHADER_STAGE_FRAGMENT_BIT;
+        case ShaderStage_Compute:        return VK_SHADER_STAGE_COMPUTE_BIT;
+        case ShaderStage_RayGen:         return VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+        case ShaderStage_Miss:           return VK_SHADER_STAGE_MISS_BIT_KHR;
+        case ShaderStage_ClosestHit:     return VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+        case ShaderStage_AnyHit:         return VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
+        case ShaderStage_Intersect:      return VK_SHADER_STAGE_INTERSECTION_BIT_KHR;
+        case ShaderStage_Callable:       return VK_SHADER_STAGE_CALLABLE_BIT_KHR;
+        case ShaderStage_Task:           return VK_SHADER_STAGE_TASK_BIT_EXT;
+        case ShaderStage_Mesh:           return VK_SHADER_STAGE_MESH_BIT_EXT;
+        default: rg_unreachable();
+    }
+}
+
 static inline VkBlendFactor toVulkanBlendFactor(BlendFactor bf) {
     switch (bf) {
     case BlendFactor_Zero:

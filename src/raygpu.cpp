@@ -451,7 +451,7 @@ DescribedShaderModule LoadShaderModule(ShaderSources sources){
     
     if(sources.language == ShaderSourceType::sourceTypeUnknown){
         detectShaderLanguage(&sources);
-        rassert(sources.language != ShaderSourceType::sourceTypeUnknown, "Shader source must be detectable: GLSL requires #version, wgsl an @binding or @location token");
+        rassert(sources.language != ShaderSourceType::sourceTypeUnknown, "Shader source must be detectable: GLSL requires #version, wgsl @binding or @location token");
     }
     
     switch (sources.language){

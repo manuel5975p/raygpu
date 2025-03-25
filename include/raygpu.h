@@ -661,17 +661,14 @@ typedef struct ShaderEntryPoint{
     char name[16];
 }ShaderEntryPoint;
 
-typedef struct ShaderRecfletionInfo{
+typedef struct ShaderRefletionInfo{
     ShaderEntryPoint ep[16];
-
     StringToUniformMap* uniforms;
     StringToAttributeMap* attributes;
-
 }ShaderReflectionInfo;
 
 typedef struct StageInModule{
-    //const char* entryPoint;
-    NativeShaderModuleHandle module;
+    NativeShaderModuleHandle module; //VkShaderModule
 }StageInModule;
 
 typedef struct DescribedShaderModule{
@@ -1180,6 +1177,7 @@ EXTERN_C_BEGIN
 
     DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, bool compute);
 
+    VkPipeline         LoadRTPipeline(const DescribedShaderModule* module);
     DescribedPipeline* ClonePipeline(const DescribedPipeline* pl);
     DescribedPipeline* ClonePipelineWithSettings(const DescribedPipeline* pl, RenderSettings settings);
     DescribedPipeline* LoadPipeline(const char* shaderSource);

@@ -572,6 +572,12 @@ VkPhysicalDeviceType preferredPhysicalDeviceTypes[3] = {
     VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU,
     VK_PHYSICAL_DEVICE_TYPE_CPU
 };
+int getPhysicalDeviceTypeRank(VkPhysicalDeviceType x){
+    for(uint32_t i = 0;i < sizeof(preferredPhysicalDeviceTypes) / sizeof(preferredPhysicalDeviceTypes[0]);i++){
+        if(preferredPhysicalDeviceTypes[i] == x)return i;
+    }
+    return sizeof(preferredPhysicalDeviceTypes) / sizeof(preferredPhysicalDeviceTypes[0]);
+}
 static inline VkPhysicalDeviceType tvkpdt(AdapterType atype){
     switch(atype){
         case DISCRETE_GPU: return VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
@@ -583,7 +589,9 @@ static inline VkPhysicalDeviceType tvkpdt(AdapterType atype){
 extern "C" void RequestAdapterType(AdapterType type){
     VkPhysicalDeviceType vktype = tvkpdt(type);
     auto it = std::find(std::begin(preferredPhysicalDeviceTypes), std::end(preferredPhysicalDeviceTypes), vktype);
-    std::iter_swap(std::begin(preferredPhysicalDeviceTypes), it);
+    VkPhysicalDeviceType ittype = *it;
+    std::move_backward(std::begin(preferredPhysicalDeviceTypes), it, std::begin(preferredPhysicalDeviceTypes) + 1);
+    *std::begin(preferredPhysicalDeviceTypes) = ittype;
 }
 
 // Function to pick a suitable physical device (GPU)
@@ -597,28 +605,41 @@ VkPhysicalDevice pickPhysicalDevice() {
 
     std::vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(g_vulkanstate.instance, &deviceCount, devices.data());
+    
+    std::vector<std::pair<VkPhysicalDevice, VkPhysicalDeviceProperties>> dwp;
+    dwp.reserve(deviceCount);
+
     VkPhysicalDevice ret{};
     for (const auto &device : devices) {
         VkPhysicalDeviceProperties props;
         vkGetPhysicalDeviceProperties(device, &props);
+        dwp.emplace_back(device, props);
         TRACELOG(LOG_INFO, "Found device: %s", props.deviceName);
     }
-    for(uint32_t i = 0;i < (sizeof(preferredPhysicalDeviceTypes) / sizeof(preferredPhysicalDeviceTypes[0]));i++){
-        for (const auto &device : devices) {
-            VkPhysicalDeviceProperties props{};
-            vkGetPhysicalDeviceProperties(device, &props);
-            if (props.deviceType == preferredPhysicalDeviceTypes[i]) {
-                ret = device;
-                goto picked;
-            }
-        }
-    }
+    
+    std::sort(dwp.begin(), dwp.end(), [](const std::pair<VkPhysicalDevice, VkPhysicalDeviceProperties>& a, const std::pair<VkPhysicalDevice, VkPhysicalDeviceProperties>& b){
+        if(getPhysicalDeviceTypeRank(a.second.deviceType) < getPhysicalDeviceTypeRank(b.second.deviceType))return true;
+        else if(getPhysicalDeviceTypeRank(a.second.deviceType) > getPhysicalDeviceTypeRank(b.second.deviceType))return false;
+        return (a.second.driverVersion > b.second.driverVersion);
+    });
+    ret = dwp.front().first;
+
+    //for(uint32_t i = 0;i < (sizeof(preferredPhysicalDeviceTypes) / sizeof(preferredPhysicalDeviceTypes[0]));i++){
+    //    for (const auto &device : devices) {
+    //        VkPhysicalDeviceProperties props{};
+    //        vkGetPhysicalDeviceProperties(device, &props);
+    //        if (props.deviceType == preferredPhysicalDeviceTypes[i]) {
+    //            ret = device;
+    //            goto picked;
+    //        }
+    //    }
+    //}
     
 
-    if (g_vulkanstate.physicalDevice == VK_NULL_HANDLE) {
-        TRACELOG(LOG_FATAL, "Failed to find a suitable GPU!");
-    }
-picked:
+    //if (g_vulkanstate.physicalDevice == VK_NULL_HANDLE) {
+    //    TRACELOG(LOG_FATAL, "Failed to find a suitable GPU!");
+    //}
+//picked:
     VkPhysicalDeviceProperties pProperties;
     vkGetPhysicalDeviceProperties(ret, &pProperties);
     auto deviceTypeDescription = [](VkPhysicalDeviceType type){

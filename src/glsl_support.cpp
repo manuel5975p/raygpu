@@ -316,7 +316,7 @@ EShLanguage ShaderStageToGlslanguage(ShaderStage stage){
     }
 }
 std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributesGLSL(ShaderSources sources){
-    const int glslVersion = 450;
+    const int glslVersion = 460;
     
     if (!glslang_initialized){
         glslang::InitializeProcess();
@@ -331,6 +331,7 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
         }
         ShaderStage stage = (ShaderStage)std::countr_zero(uint32_t(sources.sources[i].stageMask));
         shaders.emplace_back(ShaderStageToGlslanguage(stage), std::make_unique<glslang::TShader>(ShaderStageToGlslanguage(stage)));
+        shaders.back().second->setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_4);
     }
 
     const TBuiltInResource* Resources = &DefaultTBuiltInResource_RG;

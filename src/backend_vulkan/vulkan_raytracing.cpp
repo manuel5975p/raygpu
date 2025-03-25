@@ -3,6 +3,7 @@
 #include <vulkan/vulkan.h>
 #include <wgvk.h>
 static struct {
+    PFN_vkCreateRayTracingPipelinesKHR PFN_vkCreateRayTracingPipelinesKHR_ptr;
     PFN_vkCmdBuildAccelerationStructuresKHR PFN_vkCmdBuildAccelerationStructuresKHR_ptr;
     PFN_vkGetAccelerationStructureBuildSizesKHR PFN_vkGetAccelerationStructureBuildSizesKHR_ptr;
     PFN_vkCreateAccelerationStructureKHR PFN_vkCreateAccelerationStructureKHR_ptr;
@@ -10,6 +11,28 @@ static struct {
     PFN_vkGetAccelerationStructureDeviceAddressKHR PFN_vkGetAccelerationStructureDeviceAddressKHR_ptr;
 } g_rt_table;
 
+/**
+* Lazy-loads and forwards vkCreateRayTracingPipelinesKHR
+*/
+extern "C" VkResult vkCreateRayTracingPipelinesKHR(
+    VkDevice                                    device,
+    VkDeferredOperationKHR                      deferredOperation,
+    VkPipelineCache                             pipelineCache,
+    uint32_t                                    createInfoCount,
+    const VkRayTracingPipelineCreateInfoKHR*    pCreateInfos,
+    const VkAllocationCallbacks*                pAllocator,
+    VkPipeline*                                 pPipelines){
+
+    if (!g_rt_table.PFN_vkCreateRayTracingPipelinesKHR_ptr) {
+         g_rt_table.PFN_vkCreateRayTracingPipelinesKHR_ptr = (PFN_vkCreateRayTracingPipelinesKHR)vkGetDeviceProcAddr(g_vulkanstate.device->device, "vkCreateRayTracingPipelinesKHR");
+    }
+    rassert(g_rt_table.PFN_vkCreateRayTracingPipelinesKHR_ptr != nullptr, "Function pointer could not be loaded for");
+    
+    if (g_rt_table.PFN_vkCreateRayTracingPipelinesKHR_ptr) {
+        return g_rt_table.PFN_vkCreateRayTracingPipelinesKHR_ptr(device,deferredOperation,pipelineCache,createInfoCount,pCreateInfos,pAllocator,pPipelines);
+    }
+    return VK_ERROR_EXTENSION_NOT_PRESENT;
+}
 /**
 * Lazy-loads and forwards acceleration structure building commands
 */
@@ -545,3 +568,166 @@ void wgvkDestroyAccelerationStructure(WGVKBottomLevelAccelerationStructure impl)
 
     std::free(impl);
 }
+/**
+ * Creates a pipeline layout from uniform reflection data.
+ */
+ VkPipelineLayout CreatePipelineLayout(WGVKDevice device, const StringToUniformMap* uniforms) {
+    VkPipelineLayout layout = VK_NULL_HANDLE;
+    
+    // Create descriptor set layouts from uniform map
+    std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
+    std::vector<ResourceTypeDescriptor> flat;
+    for(const auto& [_, desc] : uniforms->uniforms){
+        flat.push_back(desc);
+    }
+    std::sort(flat.begin(), flat.end(), [](const ResourceTypeDescriptor& a, const ResourceTypeDescriptor& b){
+        return a.location < b.location;
+    });
+    WGVKBindGroupLayout bindgroup = wgvkDeviceCreateBindGroupLayout(device, flat.data(), flat.size());
+    descriptorSetLayouts.push_back(bindgroup->layout);
+    // Parse uniform map to create descriptor sets
+    // Would need to iterate through uniforms and create appropriate bindings
+    
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size());
+    pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
+    
+    // Add push constants if needed
+    pipelineLayoutInfo.pushConstantRangeCount = 0;
+    pipelineLayoutInfo.pPushConstantRanges = nullptr;
+    
+    VkResult result = vkCreatePipelineLayout(
+        device->device,               // Need to get this from elsewhere
+        &pipelineLayoutInfo,
+        nullptr,
+        &layout
+    );
+    
+    if (result != VK_SUCCESS) {
+        // Handle error
+        return VK_NULL_HANDLE;
+    }
+    
+    return layout;
+}
+
+/**
+ * Loads a ray tracing pipeline from shader modules.
+ * 
+ * Creates a VkRayTracingPipelineKHR with appropriate stage and group info
+ * derived from reflection data in the module.
+ */
+ VkPipeline LoadRTPipeline(const DescribedShaderModule* module) {
+    VkPipeline pipeline = VK_NULL_HANDLE;
+    
+    // Create shader stages from modules
+    std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
+    for (uint32_t i = 0; i < 16; i++) {
+        if(module->stages[i].module != VK_NULL_HANDLE){
+            const ShaderEntryPoint& entryPoint = module->reflectionInfo.ep[i];
+            VkPipelineShaderStageCreateInfo stageInfo zeroinit;
+            stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+            stageInfo.stage = toVulkanShaderStage(entryPoint.stage);
+            stageInfo.module = (VkShaderModule)module->stages[i].module;
+            stageInfo.pName = entryPoint.name;
+            shaderStages.push_back(stageInfo);
+        }
+    }
+    
+    // Create shader groups (general, triangles hit, procedural hit)
+    std::vector<VkRayTracingShaderGroupCreateInfoKHR> shaderGroups;
+    
+    // Group configuration would be derived from reflection info
+    // We need to match stages with their intended group type and index
+    for (size_t i = 0; i < shaderStages.size(); ++i) {
+        auto stage = shaderStages[i].stage;
+        
+        VkRayTracingShaderGroupCreateInfoKHR group = {};
+        group.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
+        
+        // Determine group type based on shader stage
+        if (stage == VK_SHADER_STAGE_RAYGEN_BIT_KHR || 
+            stage == VK_SHADER_STAGE_MISS_BIT_KHR || 
+            stage == VK_SHADER_STAGE_CALLABLE_BIT_KHR) {
+            group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+            group.generalShader = i;
+            group.closestHitShader = VK_SHADER_UNUSED_KHR;
+            group.anyHitShader = VK_SHADER_UNUSED_KHR;
+            group.intersectionShader = VK_SHADER_UNUSED_KHR;
+        } 
+        else if (stage == VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR || 
+                 stage == VK_SHADER_STAGE_ANY_HIT_BIT_KHR) {
+            group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
+            group.generalShader = VK_SHADER_UNUSED_KHR;
+            
+            if (stage == VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
+                group.closestHitShader = i;
+            else
+                group.closestHitShader = VK_SHADER_UNUSED_KHR;
+                
+            if (stage == VK_SHADER_STAGE_ANY_HIT_BIT_KHR)
+                group.anyHitShader = i;
+            else
+                group.anyHitShader = VK_SHADER_UNUSED_KHR;
+                
+            group.intersectionShader = VK_SHADER_UNUSED_KHR;
+        }
+        else if (stage == VK_SHADER_STAGE_INTERSECTION_BIT_KHR) {
+            group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR;
+            group.generalShader = VK_SHADER_UNUSED_KHR;
+            group.intersectionShader = i;
+            
+            // The closest hit and any hit shaders would need to be set separately
+            // based on reflection info binding
+            group.closestHitShader = VK_SHADER_UNUSED_KHR;
+            group.anyHitShader = VK_SHADER_UNUSED_KHR;
+        }
+        
+        shaderGroups.push_back(group);
+    }
+    
+    // Setup ray tracing pipeline libraries (if needed)
+    VkPipelineLibraryCreateInfoKHR libraryInfo = {};
+    libraryInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LIBRARY_CREATE_INFO_KHR;
+    libraryInfo.libraryCount = 0;
+    libraryInfo.pLibraries = nullptr;
+    
+    // Set up pipeline layout from uniforms
+    VkPipelineLayout pipelineLayout = CreatePipelineLayout(g_vulkanstate.device, module->reflectionInfo.uniforms);
+    
+    // Configure dynamic state if needed
+    VkPipelineDynamicStateCreateInfo dynamicState = {};
+    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    
+    // Create the ray tracing pipeline
+    VkRayTracingPipelineCreateInfoKHR pipelineInfo = {};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR;
+    pipelineInfo.stageCount = static_cast<uint32_t>(shaderStages.size());
+    pipelineInfo.pStages = shaderStages.data();
+    pipelineInfo.groupCount = static_cast<uint32_t>(shaderGroups.size());
+    pipelineInfo.pGroups = shaderGroups.data();
+    pipelineInfo.maxPipelineRayRecursionDepth = 5; // Get from reflection info if available
+    pipelineInfo.layout = pipelineLayout;
+    pipelineInfo.pDynamicState = &dynamicState;
+    
+    // Create the ray tracing pipeline
+    VkResult result = vkCreateRayTracingPipelinesKHR(
+        g_vulkanstate.device->device,                  // Need to get this from elsewhere
+        VK_NULL_HANDLE,          // Deferred operation handle
+        VK_NULL_HANDLE,           // Pipeline cache (optional)
+        1,                       // Create info count
+        &pipelineInfo,           // Create info
+        nullptr,                 // Allocator
+        &pipeline                // Output pipeline handle
+    );
+    
+    if (result != VK_SUCCESS) {
+        // Handle error
+        return VK_NULL_HANDLE;
+    }
+    
+    return pipeline;
+}
+
+
