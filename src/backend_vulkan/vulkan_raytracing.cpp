@@ -171,7 +171,7 @@ extern "C" WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAcceleratio
 
         VkAccelerationStructureDeviceAddressInfoKHR addressInfo zeroinit;
         addressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
-        addressInfo.accelerationStructure = descriptor->bottomLevelAS[i];
+        addressInfo.accelerationStructure = descriptor->bottomLevelAS[i]->accelerationStructure;
         uint64_t blasAddress = vkGetAccelerationStructureDeviceAddressKHR(device->device, &addressInfo);
 
         VkAccelerationStructureInstanceKHR &instance = instanceData[i];
@@ -249,6 +249,11 @@ extern "C" WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAcceleratio
     asAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     asAllocateInfo.allocationSize = memoryRequirements.size;
     asAllocateInfo.memoryTypeIndex = findMemoryType(device->physicalDevice, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    
+    VkMemoryAllocateFlagsInfoKHR infoKhr zeroinit;
+    infoKhr.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO_KHR;
+    infoKhr.flags |= VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
+    asAllocateInfo.pNext = &infoKhr;
 
     vkAllocateMemory(device->device, &asAllocateInfo, nullptr, &impl->accelerationStructureBufferMemory);
     vkBindBufferMemory(device->device, impl->accelerationStructureBuffer, impl->accelerationStructureBufferMemory, 0);

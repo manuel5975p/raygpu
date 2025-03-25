@@ -297,12 +297,12 @@ typedef struct WGVKBottomLevelAccelerationStructureDescriptor {
 }WGVKBottomLevelAccelerationStructureDescriptor;
 
 typedef struct WGVKTopLevelAccelerationStructureDescriptor {
-    VkAccelerationStructureKHR *bottomLevelAS;         // Array of bottom level acceleration structures
-    uint32_t blasCount;                                // Number of BLAS instances
-    VkTransformMatrixKHR *transformMatrices;           // Optional transformation matrices
-    uint32_t *instanceCustomIndexes;                   // Optional custom instance indexes
-    uint32_t *instanceShaderBindingTableRecordOffsets; // Optional SBT record offsets
-    VkGeometryInstanceFlagsKHR *instanceFlags;         // Optional instance flags
+    WGVKBottomLevelAccelerationStructure *bottomLevelAS;     // Array of bottom level acceleration structures
+    uint32_t blasCount;                                      // Number of BLAS instances
+    VkTransformMatrixKHR *transformMatrices;                 // Optional transformation matrices
+    uint32_t *instanceCustomIndexes;                         // Optional custom instance indexes
+    uint32_t *instanceShaderBindingTableRecordOffsets;       // Optional SBT record offsets
+    VkGeometryInstanceFlagsKHR *instanceFlags;               // Optional instance flags
 }WGVKTopLevelAccelerationStructureDescriptor;
 
 

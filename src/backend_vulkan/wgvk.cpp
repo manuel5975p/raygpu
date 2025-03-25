@@ -25,6 +25,7 @@ extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const WGVKBuffer
     //VkResult bufferCreateResult = vkCreateBuffer(device->device, &bufferDesc, nullptr, &wgvkBuffer->buffer);
     //VkMemoryRequirements memRequirements;
     //vkGetBufferMemoryRequirements(g_vulkanstate.device->device, wgvkBuffer->buffer, &memRequirements);
+    
     VkMemoryPropertyFlags propertyToFind = 0;
     if(desc->usage & (BufferUsage_MapRead | BufferUsage_MapWrite)){
         propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;

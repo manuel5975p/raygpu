@@ -34,6 +34,8 @@ extern "C" DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sources){
                         return ShaderStage_Compute;
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_GEOMETRY_BIT:
                         return ShaderStage_Geometry;
+                    case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_RAYGEN_BIT_KHR:
+                        return ShaderStage_RayGen;
                     default:
                         TRACELOG(LOG_FATAL, "Unknown shader stage: %d", (int)epStage);
                         return ShaderStage_Vertex;

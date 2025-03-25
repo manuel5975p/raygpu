@@ -255,9 +255,9 @@ std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char
 }
 std::vector<uint32_t> glsl_to_spirv_single(const char* cs, EShLanguage stage){
     glslang::TShader shader(stage);
-    shader.setEnvInput(glslang::EShSourceGlsl, stage, glslang::EShClientOpenGL, 450);
+    shader.setEnvInput (glslang::EShSourceGlsl, stage, glslang::EShClientOpenGL, 460);
     shader.setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
-    shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
+    shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_4);
     shader.setStrings(&cs, 1);
     TBuiltInResource Resources = {};
     Resources.maxComputeWorkGroupSizeX = 1024;
@@ -271,7 +271,7 @@ std::vector<uint32_t> glsl_to_spirv_single(const char* cs, EShLanguage stage){
 
     EShMessages messages = (EShMessages)(EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules);
 
-    if(!shader.parse(&Resources, 450, ECoreProfile, false, false, messages)){
+    if(!shader.parse(&Resources, 460, ECoreProfile, false, false, messages)){
         
         TRACELOG(LOG_ERROR, "Compute GLSL Parsing Failed: %s", shader.getInfoLog());
     }
@@ -386,7 +386,7 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
     return ret;
 }
 std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSources sources){
-    const int glslVersion = 450;
+    const int glslVersion = 460;
     
     
     if (!glslang_initialized){
@@ -406,6 +406,7 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
         }
         ShaderStage stage = (ShaderStage)std::countr_zero(uint32_t(sources.sources[i].stageMask));
         shaders.emplace_back(ShaderStageToGlslanguage(stage), std::make_unique<glslang::TShader>(ShaderStageToGlslanguage(stage)));
+        shaders.back().second->setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_4);
     }
 
     TBuiltInResource Resources = DefaultTBuiltInResource_RG;
@@ -446,7 +447,11 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
             case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER:
                 return texture_sampler;
             break;
+            case SPV_REFLECT_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+                return acceleration_structure;
+            break;
             case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+
             default:
                 assert(false && "Unsupported");
                 rg_unreachable();

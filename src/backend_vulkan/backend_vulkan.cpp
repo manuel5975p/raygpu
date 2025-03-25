@@ -1046,7 +1046,7 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &deviceExtensionCount, deprops.data());
     
     for(auto e : deprops){
-        std::cout << e.extensionName << ", ";
+        //std::cout << e.extensionName << ", ";
     }
     // Specify device extensions
     
@@ -1105,6 +1105,11 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     deviceFeaturesAddressKhr.bufferDeviceAddress = VK_TRUE;
     v13features.pNext = &deviceFeaturesAddressKhr;
     deviceFeaturesAddressKhr.pNext = &accelerationrStructureFeatures;
+
+    VkPhysicalDeviceRayTracingPipelineFeaturesKHR pipelineFeatures zeroinit;
+    pipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+    pipelineFeatures.rayTracingPipeline = VK_TRUE;
+    accelerationrStructureFeatures.pNext = &pipelineFeatures;
     #endif
 
     // (Optional) Enable validation layers for device-specific debugging

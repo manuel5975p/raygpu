@@ -48,7 +48,7 @@ using std::uint64_t;
 #endif
 // ------------------------- Enum Definitions -------------------------
 
-typedef enum uniform_type { uniform_type_undefined, uniform_buffer, storage_buffer, texture2d, texture2d_array, storage_texture2d, texture_sampler, texture3d, storage_texture3d, storage_texture2d_array} uniform_type;
+typedef enum uniform_type { uniform_type_undefined, uniform_buffer, storage_buffer, texture2d, texture2d_array, storage_texture2d, texture_sampler, texture3d, storage_texture3d, storage_texture2d_array, acceleration_structure} uniform_type;
 
 typedef enum access_type { readonly, readwrite, writeonly } access_type;
 
@@ -301,6 +301,7 @@ constexpr BufferUsage BufferUsage_Indirect = 0x0000000000000100;
 constexpr BufferUsage BufferUsage_QueryResolve = 0x0000000000000200;
 constexpr BufferUsage BufferUsage_ShaderDeviceAddress = 0x0000000001000000;
 constexpr BufferUsage BufferUsage_AccelerationStructureInput = 0x0000000002000000;
+constexpr BufferUsage BufferUsage_AccelerationStructureStorage = 0x0000000004000000;
 
 constexpr TextureUsage TextureUsage_None = 0x0000000000000000;
 constexpr TextureUsage TextureUsage_CopySrc = 0x0000000000000001;
@@ -333,6 +334,7 @@ constexpr TextureUsage TextureUsage_StorageAttachment = 0x0000000000000040;
 #define TextureUsage_StorageAttachment 0x0000000000000040
 #define BufferUsage_ShaderDeviceAddress 0x0000000001000000
 #define BufferUsage_AccelerationStructureInput 0x0000000002000000
+#define BufferUsage_AccelerationStructureStorage 0x0000000004000000
 #endif
 
 
@@ -520,11 +522,13 @@ static inline VkBufferUsageFlags toVulkanBufferUsage(BufferUsage busg) {
             usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
             break;
         case BufferUsage_AccelerationStructureInput:
-            usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+            usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+            break;
+        case BufferUsage_AccelerationStructureStorage:
+            usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
             break;
         default:
-        
-            // Handle any unrecognized flags if necessary.
+            rg_unreachable();
             break;
         }
 
