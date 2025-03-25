@@ -1299,7 +1299,7 @@ memory_types discoverMemoryTypes(VkPhysicalDevice physicalDevice) {
     }
     return ret;
 }
-
+extern "C" void raytracing_LoadDeviceFunctions(VkDevice device);
 void InitBackend(){
     #if SUPPORT_SDL2 == 1 || SUPPORT_SDL3 == 1
     SDL_Init(SDL_INIT_VIDEO);
@@ -1316,6 +1316,7 @@ void InitBackend(){
     g_vulkanstate.computeFamily = queues.computeIndex;
     g_vulkanstate.presentFamily = queues.presentIndex;
     auto device_and_queues = createLogicalDevice(g_vulkanstate.physicalDevice, queues);
+    raytracing_LoadDeviceFunctions(device_and_queues.first->device);
     g_vulkanstate.device = device_and_queues.first;
     g_vulkanstate.queue = device_and_queues.second;
     for(uint32_t fif = 0;fif < framesInFlight;fif++){

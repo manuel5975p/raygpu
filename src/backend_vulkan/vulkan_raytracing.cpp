@@ -11,23 +11,16 @@ X(CreateAccelerationStructureKHR) \
 X(DestroyAccelerationStructureKHR) \
 X(GetAccelerationStructureDeviceAddressKHR) \
 X(GetRayTracingShaderGroupHandlesKHR)
+
+
 #define X(A) PFN_vk##A fulk##A;
 RTFunctions
 #undef X
-
 extern "C" void raytracing_LoadDeviceFunctions(VkDevice device){
     #define X(A) fulk##A = (PFN_vk##A)vkGetDeviceProcAddr(device, "vk" #A);
     RTFunctions
     #undef X
 }
-static struct {
-    PFN_vkCreateRayTracingPipelinesKHR PFN_vkCreateRayTracingPipelinesKHR_ptr;
-    PFN_vkCmdBuildAccelerationStructuresKHR PFN_vkCmdBuildAccelerationStructuresKHR_ptr;
-    PFN_vkGetAccelerationStructureBuildSizesKHR PFN_vkGetAccelerationStructureBuildSizesKHR_ptr;
-    PFN_vkCreateAccelerationStructureKHR PFN_vkCreateAccelerationStructureKHR_ptr;
-    PFN_vkDestroyAccelerationStructureKHR PFN_vkDestroyAccelerationStructureKHR_ptr;
-    PFN_vkGetAccelerationStructureDeviceAddressKHR PFN_vkGetAccelerationStructureDeviceAddressKHR_ptr;
-} g_rt_table;
 
 struct triangle {
     vertex v1, v2, v3;
@@ -627,13 +620,13 @@ void wgvkDestroyAccelerationStructure(WGVKBottomLevelAccelerationStructure impl)
     
     // Create the ray tracing pipeline
     VkResult result = fulkCreateRayTracingPipelinesKHR(
-        g_vulkanstate.device->device,                  // Need to get this from elsewhere
-        VK_NULL_HANDLE,          // Deferred operation handle
-        VK_NULL_HANDLE,           // Pipeline cache (optional)
-        1,                       // Create info count
-        &pipelineInfo,           // Create info
-        nullptr,                 // Allocator
-        &pipeline                // Output pipeline handle
+        g_vulkanstate.device->device,             // Need to get this from elsewhere
+        VK_NULL_HANDLE,                           // Deferred operation handle
+        VK_NULL_HANDLE,                           // Pipeline cache (optional)
+        1,                                        // Create info count
+        &pipelineInfo,                            // Create info
+        nullptr,                                  // Allocator
+        &pipeline                                 // Output pipeline handle
     );
     
     if (result != VK_SUCCESS) {
@@ -641,7 +634,9 @@ void wgvkDestroyAccelerationStructure(WGVKBottomLevelAccelerationStructure impl)
         rg_trap();
         return VK_NULL_HANDLE;
     }
+    char kakbuffer[100] = {0};
     
+    fulkGetRayTracingShaderGroupHandlesKHR(g_vulkanstate.device->device, pipeline, 0, 3, 32 * 3, kakbuffer);
     return pipeline;
 }
 
