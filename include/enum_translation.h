@@ -474,6 +474,9 @@ static inline VkDescriptorType toVulkanResourceType(uniform_type type) {
         case texture_sampler: {
             return VK_DESCRIPTOR_TYPE_SAMPLER;
         }
+        case acceleration_structure: {
+            return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+        }
         default:
             rg_unreachable();
     }
@@ -720,6 +723,30 @@ static inline VkShaderStageFlagBits toVulkanShaderStage(ShaderStage stage) {
         case ShaderStage_Mesh:           return VK_SHADER_STAGE_MESH_BIT_EXT;
         default: rg_unreachable();
     }
+}
+static inline VkShaderStageFlagBits toVulkanShaderStageBits(ShaderStageMask stage) {
+    unsigned ret = 0;
+    for(unsigned iter = stage;iter;iter &= (iter - 1)){
+        ShaderStageMask stage = (ShaderStageMask)(iter & -iter);
+        switch (stage){
+            case ShaderStageMask_Vertex:         ret |= VK_SHADER_STAGE_VERTEX_BIT;
+            case ShaderStageMask_TessControl:    ret |= VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+            case ShaderStageMask_TessEvaluation: ret |= VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+            case ShaderStageMask_Geometry:       ret |= VK_SHADER_STAGE_GEOMETRY_BIT;
+            case ShaderStageMask_Fragment:       ret |= VK_SHADER_STAGE_FRAGMENT_BIT;
+            case ShaderStageMask_Compute:        ret |= VK_SHADER_STAGE_COMPUTE_BIT;
+            case ShaderStageMask_RayGen:         ret |= VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+            case ShaderStageMask_Miss:           ret |= VK_SHADER_STAGE_MISS_BIT_KHR;
+            case ShaderStageMask_ClosestHit:     ret |= VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+            case ShaderStageMask_AnyHit:         ret |= VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
+            case ShaderStageMask_Intersect:      ret |= VK_SHADER_STAGE_INTERSECTION_BIT_KHR;
+            case ShaderStageMask_Callable:       ret |= VK_SHADER_STAGE_CALLABLE_BIT_KHR;
+            case ShaderStageMask_Task:           ret |= VK_SHADER_STAGE_TASK_BIT_EXT;
+            case ShaderStageMask_Mesh:           ret |= VK_SHADER_STAGE_MESH_BIT_EXT;
+            default: rg_unreachable();
+        }
+    }
+    return (VkShaderStageFlagBits)(ret);
 }
 
 static inline VkBlendFactor toVulkanBlendFactor(BlendFactor bf) {

@@ -1,5 +1,6 @@
 #include <raygpu.h>
 #include <wgvk.h>
+#include "../src/backend_vulkan/vulkan_internals.hpp"
 //#include "../src/backend_vulkan/vulkan_internals.hpp"
 constexpr const char raygenSource[] = R"(#version 460
 #extension GL_EXT_ray_tracing : require
@@ -65,7 +66,7 @@ layout(location = 0) rayPayloadInEXT vec4 payload;
 hitAttributeEXT vec2 attribs;
 
 // Shader record buffer index
-layout(binding = 0) uniform _ShaderRecordBuffer {
+layout(binding = 4) uniform _ShaderRecordBuffer {
     int materialID;
 } shaderRecordBuffer;
 
@@ -154,6 +155,10 @@ int main(){
 
     DescribedShaderModule rt_module = LoadShaderModule(sources);
     VkPipeline rtpl = LoadRTPipeline(&rt_module);
+    WGVKCommandEncoderDescriptor cedecs zeroinit;
+    WGVKCommandEncoder cmdEncoder = wgvkDeviceCreateCommandEncoder((WGVKDevice)GetDevice(), &cedecs);
+    vkCmdBindPipeline(cmdEncoder->buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, rtpl);
+
     while(!WindowShouldClose()){
         BeginDrawing();
         ClearBackground(DARKGRAY);

@@ -732,7 +732,7 @@ QueueIndices findQueueFamilies() {
 
     return ret;
 }
-extern "C" DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* descs, uint32_t uniformCount, bool compute){
+extern "C" DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* descs, uint32_t uniformCount, bool){
     DescribedBindGroupLayout retv{};
     DescribedBindGroupLayout* ret = &retv;
     WGVKBindGroupLayout retlayout = wgvkDeviceCreateBindGroupLayout(g_vulkanstate.device, descs, uniformCount);

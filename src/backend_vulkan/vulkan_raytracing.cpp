@@ -571,20 +571,16 @@ void wgvkDestroyAccelerationStructure(WGVKBottomLevelAccelerationStructure impl)
 /**
  * Creates a pipeline layout from uniform reflection data.
  */
- VkPipelineLayout CreatePipelineLayout(WGVKDevice device, const StringToUniformMap* uniforms) {
+ VkPipelineLayout CreateRTPipelineLayout(WGVKDevice device, const DescribedShaderModule* module) {
     VkPipelineLayout layout = VK_NULL_HANDLE;
     
     // Create descriptor set layouts from uniform map
     std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
     std::vector<ResourceTypeDescriptor> flat;
-    for(const auto& [_, desc] : uniforms->uniforms){
-        flat.push_back(desc);
-    }
-    std::sort(flat.begin(), flat.end(), [](const ResourceTypeDescriptor& a, const ResourceTypeDescriptor& b){
-        return a.location < b.location;
-    });
-    WGVKBindGroupLayout bindgroup = wgvkDeviceCreateBindGroupLayout(device, flat.data(), flat.size());
-    descriptorSetLayouts.push_back(bindgroup->layout);
+    DescribedBindGroupLayout dbgl = LoadBindGroupLayoutMod(module);
+
+    descriptorSetLayouts.push_back(reinterpret_cast<WGVKBindGroupLayout>(dbgl.layout)->layout);
+    
     // Parse uniform map to create descriptor sets
     // Would need to iterate through uniforms and create appropriate bindings
     
@@ -598,7 +594,7 @@ void wgvkDestroyAccelerationStructure(WGVKBottomLevelAccelerationStructure impl)
     pipelineLayoutInfo.pPushConstantRanges = nullptr;
     
     VkResult result = vkCreatePipelineLayout(
-        device->device,               // Need to get this from elsewhere
+        device->device,
         &pipelineLayoutInfo,
         nullptr,
         &layout
@@ -694,7 +690,7 @@ void wgvkDestroyAccelerationStructure(WGVKBottomLevelAccelerationStructure impl)
     libraryInfo.pLibraries = nullptr;
     
     // Set up pipeline layout from uniforms
-    VkPipelineLayout pipelineLayout = CreatePipelineLayout(g_vulkanstate.device, module->reflectionInfo.uniforms);
+    VkPipelineLayout pipelineLayout = CreateRTPipelineLayout(g_vulkanstate.device, module);
     
     // Configure dynamic state if needed
     VkPipelineDynamicStateCreateInfo dynamicState = {};

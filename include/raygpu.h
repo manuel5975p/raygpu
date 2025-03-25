@@ -1176,6 +1176,7 @@ EXTERN_C_BEGIN
     //WGPUShaderModule LoadShader(const char* path);
 
     DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, bool compute);
+    DescribedBindGroupLayout LoadBindGroupLayoutMod(const DescribedShaderModule* shaderModule);
 
     VkPipeline         LoadRTPipeline(const DescribedShaderModule* module);
     DescribedPipeline* ClonePipeline(const DescribedPipeline* pl);

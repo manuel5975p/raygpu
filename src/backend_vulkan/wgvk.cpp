@@ -360,7 +360,14 @@ extern "C" WGVKBindGroupLayout wgvkDeviceCreateBindGroupLayout(WGVKDevice device
         bindings[i].descriptorCount = 1;
         bindings[i].binding = entries[i].location;
         bindings[i].descriptorType = toVulkanResourceType(entries[i].type);
-        bindings[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+        if(entries[i].visibility == 0){
+            
+            TRACELOG(LOG_WARNING, "Empty visibility detected, falling back to Vertex | Fragment | Compute mask");
+            bindings[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+        }
+        else{
+            bindings[i].stageFlags = toVulkanShaderStageBits(entries[i].visibility);
+        }
     }
 
     slci.pBindings = bindings.data();

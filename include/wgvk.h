@@ -173,6 +173,7 @@ typedef struct ResourceTypeDescriptor{
     //Applicable for storage buffers and textures
     access_type access;
     format_or_sample_type fstype;
+    ShaderStageMask visibility;
 }ResourceTypeDescriptor;
 
 typedef struct ResourceDescriptor {
@@ -304,8 +305,6 @@ typedef struct WGVKTopLevelAccelerationStructureDescriptor {
     uint32_t *instanceShaderBindingTableRecordOffsets;       // Optional SBT record offsets
     VkGeometryInstanceFlagsKHR *instanceFlags;               // Optional instance flags
 }WGVKTopLevelAccelerationStructureDescriptor;
-
-
 #endif
 
 void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, VkPhysicalDevice adapter, WGVKSurfaceCapabilities* capabilities);

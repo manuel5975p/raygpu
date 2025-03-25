@@ -172,7 +172,6 @@ const TBuiltInResource DefaultTBuiltInResource_RG = {
     }};
 #endif
 
-
 extern std::unordered_map<uint32_t, std::string> uniformTypeNames;
 bool glslang_initialized = false;
 std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char *vs, const char *fs) {
@@ -468,12 +467,12 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
         spv_reflect::ShaderModule mod(stageSpirv);
         uint32_t count = 0;
         SpvReflectResult result = spvReflectEnumerateDescriptorSets(&mod.GetShaderModule(), &count, NULL);
-        assert(result == SPV_REFLECT_RESULT_SUCCESS);
+        rassert(result == SPV_REFLECT_RESULT_SUCCESS, "spvReflectEnumerateDescriptorSets failed");
       
         std::vector<SpvReflectDescriptorSet*> sets(count);
         result = spvReflectEnumerateDescriptorSets(&mod.GetShaderModule(), &count, sets.data());
         std::vector<SpvReflectInterfaceVariable*> vars;
-        uint32_t varcount;
+        uint32_t varcount = 0;
         spvReflectEnumerateInputVariables(&mod.GetShaderModule(), &varcount, nullptr);
         vars.resize(varcount);
         spvReflectEnumerateInputVariables(&mod.GetShaderModule(), &varcount, vars.data());
@@ -483,17 +482,18 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
             for(uint32_t i = 0;i < set->binding_count;i++){
                 auto binding = set->bindings[i];
                 //std::cout << set->bindings[i]->name << ": " <<  set->bindings[i]->descriptor_type << "\n";
-                if(set->bindings[i]->descriptor_type == SpvReflectDescriptorType::SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER || set->bindings[i]->descriptor_type == SpvReflectDescriptorType::SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER){
-
-                }
-                else{
+                
+                if(set->bindings[i]->descriptor_type != SpvReflectDescriptorType::SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER && set->bindings[i]->descriptor_type != SpvReflectDescriptorType::SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER){
                     ResourceTypeDescriptor insert zeroinit;
                     insert.fstype = we_dont_know;
                     insert.type = spvdsToResourceType(set->bindings[i]->descriptor_type);
                     insert.location = set->bindings[i]->binding;
                     ret[set->bindings[i]->name] = insert;
+                    auto& inserted = *ret.find(set->bindings[i]->name);
+                    inserted.second.visibility = ShaderStageMask(inserted.second.visibility | ShaderStageMask(1u << lang));
                 }
-                //std::cout << set->bindings[i]->block. << ": " <<  set->bindings[i]->descriptor_type << "\n";
+
+                TRACELOG(LOG_WARNING, "Parsed uniforms %s at binding %u", set->bindings[i]->name, (unsigned)set->bindings[i]->binding);// << ": " <<  set->bindings[i]->descriptor_type << "\n";
                 
             }
         }
@@ -514,6 +514,8 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
         bool uniform = storageOrUniform.find("uniform") != std::string::npos;
         insert.type = uniform ? uniform_buffer : storage_buffer;
         ret[program.getUniformBlockName(i)] = insert;
+        auto& inserted = *ret.find(program.getUniformBlockName(i));
+        inserted.second.visibility = ShaderStageMask(inserted.second.visibility | ShaderStageMask(program.getUniformBlock(i).stages));
     }
 //
     //for(uint32_t i = 0;i < program.getNumUniformVariables();i++){

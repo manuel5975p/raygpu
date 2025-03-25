@@ -1073,6 +1073,20 @@ fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
 }
 )";
 
+DescribedBindGroupLayout LoadBindGroupLayoutMod(const DescribedShaderModule* shaderModule){
+    std::vector<ResourceTypeDescriptor> flat;
+    flat.reserve(shaderModule->reflectionInfo.uniforms->uniforms.size());
+
+    for(auto [x, y] : shaderModule->reflectionInfo.uniforms->uniforms){
+        flat.push_back(y);
+    }
+
+    std::sort(flat.begin(), flat.end(), [](const ResourceTypeDescriptor& a, const ResourceTypeDescriptor& b){
+        return a.location < b.location;
+    });
+    
+    return LoadBindGroupLayout(flat.data(), flat.size(), false);
+}
 
 extern "C" Texture LoadTextureEx(uint32_t width, uint32_t height, PixelFormat format, bool to_be_used_as_rendertarget){
     return LoadTexturePro(width, height, format, (TextureUsage_RenderAttachment * to_be_used_as_rendertarget) | TextureUsage_TextureBinding | TextureUsage_CopyDst | TextureUsage_CopySrc, 1, 1);
