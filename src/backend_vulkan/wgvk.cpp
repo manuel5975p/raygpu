@@ -15,7 +15,7 @@ extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const WGVKBuffer
     wgvkBuffer->cacheIndex = cacheIndex;
     wgvkBuffer->refCount = 1;
     wgvkBuffer->usage = desc->usage;
-
+    
     VkBufferCreateInfo bufferDesc zeroinit;
     bufferDesc.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferDesc.size = desc->size;
@@ -39,6 +39,7 @@ extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const WGVKBuffer
 
     VmaAllocation allocation zeroinit;
     VmaAllocationInfo allocationInfo zeroinit;
+
     VkResult vmabufferCreateResult = vmaCreateBuffer(device->allocator, &bufferDesc, &vallocInfo, &wgvkBuffer->buffer, &allocation, &allocationInfo);
 
     
@@ -51,7 +52,13 @@ extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const WGVKBuffer
     wgvkBuffer->allocation = allocation;
     
     wgvkBuffer->memoryProperties = propertyToFind;
-    
+
+    if(desc->usage & BufferUsage_ShaderDeviceAddress){
+        VkBufferDeviceAddressInfo bdai zeroinit;
+        bdai.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR;
+        bdai.buffer = wgvkBuffer->buffer;
+        wgvkBuffer->address = vkGetBufferDeviceAddress(device->device, &bdai);
+    }
     return wgvkBuffer;
 }
 std::unordered_set<VkDeviceMemory> mappedMemories;
@@ -251,6 +258,7 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
     small_vector<VkWriteDescriptorSet> writes(count, VkWriteDescriptorSet{});
     small_vector<VkDescriptorBufferInfo> bufferInfos(count, VkDescriptorBufferInfo{});
     small_vector<VkDescriptorImageInfo> imageInfos(count, VkDescriptorImageInfo{});
+    small_vector<VkWriteDescriptorSetAccelerationStructureKHR> accelStructInfos(count, VkWriteDescriptorSetAccelerationStructureKHR{});
 
     for(uint32_t i = 0;i < count;i++){
         writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -288,7 +296,16 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
             imageInfos[i].sampler = vksampler;
             writes[i].pImageInfo = imageInfos.data() + i;
         }
+        if(entryi.type == acceleration_structure){
+
+            //wvBindGroup->resourceUsage.track((WGVKAccelerationStructure)bgdesc->entries[i].accelerationStructure);
+            accelStructInfos[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+            accelStructInfos[i].accelerationStructureCount = 1;
+            accelStructInfos[i].pAccelerationStructures = &bgdesc->entries[i].accelerationStructure->accelerationStructure;
+            writes[i].pNext = &accelStructInfos[i];
+        }
     }
+
     vkUpdateDescriptorSets(device->device, writes.size(), writes.data(), 0, nullptr);
 }
 
@@ -360,11 +377,11 @@ extern "C" WGVKBindGroupLayout wgvkDeviceCreateBindGroupLayout(WGVKDevice device
         bindings[i].descriptorCount = 1;
         bindings[i].binding = entries[i].location;
         bindings[i].descriptorType = toVulkanResourceType(entries[i].type);
-        if(entries[i].visibility == 0){
-            
+        if(entries[i].visibility == 0){    
             TRACELOG(LOG_WARNING, "Empty visibility detected, falling back to Vertex | Fragment | Compute mask");
             bindings[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
         }
+
         else{
             bindings[i].stageFlags = toVulkanShaderStageBits(entries[i].visibility);
         }
@@ -596,6 +613,7 @@ extern "C" WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder command
     vkEndCommandBuffer(commandEncoder->buffer);
     ret->referencedRPs = std::move(commandEncoder->referencedRPs);
     ret->referencedCPs = std::move(commandEncoder->referencedCPs);
+    ret->referencedRTs = std::move(commandEncoder->referencedRTs);
     ret->resourceUsage = std::move(commandEncoder->resourceUsage);
     
     //new (&commandEncoder->referencedRPs)(ref_holder<WGVKRenderPassEncoder>){};
@@ -893,6 +911,9 @@ void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
         for(auto rp : commandBuffer->referencedCPs){
             wgvkReleaseComputePassEncoder(rp);
         }
+        for(auto ct : commandBuffer->referencedRTs){
+            wgvkReleaseRaytracingPassEncoder(ct);
+        }
         commandBuffer->resourceUsage.releaseAllAndClear();
         PerframeCache& frameCache = commandBuffer->device->frameCaches[commandBuffer->cacheIndex];
         frameCache.commandBuffers.push_back(commandBuffer->buffer);
@@ -1115,7 +1136,7 @@ extern "C" void wgvkComputePassEncoderSetBindGroup(WGVKComputePassEncoder cpe, u
 }
 extern "C" WGVKComputePassEncoder wgvkCommandEncoderBeginComputePass(WGVKCommandEncoder commandEncoder){
     WGVKComputePassEncoder ret = callocnewpp(WGVKComputePassEncoderImpl);
-    ret->refCount = 1;
+    ret->refCount = 2;
     commandEncoder->referencedCPs.insert(ret);
     ret->cmdEncoder = commandEncoder;
     ret->cmdBuffer = commandEncoder->buffer;
@@ -1131,6 +1152,15 @@ extern "C" void wgvkReleaseComputePassEncoder(WGVKComputePassEncoder cpenc){
         cpenc->resourceUsage.releaseAllAndClear();
         cpenc->~WGVKComputePassEncoderImpl();
         std::free(cpenc);
+    }
+}
+
+extern "C" void wgvkReleaseRaytracingPassEncoder(WGVKRaytracingPassEncoder rtenc){
+    --rtenc->refCount;
+    if(rtenc->refCount == 0){
+        rtenc->resourceUsage.releaseAllAndClear();
+        rtenc->~WGVKRaytracingPassEncoderImpl();
+        std::free(rtenc);
     }
 }
 

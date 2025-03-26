@@ -3,14 +3,7 @@
 #include <vulkan/vulkan.h>
 #include <wgvk.h>
 
-#define RTFunctions \
-X(CreateRayTracingPipelinesKHR) \
-X(CmdBuildAccelerationStructuresKHR) \
-X(GetAccelerationStructureBuildSizesKHR) \
-X(CreateAccelerationStructureKHR) \
-X(DestroyAccelerationStructureKHR) \
-X(GetAccelerationStructureDeviceAddressKHR) \
-X(GetRayTracingShaderGroupHandlesKHR)
+
 
 
 #define X(A) PFN_vk##A fulk##A;
@@ -26,28 +19,7 @@ struct triangle {
     vertex v1, v2, v3;
 };
 
-typedef struct WGVKBottomLevelAccelerationStructureImpl {
-    VkDevice device;
-    VkAccelerationStructureKHR accelerationStructure;
-    VkDeviceMemory accelerationStructureMemory;
-    VkBuffer scratchBuffer;
-    VkDeviceMemory scratchBufferMemory;
-    VkBuffer accelerationStructureBuffer;
-    VkDeviceMemory accelerationStructureBufferMemory;
-} WGVKBottomLevelAccelerationStructureImpl;
-typedef WGVKBottomLevelAccelerationStructureImpl *WGVKBottomLevelAccelerationStructure;
 
-typedef struct WGVKTopLevelAccelerationStructureImpl {
-    VkDevice device;
-    VkAccelerationStructureKHR accelerationStructure;
-    VkDeviceMemory accelerationStructureMemory;
-    VkBuffer scratchBuffer;
-    VkDeviceMemory scratchBufferMemory;
-    VkBuffer accelerationStructureBuffer;
-    VkDeviceMemory accelerationStructureBufferMemory;
-    VkBuffer instancesBuffer;
-    VkDeviceMemory instancesBufferMemory;
-} WGVKTopLevelAccelerationStructureImpl;
 
 /**
  * Creates a Vulkan top level acceleration structure for ray tracing
@@ -482,7 +454,8 @@ void wgvkDestroyAccelerationStructure(WGVKBottomLevelAccelerationStructure impl)
 /**
  * Creates a pipeline layout from uniform reflection data.
  */
- VkPipelineLayout CreateRTPipelineLayout(WGVKDevice device, const DescribedShaderModule* module) {
+
+std::pair<DescribedBindGroupLayout, VkPipelineLayout> CreateRTPipelineLayout(WGVKDevice device, const DescribedShaderModule* module) {
     VkPipelineLayout layout = VK_NULL_HANDLE;
     
     // Create descriptor set layouts from uniform map
@@ -513,10 +486,10 @@ void wgvkDestroyAccelerationStructure(WGVKBottomLevelAccelerationStructure impl)
     
     if (result != VK_SUCCESS) {
         // Handle error
-        return VK_NULL_HANDLE;
+        return {};
     }
     
-    return layout;
+    return {dbgl, layout};
 }
 
 /**
@@ -527,7 +500,7 @@ void wgvkDestroyAccelerationStructure(WGVKBottomLevelAccelerationStructure impl)
  */
  WGVKRaytracingPipeline LoadRTPipeline(const DescribedShaderModule* module) {
     WGVKRaytracingPipeline pipeline = callocnewpp(WGVKRaytracingPipelineImpl);
-    
+    const WGVKDevice device = g_vulkanstate.device;
     // Create shader stages from modules
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
     for (uint32_t i = 0; i < 16; i++) {
@@ -601,8 +574,8 @@ void wgvkDestroyAccelerationStructure(WGVKBottomLevelAccelerationStructure impl)
     libraryInfo.pLibraries = nullptr;
     
     // Set up pipeline layout from uniforms
-    VkPipelineLayout pipelineLayout = CreateRTPipelineLayout(g_vulkanstate.device, module);
-    
+    auto [bindgrouplayout, pipelineLayout] = CreateRTPipelineLayout(device, module);
+    pipeline->layout = pipelineLayout;
     // Configure dynamic state if needed
     VkPipelineDynamicStateCreateInfo dynamicState = {};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -614,7 +587,7 @@ void wgvkDestroyAccelerationStructure(WGVKBottomLevelAccelerationStructure impl)
     pipelineInfo.pStages = shaderStages.data();
     pipelineInfo.groupCount = static_cast<uint32_t>(shaderGroups.size());
     pipelineInfo.pGroups = shaderGroups.data();
-    pipelineInfo.maxPipelineRayRecursionDepth = 5; // Get from reflection info if available
+    pipelineInfo.maxPipelineRayRecursionDepth = 2; // Get from reflection info if available
     pipelineInfo.layout = pipelineLayout;
     pipelineInfo.pDynamicState = &dynamicState;
     
@@ -634,16 +607,74 @@ void wgvkDestroyAccelerationStructure(WGVKBottomLevelAccelerationStructure impl)
         rg_trap();
         return VK_NULL_HANDLE;
     }
-    std::vector<char> kakbuffer(shaderGroups.size() * g_vulkanstate.device->adapter->rayTracingPipelineProperties.shaderGroupHandleSize);
-    fulkGetRayTracingShaderGroupHandlesKHR(g_vulkanstate.device->device, pipeline->raytracingPipeline, 0, 3, shaderGroups.size() * g_vulkanstate.device->adapter->rayTracingPipelineProperties.shaderGroupHandleSize, kakbuffer.data());
+    
+    const size_t sgHandleSize = device->adapter->rayTracingPipelineProperties.shaderGroupHandleSize;
+    
+    std::vector<char> shaderGroupHandles_Buffer(shaderGroups.size() * sgHandleSize);
+    fulkGetRayTracingShaderGroupHandlesKHR(device->device, pipeline->raytracingPipeline, 0, shaderGroups.size(), shaderGroups.size() * sgHandleSize, shaderGroupHandles_Buffer.data());
     WGVKBufferDescriptor bdesc zeroinit;
-    bdesc.usage = BufferUsage_MapWrite;
-    bdesc.size = 32;
-    WGVKBuffer buffer1 = wgvkDeviceCreateBuffer(g_vulkanstate.device, &bdesc);
-    WGVKBuffer buffer2 = wgvkDeviceCreateBuffer(g_vulkanstate.device, &bdesc);
-    WGVKBuffer buffer3 = wgvkDeviceCreateBuffer(g_vulkanstate.device, &bdesc);
-
+    bdesc.usage = BufferUsage_MapWrite | BufferUsage_ShaderDeviceAddress | BufferUsage_ShaderBindingTable;
+    bdesc.size = sgHandleSize;
+    pipeline->raygenBindingTable = wgvkDeviceCreateBuffer(device, &bdesc);
+    pipeline->missBindingTable   = wgvkDeviceCreateBuffer(device, &bdesc);
+    pipeline->hitBindingTable    = wgvkDeviceCreateBuffer(device, &bdesc);
+    wgvkQueueWriteBuffer(device->queue, pipeline->raygenBindingTable, 0, shaderGroupHandles_Buffer.data() + sgHandleSize * 0, sgHandleSize);
+    wgvkQueueWriteBuffer(device->queue, pipeline->missBindingTable,   0, shaderGroupHandles_Buffer.data() + sgHandleSize * 1, sgHandleSize);
+    wgvkQueueWriteBuffer(device->queue, pipeline->hitBindingTable,    0, shaderGroupHandles_Buffer.data() + sgHandleSize * 2, sgHandleSize);
+    
     return pipeline;
 }
+DescribedRaytracingPipeline* LoadRaytracingPipeline(const DescribedShaderModule *shaderModule){
+    DescribedRaytracingPipeline* ret = callocnewpp(DescribedRaytracingPipeline);
+    ret->pipeline = LoadRTPipeline(shaderModule);
+    auto [bgl, pll] = CreateRTPipelineLayout(g_vulkanstate.device, shaderModule);
+    ret->bglayout = bgl;
+    ret->layout = pll;
 
+    return ret;
+}
+
+WGVKRaytracingPassEncoder wgvkCommandEncoderBeginRaytracingPass(WGVKCommandEncoder enc){
+    WGVKRaytracingPassEncoder rtEncoder = callocnewpp(WGVKRaytracingPassEncoderImpl);
+    rtEncoder->refCount = 2;
+    rtEncoder->device = enc->device;
+    rtEncoder->cmdBuffer = enc->buffer;
+    rtEncoder->cmdEncoder = enc;
+    enc->referencedRTs.insert(rtEncoder);
+    return rtEncoder;
+}
+void wgvkRaytracingPassEncoderSetPipeline (WGVKRaytracingPassEncoder rte, WGVKRaytracingPipeline raytracingPipeline){
+    vkCmdBindPipeline(rte->cmdBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, raytracingPipeline->raytracingPipeline);
+    rte->lastLayout = raytracingPipeline->layout; 
+    rte->lastPipeline = raytracingPipeline; 
+}
+void wgvkRaytracingPassEncoderSetBindGroup(WGVKRaytracingPassEncoder rte, uint32_t groupIndex, WGVKBindGroup bindGroup){
+    vkCmdBindDescriptorSets(rte->cmdBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, rte->lastLayout, 0, 1, &bindGroup->set, 0, nullptr);
+    for(auto viewAndUsage : bindGroup->resourceUsage.referencedTextureViews){
+        if(viewAndUsage.second == TextureUsage_TextureBinding)
+            rte->cmdEncoder->initializeOrTransition(viewAndUsage.first->texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        else if(viewAndUsage.second == TextureUsage_StorageBinding){
+            rte->cmdEncoder->initializeOrTransition(viewAndUsage.first->texture, VK_IMAGE_LAYOUT_GENERAL);
+        }
+    }
+}
+void wgvkCommandEncoderEndRaytracingPass  (WGVKRaytracingPassEncoder commandEncoder){
+    
+}
+void wgvkRaytracingPassEncoderTraceRays (WGVKRaytracingPassEncoder cpe, uint32_t width, uint32_t height, uint32_t depth){
+    VkStridedDeviceAddressRegionKHR rgR zeroinit;
+    rgR.deviceAddress = cpe->lastPipeline->raygenBindingTable->address;
+    rgR.stride = 32;
+    rgR.size = 32;
+    VkStridedDeviceAddressRegionKHR rmR zeroinit;
+    rmR.deviceAddress = cpe->lastPipeline->missBindingTable->address;
+    rmR.stride = 32;
+    rmR.size = 32;
+    VkStridedDeviceAddressRegionKHR rhR zeroinit;
+    rhR.deviceAddress = cpe->lastPipeline->hitBindingTable->address;
+    rhR.stride = 32;
+    rhR.size = 32;
+    VkStridedDeviceAddressRegionKHR callableShaderSbtEntry zeroinit;
+    fulkCmdTraceRaysKHR(cpe->cmdBuffer, &rgR, &rmR, &rhR, &callableShaderSbtEntry, width, height, depth);
+}
 

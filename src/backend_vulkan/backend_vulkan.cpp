@@ -1193,7 +1193,7 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
     std::vector<VkDeviceSize> heapsizes(memoryProperties.memoryHeapCount, limit);
     aci.pHeapSizeLimit = heapsizes.data();
-    PFN_vmaAllocateDeviceMemoryFunction c;
+
     VmaDeviceMemoryCallbacks callbacks{
         /// Optional, can be null.
         .pfnAllocate = [](VmaAllocator allocator, unsigned int type, VkDeviceMemory_T * _Nonnull, size_t size, void * _Nullable){
@@ -1216,6 +1216,10 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
         }
 
         VmaPoolCreateInfo vpci zeroinit;
+        vpci.minAllocationAlignment = 64;
+        vpci.memoryTypeIndex = g_vulkanstate.memoryTypes.hostVisibleCoherent;
+        vpci.blockSize = (1 << 16);
+        vmaCreatePool(ret.first->allocator, &vpci, &ret.first->aligned_hostVisiblePool);
         // TODO
     }
 

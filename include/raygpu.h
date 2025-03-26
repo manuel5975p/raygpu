@@ -707,7 +707,19 @@ typedef struct DescribedComputePipeline{
     #endif
 }DescribedComputePipeline;
 
+#if SUPPORT_VULKAN_BACKEND == 1
+typedef struct DescribedRaytracingPipeline{
+    
+    WGVKRaytracingPipeline pipeline;
 
+    NativePipelineLayoutHandle layout;
+    
+    DescribedBindGroupLayout bglayout;
+    DescribedBindGroup bindGroup;
+    DescribedShaderModule shaderModule;
+
+}DescribedRaytracingPipeline;
+#endif
 
 typedef struct AttributeAndResidence{
     VertexAttribute attr;

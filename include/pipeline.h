@@ -161,6 +161,8 @@ typedef struct VertexBufferLayoutSet{
 }VertexBufferLayoutSet;
 typedef struct DescribedPipeline DescribedPipeline;
 typedef struct DescribedComputePipeline DescribedComputePipeline;
+typedef struct DescribedRaytracingPipeline DescribedRaytracingPipeline;
+typedef struct DescribedShaderModule DescribedShaderModule;
 
 typedef struct DescribedBuffer DescribedBuffer;
 #ifdef __cplusplus
@@ -194,6 +196,9 @@ EXTERN_C_BEGIN
     DescribedPipeline* Relayout(DescribedPipeline* pl, VertexArray* vao);
     DescribedComputePipeline* LoadComputePipeline(const char* shaderCode);
     DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount);
+
+    DescribedRaytracingPipeline* LoadRaytracingPipeline(const DescribedShaderModule* shaderModule); 
+
     /**
      * @brief Loads a shader given vertex and fragment GLSL source.
      * 

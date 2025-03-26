@@ -1,1 +1,1 @@
-Checks: 'bugprone-*','performance-*','modernize-*'
+Checks: bugprone-*, performance-*

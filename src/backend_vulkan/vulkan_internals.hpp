@@ -1,9 +1,10 @@
 #ifndef VULKAN_INTERNALS_HPP
 #define VULKAN_INTERNALS_HPP
+#define VMA_MIN_ALIGNMENT 32
+#include <external/VmaUsage.h>
 #include <external/small_vector.hpp>
 #include <unordered_set>
 #include <vulkan/vulkan.h>
-#include <external/VmaUsage.h>
 #include <vector>
 #include <utility>
 #include <map>
@@ -208,8 +209,31 @@ typedef struct WGVKBufferImpl{
     size_t capacity;
     VmaAllocation allocation;
     VkMemoryPropertyFlags memoryProperties;
+    VkDeviceAddress address; //uint64_t, if applicable (BufferUsage_ShaderDeviceAddress)
     refcount_type refCount;
 }WGVKBufferImpl;
+typedef struct WGVKBottomLevelAccelerationStructureImpl {
+    VkDevice device;
+    VkAccelerationStructureKHR accelerationStructure;
+    VkDeviceMemory accelerationStructureMemory;
+    VkBuffer scratchBuffer;
+    VkDeviceMemory scratchBufferMemory;
+    VkBuffer accelerationStructureBuffer;
+    VkDeviceMemory accelerationStructureBufferMemory;
+} WGVKBottomLevelAccelerationStructureImpl;
+typedef WGVKBottomLevelAccelerationStructureImpl *WGVKBottomLevelAccelerationStructure;
+
+typedef struct WGVKTopLevelAccelerationStructureImpl {
+    VkDevice device;
+    VkAccelerationStructureKHR accelerationStructure;
+    VkDeviceMemory accelerationStructureMemory;
+    VkBuffer scratchBuffer;
+    VkDeviceMemory scratchBufferMemory;
+    VkBuffer accelerationStructureBuffer;
+    VkDeviceMemory accelerationStructureBufferMemory;
+    VkBuffer instancesBuffer;
+    VkDeviceMemory instancesBufferMemory;
+} WGVKTopLevelAccelerationStructureImpl;
 
 constexpr uint32_t framesInFlight = 2;
 namespace std{
@@ -257,6 +281,7 @@ typedef struct WGVKDeviceImpl{
     WGVKQueue queue;
     size_t submittedFrames = 0;
     VmaAllocator allocator;
+    VmaPool aligned_hostVisiblePool;
     PerframeCache frameCaches[framesInFlight];
 
     std::unordered_map<RenderPassLayout, VkRenderPass> renderPassCache;
@@ -286,6 +311,7 @@ typedef struct WGVKComputePipelineImpl{
 
 typedef struct WGVKRaytracingPipelineImpl{
     VkPipeline raytracingPipeline;
+    VkPipelineLayout layout;
     WGVKBuffer raygenBindingTable;
     WGVKBuffer missBindingTable;
     WGVKBuffer hitBindingTable;
@@ -393,8 +419,11 @@ typedef struct WGVKComputePassEncoderImpl{
 
 typedef struct WGVKCommandEncoderImpl{
     VkCommandBuffer buffer;
-    ref_holder<WGVKRenderPassEncoder> referencedRPs;
-    ref_holder<WGVKComputePassEncoder> referencedCPs;
+    
+    ref_holder<WGVKRenderPassEncoder    > referencedRPs;
+    ref_holder<WGVKComputePassEncoder   > referencedCPs;
+    ref_holder<WGVKRaytracingPassEncoder> referencedRTs;
+
     ResourceUsage resourceUsage;
     WGVKDevice device;
     uint32_t cacheIndex;
@@ -412,7 +441,6 @@ typedef struct WGVKCommandEncoderImpl{
             }
         }
     }
-
 }WGVKCommandEncoderImpl;
 
 typedef struct WGVKCommandBufferImpl{
@@ -420,6 +448,7 @@ typedef struct WGVKCommandBufferImpl{
     refcount_type refCount;
     ref_holder<WGVKRenderPassEncoder> referencedRPs;
     ref_holder<WGVKComputePassEncoder> referencedCPs;
+    ref_holder<WGVKRaytracingPassEncoder> referencedRTs;
     ResourceUsage resourceUsage;
     
     WGVKDevice device;
@@ -427,7 +456,16 @@ typedef struct WGVKCommandBufferImpl{
 }WGVKCommandBufferImpl;
 
 
+typedef struct WGVKRaytracingPassEncoderImpl{
+    VkCommandBuffer cmdBuffer;
+    WGVKDevice device;
+    WGVKRaytracingPipeline lastPipeline;
 
+    ResourceUsage resourceUsage;
+    refcount_type refCount;
+    VkPipelineLayout lastLayout;
+    WGVKCommandEncoder cmdEncoder;
+}WGVKRaytracingPassEncoderImpl;
 
 
 static inline RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescriptor* rpdesc){
@@ -446,7 +484,7 @@ static inline RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescripto
 
     
     ret.colorAttachmentCount = rpdesc->colorAttachmentCount;
-    assert(ret.colorAttachmentCount < max_color_attachments && "Too many color attachments");
+    rassert(ret.colorAttachmentCount < max_color_attachments, "Too many color attachments");
     for(uint32_t i = 0;i < rpdesc->colorAttachmentCount;i++){
         ret.colorAttachments[i] = AttachmentDescriptor{
             .format = rpdesc->colorAttachments[i].view->format, 

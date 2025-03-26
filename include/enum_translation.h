@@ -302,6 +302,7 @@ constexpr BufferUsage BufferUsage_QueryResolve = 0x0000000000000200;
 constexpr BufferUsage BufferUsage_ShaderDeviceAddress = 0x0000000001000000;
 constexpr BufferUsage BufferUsage_AccelerationStructureInput = 0x0000000002000000;
 constexpr BufferUsage BufferUsage_AccelerationStructureStorage = 0x0000000004000000;
+constexpr BufferUsage BufferUsage_ShaderBindingTable = 0x0000000008000000;
 
 constexpr TextureUsage TextureUsage_None = 0x0000000000000000;
 constexpr TextureUsage TextureUsage_CopySrc = 0x0000000000000001;
@@ -335,6 +336,7 @@ constexpr TextureUsage TextureUsage_StorageAttachment = 0x0000000000000040;
 #define BufferUsage_ShaderDeviceAddress 0x0000000001000000
 #define BufferUsage_AccelerationStructureInput 0x0000000002000000
 #define BufferUsage_AccelerationStructureStorage 0x0000000004000000
+#define BufferUsage_ShaderBindingTable 0x0000000008000000
 #endif
 
 
@@ -529,6 +531,9 @@ static inline VkBufferUsageFlags toVulkanBufferUsage(BufferUsage busg) {
             break;
         case BufferUsage_AccelerationStructureStorage:
             usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
+            break;
+        case BufferUsage_ShaderBindingTable:
+            usage |= VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR;
             break;
         default:
             rg_unreachable();
@@ -729,20 +734,20 @@ static inline VkShaderStageFlagBits toVulkanShaderStageBits(ShaderStageMask stag
     for(unsigned iter = stage;iter;iter &= (iter - 1)){
         ShaderStageMask stage = (ShaderStageMask)(iter & -iter);
         switch (stage){
-            case ShaderStageMask_Vertex:         ret |= VK_SHADER_STAGE_VERTEX_BIT;
-            case ShaderStageMask_TessControl:    ret |= VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
-            case ShaderStageMask_TessEvaluation: ret |= VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-            case ShaderStageMask_Geometry:       ret |= VK_SHADER_STAGE_GEOMETRY_BIT;
-            case ShaderStageMask_Fragment:       ret |= VK_SHADER_STAGE_FRAGMENT_BIT;
-            case ShaderStageMask_Compute:        ret |= VK_SHADER_STAGE_COMPUTE_BIT;
-            case ShaderStageMask_RayGen:         ret |= VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-            case ShaderStageMask_Miss:           ret |= VK_SHADER_STAGE_MISS_BIT_KHR;
-            case ShaderStageMask_ClosestHit:     ret |= VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-            case ShaderStageMask_AnyHit:         ret |= VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
-            case ShaderStageMask_Intersect:      ret |= VK_SHADER_STAGE_INTERSECTION_BIT_KHR;
-            case ShaderStageMask_Callable:       ret |= VK_SHADER_STAGE_CALLABLE_BIT_KHR;
-            case ShaderStageMask_Task:           ret |= VK_SHADER_STAGE_TASK_BIT_EXT;
-            case ShaderStageMask_Mesh:           ret |= VK_SHADER_STAGE_MESH_BIT_EXT;
+            case ShaderStageMask_Vertex:         ret |= VK_SHADER_STAGE_VERTEX_BIT;break;
+            case ShaderStageMask_TessControl:    ret |= VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;break;
+            case ShaderStageMask_TessEvaluation: ret |= VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;break;
+            case ShaderStageMask_Geometry:       ret |= VK_SHADER_STAGE_GEOMETRY_BIT;break;
+            case ShaderStageMask_Fragment:       ret |= VK_SHADER_STAGE_FRAGMENT_BIT;break;
+            case ShaderStageMask_Compute:        ret |= VK_SHADER_STAGE_COMPUTE_BIT;break;
+            case ShaderStageMask_RayGen:         ret |= VK_SHADER_STAGE_RAYGEN_BIT_KHR;break;
+            case ShaderStageMask_Miss:           ret |= VK_SHADER_STAGE_MISS_BIT_KHR;break;
+            case ShaderStageMask_ClosestHit:     ret |= VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;break;
+            case ShaderStageMask_AnyHit:         ret |= VK_SHADER_STAGE_ANY_HIT_BIT_KHR;break;
+            case ShaderStageMask_Intersect:      ret |= VK_SHADER_STAGE_INTERSECTION_BIT_KHR;break;
+            case ShaderStageMask_Callable:       ret |= VK_SHADER_STAGE_CALLABLE_BIT_KHR;break;
+            case ShaderStageMask_Task:           ret |= VK_SHADER_STAGE_TASK_BIT_EXT;break;
+            case ShaderStageMask_Mesh:           ret |= VK_SHADER_STAGE_MESH_BIT_EXT;break;
             default: rg_unreachable();
         }
     }
