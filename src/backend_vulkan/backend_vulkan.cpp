@@ -1230,7 +1230,21 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     {
         auto [device, queue] = ret;
         device->queue = queue;
-        device->physicalDevice = physicalDevice;
+        {
+            WGVKAdapter adapter = callocnewpp(WGVKAdapterImpl);
+            adapter->physicalDevice = physicalDevice;
+            // Get ray tracing pipeline properties
+            #if VULKAN_ENABLE_RAYTRACING == 1
+            VkPhysicalDeviceRayTracingPipelinePropertiesKHR rayTracingPipelineProperties zeroinit;
+		    rayTracingPipelineProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
+		    VkPhysicalDeviceProperties2 deviceProperties2 zeroinit;
+		    deviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+		    deviceProperties2.pNext = &rayTracingPipelineProperties;
+		    vkGetPhysicalDeviceProperties2(physicalDevice, &deviceProperties2);
+            adapter->rayTracingPipelineProperties = rayTracingPipelineProperties;
+            #endif
+            device->adapter = adapter;
+        }
         queue->device = device;
     }
     return ret;

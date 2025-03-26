@@ -245,9 +245,15 @@ struct PerframeCache{
     std::map<uint64_t, small_vector<MappableBufferMemory>> stagingBufferCache;
     std::unordered_map<WGVKBindGroupLayout, std::vector<std::pair<VkDescriptorPool, VkDescriptorSet>>> bindGroupCache;
 };
+
+typedef struct WGVKAdapterImpl{
+    VkPhysicalDevice physicalDevice;
+    VkPhysicalDeviceRayTracingPipelinePropertiesKHR rayTracingPipelineProperties;
+}WGVKAdapterImpl;
+
 typedef struct WGVKDeviceImpl{
     VkDevice device;
-    VkPhysicalDevice physicalDevice;
+    WGVKAdapter adapter;
     WGVKQueue queue;
     size_t submittedFrames = 0;
     VmaAllocator allocator;
@@ -277,6 +283,13 @@ typedef struct WGVKComputePipelineImpl{
     VkPipeline graphicsPipeline;
     VkPipelineLayout layout;
 }WGVKComputePipelineImpl;
+
+typedef struct WGVKRaytracingPipelineImpl{
+    VkPipeline raytracingPipeline;
+    WGVKBuffer raygenBindingTable;
+    WGVKBuffer missBindingTable;
+    WGVKBuffer hitBindingTable;
+}WGVKRaytracingPipelineImpl;
 
 typedef struct WGVKTextureViewImpl{
     VkImageView view;

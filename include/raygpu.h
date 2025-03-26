@@ -1178,7 +1178,7 @@ EXTERN_C_BEGIN
     DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, bool compute);
     DescribedBindGroupLayout LoadBindGroupLayoutMod(const DescribedShaderModule* shaderModule);
 
-    VkPipeline         LoadRTPipeline(const DescribedShaderModule* module);
+    WGVKRaytracingPipeline LoadRTPipeline(const DescribedShaderModule* module);
     DescribedPipeline* ClonePipeline(const DescribedPipeline* pl);
     DescribedPipeline* ClonePipelineWithSettings(const DescribedPipeline* pl, RenderSettings settings);
     DescribedPipeline* LoadPipeline(const char* shaderSource);

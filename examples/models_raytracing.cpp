@@ -114,7 +114,7 @@ void main(){
 })";
 
 int main(){
-    //RequestAdapterType(SOFTWARE_RENDERER);
+    RequestAdapterType(SOFTWARE_RENDERER);
     InitWindow(800, 800, "HWRT");
     
     WGVKBottomLevelAccelerationStructureDescriptor blasdesc zeroinit;
@@ -154,10 +154,10 @@ int main(){
     sources.sources[2].stageMask = ShaderStageMask_Miss;
 
     DescribedShaderModule rt_module = LoadShaderModule(sources);
-    VkPipeline rtpl = LoadRTPipeline(&rt_module);
+    WGVKRaytracingPipeline rtpl = LoadRTPipeline(&rt_module);
     WGVKCommandEncoderDescriptor cedecs zeroinit;
     WGVKCommandEncoder cmdEncoder = wgvkDeviceCreateCommandEncoder((WGVKDevice)GetDevice(), &cedecs);
-    vkCmdBindPipeline(cmdEncoder->buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, rtpl);
+    vkCmdBindPipeline(cmdEncoder->buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, rtpl->raytracingPipeline);
     //vkGetRayTracingShaderGroupHandlesKHR(VkDevice device, VkPipeline pipeline, uint32_t firstGroup, uint32_t groupCount, size_t dataSize, void *pData) s;
     while(!WindowShouldClose()){
         BeginDrawing();

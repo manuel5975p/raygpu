@@ -94,12 +94,14 @@ struct WGVKCommandBufferImpl;
 struct WGVKTextureImpl;
 struct WGVKTextureViewImpl;
 struct WGVKQueueImpl;
+struct WGVKAdapterImpl;
 struct WGVKDeviceImpl;
 struct WGVKSurfaceImpl;
 struct WGVKRenderPipelineImpl;
 struct WGVKComputePipelineImpl;
 struct WGVKTopLevelAccelerationStructureImpl;
 struct WGVKBottomLevelAccelerationStructureImpl;
+struct WGVKRaytracingPipelineImpl;
 struct DescribedPipeline;
 
 typedef struct WGVKSurfaceImpl* WGVKSurface;
@@ -107,6 +109,7 @@ typedef struct WGVKBindGroupLayoutImpl* WGVKBindGroupLayout;
 typedef struct WGVKBindGroupImpl* WGVKBindGroup;
 typedef struct WGVKBufferImpl* WGVKBuffer;
 typedef struct WGVKQueueImpl* WGVKQueue;
+typedef struct WGVKAdapterImpl* WGVKAdapter;
 typedef struct WGVKDeviceImpl* WGVKDevice;
 typedef struct WGVKRenderPassEncoderImpl* WGVKRenderPassEncoder;
 typedef struct WGVKComputePassEncoderImpl* WGVKComputePassEncoder;
@@ -118,7 +121,7 @@ typedef struct WGVKRenderPipelineImpl* WGVKRenderPipeline;
 typedef struct WGVKComputePipelineImpl* WGVKComputePipeline;
 typedef struct WGVKTopLevelAccelerationStructureImpl* WGVKTopLevelAccelerationStructure;
 typedef struct WGVKBottomLevelAccelerationStructureImpl* WGVKBottomLevelAccelerationStructure;
-
+typedef struct WGVKRaytracingPipelineImpl* WGVKRaytracingPipeline;
 
 typedef struct WGVKStringView{
     const char* data;

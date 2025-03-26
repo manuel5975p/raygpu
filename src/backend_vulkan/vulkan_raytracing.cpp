@@ -67,7 +67,7 @@ extern "C" WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAcceleratio
     deviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
     deviceProperties2.pNext = &accelerationStructureProperties;
 
-    vkGetPhysicalDeviceProperties2(device->physicalDevice, &deviceProperties2);
+    vkGetPhysicalDeviceProperties2(device->adapter->physicalDevice, &deviceProperties2);
 
     // Create instance buffer to hold instance data
     const size_t instanceSize = sizeof(VkAccelerationStructureInstanceKHR);
@@ -86,7 +86,7 @@ extern "C" WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAcceleratio
     VkMemoryAllocateInfo allocateInfo = {};
     allocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocateInfo.allocationSize = memoryRequirements.size;
-    allocateInfo.memoryTypeIndex = findMemoryType(device->physicalDevice, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    allocateInfo.memoryTypeIndex = findMemoryType(device->adapter->physicalDevice, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo = {};
     memoryAllocateFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
@@ -183,7 +183,7 @@ extern "C" WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAcceleratio
     VkMemoryAllocateInfo asAllocateInfo = {};
     asAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     asAllocateInfo.allocationSize = memoryRequirements.size;
-    asAllocateInfo.memoryTypeIndex = findMemoryType(device->physicalDevice, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    asAllocateInfo.memoryTypeIndex = findMemoryType(device->adapter->physicalDevice, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     
     VkMemoryAllocateFlagsInfoKHR infoKhr zeroinit;
     infoKhr.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO_KHR;
@@ -216,7 +216,7 @@ extern "C" WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAcceleratio
     VkMemoryAllocateInfo scratchBufferAllocateInfo = {};
     scratchBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     scratchBufferAllocateInfo.allocationSize = memoryRequirements.size;
-    scratchBufferAllocateInfo.memoryTypeIndex = findMemoryType(device->physicalDevice, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    scratchBufferAllocateInfo.memoryTypeIndex = findMemoryType(device->adapter->physicalDevice, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     VkMemoryAllocateFlagsInfo scratchMemFlags = {};
     scratchMemFlags.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
@@ -319,7 +319,7 @@ extern "C" WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccel
     deviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
     deviceProperties2.pNext = &accelerationStructureProperties;
 
-    vkGetPhysicalDeviceProperties2(device->physicalDevice, &deviceProperties2);
+    vkGetPhysicalDeviceProperties2(device->adapter->physicalDevice, &deviceProperties2);
 
     // Create acceleration structure geometry
     VkAccelerationStructureGeometryKHR accelerationStructureGeometry = {};
@@ -386,7 +386,7 @@ extern "C" WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccel
     VkMemoryAllocateInfo allocateInfo = {};
     allocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocateInfo.allocationSize = memoryRequirements.size;
-    allocateInfo.memoryTypeIndex = findMemoryType(device->physicalDevice, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    allocateInfo.memoryTypeIndex = findMemoryType(device->adapter->physicalDevice, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     VkMemoryAllocateFlagsInfoKHR infoKhr zeroinit;
     infoKhr.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO_KHR;
     infoKhr.flags |= VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
@@ -417,7 +417,7 @@ extern "C" WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccel
     VkMemoryAllocateInfo scratchBufferAllocateInfo = {};
     scratchBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     scratchBufferAllocateInfo.allocationSize = memoryRequirements.size;
-    scratchBufferAllocateInfo.memoryTypeIndex = findMemoryType(device->physicalDevice, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    scratchBufferAllocateInfo.memoryTypeIndex = findMemoryType(device->adapter->physicalDevice, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo = {};
     memoryAllocateFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
@@ -525,8 +525,8 @@ void wgvkDestroyAccelerationStructure(WGVKBottomLevelAccelerationStructure impl)
  * Creates a VkRayTracingPipelineKHR with appropriate stage and group info
  * derived from reflection data in the module.
  */
- VkPipeline LoadRTPipeline(const DescribedShaderModule* module) {
-    VkPipeline pipeline = VK_NULL_HANDLE;
+ WGVKRaytracingPipeline LoadRTPipeline(const DescribedShaderModule* module) {
+    WGVKRaytracingPipeline pipeline = callocnewpp(WGVKRaytracingPipelineImpl);
     
     // Create shader stages from modules
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
@@ -626,7 +626,7 @@ void wgvkDestroyAccelerationStructure(WGVKBottomLevelAccelerationStructure impl)
         1,                                        // Create info count
         &pipelineInfo,                            // Create info
         nullptr,                                  // Allocator
-        &pipeline                                 // Output pipeline handle
+        &pipeline->raytracingPipeline             // Output pipeline handle
     );
     
     if (result != VK_SUCCESS) {
@@ -634,9 +634,15 @@ void wgvkDestroyAccelerationStructure(WGVKBottomLevelAccelerationStructure impl)
         rg_trap();
         return VK_NULL_HANDLE;
     }
-    char kakbuffer[100] = {0};
-    
-    fulkGetRayTracingShaderGroupHandlesKHR(g_vulkanstate.device->device, pipeline, 0, 3, 32 * 3, kakbuffer);
+    std::vector<char> kakbuffer(shaderGroups.size() * g_vulkanstate.device->adapter->rayTracingPipelineProperties.shaderGroupHandleSize);
+    fulkGetRayTracingShaderGroupHandlesKHR(g_vulkanstate.device->device, pipeline->raytracingPipeline, 0, 3, shaderGroups.size() * g_vulkanstate.device->adapter->rayTracingPipelineProperties.shaderGroupHandleSize, kakbuffer.data());
+    WGVKBufferDescriptor bdesc zeroinit;
+    bdesc.usage = BufferUsage_MapWrite;
+    bdesc.size = 32;
+    WGVKBuffer buffer1 = wgvkDeviceCreateBuffer(g_vulkanstate.device, &bdesc);
+    WGVKBuffer buffer2 = wgvkDeviceCreateBuffer(g_vulkanstate.device, &bdesc);
+    WGVKBuffer buffer3 = wgvkDeviceCreateBuffer(g_vulkanstate.device, &bdesc);
+
     return pipeline;
 }
 
