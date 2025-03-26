@@ -509,7 +509,7 @@ WGVKRaytracingPipeline LoadRTPipeline(const DescribedShaderModule *module) {
     // Create shader groups (general, triangles hit, procedural hit)
     std::vector<VkRayTracingShaderGroupCreateInfoKHR> shaderGroups(3);
 
-    int raygenIndex = -1, missIndex = -1, hitIndex = -1;
+    uint32_t raygenIndex = VK_SHADER_UNUSED_KHR, missIndex = VK_SHADER_UNUSED_KHR, hitIndex = VK_SHADER_UNUSED_KHR;
     for (size_t i = 0; i < shaderStages.size(); ++i) {
         auto stage = shaderStages[i].stage;
         if (stage == VK_SHADER_STAGE_RAYGEN_BIT_KHR)
@@ -523,7 +523,7 @@ WGVKRaytracingPipeline LoadRTPipeline(const DescribedShaderModule *module) {
     // Set up groups in correct order
     // 1. Raygen group
     shaderGroups[0].sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
-    shaderGroups[0].type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+    shaderGroups[0].type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_NV;
     shaderGroups[0].generalShader = raygenIndex;
     shaderGroups[0].closestHitShader = VK_SHADER_UNUSED_KHR;
     shaderGroups[0].anyHitShader = VK_SHADER_UNUSED_KHR;

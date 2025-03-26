@@ -10,9 +10,13 @@ layout(binding = 0) uniform accelerationStructureEXT topLevelAS;
 // Output image
 layout(binding = 1, rgba8) uniform image2D image;
 // Camera uniform buffer
+
+
 layout(binding = 2) uniform CameraProperties {
-    mat4 viewInverse;
-    mat4 projInverse;
+    vec4 eye;
+    vec4 target;
+    vec4 up;
+    vec4 fovY;
 } camera;
 
 // Ray payload - will be passed to closest hit or miss shader
@@ -25,9 +29,13 @@ void main() {
     vec2 d = inUV * 2.0 - 1.0;
 
     // Calculate ray origin and direction using camera matrices
-    vec4 origin = camera.viewInverse * vec4(0, 0, 0, 1);
-    vec4 target = camera.projInverse * vec4(d.x, d.y, 1, 1);
-    vec4 direction = camera.viewInverse * vec4(normalize(target.xyz), 0);
+    vec3 origin = camera.eye.xyz;
+    vec3 target = camera.target.xyz;
+    vec3 direction = normalize(target - origin);
+    vec3 left = cross(normalize(camera.up.xyz), direction);
+    vec3 realup = normalize(cross(left, direction));
+    float factor = tan(camera.fovY.x * 0.5f);
+    vec3 raydirection = normalize(direction + factor * d.x * left + factor * d.y * realup);
 
     payload = vec4(target.yx, 0.3f, 1);
     // Initialize payload
@@ -42,7 +50,7 @@ void main() {
         0,                    // missIndex
         origin.xyz,           // Ray origin
         0.001,                // Min ray distance
-        direction.xyz,        // Ray direction
+        raydirection.xyz,     // Ray direction
         100.0,                // Max ray distance
         0                     // Payload location
     );
@@ -114,18 +122,54 @@ void main(){
     // Write sky color to payload
     payload = vec4(skyColor, 1.0f);
 })";
+Matrix padCamera(Camera3D cam){
+    Matrix ret zeroinit;
+    ret.data[0] = cam.position.x;
+    ret.data[1] = cam.position.y;
+    ret.data[2] = cam.position.z;
 
+    ret.data[4] = cam.target.x;
+    ret.data[5] = cam.target.y;
+    ret.data[6] = cam.target.z;
+
+    ret.data[8] = cam.up.x;
+    ret.data[9] = cam.up.y;
+    ret.data[10] = cam.up.z;
+    
+    ret.data[12] = cam.fovy;
+    ret.data[13] = cam.fovy;
+    ret.data[14] = cam.fovy;
+
+    return ret;
+}
 int main(){
-    //RequestAdapterType(SOFTWARE_RENDERER);
+    RequestAdapterType(SOFTWARE_RENDERER);
     InitWindow(800, 800, "HWRT");
     
     WGVKBottomLevelAccelerationStructureDescriptor blasdesc zeroinit;
 
     WGVKBufferDescriptor bdesc1 zeroinit;
+    
+    Camera3D cam{
+        .position = Vector3{0,0,-2},
+        .target = Vector3{0,0,0},
+        .up = Vector3{0,1,0},
+        .fovy = 1.f,
+    };
+    //Matrix persplookat[2] = {
+    //    MatrixLookAt(cam.position, cam.target, cam.up),
+    //    MatrixPerspective(cam.fovy * DEG2RAD, 1.0f, 0.01f, 100.0f),
+    //};
+    //
+    //persplookat[0] = MatrixIdentity();//MatrixInvert(persplookat[0]);
+    //persplookat[1] = MatrixIdentity();//MatrixInvert(persplookat[1]);
+
     bdesc1.size = 36;
     bdesc1.usage = BufferUsage_MapWrite | BufferUsage_CopyDst | BufferUsage_ShaderDeviceAddress | BufferUsage_AccelerationStructureInput;
     WGVKBuffer vertexBuffer = wgvkDeviceCreateBuffer((WGVKDevice)GetDevice(), &bdesc1);
-    float vertexData[9] = {0,0,1,1,0,1,0,1,1};
+    float vertexData[9] = { 0,-1, 1,
+                           -1, 1, 1,
+                            1, 1, 1};
     wgvkQueueWriteBuffer((WGVKQueue)g_vulkanstate.queue, vertexBuffer, 0, vertexData, 9 * sizeof(float));
 
     blasdesc.vertexBuffer = vertexBuffer;
@@ -143,11 +187,10 @@ int main(){
     tlasdesc.transformMatrices = &matrix;
     
     WGVKTopLevelAccelerationStructure tlas = wgvkDeviceCreateTopLevelAccelerationStructure((WGVKDevice)GetDevice(), &tlasdesc);
-    Texture2D storageTex = LoadTexturePro(5000, 5000, RGBA8, TextureUsage_StorageBinding | TextureUsage_CopySrc | TextureUsage_TextureBinding, 1, 1);
+    Texture2D storageTex = LoadTexturePro(50, 50, RGBA8, TextureUsage_StorageBinding | TextureUsage_CopySrc | TextureUsage_TextureBinding, 1, 1);
     
-    Matrix inverseCamMatrices[2] = {MatrixIdentity(), MatrixIdentity()};
-
-    DescribedBuffer* uniformBuffer = GenBufferEx(inverseCamMatrices, sizeof(Matrix) * 2, BufferUsage_CopyDst | BufferUsage_Uniform);
+    Matrix camPadded = padCamera(cam);
+    DescribedBuffer* uniformBuffer = GenBufferEx(&camPadded, sizeof(Matrix), BufferUsage_CopyDst | BufferUsage_Uniform);
     ShaderSources sources zeroinit;
     sources.language = sourceTypeGLSL;
     sources.sourceCount = 3;
@@ -174,7 +217,7 @@ int main(){
     bgentries[1].binding = 1;
     bgentries[2].buffer = (WGVKBuffer)uniformBuffer->buffer;
     bgentries[2].binding = 2;
-    bgentries[2].size = 128;
+    bgentries[2].size = uniformBuffer->size;
     DescribedBindGroup rtbg = LoadBindGroup(&drtpl->bglayout, bgentries, 3);
     UpdateBindGroup(&rtbg);
     WGVKRaytracingPipeline rtpl = drtpl->pipeline;
@@ -184,7 +227,7 @@ int main(){
     WGVKRaytracingPassEncoder rtEncoder = wgvkCommandEncoderBeginRaytracingPass(cmdEncoder);
     wgvkRaytracingPassEncoderSetPipeline(rtEncoder, rtpl);
     wgvkRaytracingPassEncoderSetBindGroup(rtEncoder, 0, (WGVKBindGroup)rtbg.bindGroup);
-    wgvkRaytracingPassEncoderTraceRays(rtEncoder, 5000, 5000, 1);
+    wgvkRaytracingPassEncoderTraceRays(rtEncoder, 50, 50, 1);
     WGVKCommandBuffer cmdBuffer = wgvkCommandEncoderFinish(cmdEncoder);
     
     //vkCmdBindPipeline(cmdEncoder->buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, rtpl->raytracingPipeline);
