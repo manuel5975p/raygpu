@@ -3,23 +3,19 @@
 #include <vulkan/vulkan.h>
 #include <wgvk.h>
 
-
-
-
 #define X(A) PFN_vk##A fulk##A;
 RTFunctions
 #undef X
-extern "C" void raytracing_LoadDeviceFunctions(VkDevice device){
-    #define X(A) fulk##A = (PFN_vk##A)vkGetDeviceProcAddr(device, "vk" #A);
+    extern "C" void
+    raytracing_LoadDeviceFunctions(VkDevice device) {
+#define X(A) fulk##A = (PFN_vk##A)vkGetDeviceProcAddr(device, "vk" #A);
     RTFunctions
-    #undef X
+#undef X
 }
 
 struct triangle {
     vertex v1, v2, v3;
 };
-
-
 
 /**
  * Creates a Vulkan top level acceleration structure for ray tracing
@@ -156,7 +152,7 @@ extern "C" WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAcceleratio
     asAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     asAllocateInfo.allocationSize = memoryRequirements.size;
     asAllocateInfo.memoryTypeIndex = findMemoryType(device->adapter->physicalDevice, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    
+
     VkMemoryAllocateFlagsInfoKHR infoKhr zeroinit;
     infoKhr.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO_KHR;
     infoKhr.flags |= VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
@@ -455,57 +451,52 @@ void wgvkDestroyAccelerationStructure(WGVKBottomLevelAccelerationStructure impl)
  * Creates a pipeline layout from uniform reflection data.
  */
 
-std::pair<DescribedBindGroupLayout, VkPipelineLayout> CreateRTPipelineLayout(WGVKDevice device, const DescribedShaderModule* module) {
+std::pair<DescribedBindGroupLayout, VkPipelineLayout> CreateRTPipelineLayout(WGVKDevice device, const DescribedShaderModule *module) {
     VkPipelineLayout layout = VK_NULL_HANDLE;
-    
+
     // Create descriptor set layouts from uniform map
     std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
     std::vector<ResourceTypeDescriptor> flat;
     DescribedBindGroupLayout dbgl = LoadBindGroupLayoutMod(module);
 
     descriptorSetLayouts.push_back(reinterpret_cast<WGVKBindGroupLayout>(dbgl.layout)->layout);
-    
+
     // Parse uniform map to create descriptor sets
     // Would need to iterate through uniforms and create appropriate bindings
-    
+
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size());
     pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
-    
+
     // Add push constants if needed
     pipelineLayoutInfo.pushConstantRangeCount = 0;
     pipelineLayoutInfo.pPushConstantRanges = nullptr;
-    
-    VkResult result = vkCreatePipelineLayout(
-        device->device,
-        &pipelineLayoutInfo,
-        nullptr,
-        &layout
-    );
-    
+
+    VkResult result = vkCreatePipelineLayout(device->device, &pipelineLayoutInfo, nullptr, &layout);
+
     if (result != VK_SUCCESS) {
         // Handle error
         return {};
     }
-    
+
     return {dbgl, layout};
 }
 
 /**
  * Loads a ray tracing pipeline from shader modules.
- * 
+ *
  * Creates a VkRayTracingPipelineKHR with appropriate stage and group info
  * derived from reflection data in the module.
  */
- WGVKRaytracingPipeline LoadRTPipeline(const DescribedShaderModule* module) {
+WGVKRaytracingPipeline LoadRTPipeline(const DescribedShaderModule *module) {
     WGVKRaytracingPipeline pipeline = callocnewpp(WGVKRaytracingPipelineImpl);
     const WGVKDevice device = g_vulkanstate.device;
     // Create shader stages from modules
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
     for (uint32_t i = 0; i < 16; i++) {
-        if(module->stages[i].module != VK_NULL_HANDLE){
-            const ShaderEntryPoint& entryPoint = module->reflectionInfo.ep[i];
+        if (module->stages[i].module != VK_NULL_HANDLE) {
+            const ShaderEntryPoint &entryPoint = module->reflectionInfo.ep[i];
             VkPipelineShaderStageCreateInfo stageInfo zeroinit;
             stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
             stageInfo.stage = toVulkanShaderStage(entryPoint.stage);
@@ -514,72 +505,59 @@ std::pair<DescribedBindGroupLayout, VkPipelineLayout> CreateRTPipelineLayout(WGV
             shaderStages.push_back(stageInfo);
         }
     }
-    
+
     // Create shader groups (general, triangles hit, procedural hit)
-    std::vector<VkRayTracingShaderGroupCreateInfoKHR> shaderGroups;
-    
-    // Group configuration would be derived from reflection info
-    // We need to match stages with their intended group type and index
+    std::vector<VkRayTracingShaderGroupCreateInfoKHR> shaderGroups(3);
+
+    int raygenIndex = -1, missIndex = -1, hitIndex = -1;
     for (size_t i = 0; i < shaderStages.size(); ++i) {
         auto stage = shaderStages[i].stage;
-        
-        VkRayTracingShaderGroupCreateInfoKHR group = {};
-        group.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
-        
-        // Determine group type based on shader stage
-        if (stage == VK_SHADER_STAGE_RAYGEN_BIT_KHR || 
-            stage == VK_SHADER_STAGE_MISS_BIT_KHR || 
-            stage == VK_SHADER_STAGE_CALLABLE_BIT_KHR) {
-            group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
-            group.generalShader = i;
-            group.closestHitShader = VK_SHADER_UNUSED_KHR;
-            group.anyHitShader = VK_SHADER_UNUSED_KHR;
-            group.intersectionShader = VK_SHADER_UNUSED_KHR;
-        } 
-        else if (stage == VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR || 
-                 stage == VK_SHADER_STAGE_ANY_HIT_BIT_KHR) {
-            group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
-            group.generalShader = VK_SHADER_UNUSED_KHR;
-            
-            if (stage == VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
-                group.closestHitShader = i;
-            else
-                group.closestHitShader = VK_SHADER_UNUSED_KHR;
-                
-            if (stage == VK_SHADER_STAGE_ANY_HIT_BIT_KHR)
-                group.anyHitShader = i;
-            else
-                group.anyHitShader = VK_SHADER_UNUSED_KHR;
-                
-            group.intersectionShader = VK_SHADER_UNUSED_KHR;
-        }
-        else if (stage == VK_SHADER_STAGE_INTERSECTION_BIT_KHR) {
-            group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR;
-            group.generalShader = VK_SHADER_UNUSED_KHR;
-            group.intersectionShader = i;
-            
-            // The closest hit and any hit shaders would need to be set separately
-            // based on reflection info binding
-            group.closestHitShader = VK_SHADER_UNUSED_KHR;
-            group.anyHitShader = VK_SHADER_UNUSED_KHR;
-        }
-        
-        shaderGroups.push_back(group);
+        if (stage == VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+            raygenIndex = i;
+        else if (stage == VK_SHADER_STAGE_MISS_BIT_KHR)
+            missIndex = i;
+        else if (stage == VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
+            hitIndex = i;
     }
-    
+
+    // Set up groups in correct order
+    // 1. Raygen group
+    shaderGroups[0].sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
+    shaderGroups[0].type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+    shaderGroups[0].generalShader = raygenIndex;
+    shaderGroups[0].closestHitShader = VK_SHADER_UNUSED_KHR;
+    shaderGroups[0].anyHitShader = VK_SHADER_UNUSED_KHR;
+    shaderGroups[0].intersectionShader = VK_SHADER_UNUSED_KHR;
+
+    // 2. Miss group
+    shaderGroups[1].sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
+    shaderGroups[1].type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+    shaderGroups[1].generalShader = missIndex;
+    shaderGroups[1].closestHitShader = VK_SHADER_UNUSED_KHR;
+    shaderGroups[1].anyHitShader = VK_SHADER_UNUSED_KHR;
+    shaderGroups[1].intersectionShader = VK_SHADER_UNUSED_KHR;
+
+    // 3. Hit group
+    shaderGroups[2].sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
+    shaderGroups[2].type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
+    shaderGroups[2].generalShader = VK_SHADER_UNUSED_KHR;
+    shaderGroups[2].closestHitShader = hitIndex;
+    shaderGroups[2].anyHitShader = VK_SHADER_UNUSED_KHR;
+    shaderGroups[2].intersectionShader = VK_SHADER_UNUSED_KHR;
+
     // Setup ray tracing pipeline libraries (if needed)
     VkPipelineLibraryCreateInfoKHR libraryInfo = {};
     libraryInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LIBRARY_CREATE_INFO_KHR;
     libraryInfo.libraryCount = 0;
     libraryInfo.pLibraries = nullptr;
-    
+
     // Set up pipeline layout from uniforms
     auto [bindgrouplayout, pipelineLayout] = CreateRTPipelineLayout(device, module);
     pipeline->layout = pipelineLayout;
     // Configure dynamic state if needed
     VkPipelineDynamicStateCreateInfo dynamicState = {};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    
+
     // Create the ray tracing pipeline
     VkRayTracingPipelineCreateInfoKHR pipelineInfo = {};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR;
@@ -590,42 +568,41 @@ std::pair<DescribedBindGroupLayout, VkPipelineLayout> CreateRTPipelineLayout(WGV
     pipelineInfo.maxPipelineRayRecursionDepth = 2; // Get from reflection info if available
     pipelineInfo.layout = pipelineLayout;
     pipelineInfo.pDynamicState = &dynamicState;
-    
+
     // Create the ray tracing pipeline
-    VkResult result = fulkCreateRayTracingPipelinesKHR(
-        g_vulkanstate.device->device,             // Need to get this from elsewhere
-        VK_NULL_HANDLE,                           // Deferred operation handle
-        VK_NULL_HANDLE,                           // Pipeline cache (optional)
-        1,                                        // Create info count
-        &pipelineInfo,                            // Create info
-        nullptr,                                  // Allocator
-        &pipeline->raytracingPipeline             // Output pipeline handle
+    VkResult result = fulkCreateRayTracingPipelinesKHR(g_vulkanstate.device->device, // Need to get this from elsewhere
+                                                       VK_NULL_HANDLE,               // Deferred operation handle
+                                                       VK_NULL_HANDLE,               // Pipeline cache (optional)
+                                                       1,                            // Create info count
+                                                       &pipelineInfo,                // Create info
+                                                       nullptr,                      // Allocator
+                                                       &pipeline->raytracingPipeline // Output pipeline handle
     );
-    
+
     if (result != VK_SUCCESS) {
         // Handle error
         rg_trap();
         return VK_NULL_HANDLE;
     }
-    
+
     const size_t sgHandleSize = device->adapter->rayTracingPipelineProperties.shaderGroupHandleSize;
-    
+
     std::vector<char> shaderGroupHandles_Buffer(shaderGroups.size() * sgHandleSize);
     fulkGetRayTracingShaderGroupHandlesKHR(device->device, pipeline->raytracingPipeline, 0, shaderGroups.size(), shaderGroups.size() * sgHandleSize, shaderGroupHandles_Buffer.data());
     WGVKBufferDescriptor bdesc zeroinit;
     bdesc.usage = BufferUsage_MapWrite | BufferUsage_ShaderDeviceAddress | BufferUsage_ShaderBindingTable;
     bdesc.size = sgHandleSize;
     pipeline->raygenBindingTable = wgvkDeviceCreateBuffer(device, &bdesc);
-    pipeline->missBindingTable   = wgvkDeviceCreateBuffer(device, &bdesc);
-    pipeline->hitBindingTable    = wgvkDeviceCreateBuffer(device, &bdesc);
+    pipeline->missBindingTable = wgvkDeviceCreateBuffer(device, &bdesc);
+    pipeline->hitBindingTable = wgvkDeviceCreateBuffer(device, &bdesc);
     wgvkQueueWriteBuffer(device->queue, pipeline->raygenBindingTable, 0, shaderGroupHandles_Buffer.data() + sgHandleSize * 0, sgHandleSize);
-    wgvkQueueWriteBuffer(device->queue, pipeline->missBindingTable,   0, shaderGroupHandles_Buffer.data() + sgHandleSize * 1, sgHandleSize);
-    wgvkQueueWriteBuffer(device->queue, pipeline->hitBindingTable,    0, shaderGroupHandles_Buffer.data() + sgHandleSize * 2, sgHandleSize);
-    
+    wgvkQueueWriteBuffer(device->queue, pipeline->missBindingTable, 0, shaderGroupHandles_Buffer.data() + sgHandleSize * 1, sgHandleSize);
+    wgvkQueueWriteBuffer(device->queue, pipeline->hitBindingTable, 0, shaderGroupHandles_Buffer.data() + sgHandleSize * 2, sgHandleSize);
+
     return pipeline;
 }
-DescribedRaytracingPipeline* LoadRaytracingPipeline(const DescribedShaderModule *shaderModule){
-    DescribedRaytracingPipeline* ret = callocnewpp(DescribedRaytracingPipeline);
+DescribedRaytracingPipeline *LoadRaytracingPipeline(const DescribedShaderModule *shaderModule) {
+    DescribedRaytracingPipeline *ret = callocnewpp(DescribedRaytracingPipeline);
     ret->pipeline = LoadRTPipeline(shaderModule);
     auto [bgl, pll] = CreateRTPipelineLayout(g_vulkanstate.device, shaderModule);
     ret->bglayout = bgl;
@@ -634,7 +611,7 @@ DescribedRaytracingPipeline* LoadRaytracingPipeline(const DescribedShaderModule 
     return ret;
 }
 
-WGVKRaytracingPassEncoder wgvkCommandEncoderBeginRaytracingPass(WGVKCommandEncoder enc){
+WGVKRaytracingPassEncoder wgvkCommandEncoderBeginRaytracingPass(WGVKCommandEncoder enc) {
     WGVKRaytracingPassEncoder rtEncoder = callocnewpp(WGVKRaytracingPassEncoderImpl);
     rtEncoder->refCount = 2;
     rtEncoder->device = enc->device;
@@ -643,25 +620,23 @@ WGVKRaytracingPassEncoder wgvkCommandEncoderBeginRaytracingPass(WGVKCommandEncod
     enc->referencedRTs.insert(rtEncoder);
     return rtEncoder;
 }
-void wgvkRaytracingPassEncoderSetPipeline (WGVKRaytracingPassEncoder rte, WGVKRaytracingPipeline raytracingPipeline){
+void wgvkRaytracingPassEncoderSetPipeline(WGVKRaytracingPassEncoder rte, WGVKRaytracingPipeline raytracingPipeline) {
     vkCmdBindPipeline(rte->cmdBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, raytracingPipeline->raytracingPipeline);
-    rte->lastLayout = raytracingPipeline->layout; 
-    rte->lastPipeline = raytracingPipeline; 
+    rte->lastLayout = raytracingPipeline->layout;
+    rte->lastPipeline = raytracingPipeline;
 }
-void wgvkRaytracingPassEncoderSetBindGroup(WGVKRaytracingPassEncoder rte, uint32_t groupIndex, WGVKBindGroup bindGroup){
+void wgvkRaytracingPassEncoderSetBindGroup(WGVKRaytracingPassEncoder rte, uint32_t groupIndex, WGVKBindGroup bindGroup) {
     vkCmdBindDescriptorSets(rte->cmdBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, rte->lastLayout, 0, 1, &bindGroup->set, 0, nullptr);
-    for(auto viewAndUsage : bindGroup->resourceUsage.referencedTextureViews){
-        if(viewAndUsage.second == TextureUsage_TextureBinding)
+    for (auto viewAndUsage : bindGroup->resourceUsage.referencedTextureViews) {
+        if (viewAndUsage.second == TextureUsage_TextureBinding)
             rte->cmdEncoder->initializeOrTransition(viewAndUsage.first->texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        else if(viewAndUsage.second == TextureUsage_StorageBinding){
+        else if (viewAndUsage.second == TextureUsage_StorageBinding) {
             rte->cmdEncoder->initializeOrTransition(viewAndUsage.first->texture, VK_IMAGE_LAYOUT_GENERAL);
         }
     }
 }
-void wgvkCommandEncoderEndRaytracingPass  (WGVKRaytracingPassEncoder commandEncoder){
-    
-}
-void wgvkRaytracingPassEncoderTraceRays (WGVKRaytracingPassEncoder cpe, uint32_t width, uint32_t height, uint32_t depth){
+void wgvkCommandEncoderEndRaytracingPass(WGVKRaytracingPassEncoder commandEncoder) {}
+void wgvkRaytracingPassEncoderTraceRays(WGVKRaytracingPassEncoder cpe, uint32_t width, uint32_t height, uint32_t depth) {
     VkStridedDeviceAddressRegionKHR rgR zeroinit;
     rgR.deviceAddress = cpe->lastPipeline->raygenBindingTable->address;
     rgR.stride = 32;
@@ -677,4 +652,3 @@ void wgvkRaytracingPassEncoderTraceRays (WGVKRaytracingPassEncoder cpe, uint32_t
     VkStridedDeviceAddressRegionKHR callableShaderSbtEntry zeroinit;
     fulkCmdTraceRaysKHR(cpe->cmdBuffer, &rgR, &rmR, &rhR, &callableShaderSbtEntry, width, height, depth);
 }
-

@@ -101,7 +101,7 @@ constexpr char rmissSource[] = R"(#version 460
 #extension GL_EXT_ray_tracing : require
 
 // Ray payload
-layout(location = 0) rayPayloadEXT vec4 payload;
+layout(location = 0) rayPayloadInEXT vec4 payload;
 
 void main(){
     // Sky color based on ray direction
@@ -112,19 +112,22 @@ void main(){
     vec3 skyColor = mix(vec3(1.0, 1.0, 1.0), vec3(0.5, 0.7, 1.0), t);
     
     // Write sky color to payload
-    payload = vec4(0, 1.0f, 1.0f, 1.0f);
+    payload = vec4(skyColor, 1.0f);
 })";
 
 int main(){
-    RequestAdapterType(SOFTWARE_RENDERER);
+    //RequestAdapterType(SOFTWARE_RENDERER);
     InitWindow(800, 800, "HWRT");
     
     WGVKBottomLevelAccelerationStructureDescriptor blasdesc zeroinit;
 
     WGVKBufferDescriptor bdesc1 zeroinit;
-    bdesc1.size = 12;
-    bdesc1.usage = BufferUsage_CopyDst | BufferUsage_ShaderDeviceAddress | BufferUsage_AccelerationStructureInput;
+    bdesc1.size = 36;
+    bdesc1.usage = BufferUsage_MapWrite | BufferUsage_CopyDst | BufferUsage_ShaderDeviceAddress | BufferUsage_AccelerationStructureInput;
     WGVKBuffer vertexBuffer = wgvkDeviceCreateBuffer((WGVKDevice)GetDevice(), &bdesc1);
+    float vertexData[9] = {0,0,1,1,0,1,0,1,1};
+    wgvkQueueWriteBuffer((WGVKQueue)g_vulkanstate.queue, vertexBuffer, 0, vertexData, 9 * sizeof(float));
+
     blasdesc.vertexBuffer = vertexBuffer;
     blasdesc.vertexCount = 3;
     blasdesc.vertexStride = 4;
@@ -140,7 +143,7 @@ int main(){
     tlasdesc.transformMatrices = &matrix;
     
     WGVKTopLevelAccelerationStructure tlas = wgvkDeviceCreateTopLevelAccelerationStructure((WGVKDevice)GetDevice(), &tlasdesc);
-    Texture2D storageTex = LoadTexturePro(50, 50, RGBA8, TextureUsage_StorageBinding | TextureUsage_CopySrc | TextureUsage_TextureBinding, 1, 1);
+    Texture2D storageTex = LoadTexturePro(5000, 5000, RGBA8, TextureUsage_StorageBinding | TextureUsage_CopySrc | TextureUsage_TextureBinding, 1, 1);
     
     Matrix inverseCamMatrices[2] = {MatrixIdentity(), MatrixIdentity()};
 
@@ -181,7 +184,7 @@ int main(){
     WGVKRaytracingPassEncoder rtEncoder = wgvkCommandEncoderBeginRaytracingPass(cmdEncoder);
     wgvkRaytracingPassEncoderSetPipeline(rtEncoder, rtpl);
     wgvkRaytracingPassEncoderSetBindGroup(rtEncoder, 0, (WGVKBindGroup)rtbg.bindGroup);
-    wgvkRaytracingPassEncoderTraceRays(rtEncoder, 50, 50, 1);
+    wgvkRaytracingPassEncoderTraceRays(rtEncoder, 5000, 5000, 1);
     WGVKCommandBuffer cmdBuffer = wgvkCommandEncoderFinish(cmdEncoder);
     
     //vkCmdBindPipeline(cmdEncoder->buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, rtpl->raytracingPipeline);
