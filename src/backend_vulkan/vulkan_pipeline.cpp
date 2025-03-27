@@ -68,14 +68,14 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayoutSet(DescribedPipeline* ret
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertShaderStageInfo.module = (VkShaderModule)ret->sh.stages[ShaderStage_Vertex].module;
-    vertShaderStageInfo.pName = ret->sh.reflectionInfo.ep[ShaderStage_Vertex].name;
+    vertShaderStageInfo.module = (VkShaderModule)ret->shaderModule.stages[ShaderStage_Vertex].module;
+    vertShaderStageInfo.pName = ret->shaderModule.reflectionInfo.ep[ShaderStage_Vertex].name;
 
     VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
     fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragShaderStageInfo.module = (VkShaderModule)ret->sh.stages[ShaderStage_Fragment].module;
-    fragShaderStageInfo.pName = ret->sh.reflectionInfo.ep[ShaderStage_Fragment].name;
+    fragShaderStageInfo.module = (VkShaderModule)ret->shaderModule.stages[ShaderStage_Fragment].module;
+    fragShaderStageInfo.pName = ret->shaderModule.reflectionInfo.ep[ShaderStage_Fragment].name;
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
@@ -389,7 +389,7 @@ extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const A
     ret->settings = settings;
     ret->createdPipelines = callocnewpp(VertexStateToPipelineMap);
     ret->bglayout = LoadBindGroupLayout(uniforms, uniformCount, false);
-    ret->sh = mod;
+    ret->shaderModule = mod;
     //auto [spirV, spirF] = glsl_to_spirv(vsSource, fsSource);
 
     

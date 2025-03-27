@@ -213,7 +213,9 @@ typedef struct ResourceDescriptor {
 typedef struct DColor{
     double r,g,b,a;
 }DColor;
-
+typedef struct WGVKDeviceDescriptor{
+    const void* nextInChain;
+}WGVKDeviceDescriptor;
 typedef struct WGVKRenderPassColorAttachment{
     void* nextInChain;
     WGVKTextureView view;
@@ -331,7 +333,7 @@ typedef struct WGVKTopLevelAccelerationStructureDescriptor {
 }WGVKTopLevelAccelerationStructureDescriptor;
 #endif
 
-void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, VkPhysicalDevice adapter, WGVKSurfaceCapabilities* capabilities);
+void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, WGVKAdapter adapter, WGVKSurfaceCapabilities* capabilities);
 void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* config);
 void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
 WGVKTexture wgvkDeviceCreateTexture(WGVKDevice device, const WGVKTextureDescriptor* descriptor);

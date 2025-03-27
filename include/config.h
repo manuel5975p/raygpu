@@ -76,5 +76,16 @@
 #endif
 
 #define VULKAN_USE_DYNAMIC_RENDERING 0
-#define VULKAN_ENABLE_RAYTRACING 1
+#define VULKAN_ENABLE_RAYTRACING 0
+
+#if !defined(RL_MALLOC) && !defined(RL_CALLOC) && !defined(RL_REALLOC) && !defined(RL_FREE)
+#define RL_MALLOC  malloc
+#define RL_CALLOC  calloc
+#define RL_REALLOC realloc
+#define RL_FREE    free
+#elif !defined(RL_MALLOC) || !defined(RL_CALLOC) || !defined(RL_REALLOC) || !defined(RL_FREE)
+#error Must define all of RL_MALLOC, RL_CALLOC, RL_REALLOC and RL_FREE or none
+#endif
+
+
 #endif // CONFIG_H_INCLUDED

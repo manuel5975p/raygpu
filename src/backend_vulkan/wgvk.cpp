@@ -728,18 +728,19 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
 
 
 
-extern "C" void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, VkPhysicalDevice adapter, WGVKSurfaceCapabilities* capabilities){
+extern "C" void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, WGVKAdapter adapter, WGVKSurfaceCapabilities* capabilities){
     VkSurfaceKHR surface = wgvkSurface->surface;
     VkSurfaceCapabilitiesKHR scap{};
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(adapter, surface, &scap);
+    VkPhysicalDevice vk_physicalDevice = adapter->physicalDevice;
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vk_physicalDevice, surface, &scap);
 
     // Formats
     uint32_t formatCount;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(adapter, surface, &formatCount, nullptr);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(vk_physicalDevice, surface, &formatCount, nullptr);
     if (formatCount != 0) {
         wgvkSurface->formatCache = (PixelFormat*)std::calloc(formatCount, sizeof(PixelFormat));
         std::vector<VkSurfaceFormatKHR> surfaceFormats(formatCount);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(adapter, surface, &formatCount, surfaceFormats.data());
+        vkGetPhysicalDeviceSurfaceFormatsKHR(vk_physicalDevice, surface, &formatCount, surfaceFormats.data());
         for(size_t i = 0;i < formatCount;i++){
             wgvkSurface->formatCache[i] = fromVulkanPixelFormat(surfaceFormats[i].format);
         }
@@ -748,11 +749,11 @@ extern "C" void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, VkPhysicalDe
 
     // Present Modes
     uint32_t presentModeCount;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(adapter, surface, &presentModeCount, nullptr);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(vk_physicalDevice, surface, &presentModeCount, nullptr);
     if (presentModeCount != 0) {
         wgvkSurface->presentModeCache = (PresentMode*)std::calloc(presentModeCount, sizeof(PresentMode));
         std::vector<VkPresentModeKHR> presentModes(presentModeCount);
-        vkGetPhysicalDeviceSurfacePresentModesKHR(adapter, surface, &presentModeCount, presentModes.data());
+        vkGetPhysicalDeviceSurfacePresentModesKHR(vk_physicalDevice, surface, &presentModeCount, presentModes.data());
         for(size_t i = 0;i < presentModeCount;i++){
             wgvkSurface->presentModeCache[i] = fromVulkanPresentMode(presentModes[i]);
         }
@@ -783,13 +784,13 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* c
     std::free(surface->imageViews);
     std::free(surface->images);
     vkDestroySwapchainKHR(device->device, surface->swapchain, nullptr);
-    SwapChainSupportDetails swapChainSupport = querySwapChainSupport(g_vulkanstate.physicalDevice, surface->surface);
+    SwapChainSupportDetails swapChainSupport = querySwapChainSupport(g_vulkanstate.physicalDevice->physicalDevice, surface->surface);
     VkSwapchainCreateInfoKHR createInfo{};
 
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     createInfo.surface = surface->surface;
     VkSurfaceCapabilitiesKHR vkCapabilities;
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(g_vulkanstate.physicalDevice, surface->surface, &vkCapabilities);
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(g_vulkanstate.physicalDevice->physicalDevice, surface->surface, &vkCapabilities);
     
     TRACELOG(LOG_INFO, "Capabilities minImageCount: %d", (int)vkCapabilities.minImageCount);
     

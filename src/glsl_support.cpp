@@ -577,6 +577,53 @@ DescribedShaderModule LoadShaderModuleGLSL(ShaderSources sourcesGLSL){
     ret.reflectionInfo.attributes->attributes = getAttributesGLSL(sourcesGLSL);
     return ret;
 }
+DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
+    ShaderSources glslSources zeroinit;
+    glslSources.sourceCount = 2;
+    glslSources.sources[0].data = vs;
+    glslSources.sources[0].sizeInBytes = std::strlen(vs);
+    glslSources.sources[0].stageMask = ShaderStageMask_Vertex;
+
+    glslSources.sources[1].data = fs;
+    glslSources.sources[1].sizeInBytes = std::strlen(fs);
+    glslSources.sources[1].stageMask = ShaderStageMask_Fragment;
+
+    DescribedShaderModule shaderModule = LoadShaderModuleGLSL(glslSources);
+
+    std::vector<ResourceTypeDescriptor> flat;
+    flat.reserve(shaderModule.reflectionInfo.uniforms->uniforms.size());
+    for(const auto& [x, y] : shaderModule.reflectionInfo.uniforms->uniforms){
+        flat.push_back(y);
+    }
+
+    std::vector<std::pair<VertexFormat, unsigned int>> flatAttributes;
+    flatAttributes.reserve(shaderModule.reflectionInfo.attributes->attributes.size());
+    for(const auto& [x, y] : shaderModule.reflectionInfo.attributes->attributes){
+        flatAttributes.push_back(y);
+    }
+    std::vector<AttributeAndResidence> allAttribsInOneBuffer;
+
+    allAttribsInOneBuffer.reserve(flatAttributes.size());
+    uint32_t offset = 0;
+    for(const auto& [format, location] : flatAttributes){
+        allAttribsInOneBuffer.push_back(AttributeAndResidence{
+            .attr = VertexAttribute{
+                .nextInChain = nullptr,
+                .format = format,
+                .offset = offset,
+                .shaderLocation = location
+            },
+            .bufferSlot = 0,
+            .stepMode = VertexStepMode_Vertex,
+            .enabled = true}
+        );
+        offset += attributeSize(format);
+    }
+    return LoadPipelineMod(shaderModule, allAttribsInOneBuffer.data(), allAttribsInOneBuffer.size(), flat.data(), flat.size(), GetDefaultSettings());
+}
+extern "C" DescribedPipeline* rlLoadShaderCode(char const* vs, char const* fs){
+    return LoadPipelineGLSL(vs, fs);
+}
 #ifdef GLSL_TO_WGSL
 extern "C" DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     auto [spirvV, spirvF] = glsl_to_spirv(vs, fs);

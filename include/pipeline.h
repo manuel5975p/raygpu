@@ -96,7 +96,7 @@ typedef struct DescribedBindGroupLayout{
 
 typedef struct DescribedBindGroup{
     //Cached handles
-    NativeBindgroupHandle bindGroup;
+    WGVKBindGroup bindGroup;
     const DescribedBindGroupLayout* layout;
     int needsUpdate; //Cached handles valid?
 
@@ -187,7 +187,7 @@ EXTERN_C_BEGIN
     
 
     DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const ResourceDescriptor* entries, size_t entryCount);
-    NativeBindgroupHandle UpdateAndGetNativeBindGroup(DescribedBindGroup* bg);
+    WGVKBindGroup UpdateAndGetNativeBindGroup(DescribedBindGroup* bg);
     
     void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry);
     void UpdateBindGroup(DescribedBindGroup* bg);

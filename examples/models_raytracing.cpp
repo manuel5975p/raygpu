@@ -188,6 +188,7 @@ int main(){
         matrix[i].matrix[2][2] = 1;
         matrix[i].matrix[0][3] = float(i);
     }
+    
     tlasdesc.transformMatrices = matrix;
     
     WGVKTopLevelAccelerationStructure tlas = wgvkDeviceCreateTopLevelAccelerationStructure((WGVKDevice)GetDevice(), &tlasdesc);

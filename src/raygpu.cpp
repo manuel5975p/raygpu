@@ -1004,38 +1004,114 @@ void DrawFPS(int posX, int posY){
     DrawText(fpstext, posX, posY, 40, Color{uint8_t(255 - uint8_t(ratio * ratio * 255)), v8, 20, 255});
 }
 
-/*WGPUShaderModule LoadShader(const char* path) {
-    std::ifstream file(path);
-    if (!file.is_open()) {
-        return nullptr;
+
+Shader LoadShader(const char *vsFileName, const char *fsFileName){
+    Shader shader = { 0 };
+
+    char *vShaderStr = NULL;
+    char *fShaderStr = NULL;
+
+    if (vsFileName != NULL) vShaderStr = LoadFileText(vsFileName);
+    if (fsFileName != NULL) fShaderStr = LoadFileText(fsFileName);
+
+    if ((vShaderStr == NULL) && (fShaderStr == NULL)) TraceLog(LOG_WARNING, "SHADER: Shader files provided are not valid, using default shader");
+
+    shader = LoadShaderFromMemory(vShaderStr, fShaderStr);
+
+    UnloadFileText(vShaderStr);
+    UnloadFileText(fShaderStr);
+
+    return shader;
+}
+
+extern "C" DescribedPipeline* rlLoadShaderCode(const char* vertexCode, const char* fragmentCode);
+DescribedPipeline* rlGetShaderIdDefault(){
+    return DefaultPipeline();
+}
+uint32_t GetUniformLocation(const DescribedPipeline* pl, const char* uniformName){
+    //Returns LOCATION_NOT_FOUND if not found
+    return pl->shaderModule.reflectionInfo.uniforms->GetLocation(uniformName);
+}
+uint32_t GetAttributeLocation(const DescribedPipeline* pl, const char* attributeName){
+    //Returns LOCATION_NOT_FOUND if not found
+    return pl->shaderModule.reflectionInfo.attributes->GetLocation(attributeName);
+}
+uint32_t GetUniformLocationCompute(const DescribedComputePipeline* pl, const char* uniformName){
+    //Returns LOCATION_NOT_FOUND if not found
+    return pl->shaderModule.reflectionInfo.uniforms->GetLocation(uniformName);
+}
+extern "C" uint32_t rlGetLocationUniform(const void* renderorcomputepipeline, const char* uniformName){
+    return GetUniformLocation(reinterpret_cast<const DescribedPipeline*>(renderorcomputepipeline), uniformName);
+}
+extern "C" uint32_t rlGetLocationAttrib(const void* renderorcomputepipeline, const char* attributeName){
+    return GetAttributeLocation(reinterpret_cast<const DescribedPipeline*>(renderorcomputepipeline), attributeName);
+}
+// Load shader from code strings and bind default locations
+Shader LoadShaderFromMemory(const char *vsCode, const char *fsCode){
+    Shader shader zeroinit;
+    #if SUPPORT_GLSL_PARSER == 1
+    shader.id = LoadPipelineGLSL(vsCode, fsCode);
+    
+    shader.id = rlLoadShaderCode(vsCode, fsCode);
+
+    //if (shader.id == rlGetShaderIdDefault()) shader.locs = rlGetShaderLocsDefault();
+    
+    if (shader.id != 0){
+        // After custom shader loading, we TRY to set default location names
+        // Default shader attribute locations have been binded before linking:
+        //          vertex position location    = 0
+        //          vertex texcoord location    = 1
+        //          vertex normal location      = 2
+        //          vertex color location       = 3
+        //          vertex tangent location     = 4
+        //          vertex texcoord2 location   = 5
+        //          vertex boneIds location     = 6
+        //          vertex boneWeights location = 7
+
+        // NOTE: If any location is not found, loc point becomes -1
+
+        shader.locs = (int *)RL_CALLOC(RL_MAX_SHADER_LOCATIONS, sizeof(int));
+
+        // All locations reset to -1 (no location)
+        for (int i = 0; i < RL_MAX_SHADER_LOCATIONS; i++) shader.locs[i] = -1;
+
+        // Get handles to GLSL input attribute locations
+        shader.locs[SHADER_LOC_VERTEX_POSITION]   = rlGetLocationAttrib(shader.id, RL_DEFAULT_SHADER_ATTRIB_NAME_POSITION);
+        shader.locs[SHADER_LOC_VERTEX_TEXCOORD01] = rlGetLocationAttrib(shader.id, RL_DEFAULT_SHADER_ATTRIB_NAME_TEXCOORD);
+        shader.locs[SHADER_LOC_VERTEX_TEXCOORD02] = rlGetLocationAttrib(shader.id, RL_DEFAULT_SHADER_ATTRIB_NAME_TEXCOORD2);
+        shader.locs[SHADER_LOC_VERTEX_NORMAL] = rlGetLocationAttrib(shader.id, RL_DEFAULT_SHADER_ATTRIB_NAME_NORMAL);
+        shader.locs[SHADER_LOC_VERTEX_TANGENT] = rlGetLocationAttrib(shader.id, RL_DEFAULT_SHADER_ATTRIB_NAME_TANGENT);
+        shader.locs[SHADER_LOC_VERTEX_COLOR] = rlGetLocationAttrib(shader.id, RL_DEFAULT_SHADER_ATTRIB_NAME_COLOR);
+        shader.locs[SHADER_LOC_VERTEX_BONEIDS] = rlGetLocationAttrib(shader.id, RL_DEFAULT_SHADER_ATTRIB_NAME_BONEIDS);
+        shader.locs[SHADER_LOC_VERTEX_BONEWEIGHTS] = rlGetLocationAttrib(shader.id, RL_DEFAULT_SHADER_ATTRIB_NAME_BONEWEIGHTS);
+        //shader.locs[SHADER_LOC_VERTEX_INSTANCE_TX] = rlGetLocationAttrib(shader.id, RL_DEFAULT_SHADER_ATTRIB_NAME_INSTANCE_TX);
+
+        // Get handles to GLSL uniform locations (vertex shader)
+        shader.locs[SHADER_LOC_MATRIX_MVP]        = static_cast<int>(rlGetLocationUniform(shader.id, RL_DEFAULT_SHADER_UNIFORM_NAME_MVP));
+        shader.locs[SHADER_LOC_MATRIX_VIEW]       = static_cast<int>(rlGetLocationUniform(shader.id, RL_DEFAULT_SHADER_UNIFORM_NAME_VIEW));
+        shader.locs[SHADER_LOC_MATRIX_PROJECTION] = static_cast<int>(rlGetLocationUniform(shader.id, RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION));
+        shader.locs[SHADER_LOC_MATRIX_MODEL]      = static_cast<int>(rlGetLocationUniform(shader.id, RL_DEFAULT_SHADER_UNIFORM_NAME_MODEL));
+        shader.locs[SHADER_LOC_MATRIX_NORMAL]     = static_cast<int>(rlGetLocationUniform(shader.id, RL_DEFAULT_SHADER_UNIFORM_NAME_NORMAL));
+        shader.locs[SHADER_LOC_BONE_MATRICES]     = static_cast<int>(rlGetLocationUniform(shader.id, RL_DEFAULT_SHADER_UNIFORM_NAME_BONE_MATRICES));
+
+        // Get handles to GLSL uniform locations (fragment shader)
+        shader.locs[SHADER_LOC_COLOR_DIFFUSE] = rlGetLocationUniform(shader.id, RL_DEFAULT_SHADER_UNIFORM_NAME_COLOR);
+        shader.locs[SHADER_LOC_MAP_DIFFUSE] = rlGetLocationUniform(shader.id, RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE0);  // SHADER_LOC_MAP_ALBEDO
+        shader.locs[SHADER_LOC_MAP_SPECULAR] = rlGetLocationUniform(shader.id, RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE1); // SHADER_LOC_MAP_METALNESS
+        shader.locs[SHADER_LOC_MAP_NORMAL] = rlGetLocationUniform(shader.id, RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE2);
     }
-    file.seekg(0, std::ios::end);
-    size_t size = file.tellg();
-    std::string shaderSource(size, ' ');
-    file.seekg(0);
-    file.read(shaderSource.data(), size);
-    WGPUShaderModuleWGSLDescriptor shaderCodeDesc;
-    shaderCodeDesc.chain.next = nullptr;
-    shaderCodeDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
-    shaderCodeDesc.code = WGPUStringView{shaderSource.c_str(), shaderSource.size()};
-    WGPUShaderModuleDescriptor shaderDesc;
-    shaderDesc.nextInChain = &shaderCodeDesc.chain;
-#ifdef WEBGPU_BACKEND_WGPU
-    shaderDesc.hintCount = 0;
-    shaderDesc.hints = nullptr;
-#endif
-    return wgpuDeviceCreateShaderModule((WGPUDevice)GetDevice(), &shaderDesc);
-}*/
+    #else // If glsl isn't supported, 
+    int* x = 0;
+    x[0] = 5;
+    #endif
+    return shader;
+}
 extern "C" Texture3D LoadTexture3DEx(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format){
     return LoadTexture3DPro(width, height, depth, format, TextureUsage_CopyDst | TextureUsage_TextureBinding | TextureUsage_StorageBinding, 1);
 }
-uint32_t GetUniformLocation(DescribedPipeline* pl, const char* uniformName){
-    return pl->sh.reflectionInfo.uniforms->GetLocation(uniformName);
-}
-uint32_t GetUniformLocationCompute(DescribedComputePipeline* pl, const char* uniformName){
-    return pl->shaderModule.reflectionInfo.uniforms->GetLocation(uniformName);
-}
-NativeBindgroupHandle UpdateAndGetNativeBindGroup(DescribedBindGroup* bg){
+
+
+WGVKBindGroup UpdateAndGetNativeBindGroup(DescribedBindGroup* bg){
     if(bg->needsUpdate){
         UpdateBindGroup(bg);
         //bg->bindGroup = wgpuDeviceCreateBindGroup((WGPUDevice)GetDevice(), &(bg->desc));
@@ -1530,14 +1606,14 @@ DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
     //TODO: this incurs lifetime problem, so do other things in this
     //TODO: Probably CloneShaderModule
     
-    pipeline->sh = _pipeline->sh;
+    pipeline->shaderModule = _pipeline->shaderModule;
     UpdatePipeline(pipeline);
     
 
-    pipeline->sh.reflectionInfo.uniforms = callocnew(StringToUniformMap);
-    pipeline->sh.reflectionInfo.uniforms->uniforms = _pipeline->sh.reflectionInfo.uniforms->uniforms;
-    pipeline->sh.reflectionInfo.attributes = callocnew(StringToAttributeMap);
-    pipeline->sh.reflectionInfo.attributes->attributes = _pipeline->sh.reflectionInfo.attributes->attributes;
+    pipeline->shaderModule.reflectionInfo.uniforms = callocnew(StringToUniformMap);
+    pipeline->shaderModule.reflectionInfo.uniforms->uniforms = _pipeline->shaderModule.reflectionInfo.uniforms->uniforms;
+    pipeline->shaderModule.reflectionInfo.attributes = callocnew(StringToAttributeMap);
+    pipeline->shaderModule.reflectionInfo.attributes->attributes = _pipeline->shaderModule.reflectionInfo.attributes->attributes;
 
     //new(pipeline->sh.uniformLocations) StringToUniformMap(*_pipeline->sh.uniformLocations);
     return pipeline;

@@ -43,7 +43,7 @@ VkBuffer CreateBuffer(WGVKDevice device, VkDeviceSize size, VkBufferUsageFlags u
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memReq.size;
     allocInfo.memoryTypeIndex = FindMemoryType(
-        g_vulkanstate.physicalDevice, 
+        g_vulkanstate.physicalDevice->physicalDevice, 
         memReq.memoryTypeBits, 
         properties
     );
@@ -84,7 +84,7 @@ WGVKTexture CreateImage(WGVKDevice device, uint32_t width, uint32_t height, uint
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memReq.size;
     allocInfo.memoryTypeIndex = FindMemoryType(
-        g_vulkanstate.physicalDevice, 
+        g_vulkanstate.physicalDevice->physicalDevice, 
         memReq.memoryTypeBits, 
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
     );
@@ -327,7 +327,7 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
 
     VkCommandPoolCreateInfo poolInfo zeroinit;
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    poolInfo.queueFamilyIndex = g_vulkanstate.graphicsFamily;
+    poolInfo.queueFamilyIndex = g_vulkanstate.device->adapter->queueIndices.graphicsIndex;
     poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
     
     VkCommandPool commandPool;
@@ -338,7 +338,7 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     
     WGVKTexture image = CreateVkImage(
         g_vulkanstate.device,
-        g_vulkanstate.physicalDevice, 
+        g_vulkanstate.physicalDevice->physicalDevice, 
         commandPool, 
         g_vulkanstate.queue->computeQueue, 
         (uint8_t*)data, 

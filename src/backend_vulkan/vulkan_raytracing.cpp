@@ -28,14 +28,13 @@ extern "C" WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAcceleratio
 
     const size_t cacheIndex = device->submittedFrames % framesInFlight;
     // Get acceleration structure properties
-    VkPhysicalDeviceAccelerationStructurePropertiesKHR accelerationStructureProperties = {};
-    accelerationStructureProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR;
-
-    VkPhysicalDeviceProperties2 deviceProperties2 zeroinit;
-    deviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-    deviceProperties2.pNext = &accelerationStructureProperties;
-
-    vkGetPhysicalDeviceProperties2(device->adapter->physicalDevice, &deviceProperties2);
+    
+    //VkPhysicalDeviceAccelerationStructurePropertiesKHR accelerationStructureProperties = {};
+    //accelerationStructureProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR;
+    //VkPhysicalDeviceProperties2 deviceProperties2 zeroinit;
+    //deviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    //deviceProperties2.pNext = &accelerationStructureProperties;
+    //vkGetPhysicalDeviceProperties2(device->adapter->physicalDevice, &deviceProperties2);
 
     // Create instance buffer to hold instance data
     const size_t instanceSize = sizeof(VkAccelerationStructureInstanceKHR);

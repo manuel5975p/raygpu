@@ -273,6 +273,8 @@ struct PerframeCache{
 typedef struct WGVKAdapterImpl{
     VkPhysicalDevice physicalDevice;
     VkPhysicalDeviceRayTracingPipelinePropertiesKHR rayTracingPipelineProperties;
+    VkPhysicalDeviceMemoryProperties memProperties;
+    QueueIndices queueIndices;
 }WGVKAdapterImpl;
 
 typedef struct WGVKDeviceImpl{
@@ -709,7 +711,7 @@ struct memory_types{
 
 struct VulkanState {
     VkInstance instance = VK_NULL_HANDLE;
-    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+    WGVKAdapter physicalDevice = nullptr;
     VkPhysicalDeviceMemoryProperties memProperties;
 
     WGVKDevice device = nullptr;

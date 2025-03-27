@@ -1,5 +1,6 @@
 #define RGFW_IMPLEMENTATION
 #define RGFW_USE_XDL
+#define RGFW_VULKAN
 #include <external/RGFW.h>
 
 #include <stdio.h>
@@ -11,10 +12,9 @@ void keyfunc(RGFW_window* win, RGFW_key key, unsigned char keyChar, RGFW_keymod 
 }
 
 int main() {
-    RGFW_window* win = RGFW_createWindow("a window", RGFW_RECT(0, 0, 800, 600), RGFW_windowCenter | RGFW_windowNoResize);
-
+    RGFW_window* win = RGFW_createWindow("a window", RGFW_RECT(0, 0, 800, 600), 0);
+    
     RGFW_setKeyCallback(keyfunc); // you can use callbacks like this if you want
-
     while (RGFW_window_shouldClose(win) == RGFW_FALSE) {
         while (RGFW_window_checkEvent(win)) {  // or RGFW_window_checkEvents(); if you only want callbacks
             // you can either check the current event yourself

@@ -382,12 +382,13 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
     
     wgvksurf->activeImageIndex = imageIndex;
 }
-void negotiateSurfaceFormatAndPresentMode(const void* SurfaceHandle){
+void negotiateSurfaceFormatAndPresentMode(WGVKAdapter adapter, const void* SurfaceHandle){
     WGVKSurface surface = (WGVKSurface)SurfaceHandle;
     uint32_t presentModeCount = 0;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(g_vulkanstate.physicalDevice, surface->surface, &presentModeCount, nullptr);
+
+    vkGetPhysicalDeviceSurfacePresentModesKHR(adapter->physicalDevice, surface->surface, &presentModeCount, nullptr);
     std::vector<VkPresentModeKHR> presentModes(presentModeCount);
-    vkGetPhysicalDeviceSurfacePresentModesKHR(g_vulkanstate.physicalDevice, surface->surface, &presentModeCount, presentModes.data());
+    vkGetPhysicalDeviceSurfacePresentModesKHR(adapter->physicalDevice, surface->surface, &presentModeCount, presentModes.data());
     
     if(std::find(presentModes.begin(), presentModes.end(), VK_PRESENT_MODE_FIFO_RELAXED_KHR) != presentModes.end()){
         g_renderstate.throttled_PresentMode = PresentMode_FifoRelaxed;
@@ -413,7 +414,10 @@ void* GetInstance(){
 WGVKDevice GetDevice(){
     return g_vulkanstate.device;
 }
-void* GetAdapter(){
+WGVKQueue GetQueue  (cwoid){
+    return g_vulkanstate.queue;
+}
+WGVKAdapter GetAdapter(){
     return g_vulkanstate.physicalDevice;
 }
 // Function to create Vulkan instance
@@ -594,88 +598,7 @@ extern "C" void RequestAdapterType(AdapterType type){
     *std::begin(preferredPhysicalDeviceTypes) = ittype;
 }
 
-// Function to pick a suitable physical device (GPU)
-VkPhysicalDevice pickPhysicalDevice() {
-    uint32_t deviceCount = 0;
-    vkEnumeratePhysicalDevices(g_vulkanstate.instance, &deviceCount, nullptr);
-
-    if (deviceCount == 0) {
-        TRACELOG(LOG_FATAL, "Failed to find GPUs with Vulkan support!");
-    }
-
-    std::vector<VkPhysicalDevice> devices(deviceCount);
-    vkEnumeratePhysicalDevices(g_vulkanstate.instance, &deviceCount, devices.data());
-    
-    std::vector<std::pair<VkPhysicalDevice, VkPhysicalDeviceProperties>> dwp;
-    dwp.reserve(deviceCount);
-
-    VkPhysicalDevice ret{};
-    for (const auto &device : devices) {
-        VkPhysicalDeviceProperties props;
-        vkGetPhysicalDeviceProperties(device, &props);
-        dwp.emplace_back(device, props);
-        TRACELOG(LOG_INFO, "Found device: %s", props.deviceName);
-    }
-    
-    std::sort(dwp.begin(), dwp.end(), [](const std::pair<VkPhysicalDevice, VkPhysicalDeviceProperties>& a, const std::pair<VkPhysicalDevice, VkPhysicalDeviceProperties>& b){
-        if(getPhysicalDeviceTypeRank(a.second.deviceType) < getPhysicalDeviceTypeRank(b.second.deviceType))return true;
-        else if(getPhysicalDeviceTypeRank(a.second.deviceType) > getPhysicalDeviceTypeRank(b.second.deviceType))return false;
-        return (a.second.driverVersion > b.second.driverVersion);
-    });
-    ret = dwp.front().first;
-
-    //for(uint32_t i = 0;i < (sizeof(preferredPhysicalDeviceTypes) / sizeof(preferredPhysicalDeviceTypes[0]));i++){
-    //    for (const auto &device : devices) {
-    //        VkPhysicalDeviceProperties props{};
-    //        vkGetPhysicalDeviceProperties(device, &props);
-    //        if (props.deviceType == preferredPhysicalDeviceTypes[i]) {
-    //            ret = device;
-    //            goto picked;
-    //        }
-    //    }
-    //}
-    
-
-    //if (g_vulkanstate.physicalDevice == VK_NULL_HANDLE) {
-    //    TRACELOG(LOG_FATAL, "Failed to find a suitable GPU!");
-    //}
-//picked:
-    VkPhysicalDeviceProperties pProperties;
-    vkGetPhysicalDeviceProperties(ret, &pProperties);
-    auto deviceTypeDescription = [](VkPhysicalDeviceType type){
-        switch(type){
-            case VK_PHYSICAL_DEVICE_TYPE_CPU:
-                return "CPU (Software Renderer)";
-            case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
-                return "Integrated GPU";
-            case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
-                return "Dedicated GPU";
-            default: 
-                return "?Unknown Adapter Type?";
-        }
-    };
-    const char* article = pProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU ? "an" : "a";
-    TRACELOG(LOG_INFO, "Picked Adapter: %s, which is %s %s", pProperties.deviceName, article, deviceTypeDescription(pProperties.deviceType));
-    int major = VK_API_VERSION_MAJOR(pProperties.apiVersion);
-    int minor = VK_API_VERSION_MINOR(pProperties.apiVersion);
-    int patch = VK_API_VERSION_PATCH(pProperties.apiVersion);
-    TRACELOG(LOG_INFO, "Running on Vulkan %d.%d.%d", major, minor, patch);
-    return ret;
-    //VkPhysicalDeviceExtendedDynamicState3PropertiesEXT ext3{};
-    //ext3.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_PROPERTIES_EXT;
-    //VkPhysicalDeviceProperties2 props2{};
-    //props2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-    //props2.pNext = &ext3;
-    //VkPhysicalDeviceExtendedDynamicState3FeaturesEXT ext{};
-    //vkGetPhysicalDeviceProperties2(g_vulkanstate.physicalDevice, &props2);
-    //std::cout << "Extended support: " << ext3.dynamicPrimitiveTopologyUnrestricted << "\n";
-    //(void)0;
-}
-
-
-// Function to find queue families
-
-QueueIndices findQueueFamilies() {
+QueueIndices findQueueFamilies(WGVKAdapter adapter) {
     uint32_t queueFamilyCount = 0;
     QueueIndices ret{
         UINT32_MAX,
@@ -683,10 +606,10 @@ QueueIndices findQueueFamilies() {
         UINT32_MAX,
         UINT32_MAX
     };
-    vkGetPhysicalDeviceQueueFamilyProperties(g_vulkanstate.physicalDevice, &queueFamilyCount, nullptr);
+    vkGetPhysicalDeviceQueueFamilyProperties(adapter->physicalDevice, &queueFamilyCount, nullptr);
 
     std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(g_vulkanstate.physicalDevice, &queueFamilyCount, queueFamilies.data());
+    vkGetPhysicalDeviceQueueFamilyProperties(adapter->physicalDevice, &queueFamilyCount, queueFamilies.data());
 
     // Iterate through each queue family and check for the desired capabilities
     for (uint32_t i = 0; i < queueFamilies.size(); i++) {
@@ -698,15 +621,15 @@ QueueIndices findQueueFamilies() {
         }
         // Check for presentation support
         #ifdef MAIN_WINDOW_SDL3
-        bool presentSupport = true;//SDL_Vulkan_GetPresentationSupport(g_vulkanstate.instance, g_vulkanstate.physicalDevice, i);
+        bool presentSupport = true;//SDL_Vulkan_GetPresentationSupport(g_vulkanstate.instance, adapter->physicalDevice i);
         #elif defined(MAIN_WINDOW_SDL2) //uuh 
         VkBool32 presentSupport = VK_TRUE;
         #elif defined(MAIN_WINDOW_GLFW)
-        VkBool32 presentSupport = glfwGetPhysicalDevicePresentationSupport(g_vulkanstate.instance, g_vulkanstate.physicalDevice, i) ? VK_TRUE : VK_FALSE;
+        VkBool32 presentSupport = glfwGetPhysicalDevicePresentationSupport(g_vulkanstate.instance, adapter->physicalDevice, i) ? VK_TRUE : VK_FALSE;
         #else
         VkBool32 presentSupport = VK_FALSE;
         #endif
-        //vkGetPhysicalDeviceSurfaceSupportKHR(g_vulkanstate.physicalDevice, i, g_vulkanstate.surface.surface, &presentSupport);
+        //vkGetPhysicalDeviceSurfaceSupportKHR(adapter->physicalDevice, i, g_vulkanstate.surface.surface, &presentSupport);
         if (!!presentSupport && ret.presentIndex == UINT32_MAX) {
             ret.presentIndex = i;
         }
@@ -744,6 +667,65 @@ extern "C" DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescri
     std::vector<ResourceTypeDescriptor> a(retlayout->entries, retlayout->entries + ret->entryCount);
     return retv;
 }
+
+// Function to pick a suitable physical device (GPU)
+WGVKAdapter pickPhysicalDevice() {
+    uint32_t deviceCount = 0;
+    vkEnumeratePhysicalDevices(g_vulkanstate.instance, &deviceCount, nullptr);
+
+    if (deviceCount == 0) {
+        TRACELOG(LOG_FATAL, "Failed to find GPUs with Vulkan support!");
+    }
+
+    std::vector<VkPhysicalDevice> devices(deviceCount);
+    vkEnumeratePhysicalDevices(g_vulkanstate.instance, &deviceCount, devices.data());
+    
+    std::vector<std::pair<VkPhysicalDevice, VkPhysicalDeviceProperties>> dwp;
+    dwp.reserve(deviceCount);
+
+    VkPhysicalDevice ret{};
+    for (const auto &device : devices) {
+        VkPhysicalDeviceProperties props;
+        vkGetPhysicalDeviceProperties(device, &props);
+        dwp.emplace_back(device, props);
+        TRACELOG(LOG_INFO, "Found device: %s", props.deviceName);
+    }
+    
+    std::sort(dwp.begin(), dwp.end(), [](const std::pair<VkPhysicalDevice, VkPhysicalDeviceProperties>& a, const std::pair<VkPhysicalDevice, VkPhysicalDeviceProperties>& b){
+        if(getPhysicalDeviceTypeRank(a.second.deviceType) < getPhysicalDeviceTypeRank(b.second.deviceType))return true;
+        else if(getPhysicalDeviceTypeRank(a.second.deviceType) > getPhysicalDeviceTypeRank(b.second.deviceType))return false;
+        return (a.second.driverVersion > b.second.driverVersion);
+    });
+    ret = dwp.front().first;
+    VkPhysicalDeviceProperties pProperties;
+    vkGetPhysicalDeviceProperties(ret, &pProperties);
+    auto deviceTypeDescription = [](VkPhysicalDeviceType type){
+        switch(type){
+            case VK_PHYSICAL_DEVICE_TYPE_CPU:
+                return "CPU (Software Renderer)";
+            case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+                return "Integrated GPU";
+            case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+                return "Dedicated GPU";
+            default: 
+                return "?Unknown Adapter Type?";
+        }
+    };
+    const char* article = pProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU ? "an" : "a";
+    TRACELOG(LOG_INFO, "Picked Adapter: %s, which is %s %s", pProperties.deviceName, article, deviceTypeDescription(pProperties.deviceType));
+    int major = VK_API_VERSION_MAJOR(pProperties.apiVersion);
+    int minor = VK_API_VERSION_MINOR(pProperties.apiVersion);
+    int patch = VK_API_VERSION_PATCH(pProperties.apiVersion);
+    TRACELOG(LOG_INFO, "Running on Vulkan %d.%d.%d", major, minor, patch);
+    WGVKAdapter reta = callocnewpp(WGVKAdapterImpl);
+    reta->physicalDevice = ret;
+    vkGetPhysicalDeviceMemoryProperties(ret, &reta->memProperties);
+    reta->queueIndices = findQueueFamilies(reta);
+    return reta;
+}
+
+// Function to find queue families
+
 constexpr char mipmapComputerSource2[] = R"(
 @group(0) @binding(0) var previousMipLevel: texture_2d<f32>;
 @group(0) @binding(1) var nextMipLevel: texture_storage_2d<rgba8unorm, write>;
@@ -1028,19 +1010,82 @@ void PushUsedBuffer(void* nativeBuffer){
     WGVKBuffer buffer = (WGVKBuffer)nativeBuffer;
     
 }
-// Function to create logical device and retrieve queues
-std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDevice, QueueIndices indices) {
-    // Find queue families
-    QueueIndices qind = findQueueFamilies();
+
+
+extern "C" void BindComputePipeline(DescribedComputePipeline* pipeline){
+    WGVKBindGroup bindGroup = (WGVKBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup);
+    wgvkComputePassEncoderSetPipeline ((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder, (WGVKComputePipeline)pipeline->pipeline);
+    wgvkComputePassEncoderSetBindGroup((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder, 0, bindGroup);
+}
+
+void printVkPhysicalDeviceMemoryProperties(const VkPhysicalDeviceMemoryProperties* properties) {
+    if (!properties) {
+        printf("Invalid VkPhysicalDeviceMemoryProperties pointer\n");
+        return;
+    }
+
+    printf("VkPhysicalDeviceMemoryProperties:\n");
+    
+    printf("  Memory Type Count: %u\n", properties->memoryTypeCount);
+    for (uint32_t i = 0; i < properties->memoryTypeCount; i++) {
+        VkMemoryType memoryType = properties->memoryTypes[i];
+        printf("    Memory Type %u:\n", i);
+        printf("      Heap Index: %u\n", memoryType.heapIndex);
+        printf("      Property Flags: 0x%08X\n", memoryType.propertyFlags);
+
+        // Decode memory property flags
+        printf("      Properties: ");
+        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) printf("DEVICE_LOCAL ");
+        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) printf("HOST_VISIBLE ");
+        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) printf("HOST_COHERENT ");
+        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) printf("HOST_CACHED ");
+        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) printf("LAZILY_ALLOCATED ");
+        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_PROTECTED_BIT) printf("PROTECTED ");
+        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD) printf("DEVICE_COHERENT_AMD ");
+        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_UNCACHED_BIT_AMD) printf("DEVICE_UNCACHED_AMD ");
+        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_RDMA_CAPABLE_BIT_NV) printf("RDMA_CAPABLE_NV ");
+        printf("\n");
+    }
+
+    printf("  Memory Heap Count: %u\n", properties->memoryHeapCount);
+    for (uint32_t i = 0; i < properties->memoryHeapCount; i++) {
+        VkMemoryHeap memoryHeap = properties->memoryHeaps[i];
+        printf("    Memory Heap %u:\n", i);
+        printf("      Size: %llu bytes (%.2f MB)\n", (unsigned long long)memoryHeap.size, memoryHeap.size / (1024.0 * 1024.0));
+        printf("      Flags: 0x%08X\n", memoryHeap.flags);
+
+        // Decode memory heap flags
+        printf("      Properties: ");
+        if (memoryHeap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) printf("DEVICE_LOCAL ");
+        if (memoryHeap.flags & VK_MEMORY_HEAP_MULTI_INSTANCE_BIT) printf("MULTI_INSTANCE ");
+        printf("\n");
+    }
+}
+memory_types discoverMemoryTypes(VkPhysicalDevice physicalDevice) {
+    memory_types ret{~0u, ~0u};
+    VkPhysicalDeviceMemoryProperties memProperties{};
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+    //printVkPhysicalDeviceMemoryProperties(&memProperties);
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+        if ((memProperties.memoryTypes[i].propertyFlags & (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) == (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+            ret.hostVisibleCoherent = i;
+        }
+        if((memProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT){
+            ret.deviceLocal = i;
+        }
+    }
+    return ret;
+}
+WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescriptor* descriptor){
     std::pair<WGVKDevice, WGVKQueue> ret{};
     // Collect unique queue families
     std::vector<uint32_t> queueFamilies;
     {
         std::set<uint32_t> uniqueQueueFamilies; // = { g_vulkanstate.graphicsFamily, g_vulkanstate.presentFamily };
 
-        uniqueQueueFamilies.insert(indices.computeIndex);
-        uniqueQueueFamilies.insert(indices.graphicsIndex);
-        uniqueQueueFamilies.insert(indices.presentIndex);
+        uniqueQueueFamilies.insert(adapter->queueIndices.computeIndex);
+        uniqueQueueFamilies.insert(adapter->queueIndices.graphicsIndex);
+        uniqueQueueFamilies.insert(adapter->queueIndices.presentIndex);
         auto it = uniqueQueueFamilies.find(VK_QUEUE_FAMILY_IGNORED);
         if(it != uniqueQueueFamilies.end()){
             uniqueQueueFamilies.erase(it);
@@ -1062,9 +1107,9 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     }
     
     uint32_t deviceExtensionCount = 0;
-    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &deviceExtensionCount, nullptr);
+    vkEnumerateDeviceExtensionProperties(adapter->physicalDevice, nullptr, &deviceExtensionCount, nullptr);
     std::vector<VkExtensionProperties> deprops(deviceExtensionCount);
-    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &deviceExtensionCount, deprops.data());
+    vkEnumerateDeviceExtensionProperties(adapter->physicalDevice, nullptr, &deviceExtensionCount, deprops.data());
     
     for(auto e : deprops){
         //std::cout << e.extensionName << ", ";
@@ -1136,7 +1181,7 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     // (Optional) Enable validation layers for device-specific debugging
     ret.first = callocnewpp(WGVKDeviceImpl);
     ret.second = callocnewpp(WGVKQueueImpl);
-    auto dcresult = vkCreateDevice(g_vulkanstate.physicalDevice, &createInfo, nullptr, &(ret.first->device));
+    auto dcresult = vkCreateDevice(adapter->physicalDevice, &createInfo, nullptr, &(ret.first->device));
     if (dcresult != VK_SUCCESS) {
         TRACELOG(LOG_FATAL, "Failed to create logical device!");
     } else {
@@ -1144,6 +1189,8 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     }
 
     // Retrieve and assign queues
+    
+    auto& indices = adapter->queueIndices;
     vkGetDeviceQueue(ret.first->device, indices.graphicsIndex, 0, &ret.second->graphicsQueue);
     #ifndef FORCE_HEADLESS
     vkGetDeviceQueue(ret.first->device, indices.presentIndex, 0, &ret.second->presentQueue);
@@ -1182,7 +1229,7 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
 
     VmaAllocatorCreateInfo aci zeroinit;
     aci.instance = g_vulkanstate.instance;
-    aci.physicalDevice = physicalDevice;
+    aci.physicalDevice = adapter->physicalDevice;
     aci.device = ret.first->device;
     #if VULKAN_ENABLE_RAYTRACING == 1
     aci.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
@@ -1190,7 +1237,7 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
     VkDeviceSize limit = (uint64_t(1) << 30);
     aci.preferredLargeHeapBlockSize = 1 << 15;
     VkPhysicalDeviceMemoryProperties memoryProperties zeroinit;
-    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
+    vkGetPhysicalDeviceMemoryProperties(adapter->physicalDevice, &memoryProperties);
     std::vector<VkDeviceSize> heapsizes(memoryProperties.memoryHeapCount, limit);
     aci.pHeapSizeLimit = heapsizes.data();
 
@@ -1223,20 +1270,12 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
         // TODO
     }
 
-    
-
-    //__builtin_dump_struct(&g_vulkanstate, printf);
-    // std::cin.get();
-
-    
-
-    TRACELOG(LOG_INFO, "Successfully retrieved queues");
     {
         auto [device, queue] = ret;
         device->queue = queue;
+        device->adapter = adapter;
         {
-            WGVKAdapter adapter = callocnewpp(WGVKAdapterImpl);
-            adapter->physicalDevice = physicalDevice;
+            
             // Get ray tracing pipeline properties
             #if VULKAN_ENABLE_RAYTRACING == 1
             VkPhysicalDeviceRayTracingPipelinePropertiesKHR rayTracingPipelineProperties zeroinit;
@@ -1247,75 +1286,11 @@ std::pair<WGVKDevice, WGVKQueue> createLogicalDevice(VkPhysicalDevice physicalDe
 		    vkGetPhysicalDeviceProperties2(physicalDevice, &deviceProperties2);
             adapter->rayTracingPipelineProperties = rayTracingPipelineProperties;
             #endif
-            device->adapter = adapter;
         }
+        device->adapter = adapter;
         queue->device = device;
     }
-    return ret;
-}
-extern "C" void BindComputePipeline(DescribedComputePipeline* pipeline){
-    WGVKBindGroup bindGroup = (WGVKBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup);
-    wgvkComputePassEncoderSetPipeline ((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder, (WGVKComputePipeline)pipeline->pipeline);
-    wgvkComputePassEncoderSetBindGroup((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder, 0, bindGroup);
-}
-
-void printVkPhysicalDeviceMemoryProperties(const VkPhysicalDeviceMemoryProperties* properties) {
-    if (!properties) {
-        printf("Invalid VkPhysicalDeviceMemoryProperties pointer\n");
-        return;
-    }
-
-    printf("VkPhysicalDeviceMemoryProperties:\n");
-    
-    printf("  Memory Type Count: %u\n", properties->memoryTypeCount);
-    for (uint32_t i = 0; i < properties->memoryTypeCount; i++) {
-        VkMemoryType memoryType = properties->memoryTypes[i];
-        printf("    Memory Type %u:\n", i);
-        printf("      Heap Index: %u\n", memoryType.heapIndex);
-        printf("      Property Flags: 0x%08X\n", memoryType.propertyFlags);
-
-        // Decode memory property flags
-        printf("      Properties: ");
-        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) printf("DEVICE_LOCAL ");
-        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) printf("HOST_VISIBLE ");
-        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) printf("HOST_COHERENT ");
-        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) printf("HOST_CACHED ");
-        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) printf("LAZILY_ALLOCATED ");
-        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_PROTECTED_BIT) printf("PROTECTED ");
-        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD) printf("DEVICE_COHERENT_AMD ");
-        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_UNCACHED_BIT_AMD) printf("DEVICE_UNCACHED_AMD ");
-        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_RDMA_CAPABLE_BIT_NV) printf("RDMA_CAPABLE_NV ");
-        printf("\n");
-    }
-
-    printf("  Memory Heap Count: %u\n", properties->memoryHeapCount);
-    for (uint32_t i = 0; i < properties->memoryHeapCount; i++) {
-        VkMemoryHeap memoryHeap = properties->memoryHeaps[i];
-        printf("    Memory Heap %u:\n", i);
-        printf("      Size: %llu bytes (%.2f MB)\n", (unsigned long long)memoryHeap.size, memoryHeap.size / (1024.0 * 1024.0));
-        printf("      Flags: 0x%08X\n", memoryHeap.flags);
-
-        // Decode memory heap flags
-        printf("      Properties: ");
-        if (memoryHeap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) printf("DEVICE_LOCAL ");
-        if (memoryHeap.flags & VK_MEMORY_HEAP_MULTI_INSTANCE_BIT) printf("MULTI_INSTANCE ");
-        printf("\n");
-    }
-}
-memory_types discoverMemoryTypes(VkPhysicalDevice physicalDevice) {
-    memory_types ret{~0u, ~0u};
-    VkPhysicalDeviceMemoryProperties memProperties{};
-    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
-    //printVkPhysicalDeviceMemoryProperties(&memProperties);
-    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-        if ((memProperties.memoryTypes[i].propertyFlags & (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) == (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
-            ret.hostVisibleCoherent = i;
-        }
-        if((memProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT){
-            ret.deviceLocal = i;
-        }
-    }
-    return ret;
+    return ret.first;
 }
 extern "C" void raytracing_LoadDeviceFunctions(VkDevice device);
 void InitBackend(){
@@ -1325,21 +1300,21 @@ void InitBackend(){
     #if SUPPORT_GLFW
     glfwInit();
     #endif
+    
     g_vulkanstate.instance = createInstance();
+    
     g_vulkanstate.physicalDevice = pickPhysicalDevice();
-    vkGetPhysicalDeviceMemoryProperties(g_vulkanstate.physicalDevice, &g_vulkanstate.memProperties);
-    g_vulkanstate.memoryTypes = discoverMemoryTypes(g_vulkanstate.physicalDevice);
-    QueueIndices queues = findQueueFamilies();
-    g_vulkanstate.graphicsFamily = queues.graphicsIndex;
-    g_vulkanstate.computeFamily = queues.computeIndex;
-    g_vulkanstate.presentFamily = queues.presentIndex;
-    auto device_and_queues = createLogicalDevice(g_vulkanstate.physicalDevice, queues);
-    raytracing_LoadDeviceFunctions(device_and_queues.first->device);
-    g_vulkanstate.device = device_and_queues.first;
-    g_vulkanstate.queue = device_and_queues.second;
-    for(uint32_t fif = 0;fif < framesInFlight;fif++){
-        g_vulkanstate.queue->syncState[fif].renderFinishedFence = CreateFence(0);
-    }
+    WGVKDeviceDescriptor ddescriptor zeroinit;
+    WGVKDevice device = wgvkAdapterCreateDevice(g_vulkanstate.physicalDevice, &ddescriptor);
+    g_vulkanstate.device = device;
+    g_vulkanstate.queue = device->queue;
+    //auto device_and_queues = createLogicalDevice(g_vulkanstate.physicalDevice, queues);
+    //raytracing_LoadDeviceFunctions(device_and_queues.first->device);
+    //g_vulkanstate.device = device_and_queues.first;
+    //g_vulkanstate.queue = device_and_queues.second;
+    //for(uint32_t fif = 0;fif < framesInFlight;fif++){
+    //    g_vulkanstate.queue->syncState[fif].renderFinishedFence = CreateFence(0);
+    //}
 
     
     createRenderPass();
@@ -1348,9 +1323,9 @@ void InitBackend(){
 extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t height){
     FullSurface ret{};
     ret.surface = (WGVKSurface)nsurface;
-    negotiateSurfaceFormatAndPresentMode(nsurface);
+    WGVKAdapter adapter = g_vulkanstate.physicalDevice;
+    negotiateSurfaceFormatAndPresentMode(adapter, nsurface);
     WGVKSurfaceCapabilities capa{};
-    VkPhysicalDevice adapter = g_vulkanstate.physicalDevice;
 
     wgvkSurfaceGetCapabilities((WGVKSurface)ret.surface, adapter, &capa);
     WGVKSurfaceConfiguration config{};

@@ -679,9 +679,9 @@ typedef struct DescribedShaderModule{
 
 typedef struct DescribedPipeline{
     RenderSettings settings;
+    DescribedShaderModule shaderModule;
     VertexBufferLayoutSet vertexLayout;
-
-    DescribedShaderModule sh;
+    
     DescribedBindGroup bindGroup;
     DescribedPipelineLayout layout;
     DescribedBindGroupLayout bglayout;
@@ -698,10 +698,10 @@ typedef struct Shader {
 
 typedef struct DescribedComputePipeline{
     NativeComputePipelineHandle pipeline;
+    DescribedShaderModule shaderModule;
     NativePipelineLayoutHandle layout;
     DescribedBindGroupLayout bglayout;
     DescribedBindGroup bindGroup;
-    DescribedShaderModule shaderModule;
     #ifdef __cplusplus
     UniformAccessor operator[](const char* uniformName);
     #endif
@@ -1134,10 +1134,10 @@ EXTERN_C_BEGIN
         nextcol.w = alpha;
     }
     static void rlColor4ub(uint8_t r, uint8_t g, uint8_t b, uint8_t a){
-        nextcol.x = ((int)r) / 255.0f;
-        nextcol.y = ((int)g) / 255.0f;
-        nextcol.z = ((int)b) / 255.0f;
-        nextcol.w = ((int)a) / 255.0f;
+        nextcol.x = ((float)((int)r)) / 255.0f;
+        nextcol.y = ((float)((int)g)) / 255.0f;
+        nextcol.z = ((float)((int)b)) / 255.0f;
+        nextcol.w = ((float)((int)a)) / 255.0f;
     }
     static void rlColor3f(float r, float g, float b){
         rlColor4f(r, g, b, 1.0f);
@@ -1185,7 +1185,9 @@ EXTERN_C_BEGIN
     uint32_t    GetReflectionUniformLocation   (ShaderReflectionInfo reflectionInfo, const char* name );
     uint32_t    GetReflectionAttributeLocation (ShaderReflectionInfo reflectionInfo, const char* name );
 
-    //WGPUShaderModule LoadShader(const char* path);
+    Shader LoadShader          (const char *vsFileName, const char *fsFileName);
+    Shader LoadShaderFromMemory(const char *vsCode    , const char *fsCode    );
+
 
     DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, bool compute);
     DescribedBindGroupLayout LoadBindGroupLayoutMod(const DescribedShaderModule* shaderModule);
@@ -1253,21 +1255,32 @@ EXTERN_C_BEGIN
     void RenderPassDraw        (DescribedRenderpass* drp, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance);
     void RenderPassDrawIndexed (DescribedRenderpass* drp, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t baseVertex, uint32_t firstInstance);
 
-    uint32_t GetUniformLocation(DescribedPipeline* pl, const char* uniformName);
-    uint32_t GetUniformLocationCompute(DescribedComputePipeline* pl, const char* uniformName);
-    void SetPipelineTexture           (DescribedPipeline* pl, uint32_t index, Texture tex);
-    void SetPipelineSampler           (DescribedPipeline* pl, uint32_t index, DescribedSampler sampler);
-    void SetPipelineUniformBuffer     (DescribedPipeline* pl, uint32_t index, DescribedBuffer* buffer);
-    void SetPipelineStorageBuffer     (DescribedPipeline* pl, uint32_t index, DescribedBuffer* buffer);
-    void SetPipelineUniformBufferData (DescribedPipeline* pl, uint32_t index, const void* data, size_t size);
-    void SetPipelineStorageBufferData (DescribedPipeline* pl, uint32_t index, const void* data, size_t size);
+    uint32_t GetUniformLocation       (const DescribedPipeline* pl,         const char* uniformName);
+    uint32_t GetUniformLocationCompute(const DescribedComputePipeline* pl,  const char* uniformName);
+    uint32_t rlGetLocationUniform     (const void* renderorcomputepipeline, const char* uniformName);
+    uint32_t rlGetLocationAttrib      (const void* renderorcomputepipeline, const char*  attribName);
+    void SetPipelineTexture           (      DescribedPipeline* pl, uint32_t index, Texture tex);
+    void SetPipelineSampler           (      DescribedPipeline* pl, uint32_t index, DescribedSampler sampler);
+    void SetPipelineUniformBuffer     (      DescribedPipeline* pl, uint32_t index, DescribedBuffer* buffer);
+    void SetPipelineStorageBuffer     (      DescribedPipeline* pl, uint32_t index, DescribedBuffer* buffer);
+    void SetPipelineUniformBufferData (      DescribedPipeline* pl, uint32_t index, const void* data, size_t size);
+    void SetPipelineStorageBufferData (      DescribedPipeline* pl, uint32_t index, const void* data, size_t size);
 
+    /**
+     * These functions modify the bindgroup of the currently bound pipeline, 
+     * i.e. the default pipeline or the one set with BeginPipelineMode
+     */
     void SetTexture                    (uint32_t index, Texture tex);
     void SetSampler                    (uint32_t index, DescribedSampler sampler);
     void SetUniformBuffer              (uint32_t index, DescribedBuffer* buffer);
     void SetStorageBuffer              (uint32_t index, DescribedBuffer* buffer);
     void SetUniformBufferData          (uint32_t index, const void* data, size_t size);
     void SetStorageBufferData          (uint32_t index, const void* data, size_t size);
+
+
+    /**
+     * These functions operate directly on a bindgroup
+     */
     void SetBindgroupUniformBuffer     (DescribedBindGroup* bg, uint32_t index, DescribedBuffer* buffer);
     void SetBindgroupStorageBuffer     (DescribedBindGroup* bg, uint32_t index, DescribedBuffer* buffer);
     void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size);
@@ -1397,15 +1410,11 @@ EXTERN_C_BEGIN
     void DrawSplineSegmentBezierQuadratic(Vector2 p1, Vector2 c2, Vector2 p3, float thick, Color color);
     void DrawSplineSegmentBezierCubic(Vector2 p1, Vector2 c2, Vector2 c3, Vector2 p4, float thick, Color color);
 
-    void* GetInstance   (cwoid);
-    void* GetAdapter    (cwoid);
-    WGVKDevice GetDevice(cwoid);
-    #if SUPPORT_VULKAN_BACKEND == 1
-    void* GetQueue      (cwoid);
-    #else
-    WGPUQueue GetQueue   (cwoid);
-    #endif
-    void* GetSurface (cwoid);
+    void*       GetInstance(cwoid);
+    WGVKAdapter GetAdapter (cwoid);
+    WGVKDevice  GetDevice  (cwoid);
+    WGVKQueue   GetQueue   (cwoid);
+    void*       GetSurface (cwoid);
     
     
     inline uint32_t attributeSize(VertexFormat fmt){
