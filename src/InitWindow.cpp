@@ -439,6 +439,10 @@ extern "C" void* CreateSurfaceForWindow(SubWindow window){
         #if SUPPORT_SDL2 == 1
         surfacePtr = CreateSurfaceForWindow_SDL2(window.handle);
         #endif
+        case windowType_rgfw:
+        #if SUPPORT_RGFW == 1
+        surfacePtr = CreateSurfaceForWindow_RGFW(window.handle);
+        #endif
         break;
     }
     return surfacePtr;

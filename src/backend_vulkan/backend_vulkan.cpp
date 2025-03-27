@@ -1,10 +1,13 @@
 #include <config.h>
+#define Font rlFont
 #include <raygpu.h>
+#undef Font
 #include <set>
 #include <vulkan/vulkan_core.h>
 #include <renderstate.inc>
 #include "vulkan_internals.hpp"
-
+#define RGFW_VULKAN
+#include <external/RGFW.h>
 
 VulkanState g_vulkanstate{};
 
@@ -453,7 +456,7 @@ VkInstance createInstance() {
     VkInstance ret{};
 
     uint32_t requiredGLFWExtensions = 0;
-    const char* const* windowExtensions = nullptr;
+    const char*const* windowExtensions = nullptr;
     #if SUPPORT_GLFW == 1
     windowExtensions = glfwGetRequiredInstanceExtensions(&requiredGLFWExtensions);
     #elif SUPPORT_SDL2 == 1
@@ -465,8 +468,18 @@ VkInstance createInstance() {
     assert(res && "SDL extensions error");
     #elif SUPPORT_SDL3
     windowExtensions = SDL_Vulkan_GetInstanceExtensions(&requiredGLFWExtensions);
+    for(uint32_t i = 0;i < requiredGLFWExtensions;i++){
+        std::string ext(windowExtensions[i]);
+        std::cout << ext << "\n";
+    }
+    #elif SUPPORT_RGFW == 1
+    requiredGLFWExtensions = 2;
+    windowExtensions = (const char**)std::calloc(requiredGLFWExtensions, sizeof(char*));
+    ((const char**)windowExtensions)[0] = VK_KHR_SURFACE_EXTENSION_NAME;
+    //((const char**)windowExtensions)[1] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+    ((const char**)windowExtensions)[1] = RGFW_VK_SURFACE;
     #endif
-    #if SUPPORT_GLFW == 1 || SUPPORT_SDL2 == 1 || SUPPORT_SDL3 == 1
+    #if SUPPORT_GLFW == 1 || SUPPORT_SDL2 == 1 || SUPPORT_SDL3 == 1 || SUPPORT_RGFW == 1
     if (!windowExtensions) {
         TRACELOG(LOG_FATAL, "Failed to get required extensions for windowing!");
     }
@@ -546,7 +559,7 @@ VkInstance createInstance() {
     // (Optional) Enable validation layers here if needed
     VkResult instanceCreation = vkCreateInstance(&createInfo, nullptr, &ret);
     if (instanceCreation != VK_SUCCESS) {
-        TRACELOG(LOG_FATAL, "Failed to create Vulkan instance : %d", (int)instanceCreation);
+        TRACELOG(LOG_FATAL, "Failed to create Vulkan instance : %s", vkErrorString(instanceCreation));
     } else {
         TRACELOG(LOG_INFO, "Successfully created Vulkan instance");
     }

@@ -1,4 +1,3 @@
-#define RGFW_IMPLEMENTATION
 /*
 *
 *	RGFW 1.6.5-dev

@@ -445,7 +445,7 @@ namespace std{
  */
 std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char* vs, const char* fs);
 std::vector<uint32_t> wgsl_to_spirv(const char* anything);
-std::vector<uint32_t> glsl_to_spirv(const char *cs);
+std::vector<uint32_t> glsl_to_spirv(const char* cs);
 ShaderSources wgsl_to_spirv(ShaderSources sources);
 ShaderSources glsl_to_spirv(ShaderSources sources);
 extern "C" void UpdatePipeline(DescribedPipeline* pl);
@@ -457,4 +457,5 @@ extern "C" void* CreateSurfaceForWindow(SubWindow window);
 extern "C" void* CreateSurfaceForWindow_SDL2(void* windowHandle);
 extern "C" void* CreateSurfaceForWindow_SDL3(void* windowHandle);
 extern "C" void* CreateSurfaceForWindow_GLFW(void* windowHandle);
+extern "C" void* CreateSurfaceForWindow_RGFW(void* windowHandle);
 #endif
