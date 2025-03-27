@@ -33,7 +33,7 @@ void main() {
     vec3 target = camera.target.xyz;
     vec3 direction = normalize(target - origin);
     vec3 left = cross(normalize(camera.up.xyz), direction);
-    vec3 realup = normalize(cross(left, direction));
+    vec3 realup = normalize(cross(direction, left));
     float factor = tan(camera.fovY.x * 0.5f);
     vec3 raydirection = normalize(direction + factor * d.x * left + factor * d.y * realup);
 
@@ -102,7 +102,7 @@ void main(){
     
     // Set final color
     //payload = vec4(hitColor * diffuse, 1.0);
-    payload = vec4(1.0,0.0,0.0,1.0);
+    payload = vec4(1.0,float(gl_InstanceID),0.0,1.0);
 }
 )";
 constexpr char rmissSource[] = R"(#version 460
@@ -151,7 +151,7 @@ int main(){
     WGVKBufferDescriptor bdesc1 zeroinit;
     
     Camera3D cam{
-        .position = Vector3{0,0,-2},
+        .position = Vector3{0,0,-4},
         .target = Vector3{0,0,0},
         .up = Vector3{0,1,0},
         .fovy = 1.f,
@@ -163,28 +163,32 @@ int main(){
     //
     //persplookat[0] = MatrixIdentity();//MatrixInvert(persplookat[0]);
     //persplookat[1] = MatrixIdentity();//MatrixInvert(persplookat[1]);
-
-    bdesc1.size = 36;
+    float vertexData[9] = { 0,-1, 1,
+        -1, 1, 1,
+         1, 1, 1};
+    bdesc1.size = sizeof(vertexData);
     bdesc1.usage = BufferUsage_MapWrite | BufferUsage_CopyDst | BufferUsage_ShaderDeviceAddress | BufferUsage_AccelerationStructureInput;
     WGVKBuffer vertexBuffer = wgvkDeviceCreateBuffer((WGVKDevice)GetDevice(), &bdesc1);
-    float vertexData[9] = { 0,-1, 1,
-                           -1, 1, 1,
-                            1, 1, 1};
-    wgvkQueueWriteBuffer((WGVKQueue)g_vulkanstate.queue, vertexBuffer, 0, vertexData, 9 * sizeof(float));
+    
+    wgvkQueueWriteBuffer((WGVKQueue)g_vulkanstate.queue, vertexBuffer, 0, vertexData, sizeof(vertexData));
 
     blasdesc.vertexBuffer = vertexBuffer;
     blasdesc.vertexCount = 3;
-    blasdesc.vertexStride = 4;
+    blasdesc.vertexStride = 12;
     WGVKBottomLevelAccelerationStructure blas = wgvkDeviceCreateBottomLevelAccelerationStructure((WGVKDevice)GetDevice(), &blasdesc);
     
     WGVKTopLevelAccelerationStructureDescriptor tlasdesc zeroinit;
-    tlasdesc.bottomLevelAS = &blas;
-    tlasdesc.blasCount = 1;
-    VkTransformMatrixKHR matrix zeroinit;
-    matrix.matrix[0][0] = 1;
-    matrix.matrix[1][1] = 1;
-    matrix.matrix[2][2] = 1;
-    tlasdesc.transformMatrices = &matrix;
+    WGVKBottomLevelAccelerationStructure blases[3] = {blas, blas, blas};
+    tlasdesc.bottomLevelAS = blases;
+    tlasdesc.blasCount = 3;
+    VkTransformMatrixKHR matrix[3] zeroinit;
+    for(uint32_t i = 0;i < 3;i++){
+        matrix[i].matrix[0][0] = 1;
+        matrix[i].matrix[1][1] = 1;
+        matrix[i].matrix[2][2] = 1;
+        matrix[i].matrix[0][3] = float(i);
+    }
+    tlasdesc.transformMatrices = matrix;
     
     WGVKTopLevelAccelerationStructure tlas = wgvkDeviceCreateTopLevelAccelerationStructure((WGVKDevice)GetDevice(), &tlasdesc);
     Texture2D storageTex = LoadTexturePro(50, 50, RGBA8, TextureUsage_StorageBinding | TextureUsage_CopySrc | TextureUsage_TextureBinding, 1, 1);
