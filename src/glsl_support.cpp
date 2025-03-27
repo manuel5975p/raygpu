@@ -579,6 +579,8 @@ DescribedShaderModule LoadShaderModuleGLSL(ShaderSources sourcesGLSL){
 }
 DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     ShaderSources glslSources zeroinit;
+    glslSources.language = sourceTypeGLSL;
+    
     glslSources.sourceCount = 2;
     glslSources.sources[0].data = vs;
     glslSources.sources[0].sizeInBytes = std::strlen(vs);

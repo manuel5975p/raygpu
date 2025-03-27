@@ -79,18 +79,19 @@ int main(void)
 
     // Load lightmap shader
 
-    //Shader shader = LoadShader(TextFormat("resources/shaders/glsl%i/lightmap.vs", GLSL_VERSION),
-    //                           TextFormat("resources/shaders/glsl%i/lightmap.fs", GLSL_VERSION));
+    Shader shader = LoadShader(TextFormat("resources/shaders/glsl%i/lightmap.vs", GLSL_VERSION),
+                               TextFormat("resources/shaders/glsl%i/lightmap.fs", GLSL_VERSION));
 
     Texture texture = LoadTexture("resources/cubicmap_atlas.png");
     Texture light = LoadTexture("resources/spark_flame.png");
 
     GenTextureMipmaps(&texture);
-    SetTextureFilter(texture, TEXTURE_FILTER_TRILINEAR);
+    
+    //SetTextureFilter(texture, TEXTURE_FILTER_TRILINEAR);
 
     RenderTexture lightmap = LoadRenderTexture(MAP_SIZE, MAP_SIZE);
 
-    SetTextureFilter(lightmap.texture, TEXTURE_FILTER_TRILINEAR);
+    //SetTextureFilter(lightmap.texture, TEXTURE_FILTER_TRILINEAR);
 
     Material material = LoadMaterialDefault();
     material.shader = shader;
@@ -101,7 +102,7 @@ int main(void)
     BeginTextureMode(lightmap);
         ClearBackground(BLACK);
 
-        BeginBlendMode(BLEND_ADDITIVE);
+        //BeginBlendMode(BLEND_ADDITIVE);
             DrawTexturePro(
                 light,
                 (Rectangle){ 0, 0, light.width, light.height },
@@ -126,7 +127,7 @@ int main(void)
                 0.0,
                 GREEN
             );
-        BeginBlendMode(BLEND_ALPHA);
+        //BeginBlendMode(BLEND_ALPHA);
     EndTextureMode();
 
     SetTargetFPS(60);                   // Set our game to run at 60 frames-per-second
@@ -137,7 +138,7 @@ int main(void)
     {
         // Update
         //----------------------------------------------------------------------------------
-        UpdateCamera(&camera, CAMERA_ORBITAL);
+        //UpdateCamera(&camera, CAMERA_ORBITAL);
         //----------------------------------------------------------------------------------
 
         // Draw
@@ -168,12 +169,12 @@ int main(void)
 
     // De-Initialization
     //--------------------------------------------------------------------------------------
-    UnloadMesh(mesh);       // Unload the mesh
-    UnloadShader(shader);   // Unload shader
-    UnloadTexture(texture); // Unload texture
-    UnloadTexture(light);   // Unload texture
+    //UnloadMesh(mesh);       // Unload the mesh
+    //UnloadShader(shader);   // Unload shader
+    //UnloadTexture(texture); // Unload texture
+    //UnloadTexture(light);   // Unload texture
 
-    CloseWindow();          // Close window and OpenGL context
+    SetWindowShouldClose();          // Close window and OpenGL context
     //--------------------------------------------------------------------------------------
 
     return 0;

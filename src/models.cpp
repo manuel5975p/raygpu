@@ -512,7 +512,7 @@ Material LoadMaterialDefault(void){
     material.maps = (MaterialMap*) RL_CALLOC(MAX_MATERIAL_MAPS, sizeof(MaterialMap));
 
     // Using default pipeline
-    material.pipeline = DefaultPipeline();
+    material.shader = DefaultShader();
 
     // Using default texture (1x1 pixel, WGPuTexture, 1 mipmap)
     material.maps[MATERIAL_MAP_DIFFUSE].texture = GetDefaultTexture();

@@ -228,10 +228,15 @@ typedef struct MaterialMap{
     float value;
 }MaterialMap;
 
+typedef struct Shader {
+    DescribedPipeline* id;  // Pipeline
+    int *locs;              // Shader locations array (RL_MAX_SHADER_LOCATIONS)
+} Shader;
+
 typedef struct Material{
     int id;
     MaterialMap* maps;
-    DescribedPipeline* pipeline;
+    Shader shader;
 }Material;
 
 typedef struct Model {
@@ -690,10 +695,7 @@ typedef struct DescribedPipeline{
     VertexStateToPipelineMap* createdPipelines;
 }DescribedPipeline;
 
-typedef struct Shader {
-    DescribedPipeline* id;  // Pipeline
-    int *locs;              // Shader locations array (RL_MAX_SHADER_LOCATIONS)
-} Shader;
+
 
 
 typedef struct DescribedComputePipeline{
@@ -734,7 +736,7 @@ typedef struct FullSurface{
     RenderTexture renderTarget;
 }FullSurface;
 typedef enum windowType {
-    windowType_glfw, windowType_sdl2, windowType_sdl3
+    windowType_glfw, windowType_rgfw, windowType_sdl2, windowType_sdl3
 }windowType;
 typedef struct SubWindow{
     void* handle;
@@ -880,16 +882,21 @@ EXTERN_C_BEGIN
     SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char* title);
     SubWindow InitWindow_SDL3(uint32_t width, uint32_t height, const char* title);
     void CloseSubWindow(SubWindow subWindow);
-    FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t height);
-    void ResizeSurface(FullSurface* fsurface, uint32_t width, uint32_t height);
-    void GetNewTexture(FullSurface* fsurface);
+    FullSurface CreateSurface (void* nsurface, uint32_t width, uint32_t height);
+    void ResizeSurface (FullSurface* fsurface, uint32_t width, uint32_t height);
+    void GetNewTexture (FullSurface* fsurface);
     void PresentSurface(FullSurface* fsurface);
     void PostPresentSurface(cwoid);
     void DummySubmitOnQueue(cwoid);
-    uint32_t GetScreenWidth (cwoid);                             //Window width
-    uint32_t GetScreenHeight(cwoid);                             //Window height
-    uint32_t GetMonitorWidth (cwoid);                            //Monitor height
-    uint32_t GetMonitorHeight(cwoid);                            //Monitor height
+
+    uint32_t GetScreenWidth  (cwoid);                     //Window width
+    uint32_t GetScreenHeight (cwoid);                     //Window height
+    uint32_t GetMonitorWidth (cwoid);                     //Monitor height
+    uint32_t GetMonitorHeight(cwoid);                     //Monitor height
+    uint32_t GetRenderWidth  (cwoid);                     //Render width (e.g. Rendertexture)
+    uint32_t GetRenderHeight (cwoid);                     //Render height (e.g. Rendertexture)
+    
+    
     void ToggleFullscreen(cwoid);
     
     int GetCurrentMonitor(void);
@@ -1206,6 +1213,7 @@ EXTERN_C_BEGIN
     
 
     DescribedPipeline* DefaultPipeline(cwoid);
+    Shader DefaultShader(cwoid);
     RenderSettings GetDefaultSettings(cwoid);
     Texture GetDefaultTexture(cwoid);
     void UnloadPipeline(DescribedPipeline* pl);

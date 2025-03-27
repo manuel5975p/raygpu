@@ -679,6 +679,13 @@ void BeginDrawing(){
     //UseNoTexture();
     //updateBindGroup(g_renderstate.rstate);
 }
+uint32_t GetRenderWidth  (cwoid){
+    return g_renderstate.renderExtentX;
+}
+uint32_t GetRenderHeight (cwoid){
+    return g_renderstate.renderExtentY;
+}
+    
 void EndDrawing(){
     if(g_renderstate.activeRenderpass){
         drawCurrentBatch();
@@ -1850,7 +1857,9 @@ Texture GetDefaultTexture(cwoid){
 DescribedPipeline* DefaultPipeline(){
     return g_renderstate.defaultPipeline;
 }
-
+Shader DefaultShader(){
+    return g_renderstate.defaultShader;
+}
 void TraceLog(int logType, const char *text, ...){
     // Message has level below current threshold, don't emit
     if(logType < tracelogLevel)return;

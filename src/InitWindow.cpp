@@ -361,6 +361,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     defaultGLSLSource.sources[1].sizeInBytes = std::strlen(fragmentSourceGLSL);
     defaultGLSLSource.sources[1].stageMask = ShaderStageMask_Fragment;
     g_renderstate.defaultPipeline = LoadPipelineForVAOEx(defaultGLSLSource, renderBatchVAO, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), GetDefaultSettings());
+    g_renderstate.defaultShader = LoadShaderFromMemory(vertexSourceGLSL, fragmentSourceGLSL);
     #elif SUPPORT_WGSL_PARSER == 1
     ShaderSources defaultWGSLSource zeroinit;
     defaultWGSLSource.sourceCount = 1;

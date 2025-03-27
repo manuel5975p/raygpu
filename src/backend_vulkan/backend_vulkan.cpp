@@ -1511,6 +1511,7 @@ extern "C" void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode
 }
 WGVKBuffer tttIntermediate zeroinit;
 extern "C" void CopyTextureToTexture(Texture source, Texture dest){
+    
     VkImageBlit region zeroinit;
     region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     region.srcSubresource.baseArrayLayer = 0;

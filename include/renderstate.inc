@@ -41,6 +41,7 @@ struct renderstate{
     PixelFormat frameBufferFormat;
 
     DescribedPipeline* defaultPipeline;
+    Shader defaultShader;
     DescribedPipeline* activePipeline;
 
     DescribedRenderpass clearPass;
