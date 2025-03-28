@@ -71,7 +71,7 @@ layout(location = 3) in vec4 in_color;     // vertex color
 // Outputs to fragment shader.
 layout(location = 0) out vec2 frag_uv;
 layout(location = 1) out vec4 frag_color;
-
+layout(location = 2) out vec3 out_normal;
 // Uniform block for Perspective_View matrix (binding = 0).
 layout(binding = 0) uniform PerspectiveViewBlock {
     mat4 Perspective_View;
@@ -91,6 +91,7 @@ void main() {
     //gl_Position = vec4(in_position, 1.0);
     frag_uv = in_uv;
     frag_color = in_color;
+    out_normal = in_normal;
 }
 )";
 

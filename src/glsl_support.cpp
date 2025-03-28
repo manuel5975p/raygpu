@@ -314,6 +314,22 @@ EShLanguage ShaderStageToGlslanguage(ShaderStage stage){
         default: rg_unreachable();     
     }
 }
+VertexFormat fromGLVertexFormat(uint32_t glType){
+    switch(glType){
+        default: 
+            rassert(false, "unsupported gl vertex format");
+            return VertexFormat(~0);
+        case GL_INT: 
+        TRACELOG(LOG_WARNING, "ehm what?");
+        return VertexFormat_Sint32;
+
+        case GL_FLOAT: return VertexFormat_Float32;
+        case GL_FLOAT_VEC2: return VertexFormat_Float32x2;
+        case GL_FLOAT_VEC3: return VertexFormat_Float32x3;
+        case GL_FLOAT_VEC4: return VertexFormat_Float32x4;
+    }
+    rg_unreachable();
+};
 std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributesGLSL(ShaderSources sources){
     const int glslVersion = 460;
     
@@ -366,21 +382,18 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
     program.buildReflection();
     std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> ret;
     uint32_t attributeCount = program.getNumLiveAttributes();
-    for(uint32_t i = 0;i < attributeCount;i++){
-        VertexFormat type = [](int glType){
-            switch(glType){
-                default: 
-                    rassert(false, "unsupported gl vertex format");
-                    return VertexFormat(~0);
-                case GL_INT: return VertexFormat_Sint32;
-
-                case GL_FLOAT: return VertexFormat_Float32;
-                case GL_FLOAT_VEC2: return VertexFormat_Float32x2;
-                case GL_FLOAT_VEC3: return VertexFormat_Float32x3;
-                case GL_FLOAT_VEC4: return VertexFormat_Float32x4;
+    for(int32_t i = 0;i < attributeCount;i++){
+        int glattrib = program.getAttributeType(i);
+        std::string attribname = program.getAttributeName(i);
+        //if(program.getAttributeTType(i)->getQualifier().hasAnyLocation())
+        {
+            uint32_t location = program.getAttributeTType(i)->getQualifier().layoutLocation;
+            
+            VertexFormat type = fromGLVertexFormat(glattrib);
+            if(!attribname.starts_with("gl_")){
+                ret[attribname] = {type, location};
             }
-        }(program.getAttributeType(i));
-        ret[program.getAttributeName(i)] = {type, i};
+        }
 
     }
     return ret;
@@ -607,6 +620,7 @@ DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
 
     allAttribsInOneBuffer.reserve(flatAttributes.size());
     uint32_t offset = 0;
+    
     for(const auto& [format, location] : flatAttributes){
         allAttribsInOneBuffer.push_back(AttributeAndResidence{
             .attr = VertexAttribute{

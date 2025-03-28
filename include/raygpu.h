@@ -735,9 +735,11 @@ typedef struct FullSurface{
     WGVKSurfaceConfiguration surfaceConfig;
     RenderTexture renderTarget;
 }FullSurface;
+
 typedef enum windowType {
     windowType_glfw, windowType_rgfw, windowType_sdl2, windowType_sdl3
 }windowType;
+
 typedef struct SubWindow{
     void* handle;
     FullSurface surface;
