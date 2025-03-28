@@ -14,6 +14,7 @@
 #include <cstring>
 #include <cmath>
 #include <cstdio>
+#include <cstdint>
 using std::malloc;
 using std::fprintf;
 using std::calloc;
@@ -34,6 +35,7 @@ constexpr float RAD2DEG = 180.0 / M_PI;
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
+#include <stdint.h>
 #define EXTERN_C_BEGIN
 #define EXTERN_C_END
 #define cwoid void
@@ -117,5 +119,7 @@ do {                                                                    \
 } while (0)
 
 #endif
+
+typedef uint32_t Bool32;
 
 #endif // MACROS_AND_CONSTANTS

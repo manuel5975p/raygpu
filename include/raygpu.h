@@ -681,22 +681,7 @@ typedef struct DescribedShaderModule{
 
     ShaderReflectionInfo reflectionInfo;
 }DescribedShaderModule;
-
-typedef struct DescribedPipeline{
-    RenderSettings settings;
-    DescribedShaderModule shaderModule;
-    VertexBufferLayoutSet vertexLayout;
-    
-    DescribedBindGroup bindGroup;
-    DescribedPipelineLayout layout;
-    DescribedBindGroupLayout bglayout;
-
-    RenderPipelineQuartet quartet;
-    VertexStateToPipelineMap* createdPipelines;
-}DescribedPipeline;
-
-
-
+typedef struct VertexBufferLayoutSet VertexBufferLayoutSet;
 
 typedef struct DescribedComputePipeline{
     NativeComputePipelineHandle pipeline;
@@ -723,12 +708,7 @@ typedef struct DescribedRaytracingPipeline{
 }DescribedRaytracingPipeline;
 #endif
 
-typedef struct AttributeAndResidence{
-    VertexAttribute attr;
-    uint32_t bufferSlot; //Describes the actual buffer it will reside in
-    VertexStepMode stepMode;
-    uint32_t enabled;
-}AttributeAndResidence;
+
 
 typedef struct FullSurface{
     void* surface;
@@ -781,76 +761,10 @@ namespace std{
             return hv;
         }
     };
-    template<>
-    struct hash<VertexBufferLayoutSet>{
-        size_t operator()(const VertexBufferLayoutSet& set)const noexcept{
-            xorshiftstate xsstate{uint64_t(0x1919846573) * uint64_t(set.number_of_buffers << 14)};
-            for(uint32_t i = 0;i < set.number_of_buffers;i++){
-                for(uint32_t j = 0;j < set.layouts[i].attributeCount;j++){
-                    xsstate.update(set.layouts[i].attributes[j].offset, set.layouts[i].attributes[j].shaderLocation);
-                }
-            }
-            return xsstate.x64;
-        }
-    };
 }
-struct attributeVectorCompare{
-    inline bool operator()(const std::vector<AttributeAndResidence>& a, const std::vector<AttributeAndResidence>& b)const noexcept{
-        #ifndef NDEBUG
-        int prevloc = -1;
-
-        for(size_t i = 0;i < a.size();i++){
-            assert((int)a[i].attr.shaderLocation > prevloc && "std::vector<AttributeAndResidence> not sorted");
-            prevloc = a[i].attr.shaderLocation;
-        }
-        prevloc = -1;
-        for(size_t i = 0;i < b.size();i++){
-            assert((int)b[i].attr.shaderLocation > prevloc && "std::vector<AttributeAndResidence> not sorted");
-            prevloc = b[i].attr.shaderLocation;
-        }
-        #endif
-        if(a.size() != b.size()){
-            return false;
-        }
-        for(size_t i = 0;i < a.size();i++){
-            if(
-                   a[i].bufferSlot != b[i].bufferSlot 
-                || a[i].enabled != b[i].enabled
-                || a[i].stepMode != b[i].stepMode 
-                || a[i].attr.format != b[i].attr.format 
-                || a[i].attr.offset != b[i].attr.offset 
-                || a[i].attr.shaderLocation != b[i].attr.shaderLocation
-            ){
-                return false;
-            }
-
-        }
-        return true;
-    }
-};
-struct vblayoutVectorCompare{
-    inline bool operator()(const VertexBufferLayoutSet& a, const VertexBufferLayoutSet& b)const noexcept{
-        
-        if(a.number_of_buffers != b.number_of_buffers)return false;
-        for(uint32_t i = 0;i < a.number_of_buffers;i++){
-            if(a.layouts[i].attributeCount != b.layouts[i].attributeCount)return false;
-            for(uint32_t j = 0;j < a.layouts[i].attributeCount;j++){
-                if(
-                    a.layouts[i].attributes[j].format != b.layouts[i].attributes[j].format
-                 || a.layouts[i].attributes[j].shaderLocation != b.layouts[i].attributes[j].shaderLocation
-                 || a.layouts[i].attributes[j].offset != b.layouts[i].attributes[j].offset
-                )return false;
-            }
-        }
-        return true;
-    }
-};
 
 
-typedef struct VertexStateToPipelineMap{
-    std::unordered_map<VertexBufferLayoutSet, RenderPipelineQuartet, std::hash<VertexBufferLayoutSet>, vblayoutVectorCompare> pipelines;
 
-}VertexStateToPipelineMap;
 #endif
 
 #ifdef __cplusplus
@@ -952,6 +866,8 @@ EXTERN_C_BEGIN
 
     bool WindowShouldClose_GLFW(GLFWwindow* win);
     SubWindow InitWindow_GLFW(int width, int height, const char* title);
+    SubWindow InitWindow_RGFW(int width, int height, const char* title);
+    
     void ToggleFullscreen_GLFW(cwoid);
     void ToggleFullscreen_SDL2(cwoid);
     void ToggleFullscreen_SDL3(cwoid);

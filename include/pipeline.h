@@ -109,6 +109,32 @@ typedef struct DescribedBindGroup{
     
 }DescribedBindGroup;
 
+typedef struct WGVKBlendComponent {
+    BlendOperation operation;
+    BlendFactor srcFactor;
+    BlendFactor dstFactor;
+} WGVKBlendComponent;
+
+typedef struct WGVKBlendState {
+    WGVKBlendComponent color;
+    WGVKBlendComponent alpha;
+} WGVKBlendState;
+
+typedef struct VertexAttribute {
+    void* nextInChain;
+    VertexFormat format;
+    uint64_t offset;
+    uint32_t shaderLocation;
+}VertexAttribute;
+typedef struct AttributeAndResidence{
+    VertexAttribute attr;
+    uint32_t bufferSlot; //Describes the actual buffer it will reside in
+    VertexStepMode stepMode;
+    uint32_t enabled;
+}AttributeAndResidence;
+
+
+
 typedef struct DescribedPipelineLayout{
     NativePipelineLayoutHandle layout;
 
@@ -140,25 +166,9 @@ typedef enum ShaderSourceType{
 }ShaderSourceType;
 
 
-typedef struct VertexAttribute {
-    void* nextInChain;
-    VertexFormat format;
-    uint64_t offset;
-    uint32_t shaderLocation;
-}VertexAttribute;
 
-typedef struct VertexBufferLayout{
-    uint64_t arrayStride;
-    VertexStepMode stepMode;
-    size_t attributeCount;
-    VertexAttribute* attributes; //NOT owned, points into data owned by VertexBufferLayoutSet::attributePool with an offset
-}VertexBufferLayout;
 
-typedef struct VertexBufferLayoutSet{
-    uint32_t number_of_buffers;
-    VertexBufferLayout* layouts;
-    VertexAttribute* attributePool;
-}VertexBufferLayoutSet;
+
 typedef struct DescribedPipeline DescribedPipeline;
 typedef struct DescribedComputePipeline DescribedComputePipeline;
 typedef struct DescribedRaytracingPipeline DescribedRaytracingPipeline;

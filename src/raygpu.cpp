@@ -1596,20 +1596,24 @@ DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
         //    }
         //}
     }
-    pipeline->vertexLayout = VertexBufferLayoutSet zeroinit;
+    pipeline->vertexLayout = new VertexBufferLayoutSet(*_pipeline->vertexLayout);
     
-    pipeline->vertexLayout.layouts = (VertexBufferLayout*)std::calloc(_pipeline->vertexLayout.number_of_buffers, sizeof(VertexBufferLayout));
-    pipeline->vertexLayout.number_of_buffers = _pipeline->vertexLayout.number_of_buffers;
+    auto& pvl = *pipeline->vertexLayout;
+    const auto& _pvl = *_pipeline->vertexLayout;
+    
+    pvl.layouts = (VertexBufferLayout*)std::calloc(_pvl.number_of_buffers, sizeof(VertexBufferLayout));
+    pvl.number_of_buffers = _pvl.number_of_buffers;
     uint32_t attributeCount = 0;
-    for(size_t i = 0;i < pipeline->vertexLayout.number_of_buffers;i++){
-        attributeCount += _pipeline->vertexLayout.layouts[i].attributeCount;
+    for(size_t i = 0;i < pvl.number_of_buffers;i++){
+        attributeCount += _pvl.layouts[i].attributeCount;
     }
-    pipeline->vertexLayout.attributePool = (VertexAttribute*)std::calloc(attributeCount, sizeof(VertexAttribute));
-    for(size_t i = 0;i < _pipeline->vertexLayout.number_of_buffers;i++){
-        pipeline->vertexLayout.layouts[i].attributes = pipeline->vertexLayout.attributePool + (_pipeline->vertexLayout.layouts[i].attributes - _pipeline->vertexLayout.attributePool);
-        pipeline->vertexLayout.layouts[i].attributeCount = _pipeline->vertexLayout.layouts[i].attributeCount;
+    pvl.attributePool = std::vector<VertexAttribute>(attributeCount);
+    
+    for(size_t i = 0;i < _pvl.number_of_buffers;i++){
+        pvl.layouts[i].attributes = pvl.attributePool.data() + (_pvl.layouts[i].attributes - _pvl.attributePool.data());
+        pvl.layouts[i].attributeCount = _pvl.layouts[i].attributeCount;
     }
-    std::memcpy(pipeline->vertexLayout.attributePool, _pipeline->vertexLayout.attributePool, attributeCount * sizeof(VertexAttribute));
+    std::memcpy(pvl.attributePool.data(), _pvl.attributePool.data(), attributeCount * sizeof(VertexAttribute));
     //TODO: this incurs lifetime problem, so do other things in this
     //TODO: Probably CloneShaderModule
     

@@ -27,7 +27,7 @@
 WGPUSurface SDL3_GetWGPUSurface(WGPUInstance instance, SDL_Window* window) {
     //#if defined(SDL_VIDEO_DRIVER_X11)
     std::string drv = SDL_GetCurrentVideoDriver();
-    #ifdef __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
 
     WGPUEmscriptenSurfaceSourceCanvasHTMLSelector canvasDesc = {0};
     canvasDesc.chain.sType = WGPUSType_EmscriptenSurfaceSourceCanvasHTMLSelector;
@@ -36,7 +36,7 @@ WGPUSurface SDL3_GetWGPUSurface(WGPUInstance instance, SDL_Window* window) {
     WGPUSurfaceDescriptor surfaceDesc = {0};
     surfaceDesc.nextInChain = &canvasDesc.chain;
     return wgpuInstanceCreateSurface(instance, &surfaceDesc);
-    #elif defined(ANDROID)
+#elif defined(ANDROID)
     void* awindow = SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_ANDROID_WINDOW_POINTER, NULL);
     //void* asurface = SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_ANDROID_SURFACE_POINTER, NULL);
     WGPUSurfaceSourceAndroidNativeWindow fromAndroidWindow{};
@@ -46,7 +46,7 @@ WGPUSurface SDL3_GetWGPUSurface(WGPUInstance instance, SDL_Window* window) {
     WGPUSurfaceDescriptor surfaceDescriptor{};
     surfaceDescriptor.nextInChain = &fromAndroidWindow.chain;
     return wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
-    #elif defined(_WIN32)
+#elif defined(_WIN32)
     void* hwndPointer = SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
     void* instancePointer = SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_INSTANCE_POINTER, NULL);
     WGPUSurfaceSourceWindowsHWND fromHwnd{};
@@ -55,7 +55,7 @@ WGPUSurface SDL3_GetWGPUSurface(WGPUInstance instance, SDL_Window* window) {
     WGPUSurfaceDescriptor surfaceDescriptor{};
     surfaceDescriptor.nextInChain = &fromHwnd.chain;
     return wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
-    #else
+#else
     if (drv == "x11") {
         Display *xdisplay = (Display *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_X11_DISPLAY_POINTER, NULL);
         Window xwindow = (Window)SDL_GetNumberProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_X11_WINDOW_NUMBER, 0);
@@ -83,7 +83,7 @@ WGPUSurface SDL3_GetWGPUSurface(WGPUInstance instance, SDL_Window* window) {
             return wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
         }
     }
-    #endif
+#endif
     
     //#endif
     return nullptr;

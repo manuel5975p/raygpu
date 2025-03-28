@@ -319,14 +319,22 @@ VertexFormat fromGLVertexFormat(uint32_t glType){
         default: 
             rassert(false, "unsupported gl vertex format");
             return VertexFormat(~0);
-        case GL_INT: 
-        TRACELOG(LOG_WARNING, "ehm what?");
-        return VertexFormat_Sint32;
+        case GL_INT:      return VertexFormat_Sint32;
+        case GL_INT_VEC2: return VertexFormat_Sint32x2;
+        case GL_INT_VEC3: return VertexFormat_Sint32x3;
+        case GL_INT_VEC4: return VertexFormat_Sint32x4;
 
-        case GL_FLOAT: return VertexFormat_Float32;
+        case GL_UNSIGNED_INT:      return VertexFormat_Uint32;
+        case GL_UNSIGNED_INT_VEC2: return VertexFormat_Uint32x2;
+        case GL_UNSIGNED_INT_VEC3: return VertexFormat_Uint32x3;
+        case GL_UNSIGNED_INT_VEC4: return VertexFormat_Uint32x4;
+
+        case GL_FLOAT:      return VertexFormat_Float32;
         case GL_FLOAT_VEC2: return VertexFormat_Float32x2;
         case GL_FLOAT_VEC3: return VertexFormat_Float32x3;
         case GL_FLOAT_VEC4: return VertexFormat_Float32x4;
+        
+        
     }
     rg_unreachable();
 };

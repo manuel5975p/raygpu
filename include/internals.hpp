@@ -28,12 +28,28 @@
 #ifndef INTERNALS_HPP_INCLUDED
 #define INTERNALS_HPP_INCLUDED
 #include "pipeline.h"
+#include <memory>
 #include <raygpu.h>
 #include <algorithm>
 #include <vector>
 
 template<typename T>
 using small_vector = std::vector<T>;
+template<typename T>
+struct rl_free_deleter{
+    void operator()(T* t)const noexcept{
+        RL_FREE(t);
+    }
+};
+
+template<typename T, typename... Args>
+std::unique_ptr<T, rl_free_deleter<T>> rl_make_unique(Args&&... args) {
+    void* ptr = RL_MALLOC(sizeof(T));
+    if (!ptr) return std::unique_ptr<T, rl_free_deleter<T>>(nullptr);
+    new (ptr) T(std::forward<Args>(args)...);
+    return std::unique_ptr<T, rl_free_deleter<T>>(reinterpret_cast<T*>(ptr));
+}
+
 
 static inline uint32_t bitcount32(uint32_t x){
     #ifdef _MSC_VER
@@ -58,6 +74,112 @@ static inline uint32_t bitcount64(uint64_t x){
 extern "C" void PrepareFrameGlobals();
 extern "C" DescribedBuffer* UpdateVulkanRenderbatch();
 extern "C" void PushUsedBuffer(void* nativeBuffer);
+struct VertexBufferLayout{
+    uint64_t arrayStride;
+    VertexStepMode stepMode;
+    size_t attributeCount;
+    VertexAttribute* attributes; //NOT owned, points into data owned by VertexBufferLayoutSet::attributePool with an offset
+};
+
+typedef struct VertexBufferLayoutSet{
+    uint32_t number_of_buffers;
+    std::vector<VertexBufferLayout> layouts;    
+    std::vector<VertexAttribute> attributePool;
+}VertexBufferLayoutSet;
+namespace std{
+    template<>
+    struct hash<VertexBufferLayoutSet>{
+        size_t operator()(const VertexBufferLayoutSet& set)const noexcept{
+            xorshiftstate xsstate{uint64_t(0x1919846573) * uint64_t(set.number_of_buffers << 14)};
+            for(uint32_t i = 0;i < set.number_of_buffers;i++){
+                for(uint32_t j = 0;j < set.layouts[i].attributeCount;j++){
+                    xsstate.update(set.layouts[i].attributes[j].offset, set.layouts[i].attributes[j].shaderLocation);
+                }
+            }
+            return xsstate.x64;
+        }
+    };
+}
+struct attributeVectorCompare{
+    inline bool operator()(const std::vector<AttributeAndResidence>& a, const std::vector<AttributeAndResidence>& b)const noexcept{
+        #ifndef NDEBUG
+        int prevloc = -1;
+
+        for(size_t i = 0;i < a.size();i++){
+            assert((int)a[i].attr.shaderLocation > prevloc && "std::vector<AttributeAndResidence> not sorted");
+            prevloc = a[i].attr.shaderLocation;
+        }
+        prevloc = -1;
+        for(size_t i = 0;i < b.size();i++){
+            assert((int)b[i].attr.shaderLocation > prevloc && "std::vector<AttributeAndResidence> not sorted");
+            prevloc = b[i].attr.shaderLocation;
+        }
+        #endif
+        if(a.size() != b.size()){
+            return false;
+        }
+        for(size_t i = 0;i < a.size();i++){
+            if(
+                   a[i].bufferSlot != b[i].bufferSlot 
+                || a[i].enabled != b[i].enabled
+                || a[i].stepMode != b[i].stepMode 
+                || a[i].attr.format != b[i].attr.format 
+                || a[i].attr.offset != b[i].attr.offset 
+                || a[i].attr.shaderLocation != b[i].attr.shaderLocation
+            ){
+                return false;
+            }
+
+        }
+        return true;
+    }
+};
+struct vblayoutVectorCompare{
+    inline bool operator()(const VertexBufferLayoutSet& a, const VertexBufferLayoutSet& b)const noexcept{
+        
+        if(a.number_of_buffers != b.number_of_buffers)return false;
+        for(uint32_t i = 0;i < a.number_of_buffers;i++){
+            if(a.layouts[i].attributeCount != b.layouts[i].attributeCount)return false;
+            for(uint32_t j = 0;j < a.layouts[i].attributeCount;j++){
+                if(
+                    a.layouts[i].attributes[j].format != b.layouts[i].attributes[j].format
+                 || a.layouts[i].attributes[j].shaderLocation != b.layouts[i].attributes[j].shaderLocation
+                 || a.layouts[i].attributes[j].offset != b.layouts[i].attributes[j].offset
+                )return false;
+            }
+        }
+        return true;
+    }
+};
+
+
+typedef struct VertexStateToPipelineMap{
+    std::unordered_map<VertexBufferLayoutSet, RenderPipelineQuartet, std::hash<VertexBufferLayoutSet>, vblayoutVectorCompare> pipelines;
+
+}VertexStateToPipelineMap;
+
+typedef struct ModifiablePipelineState{
+    std::vector<AttributeAndResidence> vertexAttributes;
+    WGVKBlendState blendState;
+}ModifiablePipelineState;
+
+typedef struct HighLevelPipelineCache{
+    
+    WGVKBlendState blendState;
+    VkBool32 depthTest;
+}HighLevelPipelineCache;
+
+typedef struct DescribedPipeline{
+    ModifiablePipelineState state;
+    DescribedShaderModule shaderModule;
+    
+    DescribedBindGroup bindGroup;
+    DescribedPipelineLayout layout;
+    DescribedBindGroupLayout bglayout;
+
+    HighLevelPipelineCache pipelineCache;
+}DescribedPipeline;
+
 /**
  * @brief Get the Buffer Layout representation compatible with WebGPU or Vulkan
  * 
@@ -65,8 +187,9 @@ extern "C" void PushUsedBuffer(void* nativeBuffer);
  */
 inline VertexBufferLayoutSet getBufferLayoutRepresentation(const AttributeAndResidence* attributes, const uint32_t number_of_attribs, uint32_t number_of_buffers){
     std::vector<std::vector<VertexAttribute>> buffer_to_attributes(number_of_buffers);
-    VertexAttribute* attributePool = (VertexAttribute*   )std::calloc(number_of_attribs, sizeof(VertexAttribute));
-    VertexBufferLayout* vbLayouts  = (VertexBufferLayout*)std::calloc(number_of_buffers, sizeof(VertexBufferLayout));
+    
+    std::vector<VertexAttribute> attributePool(number_of_attribs);
+    std::vector<VertexBufferLayout> vbLayouts(number_of_buffers);
 
     std::vector<uint32_t> strides  (number_of_buffers, 0);
     std::vector<VertexStepMode> stepmodes(number_of_buffers, VertexStepMode_None);
@@ -82,14 +205,15 @@ inline VertexBufferLayoutSet getBufferLayoutRepresentation(const AttributeAndRes
     uint32_t poolOffset = 0;
     
     std::vector<uint32_t> attributeOffsets(number_of_buffers, 0);
+
     for(size_t i = 0;i < number_of_buffers;i++){
         attributeOffsets[i] = poolOffset;
-        std::memcpy(attributePool + poolOffset, buffer_to_attributes[i].data(), buffer_to_attributes[i].size() * sizeof(VertexAttribute));
+        std::memcpy(attributePool.data() + poolOffset, buffer_to_attributes[i].data(), buffer_to_attributes[i].size() * sizeof(VertexAttribute));
         poolOffset += buffer_to_attributes[i].size();
     }
 
     for(size_t i = 0;i < number_of_buffers;i++){
-        vbLayouts[i].attributes = attributePool + attributeOffsets[i];
+        vbLayouts[i].attributes = attributePool.data() + attributeOffsets[i];
         vbLayouts[i].attributeCount = buffer_to_attributes[i].size();
         vbLayouts[i].arrayStride = strides[i];
         vbLayouts[i].stepMode = stepmodes[i];
@@ -97,16 +221,16 @@ inline VertexBufferLayoutSet getBufferLayoutRepresentation(const AttributeAndRes
     // return value
     VertexBufferLayoutSet ret{
         .number_of_buffers = number_of_buffers,
-        .layouts = vbLayouts,
-        .attributePool = attributePool
+        .layouts = std::move(vbLayouts),
+        .attributePool = std::move(attributePool)
     };
     return ret;
 }
 extern "C" const char* copyString(const char* str);
-static inline void UnloadBufferLayoutSet(VertexBufferLayoutSet set){
-    std::free(set.layouts);
-    std::free(set.attributePool);
-}
+//static inline void UnloadBufferLayoutSet(VertexBufferLayoutSet set){
+//    std::free(set.layouts);
+//    std::free(set.attributePool);
+//}
 
 static inline ShaderSources singleStage(const char* code, ShaderSourceType language, ShaderStage stage){
     ShaderSources sources zeroinit;

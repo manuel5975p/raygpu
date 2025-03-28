@@ -634,11 +634,13 @@ QueueIndices findQueueFamilies(WGVKAdapter adapter) {
         }
         // Check for presentation support
         #ifdef MAIN_WINDOW_SDL3
-        bool presentSupport = true;//SDL_Vulkan_GetPresentationSupport(g_vulkanstate.instance, adapter->physicalDevice i);
+        bool presentSupport = SDL_Vulkan_GetPresentationSupport(g_vulkanstate.instance, adapter->physicalDevice, i);
         #elif defined(MAIN_WINDOW_SDL2) //uuh 
         VkBool32 presentSupport = VK_TRUE;
         #elif defined(MAIN_WINDOW_GLFW)
         VkBool32 presentSupport = glfwGetPhysicalDevicePresentationSupport(g_vulkanstate.instance, adapter->physicalDevice, i) ? VK_TRUE : VK_FALSE;
+        #elif SUPPORT_RGFW
+        VkBool32 presentSupport = RGFW_getVKPresentationSupport_noinline(g_vulkanstate.instance, adapter->physicalDevice, i);
         #else
         VkBool32 presentSupport = VK_FALSE;
         #endif

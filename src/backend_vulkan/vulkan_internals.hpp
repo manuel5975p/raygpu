@@ -1037,7 +1037,7 @@ static inline VkSemaphore CreateSemaphoreD(VkDevice device, VkSemaphoreCreateFla
     }
     return ret;
 }
-
+VkBool32 RGFW_getVKPresentationSupport_noinline(VkInstance instance, VkPhysicalDevice, uint32_t i);
 static inline VkSemaphore CreateSemaphore(VkSemaphoreCreateFlags flags){
     return CreateSemaphoreD(g_vulkanstate.device->device, flags);
 }
