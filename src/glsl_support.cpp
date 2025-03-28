@@ -393,7 +393,7 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
     for(int32_t i = 0;i < attributeCount;i++){
         int glattrib = program.getAttributeType(i);
         std::string attribname = program.getAttributeName(i);
-        //if(program.getAttributeTType(i)->getQualifier().hasAnyLocation())
+        if(program.getAttributeTType(i)->getQualifier().hasLocation())
         {
             uint32_t location = program.getAttributeTType(i)->getQualifier().layoutLocation;
             
