@@ -435,11 +435,15 @@ void SetMatrix(Matrix m){
     g_renderstate.matrixStack[g_renderstate.stackPosition].first = m;
 }
 
-void adaptRenderPass(DescribedRenderpass* drp, RenderSettings settings){
-    drp->settings = settings;
+void adaptRenderPass(DescribedRenderpass* drp, const ModifiablePipelineState& settings){
+    drp->settings.blendState = settings.blendState;
+    drp->settings.depthTest = settings.depthTest;
+    drp->settings.sampleCount = settings.sampleCount;
+
     //drp->renderPassDesc.colorAttachments = settings.depthTest ? drp->rca : nullptr;
     //drp->renderPassDesc.depthStencilAttachment = settings.depthTest ? drp->dsa : nullptr;
 }
+
 void FillReflectionInfo(DescribedShaderModule* module){
 
 }
@@ -474,12 +478,27 @@ DescribedShaderModule LoadShaderModule(ShaderSources sources){
     return ret;
 }
 
+/**
+ * @brief This function determines compatibility between RenderSettings
+ * @details 
+ * The purpose of this function is to determine whether the attachment states of a renderpass and a pipeline is compatible.
+ * For this, the multisample state and depth state need to match (and also stencil but not implemented right now) 
+ * 
+ * @param settings1 
+ * @param settings2 
+ * @return true 
+ * @return false 
+ */
+static inline bool RenderSettingsCompatible(const ModifiablePipelineState& state, RenderSettings settings2){
+    return state.sampleCount == settings2.sampleCount &&
+           state.depthTest == settings2.depthTest;
+}
 
 extern "C" void BeginPipelineMode(DescribedPipeline* pipeline){
     drawCurrentBatch();
-    if(!RenderSettingsComptatible(pipeline->settings, g_renderstate.renderpass.settings)){
+    if(!RenderSettingsCompatible(pipeline->state, g_renderstate.renderpass.settings)){
         EndRenderpass();
-        adaptRenderPass(&g_renderstate.renderpass, pipeline->settings);
+        adaptRenderPass(&g_renderstate.renderpass, pipeline->state);
         BeginRenderpass();
     }
     g_renderstate.activePipeline = pipeline;
@@ -491,9 +510,9 @@ extern "C" void BeginPipelineMode(DescribedPipeline* pipeline){
 }
 extern "C" void EndPipelineMode(){
     drawCurrentBatch();
-    if(!RenderSettingsComptatible(g_renderstate.defaultPipeline->settings, g_renderstate.renderpass.settings)){
+    if(!RenderSettingsCompatible(g_renderstate.defaultPipeline->state, g_renderstate.renderpass.settings)){
         EndRenderpass();
-        adaptRenderPass(&g_renderstate.renderpass, g_renderstate.defaultPipeline->settings);
+        adaptRenderPass(&g_renderstate.renderpass, g_renderstate.defaultPipeline->state);
         BeginRenderpass();
     }
     g_renderstate.activePipeline = g_renderstate.defaultPipeline;
@@ -1136,6 +1155,8 @@ extern "C" const char* copyString(const char* str){
 
 extern "C" void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va){
     auto plquart = GetPipelinesForLayout(pipeline, va->attributes);
+    pipeline->state.vertexAttributes = va->attributes;
+    pipeline->pipelineCache.getOrCreate(pipeline->state);
     pipeline->quartet = plquart;
 }
 constexpr char mipmapComputerSource[] = R"(
@@ -1573,7 +1594,7 @@ void UseTexture(Texture tex){
     SetTexture(texture0loc, tex);
     
 }
-DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
+/*DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
     DescribedPipeline* pipeline = callocnew(DescribedPipeline);
     pipeline->createdPipelines = callocnew(VertexStateToPipelineMap);
     new (pipeline->createdPipelines) VertexStateToPipelineMap;
@@ -1628,7 +1649,7 @@ DescribedPipeline* ClonePipeline(const DescribedPipeline* _pipeline){
 
     //new(pipeline->sh.uniformLocations) StringToUniformMap(*_pipeline->sh.uniformLocations);
     return pipeline;
-}
+}*/
 
 
 void UseNoTexture(){

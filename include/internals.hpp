@@ -86,6 +86,27 @@ typedef struct VertexBufferLayoutSet{
     std::vector<VertexBufferLayout> layouts;    
     std::vector<VertexAttribute> attributePool;
 }VertexBufferLayoutSet;
+
+static inline uint64_t hash_bytes(const void* bytes, size_t count){
+    if(count < 32){
+        uint64_t data[32 / sizeof(uint64_t)] zeroinit;
+        std::memcpy(data, bytes, count);
+        xorshiftstate xsstate{0x324234fff1f1};
+        for(uint32_t i = 0;i < 4;i++){
+            xsstate.update(data[i]);
+        }
+        return xsstate.x64;
+    }
+    else{
+        std::vector<uint64_t> vec(((count + sizeof(uint64_t) - 1) / sizeof(uint64_t)) * 8, 0);
+        std::memcpy(vec.data(), bytes, count);
+        xorshiftstate xsstate{0x324234fff1f1};
+        for(uint32_t i = 0;i < vec.size();i++){
+            xsstate.update(vec[i]);
+        }
+        return xsstate.x64;
+    }
+}
 namespace std{
     template<>
     struct hash<VertexBufferLayoutSet>{
@@ -155,24 +176,52 @@ struct vblayoutVectorCompare{
 
 typedef struct VertexStateToPipelineMap{
     std::unordered_map<VertexBufferLayoutSet, RenderPipelineQuartet, std::hash<VertexBufferLayoutSet>, vblayoutVectorCompare> pipelines;
-
 }VertexStateToPipelineMap;
 
 typedef struct ModifiablePipelineState{
     std::vector<AttributeAndResidence> vertexAttributes;
     WGVKBlendState blendState;
+    uint32_t sampleCount;
+    PrimitiveType primitive;
+    Bool32 depthTest;
+    CompareFunction depthCompare;
+    bool operator==(const ModifiablePipelineState& mfps)const noexcept{
+        if(attributeVectorCompare{}(vertexAttributes, mfps.vertexAttributes)){
+            return true;
+        }
+        return false;
+    }
 }ModifiablePipelineState;
 
+//typedef struct PipelineState{
+//    ModifiablePipelineState modifiablePart;
+//}PipelineState;
+
+namespace std{
+    template<> struct hash<ModifiablePipelineState>{
+        size_t operator()(const ModifiablePipelineState& mfps){
+            return hash<vector<AttributeAndResidence>>{}(mfps.vertexAttributes) ^ hash_bytes(&mfps.blendState, sizeof(WGVKBlendState));
+        }
+    };
+}
+
 typedef struct HighLevelPipelineCache{
-    
-    WGVKBlendState blendState;
-    VkBool32 depthTest;
+    std::unordered_map<ModifiablePipelineState, WGVKRenderPipeline> cacheMap; 
+    WGVKRenderPipeline getOrCreate(const ModifiablePipelineState& mst, const DescribedShaderModule& shMod, const DescribedBindGroupLayout& bglayout){
+        auto it = cacheMap.find(mst);
+        if(it != cacheMap.end()){
+            return it->second;
+        }
+        else{
+
+        }
+    }
 }HighLevelPipelineCache;
 
 typedef struct DescribedPipeline{
     ModifiablePipelineState state;
-    DescribedShaderModule shaderModule;
     
+    DescribedShaderModule shaderModule;
     DescribedBindGroup bindGroup;
     DescribedPipelineLayout layout;
     DescribedBindGroupLayout bglayout;

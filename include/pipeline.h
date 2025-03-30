@@ -47,6 +47,23 @@ typedef void* NativeRenderPassEncoderHandle;
 typedef void* NativeComputePassEncoderHandle;
 
 
+typedef struct WGVKBlendComponent {
+    BlendOperation operation;
+    BlendFactor srcFactor;
+    BlendFactor dstFactor;
+    constexpr bool operator==(const WGVKBlendComponent& other)const noexcept{
+        return operation == other.operation && srcFactor == other.srcFactor && dstFactor == other.dstFactor;
+    }
+} WGVKBlendComponent;
+
+typedef struct WGVKBlendState {
+    WGVKBlendComponent color;
+    WGVKBlendComponent alpha;
+    constexpr bool operator==(const WGVKBlendState& other)const noexcept{
+        return color == other.color && alpha == other.alpha;
+    }
+} WGVKBlendState;
+
 //TODO: Stencil attachment
 /**
  * @brief This struct handles the settings that GL handles with global functions
@@ -59,34 +76,14 @@ typedef void* NativeComputePassEncoderHandle;
 typedef struct RenderSettings{
     bool depthTest;
     bool faceCull;
-    uint8_t sampleCount                : 8;
-    CompareFunction    depthCompare    : 8;
-    BlendOperation blendOperationAlpha : 8;
-    BlendFactor    blendFactorSrcAlpha : 8;
-    BlendFactor    blendFactorDstAlpha : 8;
-    BlendOperation blendOperationColor : 8;
-    BlendFactor    blendFactorSrcColor : 8;
-    BlendFactor    blendFactorDstColor : 8;
+    uint32_t sampleCount;
+    WGVKBlendState blendState;    
     FrontFace frontFace;
 
 }RenderSettings;
 
 
-/**
- * @brief This function determines compatibility between RenderSettings
- * @details 
- * The purpose of this function is to determine whether the attachment states of a renderpass and a pipeline is compatible.
- * For this, the multisample state and depth state need to match (and also stencil but not implemented right now) 
- * 
- * @param settings1 
- * @param settings2 
- * @return true 
- * @return false 
- */
-static inline bool RenderSettingsComptatible(RenderSettings settings1, RenderSettings settings2){
-    return settings1.sampleCount == settings2.sampleCount &&
-           settings1.depthTest   == settings2.depthTest;
-}
+
 
 typedef struct DescribedBindGroupLayout{
     NativeBindgroupLayoutHandle layout;
@@ -109,16 +106,7 @@ typedef struct DescribedBindGroup{
     
 }DescribedBindGroup;
 
-typedef struct WGVKBlendComponent {
-    BlendOperation operation;
-    BlendFactor srcFactor;
-    BlendFactor dstFactor;
-} WGVKBlendComponent;
 
-typedef struct WGVKBlendState {
-    WGVKBlendComponent color;
-    WGVKBlendComponent alpha;
-} WGVKBlendState;
 
 typedef struct VertexAttribute {
     void* nextInChain;
@@ -126,6 +114,7 @@ typedef struct VertexAttribute {
     uint64_t offset;
     uint32_t shaderLocation;
 }VertexAttribute;
+
 typedef struct AttributeAndResidence{
     VertexAttribute attr;
     uint32_t bufferSlot; //Describes the actual buffer it will reside in

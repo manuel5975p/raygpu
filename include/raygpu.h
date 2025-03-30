@@ -731,6 +731,12 @@ typedef struct GLFWwindow GLFWwindow;
 #ifdef __cplusplus
 struct xorshiftstate{
     uint64_t x64;
+    constexpr void update(uint64_t x) noexcept{
+        x64 ^= x * 0x2545F4914F6CDD1D;
+        x64 ^= x64 << 13;
+        x64 ^= x64 >> 7;
+        x64 ^= x64 << 17;
+    }
     constexpr void update(uint32_t x, uint32_t y)noexcept{
         x64 ^= ((uint64_t(x) << 32) | uint64_t(y)) * 0x2545F4914F6CDD1D;
         x64 ^= x64 << 13;
