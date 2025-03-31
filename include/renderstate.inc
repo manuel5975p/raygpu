@@ -28,7 +28,31 @@ struct window_input_state{
 
     std::unordered_map<unsigned int, PenInputState> penStates;
 };
+template <typename T, size_t N>
+struct array_stack{
+    std::array<T, N> data;
+    using iterator = std::array<T, N>::iterator;
+    using const_iterator = std::array<T, N>::const_iterator;
+    iterator current_pos;
+    
+    array_stack() : current_pos(data.begin()){}
 
+    void push(const T& d){
+        rassert(current_pos - data.begin() < 8, "Stack is full");
+        *(current_pos++) = d;
+    }
+    T pop(){
+        rassert(current_pos > data.begin(), "Stack is empty");
+        return data.back();
+        data.pop_back();
+    }
+    T& peek(){
+        return *current_pos;
+    }
+    const T& peek()const{
+        return *current_pos;
+    }
+};
 struct renderstate{
 
 
