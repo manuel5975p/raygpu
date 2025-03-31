@@ -1,5 +1,6 @@
 #include "vulkan_internals.hpp"
 #include <raygpu.h>
+#include <cstddef>
 #include <stdexcept>
 #include <cstring>
 #include <iostream>
@@ -324,33 +325,32 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     
     VkFormat vkFormat = toVulkanPixelFormat(format);
     VkImageUsageFlags vkUsage = toVulkanTextureUsage(usage, format);
-
-    VkCommandPoolCreateInfo poolInfo zeroinit;
-    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    poolInfo.queueFamilyIndex = g_vulkanstate.device->adapter->queueIndices.graphicsIndex;
-    poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-    
-    VkCommandPool commandPool;
-    if (vkCreateCommandPool(g_vulkanstate.device->device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
-        TRACELOG(LOG_FATAL, "Failed to create command pool!");
     
     bool hasData = data != nullptr;
     
-    WGVKTexture image = CreateVkImage(
-        g_vulkanstate.device,
-        g_vulkanstate.physicalDevice->physicalDevice, 
-        commandPool, 
-        g_vulkanstate.queue->computeQueue, 
-        (uint8_t*)data, 
-        width, 
-        height,
-        sampleCount,
-        mipmaps,
-        vkFormat,
-        vkUsage,
-        hasData
-    );
-    
+    WGVKTextureDescriptor tdesc zeroinit;
+    tdesc.dimension = TextureDimension_2D;
+    tdesc.size = Extent3D{width, height, 1};
+    tdesc.format = format;
+    tdesc.viewFormatCount = 1;
+    tdesc.usage = usage;
+    tdesc.sampleCount = sampleCount;
+    tdesc.mipLevelCount = mipmaps;
+    WGVKTexture image = wgvkDeviceCreateTexture(g_vulkanstate.device, &tdesc);
+    if(hasData){
+        WGVKTexelCopyTextureInfo destination zeroinit;
+        destination.texture = image;
+        destination.aspect = is__depth(format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+        destination.mipLevel = 0;
+        destination.origin = WGVKOrigin3D{0, 0, 0};
+
+        WGVKTexelCopyBufferLayout bufferLayout zeroinit;
+        bufferLayout.bytesPerRow = width * GetPixelSizeInBytes(format);
+        bufferLayout.offset = 0;
+        bufferLayout.rowsPerImage = height;
+        WGVKExtent3D writeExtent{width, height, 1u};
+        wgvkQueueWriteTexture(g_vulkanstate.queue, &destination, data, static_cast<size_t>(width) * static_cast<size_t>(height) * GetPixelSizeInBytes(format), &bufferLayout, &writeExtent);
+    }
     ret.width = width;
     ret.height = height;
     ret.mipmaps = mipmaps;
@@ -395,10 +395,7 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
         }
     }
 
-    
-    //TRACELOG(LOG_INFO, "Loaded WGVKTexture and view [%u y %u]", (unsigned)width, (unsigned)height);
-    
-    vkDestroyCommandPool(g_vulkanstate.device->device, commandPool, nullptr);
+    //TRACELOG(LOG_INFO, "Loaded WGVKTexture and view [%u y %u]", (unsigned)width, (unsigned)height);    
     
     return ret;
 }
@@ -474,6 +471,7 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
     VkImageLayout oldLayout = tex->layout;
     if(oldLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
         EncodeTransitionImageLayout(commandBuffer, tex->layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, tex);
+    
     
     vkCmdCopyImageToBuffer(
         commandBuffer,

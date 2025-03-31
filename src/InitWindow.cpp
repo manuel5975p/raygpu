@@ -291,6 +291,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         //std::cout << "Supported Framebuffer Format: 0x" << std::hex << (WGPUTextureFormat)config.format << std::dec << "\n";        
     }else{
         g_renderstate.frameBufferFormat = BGRA8;
+        g_renderstate.createdSubwindows[nullptr].surface = CreateHeadlessSurface(width, height, BGRA8);
     }
     
 

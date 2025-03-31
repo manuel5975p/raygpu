@@ -158,7 +158,7 @@ typedef struct DescribedSampler{
     float lodMinClamp;
     float lodMaxClamp;
     CompareFunction compare;
-    uint16_t maxAnisotropy;
+    float maxAnisotropy;
 }DescribedSampler;
 
 typedef struct StagingBuffer{
@@ -711,7 +711,8 @@ typedef struct DescribedRaytracingPipeline{
 
 
 typedef struct FullSurface{
-    void* surface;
+    void* surface; //This is a VkSurfaceKHR or WGPUSurface handle, and NULL if headless==true
+    Bool32 headless;
     WGVKSurfaceConfiguration surfaceConfig;
     RenderTexture renderTarget;
 }FullSurface;
@@ -805,6 +806,7 @@ EXTERN_C_BEGIN
     SubWindow InitWindow_SDL3(uint32_t width, uint32_t height, const char* title);
     void CloseSubWindow(SubWindow subWindow);
     FullSurface CreateSurface (void* nsurface, uint32_t width, uint32_t height);
+    FullSurface CreateHeadlessSurface(uint32_t width, uint32_t height, PixelFormat format);
     void ResizeSurface (FullSurface* fsurface, uint32_t width, uint32_t height);
     void GetNewTexture (FullSurface* fsurface);
     void PresentSurface(FullSurface* fsurface);
@@ -1124,8 +1126,8 @@ EXTERN_C_BEGIN
     DescribedBindGroupLayout LoadBindGroupLayoutMod(const DescribedShaderModule* shaderModule);
 
     WGVKRaytracingPipeline LoadRTPipeline(const DescribedShaderModule* module);
-    DescribedPipeline* ClonePipeline(const DescribedPipeline* pl);
-    DescribedPipeline* ClonePipelineWithSettings(const DescribedPipeline* pl, RenderSettings settings);
+    //DescribedPipeline* ClonePipeline(const DescribedPipeline* pl);
+    //DescribedPipeline* ClonePipelineWithSettings(const DescribedPipeline* pl, RenderSettings settings);
     DescribedPipeline* LoadPipeline(const char* shaderSource);
     DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
     DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);

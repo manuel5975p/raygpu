@@ -362,13 +362,13 @@ WGPUBuffer cloneBuffer(WGPUBuffer b, WGPUBufferUsage usage){
     return ret;
 }
 
-DescribedPipeline* ClonePipelineWithSettings(const DescribedPipeline* pl, RenderSettings settings){
-    DescribedPipeline* cloned = ClonePipeline(pl);
-
-    cloned->settings = settings;
-    UpdatePipeline(cloned);
-    return cloned;
-}
+//DescribedPipeline* ClonePipelineWithSettings(const DescribedPipeline* pl, RenderSettings settings){
+//    DescribedPipeline* cloned = ClonePipeline(pl);
+//
+//    cloned->settings = settings;
+//    UpdatePipeline(cloned);
+//    return cloned;
+//}
 DescribedComputePipeline* LoadComputePipeline(const char* shaderCode){
     ShaderSources sources zeroinit;
     sources.sourceCount = 1;

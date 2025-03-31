@@ -610,7 +610,7 @@ extern "C" void UpdatePipelineWithNewLayout(DescribedPipeline* ret, const std::v
 }
 
 extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
-    DescribedPipeline* ret = callocnew(DescribedPipeline);
+    DescribedPipeline* ret = callocnewpp(DescribedPipeline);
     ret->state.blendState = settings.blendState;
     ret->state.faceCull = settings.faceCull;
     ret->state.frontFace = settings.frontFace;
@@ -643,7 +643,7 @@ extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const A
     
     //ret->vertexLayout = getBufferLayoutRepresentation(attribs, attribCount);
     
-    UpdatePipeline(ret);//, std::vector<AttributeAndResidence>{attribs, attribs + attribCount});    
+    //UpdatePipeline(ret);//, std::vector<AttributeAndResidence>{attribs, attribs + attribCount});    
     
     return ret;
 

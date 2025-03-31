@@ -127,6 +127,10 @@ void DummySubmitOnQueue(){
     }
     VkSubmitInfo emptySubmit zeroinit;
     emptySubmit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    emptySubmit.waitSemaphoreCount = 1;
+    emptySubmit.pWaitSemaphores = g_vulkanstate.queue->syncState[cacheIndex].semaphores.data() + g_vulkanstate.queue->syncState[cacheIndex].submits;
+    VkPipelineStageFlags waitmask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    emptySubmit.pWaitDstStageMask = &waitmask;
     vkQueueSubmit(g_vulkanstate.device->queue->graphicsQueue, 1, &emptySubmit, g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence);
     g_vulkanstate.queue->pendingCommandBuffers[cacheIndex].emplace(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence, std::unordered_set<WGVKCommandBuffer>{});
 }
@@ -345,45 +349,46 @@ DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode m
 
 
 extern "C" void GetNewTexture(FullSurface *fsurface){
+    const uint32_t cacheIndex = fsurface->surfaceConfig.device->submittedFrames % framesInFlight;
 
     uint32_t imageIndex = ~0;
-    //VkCommandPool oof{};
-    //VkCommandPoolCreateInfo pci zeroinit;
-    //pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    //pci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-    //vkCreateCommandPool(g_vulkanstate.device->device, &pci, nullptr, &oof);
-    WGVKSurface wgvksurf = ((WGVKSurface)fsurface->surface);
-    //TODO: Multiple frames in flight, this amounts to replacing 0 with frameCount % 2 or something similar
-    const uint32_t cacheIndex = reinterpret_cast<WGVKSurface>(fsurface->surface)->device->submittedFrames % framesInFlight;
-    g_vulkanstate.queue->syncState[cacheIndex].submits = 0;
-
-    VkResult acquireResult = vkAcquireNextImageKHR(
-        g_vulkanstate.device->device, 
-        wgvksurf->swapchain, 
-        UINT64_MAX, 
-        g_vulkanstate.queue->syncState[cacheIndex].semaphores[0], 
-        VK_NULL_HANDLE, 
-        &imageIndex
-    );
-    
-    //wgvksurf->device->queue->semaphoreThatTheNextBufferWillNeedToWaitFor = g_vulkanstate.queue->syncState[reinterpret_cast<WGVKSurface>(fsurface->surface)->device->submittedFrames % framesInFlight].semaphores[0];
-    
-    if(acquireResult != VK_SUCCESS){
-        std::cerr << "acquireResult is " << acquireResult << std::endl;
+    if(fsurface->headless){
+        VkSubmitInfo submitInfo zeroinit;
+        g_vulkanstate.queue->syncState[cacheIndex].submits = 0;
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = &g_vulkanstate.queue->syncState[cacheIndex].semaphores[0];
+        vkQueueSubmit(g_vulkanstate.queue->graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
     }
-    WGVKDevice surfaceDevice = ((WGVKSurface)fsurface->surface)->device;
-    VkCommandBuffer buf = ((WGVKSurface)fsurface->surface)->device->queue->presubmitCache->buffer;//BeginSingleTimeCommands(surfaceDevice, oof);
-    EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, wgvksurf->images[imageIndex]);
-    EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, (WGVKTexture)fsurface->renderTarget.depth.id);
-    //EndSingleTimeCommandsAndSubmit(surfaceDevice, oof, g_vulkanstate.queue->graphicsQueue, buf);
-    //vkDestroyCommandPool(g_vulkanstate.device->device, oof, nullptr);
-    
-    fsurface->renderTarget.texture.id = wgvksurf->images[imageIndex];
-    fsurface->renderTarget.texture.view = wgvksurf->imageViews[imageIndex];
-    fsurface->renderTarget.texture.width = wgvksurf->width;
-    fsurface->renderTarget.texture.height = wgvksurf->height;
-    
-    wgvksurf->activeImageIndex = imageIndex;
+    else{
+        WGVKSurface wgvksurf = ((WGVKSurface)fsurface->surface);
+        
+        g_vulkanstate.queue->syncState[cacheIndex].submits = 0;
+
+        VkResult acquireResult = vkAcquireNextImageKHR(
+            g_vulkanstate.device->device, 
+            wgvksurf->swapchain, 
+            UINT64_MAX, 
+            g_vulkanstate.queue->syncState[cacheIndex].semaphores[0], 
+            VK_NULL_HANDLE, 
+            &imageIndex
+        );
+
+        if(acquireResult != VK_SUCCESS){
+            std::cerr << "acquireResult is " << acquireResult << std::endl;
+        }
+        WGVKDevice surfaceDevice = ((WGVKSurface)fsurface->surface)->device;
+        VkCommandBuffer buf = ((WGVKSurface)fsurface->surface)->device->queue->presubmitCache->buffer;
+        EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, wgvksurf->images[imageIndex]);
+        EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, (WGVKTexture)fsurface->renderTarget.depth.id);
+
+        fsurface->renderTarget.texture.id = wgvksurf->images[imageIndex];
+        fsurface->renderTarget.texture.view = wgvksurf->imageViews[imageIndex];
+        fsurface->renderTarget.texture.width = wgvksurf->width;
+        fsurface->renderTarget.texture.height = wgvksurf->height;
+
+        wgvksurf->activeImageIndex = imageIndex;
+    }
 }
 void negotiateSurfaceFormatAndPresentMode(WGVKAdapter adapter, const void* SurfaceHandle){
     WGVKSurface surface = (WGVKSurface)SurfaceHandle;
@@ -439,7 +444,6 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     else if(messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT){
         TRACELOG(LOG_INFO, pCallbackData->pMessage);
     }
-   
     
 
     return VK_FALSE;
@@ -1317,8 +1321,10 @@ void InitBackend(){
     #endif
     
     g_vulkanstate.instance = createInstance();
-    
     g_vulkanstate.physicalDevice = pickPhysicalDevice();
+
+    vkGetPhysicalDeviceMemoryProperties(g_vulkanstate.physicalDevice->physicalDevice, &g_vulkanstate.memProperties);
+
     WGVKDeviceDescriptor ddescriptor zeroinit;
     WGVKDevice device = wgvkAdapterCreateDevice(g_vulkanstate.physicalDevice, &ddescriptor);
     g_vulkanstate.device = device;
@@ -1334,7 +1340,16 @@ void InitBackend(){
     
     createRenderPass();
 }
-
+extern "C" FullSurface CreateHeadlessSurface(uint32_t width, uint32_t height, PixelFormat format){
+    FullSurface ret{};
+    ret.headless = 1;
+    ret.surfaceConfig.device = g_vulkanstate.device;
+    ret.surfaceConfig.width = width;
+    ret.surfaceConfig.width = height;
+    ret.surfaceConfig.format = format;    
+    ret.renderTarget = LoadRenderTextureEx(width, height, format, 1);
+    return ret;
+}
 extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t height){
     FullSurface ret{};
     ret.surface = (WGVKSurface)nsurface;

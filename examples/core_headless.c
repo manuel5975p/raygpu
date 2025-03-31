@@ -25,5 +25,6 @@ int main(void){
             TakeScreenshot(TextFormat("frame%llu.png", GetFrameCount()));
             printf("FPS: %d\n", GetFPS());
         }
+        printf("FPS: %d\n", GetFPS());
     }
 }

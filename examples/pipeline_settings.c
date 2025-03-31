@@ -6,7 +6,7 @@ int main(void){
 
     RenderSettings settings = GetDefaultSettings();
     settings.sampleCount = 4;
-    DescribedPipeline* depthless = ClonePipelineWithSettings(DefaultPipeline(), settings);
+    //DescribedPipeline* depthless = ClonePipelineWithSettings(DefaultPipeline(), settings);
     RenderTexture multisampled_rt = LoadRenderTextureEx(640, 720,WGPUTextureFormat_BGRA8Unorm, 4);
     
     while(!WindowShouldClose()){

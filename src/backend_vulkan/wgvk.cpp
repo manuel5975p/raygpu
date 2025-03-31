@@ -542,12 +542,15 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
 
     if(rpdesc->colorAttachments[0].view){
         ret->resourceUsage.track(rpdesc->colorAttachments[0].view, TextureUsage_RenderAttachment);
+        ret->cmdEncoder->initializeOrTransition(rpdesc->colorAttachments->view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     }
     if(rpdesc->colorAttachments[0].resolveTarget){
         ret->resourceUsage.track(rpdesc->colorAttachments[0].resolveTarget, TextureUsage_RenderAttachment);
+        ret->cmdEncoder->initializeOrTransition(rpdesc->colorAttachments->resolveTarget->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     }
     if(rpdesc->depthStencilAttachment->view){
         ret->resourceUsage.track(rpdesc->depthStencilAttachment->view, TextureUsage_RenderAttachment);
+        ret->cmdEncoder->initializeOrTransition(rpdesc->depthStencilAttachment->view->texture, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
     }
 
     fbci.width = rpdesc->colorAttachments[0].view->width;
@@ -682,6 +685,7 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
         si.commandBufferCount = 1;
         si.waitSemaphoreCount = 1;
         si.signalSemaphoreCount = 1;
+        uint32_t submits = queue->syncState[cacheIndex].submits;
         si.pWaitSemaphores = queue->syncState[cacheIndex].semaphores.data() + queue->syncState[cacheIndex].submits;
         si.pSignalSemaphores = queue->syncState[cacheIndex].semaphores.data() + queue->syncState[cacheIndex].submits + 1;
         si.pWaitDstStageMask = &waitFlags;
@@ -689,6 +693,7 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
         ++queue->syncState[cacheIndex].submits;
         submitResult |= vkQueueSubmit(queue->graphicsQueue, 1, &si, fence);
     }
+
     if(submitResult == VK_SUCCESS){
         std::unordered_set<WGVKCommandBuffer> insert;
         insert.reserve(3);

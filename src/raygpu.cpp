@@ -639,25 +639,27 @@ void BeginDrawing(){
     ResetSyncState();
     ++g_renderstate.renderTargetStackPosition;
     
-    if(g_renderstate.windowFlags & FLAG_HEADLESS){
-        //if(headless_rtex.texture.id){
-        //    UnloadTexture(headless_rtex.texture);
-        //}
-        //if(headless_rtex.colorMultisample.id){
-        //    UnloadTexture(headless_rtex.colorMultisample);
-        //}
-        //if(headless_rtex.depth.id){
-        //    UnloadTexture(headless_rtex.depth);
-        //}
-        
-        if(headless_rtex.texture.id == nullptr)
-            headless_rtex = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
-        g_renderstate.mainWindowRenderTarget = headless_rtex;
-        //setTargetTextures(g_renderstate.rstate, headless_rtex.texture.view, headless_rtex.colorMultisample.view, headless_rtex.depth.view);
-
-        g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition] = headless_rtex;
-    }
-    else{
+    //if(g_renderstate.windowFlags & FLAG_HEADLESS){
+    //    if(headless_rtex.texture.id){
+    //        UnloadTexture(headless_rtex.texture);
+    //    }
+    //    if(headless_rtex.colorMultisample.id){
+    //        UnloadTexture(headless_rtex.colorMultisample);
+    //    }
+    //    if(headless_rtex.depth.id){
+    //        UnloadTexture(headless_rtex.depth);
+    //    }
+    //    
+    //    
+    //    if(headless_rtex.texture.id == nullptr)
+    //        headless_rtex = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
+    //    g_renderstate.mainWindowRenderTarget = headless_rtex;
+    //    
+    //    //setTargetTextures(g_renderstate.rstate, headless_rtex.texture.view, headless_rtex.colorMultisample.view, headless_rtex.depth.view);
+    //    g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition] = headless_rtex;
+    //}
+    //else
+    {
         
         //if(g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.id)
         //    UnloadTexture(g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture);
@@ -1154,7 +1156,7 @@ extern "C" const char* copyString(const char* str){
 }
 
 extern "C" void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va){
-    auto plquart = GetPipelinesForLayout(pipeline, va->attributes);
+    //auto plquart = GetPipelinesForLayout(pipeline, va->attributes);
     pipeline->state.vertexAttributes = va->attributes;
     pipeline->activePipeline = pipeline->pipelineCache.getOrCreate(pipeline->state, pipeline->shaderModule, pipeline->bglayout, pipeline->layout);
     //pipeline->quartet = plquart;
@@ -1661,10 +1663,14 @@ void UseNoTexture(){
     drawCurrentBatch();
     SetTexture(textureLocation, g_renderstate.whitePixel);
 }
+
+//TODO: this function should clone the pipeline, but it doesn't right now
 DescribedPipeline* Relayout(DescribedPipeline* pl, VertexArray* vao){
-    DescribedPipeline* klon = ClonePipeline(pl);
-    PreparePipeline(klon, vao);
-    return klon;
+    pl->state.vertexAttributes = vao->attributes;
+    pl->activePipeline = pl->pipelineCache.getOrCreate(pl->state, pl->shaderModule, pl->bglayout, pl->layout);
+    //DescribedPipeline* klon = ClonePipeline(pl);
+    //PreparePipeline(klon, vao);
+    return pl;
 }
 void BeginTextureMode(RenderTexture rtex){
     if(g_renderstate.renderpass.rpEncoder){
