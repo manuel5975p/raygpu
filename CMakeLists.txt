@@ -150,7 +150,7 @@ if(SUPPORT_SDL2)
     FetchContent_MakeAvailable(sdl2fetch)
 endif()
 if(SUPPORT_SDL3)
-    find_package(SDL3 QUIET)
+    #find_package(SDL3 QUIET)
     if(NOT SDL3_FOUND)
         set(SDL_LIBURING OFF CACHE BOOL "Enable SDL liburing support" FORCE)
         FetchContent_Declare(

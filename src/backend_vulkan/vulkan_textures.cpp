@@ -225,7 +225,7 @@ extern "C" void EncodeTransitionImageLayout(VkCommandBuffer commandBuffer, VkIma
     }
     else {
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_TRANSFER_READ_BIT;
         
         sourceStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
         destinationStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
@@ -471,7 +471,6 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
     VkImageLayout oldLayout = tex->layout;
     if(oldLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
         EncodeTransitionImageLayout(commandBuffer, tex->layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, tex);
-    
     
     vkCmdCopyImageToBuffer(
         commandBuffer,

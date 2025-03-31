@@ -24,6 +24,11 @@ void mainloop(void){
     //rlVertex2f(0, 100);
     //rlVertex2f(0, 200);
     //drawCurrentBatch();
+    EndRenderpass();
+    
+    BeginRenderpass();
+    DrawText("Hello Vulkan enjoyer", 100, 400, 50, (Color){190, 190, 190,255});
+    
     EndDrawing();
     if((GetFrameCount() & 0x7ff) == 0){
         printf("FPS: %u\n", GetFPS());

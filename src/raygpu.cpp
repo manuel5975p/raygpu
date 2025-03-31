@@ -756,7 +756,7 @@ void EndDrawing(){
             EndComputepass();
             BeginRenderpass();
             int recordingTextX = GetScreenWidth() - MeasureText("Recording", 30);
-            DrawText("Recording", recordingTextX, 5, 30, Color{255,40,40,255});
+            DrawText("Recording", 500, 5, 30, Color{255,40,40,255});
             EndRenderpass();
             addScreenshot(g_renderstate.grst, (WGVKTexture)fbCopy.id);
             UnloadTexture(fbCopy);
@@ -765,7 +765,7 @@ void EndDrawing(){
         else{
             BeginRenderpass();
             int recordingTextX = GetScreenWidth() - MeasureText("Recording", 30);
-            DrawText("Recording", recordingTextX, 5, 30, Color{255,40,40,255});
+            DrawText("Recording", 500, 5, 30, Color{255,40,40,255});
             EndRenderpass();
         }
         
@@ -1903,7 +1903,7 @@ void TraceLog(int logType, const char *text, ...){
     //    va_end(args);
     //    return;
     //}
-    constexpr size_t MAX_TRACELOG_MSG_LENGTH = 2048;
+    constexpr size_t MAX_TRACELOG_MSG_LENGTH = 16384;
     char buffer[MAX_TRACELOG_MSG_LENGTH] = { 0 };
     int needs_reset = 0;
     switch (logType)

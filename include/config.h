@@ -58,10 +58,6 @@
     #pragma message("Unknown platform. Defaulting to Vulkan as the backend.")
 #endif
 
-
-
-
-
 // The RENDERBATCH_SIZE is how many vertices can be batched at most
 // It must be a multiple of 12 to guarantee that RL_LINES, RL_TRIANGLES and RL_QUADS 
 // trigger an overflow on a completed shape. 

@@ -470,7 +470,7 @@ VkInstance createInstance() {
     windowExtensions = (const char**)std::calloc(requiredGLFWExtensions, sizeof(char*));
     res = SDL_Vulkan_GetInstanceExtensions(dummywindow, &requiredGLFWExtensions, windowExtensions);
     assert(res && "SDL extensions error");
-    #elif SUPPORT_SDL3
+    #elif SUPPORT_SDL3 == 1
     windowExtensions = SDL_Vulkan_GetInstanceExtensions(&requiredGLFWExtensions);
     for(uint32_t i = 0;i < requiredGLFWExtensions;i++){
         std::string ext(windowExtensions[i]);
@@ -480,7 +480,6 @@ VkInstance createInstance() {
     requiredGLFWExtensions = 2;
     windowExtensions = (const char**)std::calloc(requiredGLFWExtensions, sizeof(char*));
     ((const char**)windowExtensions)[0] = VK_KHR_SURFACE_EXTENSION_NAME;
-    //((const char**)windowExtensions)[1] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
     ((const char**)windowExtensions)[1] = RGFW_VK_SURFACE;
     #endif
     #if SUPPORT_GLFW == 1 || SUPPORT_SDL2 == 1 || SUPPORT_SDL3 == 1 || SUPPORT_RGFW == 1
@@ -638,12 +637,15 @@ QueueIndices findQueueFamilies(WGVKAdapter adapter) {
         }
         // Check for presentation support
         #ifdef MAIN_WINDOW_SDL3
+        //TRACELOG(LOG_WARNING, "Using the SDL3 route");
+        std::cout << SDL_GetError() << "\n";
+        SDL_CreateWindow("dummy", 0, 0, SDL_WINDOW_HIDDEN | SDL_WINDOW_VULKAN);
         bool presentSupport = SDL_Vulkan_GetPresentationSupport(g_vulkanstate.instance, adapter->physicalDevice, i);
         #elif defined(MAIN_WINDOW_SDL2) //uuh 
         VkBool32 presentSupport = VK_TRUE;
         #elif defined(MAIN_WINDOW_GLFW)
         VkBool32 presentSupport = glfwGetPhysicalDevicePresentationSupport(g_vulkanstate.instance, adapter->physicalDevice, i) ? VK_TRUE : VK_FALSE;
-        #elif SUPPORT_RGFW
+        #elif SUPPORT_RGFW == 1
         VkBool32 presentSupport = RGFW_getVKPresentationSupport_noinline(g_vulkanstate.instance, adapter->physicalDevice, i);
         #else
         VkBool32 presentSupport = VK_FALSE;
