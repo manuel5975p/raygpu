@@ -184,6 +184,8 @@ typedef struct ModifiablePipelineState{
     uint32_t sampleCount;
     PrimitiveType primitive;
     Bool32 depthTest;
+    Bool32 faceCull;
+    FrontFace frontFace;
     CompareFunction depthCompare;
     bool operator==(const ModifiablePipelineState& mfps)const noexcept{
         if(attributeVectorCompare{}(vertexAttributes, mfps.vertexAttributes)){
@@ -199,21 +201,23 @@ typedef struct ModifiablePipelineState{
 
 namespace std{
     template<> struct hash<ModifiablePipelineState>{
-        size_t operator()(const ModifiablePipelineState& mfps){
+        size_t operator()(const ModifiablePipelineState& mfps)const noexcept{
             return hash<vector<AttributeAndResidence>>{}(mfps.vertexAttributes) ^ hash_bytes(&mfps.blendState, sizeof(WGVKBlendState));
         }
     };
 }
-
+extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineState& mst, const DescribedShaderModule& shaderModule, const DescribedBindGroupLayout& bglayout, const DescribedPipelineLayout& pllayout);
 typedef struct HighLevelPipelineCache{
     std::unordered_map<ModifiablePipelineState, WGVKRenderPipeline> cacheMap; 
-    WGVKRenderPipeline getOrCreate(const ModifiablePipelineState& mst, const DescribedShaderModule& shMod, const DescribedBindGroupLayout& bglayout){
+    WGVKRenderPipeline getOrCreate(const ModifiablePipelineState& mst, const DescribedShaderModule& shaderModule, const DescribedBindGroupLayout& bglayout, const DescribedPipelineLayout& pllayout){
         auto it = cacheMap.find(mst);
         if(it != cacheMap.end()){
             return it->second;
         }
         else{
-
+            WGVKRenderPipeline toEmplace = createSingleRenderPipe(mst, shaderModule, bglayout, pllayout);
+            cacheMap.emplace(mst, toEmplace);
+            return toEmplace;
         }
     }
 }HighLevelPipelineCache;
@@ -227,6 +231,7 @@ typedef struct DescribedPipeline{
     DescribedBindGroupLayout bglayout;
 
     HighLevelPipelineCache pipelineCache;
+    WGVKRenderPipeline activePipeline;
 }DescribedPipeline;
 
 /**

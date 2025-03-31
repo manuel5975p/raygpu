@@ -59,7 +59,7 @@ extern "C" DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sources){
     return ret;
 }
 
-extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineState& mst, const DescribedShaderModule& shaderModule, const DescribedBindGroupLayout& bglayout){
+extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineState& mst, const DescribedShaderModule& shaderModule, const DescribedBindGroupLayout& bglayout, const DescribedPipelineLayout& pllayout){
     TRACELOG(LOG_INFO, "Generating new single pipeline");
     TRACELOG(LOG_INFO, "Generating new pipelines");
     WGVKRenderPipeline ret = new WGVKRenderPipelineImpl;
@@ -198,9 +198,89 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     colorBlending.blendConstants[1] = 1.0f;
     colorBlending.blendConstants[2] = 1.0f;
     colorBlending.blendConstants[3] = 1.0f;
+    // Dynamic State Setup (optional based on RenderSettings)
+    std::vector<VkDynamicState> dynamicStates = {
+        VK_DYNAMIC_STATE_VIEWPORT, 
+        VK_DYNAMIC_STATE_SCISSOR,
+        //VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY, 
+        //VK_DYNAMIC_STATE_VERTEX_INPUT_EXT, 
+    };
+    
+    VkPipelineDynamicStateCreateInfo dynamicState{};
+    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    
+    // You can make dynamic states configurable via RenderSettings if needed
+    dynamicState.dynamicStateCount = static_cast<uint32_t>(2);
+    dynamicState.pDynamicStates = dynamicStates.data();
+    
+    // Pipeline Layout Setup
+    
+    
+    // Graphics Pipeline Creation
+    VkGraphicsPipelineCreateInfo pipelineInfo{};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.stageCount = 2;
+    pipelineInfo.pStages = shaderStages;
+    pipelineInfo.pVertexInputState = &vertexInputInfo;
+    pipelineInfo.pInputAssemblyState = &inputAssembly;
+    pipelineInfo.pViewportState = &viewportState;
+    pipelineInfo.pRasterizationState = &rasterizer;
+    pipelineInfo.pMultisampleState = &multisampling;
+    pipelineInfo.pDepthStencilState = settings.depthTest ? &depthStencil : nullptr; // Enable depth stencil if needed
+    pipelineInfo.pColorBlendState = &colorBlending;
+    pipelineInfo.pDynamicState = &dynamicState;
+    pipelineInfo.layout = (VkPipelineLayout)pllayout.layout;
 
+    RenderPassLayout rpLayout zeroinit;
+    rpLayout.colorAttachmentCount = 1;
+    rpLayout.depthAttachmentPresent = settings.depthTest;
+    
+    rpLayout.colorAttachments[0].format = toVulkanPixelFormat(BGRA8);
+    rpLayout.colorAttachments[0].loadop = LoadOp_Load;
+    rpLayout.colorAttachments[0].storeop = StoreOp_Store;
+    rpLayout.colorAttachments[0].sampleCount = settings.sampleCount;
+    
+    if(settings.depthTest){
+        rpLayout.depthAttachment.format = toVulkanPixelFormat(Depth32);
+        rpLayout.depthAttachment.loadop = LoadOp_Load;
+        rpLayout.depthAttachment.storeop = StoreOp_Store;
+        rpLayout.depthAttachment.sampleCount = settings.sampleCount;
+    }
+    if(settings.sampleCount > 1){
+        rpLayout.colorAttachments[1].format = toVulkanPixelFormat(BGRA8);
+        rpLayout.colorAttachments[1].loadop = LoadOp_Load;
+        rpLayout.colorAttachments[1].storeop = StoreOp_Store;
+        rpLayout.colorAttachments[1].sampleCount = 1;
+        rpLayout.colorResolveIndex = 1;
+    }
+    else{
+        rpLayout.colorResolveIndex = VK_ATTACHMENT_UNUSED;
+    }
+    #if VULKAN_USE_DYNAMIC_RENDERING == 1
+    VkPipelineRenderingCreateInfo rci zeroinit;
+    rci.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    rci.colorAttachmentCount = 1;
+    VkFormat colorAttachmentFormat = VK_FORMAT_B8G8R8A8_UNORM;
+    rci.pColorAttachmentFormats = &colorAttachmentFormat;
+    rci.depthAttachmentFormat = VK_FORMAT_D32_SFLOAT;
+    pipelineInfo.pNext = &rci;
+    #else
+    VkRenderPass rp = LoadRenderPassFromLayout(g_vulkanstate.device, rpLayout);
+    pipelineInfo.renderPass = rp;
+    pipelineInfo.subpass = 0;
+    #endif
+    
+    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+
+    ret->dynamicStates = dynamicStates;
+    ret->layout = pipelineInfo.layout;
+    if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&ret->renderPipeline) != VK_SUCCESS) {
+        TRACELOG(LOG_FATAL, "Trianglelist pipiline creation failed");
+    }
+    return ret;
 }
 
+/*
 extern "C" RenderPipelineQuartet GetPipelinesForLayoutSet(DescribedPipeline* ret, const VertexBufferLayoutSet vls){
 
     TRACELOG(LOG_INFO, "Generating new pipelines");
@@ -448,21 +528,23 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayoutSet(DescribedPipeline* ret
 
     return quartet;
 }
+*/
 
-extern "C" void UpdatePipeline(DescribedPipeline *pl){
-    pl->quartet = GetPipelinesForLayoutSet(pl, pl->vertexLayout);
-}
-extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, const std::vector<AttributeAndResidence>& attribs){
-    
-    VertexBufferLayoutSet layoutset = getBufferLayoutRepresentation(attribs.data(), attribs.size());
+//extern "C" void UpdatePipeline(DescribedPipeline *pl){
+//    pl->quartet = GetPipelinesForLayoutSet(pl, pl->vertexLayout);
+//}
 
-    auto ait = ret->createdPipelines->pipelines.find(layoutset);
-    if(ait != ret->createdPipelines->pipelines.end()){
-        UnloadBufferLayoutSet(layoutset);
-        return ait->second;
-    }
-    return GetPipelinesForLayoutSet(ret, layoutset);
-}
+//extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, const std::vector<AttributeAndResidence>& attribs){
+//    
+//    VertexBufferLayoutSet layoutset = getBufferLayoutRepresentation(attribs.data(), attribs.size());
+//
+//    auto ait = ret->createdPipelines->pipelines.find(layoutset);
+//    if(ait != ret->createdPipelines->pipelines.end()){
+//        UnloadBufferLayoutSet(layoutset);
+//        return ait->second;
+//    }
+//    return GetPipelinesForLayoutSet(ret, layoutset);
+//}
 
 extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
     ShaderSources sources = dualStage(shaderSource, sourceTypeWGSL, ShaderStage_Vertex, ShaderStage_Fragment);
@@ -510,25 +592,30 @@ extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
 
 extern "C" void UpdatePipelineWithNewLayout(DescribedPipeline* ret, const std::vector<AttributeAndResidence>& attributes){
     // Shader Stage Setup
-    VertexBufferLayoutSet layoutset = getBufferLayoutRepresentation(attributes.data(), attributes.size());
-    auto it = ret->createdPipelines->pipelines.find(layoutset);
-    if(it != ret->createdPipelines->pipelines.end()){
-        UnloadBufferLayoutSet(layoutset);
-        ret->quartet = it->second;
-        return;
-    }
+    ret->state.vertexAttributes = attributes;
+    ret->activePipeline = ret->pipelineCache.getOrCreate(ret->state, ret->shaderModule, ret->bglayout, ret->layout);
+    //VertexBufferLayoutSet layoutset = getBufferLayoutRepresentation(attributes.data(), attributes.size());
+    //auto it = ret->createdPipelines->pipelines.find(layoutset);
+    //if(it != ret->createdPipelines->pipelines.end()){
+    //    UnloadBufferLayoutSet(layoutset);
+    //    ret->quartet = it->second;
+    //    return;
+    //}
 
-    RenderPipelineQuartet quartet = GetPipelinesForLayout(ret, attributes);
+    //RenderPipelineQuartet quartet = GetPipelinesForLayout(ret, attributes);
 
-    ret->quartet = quartet;
-    ret->createdPipelines->pipelines[layoutset] = ret->quartet;
+    //ret->quartet = quartet;
+    //ret->createdPipelines->pipelines[layoutset] = ret->quartet;
     //UnloadBufferLayoutSet(layoutset);
 }
 
 extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
     DescribedPipeline* ret = callocnew(DescribedPipeline);
-    ret->settings = settings;
-    ret->createdPipelines = callocnewpp(VertexStateToPipelineMap);
+    ret->state.blendState = settings.blendState;
+    ret->state.faceCull = settings.faceCull;
+    ret->state.frontFace = settings.frontFace;
+    ret->state.depthTest = settings.depthTest;
+
     ret->bglayout = LoadBindGroupLayout(uniforms, uniformCount, false);
     ret->shaderModule = mod;
     //auto [spirV, spirF] = glsl_to_spirv(vsSource, fsSource);
@@ -553,7 +640,9 @@ extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const A
         bge[i].binding = uniforms[i].location;
     }
     ret->bindGroup = LoadBindGroup(&ret->bglayout, bge.data(), bge.size());
-    ret->vertexLayout = getBufferLayoutRepresentation(attribs, attribCount);
+    
+    //ret->vertexLayout = getBufferLayoutRepresentation(attribs, attribCount);
+    
     UpdatePipeline(ret);//, std::vector<AttributeAndResidence>{attribs, attribs + attribCount});    
     
     return ret;

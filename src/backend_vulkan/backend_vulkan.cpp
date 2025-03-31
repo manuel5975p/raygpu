@@ -1502,25 +1502,12 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
 }
 
 extern "C" void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode){
-    switch(drawMode){
-        case RL_TRIANGLES:
-            wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (WGVKRenderPipeline)pipeline->quartet.pipeline_TriangleList);
-        break;
-        case RL_TRIANGLE_STRIP:
-            wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (WGVKRenderPipeline)pipeline->quartet.pipeline_TriangleStrip);
-        break;
-        case RL_LINES:
-            wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (WGVKRenderPipeline)pipeline->quartet.pipeline_LineList);
-        break;
-        case RL_POINTS:
-            wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (WGVKRenderPipeline)pipeline->quartet.pipeline_PointList);
-        break;
-        default:
-            assert(false && "Unsupported Drawmode");
-            abort();
-    }
-    //pipeline->lastUsedAs = drawMode;
+    pipeline->state.primitive = drawMode;
+    pipeline->activePipeline = pipeline->pipelineCache.getOrCreate(pipeline->state, pipeline->shaderModule, pipeline->bglayout, pipeline->layout);
+    wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (WGVKRenderPipeline)pipeline->activePipeline);
+    
     wgvkRenderPassEncoderSetBindGroup((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, (WGVKBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup));
+    //pipeline->lastUsedAs = drawMode;
     //wgvkRenderPassEncoderSetBindGroup ((WGPURenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
 
 }

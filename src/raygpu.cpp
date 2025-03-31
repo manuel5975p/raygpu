@@ -1156,8 +1156,8 @@ extern "C" const char* copyString(const char* str){
 extern "C" void PreparePipeline(DescribedPipeline* pipeline, VertexArray* va){
     auto plquart = GetPipelinesForLayout(pipeline, va->attributes);
     pipeline->state.vertexAttributes = va->attributes;
-    pipeline->pipelineCache.getOrCreate(pipeline->state);
-    pipeline->quartet = plquart;
+    pipeline->activePipeline = pipeline->pipelineCache.getOrCreate(pipeline->state, pipeline->shaderModule, pipeline->bglayout, pipeline->layout);
+    //pipeline->quartet = plquart;
 }
 constexpr char mipmapComputerSource[] = R"(
 @group(0) @binding(0) var previousMipLevel: texture_2d<f32>;
@@ -1856,13 +1856,13 @@ RenderSettings GetDefaultSettings(){
     ret.depthCompare = CompareFunction_LessEqual;
     ret.sampleCount = (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
 
-    ret.blendFactorSrcAlpha = BlendFactor_One;
-    ret.blendFactorDstAlpha = BlendFactor_OneMinusSrcAlpha;
-    ret.blendOperationAlpha = BlendOperation_Add;
+    ret.blendState.alpha.srcFactor = BlendFactor_One;
+    ret.blendState.alpha.dstFactor = BlendFactor_OneMinusSrcAlpha;
+    ret.blendState.alpha.operation = BlendOperation_Add;
 
-    ret.blendFactorSrcColor = BlendFactor_SrcAlpha;
-    ret.blendFactorDstColor = BlendFactor_OneMinusSrcAlpha;
-    ret.blendOperationColor = BlendOperation_Add;
+    ret.blendState.color.srcFactor = BlendFactor_SrcAlpha;
+    ret.blendState.color.dstFactor = BlendFactor_OneMinusSrcAlpha;
+    ret.blendState.color.operation = BlendOperation_Add;
     
     return ret;
 }

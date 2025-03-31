@@ -51,17 +51,21 @@ typedef struct WGVKBlendComponent {
     BlendOperation operation;
     BlendFactor srcFactor;
     BlendFactor dstFactor;
+    #ifdef __cplusplus
     constexpr bool operator==(const WGVKBlendComponent& other)const noexcept{
         return operation == other.operation && srcFactor == other.srcFactor && dstFactor == other.dstFactor;
     }
+    #endif
 } WGVKBlendComponent;
 
 typedef struct WGVKBlendState {
     WGVKBlendComponent color;
     WGVKBlendComponent alpha;
+    #ifdef __cplusplus
     constexpr bool operator==(const WGVKBlendState& other)const noexcept{
         return color == other.color && alpha == other.alpha;
     }
+    #endif
 } WGVKBlendState;
 
 //TODO: Stencil attachment
@@ -79,7 +83,7 @@ typedef struct RenderSettings{
     uint32_t sampleCount;
     WGVKBlendState blendState;    
     FrontFace frontFace;
-
+    CompareFunction depthCompare;
 }RenderSettings;
 
 
@@ -152,6 +156,7 @@ typedef enum ShaderSourceType{
     sourceTypeSPIRV   = 1,
     sourceTypeWGSL    = 2,
     sourceTypeGLSL    = 3,
+    shaderSourceForce32 = 0x8fffffff
 }ShaderSourceType;
 
 
