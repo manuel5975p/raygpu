@@ -708,10 +708,8 @@ uint32_t GetRenderHeight (cwoid){
 }
     
 void EndDrawing(){
-    if(g_renderstate.activeRenderpass){
-        drawCurrentBatch();
+    if(g_renderstate.activeRenderpass){    
         EndRenderpassEx(g_renderstate.activeRenderpass);
-        
     }
     if(g_renderstate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
         Image img = LoadImageFromTextureEx((WGVKTexture)GetActiveColorTarget(), 0);
@@ -756,7 +754,7 @@ void EndDrawing(){
             EndComputepass();
             BeginRenderpass();
             int recordingTextX = GetScreenWidth() - MeasureText("Recording", 30);
-            DrawText("Recording", 500, 5, 30, Color{255,40,40,255});
+            DrawText("Recording", recordingTextX, 5, 30, Color{255,40,40,255});
             EndRenderpass();
             addScreenshot(g_renderstate.grst, (WGVKTexture)fbCopy.id);
             UnloadTexture(fbCopy);
@@ -765,7 +763,7 @@ void EndDrawing(){
         else{
             BeginRenderpass();
             int recordingTextX = GetScreenWidth() - MeasureText("Recording", 30);
-            DrawText("Recording", 500, 5, 30, Color{255,40,40,255});
+            DrawText("Recording", recordingTextX, 5, 30, Color{255,40,40,255});
             EndRenderpass();
         }
         

@@ -307,6 +307,7 @@ typedef struct WGVKRenderPipelineImpl{
     std::vector<VkDynamicState> dynamicStates;
 }WGVKRenderPipelineImpl;
 
+
 typedef struct WGVKComputePipelineImpl{
     VkPipeline graphicsPipeline;
     VkPipelineLayout layout;

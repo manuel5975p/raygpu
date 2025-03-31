@@ -1574,6 +1574,7 @@ void ComputepassEndOnlyComputing(cwoid){
 }
 
 extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
+    drawCurrentBatch();
     if(rp->rpEncoder){
         wgvkRenderPassEncoderEnd((WGVKRenderPassEncoder)rp->rpEncoder);
     }
