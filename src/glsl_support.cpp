@@ -258,6 +258,7 @@ std::vector<uint32_t> glsl_to_spirv_single(const char* cs, EShLanguage stage){
     shader.setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
     shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_4);
     shader.setStrings(&cs, 1);
+    shader.setAutoMapLocations(true);
     TBuiltInResource Resources = {};
     Resources.maxComputeWorkGroupSizeX = 1024;
     Resources.maxComputeWorkGroupSizeY = 1024;
