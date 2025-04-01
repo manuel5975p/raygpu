@@ -1436,7 +1436,7 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     //}
     rpbi.renderPass = g_vulkanstate.renderPass;
 
-    auto rtex = g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition];
+    auto rtex = g_renderstate.renderTargetStack.peek();
     //VkFramebufferCreateInfo fbci{};
     //fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     //VkImageView fbAttachments[2] = {
@@ -1579,7 +1579,7 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
         wgvkRenderPassEncoderEnd((WGVKRenderPassEncoder)rp->rpEncoder);
     }
     VkImageMemoryBarrier rpAttachmentBarriers[2] zeroinit;
-    auto rtex = g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition];
+    auto rtex = g_renderstate.renderTargetStack.peek();
     rpAttachmentBarriers[0].image = reinterpret_cast<WGVKTexture>(rtex.texture.id)->image;
     rpAttachmentBarriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     rpAttachmentBarriers[0].oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;

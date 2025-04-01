@@ -294,10 +294,10 @@ extern "C" void DrawArraysInstanced(PrimitiveType drawMode, uint32_t vertexCount
 
 
 Texture GetDepthTexture(){
-    return g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].depth;
+    return g_renderstate.renderTargetStack.peek().depth;
 }
 Texture GetMultisampleColorTarget(){
-    return g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].colorMultisample;
+    return g_renderstate.renderTargetStack.peek().colorMultisample;
 }
 
 
@@ -417,22 +417,22 @@ void drawCurrentBatch(){
 }
 
 void LoadIdentity(cwoid){
-    g_renderstate.matrixStack[g_renderstate.stackPosition].first = MatrixIdentity();
+    g_renderstate.matrixStack.peek().first = MatrixIdentity();
 }
 void PushMatrix(){
-    ++g_renderstate.stackPosition;
+    g_renderstate.matrixStack.push(std::pair<Matrix, WGVKBuffer>{});
 }
 void PopMatrix(){
-    --g_renderstate.stackPosition;
+    g_renderstate.matrixStack.pop();
 }
 Matrix GetMatrix(){
-    return g_renderstate.matrixStack[g_renderstate.stackPosition].first;
+    return g_renderstate.matrixStack.peek().first;
 }
 Matrix* GetMatrixPtr(){
-    return &g_renderstate.matrixStack[g_renderstate.stackPosition].first;
+    return &g_renderstate.matrixStack.peek().first;
 }
 void SetMatrix(Matrix m){
-    g_renderstate.matrixStack[g_renderstate.stackPosition].first = m;
+    g_renderstate.matrixStack.peek().first = m;
 }
 
 void adaptRenderPass(DescribedRenderpass* drp, const ModifiablePipelineState& settings){
@@ -504,7 +504,7 @@ extern "C" void BeginPipelineMode(DescribedPipeline* pipeline){
     g_renderstate.activePipeline = pipeline;
     uint32_t location = GetUniformLocation(pipeline, RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION_VIEW);
     if(location != LOCATION_NOT_FOUND){
-        SetUniformBufferData(location, &g_renderstate.matrixStack[g_renderstate.stackPosition], sizeof(Matrix));
+        SetUniformBufferData(location, &g_renderstate.matrixStack.peek().first, sizeof(Matrix));
     }
     //BindPipeline(pipeline, drawMode);
 }
@@ -637,7 +637,7 @@ RenderTexture headless_rtex;
 void BeginDrawing(){
 
     ResetSyncState();
-    ++g_renderstate.renderTargetStackPosition;
+    //++g_renderstate.renderTargetStackPosition;
     
     //if(g_renderstate.windowFlags & FLAG_HEADLESS){
     //    if(headless_rtex.texture.id){
@@ -675,8 +675,9 @@ void BeginDrawing(){
         g_renderstate.height = g_renderstate.createdSubwindows[g_renderstate.window].surface.renderTarget.texture.height;
         //std::cout << g_renderstate.createdSubwindows[g_renderstate.window].surface.frameBuffer.depth.width << std::endl;
         GetNewTexture(&g_renderstate.createdSubwindows[g_renderstate.window].surface);
+        g_renderstate.renderTargetStack.push(g_renderstate.createdSubwindows[g_renderstate.window].surface.renderTarget);
         g_renderstate.mainWindowRenderTarget = g_renderstate.createdSubwindows[g_renderstate.window].surface.renderTarget;
-        g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition] = g_renderstate.mainWindowRenderTarget;
+        //g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition] = g_renderstate.mainWindowRenderTarget;
         //__builtin_dump_struct(&(g_renderstate.mainWindowRenderTarget.depth), printf);
     }
     BeginRenderpassEx(&g_renderstate.renderpass);
@@ -746,11 +747,11 @@ void EndDrawing(){
     if(g_renderstate.grst->recording){
         uint64_t stmp = NanoTime();
         if(stmp - g_renderstate.grst->lastFrameTimestamp > g_renderstate.grst->delayInCentiseconds * 10000000ull){
-            g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.format = (PixelFormat)g_renderstate.frameBufferFormat;
-            Texture fbCopy = LoadTextureEx(g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.width, g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.height, (PixelFormat)g_renderstate.frameBufferFormat, false);
+            g_renderstate.renderTargetStack.peek().texture.format = (PixelFormat)g_renderstate.frameBufferFormat;
+            Texture fbCopy = LoadTextureEx(g_renderstate.renderTargetStack.peek().texture.width, g_renderstate.renderTargetStack.peek().texture.height, (PixelFormat)g_renderstate.frameBufferFormat, false);
             BeginComputepass();
             ComputepassEndOnlyComputing();
-            CopyTextureToTexture(g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture, fbCopy);
+            CopyTextureToTexture(g_renderstate.renderTargetStack.peek().texture, fbCopy);
             EndComputepass();
             BeginRenderpass();
             int recordingTextX = GetScreenWidth() - MeasureText("Recording", 30);
@@ -814,7 +815,7 @@ void EndDrawing(){
     if(!(g_renderstate.windowFlags & FLAG_VSYNC_HINT) && nanosecondsPerFrame > elapsed && GetTargetFPS() > 0)
         NanoWait(nanosecondsPerFrame - elapsed);
     
-    --g_renderstate.renderTargetStackPosition;
+    g_renderstate.renderTargetStack.pop();
     //std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 }
 void StartGIFRecording(){
@@ -1391,7 +1392,7 @@ DescribedSampler LoadSampler(addressMode amode, filterMode fmode){
 
 
 NativeImageHandle GetActiveColorTarget(){
-    return g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.id;
+    return g_renderstate.renderTargetStack.peek().texture.id;
 }
 
 /*void setTargetTextures(full_renderstate* state, WGPUTextureView c, WGPUTextureView cms, WGPUTextureView d){
@@ -1674,8 +1675,7 @@ void BeginTextureMode(RenderTexture rtex){
     if(g_renderstate.renderpass.rpEncoder){
         EndRenderpass();
     }
-    ++g_renderstate.renderTargetStackPosition;
-    g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition] = rtex;
+    g_renderstate.renderTargetStack.push(rtex);
     g_renderstate.renderExtentX = rtex.texture.width;
     g_renderstate.renderExtentY = rtex.texture.height;
     //std::cout << std::format("{} x {}\n", g_renderstate.renderExtentX, g_renderstate.renderExtentY);
@@ -1692,14 +1692,14 @@ void EndTextureMode(){
 
     EndRenderpassPro(GetActiveRenderPass(), true);
 
-    --g_renderstate.renderTargetStackPosition;
-    g_renderstate.renderExtentX = g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.width;
-    g_renderstate.renderExtentY = g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.height;
-    Matrix mat = ScreenMatrix(g_renderstate.renderExtentX, g_renderstate.renderExtentY);
+    g_renderstate.renderTargetStack.pop();
+    g_renderstate.renderExtentX = g_renderstate.renderTargetStack.peek().texture.width;
+    g_renderstate.renderExtentY = g_renderstate.renderTargetStack.peek().texture.height;
+    Matrix mat = ScreenMatrix((int)g_renderstate.renderExtentX, (int)g_renderstate.renderExtentY);
     //SetUniformBuffer(0, g_renderstate.defaultScreenMatrix);
     PopMatrix();
     SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
-    if(g_renderstate.renderTargetStackPosition >= 0){
+    if(!g_renderstate.renderTargetStack.empty()){
         BeginRenderpass();
     }
 }
@@ -1729,14 +1729,14 @@ extern "C" void EndWindowMode(){
 
         EndRenderpassPro(GetActiveRenderPass(), false);
 
-        --g_renderstate.renderTargetStackPosition;
-        g_renderstate.renderExtentX = g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.width;
-        g_renderstate.renderExtentY = g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.height;
-        Matrix mat = ScreenMatrix(g_renderstate.renderExtentX, g_renderstate.renderExtentY);
+        g_renderstate.renderTargetStack.pop();
+        g_renderstate.renderExtentX = g_renderstate.renderTargetStack.peek().texture.width;
+        g_renderstate.renderExtentY = g_renderstate.renderTargetStack.peek().texture.height;
+        Matrix mat = ScreenMatrix((int)g_renderstate.renderExtentX, (int)g_renderstate.renderExtentY);
         //SetUniformBuffer(0, g_renderstate.defaultScreenMatrix);
         PopMatrix();
         SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
-        if(g_renderstate.renderTargetStackPosition >= 0){
+        if(!g_renderstate.renderTargetStack.empty()){
             BeginRenderpass();
         }
     }

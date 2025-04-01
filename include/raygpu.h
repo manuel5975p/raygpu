@@ -631,10 +631,24 @@ typedef enum BackendType {
     BackendType_OpenGLES = 0x00000008,
     BackendType_Force32 = 0x7FFFFFFF
 } BackendType;
+
+typedef enum {
+    BLEND_ALPHA = 0,                // Blend textures considering alpha (default)
+    BLEND_ADDITIVE,                 // Blend textures adding colors
+    BLEND_MULTIPLIED,               // Blend textures multiplying colors
+    BLEND_ADD_COLORS,               // Blend textures adding colors (alternative)
+    BLEND_SUBTRACT_COLORS,          // Blend textures subtracting colors (alternative)
+    BLEND_ALPHA_PREMULTIPLY,        // Blend premultiplied textures considering alpha
+    BLEND_CUSTOM,                   // Blend textures using custom src/dst factors (use rlSetBlendFactors())
+    BLEND_CUSTOM_SEPARATE,          // Blend textures using custom rgb/alpha separate src/dst factors (use rlSetBlendFactorsSeparate())
+    INVALID_BLEND_MODE = 0x8FFFFFFF
+} rlBlendMode;
+
+
 typedef enum AdapterType{
     DISCRETE_GPU,
     INTEGRATED_GPU,
-    SOFTWARE_RENDERER
+    SOFTWARE_RENDERER,
 }AdapterType;
 typedef const void* char_or_uint32_pointer;
 typedef struct ShaderStageSource{

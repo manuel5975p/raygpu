@@ -395,6 +395,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     //g_renderstate.renderpass.cmdEncoder = wgpuDeviceCreateCommandEncoder(g_wgpustate.device.Get(), &cedesc);
     Matrix m = ScreenMatrix(width, height);
     static_assert(sizeof(Matrix) == 64, "non 4 byte floats? or what");
+    g_renderstate.matrixStack.push(std::pair<Matrix, WGVKBuffer>{});
     //g_wgpustate.defaultScreenMatrix = GenUniformBuffer(&m, sizeof(Matrix));
     //SetUniformBuffer(0, g_wgpustate.defaultScreenMatrix);
     SetTexture(1, g_renderstate.whitePixel);

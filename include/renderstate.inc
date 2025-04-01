@@ -33,32 +33,39 @@ struct array_stack{
     std::array<T, N> data;
     using iterator = std::array<T, N>::iterator;
     using const_iterator = std::array<T, N>::const_iterator;
-    iterator current_pos;
-    
-    array_stack() : current_pos(data.begin()){}
+    //iterator current_pos;
+    uint32_t current_pos;
+    array_stack() : current_pos(0){}
 
-    void push(const T& d){
-        rassert(current_pos - data.begin() < 8, "Stack is full");
-        *(current_pos++) = d;
+    void push(T d)noexcept{
+        rassert(current_pos < N, "Stack is full");
+        data[current_pos++] = d;
     }
-    T pop(){
-        rassert(current_pos > data.begin(), "Stack is empty");
-        return data.back();
-        data.pop_back();
+    T pop()noexcept{
+        rassert(current_pos > 0, "Stack is empty");
+        T ret = peek();
+        --current_pos;
+        return ret;
     }
-    T& peek(){
-        return *current_pos;
+    T& peek()noexcept{
+        rassert(!empty(), "Stack is empty");
+        return data[current_pos - 1];
     }
-    const T& peek()const{
-        return *current_pos;
+    const T& peek()const noexcept{
+        rassert(!empty(), "Stack is empty");
+        return data[current_pos - 1];
+    }
+    bool empty()const noexcept{
+        return current_pos == 0;
     }
 };
+
 struct renderstate{
 
 
     PresentMode unthrottled_PresentMode;
     PresentMode throttled_PresentMode;
-
+ 
     GLFWwindow* window;
     uint32_t width, height;
 
@@ -90,11 +97,10 @@ struct renderstate{
 
     Texture whitePixel;
 
-    int stackPosition = 0;
-    std::array<std::pair<Matrix, WGVKBuffer>, 16> matrixStack;
+    
+    array_stack<std::pair<Matrix, WGVKBuffer>, 16> matrixStack;
 
-    int renderTargetStackPosition = -1;
-    std::array<RenderTexture, 8> renderTargetStack;
+    array_stack<RenderTexture, 8> renderTargetStack;
 
     bool wantsToggleFullscreen;
     
