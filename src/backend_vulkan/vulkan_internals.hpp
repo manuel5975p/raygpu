@@ -476,7 +476,8 @@ static inline RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescripto
     RenderPassLayout ret{};
     ret.colorResolveIndex = VK_ATTACHMENT_UNUSED;
     
-    if(rpdesc->depthStencilAttachment->view){
+    if(rpdesc->depthStencilAttachment){
+        rassert(rpdesc->depthStencilAttachment->view, "Depth stencil attachment passed but null view");
         ret.depthAttachmentPresent = 1U;
         ret.depthAttachment = AttachmentDescriptor{
             .format = rpdesc->depthStencilAttachment->view->format, 
@@ -584,6 +585,7 @@ static inline VkRenderPass LoadRenderPassFromLayout(WGVKDevice device, RenderPas
         depthAttachmentIndex = attachmentIndex;
         attachmentIndex++;
     }
+    
 
     if(layout.colorResolveIndex != VK_ATTACHMENT_UNUSED){
         VkAttachmentDescription vkdesc zeroinit;

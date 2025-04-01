@@ -1412,6 +1412,8 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
 
     //WGVKRenderPassEncoder ret = callocnewpp(WGVKRenderPassEncoderImpl);
 
+    renderPass->settings = g_renderstate.currentSettings;
+
     VkCommandBufferBeginInfo bbi{};
     bbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     VkRenderPassBeginInfo rpbi{};
@@ -1477,8 +1479,9 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
             //wgvkCommandEncoderTransitionTextureLayout((WGVKCommandEncoder)renderPass->cmdEncoder, rca.view->texture, rca.view->texture->layout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         }
     }
-
-    rpdesc.depthStencilAttachment = &dsa;
+    if(renderPass->settings.depthTest){
+        rpdesc.depthStencilAttachment = &dsa;
+    }
     rpdesc.colorAttachments = &rca;
     rpdesc.colorAttachmentCount = 1;
     //fbci.pAttachments = fbAttachments;

@@ -43,6 +43,7 @@ int main(void){
     //SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     //RequestAdapterType(SOFTWARE_RENDERER);
     //SetTraceLogLevel(LOG_TRACE);
+
     InitWindow(800, 600, "Vulkan window");
     //SetTargetFPS(0);
     //sdlwin = OpenSubWindow_GLFW(400, 400, "SDL fenschter");

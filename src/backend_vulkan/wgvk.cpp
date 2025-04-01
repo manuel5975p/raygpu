@@ -532,9 +532,12 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
     for(uint32_t i = 0;i < rplayout.colorAttachmentCount;i++){
         attachmentViews[i] = rpdesc->colorAttachments[i].view->view;
     }
-    attachmentViews[rplayout.colorAttachmentCount] = rpdesc->depthStencilAttachment->view->view;
+    uint32_t insertIndex = rplayout.colorAttachmentCount;
+    if(rpdesc->depthStencilAttachment){
+        attachmentViews[insertIndex++] = rpdesc->depthStencilAttachment->view->view;
+    }
     if(rpdesc->colorAttachments[0].resolveTarget)
-        attachmentViews[rplayout.colorAttachmentCount+1] = rpdesc->colorAttachments[0].resolveTarget->view;
+        attachmentViews[insertIndex++] = rpdesc->colorAttachments[0].resolveTarget->view;
 
     VkFramebufferCreateInfo fbci zeroinit;
     fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -548,7 +551,7 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
         ret->resourceUsage.track(rpdesc->colorAttachments[0].resolveTarget, TextureUsage_RenderAttachment);
         ret->cmdEncoder->initializeOrTransition(rpdesc->colorAttachments->resolveTarget->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     }
-    if(rpdesc->depthStencilAttachment->view){
+    if(rpdesc->depthStencilAttachment){
         ret->resourceUsage.track(rpdesc->depthStencilAttachment->view, TextureUsage_RenderAttachment);
         ret->cmdEncoder->initializeOrTransition(rpdesc->depthStencilAttachment->view->texture, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
     }
@@ -582,7 +585,8 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
         clearValues[2].color.float32[2] = rpdesc->colorAttachments[0].clearValue.b;
         clearValues[2].color.float32[3] = rpdesc->colorAttachments[0].clearValue.a;
     }
-    clearValues[rplayout.colorAttachmentCount].depthStencil.depth = rpdesc->depthStencilAttachment->depthClearValue;
+    if(rpdesc->depthStencilAttachment)
+        clearValues[rplayout.colorAttachmentCount].depthStencil.depth = rpdesc->depthStencilAttachment->depthClearValue;
     rpbi.clearValueCount = rplayout.colorAttachmentCount + rplayout.depthAttachmentPresent + (rplayout.colorResolveIndex != VK_ATTACHMENT_UNUSED);
     rpbi.pClearValues = clearValues;
 

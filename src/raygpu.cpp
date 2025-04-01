@@ -519,10 +519,24 @@ extern "C" void EndPipelineMode(){
     //BindPipeline(g_renderstate.activePipeline, g_renderstate.activePipeline->lastUsedAs);
 }
 void DisableDepthTest(cwoid){
+    drawCurrentBatch();
     g_renderstate.currentSettings.depthTest = 0;
 }
 extern "C" void BeginBlendMode(rlBlendMode blendMode){
-
+    auto& blendState = g_renderstate.currentSettings.blendState;
+    switch (blendMode){
+        case BLEND_ALPHA:
+            blendState.alpha;
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); glBlendEquation(GL_FUNC_ADD); 
+        break;
+        case BLEND_ADDITIVE: glBlendFunc(GL_SRC_ALPHA, GL_ONE); glBlendEquation(GL_FUNC_ADD); break;
+        case BLEND_MULTIPLIED: glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA); glBlendEquation(GL_FUNC_ADD); break;
+        case BLEND_ADD_COLORS: glBlendFunc(GL_ONE, GL_ONE); glBlendEquation(GL_FUNC_ADD); break;
+        case BLEND_SUBTRACT_COLORS: glBlendFunc(GL_ONE, GL_ONE); glBlendEquation(GL_FUNC_SUBTRACT); break;
+        case BLEND_ALPHA_PREMULTIPLY: glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA); glBlendEquation(GL_FUNC_ADD); break;
+        case BLEND_CUSTOM:
+        default: rg_unreachable();
+    }
 }
 extern "C" void BeginMode2D(Camera2D camera){
     drawCurrentBatch();
