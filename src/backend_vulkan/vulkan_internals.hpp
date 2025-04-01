@@ -615,7 +615,7 @@ static inline VkRenderPass LoadRenderPassFromLayout(WGVKDevice device, RenderPas
     }
 
     // Set up subpass description.
-    VkSubpassDescription subpass = {};
+    VkSubpassDescription subpass zeroinit;
     subpass.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount    = colorIndex;
     subpass.pColorAttachments       = colorIndex ? colorRefs : nullptr;

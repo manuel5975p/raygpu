@@ -246,7 +246,7 @@ typedef struct WGVKRenderPassDescriptor{
     WGVKRenderPassColorAttachment const* colorAttachments;
     WGVKRenderPassDepthStencilAttachment const * depthStencilAttachment;
     
-    //idgaf members
+    //Ignore those members
     void* occlusionQuerySet;
     void const *timestampWrites;
 }WGVKRenderPassDescriptor;

@@ -518,6 +518,9 @@ extern "C" void EndPipelineMode(){
     g_renderstate.activePipeline = g_renderstate.defaultPipeline;
     //BindPipeline(g_renderstate.activePipeline, g_renderstate.activePipeline->lastUsedAs);
 }
+void DisableDepthTest(cwoid){
+    g_renderstate.currentSettings.depthTest = 0;
+}
 extern "C" void BeginBlendMode(rlBlendMode blendMode){
 
 }

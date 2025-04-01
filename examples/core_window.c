@@ -17,6 +17,9 @@ void mainloop(void){
         TRACELOG(LOG_INFO, "Key U pressed");
         ToggleFullscreen();
     }
+    if(IsKeyPressed(KEY_E)){
+        DisableDepthTest();
+    }
     drawCurrentBatch();
     //UseNoTexture();
     //rlVertex2f(0, 0);

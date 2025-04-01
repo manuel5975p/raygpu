@@ -980,6 +980,7 @@ EXTERN_C_BEGIN
     void EndRenderpassPro(DescribedRenderpass* renderPass, bool isRenderTexture);
     void BeginPipelineMode(DescribedPipeline* pipeline);
     void EndPipelineMode(cwoid);
+    void DisableDepthTest(cwoid);
     void BeginBlendMode(rlBlendMode blendMode);
     void EndBlendMode(void);
     void BeginMode2D(Camera2D camera);
