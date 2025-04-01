@@ -522,20 +522,99 @@ void DisableDepthTest(cwoid){
     drawCurrentBatch();
     g_renderstate.currentSettings.depthTest = 0;
 }
-extern "C" void BeginBlendMode(rlBlendMode blendMode){
+extern "C" void BeginBlendMode(rlBlendMode blendMode) {
+    // Get a reference to the blend state part of the current settings
     auto& blendState = g_renderstate.currentSettings.blendState;
-    switch (blendMode){
+
+    // Default common operation
+    blendState.color.operation = BlendOperation_Add;
+    blendState.alpha.operation = BlendOperation_Add;
+
+    switch (blendMode) {
         case BLEND_ALPHA:
-            blendState.alpha;
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); glBlendEquation(GL_FUNC_ADD); 
-        break;
-        case BLEND_ADDITIVE: glBlendFunc(GL_SRC_ALPHA, GL_ONE); glBlendEquation(GL_FUNC_ADD); break;
-        case BLEND_MULTIPLIED: glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA); glBlendEquation(GL_FUNC_ADD); break;
-        case BLEND_ADD_COLORS: glBlendFunc(GL_ONE, GL_ONE); glBlendEquation(GL_FUNC_ADD); break;
-        case BLEND_SUBTRACT_COLORS: glBlendFunc(GL_ONE, GL_ONE); glBlendEquation(GL_FUNC_SUBTRACT); break;
-        case BLEND_ALPHA_PREMULTIPLY: glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA); glBlendEquation(GL_FUNC_ADD); break;
+            // Alpha blend: SrcColor * SrcAlpha + DstColor * (1 - SrcAlpha)
+            // Alpha blend: SrcAlpha * 1 + DstAlpha * (1 - SrcAlpha)
+            blendState.color.srcFactor = BlendFactor_SrcAlpha;
+            blendState.color.dstFactor = BlendFactor_OneMinusSrcAlpha;
+            blendState.alpha.srcFactor = BlendFactor_One; // Often One or SrcAlpha
+            blendState.alpha.dstFactor = BlendFactor_OneMinusSrcAlpha;
+            // Operation is already BlendOperation_Add
+            break;
+
+        case BLEND_ADDITIVE:
+            // Additive blend: SrcColor * SrcAlpha + DstColor * 1
+            // Alpha blend: SrcAlpha * 1 + DstAlpha * 1 (or often just passes Dest alpha)
+            // This matches glBlendFunc(GL_SRC_ALPHA, GL_ONE) and glBlendEquation(GL_FUNC_ADD)
+            // Often, additive alpha is just (One, One) or preserves dest alpha (Zero, One)
+            // Let's assume (SrcAlpha, One) for color and (One, One) for alpha for brightness.
+            blendState.color.srcFactor = BlendFactor_SrcAlpha;
+            blendState.color.dstFactor = BlendFactor_One;
+            blendState.alpha.srcFactor = BlendFactor_One; // Could be SrcAlpha or Zero depending on desired alpha result
+            blendState.alpha.dstFactor = BlendFactor_One; // Could be One or Zero
+            // Operation is already BlendOperation_Add
+            break;
+
+        case BLEND_MULTIPLIED:
+            // Multiplied blend: SrcColor * DstColor + DstColor * (1 - SrcAlpha)
+            // Alpha blend: SrcAlpha * 0 + DstAlpha * 1 (keeps destination alpha)
+            // Matches glBlendFuncSeparate(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE) commonly used for multiply
+            // The original code used glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA) which would affect alpha too.
+            // Let's implement the common separate logic for better results.
+            blendState.color.srcFactor = BlendFactor_Dst;
+            blendState.color.dstFactor = BlendFactor_OneMinusSrcAlpha;
+            blendState.alpha.srcFactor = BlendFactor_Zero; // Keeps destination alpha
+            blendState.alpha.dstFactor = BlendFactor_One;
+            // Operation is already BlendOperation_Add
+            break;
+
+        case BLEND_ADD_COLORS:
+            // Add colors blend: SrcColor * 1 + DstColor * 1
+            // Alpha blend: SrcAlpha * 1 + DstAlpha * 1
+            // Matches glBlendFunc(GL_ONE, GL_ONE) and glBlendEquation(GL_FUNC_ADD)
+            blendState.color.srcFactor = BlendFactor_One;
+            blendState.color.dstFactor = BlendFactor_One;
+            blendState.alpha.srcFactor = BlendFactor_One;
+            blendState.alpha.dstFactor = BlendFactor_One;
+            // Operation is already BlendOperation_Add
+            break;
+
+        case BLEND_SUBTRACT_COLORS:
+            // Subtract colors blend: DstColor * 1 - SrcColor * 1 (Note: Usually Reverse Subtract: Src * 1 - Dst * 1 is less common)
+            // Let's assume Dst - Src based on common SUBTRACT usage, but GL_FUNC_SUBTRACT is Src - Dst.
+            // GL_FUNC_SUBTRACT: result = src * srcFactor - dst * dstFactor
+            // Alpha blend: DstAlpha * 1 - SrcAlpha * 1 (or Add alpha?)
+            // Matches glBlendFunc(GL_ONE, GL_ONE) and glBlendEquation(GL_FUNC_SUBTRACT)
+            // Applying SUBTRACT operation to both color and alpha based on glBlendEquation.
+            blendState.color.srcFactor = BlendFactor_One;
+            blendState.color.dstFactor = BlendFactor_One;
+            blendState.color.operation = BlendOperation_Subtract; // Or ReverseSubtract depending on desired outcome
+            blendState.alpha.srcFactor = BlendFactor_One;
+            blendState.alpha.dstFactor = BlendFactor_One;
+            blendState.alpha.operation = BlendOperation_Subtract; // Apply to alpha too, mimicking glBlendEquation
+            break;
+
+        case BLEND_ALPHA_PREMULTIPLY:
+            // Premultiplied alpha blend: SrcColor * 1 + DstColor * (1 - SrcAlpha)
+            // Alpha blend: SrcAlpha * 1 + DstAlpha * (1 - SrcAlpha)
+            // Matches glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA) and glBlendEquation(GL_FUNC_ADD)
+            blendState.color.srcFactor = BlendFactor_One;
+            blendState.color.dstFactor = BlendFactor_OneMinusSrcAlpha;
+            blendState.alpha.srcFactor = BlendFactor_One;
+            blendState.alpha.dstFactor = BlendFactor_OneMinusSrcAlpha;
+            // Operation is already BlendOperation_Add
+            break;
+
         case BLEND_CUSTOM:
-        default: rg_unreachable();
+            // Custom blend mode is not set here, it should be configured separately before drawing.
+            // Fall through to default or handle appropriately if this function should reset to a default custom state.
+            // For now, assuming it shouldn't be called with BLEND_CUSTOM, matching original rg_unreachable().
+            [[fallthrough]]; // Explicit fallthrough if C++17 or later, otherwise just let it fall.
+
+        default:
+            // If an unknown or BLEND_CUSTOM mode is passed, trigger unreachable.
+            // This indicates a logic error or that BLEND_CUSTOM should be handled elsewhere.
+            rg_unreachable();
+            break;
     }
 }
 extern "C" void BeginMode2D(Camera2D camera){
@@ -1883,7 +1962,6 @@ RenderSettings GetDefaultSettings(){
     ret.blendState.alpha.srcFactor = BlendFactor_One;
     ret.blendState.alpha.dstFactor = BlendFactor_OneMinusSrcAlpha;
     ret.blendState.alpha.operation = BlendOperation_Add;
-
     ret.blendState.color.srcFactor = BlendFactor_SrcAlpha;
     ret.blendState.color.dstFactor = BlendFactor_OneMinusSrcAlpha;
     ret.blendState.color.operation = BlendOperation_Add;

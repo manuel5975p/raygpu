@@ -2,7 +2,7 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 //#include <wgpustate.inc>
-#include <renderstate.inc>
+#include <renderstate.hpp>
 #include <internals.hpp>
 #include "GLFW/glfw3.h"
 #if SUPPORT_WGPU_BACKEND == 1
