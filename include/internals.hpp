@@ -180,13 +180,8 @@ typedef struct VertexStateToPipelineMap{
 
 typedef struct ModifiablePipelineState{
     std::vector<AttributeAndResidence> vertexAttributes;
-    WGVKBlendState blendState;
-    uint32_t sampleCount;
-    PrimitiveType primitive;
-    Bool32 depthTest;
-    Bool32 faceCull;
-    FrontFace frontFace;
-    CompareFunction depthCompare;
+    PrimitiveType primitiveType;
+    RenderSettings settings;
     bool operator==(const ModifiablePipelineState& mfps)const noexcept{
         if(attributeVectorCompare{}(vertexAttributes, mfps.vertexAttributes)){
             return true;
@@ -202,7 +197,7 @@ typedef struct ModifiablePipelineState{
 namespace std{
     template<> struct hash<ModifiablePipelineState>{
         size_t operator()(const ModifiablePipelineState& mfps)const noexcept{
-            return hash<vector<AttributeAndResidence>>{}(mfps.vertexAttributes) ^ hash_bytes(&mfps.blendState, sizeof(WGVKBlendState));
+            return hash<vector<AttributeAndResidence>>{}(mfps.vertexAttributes) ^ hash_bytes(&mfps.settings, sizeof(RenderSettings));
         }
     };
 }

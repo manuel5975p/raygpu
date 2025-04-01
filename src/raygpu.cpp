@@ -49,7 +49,7 @@
 extern "C" void ToggleFullscreenImpl(cwoid);
 #ifdef __EMSCRIPTEN__
 #endif  // __EMSCRIPTEN__
-#include <renderstate.inc>
+#include <renderstate.hpp>
 renderstate g_renderstate{};
 constexpr uint32_t swap_uint32(uint32_t val){
     val = ((val << 8) & 0xFF00FF00 ) | ((val >> 8) & 0xFF00FF ); 
@@ -436,9 +436,9 @@ void SetMatrix(Matrix m){
 }
 
 void adaptRenderPass(DescribedRenderpass* drp, const ModifiablePipelineState& settings){
-    drp->settings.blendState = settings.blendState;
-    drp->settings.depthTest = settings.depthTest;
-    drp->settings.sampleCount = settings.sampleCount;
+    drp->settings.blendState  = settings.settings.blendState;
+    drp->settings.depthTest   = settings.settings.depthTest;
+    drp->settings.sampleCount = settings.settings.sampleCount;
 
     //drp->renderPassDesc.colorAttachments = settings.depthTest ? drp->rca : nullptr;
     //drp->renderPassDesc.depthStencilAttachment = settings.depthTest ? drp->dsa : nullptr;
@@ -490,8 +490,8 @@ DescribedShaderModule LoadShaderModule(ShaderSources sources){
  * @return false 
  */
 static inline bool RenderSettingsCompatible(const ModifiablePipelineState& state, RenderSettings settings2){
-    return state.sampleCount == settings2.sampleCount &&
-           state.depthTest == settings2.depthTest;
+    return state.settings.sampleCount == settings2.sampleCount &&
+           state.settings.depthTest == settings2.depthTest;
 }
 
 extern "C" void BeginPipelineMode(DescribedPipeline* pipeline){
@@ -517,6 +517,9 @@ extern "C" void EndPipelineMode(){
     }
     g_renderstate.activePipeline = g_renderstate.defaultPipeline;
     //BindPipeline(g_renderstate.activePipeline, g_renderstate.activePipeline->lastUsedAs);
+}
+extern "C" void BeginBlendMode(rlBlendMode blendMode){
+
 }
 extern "C" void BeginMode2D(Camera2D camera){
     drawCurrentBatch();

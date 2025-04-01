@@ -5,6 +5,7 @@ project(webgpu_standalone)
 option(SUPPORT_SDL2 "Enable windowing with SDL2" OFF)
 option(SUPPORT_SDL3 "Enable windowing with SDL3" OFF)
 option(SUPPORT_GLFW "Enable windowing with GLFW" OFF)
+option(SUPPORT_RGFW "Enable windowing with RGFW" OFF)
 
 option(RAYGPU_ENABLE_INSTALL "(EXPERIMENTAL!) Enable install targets for raygpu" OFF)
 

@@ -4,7 +4,7 @@
 #undef Font
 #include <set>
 #include <vulkan/vulkan_core.h>
-#include <renderstate.inc>
+#include <renderstate.hpp>
 #include "vulkan_internals.hpp"
 #define RGFW_VULKAN
 #include <external/RGFW.h>
@@ -1517,13 +1517,16 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     //drawCurrentBatch();
     //BindPipeline(g_renderstate.defaultPipeline, WGPUPrimitiveTopology_TriangleList);
 }
-
-extern "C" void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode){
-    pipeline->state.primitive = drawMode;
+extern "C" void BindPipelineWithSettings(DescribedPipeline* pipeline, PrimitiveType drawMode, RenderSettings settings){
+    pipeline->state.primitiveType = drawMode;
+    pipeline->state.settings = settings;
     pipeline->activePipeline = pipeline->pipelineCache.getOrCreate(pipeline->state, pipeline->shaderModule, pipeline->bglayout, pipeline->layout);
     wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (WGVKRenderPipeline)pipeline->activePipeline);
-    
     wgvkRenderPassEncoderSetBindGroup((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, (WGVKBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup));
+}
+extern "C" void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode){
+    BindPipelineWithSettings(pipeline, drawMode, g_renderstate.currentSettings);
+    
     //pipeline->lastUsedAs = drawMode;
     //wgvkRenderPassEncoderSetBindGroup ((WGPURenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
 

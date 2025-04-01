@@ -131,9 +131,9 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     // Depth Stencil State Setup
     VkPipelineDepthStencilStateCreateInfo depthStencil{};
     depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depthStencil.depthTestEnable = settings.depthTest ? VK_TRUE : VK_FALSE;
-    depthStencil.depthWriteEnable = settings.depthTest ? VK_TRUE : VK_FALSE;
-    depthStencil.depthCompareOp = toVulkanCompareFunction((CompareFunction)settings.depthCompare);
+    depthStencil.depthTestEnable = settings.settings.depthTest ? VK_TRUE : VK_FALSE;
+    depthStencil.depthWriteEnable = settings.settings.depthTest ? VK_TRUE : VK_FALSE;
+    depthStencil.depthCompareOp = toVulkanCompareFunction((CompareFunction)settings.settings.depthCompare);
     depthStencil.depthBoundsTestEnable = VK_FALSE;
     depthStencil.minDepthBounds = 0.0f; // Optional
     depthStencil.maxDepthBounds = 1.0f; // Optional
@@ -147,7 +147,7 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     multisampling.sampleShadingEnable = VK_FALSE;
     
     // Map sampleCount from RenderSettings to VkSampleCountFlagBits
-    switch (settings.sampleCount) {
+    switch (settings.settings.sampleCount) {
         case 1: multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT; break;
         case 2: multisampling.rasterizationSamples = VK_SAMPLE_COUNT_2_BIT; break;
         case 4: multisampling.rasterizationSamples = VK_SAMPLE_COUNT_4_BIT; break;
@@ -166,25 +166,25 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     
     // Enable blending based on whether blend operations are set
     bool blendingEnabled = 
-        settings.blendState.alpha.operation != BlendOperation_Add || 
-        settings.blendState.alpha.srcFactor != BlendFactor_One ||
-        settings.blendState.alpha.dstFactor != BlendFactor_Zero ||
-        settings.blendState.alpha.operation != BlendOperation_Add ||
-        settings.blendState.alpha.srcFactor != BlendFactor_One ||
-        settings.blendState.alpha.dstFactor != BlendFactor_Zero;
+        settings.settings.blendState.alpha.operation != BlendOperation_Add || 
+        settings.settings.blendState.alpha.srcFactor != BlendFactor_One ||
+        settings.settings.blendState.alpha.dstFactor != BlendFactor_Zero ||
+        settings.settings.blendState.alpha.operation != BlendOperation_Add ||
+        settings.settings.blendState.alpha.srcFactor != BlendFactor_One ||
+        settings.settings.blendState.alpha.dstFactor != BlendFactor_Zero;
 
     colorBlendAttachment.blendEnable = blendingEnabled ? VK_TRUE : VK_FALSE;
 
     if (blendingEnabled) {
         // Configure blending for color
-        colorBlendAttachment.srcColorBlendFactor = toVulkanBlendFactor   (settings.blendState.color.srcFactor);
-        colorBlendAttachment.dstColorBlendFactor = toVulkanBlendFactor   (settings.blendState.color.dstFactor);
-        colorBlendAttachment.colorBlendOp =        toVulkanBlendOperation(settings.blendState.color.operation);
+        colorBlendAttachment.srcColorBlendFactor = toVulkanBlendFactor   (settings.settings.blendState.color.srcFactor);
+        colorBlendAttachment.dstColorBlendFactor = toVulkanBlendFactor   (settings.settings.blendState.color.dstFactor);
+        colorBlendAttachment.colorBlendOp =        toVulkanBlendOperation(settings.settings.blendState.color.operation);
         
         // Configure blending for alpha
-        colorBlendAttachment.srcAlphaBlendFactor = toVulkanBlendFactor   (settings.blendState.alpha.srcFactor);
-        colorBlendAttachment.dstAlphaBlendFactor = toVulkanBlendFactor   (settings.blendState.alpha.dstFactor);
-        colorBlendAttachment.alphaBlendOp =        toVulkanBlendOperation(settings.blendState.alpha.operation);
+        colorBlendAttachment.srcAlphaBlendFactor = toVulkanBlendFactor   (settings.settings.blendState.alpha.srcFactor);
+        colorBlendAttachment.dstAlphaBlendFactor = toVulkanBlendFactor   (settings.settings.blendState.alpha.dstFactor);
+        colorBlendAttachment.alphaBlendOp =        toVulkanBlendOperation(settings.settings.blendState.alpha.operation);
     }
 
     // Color Blending State Setup
@@ -226,27 +226,27 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     pipelineInfo.pViewportState = &viewportState;
     pipelineInfo.pRasterizationState = &rasterizer;
     pipelineInfo.pMultisampleState = &multisampling;
-    pipelineInfo.pDepthStencilState = settings.depthTest ? &depthStencil : nullptr; // Enable depth stencil if needed
+    pipelineInfo.pDepthStencilState = settings.settings.depthTest ? &depthStencil : nullptr; // Enable depth stencil if needed
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
     pipelineInfo.layout = (VkPipelineLayout)pllayout.layout;
 
     RenderPassLayout rpLayout zeroinit;
     rpLayout.colorAttachmentCount = 1;
-    rpLayout.depthAttachmentPresent = settings.depthTest;
+    rpLayout.depthAttachmentPresent = settings.settings.depthTest;
     
     rpLayout.colorAttachments[0].format = toVulkanPixelFormat(BGRA8);
     rpLayout.colorAttachments[0].loadop = LoadOp_Load;
     rpLayout.colorAttachments[0].storeop = StoreOp_Store;
-    rpLayout.colorAttachments[0].sampleCount = settings.sampleCount;
+    rpLayout.colorAttachments[0].sampleCount = settings.settings.sampleCount;
     
-    if(settings.depthTest){
+    if(settings.settings.depthTest){
         rpLayout.depthAttachment.format = toVulkanPixelFormat(Depth32);
         rpLayout.depthAttachment.loadop = LoadOp_Load;
         rpLayout.depthAttachment.storeop = StoreOp_Store;
-        rpLayout.depthAttachment.sampleCount = settings.sampleCount;
+        rpLayout.depthAttachment.sampleCount = settings.settings.sampleCount;
     }
-    if(settings.sampleCount > 1){
+    if(settings.settings.sampleCount > 1){
         rpLayout.colorAttachments[1].format = toVulkanPixelFormat(BGRA8);
         rpLayout.colorAttachments[1].loadop = LoadOp_Load;
         rpLayout.colorAttachments[1].storeop = StoreOp_Store;
@@ -611,10 +611,10 @@ extern "C" void UpdatePipelineWithNewLayout(DescribedPipeline* ret, const std::v
 
 extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
     DescribedPipeline* ret = callocnewpp(DescribedPipeline);
-    ret->state.blendState = settings.blendState;
-    ret->state.faceCull = settings.faceCull;
-    ret->state.frontFace = settings.frontFace;
-    ret->state.depthTest = settings.depthTest;
+    ret->state.settings.blendState = settings.blendState;
+    ret->state.settings.faceCull = settings.faceCull;
+    ret->state.settings.frontFace = settings.frontFace;
+    ret->state.settings.depthTest = settings.depthTest;
 
     ret->bglayout = LoadBindGroupLayout(uniforms, uniformCount, false);
     ret->shaderModule = mod;

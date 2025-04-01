@@ -122,7 +122,7 @@ void main() {
 
 
 struct full_renderstate;
-#include "renderstate.inc"
+#include <renderstate.hpp>
 
 
 void PollEvents(){
@@ -134,6 +134,9 @@ void PollEvents(){
     #endif
     #if SUPPORT_GLFW != 0
     PollEvents_GLFW();
+    #endif
+    #if SUPPORT_RGFW != 0
+    PollEvents_RGFW();
     #endif
 }
 void* GetActiveWindowHandle(){

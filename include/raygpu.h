@@ -874,6 +874,7 @@ EXTERN_C_BEGIN
     void PollEvents_SDL2(cwoid);
     void PollEvents_SDL3(cwoid);
     void PollEvents_GLFW(cwoid);
+    void PollEvents_RGFW(cwoid);
     uint32_t GetMonitorWidth_GLFW(cwoid);
     uint32_t GetMonitorWidth_SDL2(cwoid);
     uint32_t GetMonitorWidth_SDL3(cwoid);
@@ -979,6 +980,8 @@ EXTERN_C_BEGIN
     void EndRenderpassPro(DescribedRenderpass* renderPass, bool isRenderTexture);
     void BeginPipelineMode(DescribedPipeline* pipeline);
     void EndPipelineMode(cwoid);
+    void BeginBlendMode(rlBlendMode blendMode);
+    void EndBlendMode(void);
     void BeginMode2D(Camera2D camera);
     void EndMode2D(cwoid);
     void BeginMode3D(Camera3D camera);

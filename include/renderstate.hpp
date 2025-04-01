@@ -4,13 +4,15 @@
 #include <deque>
 #include <mutex>
 #include <vector>
+#include <raygpu.h>
+
 struct PenInputState{
     float axes[16];
     Vector2 position;
 };
 
+
 struct window_input_state{
-    
     Rectangle windowPosition; // Recovery after fullscreen
     std::vector<uint8_t> keydownPrevious = std::vector<uint8_t>(512, 0);
     std::vector<uint8_t> keydown = std::vector<uint8_t>(512, 0);
@@ -35,7 +37,7 @@ struct array_stack{
     using const_iterator = std::array<T, N>::const_iterator;
     //iterator current_pos;
     uint32_t current_pos;
-    array_stack() : current_pos(0){}
+    array_stack() noexcept : current_pos(0){}
 
     void push(T d)noexcept{
         rassert(current_pos < N, "Stack is full");
@@ -73,6 +75,7 @@ struct renderstate{
 
     DescribedPipeline* defaultPipeline;
     Shader defaultShader;
+    RenderSettings currentSettings;
     DescribedPipeline* activePipeline;
 
     DescribedRenderpass clearPass;
