@@ -313,7 +313,8 @@ extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const A
     DescribedPipeline& ret = *retp;
     ret.shaderModule = mod;
 
-    ret.state.vertexAttributes;    
+    //TODO
+    //ret.state.vertexAttributes;    
 
 
     ret.bglayout = LoadBindGroupLayout(uniforms, uniformCount, false);
@@ -410,7 +411,7 @@ DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const Re
     ret->bindGroup = LoadBindGroup(&ret->bglayout, bge.data(), bge.size());
     return ret;
 }
-Shader LoadShaderFromMemory(const char *vertexSource, const char *fragmentSource){
+Shader LoadShaderFromMemoryOld(const char *vertexSource, const char *fragmentSource){
     Shader shader zeroinit;
     
     #if SUPPORT_GLSL_PARSER == 1

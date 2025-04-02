@@ -1153,6 +1153,17 @@ Shader LoadShader(const char *vsFileName, const char *fsFileName){
     return shader;
 }
 
+extern "C" FullSurface CreateHeadlessSurface(uint32_t width, uint32_t height, PixelFormat format){
+    FullSurface ret{};
+    ret.headless = 1;
+    ret.surfaceConfig.device = GetDevice();
+    ret.surfaceConfig.width = width;
+    ret.surfaceConfig.width = height;
+    ret.surfaceConfig.format = toWGPUPixelFormat(format);
+    ret.renderTarget = LoadRenderTextureEx(width, height, format, 1);
+    return ret;
+}
+
 extern "C" DescribedPipeline* rlLoadShaderCode(const char* vertexCode, const char* fragmentCode);
 DescribedPipeline* rlGetShaderIdDefault(){
     return DefaultPipeline();
