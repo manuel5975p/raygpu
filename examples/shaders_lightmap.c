@@ -78,9 +78,9 @@ int main(void)
     //rlDisableVertexArray();
 
     // Load lightmap shader
-
-    Shader shader = LoadShader(TextFormat("../../resources/lightmap.vs", GLSL_VERSION),
-                               TextFormat("../../resources/lightmap.fs", GLSL_VERSION));
+    const char* resourceDir = FindDirectory("resources", 3);
+    Shader shader = LoadShader(TextFormat("%s/lightmap.vs", resourceDir),
+                               TextFormat("%s/lightmap.fs", resourceDir));
 
     Texture texture = LoadTexture("resources/cubicmap_atlas.png");
     Texture light = LoadTexture("resources/spark_flame.png");

@@ -617,20 +617,22 @@ extern "C" void BeginBlendMode(rlBlendMode blendMode) {
             break;
     }
 }
+extern "C" void EndBlendMode(void){
+    g_renderstate.currentSettings.blendState = GetDefaultSettings().blendState;
+}
 extern "C" void BeginMode2D(Camera2D camera){
     drawCurrentBatch();
     Matrix mat = GetCameraMatrix2D(camera);
     mat = MatrixMultiply(ScreenMatrix(g_renderstate.renderExtentX, g_renderstate.renderExtentY), mat);
     PushMatrix();
     SetMatrix(mat);
-    SetUniformBufferData(0, &mat, sizeof(Matrix));
+    SetUniformBufferData(GetUniformLocation(GetActivePipeline(), RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION_VIEW), &mat, sizeof(Matrix));
 }
 extern "C" void EndMode2D(){
     drawCurrentBatch();
     PopMatrix();
     //g_renderstate.activeScreenMatrix = ScreenMatrix(g_renderstate.renderExtentX, g_renderstate.renderExtentY);
-    
-    SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
+    SetUniformBufferData(GetUniformLocation(GetActivePipeline(), RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION_VIEW), GetMatrixPtr(), sizeof(Matrix));
 }
 void BeginMode3D(Camera3D camera){
     drawCurrentBatch();

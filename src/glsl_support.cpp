@@ -255,10 +255,10 @@ std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char
 std::vector<uint32_t> glsl_to_spirv_single(const char* cs, EShLanguage stage){
     glslang::TShader shader(stage);
     shader.setEnvInput (glslang::EShSourceGlsl, stage, glslang::EShClientOpenGL, 460);
-    shader.setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
+    shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_4);
     shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_4);
     shader.setStrings(&cs, 1);
-    shader.setAutoMapLocations(true);
+    //shader.setAutoMapLocations(true);
     TBuiltInResource Resources = {};
     Resources.maxComputeWorkGroupSizeX = 1024;
     Resources.maxComputeWorkGroupSizeY = 1024;
@@ -473,9 +473,9 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
                 return acceleration_structure;
             break;
             case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-
+                rassert(false, "Combined image samplers are not supported");
             default:
-                assert(false && "Unsupported");
+                rassert(false, "Unsupported");
                 rg_unreachable();
         }
     };

@@ -1,17 +1,17 @@
-#version 330
+#version 460
 
 // Input vertex attributes (from vertex shader)
-in vec2 fragTexCoord;
-in vec2 fragTexCoord2;
-in vec3 fragPosition;
-in vec4 fragColor;
+layout(location=0) in vec2 fragTexCoord;
+layout(location=1) in vec2 fragTexCoord2;
+layout(location=2) in vec3 fragPosition;
+layout(location=3) in vec4 fragColor;
 
 // Input uniform values
-uniform sampler2D texture0;
-uniform sampler2D texture1;
+layout(binding=2) uniform sampler2D texture0;
+layout(binding=3) uniform sampler2D texture1;
 
 // Output fragment color
-out vec4 finalColor;
+layout(location=0) out vec4 finalColor;
 
 void main()
 {
