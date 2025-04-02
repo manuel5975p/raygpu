@@ -53,6 +53,7 @@ void UploadMesh(Mesh *mesh, bool dynamic){
         }
     }
     if(mesh->vbos == nullptr){
+        
         mesh->vbos = (DescribedBuffer**)calloc(4 + 2 * int(mesh->boneWeights || mesh->boneIds), sizeof(DescribedBuffer*));
         mesh->vbos[0] = GenVertexBuffer(mesh->vertices , mesh->vertexCount * sizeof(float  ) * 3);
         mesh->vbos[1] = GenVertexBuffer(mesh->texcoords, mesh->vertexCount * sizeof(float  ) * 2);

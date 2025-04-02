@@ -213,7 +213,7 @@ void PresentSurface(FullSurface* fsurface){
     wgpuSurfacePresent((WGPUSurface)fsurface->surface);
 }
 
-
+/*
 extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, const std::vector<AttributeAndResidence>& attribs){
     uint32_t attribCount = attribs.size();
     auto it = pl->createdPipelines->pipelines.find(attribs);
@@ -317,28 +317,37 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, co
     pl->createdPipelines->pipelines[attribs] = quartet;
     return quartet;
 }
-
+*/
 
 void PostPresentSurface(){}
+extern "C" void BindPipelineWithSettings(DescribedPipeline* pipeline, PrimitiveType drawMode, RenderSettings settings){
+    pipeline->state.primitiveType = drawMode;
+    pipeline->state.settings = settings;
+    pipeline->activePipeline = pipeline->pipelineCache.getOrCreate(pipeline->state, pipeline->shaderModule, pipeline->bglayout, pipeline->layout);
+    wgpuRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (WGVKRenderPipeline)pipeline->activePipeline);
+    wgpuRenderPassEncoderSetBindGroup((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, (WGVKBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup), 0, nullptr);
+}
 extern "C" void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode){
-    switch(drawMode){
-        case RL_TRIANGLES:
-        //std::cout << "Binding: " <<  pipeline->pipeline << "\n";
-        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleList);
-        break;
-        case RL_TRIANGLE_STRIP:
-        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleStrip);
-        break;
-        case RL_LINES:
-        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_LineList);
-        break;
-        case RL_POINTS:
-        wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_PointList);
-        break;
-        default:
-            assert(false && "Unsupported Drawmode");
-            abort();
-    }
+    BindPipelineWithSettings(pipeline, drawMode, g_renderstate.currentSettings);
+
+    //switch(drawMode){
+    //    case RL_TRIANGLES:
+    //    //std::cout << "Binding: " <<  pipeline->pipeline << "\n";
+    //    wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleList);
+    //    break;
+    //    case RL_TRIANGLE_STRIP:
+    //    wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleStrip);
+    //    break;
+    //    case RL_LINES:
+    //    wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_LineList);
+    //    break;
+    //    case RL_POINTS:
+    //    wgpuRenderPassEncoderSetPipeline ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, (WGPURenderPipeline)pipeline->quartet.pipeline_PointList);
+    //    break;
+    //    default:
+    //        assert(false && "Unsupported Drawmode");
+    //        abort();
+    //}
     //pipeline->lastUsedAs = drawMode;
     wgpuRenderPassEncoderSetBindGroup ((WGPURenderPassEncoder)g_renderstate.renderpass.rpEncoder, 0, (WGPUBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup), 0, 0);
 }
@@ -1202,19 +1211,19 @@ extern "C" DescribedBuffer* GenBufferEx(const void* data, size_t size, WGPUBuffe
 void* GetInstance(){
     return g_wgpustate.instance.Get();
 }
-void* GetDevice(){
+WGVKDevice GetDevice(){
     return g_wgpustate.device.Get();
 }
-void* GetAdapter(){
+WGVKAdapter GetAdapter(){
     return g_wgpustate.adapter.Get();
 }
 extern "C" void ComputePassSetBindGroup(DescribedComputepass* drp, uint32_t group, DescribedBindGroup* bindgroup){
     wgpuComputePassEncoderSetBindGroup((WGPUComputePassEncoder)drp->cpEncoder, group, (WGPUBindGroup)UpdateAndGetNativeBindGroup(bindgroup), 0, nullptr);
 }
-WGPUBuffer GetMatrixBuffer(){
-    wgpuQueueWriteBuffer(GetQueue(), g_renderstate.matrixStack[g_renderstate.stackPosition].second, 0, &g_renderstate.matrixStack[g_renderstate.stackPosition].first, sizeof(Matrix));
-    return g_renderstate.matrixStack[g_renderstate.stackPosition].second;
-}
+//WGPUBuffer GetMatrixBuffer(){
+//    wgpuQueueWriteBuffer(GetQueue(), g_renderstate.matrixStack[g_renderstate.stackPosition].second, 0, &g_renderstate.matrixStack[g_renderstate.stackPosition].first, sizeof(Matrix));
+//    return g_renderstate.matrixStack[g_renderstate.stackPosition].second;
+//}
 extern "C" Texture2DArray LoadTextureArray(uint32_t width, uint32_t height, uint32_t layerCount, PixelFormat format){
     Texture2DArray ret zeroinit;
     ret.sampleCount = 1;
@@ -1470,16 +1479,14 @@ void BeginRenderpassEx(DescribedRenderpass* renderPass){
     
     WGPURenderPassColorAttachment colorAttachment zeroinit;
     WGPURenderPassDepthStencilAttachment depthAttachment zeroinit;
-    if(g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].colorMultisample.view){
-        colorAttachment.view = (WGPUTextureView)g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].colorMultisample.view;
-        colorAttachment.resolveTarget = (WGPUTextureView)g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.view;
+    if(g_renderstate.renderTargetStack.peek().colorMultisample.view){
+        colorAttachment.view          = (WGPUTextureView)g_renderstate.renderTargetStack.peek().colorMultisample.view;
+        colorAttachment.resolveTarget = (WGPUTextureView)g_renderstate.renderTargetStack.peek().texture.view;
     }
     else{
-        colorAttachment.view = (WGPUTextureView)g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.view;
+        colorAttachment.view = (WGPUTextureView)g_renderstate.renderTargetStack.peek().texture.view;
         colorAttachment.resolveTarget = nullptr;
     }
-
-
     
     colorAttachment.loadOp  = (WGPULoadOp)renderPass->colorLoadOp;
     colorAttachment.storeOp = (WGPUStoreOp)renderPass->colorStoreOp;
@@ -1491,7 +1498,7 @@ void BeginRenderpassEx(DescribedRenderpass* renderPass){
         renderPass->colorClear.a,
     };
 
-    depthAttachment.view = (WGPUTextureView)g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].depth.view;
+    depthAttachment.view =         (WGPUTextureView)g_renderstate.renderTargetStack.peek().depth.view;
     depthAttachment.depthLoadOp  = (WGPULoadOp)renderPass->depthLoadOp;
     depthAttachment.depthStoreOp = (WGPUStoreOp)renderPass->depthStoreOp;
     depthAttachment.depthClearValue = 1.0f;

@@ -218,6 +218,8 @@ typedef struct HighLevelPipelineCache{
 }HighLevelPipelineCache;
 
 typedef struct DescribedPipeline{
+    WGVKRenderPipeline activePipeline;
+
     ModifiablePipelineState state;
     
     DescribedShaderModule shaderModule;
@@ -226,7 +228,7 @@ typedef struct DescribedPipeline{
     DescribedBindGroupLayout bglayout;
 
     HighLevelPipelineCache pipelineCache;
-    WGVKRenderPipeline activePipeline;
+    
 }DescribedPipeline;
 
 /**

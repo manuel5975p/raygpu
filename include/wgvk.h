@@ -79,6 +79,10 @@ typedef WGPUTextureDescriptor WGVKTextureDescriptor;
 typedef WGPUTextureViewDescriptor WGVKTextureViewDescriptor;
 typedef WGPUBufferDescriptor WGVKBufferDescriptor;
 typedef WGPUBindGroupDescriptor WGVKBindGroupDescriptor;
+typedef void* WGVKRaytracingPipeline;
+typedef void* WGVKRaytracingPassEncoder;
+typedef void* WGVKBottomLevelAccelerationStructure;
+typedef void* WGVKTopLevelAccelerationStructure;
 
 #elif SUPPORT_VULKAN_BACKEND == 1
 
@@ -315,6 +319,7 @@ typedef struct WGVKSurfaceConfiguration {
     PresentMode presentMode;          // Present mode for image presentation
 } WGVKSurfaceConfiguration;
 
+#endif
 typedef struct WGVKBottomLevelAccelerationStructureDescriptor {
     WGVKBuffer vertexBuffer;            // Buffer containing vertex data
     uint32_t vertexCount;             // Number of vertices
@@ -331,7 +336,6 @@ typedef struct WGVKTopLevelAccelerationStructureDescriptor {
     uint32_t *instanceShaderBindingTableRecordOffsets;       // Optional SBT record offsets
     VkGeometryInstanceFlagsKHR *instanceFlags;               // Optional instance flags
 }WGVKTopLevelAccelerationStructureDescriptor;
-#endif
 
 void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, WGVKAdapter adapter, WGVKSurfaceCapabilities* capabilities);
 void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* config);

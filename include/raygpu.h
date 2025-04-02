@@ -285,9 +285,7 @@ externcvar WGVKBuffer vbo_buf;
 
 externcvar VertexArray* renderBatchVAO;
 externcvar DescribedBuffer* renderBatchVBO;
-typedef enum PrimitiveType{
-    RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS, RL_LINES, RL_POINTS
-}PrimitiveType;
+
 externcvar PrimitiveType current_drawmode;
 
 externcvar char telegrama_render1[];

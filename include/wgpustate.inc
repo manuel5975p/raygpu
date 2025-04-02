@@ -14,4 +14,4 @@ struct wgpustate{
     wgpu::Queue queue{};
 };
 
-#include "renderstate.inc"
+#include "renderstate.hpp"

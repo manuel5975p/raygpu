@@ -201,22 +201,22 @@ void UnloadShaderModule(DescribedShaderModule mod){
         }
     }
 }
-extern "C" void UpdatePipeline(DescribedPipeline* pl){
+
+WGPURenderPipeline createSingleRenderPipe(const ModifiablePipelineState &mst, const DescribedShaderModule &shaderModule, const DescribedBindGroupLayout &bglayout, const DescribedPipelineLayout &pllayout){
     WGPURenderPipelineDescriptor pipelineDesc zeroinit;
-    const RenderSettings& settings = pl->settings; 
-    pipelineDesc.multisample.count = pl->settings.sampleCount ? pl->settings.sampleCount : 1;
+    const RenderSettings& settings = mst.settings; 
+    pipelineDesc.multisample.count = settings.sampleCount ? settings.sampleCount : 1;
     pipelineDesc.multisample.mask = 0xFFFFFFFF;
     pipelineDesc.multisample.alphaToCoverageEnabled = false;
-    pipelineDesc.layout = (WGPUPipelineLayout)pl->layout.layout;
+    pipelineDesc.layout = (WGPUPipelineLayout)pllayout.layout;
 
-    WGPUVertexState vertexState{};
-    WGPUFragmentState fragmentState{};
-    WGPUBlendState blendState{};
+    WGPUVertexState   vertexState   zeroinit;
+    WGPUFragmentState fragmentState zeroinit;
+    WGPUBlendState    blendState    zeroinit;
 
+    vertexState.module = (WGPUShaderModule)shaderModule.stages[ShaderStage_Vertex].module;
 
-    vertexState.module = (WGPUShaderModule)pl->sh.stages[ShaderStage_Vertex].module;
-
-    VertexBufferLayoutSet& vlayout_complete = pl->vertexLayout;
+    VertexBufferLayoutSet vlayout_complete = getBufferLayoutRepresentation(mst.vertexAttributes.data(), mst.vertexAttributes.size());
     vertexState.bufferCount = vlayout_complete.number_of_buffers;
 
     std::vector<WGPUVertexBufferLayout> layouts_converted;
@@ -232,22 +232,22 @@ extern "C" void UpdatePipeline(DescribedPipeline* pl){
     }
     vertexState.buffers = layouts_converted.data();
     vertexState.constantCount = 0;
-    vertexState.entryPoint = WGPUStringView{pl->sh.reflectionInfo.ep[ShaderStage_Vertex].name, std::strlen(pl->sh.reflectionInfo.ep[ShaderStage_Vertex].name)};
+    vertexState.entryPoint = WGPUStringView{shaderModule.reflectionInfo.ep[ShaderStage_Vertex].name, std::strlen(shaderModule.reflectionInfo.ep[ShaderStage_Vertex].name)};
     pipelineDesc.vertex = vertexState;
 
 
     
-    fragmentState.module = (WGPUShaderModule)pl->sh.stages[ShaderStage_Fragment].module;
-    fragmentState.entryPoint = WGPUStringView{pl->sh.reflectionInfo.ep[ShaderStage_Fragment].name, std::strlen(pl->sh.reflectionInfo.ep[ShaderStage_Fragment].name)};
+    fragmentState.module = (WGPUShaderModule)shaderModule.stages[ShaderStage_Fragment].module;
+    fragmentState.entryPoint = WGPUStringView{shaderModule.reflectionInfo.ep[ShaderStage_Fragment].name, std::strlen(shaderModule.reflectionInfo.ep[ShaderStage_Fragment].name)};
     fragmentState.constantCount = 0;
     fragmentState.constants = nullptr;
 
-    blendState.color.srcFactor = (WGPUBlendFactor   )settings.blendFactorSrcColor;
-    blendState.color.dstFactor = (WGPUBlendFactor   )settings.blendFactorDstColor;
-    blendState.color.operation = (WGPUBlendOperation)settings.blendOperationColor;
-    blendState.alpha.srcFactor = (WGPUBlendFactor   )settings.blendFactorSrcAlpha;
-    blendState.alpha.dstFactor = (WGPUBlendFactor   )settings.blendFactorDstAlpha;
-    blendState.alpha.operation = (WGPUBlendOperation)settings.blendOperationAlpha;
+    blendState.color.srcFactor = (WGPUBlendFactor   )settings.blendState.color.srcFactor;
+    blendState.color.dstFactor = (WGPUBlendFactor   )settings.blendState.color.dstFactor;
+    blendState.color.operation = (WGPUBlendOperation)settings.blendState.color.operation;
+    blendState.alpha.srcFactor = (WGPUBlendFactor   )settings.blendState.alpha.srcFactor;
+    blendState.alpha.dstFactor = (WGPUBlendFactor   )settings.blendState.alpha.dstFactor;
+    blendState.alpha.operation = (WGPUBlendOperation)settings.blendState.alpha.operation;
     WGPUColorTargetState colorTarget{};
 
     colorTarget.format = (WGPUTextureFormat)g_renderstate.frameBufferFormat;
@@ -278,20 +278,11 @@ extern "C" void UpdatePipeline(DescribedPipeline* pl){
     pipelineDesc.primitive.frontFace = (WGPUFrontFace)settings.frontFace;
     pipelineDesc.primitive.cullMode = settings.faceCull ? WGPUCullMode_Back : WGPUCullMode_None;
     pipelineDesc.primitive.cullMode = WGPUCullMode_None;
-    if(pl->vertexLayout.layouts->attributeCount != 0){
-        pipelineDesc.primitive.topology = WGPUPrimitiveTopology_PointList;
-        pl->quartet.pipeline_PointList = wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipelineDesc);
-        pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
-        pl->quartet.pipeline_TriangleList = wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipelineDesc);
-        pipelineDesc.primitive.topology = WGPUPrimitiveTopology_LineList;
-        pl->quartet.pipeline_LineList = wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipelineDesc);
-        pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleStrip;
-        pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Uint32;
-        pl->quartet.pipeline_TriangleStrip = wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipelineDesc);
-        pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
-        pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
-    }
+    
+    pipelineDesc.primitive.topology = toWebGPUPrimitive(mst.primitiveType);
+    return wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipelineDesc);
 }
+
 extern "C" DescribedPipeline* LoadPipelineForVAOEx(ShaderSources sources, VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
     //detectShaderLanguage()
     
@@ -316,15 +307,13 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
 }
 extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
 
-    DescribedPipeline* retp = callocnew(DescribedPipeline);
-    retp->createdPipelines = callocnew(VertexStateToPipelineMap);
-    new (retp->createdPipelines) VertexStateToPipelineMap;
+    DescribedPipeline* retp = callocnewpp(DescribedPipeline);
     
-    retp->settings = settings;
+    retp->state.settings = settings;
     DescribedPipeline& ret = *retp;
-    ret.sh = mod;
+    ret.shaderModule = mod;
 
-    ret.vertexLayout = getBufferLayoutRepresentation(attribs, attribCount);    
+    ret.state.vertexAttributes;    
 
 
     ret.bglayout = LoadBindGroupLayout(uniforms, uniformCount, false);

@@ -216,6 +216,9 @@ typedef enum TextureAspect {
     TextureAspect_Plane2Only = 0x00050002,
     TextureAspect_Force32 = 0x7FFFFFFF
 } TextureAspect;
+typedef enum PrimitiveType{
+    RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS, RL_LINES, RL_POINTS
+}PrimitiveType;
 
 typedef enum TFilterMode { TFilterMode_Undefined = 0x00000000, TFilterMode_Nearest = 0x00000001, TFilterMode_Linear = 0x00000002, TFilterMode_Force32 = 0x7FFFFFFF } TFilterMode;
 
@@ -1024,7 +1027,17 @@ static inline WGPUTextureUsage toWebGPUTextureUsage(TextureUsage usage) {
 
     return wgpuUsage;
 }
-
+static inline WGPUPrimitiveTopology toWebGPUPrimitive(PrimitiveType pt){
+    switch(pt){
+        case RL_LINES: return WGPUPrimitiveTopology_LineList;
+        case RL_TRIANGLES: return WGPUPrimitiveTopology_TriangleList;
+        case RL_TRIANGLE_STRIP: return WGPUPrimitiveTopology_TriangleStrip;
+        case RL_POINTS: return WGPUPrimitiveTopology_PointList;
+        case RL_QUADS: 
+        default:
+        rg_unreachable();
+    }
+}
 static inline WGPUBufferUsage toWebGPUBufferUsage(BufferUsage busg) {
     WGPUBufferUsage usage = 0;
 

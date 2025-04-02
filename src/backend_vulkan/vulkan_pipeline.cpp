@@ -611,11 +611,8 @@ extern "C" void UpdatePipelineWithNewLayout(DescribedPipeline* ret, const std::v
 
 extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
     DescribedPipeline* ret = callocnewpp(DescribedPipeline);
-    ret->state.settings.blendState = settings.blendState;
-    ret->state.settings.faceCull = settings.faceCull;
-    ret->state.settings.frontFace = settings.frontFace;
-    ret->state.settings.depthTest = settings.depthTest;
-
+    ret->state.settings = settings;
+    
     ret->bglayout = LoadBindGroupLayout(uniforms, uniformCount, false);
     ret->shaderModule = mod;
     //auto [spirV, spirF] = glsl_to_spirv(vsSource, fsSource);

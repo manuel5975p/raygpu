@@ -207,7 +207,7 @@ void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group
     wgpuRenderPassEncoderSetBindGroup(rpe, group, dset, 0, nullptr);
 }
 void wgvkRenderPassEncoderBindPipeline(WGVKRenderPassEncoder rpe, struct DescribedPipeline* pipeline){
-    wgpuRenderPassEncoderSetPipeline(rpe, (WGPURenderPipeline)pipeline->quartet.pipeline_TriangleList);
+    wgpuRenderPassEncoderSetPipeline(rpe, (WGPURenderPipeline)pipeline); //UUUUUUH this assumes that the WGVKRenderPipeline is the first member of the DescribedPipeline
 }
 void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, VkPipeline pipeline, VkPipelineLayout layout){
     //TODO 

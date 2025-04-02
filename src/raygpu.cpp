@@ -626,7 +626,8 @@ extern "C" void BeginMode2D(Camera2D camera){
     mat = MatrixMultiply(ScreenMatrix(g_renderstate.renderExtentX, g_renderstate.renderExtentY), mat);
     PushMatrix();
     SetMatrix(mat);
-    SetUniformBufferData(GetUniformLocation(GetActivePipeline(), RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION_VIEW), &mat, sizeof(Matrix));
+    uint32_t uniformLoc = GetUniformLocation(GetActivePipeline(), RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION_VIEW);
+    SetUniformBufferData(uniformLoc, &mat, sizeof(Matrix));
 }
 extern "C" void EndMode2D(){
     drawCurrentBatch();

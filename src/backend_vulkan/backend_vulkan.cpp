@@ -228,6 +228,7 @@ extern "C" void BeginComputepassEx(DescribedComputepass* computePass){
     computePass->cmdEncoder = wgvkDeviceCreateCommandEncoder((WGVKDevice)GetDevice(), nullptr);
     computePass->cpEncoder = wgvkCommandEncoderBeginComputePass((WGVKCommandEncoder)computePass->cmdEncoder);
 }
+
 extern "C" void EndComputepassEx(DescribedComputepass* computePass){
     if(computePass->cpEncoder){
         wgvkCommandEncoderEndComputePass((WGVKComputePassEncoder)computePass->cpEncoder);
