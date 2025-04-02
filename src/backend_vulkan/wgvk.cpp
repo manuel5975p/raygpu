@@ -684,6 +684,10 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
     const uint64_t frameCount = queue->device->submittedFrames;
     const uint32_t cacheIndex = frameCount % framesInFlight;
     int submitResult = 0;
+    VkSemaphore waitSemaphores[2] zeroinit;
+    if(queue->syncState[cacheIndex].acquireImageSemaphoreSignalled){
+        
+    }
     for(uint32_t i = 0;i < submittable.size();i++){
         VkPipelineStageFlags waitFlags = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
         si.commandBufferCount = 1;

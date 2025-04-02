@@ -691,6 +691,8 @@ struct WGVKSurfaceImpl{
 static inline VkSemaphore CreateSemaphore(VkSemaphoreCreateFlags flags = 0);
 struct SyncState{
     std::vector<VkSemaphore> semaphores;
+    VkSemaphore acquireImageSemaphore;
+    bool acquireImageSemaphoreSignalled;
     uint32_t submits;
     VkFence renderFinishedFence;    
 };

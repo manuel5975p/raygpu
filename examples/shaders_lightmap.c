@@ -82,8 +82,8 @@ int main(void)
     Shader shader = LoadShader(TextFormat("%s/lightmap.vs", resourceDir),
                                TextFormat("%s/lightmap.fs", resourceDir));
 
-    Texture texture = LoadTexture("resources/cubicmap_atlas.png");
-    Texture light = LoadTexture("resources/spark_flame.png");
+    Texture texture = LoadTexture(TextFormat("%s/cubicmap_atlas.png", resourceDir));
+    Texture light =   LoadTexture(TextFormat("%s/spark_flame.png", resourceDir));
 
     GenTextureMipmaps(&texture);
     

@@ -19,6 +19,13 @@
 #include <external/cgltf.h>
 #define PAR_SHAPES_IMPLEMENTATION
 #include <external/par_shapes.h>
+#ifndef MAX_MATERIAL_MAPS
+    #define MAX_MATERIAL_MAPS       12    // Maximum number of maps supported
+#endif
+#ifndef MAX_MESH_VERTEX_BUFFERS
+    #define MAX_MESH_VERTEX_BUFFERS  9    // Maximum vertex buffers (VBO) per mesh
+#endif
+
 
 constexpr float v3_zero [3] = {0,0,0};
 constexpr float v3_xunit[3] = {1,0,0};
@@ -54,7 +61,7 @@ void UploadMesh(Mesh *mesh, bool dynamic){
     }
     if(mesh->vbos == nullptr){
         
-        mesh->vbos = (DescribedBuffer**)calloc(4 + 2 * int(mesh->boneWeights || mesh->boneIds), sizeof(DescribedBuffer*));
+        mesh->vbos = (DescribedBuffer**)std::calloc(MAX_MESH_VERTEX_BUFFERS, sizeof(DescribedBuffer*));
         mesh->vbos[0] = GenVertexBuffer(mesh->vertices , mesh->vertexCount * sizeof(float  ) * 3);
         mesh->vbos[1] = GenVertexBuffer(mesh->texcoords, mesh->vertexCount * sizeof(float  ) * 2);
         mesh->vbos[2] = GenVertexBuffer(mesh->normals  , mesh->vertexCount * sizeof(float  ) * 3);

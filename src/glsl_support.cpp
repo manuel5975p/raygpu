@@ -473,7 +473,7 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
                 return acceleration_structure;
             break;
             case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-                rassert(false, "Combined image samplers are not supported");
+                return combined_image_sampler;
             default:
                 rassert(false, "Unsupported");
                 rg_unreachable();

@@ -370,11 +370,11 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
             g_vulkanstate.device->device, 
             wgvksurf->swapchain, 
             UINT64_MAX, 
-            g_vulkanstate.queue->syncState[cacheIndex].semaphores[0], 
+            g_vulkanstate.queue->syncState[cacheIndex].acquireImageSemaphore, 
             VK_NULL_HANDLE, 
             &imageIndex
         );
-
+        g_vulkanstate.queue->syncState[cacheIndex].acquireImageSemaphoreSignalled = true;
         if(acquireResult != VK_SUCCESS){
             std::cerr << "acquireResult is " << acquireResult << std::endl;
         }
@@ -1283,6 +1283,7 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
         for(uint32_t j = 0;j < ret.second->syncState[i].semaphores.size();j++){
             ret.second->syncState[i].semaphores[j] = CreateSemaphoreD(ret.first->device);
         }
+        ret.second->syncState[i].acquireImageSemaphore = CreateSemaphoreD(ret.first->device);
 
         VmaPoolCreateInfo vpci zeroinit;
         vpci.minAllocationAlignment = 64;
