@@ -278,6 +278,11 @@ typedef struct WGVKAdapterImpl{
     QueueIndices queueIndices;
 }WGVKAdapterImpl;
 
+typedef struct LayoutedRenderPass{
+    RenderPassLayout layout;
+    VkRenderPass renderPass;
+}LayoutedRenderPass;
+
 typedef struct WGVKDeviceImpl{
     VkDevice device;
     WGVKAdapter adapter;
@@ -287,7 +292,7 @@ typedef struct WGVKDeviceImpl{
     VmaPool aligned_hostVisiblePool;
     PerframeCache frameCaches[framesInFlight];
 
-    std::unordered_map<RenderPassLayout, VkRenderPass> renderPassCache;
+    std::unordered_map<RenderPassLayout, LayoutedRenderPass> renderPassCache;
 }WGVKDeviceImpl;
 
 typedef struct WGVKTextureImpl{
@@ -475,7 +480,7 @@ typedef struct WGVKRaytracingPassEncoderImpl{
 
 static inline RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescriptor* rpdesc){
     RenderPassLayout ret{};
-    ret.colorResolveIndex = VK_ATTACHMENT_UNUSED;
+    //ret.colorResolveIndex = VK_ATTACHMENT_UNUSED;
     
     if(rpdesc->depthStencilAttachment){
         rassert(rpdesc->depthStencilAttachment->view, "Depth stencil attachment passed but null view");
@@ -500,12 +505,12 @@ static inline RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescripto
         };
         if(rpdesc->colorAttachments[i].resolveTarget != 0){
             i++;
-            ret.colorResolveIndex = i;
-            ret.colorAttachments[i] = AttachmentDescriptor{
-                .format = rpdesc->colorAttachments[i - 1].resolveTarget->format, 
-                .sampleCount = rpdesc->colorAttachments[i - 1].resolveTarget->sampleCount,
-                .loadop = rpdesc->colorAttachments[i - 1].loadOp,
-                .storeop = rpdesc->colorAttachments[i - 1].storeOp
+            //ret.colorResolveIndex = i;
+            ret.colorResolveAttachments[i] = AttachmentDescriptor{
+                .format = rpdesc->colorAttachments[i].resolveTarget->format, 
+                .sampleCount = rpdesc->colorAttachments[i].resolveTarget->sampleCount,
+                .loadop = rpdesc->colorAttachments[i].loadOp,
+                .storeop = rpdesc->colorAttachments[i].storeOp
             };
         }
     }
@@ -538,73 +543,55 @@ static inline VkSampleCountFlagBits toVulkanSampleCount(uint32_t samples){
     }
 }
 
-static inline VkRenderPass LoadRenderPassFromLayout(WGVKDevice device, RenderPassLayout layout) {
+
+static inline LayoutedRenderPass LoadRenderPassFromLayout(WGVKDevice device, RenderPassLayout layout) {
     auto it = device->renderPassCache.find(layout);
     if(it != device->renderPassCache.end()){
         return it->second;
     }
     TRACELOG(LOG_INFO, "Loading new renderpass");
-    VkAttachmentDescription vkAttachments[max_color_attachments + 1] = {}; // array for Vulkan attachments
-
-    [[maybe_unused]] uint32_t colorAttachmentCount = 0;
+    auto transformLambda = [](const AttachmentDescriptor& att){
+        VkAttachmentDescription ret zeroinit;
+        ret.samples    = toVulkanSampleCount(att.sampleCount);
+        ret.format     = att.format;
+        ret.loadOp     = toVulkanLoadOperation(att.loadop);
+        ret.storeOp    = toVulkanStoreOperation(att.storeop);
+        ret.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        ret.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        ret.initialLayout  = (att.loadop == LoadOp_Load ? (is__depth(att.format) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) : (VK_IMAGE_LAYOUT_UNDEFINED));
+        if(is__depth(att.format)){
+            ret.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        }else{
+            ret.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        }
+        return ret;
+    };
+    
+    std::vector<VkAttachmentDescription> allAttachments;
     uint32_t depthAttachmentIndex = VK_ATTACHMENT_UNUSED; // index for depth attachment if any
     uint32_t colorResolveIndex = VK_ATTACHMENT_UNUSED; // index for depth attachment if any
 
-    // Convert custom attachments to Vulkan attachments
-    uint32_t attachmentIndex = 0;
-    for (attachmentIndex = 0; attachmentIndex < layout.colorAttachmentCount; attachmentIndex++) {
-        const AttachmentDescriptor &att = layout.colorAttachments[attachmentIndex];
-        vkAttachments[attachmentIndex].samples    = toVulkanSampleCount(att.sampleCount);
-        vkAttachments[attachmentIndex].format     = att.format;
-        vkAttachments[attachmentIndex].loadOp     = toVulkanLoadOperation(att.loadop);
-        vkAttachments[attachmentIndex].storeOp    = toVulkanStoreOperation(att.storeop);
-        vkAttachments[attachmentIndex].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        vkAttachments[attachmentIndex].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        vkAttachments[attachmentIndex].initialLayout  = (att.loadop == LoadOp_Load ? (is__depth(att.format) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) : (VK_IMAGE_LAYOUT_UNDEFINED));
-        if (is__depth(att.format)) { // Never the case
-            vkAttachments[attachmentIndex].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-            depthAttachmentIndex = attachmentIndex;
-        } else {
-            vkAttachments[attachmentIndex].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            ++colorAttachmentCount;
-        }
-    }
-
+    std::transform(
+        layout.colorAttachments, 
+        layout.colorAttachments + layout.colorAttachmentCount, 
+        std::back_inserter(allAttachments), 
+        transformLambda
+    );
     if(layout.depthAttachmentPresent){
-        VkAttachmentDescription vkdesc zeroinit;
-        const AttachmentDescriptor &att = layout.depthAttachment;
-        vkdesc.initialLayout  = (att.loadop == LoadOp_Load ? (is__depth(att.format) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) : (VK_IMAGE_LAYOUT_UNDEFINED));
-        vkdesc.samples    = toVulkanSampleCount(att.sampleCount);
-        vkdesc.format     = att.format;
-        vkdesc.loadOp     = toVulkanLoadOperation(att.loadop);
-        vkdesc.storeOp    = toVulkanStoreOperation(att.storeop);
-        vkdesc.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        vkdesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        vkdesc.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-            
-        vkAttachments[attachmentIndex] = vkdesc;
-        depthAttachmentIndex = attachmentIndex;
-        attachmentIndex++;
+        allAttachments.push_back(transformLambda(layout.depthAttachment));
+        depthAttachmentIndex = allAttachments.size();
     }
+    //TODO check if there
+    std::transform(
+        layout.colorResolveAttachments, 
+        layout.colorResolveAttachments + layout.colorAttachmentCount, 
+        std::back_inserter(allAttachments), 
+        transformLambda
+    );
+
     
-
-    if(layout.colorResolveIndex != VK_ATTACHMENT_UNUSED){
-        VkAttachmentDescription vkdesc zeroinit;
-        const AttachmentDescriptor &att = layout.colorAttachments[layout.colorResolveIndex];
-        vkdesc.initialLayout  = (att.loadop == LoadOp_Load ? (is__depth(att.format) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) : (VK_IMAGE_LAYOUT_UNDEFINED));
-        vkdesc.samples    = toVulkanSampleCount(att.sampleCount);
-        vkdesc.format     = att.format;
-        vkdesc.loadOp     = toVulkanLoadOperation(att.loadop);
-        vkdesc.storeOp    = toVulkanStoreOperation(att.storeop);
-        vkdesc.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        vkdesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        vkdesc.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            
-        vkAttachments[attachmentIndex] = vkdesc;
-        colorResolveIndex = attachmentIndex;
-        attachmentIndex++;
-    }
-
+    [[maybe_unused]] uint32_t colorAttachmentCount = layout.colorAttachmentCount;
+    
 
     // Set up color attachment references for the subpass.
     VkAttachmentReference colorRefs[max_color_attachments] = {}; // list of color attachments
@@ -647,8 +634,10 @@ static inline VkRenderPass LoadRenderPassFromLayout(WGVKDevice device, RenderPas
     // Create render pass create info.
     VkRenderPassCreateInfo rpci = {};
     rpci.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    rpci.attachmentCount = layout.colorAttachmentCount + (layout.depthAttachmentPresent ? 1u : 0u) + (layout.colorResolveIndex != VK_ATTACHMENT_UNUSED);
-    rpci.pAttachments    = vkAttachments;
+    rpci.attachmentCount = allAttachments.size();
+    rpci.pAttachments    = allAttachments.data();
+    VkFramebufferCreateInfo fbci;
+
     rpci.subpassCount    = 1;
     rpci.pSubpasses      = &subpass;
     // (Optional: add subpass dependencies if needed.)
