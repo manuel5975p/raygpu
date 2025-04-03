@@ -184,7 +184,8 @@ typedef struct ModifiablePipelineState{
     RenderSettings settings;
     bool operator==(const ModifiablePipelineState& mfps)const noexcept{
         if(attributeVectorCompare{}(vertexAttributes, mfps.vertexAttributes)){
-            return true;
+            //TODO: complet this
+            return primitiveType == mfps.primitiveType && settings.blendState == mfps.settings.blendState;
         }
         return false;
     }
@@ -197,7 +198,7 @@ typedef struct ModifiablePipelineState{
 namespace std{
     template<> struct hash<ModifiablePipelineState>{
         size_t operator()(const ModifiablePipelineState& mfps)const noexcept{
-            return hash<vector<AttributeAndResidence>>{}(mfps.vertexAttributes) ^ hash_bytes(&mfps.settings, sizeof(RenderSettings));
+            return hash<vector<AttributeAndResidence>>{}(mfps.vertexAttributes) ^ hash_bytes(&mfps.settings, sizeof(RenderSettings)) ^ ROT_BYTES(mfps.primitiveType, 17);
         }
     };
 }

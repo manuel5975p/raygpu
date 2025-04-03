@@ -94,7 +94,7 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     // Input Assembly Setup
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssembly.topology = toVulkanPrimitive(mst.primitiveType);
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 
     // Viewport and Scissor Setup
@@ -240,22 +240,24 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     rpLayout.colorAttachments[0].storeop = StoreOp_Store;
     rpLayout.colorAttachments[0].sampleCount = settings.settings.sampleCount;
     
+    if(rpLayout.colorAttachments[0].sampleCount > 1){
+        rpLayout.colorResolveAttachments[0].format = toVulkanPixelFormat(BGRA8);
+        rpLayout.colorResolveAttachments[0].loadop = LoadOp_Load;
+        rpLayout.colorResolveAttachments[0].storeop = StoreOp_Store;
+        rpLayout.colorResolveAttachments[0].sampleCount = 1;
+    }
+    else{
+        //rpLayout.colorResolveIndex = VK_ATTACHMENT_UNUSED;
+    }
+
     if(settings.settings.depthTest){
         rpLayout.depthAttachment.format = toVulkanPixelFormat(Depth32);
         rpLayout.depthAttachment.loadop = LoadOp_Load;
         rpLayout.depthAttachment.storeop = StoreOp_Store;
         rpLayout.depthAttachment.sampleCount = settings.settings.sampleCount;
     }
-    if(settings.settings.sampleCount > 1){
-        rpLayout.colorAttachments[1].format = toVulkanPixelFormat(BGRA8);
-        rpLayout.colorAttachments[1].loadop = LoadOp_Load;
-        rpLayout.colorAttachments[1].storeop = StoreOp_Store;
-        rpLayout.colorAttachments[1].sampleCount = 1;
-        rpLayout.colorResolveIndex = 1;
-    }
-    else{
-        rpLayout.colorResolveIndex = VK_ATTACHMENT_UNUSED;
-    }
+    
+    
     #if VULKAN_USE_DYNAMIC_RENDERING == 1
     VkPipelineRenderingCreateInfo rci zeroinit;
     rci.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;

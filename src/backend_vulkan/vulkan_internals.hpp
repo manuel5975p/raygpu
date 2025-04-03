@@ -142,9 +142,10 @@ typedef struct AttachmentDescriptor{
 typedef struct RenderPassLayout{
     uint32_t colorAttachmentCount;
     AttachmentDescriptor colorAttachments[max_color_attachments];
+    AttachmentDescriptor colorResolveAttachments[max_color_attachments];
     uint32_t depthAttachmentPresent;
     AttachmentDescriptor depthAttachment;
-    uint32_t colorResolveIndex;
+    //uint32_t colorResolveIndex;
     bool operator==(const RenderPassLayout& other) const noexcept {
         if(colorAttachmentCount != other.colorAttachmentCount)return false;
         for(uint32_t i = 0;i < colorAttachmentCount;i++){
@@ -154,7 +155,7 @@ typedef struct RenderPassLayout{
         }
         if(depthAttachmentPresent != other.depthAttachmentPresent)return false;
         if(depthAttachment != other.depthAttachment)return false;
-        if(colorResolveIndex != other.colorResolveIndex)return false;
+        //if(colorResolveIndex != other.colorResolveIndex)return false;
 
         return true;
     }

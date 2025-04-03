@@ -684,19 +684,28 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
     const uint64_t frameCount = queue->device->submittedFrames;
     const uint32_t cacheIndex = frameCount % framesInFlight;
     int submitResult = 0;
-    VkSemaphore waitSemaphores[2] zeroinit;
-    if(queue->syncState[cacheIndex].acquireImageSemaphoreSignalled){
-        
-    }
+    
     for(uint32_t i = 0;i < submittable.size();i++){
-        VkPipelineStageFlags waitFlags = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+        small_vector<VkSemaphore> waitSemaphores;
+
+        if(queue->syncState[cacheIndex].acquireImageSemaphoreSignalled){
+            waitSemaphores.push_back(queue->syncState[cacheIndex].acquireImageSemaphore);   
+            queue->syncState[cacheIndex].acquireImageSemaphoreSignalled = false;
+        }
+        if(queue->syncState[cacheIndex].submits > 0){
+            waitSemaphores.push_back(queue->syncState[cacheIndex].semaphores[queue->syncState[cacheIndex].submits]);
+        }
+
         si.commandBufferCount = 1;
-        si.waitSemaphoreCount = 1;
-        si.signalSemaphoreCount = 1;
         uint32_t submits = queue->syncState[cacheIndex].submits;
-        si.pWaitSemaphores = queue->syncState[cacheIndex].semaphores.data() + queue->syncState[cacheIndex].submits;
-        si.pSignalSemaphores = queue->syncState[cacheIndex].semaphores.data() + queue->syncState[cacheIndex].submits + 1;
+        
+        si.waitSemaphoreCount = waitSemaphores.size();
+        si.pWaitSemaphores = waitSemaphores.data();
+        VkPipelineStageFlags waitFlags = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
         si.pWaitDstStageMask = &waitFlags;
+
+        si.signalSemaphoreCount = 1;
+        si.pSignalSemaphores = queue->syncState[cacheIndex].semaphores.data() + queue->syncState[cacheIndex].submits + 1;
         si.pCommandBuffers = submittable.data() + i;
         ++queue->syncState[cacheIndex].submits;
         submitResult |= vkQueueSubmit(queue->graphicsQueue, 1, &si, fence);

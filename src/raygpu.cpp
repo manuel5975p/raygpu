@@ -1159,7 +1159,11 @@ extern "C" FullSurface CreateHeadlessSurface(uint32_t width, uint32_t height, Pi
     ret.surfaceConfig.device = GetDevice();
     ret.surfaceConfig.width = width;
     ret.surfaceConfig.width = height;
-    ret.surfaceConfig.format = toWGPUPixelFormat(format);
+    #if SUPPORT_VULKAN_BACKEND == 1
+    ret.surfaceConfig.format = format;
+    #else
+    ret.surfaceConfig.format = toWebGPUPixelFormat(format);
+    #endif
     ret.renderTarget = LoadRenderTextureEx(width, height, format, 1);
     return ret;
 }

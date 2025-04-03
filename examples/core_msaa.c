@@ -32,7 +32,7 @@ void mainloop(void){
 }
 int main(void){
 
-    SetConfigFlags(FLAG_MSAA_4X_HINT);
+    //SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(800, 600, "WebGPU window");
     textWidth = MeasureText("Hello MSAA Enjoyer", 50);
     tex = LoadTextureFromImage(GenImageChecker(RED, GREEN, 100, 100, 10));

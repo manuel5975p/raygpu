@@ -489,7 +489,18 @@ static inline VkDescriptorType toVulkanResourceType(uniform_type type) {
     }
     rg_unreachable();
 }
-
+static inline VkPrimitiveTopology toVulkanPrimitive(PrimitiveType type){
+    switch(type){
+        case RL_TRIANGLE_STRIP: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+        case RL_TRIANGLES: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        case RL_LINES: return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+        case RL_POINTS: return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+        case RL_QUADS:
+            //rassert(false, "Quads are not a primitive type");
+        default:
+            rg_unreachable();
+    }
+}
 static inline VkBufferUsageFlags toVulkanBufferUsage(BufferUsage busg) {
     VkBufferUsageFlags usage = 0;
 
