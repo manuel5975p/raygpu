@@ -229,7 +229,6 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     
     //void* window = nullptr;
     if(!(g_renderstate.windowFlags & FLAG_HEADLESS)){
-        TRACELOG(LOG_INFO, "Shit ass2");
         #if SUPPORT_GLFW == 1 || SUPPORT_SDL2 == 1 || SUPPORT_SDL3 == 1 || SUPPORT_RGFW == 1
         #ifdef MAIN_WINDOW_GLFW
         SubWindow createdWindow = InitWindow_GLFW(width, height, title);

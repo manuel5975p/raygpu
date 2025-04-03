@@ -42,8 +42,11 @@
 // Detect and define DEFAULT_BACKEND based on the target platform
 #if defined(_WIN32) || defined(_WIN64)
     // Windows platform detected
-    #define DEFAULT_BACKEND WGPUBackendType_D3D12
-
+    #ifndef _MSC_VER
+        #define DEFAULT_BACKEND WGPUBackendType_Vulkan
+    #else
+        #define DEFAULT_BACKEND WGPUBackendType_D3D12
+    #endif
 #elif defined(__APPLE__) && defined(__MACH__)
     // Apple platform detected (macOS, iOS, etc.)
     #define DEFAULT_BACKEND WGPUBackendType_Metal
