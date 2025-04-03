@@ -1032,9 +1032,6 @@ void InitBackend(){
                 case wgpu::DeviceLostReason::Destroyed:
                     reasonName = "Destroyed";
                     break;
-                case wgpu::DeviceLostReason::InstanceDropped:
-                    reasonName = "InstanceDropped";
-                    break;
                 case wgpu::DeviceLostReason::FailedCreation:
                     reasonName = "FailedCreation";
                     break;
@@ -1062,7 +1059,7 @@ void InitBackend(){
                 default:
                     rg_unreachable();
             }
-            std::cerr << errorTypeName << " error: " << std::string(message.data, message.length);
+            //std::cerr << errorTypeName << " error: " << std::string(message.data, message.length);
             rg_trap();
         });
 

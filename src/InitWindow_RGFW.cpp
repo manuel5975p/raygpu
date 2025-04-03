@@ -6,18 +6,19 @@
     #include <raygpu.h>
 #undef Font
 
-#include <X11/Xlib.h>
-#include <vulkan/vulkan_xlib.h>
 #include <external/RGFW.h>
 #include <internals.hpp>
+#include <X11/Xlib.h>
 #include <renderstate.hpp>
 #if SUPPORT_VULKAN_BACKEND == 1
+    #include <vulkan/vulkan_xlib.h>
     #include "backend_vulkan/vulkan_internals.hpp"
 #endif
-
+#if SUPPORT_VULKAN_BACKEND == 1
 VkBool32 RGFW_getVKPresentationSupport_noinline(VkInstance instance, VkPhysicalDevice pd, uint32_t i){
     return RGFW_getVKPresentationSupport(instance, pd, i);
 }
+#endif
 void keyfunc_rgfw(RGFW_window* window, RGFW_key key, unsigned char keyChar, RGFW_keymod keyMod, RGFW_bool pressed) {
     g_renderstate.input_map[window].keydown[key] = pressed ? 1 : 0;
 }
@@ -38,6 +39,9 @@ extern "C" void* CreateSurfaceForWindow_RGFW(void* windowHandle){
     WGVKSurface retp = callocnew(WGVKSurfaceImpl);
     RGFW_window_createVKSurface((RGFW_window*)windowHandle, g_vulkanstate.instance, &retp->surface);
     return retp;
+    #else
+    WGPUSurface surf = RGFW_GetWGPUSurface((WGPUInstance)GetInstance(), (RGFW_window*) windowHandle);
+    return surf;
     #endif
 }
 

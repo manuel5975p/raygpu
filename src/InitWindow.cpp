@@ -226,9 +226,10 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
 
 
     
-
+    
     //void* window = nullptr;
     if(!(g_renderstate.windowFlags & FLAG_HEADLESS)){
+        TRACELOG(LOG_INFO, "Shit ass2");
         #if SUPPORT_GLFW == 1 || SUPPORT_SDL2 == 1 || SUPPORT_SDL3 == 1 || SUPPORT_RGFW == 1
         #ifdef MAIN_WINDOW_GLFW
         SubWindow createdWindow = InitWindow_GLFW(width, height, title);
@@ -243,6 +244,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         #endif
 
         void* wgpu_or_wgvk_surface = CreateSurfaceForWindow(createdWindow);
+        
         #if SUPPORT_WGPU_BACKEND == 1
         WGPUSurface wSurface = (WGPUSurface)wgpu_or_wgvk_surface;
         g_renderstate.createdSubwindows[createdWindow.handle].surface = CreateSurface(wSurface, width, height);
@@ -436,23 +438,32 @@ extern "C" void* CreateSurfaceForWindow(SubWindow window){
         case windowType_sdl3:
         #if SUPPORT_SDL3 == 1
         surfacePtr = CreateSurfaceForWindow_SDL3(window.handle);
+        #else
+        rg_trap();
         #endif
         break;
         case windowType_glfw:
         #if SUPPORT_GLFW == 1
         surfacePtr = CreateSurfaceForWindow_GLFW(window.handle);
+        #else
+        rg_trap();
         #endif
         break;
         case windowType_sdl2:
         #if SUPPORT_SDL2 == 1
         surfacePtr = CreateSurfaceForWindow_SDL2(window.handle);
+        #else
+        rg_trap();
         #endif
         case windowType_rgfw:
         #if SUPPORT_RGFW == 1
         surfacePtr = CreateSurfaceForWindow_RGFW(window.handle);
+        #else
+        rg_trap();
         #endif
         break;
     }
+    TRACELOG(LOG_INFO, "Created surface: %p", surfacePtr);
     return surfacePtr;
 }
 extern "C" void CharCallback(void* window, unsigned int codePoint){

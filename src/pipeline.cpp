@@ -331,7 +331,7 @@ extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const A
     layout_descriptor.bindGroupLayouts = (WGPUBindGroupLayout*) (&ret.bglayout.layout);
     ret.layout.layout = wgpuDeviceCreatePipelineLayout((WGPUDevice)GetDevice(), &layout_descriptor);
     
-    UpdatePipeline(retp);
+    //UpdatePipeline(retp);
     //TRACELOG(LOG_INFO, "Pipeline with %d attributes and %d uniforms was loaded", attribCount, uniformCount);
     return retp;
 }

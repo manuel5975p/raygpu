@@ -48,9 +48,9 @@ void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, WGVKAdapter adapter, WG
 void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* config){
     wgpuSurfaceConfigure(surface, config);
 }
-void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout from, VkImageLayout to){
+//void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout from, VkImageLayout to){
     //wgpuCommandEncoderTransitionTextureLayout(encoder, texture, from, to);
-}
+//}
 WGVKTexture wgvkDeviceCreateTexture(WGVKDevice device, const WGVKTextureDescriptor* descriptor){
     return wgpuDeviceCreateTexture(device, descriptor);
 }
@@ -166,9 +166,9 @@ WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVKBindGroupDe
 void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup bindGroup, const WGVKBindGroupDescriptor* bgdesc){
     //wgpuWriteBindGroup(device, bindGroup, bgdesc);
 }
-void wgvkQueueTransitionLayout(WGVKQueue cSelf, WGVKTexture texture, VkImageLayout from, VkImageLayout to){
+//void wgvkQueueTransitionLayout(WGVKQueue cSelf, WGVKTexture texture, VkImageLayout from, VkImageLayout to){
     //wgpuQueueTransitionLayout(cSelf, texture, from, to);
-}
+//}
 WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, const WGVKCommandEncoderDescriptor* cdesc){
     return wgpuDeviceCreateCommandEncoder(device, cdesc);
 }
@@ -209,16 +209,16 @@ void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group
 void wgvkRenderPassEncoderBindPipeline(WGVKRenderPassEncoder rpe, struct DescribedPipeline* pipeline){
     wgpuRenderPassEncoderSetPipeline(rpe, (WGPURenderPipeline)pipeline); //UUUUUUH this assumes that the WGVKRenderPipeline is the first member of the DescribedPipeline
 }
-void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, VkPipeline pipeline, VkPipelineLayout layout){
+//void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, VkPipeline pipeline, VkPipelineLayout layout){
     //TODO 
     //wgpuRenderPassEncoderSetPipeline(rpe, pipeline, layout);
-}
-void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer buffer, VkDeviceSize offset, IndexFormat indexType){
-    wgpuRenderPassEncoderSetIndexBuffer(rpe, buffer, toWebGPUIndexFormat(indexType), offset, wgpuBufferGetSize(buffer));
-}
-void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t binding, WGVKBuffer buffer, VkDeviceSize offset){
-    wgpuRenderPassEncoderSetVertexBuffer(rpe, binding, buffer, offset, wgpuBufferGetSize(buffer));
-}
+//}
+//void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer buffer, VkDeviceSize offset, IndexFormat indexType){
+//    wgpuRenderPassEncoderSetIndexBuffer(rpe, buffer, toWebGPUIndexFormat(indexType), offset, wgpuBufferGetSize(buffer));
+//}
+//void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t binding, WGVKBuffer buffer, VkDeviceSize offset){
+//    wgpuRenderPassEncoderSetVertexBuffer(rpe, binding, buffer, offset, wgpuBufferGetSize(buffer));
+//}
 void wgvkComputePassEncoderSetPipeline(WGVKComputePassEncoder cpe, WGVKComputePipeline computePipeline){
     wgpuComputePassEncoderSetPipeline(cpe, computePipeline);
 }

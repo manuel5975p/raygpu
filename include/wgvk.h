@@ -2,16 +2,21 @@
 
 #ifndef WGVK_H_INCLUDED
 #define WGVK_H_INCLUDED
+#include <enum_translation.h>
+#include <macros_and_constants.h>
+#if SUPPORT_VULKAN_BACKEND == 1
+#include <vulkan/vulkan.h>
+#endif
 #ifdef __cplusplus
-extern "C"{
 #include <cstdint>
+extern "C"{
 #else
 #include <stdint.h>
 #endif
+
+
 #define VMA_MIN_ALIGNMENT 32
-#include <vulkan/vulkan.h>
-#include <enum_translation.h>
-#include <macros_and_constants.h>
+
 #if SUPPORT_WGPU_BACKEND == 1
 typedef struct WGPUBufferImpl WGVKBufferImpl;
 typedef struct WGPUTextureImpl WGVKTextureImpl;
@@ -319,7 +324,7 @@ typedef struct WGVKSurfaceConfiguration {
     PresentMode presentMode;          // Present mode for image presentation
 } WGVKSurfaceConfiguration;
 
-#endif
+
 typedef struct WGVKBottomLevelAccelerationStructureDescriptor {
     WGVKBuffer vertexBuffer;            // Buffer containing vertex data
     uint32_t vertexCount;             // Number of vertices
@@ -336,10 +341,16 @@ typedef struct WGVKTopLevelAccelerationStructureDescriptor {
     uint32_t *instanceShaderBindingTableRecordOffsets;       // Optional SBT record offsets
     VkGeometryInstanceFlagsKHR *instanceFlags;               // Optional instance flags
 }WGVKTopLevelAccelerationStructureDescriptor;
-
+void wgvkQueueTransitionLayout                (WGVKQueue cSelf, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
+void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
+void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
+void wgvkRenderPassEncoderBindIndexBuffer     (WGVKRenderPassEncoder rpe, WGVKBuffer buffer, VkDeviceSize offset, IndexFormat indexType);
+void wgvkRenderPassEncoderBindVertexBuffer    (WGVKRenderPassEncoder rpe, uint32_t binding, WGVKBuffer buffer, VkDeviceSize offset);
+WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAccelerationStructure(WGVKDevice device, const WGVKTopLevelAccelerationStructureDescriptor *descriptor);
+WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccelerationStructure(WGVKDevice device, const WGVKBottomLevelAccelerationStructureDescriptor *descriptor);
+#endif
 void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, WGVKAdapter adapter, WGVKSurfaceCapabilities* capabilities);
 void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* config);
-void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
 WGVKTexture wgvkDeviceCreateTexture(WGVKDevice device, const WGVKTextureDescriptor* descriptor);
 WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureViewDescriptor *descriptor);
 WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const WGVKBufferDescriptor* desc);
@@ -351,12 +362,10 @@ void wgvkQueueWriteTexture(WGVKQueue queue, WGVKTexelCopyTextureInfo const * des
 WGVKBindGroupLayout wgvkDeviceCreateBindGroupLayout(WGVKDevice device, const ResourceTypeDescriptor* entries, uint32_t entryCount);
 WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVKBindGroupDescriptor* bgdesc);
 void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup, const WGVKBindGroupDescriptor* bgdesc);
-void wgvkQueueTransitionLayout(WGVKQueue cSelf, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
 WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, const WGVKCommandEncoderDescriptor* cdesc);
 
 WGVKCommandBuffer wgvkCommandEncoderFinish    (WGVKCommandEncoder commandEncoder);
 void wgvkQueueSubmit                          (WGVKQueue queue, size_t commandCount, const WGVKCommandBuffer* buffers);
-void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
 void wgvkCommandEncoderCopyBufferToBuffer     (WGVKCommandEncoder commandEncoder, WGVKBuffer source, uint64_t sourceOffset, WGVKBuffer destination, uint64_t destinationOffset, uint64_t size);
 void wgvkCommandEncoderCopyBufferToTexture    (WGVKCommandEncoder commandEncoder, WGVKTexelCopyBufferInfo const * source, WGVKTexelCopyTextureInfo const * destination, WGVKExtent3D const * copySize);
 void wgvkCommandEncoderCopyTextureToBuffer    (WGVKCommandEncoder commandEncoder, WGVKTexelCopyTextureInfo const * source, WGVKTexelCopyBufferInfo const * destination, WGVKExtent3D const * copySize);
@@ -365,8 +374,6 @@ void wgvkRenderpassEncoderDraw                (WGVKRenderPassEncoder rpe, uint32
 void wgvkRenderpassEncoderDrawIndexed         (WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t firstinstance);
 void wgvkRenderPassEncoderSetBindGroup        (WGVKRenderPassEncoder rpe, uint32_t group, WGVKBindGroup dset);
 void wgvkRenderPassEncoderSetPipeline         (WGVKRenderPassEncoder rpe, WGVKRenderPipeline renderPipeline);
-void wgvkRenderPassEncoderBindIndexBuffer     (WGVKRenderPassEncoder rpe, WGVKBuffer buffer, VkDeviceSize offset, IndexFormat indexType);
-void wgvkRenderPassEncoderBindVertexBuffer    (WGVKRenderPassEncoder rpe, uint32_t binding, WGVKBuffer buffer, VkDeviceSize offset);
 void wgvkComputePassEncoderSetPipeline        (WGVKComputePassEncoder cpe, WGVKComputePipeline computePipeline);
 void wgvkComputePassEncoderSetBindGroup       (WGVKComputePassEncoder cpe, uint32_t groupIndex, WGVKBindGroup bindGroup);
 void wgvkRaytracingPassEncoderSetPipeline     (WGVKRaytracingPassEncoder cpe, WGVKRaytracingPipeline raytracingPipeline);
@@ -401,8 +408,7 @@ void wgvkReleaseTextureView                   (WGVKTextureView view);
 
 
 WGVKCommandEncoder wgvkResetCommandBuffer(WGVKCommandBuffer commandEncoder);
-WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAccelerationStructure(WGVKDevice device, const WGVKTopLevelAccelerationStructureDescriptor *descriptor);
-WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccelerationStructure(WGVKDevice device, const WGVKBottomLevelAccelerationStructureDescriptor *descriptor);
+
 void wgvkCommandEncoderTraceRays(WGVKRenderPassEncoder encoder);
 #ifdef __cplusplus
 } //extern "C"

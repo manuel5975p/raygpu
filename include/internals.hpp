@@ -628,6 +628,8 @@ extern "C" void UpdatePipeline(DescribedPipeline* pl);
 extern "C" void negotiateSurfaceFormatAndPresentMode(const void* SurfaceHandle);
 extern "C" void ResetSyncState(cwoid);
 extern "C" void CharCallback(void* window, unsigned int codePoint);
+struct RGFW_window;
+extern "C" WGPUSurface RGFW_GetWGPUSurface(WGPUInstance instance, RGFW_window* window);
 
 extern "C" void* CreateSurfaceForWindow(SubWindow window);
 extern "C" void* CreateSurfaceForWindow_SDL2(void* windowHandle);
