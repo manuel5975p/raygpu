@@ -280,6 +280,7 @@ typedef struct WGVKAdapterImpl{
 
 typedef struct LayoutedRenderPass{
     RenderPassLayout layout;
+    std::vector<VkAttachmentDescription> allAttachments;
     VkRenderPass renderPass;
 }LayoutedRenderPass;
 
@@ -647,6 +648,7 @@ static inline LayoutedRenderPass LoadRenderPassFromLayout(WGVKDevice device, Ren
     rpci.pSubpasses      = &subpass;
     // (Optional: add subpass dependencies if needed.)
     LayoutedRenderPass ret zeroinit;
+    ret.allAttachments = std::move(allAttachments);
     VkResult result = vkCreateRenderPass(device->device, &rpci, nullptr, &ret.renderPass);
     // (Handle errors appropriately in production code)
     if(result == VK_SUCCESS){

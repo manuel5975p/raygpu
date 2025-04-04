@@ -5,13 +5,14 @@
 #define Font rlFont
     #include <raygpu.h>
 #undef Font
-
+#if SUPPORT_VULKAN_BACKEND == 1
+    #include <vulkan/vulkan_xlib.h>
+#endif
 #include <external/RGFW.h>
 #include <internals.hpp>
 #include <X11/Xlib.h>
 #include <renderstate.hpp>
 #if SUPPORT_VULKAN_BACKEND == 1
-    #include <vulkan/vulkan_xlib.h>
     #include "backend_vulkan/vulkan_internals.hpp"
 #endif
 #if SUPPORT_VULKAN_BACKEND == 1
@@ -40,7 +41,7 @@ extern "C" void* CreateSurfaceForWindow_RGFW(void* windowHandle){
     RGFW_window_createVKSurface((RGFW_window*)windowHandle, g_vulkanstate.instance, &retp->surface);
     return retp;
     #else
-    WGPUSurface surf = RGFW_GetWGPUSurface((WGPUInstance)GetInstance(), (RGFW_window*) windowHandle);
+    WGPUSurface surf = (WGPUSurface)RGFW_GetWGPUSurface(GetInstance(), (RGFW_window*) windowHandle);
     return surf;
     #endif
 }

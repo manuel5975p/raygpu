@@ -524,10 +524,10 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
     RenderPassLayout rplayout = GetRenderPassLayout(rpdesc);
     VkRenderPassBeginInfo rpbi{};
     rpbi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-
-    ret->renderPass = LoadRenderPassFromLayout(enc->device, rplayout);
-
-    VkImageView attachmentViews[max_color_attachments + 2];
+    LayoutedRenderPass frp = LoadRenderPassFromLayout(enc->device, rplayout);
+    ret->renderPass = frp.renderPass;
+    
+    std::vector<VkImageView> attachmentViews(frp.allAttachments.size());
     
     for(uint32_t i = 0;i < rplayout.colorAttachmentCount;i++){
         attachmentViews[i] = rpdesc->colorAttachments[i].view->view;
