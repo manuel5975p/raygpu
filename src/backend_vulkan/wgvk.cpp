@@ -526,31 +526,51 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
     rpbi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     LayoutedRenderPass frp = LoadRenderPassFromLayout(enc->device, rplayout);
     ret->renderPass = frp.renderPass;
-    
+    auto toVkCV = [](const DColor& c){
+        VkClearValue cv zeroinit;
+        cv.color.float32[0] = static_cast<float>(c.r);
+        cv.color.float32[1] = static_cast<float>(c.g);
+        cv.color.float32[2] = static_cast<float>(c.b);
+        cv.color.float32[3] = static_cast<float>(c.a);
+        return cv;
+    };
     std::vector<VkImageView> attachmentViews(frp.allAttachments.size());
+    std::vector<VkClearValue> clearValues(frp.allAttachments.size(), VkClearValue{});
     
     for(uint32_t i = 0;i < rplayout.colorAttachmentCount;i++){
         attachmentViews[i] = rpdesc->colorAttachments[i].view->view;
+        clearValues[i] = toVkCV(rpdesc->colorAttachments[i].clearValue);
     }
     uint32_t insertIndex = rplayout.colorAttachmentCount;
     if(rpdesc->depthStencilAttachment){
+        rassert(rplayout.depthAttachmentPresent, "renderpasslayout.depthAttachmentPresent != rpdesc->depthAttachment");
+        clearValues[insertIndex].depthStencil.depth = rpdesc->depthStencilAttachment->depthClearValue;
+        clearValues[insertIndex].depthStencil.stencil = rpdesc->depthStencilAttachment->stencilClearValue;
         attachmentViews[insertIndex++] = rpdesc->depthStencilAttachment->view->view;
     }
-    if(rpdesc->colorAttachments[0].resolveTarget)
-        attachmentViews[insertIndex++] = rpdesc->colorAttachments[0].resolveTarget->view;
+    
+    if(rpdesc->colorAttachments[0].resolveTarget){
+        for(uint32_t i = 0;i < rplayout.colorAttachmentCount;i++){
+            rassert(rpdesc->colorAttachments[i].resolveTarget, "All must have resolve or none");
+            clearValues[insertIndex] = toVkCV(rpdesc->colorAttachments[i].clearValue);
+            attachmentViews[insertIndex++] = rpdesc->colorAttachments[i].resolveTarget->view;
+        }
+    }
 
     VkFramebufferCreateInfo fbci zeroinit;
     fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    fbci.attachmentCount = rplayout.colorAttachmentCount + rplayout.depthAttachmentPresent + uint32_t(rplayout.colorResolveIndex != VK_ATTACHMENT_UNUSED);
-
-    if(rpdesc->colorAttachments[0].view){
-        ret->resourceUsage.track(rpdesc->colorAttachments[0].view, TextureUsage_RenderAttachment);
+    fbci.pAttachments = attachmentViews.data();
+    fbci.attachmentCount = attachmentViews.size();
+    for(uint32_t i = 0;i < rpdesc->colorAttachmentCount;i++)
+    if(rpdesc->colorAttachments[i].view){
+        ret->resourceUsage.track(rpdesc->colorAttachments[i].view, TextureUsage_RenderAttachment);
         ret->cmdEncoder->initializeOrTransition(rpdesc->colorAttachments->view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     }
-    if(rpdesc->colorAttachments[0].resolveTarget){
-        ret->resourceUsage.track(rpdesc->colorAttachments[0].resolveTarget, TextureUsage_RenderAttachment);
-        ret->cmdEncoder->initializeOrTransition(rpdesc->colorAttachments->resolveTarget->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    }
+    for(uint32_t i = 0;i < rpdesc->colorAttachmentCount;i++)
+        if(rpdesc->colorAttachments[i].resolveTarget){
+            ret->resourceUsage.track(rpdesc->colorAttachments[i].resolveTarget, TextureUsage_RenderAttachment);
+            ret->cmdEncoder->initializeOrTransition(rpdesc->colorAttachments->resolveTarget->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        }
     if(rpdesc->depthStencilAttachment){
         ret->resourceUsage.track(rpdesc->depthStencilAttachment->view, TextureUsage_RenderAttachment);
         ret->cmdEncoder->initializeOrTransition(rpdesc->depthStencilAttachment->view->texture, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
@@ -559,7 +579,7 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
     fbci.width = rpdesc->colorAttachments[0].view->width;
     fbci.height = rpdesc->colorAttachments[0].view->height;
     fbci.layers = 1;
-    fbci.pAttachments = attachmentViews;
+    
     fbci.renderPass = ret->renderPass;
     VkResult fbresult = vkCreateFramebuffer(g_vulkanstate.device->device, &fbci, nullptr, &ret->frameBuffer);
     if(fbresult != VK_SUCCESS){
@@ -572,23 +592,10 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
     };
 
     rpbi.framebuffer = ret->frameBuffer;
-    VkClearValue clearValues[max_color_attachments + 2];
-    for(uint32_t i = 0;i < rplayout.colorAttachmentCount;i++){
-        clearValues[i].color.float32[0] = rpdesc->colorAttachments[i].clearValue.r;
-        clearValues[i].color.float32[1] = rpdesc->colorAttachments[i].clearValue.g;
-        clearValues[i].color.float32[2] = rpdesc->colorAttachments[i].clearValue.b;
-        clearValues[i].color.float32[3] = rpdesc->colorAttachments[i].clearValue.a;
-    }
-    if(rplayout.colorResolveAttachments[0].format != VK_FORMAT_UNDEFINED){
-        clearValues[2].color.float32[0] = rpdesc->colorAttachments[0].clearValue.r;
-        clearValues[2].color.float32[1] = rpdesc->colorAttachments[0].clearValue.g;
-        clearValues[2].color.float32[2] = rpdesc->colorAttachments[0].clearValue.b;
-        clearValues[2].color.float32[3] = rpdesc->colorAttachments[0].clearValue.a;
-    }
-    if(rpdesc->depthStencilAttachment)
-        clearValues[rplayout.colorAttachmentCount].depthStencil.depth = rpdesc->depthStencilAttachment->depthClearValue;
-    rpbi.clearValueCount = rplayout.colorAttachmentCount + rplayout.depthAttachmentPresent + (rplayout.colorResolveIndex != VK_ATTACHMENT_UNUSED);
-    rpbi.pClearValues = clearValues;
+    
+    
+    rpbi.clearValueCount = clearValues.size();
+    rpbi.pClearValues = clearValues.data();
 
     vkCmdBeginRenderPass(enc->buffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
     ret->cmdBuffer = enc->buffer;

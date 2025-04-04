@@ -505,12 +505,12 @@ static inline RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescripto
             .storeop = rpdesc->colorAttachments[i].storeOp
         };
         bool ihasresolve = rpdesc->colorAttachments[i].resolveTarget;
-        bool iminus1hasresolve = rpdesc->colorAttachments[i - 1].resolveTarget;
         if(i > 0){
+            bool iminus1hasresolve = rpdesc->colorAttachments[i - 1].resolveTarget;
             rassert(ihasresolve == iminus1hasresolve, "Some of the attachments have resolve, others do not, impossible");
         }
         if(rpdesc->colorAttachments[i].resolveTarget != 0){
-            i++;
+            //i++;
             //ret.colorResolveIndex = i;
             ret.colorResolveAttachments[i] = AttachmentDescriptor{
                 .format = rpdesc->colorAttachments[i].resolveTarget->format, 
@@ -584,16 +584,18 @@ static inline LayoutedRenderPass LoadRenderPassFromLayout(WGVKDevice device, Ren
         transformLambda
     );
     if(layout.depthAttachmentPresent){
-        allAttachments.push_back(transformLambda(layout.depthAttachment));
         depthAttachmentIndex = allAttachments.size();
+        allAttachments.push_back(transformLambda(layout.depthAttachment));
     }
     //TODO check if there
-    std::transform(
-        layout.colorResolveAttachments, 
-        layout.colorResolveAttachments + layout.colorAttachmentCount, 
-        std::back_inserter(allAttachments), 
-        transformLambda
-    );
+    if(layout.colorAttachmentCount && layout.colorResolveAttachments[0].format){
+        std::transform(
+            layout.colorResolveAttachments, 
+            layout.colorResolveAttachments + layout.colorAttachmentCount, 
+            std::back_inserter(allAttachments), 
+            transformLambda
+        );
+    }
 
     
     [[maybe_unused]] uint32_t colorAttachmentCount = layout.colorAttachmentCount;
