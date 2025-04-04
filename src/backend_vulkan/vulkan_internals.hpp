@@ -503,6 +503,11 @@ static inline RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescripto
             .loadop = rpdesc->colorAttachments[i].loadOp,
             .storeop = rpdesc->colorAttachments[i].storeOp
         };
+        bool ihasresolve = rpdesc->colorAttachments[i].resolveTarget;
+        bool iminus1hasresolve = rpdesc->colorAttachments[i - 1].resolveTarget;
+        if(i > 0){
+            rassert(ihasresolve == iminus1hasresolve, "Some of the attachments have resolve, others do not, impossible");
+        }
         if(rpdesc->colorAttachments[i].resolveTarget != 0){
             i++;
             //ret.colorResolveIndex = i;
@@ -641,16 +646,17 @@ static inline LayoutedRenderPass LoadRenderPassFromLayout(WGVKDevice device, Ren
     rpci.subpassCount    = 1;
     rpci.pSubpasses      = &subpass;
     // (Optional: add subpass dependencies if needed.)
-
-    VkRenderPass renderPass = VK_NULL_HANDLE;
-    VkResult result = vkCreateRenderPass(device->device, &rpci, nullptr, &renderPass);
+    LayoutedRenderPass ret zeroinit;
+    VkResult result = vkCreateRenderPass(device->device, &rpci, nullptr, &ret.renderPass);
     // (Handle errors appropriately in production code)
     if(result == VK_SUCCESS){
-        device->renderPassCache.emplace(layout, renderPass);
-        return renderPass;
+        device->renderPassCache.emplace(layout, ret);
+        ret.layout = layout;
+        return ret;
     }
+    TRACELOG(LOG_FATAL, "Error creating renderpass: %s", vkErrorString(result));
     rg_trap();
-    return renderPass;
+    return ret;
 }
 
 

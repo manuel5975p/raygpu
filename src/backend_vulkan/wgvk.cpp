@@ -579,7 +579,7 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
         clearValues[i].color.float32[2] = rpdesc->colorAttachments[i].clearValue.b;
         clearValues[i].color.float32[3] = rpdesc->colorAttachments[i].clearValue.a;
     }
-    if(rplayout.colorResolveIndex != VK_ATTACHMENT_UNUSED){
+    if(rplayout.colorResolveAttachments[0].format != VK_FORMAT_UNDEFINED){
         clearValues[2].color.float32[0] = rpdesc->colorAttachments[0].clearValue.r;
         clearValues[2].color.float32[1] = rpdesc->colorAttachments[0].clearValue.g;
         clearValues[2].color.float32[2] = rpdesc->colorAttachments[0].clearValue.b;

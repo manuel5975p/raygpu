@@ -267,8 +267,8 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     rci.depthAttachmentFormat = VK_FORMAT_D32_SFLOAT;
     pipelineInfo.pNext = &rci;
     #else
-    VkRenderPass rp = LoadRenderPassFromLayout(g_vulkanstate.device, rpLayout);
-    pipelineInfo.renderPass = rp;
+    LayoutedRenderPass rp = LoadRenderPassFromLayout(g_vulkanstate.device, rpLayout);
+    pipelineInfo.renderPass = rp.renderPass;
     pipelineInfo.subpass = 0;
     #endif
     

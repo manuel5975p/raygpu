@@ -410,6 +410,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
     g_renderstate.defaultSampler = sampler;
     SetSampler(2, sampler);
     g_renderstate.init_timestamp = NanoTime();
+    g_renderstate.currentSettings = GetDefaultSettings();
     #ifndef __EMSCRIPTEN__
     if((g_renderstate.windowFlags & FLAG_VSYNC_HINT))
         SetTargetFPS(60);

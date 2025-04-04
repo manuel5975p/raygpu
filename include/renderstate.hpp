@@ -75,7 +75,7 @@ struct renderstate{
 
     DescribedPipeline* defaultPipeline;
     Shader defaultShader;
-    RenderSettings currentSettings = GetDefaultSettings();
+    RenderSettings currentSettings;
     DescribedPipeline* activePipeline;
 
     DescribedRenderpass clearPass;
