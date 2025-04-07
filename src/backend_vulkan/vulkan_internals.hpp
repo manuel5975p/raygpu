@@ -449,10 +449,10 @@ typedef struct WGVKCommandEncoderImpl{
             return iotresult::thats_new;
         }
         else{
-            //if(it->second.second != layout){
+            if(it->second.second != layout){
                 wgvkCommandEncoderTransitionTextureLayout(this, texture, it->second.second, layout);
-                //it->second.second = layout;
-            //}
+                it->second.second = layout;
+            }
         }
         return iotresult::already_registered;
     }
