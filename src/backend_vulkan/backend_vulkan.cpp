@@ -197,7 +197,7 @@ void PostPresentSurface(){
     vkResetCommandPool(surfaceDevice->device, surfaceDevice->frameCaches[cacheIndex].commandPool, 0);
     WGVKCommandEncoderDescriptor cedesc zeroinit;
 
-    
+    queue->syncState[cacheIndex].submits = 0;
     queue->presubmitCache = wgvkDeviceCreateCommandEncoder(surfaceDevice, &cedesc);
 }
 extern "C" DescribedBuffer* GenBufferEx(const void* data, size_t size, BufferUsage usage){
@@ -362,7 +362,7 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
     uint32_t imageIndex = ~0;
     if(fsurface->headless){
         VkSubmitInfo submitInfo zeroinit;
-        g_vulkanstate.queue->syncState[cacheIndex].submits = 0;
+        //g_vulkanstate.queue->syncState[cacheIndex].submits = 0;
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = &g_vulkanstate.queue->syncState[cacheIndex].semaphores[0];
@@ -371,7 +371,7 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
     else{
         WGVKSurface wgvksurf = ((WGVKSurface)fsurface->surface);
         
-        g_vulkanstate.queue->syncState[cacheIndex].submits = 0;
+        //g_vulkanstate.queue->syncState[cacheIndex].submits = 0;
 
         VkResult acquireResult = vkAcquireNextImageKHR(
             g_vulkanstate.device->device, 

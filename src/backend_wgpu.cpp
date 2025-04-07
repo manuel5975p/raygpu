@@ -781,7 +781,8 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, Resou
     //bg->bindGroup = wgpuDeviceCreateBindGroup((WGPUDevice)GetDevice(), &(bg->desc));
 }
 
-
+// TODOIMPORTANT: 
+// Implement headless for wgpu
 extern "C" void GetNewTexture(FullSurface* fsurface){
     if(fsurface->surface == 0){
         return;

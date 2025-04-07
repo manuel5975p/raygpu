@@ -730,10 +730,10 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
         si.commandBufferCount = 1;
         uint32_t submits = queue->syncState[cacheIndex].submits;
         
+        std::vector<VkPipelineStageFlags> waitFlags(waitSemaphores.size(), VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
         si.waitSemaphoreCount = waitSemaphores.size();
         si.pWaitSemaphores = waitSemaphores.data();
-        VkPipelineStageFlags waitFlags = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-        si.pWaitDstStageMask = &waitFlags;
+        si.pWaitDstStageMask = waitFlags.data();
 
         si.signalSemaphoreCount = 1;
         si.pSignalSemaphores = queue->syncState[cacheIndex].semaphores.data() + queue->syncState[cacheIndex].submits + 1;
