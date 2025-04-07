@@ -1068,9 +1068,10 @@ extern "C" void wgvkCommandEncoderCopyBufferToTexture (WGVKCommandEncoder comman
     };
     commandEncoder->resourceUsage.track(source->buffer);
     commandEncoder->resourceUsage.track(destination->texture);
-    if(destination->texture->layout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL){
-        wgvkCommandEncoderTransitionTextureLayout(commandEncoder, destination->texture, destination->texture->layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    }
+    WGVKCommandEncoderImpl::iotresult result = commandEncoder->initializeOrTransition(destination->texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    //if(destination->texture->layout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL){
+    //    wgvkCommandEncoderTransitionTextureLayout(commandEncoder, destination->texture, destination->texture->layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    //}
     vkCmdCopyBufferToImage(commandEncoder->buffer, source->buffer->buffer, destination->texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
 extern "C" void wgvkCommandEncoderCopyTextureToBuffer (WGVKCommandEncoder commandEncoder, WGVKTexelCopyTextureInfo const * source, WGVKTexelCopyBufferInfo const * destination, WGVKExtent3D const * copySize){

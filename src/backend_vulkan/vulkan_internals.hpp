@@ -439,18 +439,22 @@ typedef struct WGVKCommandEncoderImpl{
     WGVKDevice device;
     uint32_t cacheIndex;
     uint32_t movedFrom;
-
-    void initializeOrTransition(WGVKTexture texture, VkImageLayout layout){
+    enum struct iotresult{
+        thats_new, already_registered,
+    };
+    iotresult initializeOrTransition(WGVKTexture texture, VkImageLayout layout){
         auto it = resourceUsage.entryAndFinalLayouts.find(texture);
         if(it == resourceUsage.entryAndFinalLayouts.end()){
             resourceUsage.entryAndFinalLayouts.emplace(texture, std::make_pair(layout, layout));
+            return iotresult::thats_new;
         }
         else{
-            if(it->second.second != layout){
+            //if(it->second.second != layout){
                 wgvkCommandEncoderTransitionTextureLayout(this, texture, it->second.second, layout);
-                it->second.second = layout;
-            }
+                //it->second.second = layout;
+            //}
         }
+        return iotresult::already_registered;
     }
 }WGVKCommandEncoderImpl;
 
@@ -589,6 +593,7 @@ static inline LayoutedRenderPass LoadRenderPassFromLayout(WGVKDevice device, Ren
     }
     //TODO check if there
     if(layout.colorAttachmentCount && layout.colorResolveAttachments[0].format){
+        colorResolveIndex = allAttachments.size();
         std::transform(
             layout.colorResolveAttachments, 
             layout.colorResolveAttachments + layout.colorAttachmentCount, 
@@ -598,7 +603,7 @@ static inline LayoutedRenderPass LoadRenderPassFromLayout(WGVKDevice device, Ren
     }
 
     
-    [[maybe_unused]] uint32_t colorAttachmentCount = layout.colorAttachmentCount;
+    uint32_t colorAttachmentCount = layout.colorAttachmentCount;
     
 
     // Set up color attachment references for the subpass.
