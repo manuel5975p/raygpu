@@ -6,11 +6,12 @@
     #include <raygpu.h>
 #undef Font
 #if SUPPORT_VULKAN_BACKEND == 1
+    #include <X11/Xlib.h>
     #include <vulkan/vulkan_xlib.h>
 #endif
 #include <external/RGFW.h>
 #include <internals.hpp>
-#include <X11/Xlib.h>
+
 #include <renderstate.hpp>
 #if SUPPORT_VULKAN_BACKEND == 1
     #include "backend_vulkan/vulkan_internals.hpp"

@@ -130,13 +130,22 @@ extern "C" void wgvkQueueWriteTexture(WGVKQueue cSelf, const WGVKTexelCopyTextur
         std::memcpy(mappedMemory, data, dataSize);
         wgvkBufferUnmap(stagingBuffer);
     }
-
+    WGVKCommandEncoder enkoder = wgvkDeviceCreateCommandEncoder(cSelf->device, nullptr);
     WGVKTexelCopyBufferInfo source;
     source.buffer = stagingBuffer;
     source.layout = *dataLayout;
+    enkoder->initializeOrTransition(destination->texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-    wgvkCommandEncoderCopyBufferToTexture(cSelf->presubmitCache, &source, destination, writeSize);
-    rassert(stagingBuffer->refCount > 1, "Sum Ting Wong");
+    //if(destination->texture->layout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL){
+    //    wgvkCommandEncoderTransitionTextureLayout(enkoder, destination->texture, destination->texture->layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    //}
+    wgvkCommandEncoderCopyBufferToTexture(enkoder, &source, destination, writeSize);
+    auto puffer = wgvkCommandEncoderFinish(enkoder);
+
+    wgvkQueueSubmit(cSelf, 1, &puffer);
+    wgvkReleaseCommandEncoder(enkoder);
+    wgvkReleaseCommandBuffer(puffer);
+
     wgvkBufferRelease(stagingBuffer);
 }
 
@@ -649,6 +658,17 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
 
     auto& pscache = queue->presubmitCache;
     {
+        bool needs_another_one = false;
+        for(auto [lex, layouts] : pscache->resourceUsage.entryAndFinalLayouts){
+            rg_trap();
+            needs_another_one = true;
+        }
+        //if(needs_another_one){
+        //    WGVKCommandEncoder cend = wgvkDeviceCreateCommandEncoder(WGVKDevice device, const WGVKCommandEncoderDescriptor *desc)
+        //}
+    }
+
+    {
         auto& sbuffer = buffers[0];
         for(auto& [tex, layouts] : sbuffer->resourceUsage.entryAndFinalLayouts){
             auto it = pscache->resourceUsage.entryAndFinalLayouts.find(tex);
@@ -1067,12 +1087,12 @@ extern "C" void wgvkCommandEncoderCopyBufferToTexture (WGVKCommandEncoder comman
         copySize->depthOrArrayLayers
     };
     commandEncoder->resourceUsage.track(source->buffer);
-    commandEncoder->resourceUsage.track(destination->texture);
-    //WGVKCommandEncoderImpl::iotresult result = commandEncoder->initializeOrTransition(destination->texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    WGVKCommandEncoderImpl::iotresult result = commandEncoder->initializeOrTransition(destination->texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    //commandEncoder->resourceUsage.track(destination->texture);
     
-    if(destination->texture->layout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL){
-        wgvkCommandEncoderTransitionTextureLayout(commandEncoder, destination->texture, destination->texture->layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    }
+    //if(destination->texture->layout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL){
+    //    wgvkCommandEncoderTransitionTextureLayout(commandEncoder, destination->texture, destination->texture->layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    //}
     vkCmdCopyBufferToImage(commandEncoder->buffer, source->buffer->buffer, destination->texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
 extern "C" void wgvkCommandEncoderCopyTextureToBuffer (WGVKCommandEncoder commandEncoder, WGVKTexelCopyTextureInfo const * source, WGVKTexelCopyBufferInfo const * destination, WGVKExtent3D const * copySize){
