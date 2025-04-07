@@ -740,6 +740,19 @@ MAPI Vector3 Vector3Transform(Vector3 v, Matrix mat)
 
     return result;
 }
+MAPI Vector3 Vector3TransformNoTranslation(Vector3 v, Matrix mat){
+    Vector3 result zeroinit;
+
+    float x = v.x;
+    float y = v.y;
+    float z = v.z;
+
+    result.x = mat.data[0]*x + mat.data[4]*y + mat.data[8 ]*z ;
+    result.y = mat.data[0]*x + mat.data[5]*y + mat.data[9 ]*z ;
+    result.z = mat.data[0]*x + mat.data[6]*y + mat.data[10]*z;
+
+    return result;
+}
 
 // Transform a vector by quaternion rotation
 MAPI Vector3 Vector3RotateByQuaternion(Vector3 v, Quaternion q)

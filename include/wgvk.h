@@ -382,7 +382,7 @@ void wgvkRaytracingPassEncoderTraceRays       (WGVKRaytracingPassEncoder cpe, ui
 
 void wgvkComputePassEncoderDispatchWorkgroups (WGVKComputePassEncoder cpe, uint32_t x, uint32_t y, uint32_t z);
 void wgvkReleaseComputePassEncoder            (WGVKComputePassEncoder cpenc);
-
+void wgvkSurfacePresent                       (WGVKSurface surface);
 
 WGVKRaytracingPassEncoder wgvkCommandEncoderBeginRaytracingPass(WGVKCommandEncoder enc);
 void wgvkCommandEncoderEndRaytracingPass(WGVKRaytracingPassEncoder commandEncoder);

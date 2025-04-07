@@ -7,10 +7,10 @@
 // Helper to compute the transformation matrix for a single joint (MDH)
 // Uses COLUMN-MAJOR matrices as defined/used in MathUtils.h
 void compute_mdh_transform_mu(float a_i_minus_1, float alpha_i_minus_1, float d_i, float theta_i, Matrix *T) {
-    float ct = cosf(theta_i);
-    float st = sinf(theta_i);
-    float ca = cosf(alpha_i_minus_1);
-    float sa = sinf(alpha_i_minus_1);
+    float ct = std::cos(theta_i);
+    float st = std::sin(theta_i);
+    float ca = std::cos(alpha_i_minus_1);
+    float sa = std::sin(alpha_i_minus_1);
 
     // Column 0
     T->data[0] = ct;        // m0
@@ -36,6 +36,17 @@ void compute_mdh_transform_mu(float a_i_minus_1, float alpha_i_minus_1, float d_
     T->data[14] = ca * d_i;    // m14 (z)
     T->data[15] = 1.0f;        // m15
 }
+float nonorthogonality(Matrix mat){
+    float maxdp = 0.0f;
+    for(int i = 0;i < 2;i++){
+        float dp = 0;
+        for(int j = 0;j < 4;j++){
+            dp += mat.data[i * 4 + j] * mat.data[(i + 1) * 4 + j];
+        }
+        maxdp = std::max(dp, maxdp);
+    }
+    return maxdp;
+}
 
 // Main FK Calculation using MathUtils types
 void calculate_tx2_90_fk_mu(const float q[6], Matrix T_out[7]) {
@@ -58,6 +69,7 @@ void calculate_tx2_90_fk_mu(const float q[6], Matrix T_out[7]) {
         // Calculate ^0_T_{i+1} = ^0_T_i * ^{i}_T_{i+1}
         // T_out[i+1] = MatrixMultiply(T_out[i], T_prev_curr)
         // Important: MathUtils.h MatrixMultiply(A, B) calculates A * B
+        //std::cout << "nonortho: " << nonorthogonality(T_prev_curr) << "\n";
         T_out[i + 1] = MatrixMultiply(T_out[i], T_prev_curr);
     }
 }
@@ -104,8 +116,8 @@ int main(void) {
 
         time += GetFrameTime();
         // Simple animation: Oscillate joint 2 (shoulder) and joint 4 (wrist)
-        joint_angles[1] = sinf(time * 0.8f) * 0.8f - M_PI_2/2.0f; // Make J2 move around -pi/4
-        joint_angles[3] = cosf(time * 1.1f) * 1.5f; // Make J4 move
+        joint_angles[1] = std::sin(time * 0.8f) * 0.8f - M_PI_2 / 2.0f; // Make J2 move around -pi/4
+        joint_angles[3] = std::cos(time * 1.1f) * 1.5f; // Make J4 move
 
         // Calculate Forward Kinematics
         calculate_tx2_90_fk_mu(joint_angles, joint_transforms);
@@ -128,7 +140,7 @@ int main(void) {
             // Start from joint 1, connect back to joint 0 (base origin)
             // Connect joint i to joint i-1
             for (int i = 1; i < 7; ++i) {
-                DrawLine3D(joint_positions[i-1], joint_positions[i], DARKGRAY);
+                DrawLine3D(joint_positions[i - 1], joint_positions[i], DARKGRAY);
                 // Draw thicker "bones" using cylinders (optional, more visually appealing)
                 // DrawCylinderEx(joint_positions[i-1], joint_positions[i], 0.02f, 0.02f, 10, DARKGRAY);
             }
@@ -141,9 +153,16 @@ int main(void) {
             //}
 
             // Optional: Draw coordinate frame for the end-effector
-             DrawLine3D(joint_positions[6], Vector3Add(joint_positions[6], Vector3Transform({0.1f, 0, 0}, joint_transforms[6])), RED); // X-axis
-             DrawLine3D(joint_positions[6], Vector3Add(joint_positions[6], Vector3Transform({0, 0.1f, 0}, joint_transforms[6])), GREEN); // Y-axis
-             DrawLine3D(joint_positions[6], Vector3Add(joint_positions[6], Vector3Transform({0, 0, 0.1f}, joint_transforms[6])), BLUE); // Z-axis
+
+            Vector3 gimbal1 = Vector3Transform({0.3f, 0, 0}, joint_transforms[6]);
+            Vector3 gimbal2 = Vector3Transform({0, 0.3f, 0}, joint_transforms[6]);
+            Vector3 gimbal3 = Vector3Transform({0, 0, 0.3f}, joint_transforms[6]);
+            float ortho = Vector3DotProduct(gimbal1, gimbal2);
+            std::cout << ortho << "\n";
+
+            DrawLine3D(joint_positions[6], Vector3Add(joint_positions[6], Vector3TransformNoTranslation({1.f, 0, 0}, joint_transforms[6])), RED); // X-axis
+            DrawLine3D(joint_positions[6], Vector3Add(joint_positions[6], Vector3TransformNoTranslation({0, 1.f, 0}, joint_transforms[6])), GREEN); // Y-axis
+            DrawLine3D(joint_positions[6], Vector3Add(joint_positions[6], Vector3TransformNoTranslation({0, 0, 1.f}, joint_transforms[6])), BLUE); // Z-axis
 
         }
         EndMode3D();

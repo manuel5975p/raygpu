@@ -49,13 +49,11 @@ __attribute__((noinline)) VkResult vkQueueSubmit_Profilable(VkQueue queue, uint3
 }
 
 void PresentSurface(FullSurface* surface){
+    wgvkSurfacePresent(surface->surface);
     //static VkSemaphore transitionSemaphore[framesInFlight] = {CreateSemaphore()};
     WGVKSurface wgvksurf = (WGVKSurface)surface->surface;
     uint32_t cacheIndex = wgvksurf->device->submittedFrames % framesInFlight;
 
-    if(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore == 0){
-        g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore = CreateSemaphore();
-    }
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     
@@ -1239,6 +1237,7 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
     cedesc.recyclable = true;
     for(uint32_t i = 0;i < framesInFlight;i++){
         WGVKDevice device = ret.first;
+        ret.first->frameCaches[i].finalTransitionSemaphore = CreateSemaphoreD(device->device);
         VkCommandPoolCreateInfo pci zeroinit;
         pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         pci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
