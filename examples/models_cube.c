@@ -116,6 +116,7 @@ int main(cwoid){
         checkersData[4 * i + 2] = (i & 1) ? 255 : 0;
         checkersData[4 * i + 3] = 255;
     }
+    
     UpdateTexture(checkersHDR, checkersHDRData);
     UpdateTexture(checkers, checkersData);
     angle = 0.0f;

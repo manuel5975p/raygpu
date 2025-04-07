@@ -721,6 +721,10 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
         }
         if(queue->syncState[cacheIndex].submits > 0){
             waitSemaphores.push_back(queue->syncState[cacheIndex].semaphores[queue->syncState[cacheIndex].submits]);
+            std::cout << "Waiting for " << queue->syncState[cacheIndex].submits << " ";
+        }
+        else{
+            std::cout << "";
         }
 
         si.commandBufferCount = 1;
@@ -733,6 +737,7 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
 
         si.signalSemaphoreCount = 1;
         si.pSignalSemaphores = queue->syncState[cacheIndex].semaphores.data() + queue->syncState[cacheIndex].submits + 1;
+        std::cout << "And signalling " << queue->syncState[cacheIndex].submits + 1 << std::endl;
         si.pCommandBuffers = submittable.data() + i;
         ++queue->syncState[cacheIndex].submits;
         submitResult |= vkQueueSubmit(queue->graphicsQueue, 1, &si, fence);

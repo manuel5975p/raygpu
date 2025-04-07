@@ -328,7 +328,7 @@ extern "C" void EncodeTransitionImageLayout(
         default:
             // If we encounter an unhandled layout, assert or log an error.
             // Using a very broad barrier as a fallback is dangerous and inefficient.
-            assert(!"Unsupported oldLayout for transition!");
+            rassert(false, "Unsupported oldLayout for transition!");
             barrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT; // Fallback guess
             sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // Fallback guess
             break;

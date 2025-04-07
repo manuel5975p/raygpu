@@ -699,7 +699,10 @@ struct SyncState{
     VkSemaphore acquireImageSemaphore;
     bool acquireImageSemaphoreSignalled;
     uint32_t submits;
-    VkFence renderFinishedFence;    
+    VkSemaphore& getHangingSemaphore(){
+        return semaphores[submits];
+    }
+    //VkFence renderFinishedFence;    
 };
 
 struct WGVKQueueImpl{

@@ -90,17 +90,20 @@ void PresentSurface(FullSurface* surface){
     cbsinfo.pWaitDstStageMask = &wsmask;
 
     cbsinfo.pWaitSemaphores = &g_vulkanstate.queue->syncState[cacheIndex].semaphores[g_vulkanstate.queue->syncState[cacheIndex].submits];
+    //TRACELOG(LOG_INFO, "Submit waiting for semaphore index: %u", g_vulkanstate.queue->syncState[cacheIndex].submits);
     
     cbsinfo.pSignalSemaphores = &g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore;
     
     VkFence finalTransitionFence = g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence;
     vkQueueSubmit(wgvksurf->device->queue->graphicsQueue, 1, &cbsinfo, finalTransitionFence);
-    TRACELOG(LOG_TRACE, "Submit waiting on fence: %p", finalTransitionFence);
     
     
     auto it = wgvksurf->device->queue->pendingCommandBuffers[cacheIndex].find(finalTransitionFence);
     if(it == wgvksurf->device->queue->pendingCommandBuffers[cacheIndex].end()){
         wgvksurf->device->queue->pendingCommandBuffers[cacheIndex].emplace(finalTransitionFence, std::unordered_set<WGVKCommandBuffer>{});
+    }
+    else{
+       //it->second.insert(WGVKCommandBuffer{});
     }
 
     VkResult presentRes = vkQueuePresentKHR(g_vulkanstate.queue->presentQueue, &presentInfo);
@@ -144,7 +147,7 @@ void PostPresentSurface(){
     if(queue->pendingCommandBuffers[cacheIndex].size() > 0){
         std::vector<VkFence> fences;
         fences.reserve(queue->pendingCommandBuffers[cacheIndex].size());
-        for(auto [fence, bufferset] : queue->pendingCommandBuffers[cacheIndex]){
+        for(const auto& [fence, bufferset] : queue->pendingCommandBuffers[cacheIndex]){
             if(fence){
                 fences.push_back(fence);
             }
@@ -352,6 +355,8 @@ DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode m
 
 
 extern "C" void GetNewTexture(FullSurface *fsurface){
+
+    const size_t submittedframes = fsurface->surfaceConfig.device->submittedFrames;
     const uint32_t cacheIndex = fsurface->surfaceConfig.device->submittedFrames % framesInFlight;
 
     uint32_t imageIndex = ~0;
@@ -608,6 +613,7 @@ static inline VkPhysicalDeviceType tvkpdt(AdapterType atype){
         case SOFTWARE_RENDERER: return VK_PHYSICAL_DEVICE_TYPE_CPU;
         rg_unreachable();
     }
+    return (VkPhysicalDeviceType)-1;
 }
 extern "C" void RequestAdapterType(AdapterType type){
     VkPhysicalDeviceType vktype = tvkpdt(type);
@@ -1267,10 +1273,10 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
 
     VmaDeviceMemoryCallbacks callbacks{
         /// Optional, can be null.
-        .pfnAllocate = [](VmaAllocator allocator, unsigned int type, VkDeviceMemory_T * _Nonnull, size_t size, void * _Nullable){
+        .pfnAllocate = [](VmaAllocator allocator, uint32_t type, VkDeviceMemory, VkDeviceSize size, void * _Nullable){
             TRACELOG(LOG_WARNING, "Allocating %llu of memory type %u", size, type);
         },
-        .pfnFree = [](VmaAllocator_T * _Nonnull, unsigned int type, VkDeviceMemory_T * _Nonnull, size_t size, void * _Nullable){
+        .pfnFree = [](VmaAllocator allocator, uint32_t type, VkDeviceMemory, VkDeviceSize size, void * _Nullable){
             TRACELOG(LOG_WARNING, "Freeing %llu of memory type %u", size, type);
         }
     };

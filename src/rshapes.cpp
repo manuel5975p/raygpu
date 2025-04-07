@@ -222,6 +222,13 @@ void DrawLineV(Vector2 startPos, Vector2 endPos, Color color)
         rlVertex2f(endPos.x, endPos.y);
     rlEnd();
 }
+void DrawLine3D(Vector3 startPos, Vector3 endPos, Color color){
+    rlBegin(RL_LINES);
+        rlColor4ub(color.r, color.g, color.b, color.a);
+        rlVertex3f(startPos.x, startPos.y, startPos.z);
+        rlVertex3f(endPos.x, endPos.y, endPos.z);
+    rlEnd();
+}
 
 // Draw lines sequuence (using gl lines)
 void DrawLineStrip(const Vector2 *points, int pointCount, Color color)

@@ -1324,6 +1324,7 @@ EXTERN_C_BEGIN
     void DrawGrid(int slices, float spacing);
     void DrawLine(int startPosX, int startPosY, int endPosX, int endPosY, Color color);
     void DrawLineV(Vector2 startPos, Vector2 endPos, Color color);
+    void DrawLine3D(Vector3 startPos, Vector3 endPos, Color color);
     void DrawLineStrip(const Vector2 *points, int pointCount, Color color);
     void DrawLineBezier(Vector2 startPos, Vector2 endPos, float thick, Color color);
     void DrawLineEx(Vector2 startPos, Vector2 endPos, float thick, Color color);
