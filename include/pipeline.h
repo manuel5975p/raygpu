@@ -67,7 +67,6 @@ typedef struct WGVKBlendState {
     }
     #endif
 } WGVKBlendState;
-
 //TODO: Stencil attachment
 /**
  * @brief This struct handles the settings that GL handles with global functions
@@ -81,9 +80,23 @@ typedef struct RenderSettings{
     bool depthTest;
     bool faceCull;
     uint32_t sampleCount;
+    uint32_t lineWidth;
     WGVKBlendState blendState;    
     FrontFace frontFace;
     CompareFunction depthCompare;
+    #ifdef __cplusplus
+    bool operator==(const RenderSettings& rs) const noexcept{
+        return
+               depthTest    == rs.depthTest     && 
+               faceCull     == rs.faceCull      && 
+               sampleCount  == rs.sampleCount   && 
+               lineWidth    == rs.lineWidth     && 
+               blendState   == rs.blendState    && 
+               frontFace    == rs.frontFace     && 
+               depthCompare == rs.depthCompare  &&
+        true;
+    }
+    #endif
 }RenderSettings;
 
 

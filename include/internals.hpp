@@ -183,10 +183,9 @@ typedef struct ModifiablePipelineState{
     PrimitiveType primitiveType;
     RenderSettings settings;
     bool operator==(const ModifiablePipelineState& mfps)const noexcept{
-        if(attributeVectorCompare{}(vertexAttributes, mfps.vertexAttributes)){
-            //TODO: complet this
-            return primitiveType == mfps.primitiveType && settings.blendState == mfps.settings.blendState;
-        }
+        return attributeVectorCompare{}(vertexAttributes, mfps.vertexAttributes)
+        && primitiveType == mfps.primitiveType &&
+        settings == mfps.settings;
         return false;
     }
 }ModifiablePipelineState;

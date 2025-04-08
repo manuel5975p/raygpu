@@ -1978,6 +1978,7 @@ extern "C" void NanoWait(uint64_t time){
 }
 RenderSettings GetDefaultSettings(){
     RenderSettings ret zeroinit;
+    ret.lineWidth = 1;
     ret.faceCull = 1;
     ret.frontFace = FrontFace_CCW;
     ret.depthTest = 1;
