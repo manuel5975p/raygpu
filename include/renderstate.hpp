@@ -57,6 +57,9 @@ struct array_stack{
         rassert(!empty(), "Stack is empty");
         return data[current_pos - 1];
     }
+    size_t size() const noexcept{
+        return current_pos;
+    }
     bool empty()const noexcept{
         return current_pos == 0;
     }

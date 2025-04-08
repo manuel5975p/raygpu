@@ -664,7 +664,13 @@ void BeginRenderpass(cwoid){
     BeginRenderpassEx(&g_renderstate.renderpass);
 }
 void EndRenderpass(cwoid){
-    EndRenderpassEx(&g_renderstate.renderpass);
+    if(g_renderstate.activeRenderpass){
+        EndRenderpassEx(g_renderstate.activeRenderpass);
+    }
+    else{
+        rg_trap();
+    }
+    g_renderstate.activeRenderpass = nullptr;
 }
 extern "C" void ClearBackground(Color clearColor){
     bool rpActive = GetActiveRenderPass() != nullptr;
@@ -1789,7 +1795,7 @@ DescribedPipeline* Relayout(DescribedPipeline* pl, VertexArray* vao){
     return pl;
 }
 void BeginTextureMode(RenderTexture rtex){
-    if(g_renderstate.renderpass.rpEncoder){
+    if(g_renderstate.activeRenderpass){
         EndRenderpass();
     }
     g_renderstate.renderTargetStack.push(rtex);
@@ -1810,13 +1816,13 @@ void EndTextureMode(){
     EndRenderpassPro(GetActiveRenderPass(), true);
 
     g_renderstate.renderTargetStack.pop();
-    g_renderstate.renderExtentX = g_renderstate.renderTargetStack.peek().texture.width;
-    g_renderstate.renderExtentY = g_renderstate.renderTargetStack.peek().texture.height;
-    Matrix mat = ScreenMatrix((int)g_renderstate.renderExtentX, (int)g_renderstate.renderExtentY);
-    //SetUniformBuffer(0, g_renderstate.defaultScreenMatrix);
     PopMatrix();
-    SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
     if(!g_renderstate.renderTargetStack.empty()){
+        g_renderstate.renderExtentX = g_renderstate.renderTargetStack.peek().texture.width;
+        g_renderstate.renderExtentY = g_renderstate.renderTargetStack.peek().texture.height;
+        Matrix mat = ScreenMatrix((int)g_renderstate.renderExtentX, (int)g_renderstate.renderExtentY);
+        //SetUniformBuffer(0, g_renderstate.defaultScreenMatrix);
+        SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
         BeginRenderpass();
     }
 }
@@ -1843,18 +1849,18 @@ extern "C" void BeginWindowMode(SubWindow sw){
 extern "C" void EndWindowMode(){
     
     { //This is an inlined EndTextureMode that passes false for EndRenderpassPro
-        drawCurrentBatch();
+        //drawCurrentBatch();
+        //EndRenderpassPro(GetActiveRenderPass(), false);
 
-        EndRenderpassPro(GetActiveRenderPass(), false);
-
-        //g_renderstate.renderTargetStack.pop();
-        g_renderstate.renderExtentX = g_renderstate.renderTargetStack.peek().texture.width;
-        g_renderstate.renderExtentY = g_renderstate.renderTargetStack.peek().texture.height;
-        Matrix mat = ScreenMatrix((int)g_renderstate.renderExtentX, (int)g_renderstate.renderExtentY);
-        //SetUniformBuffer(0, g_renderstate.defaultScreenMatrix);
-        PopMatrix();
-        SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
+        EndTextureMode();
+        
         if(!g_renderstate.renderTargetStack.empty()){
+            g_renderstate.renderExtentX = g_renderstate.renderTargetStack.peek().texture.width;
+            g_renderstate.renderExtentY = g_renderstate.renderTargetStack.peek().texture.height;
+            Matrix mat = ScreenMatrix((int)g_renderstate.renderExtentX, (int)g_renderstate.renderExtentY);
+            //SetUniformBuffer(0, g_renderstate.defaultScreenMatrix);
+            PopMatrix();
+            SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
             BeginRenderpass();
         }
     }
