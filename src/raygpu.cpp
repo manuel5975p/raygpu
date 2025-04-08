@@ -1823,6 +1823,7 @@ void EndTextureMode(){
 extern "C" void BeginWindowMode(SubWindow sw){
     auto& swref = g_renderstate.createdSubwindows.at(sw.handle);
     g_renderstate.activeSubWindow = sw;
+    PrepareFrameGlobals();
     GetNewTexture(&swref.surface);
 
 
@@ -1846,7 +1847,7 @@ extern "C" void EndWindowMode(){
 
         EndRenderpassPro(GetActiveRenderPass(), false);
 
-        g_renderstate.renderTargetStack.pop();
+        //g_renderstate.renderTargetStack.pop();
         g_renderstate.renderExtentX = g_renderstate.renderTargetStack.peek().texture.width;
         g_renderstate.renderExtentY = g_renderstate.renderTargetStack.peek().texture.height;
         Matrix mat = ScreenMatrix((int)g_renderstate.renderExtentX, (int)g_renderstate.renderExtentY);

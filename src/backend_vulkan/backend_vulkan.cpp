@@ -294,8 +294,8 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
 
     uint32_t imageIndex = ~0;
     if(fsurface->headless){
-        VkSubmitInfo submitInfo zeroinit;
         //g_vulkanstate.queue->syncState[cacheIndex].submits = 0;
+        VkSubmitInfo submitInfo zeroinit;
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = &g_vulkanstate.queue->syncState[cacheIndex].semaphores[0];
@@ -322,7 +322,15 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
         VkCommandBuffer buf = ((WGVKSurface)fsurface->surface)->device->queue->presubmitCache->buffer;
         EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, wgvksurf->images[imageIndex]);
         EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, (WGVKTexture)fsurface->renderTarget.depth.id);
-
+        vkEndCommandBuffer(buf);
+        VkSubmitInfo submitInfo zeroinit;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &buf;
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = &g_vulkanstate.queue->syncState[cacheIndex].semaphores[0];
+        submitInfo.
+        
         fsurface->renderTarget.texture.id = wgvksurf->images[imageIndex];
         fsurface->renderTarget.texture.view = wgvksurf->imageViews[imageIndex];
         fsurface->renderTarget.texture.width = wgvksurf->width;
@@ -1248,7 +1256,7 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
 		    VkPhysicalDeviceProperties2 deviceProperties2 zeroinit;
 		    deviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
 		    deviceProperties2.pNext = &rayTracingPipelineProperties;
-		    vkGetPhysicalDeviceProperties2(physicalDevice, &deviceProperties2);
+		    vkGetPhysicalDeviceProperties2(adapter->physicalDevice, &deviceProperties2);
             adapter->rayTracingPipelineProperties = rayTracingPipelineProperties;
             #endif
         }
@@ -1276,7 +1284,9 @@ void InitBackend(){
     g_vulkanstate.device = device;
     g_vulkanstate.queue = device->queue;
     //auto device_and_queues = createLogicalDevice(g_vulkanstate.physicalDevice, queues);
-    //raytracing_LoadDeviceFunctions(device_and_queues.first->device);
+#if VULKAN_ENABLE_RAYTRACING == 1
+    raytracing_LoadDeviceFunctions(device->device);
+#endif
     //g_vulkanstate.device = device_and_queues.first;
     //g_vulkanstate.queue = device_and_queues.second;
     //for(uint32_t fif = 0;fif < framesInFlight;fif++){

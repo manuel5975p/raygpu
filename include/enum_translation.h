@@ -200,6 +200,7 @@ typedef enum BlendOperation {
     //BlendOperation_Force32 = 0x7FFFFFFF
 } BlendOperation;
 typedef enum PresentMode{ 
+    PresentMode_Undefined = 0x00000000,
     PresentMode_Fifo = 0x00000001,
     PresentMode_FifoRelaxed = 0x00000002,
     PresentMode_Immediate = 0x00000003,
@@ -643,6 +644,8 @@ static inline VkPresentModeKHR toVulkanPresentMode(PresentMode mode){
             return VK_PRESENT_MODE_IMMEDIATE_KHR;
         case PresentMode_Mailbox:
             return VK_PRESENT_MODE_MAILBOX_KHR;
+        default:
+            rg_trap();
     }
     return (VkPresentModeKHR)~0;
 }

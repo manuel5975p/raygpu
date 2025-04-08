@@ -271,12 +271,17 @@ struct SafelyResettableCommandPool{
     VkCommandPool pool;
     VkFence finishingFence;
     WGVKDevice device;
-    std::vector<VkCommandBuffer> currentlyInUse;
-    std::vector<VkCommandBuffer> availableForUse;
+    struct commandPoolRecord{
+        VkCommandBuffer commandBuffer;
+        VkSemaphore semaphore;
+    };
+    std::vector<commandPoolRecord> currentlyInUse;
+    std::vector<commandPoolRecord> availableForUse;
+
     SafelyResettableCommandPool(WGVKDevice p_device) : 
-    pool(VK_NULL_HANDLE),
-    finishingFence(VK_NULL_HANDLE),
-    device(p_device)
+        pool(VK_NULL_HANDLE),
+        finishingFence(VK_NULL_HANDLE),
+        device(p_device)
     {
         VkCommandPoolCreateInfo pci zeroinit;
         pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -292,7 +297,14 @@ struct SafelyResettableCommandPool{
     void finish(){
         VkSubmitInfo sinfo;
         sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        //TODO
         vkQueueSubmit(getGraphicsQueue(device), 1, &sinfo, finishingFence);
+    }
+    void reset(){
+        vkWaitForFences(getVulkanDevice(device), 1, &finishingFence, VK_TRUE, uint64_t(1) << 32); // Wait about 4.2 seconds
+        vkResetCommandPool(getVulkanDevice(device), pool, 0);
+        std::copy(currentlyInUse.begin(), currentlyInUse.end(), std::back_inserter(availableForUse));
+        currentlyInUse.clear();
     }
 };
 
