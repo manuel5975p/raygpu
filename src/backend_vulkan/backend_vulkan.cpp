@@ -49,7 +49,7 @@ __attribute__((noinline)) VkResult vkQueueSubmit_Profilable(VkQueue queue, uint3
 }
 
 void PresentSurface(FullSurface* surface){
-    wgvkSurfacePresent(surface->surface);
+    wgvkSurfacePresent((WGVKSurface)surface->surface);
     //static VkSemaphore transitionSemaphore[framesInFlight] = {CreateSemaphore()};
     WGVKSurface wgvksurf = (WGVKSurface)surface->surface;
     uint32_t cacheIndex = wgvksurf->device->submittedFrames % framesInFlight;

@@ -1220,7 +1220,9 @@ extern "C" void wgvkReleaseRaytracingPassEncoder(WGVKRaytracingPassEncoder rtenc
         std::free(rtenc);
     }
 }
+extern "C" void wgvkSurfacePresent(WGVKSurface surface){
 
+}
 
 void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t binding, WGVKBuffer buffer, VkDeviceSize offset) {
     assert(rpe != nullptr && "RenderPassEncoderHandle is null");
