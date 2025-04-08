@@ -29,6 +29,7 @@
 #include <SDL2/SDL_vulkan.h>
 #endif
 
+extern "C" const char* vkErrorString(VkResult code);
 
 inline std::pair<std::vector<VkVertexInputAttributeDescription>, std::vector<VkVertexInputBindingDescription>> genericVertexLayoutSetToVulkan(const VertexBufferLayoutSet& vls){
     std::pair<std::vector<VkVertexInputAttributeDescription>, std::vector<VkVertexInputBindingDescription>> ret{};
@@ -123,21 +124,23 @@ typedef struct ResourceUsage{
     }
 }ResourceUsage;
 
-constexpr uint32_t max_color_attachments = 4;
+constexpr uint32_t max_color_attachments = MAX_COLOR_ATTTACHMENTS;
 typedef struct AttachmentDescriptor{
     VkFormat format;
     uint32_t sampleCount;
     LoadOp loadop;
     StoreOp storeop;
+#ifdef __cplusplus
     bool operator==(const AttachmentDescriptor& other)const noexcept{
         return format == other.format
-            && sampleCount == other.sampleCount
-            && loadop == other.loadop
-            && storeop == other.storeop;
+        && sampleCount == other.sampleCount
+        && loadop == other.loadop
+        && storeop == other.storeop;
     }
     bool operator!=(const AttachmentDescriptor& other) const noexcept{
         return !(*this == other);
     }
+#endif
 }AttachmentDescriptor;
 typedef struct RenderPassLayout{
     uint32_t colorAttachmentCount;
@@ -146,6 +149,7 @@ typedef struct RenderPassLayout{
     uint32_t depthAttachmentPresent;
     AttachmentDescriptor depthAttachment;
     //uint32_t colorResolveIndex;
+#ifdef __cplusplus
     bool operator==(const RenderPassLayout& other) const noexcept {
         if(colorAttachmentCount != other.colorAttachmentCount)return false;
         for(uint32_t i = 0;i < colorAttachmentCount;i++){
@@ -159,6 +163,7 @@ typedef struct RenderPassLayout{
 
         return true;
     }
+#endif
 }RenderPassLayout;
 namespace std{
     template<>
@@ -257,6 +262,40 @@ typedef struct MappableBufferMemory{
     size_t capacity;
 }MappableBufferMemory;
 
+static inline uint32_t getGraphicsQueueIndex(WGVKDevice device);
+static inline VkQueue getGraphicsQueue(WGVKDevice device);
+static inline VkDevice getVulkanDevice(WGVKDevice device);
+
+
+struct SafelyResettableCommandPool{
+    VkCommandPool pool;
+    VkFence finishingFence;
+    WGVKDevice device;
+    std::vector<VkCommandBuffer> currentlyInUse;
+    std::vector<VkCommandBuffer> availableForUse;
+    SafelyResettableCommandPool(WGVKDevice p_device) : 
+    pool(VK_NULL_HANDLE),
+    finishingFence(VK_NULL_HANDLE),
+    device(p_device)
+    {
+        VkCommandPoolCreateInfo pci zeroinit;
+        pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        pci.queueFamilyIndex = getGraphicsQueueIndex(device);
+        VkResult pcr = vkCreateCommandPool(getVulkanDevice(device), &pci, nullptr, &pool);
+        if(pcr != VK_SUCCESS){
+            TRACELOG(LOG_ERROR, "Could not create command pool: %s", vkErrorString(pcr));
+        }
+        VkFenceCreateInfo vci zeroinit;
+        vci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        vkCreateFence(getVulkanDevice(device), &vci, nullptr, &finishingFence);
+    }
+    void finish(){
+        VkSubmitInfo sinfo;
+        sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        vkQueueSubmit(getGraphicsQueue(device), 1, &sinfo, finishingFence);
+    }
+};
+
 struct PerframeCache{
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
@@ -295,6 +334,14 @@ typedef struct WGVKDeviceImpl{
 
     std::unordered_map<RenderPassLayout, LayoutedRenderPass> renderPassCache;
 }WGVKDeviceImpl;
+
+static inline uint32_t getGraphicsQueueIndex(WGVKDevice device){
+    return device->adapter->queueIndices.graphicsIndex;
+}
+static inline VkDevice getVulkanDevice(WGVKDevice device){
+    return device->device;
+}
+
 
 typedef struct WGVKTextureImpl{
     VkImage image;
@@ -338,14 +385,6 @@ typedef struct WGVKTextureViewImpl{
 }WGVKTextureViewImpl;
 
 
-
-
-
-
-
-
-
-extern "C" const char* vkErrorString(VkResult code);
 inline bool ResourceUsage::contains(WGVKBuffer buffer)const noexcept{
     return referencedBuffers.find(buffer) != referencedBuffers.end();
 }
@@ -717,6 +756,9 @@ struct WGVKQueueImpl{
     WGVKCommandEncoder presubmitCache;
     std::unordered_map<VkFence, std::unordered_set<WGVKCommandBuffer>> pendingCommandBuffers[framesInFlight];
 };
+static inline VkQueue getGraphicsQueue(WGVKDevice device){
+    return device->queue->graphicsQueue;
+}
 
 struct memory_types{
     uint32_t deviceLocal;

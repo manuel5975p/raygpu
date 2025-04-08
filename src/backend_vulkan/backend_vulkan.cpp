@@ -52,72 +52,7 @@ void PresentSurface(FullSurface* surface){
     wgvkSurfacePresent((WGVKSurface)surface->surface);
     //static VkSemaphore transitionSemaphore[framesInFlight] = {CreateSemaphore()};
     WGVKSurface wgvksurf = (WGVKSurface)surface->surface;
-    uint32_t cacheIndex = wgvksurf->device->submittedFrames % framesInFlight;
-
-    VkPresentInfoKHR presentInfo{};
-    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     
-    presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = &g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore;
-    VkSwapchainKHR swapChains[] = {wgvksurf->swapchain};
-    presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = swapChains;
-    presentInfo.pImageIndices = &wgvksurf->activeImageIndex;
-    VkImageSubresourceRange isr{};
-    isr.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    isr.layerCount = 1;
-    isr.levelCount = 1;
-
-    
-    VkCommandBuffer transitionBuffer = wgvksurf->device->frameCaches[cacheIndex].finalTransitionBuffer;
-    
-    VkCommandBufferBeginInfo beginInfo zeroinit;
-    beginInfo.sType =  VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags =  VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    vkBeginCommandBuffer(transitionBuffer, &beginInfo);
-    EncodeTransitionImageLayout(transitionBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, wgvksurf->images[wgvksurf->activeImageIndex]);
-    EncodeTransitionImageLayout(transitionBuffer, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, (WGVKTexture)surface->renderTarget.depth.id);
-    vkEndCommandBuffer(transitionBuffer);
-    VkSubmitInfo cbsinfo zeroinit;
-    cbsinfo.commandBufferCount = 1;
-    cbsinfo.pCommandBuffers = &transitionBuffer;
-    cbsinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    cbsinfo.signalSemaphoreCount = 1;
-    cbsinfo.waitSemaphoreCount = 1;
-    VkPipelineStageFlags wsmask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-    cbsinfo.pWaitDstStageMask = &wsmask;
-
-    cbsinfo.pWaitSemaphores = &g_vulkanstate.queue->syncState[cacheIndex].semaphores[g_vulkanstate.queue->syncState[cacheIndex].submits];
-    //TRACELOG(LOG_INFO, "Submit waiting for semaphore index: %u", g_vulkanstate.queue->syncState[cacheIndex].submits);
-    
-    cbsinfo.pSignalSemaphores = &g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore;
-    
-    VkFence finalTransitionFence = g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence;
-    vkQueueSubmit(wgvksurf->device->queue->graphicsQueue, 1, &cbsinfo, finalTransitionFence);
-    
-    
-    auto it = wgvksurf->device->queue->pendingCommandBuffers[cacheIndex].find(finalTransitionFence);
-    if(it == wgvksurf->device->queue->pendingCommandBuffers[cacheIndex].end()){
-        wgvksurf->device->queue->pendingCommandBuffers[cacheIndex].emplace(finalTransitionFence, std::unordered_set<WGVKCommandBuffer>{});
-    }
-    else{
-       //it->second.insert(WGVKCommandBuffer{});
-    }
-
-    VkResult presentRes = vkQueuePresentKHR(g_vulkanstate.queue->presentQueue, &presentInfo);
-    //vkQueueWaitIdle(g_vulkanstate.queue->graphicsQueue);
-    ++wgvksurf->device->submittedFrames;
-    vmaSetCurrentFrameIndex(g_vulkanstate.device->allocator, wgvksurf->device->submittedFrames % framesInFlight);
-    if(presentRes != VK_SUCCESS && presentRes != VK_SUBOPTIMAL_KHR){
-        if(presentRes == VK_ERROR_OUT_OF_DATE_KHR){
-            TRACELOG(LOG_ERROR, "presentRes is VK_ERROR_OUT_OF_DATE_KHR");
-        }
-        else
-            TRACELOG(LOG_ERROR, "presentRes is %d", presentRes);
-    }
-    else if(presentRes == VK_SUBOPTIMAL_KHR){
-        TRACELOG(LOG_WARNING, "presentRes is VK_SUBOPTIMAL_KHR");
-    }
     PostPresentSurface();
 
 }

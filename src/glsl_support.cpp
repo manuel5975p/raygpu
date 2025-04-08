@@ -391,6 +391,8 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
     program.buildReflection();
     std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> ret;
     uint32_t attributeCount = program.getNumLiveAttributes();
+
+    
     for(int32_t i = 0;i < attributeCount;i++){
         int glattrib = program.getAttributeType(i);
         std::string attribname = program.getAttributeName(i);
@@ -407,6 +409,7 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
     }
     return ret;
 }
+
 std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSources sources){
     const int glslVersion = 460;
     
