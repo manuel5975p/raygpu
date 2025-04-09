@@ -210,6 +210,7 @@ typedef struct HighLevelPipelineCache{
             return it->second;
         }
         else{
+            //TRACELOG(LOG_WARNING, "Cache NOT hit: %f", mst.settings.lineWidth);
             WGVKRenderPipeline toEmplace = createSingleRenderPipe(mst, shaderModule, bglayout, pllayout);
             cacheMap.emplace(mst, toEmplace);
             return toEmplace;

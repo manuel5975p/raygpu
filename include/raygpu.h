@@ -990,7 +990,9 @@ EXTERN_C_BEGIN
     void PopMatrix(cwoid);
     Matrix GetMatrix(cwoid);
 
-    char *LoadFileText(const char* fileName);
+    void rlSetLineWidth(float lineWidth);
+
+    char* LoadFileText(const char* fileName);
     void UnloadFileText(char* content);
     void* LoadFileData(const char* fileName, size_t* dataSize);
     void UnloadFileData(void* content);

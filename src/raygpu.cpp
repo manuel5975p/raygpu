@@ -651,6 +651,9 @@ void EndMode3D(){
     SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
 }
 
+void rlSetLineWidth(float lineWidth){
+    g_renderstate.currentSettings.lineWidth = lineWidth;
+}
 
 uint32_t GetScreenWidth (cwoid){
     return g_renderstate.width;
@@ -1980,7 +1983,7 @@ extern "C" void NanoWait(uint64_t time){
 }
 RenderSettings GetDefaultSettings(){
     RenderSettings ret zeroinit;
-    ret.lineWidth = 5;
+    ret.lineWidth = 1;
     ret.faceCull = 1;
     ret.frontFace = FrontFace_CCW;
     ret.depthTest = 1;

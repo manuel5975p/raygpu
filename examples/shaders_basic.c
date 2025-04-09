@@ -23,8 +23,25 @@ void main() {
 int main(){
     InitWindow(800, 800, "Shaders example");
     Shader colorInverter = LoadShaderFromMemory(NULL, fragSourceGLSL);
+    
+    Matrix matrix = GetMatrix();
+
+    DescribedBuffer* matrixbuffer = GenUniformBuffer(&matrix, sizeof(Matrix));
+    DescribedBuffer* matrixbuffers = GenStorageBuffer(&matrix, sizeof(Matrix));
+    Texture tex = GetDefaultTexture();
+    DescribedSampler sampler = LoadSampler(repeat, filter_linear);
+
+   
+
     while(!WindowShouldClose()){
         BeginDrawing();
+        BeginPipelineMode(colorInverter.id);
+        SetPipelineUniformBuffer(colorInverter.id, 0, matrixbuffer);
+        SetPipelineTexture(colorInverter.id, 1, tex);
+        SetPipelineSampler(colorInverter.id, 2, sampler);
+        SetPipelineStorageBuffer(colorInverter.id, 3, matrixbuffers);
+        DrawRectangle(200,200,200,200,RED);
+        EndPipelineMode();
         EndDrawing();
     }
 }

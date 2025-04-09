@@ -61,8 +61,7 @@ extern "C" DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sources){
 
 extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineState& mst, const DescribedShaderModule& shaderModule, const DescribedBindGroupLayout& bglayout, const DescribedPipelineLayout& pllayout){
     TRACELOG(LOG_INFO, "Generating new single pipeline");
-    TRACELOG(LOG_INFO, "Generating new pipelines");
-    WGVKRenderPipeline ret = new WGVKRenderPipelineImpl;
+    WGVKRenderPipeline ret = callocnewpp(WGVKRenderPipelineImpl);
     auto& settings = mst;
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -119,7 +118,7 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-    rasterizer.lineWidth = mst.settings.lineWidth;
+    rasterizer.lineWidth = (float)mst.settings.lineWidth;
 
     // Incorporate face culling from RenderSettings
     // TODO: Cull modes

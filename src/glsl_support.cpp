@@ -624,6 +624,9 @@ DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     for(const auto& [x, y] : shaderModule.reflectionInfo.uniforms->uniforms){
         flat.push_back(y);
     }
+    std::sort(flat.begin(), flat.end(), [](const ResourceTypeDescriptor& a, const ResourceTypeDescriptor& b){
+        return a.location < b.location;
+    });
 
     std::vector<std::pair<VertexFormat, unsigned int>> flatAttributes;
     flatAttributes.reserve(shaderModule.reflectionInfo.attributes->attributes.size());
