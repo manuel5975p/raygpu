@@ -13,7 +13,7 @@
 #endif
 
 
-constexpr char shaderSource[] = R"(
+const char shaderSource[] = R"(
 struct VertexInput {
     @location(0) position: vec3f,
     @location(1) uv: vec2f,
@@ -60,7 +60,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 }
 )";
 
-constexpr char vertexSourceGLSL[] = R"(#version 450
+extern "C" const char vertexSourceGLSL[] = R"(#version 450
 
 // Input attributes.
 layout(location = 0) in vec3 in_position;  // position
@@ -95,7 +95,7 @@ void main() {
 }
 )";
 
-constexpr char fragmentSourceGLSL[] = R"(
+extern "C" const char fragmentSourceGLSL[] = R"(
 #version 450
 #extension GL_ARB_separate_shader_objects : enable  // Enable separate sampler objects if needed
 

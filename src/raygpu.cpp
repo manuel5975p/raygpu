@@ -1200,7 +1200,7 @@ extern "C" uint32_t rlGetLocationAttrib(const void* renderorcomputepipeline, con
 Shader LoadShaderFromMemory(const char *vsCode, const char *fsCode){
     Shader shader zeroinit;
     #if SUPPORT_GLSL_PARSER == 1
-    shader.id = LoadPipelineGLSL(vsCode, fsCode);
+    //shader.id = LoadPipelineGLSL(vsCode, fsCode);
     
     shader.id = rlLoadShaderCode(vsCode, fsCode);
 
@@ -1978,7 +1978,7 @@ extern "C" void NanoWait(uint64_t time){
 }
 RenderSettings GetDefaultSettings(){
     RenderSettings ret zeroinit;
-    ret.lineWidth = 1;
+    ret.lineWidth = 5;
     ret.faceCull = 1;
     ret.frontFace = FrontFace_CCW;
     ret.depthTest = 1;

@@ -1105,14 +1105,16 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
 
     // Specify device features
 
-
-    VkPhysicalDeviceExtendedDynamicState3PropertiesEXT props{};
-    props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_PROPERTIES_EXT;
-    props.dynamicPrimitiveTopologyUnrestricted = VK_TRUE;
-    
+    {
+        VkPhysicalDeviceExtendedDynamicState3PropertiesEXT props{};
+        props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_PROPERTIES_EXT;
+        props.dynamicPrimitiveTopologyUnrestricted = VK_TRUE;
+    }
     
     VkPhysicalDeviceFeatures deviceFeatures{};
 
+    vkGetPhysicalDeviceFeatures(adapter->physicalDevice, &deviceFeatures);
+    TRACELOG(LOG_INFO, "Wide lines are %s", (deviceFeatures.wideLines) ? "supported" : "not supported");
 
     VkDeviceCreateInfo createInfo zeroinit;
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;

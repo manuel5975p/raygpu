@@ -55,6 +55,8 @@
 #include <bitset>
 
 #if SUPPORT_GLSL_PARSER == 1
+extern "C" const char vertexSourceGLSL[];
+extern "C" const char fragmentSourceGLSL[];
 const TBuiltInResource DefaultTBuiltInResource_RG = {
     /* .MaxLights = */ 32,
     /* .MaxClipPlanes = */ 6,
@@ -518,14 +520,14 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
                     inserted.second.visibility = ShaderStageMask(inserted.second.visibility | ShaderStageMask(1u << lang));
                 }
 
-                TRACELOG(LOG_WARNING, "Parsed uniforms %s at binding %u", set->bindings[i]->name, (unsigned)set->bindings[i]->binding);// << ": " <<  set->bindings[i]->descriptor_type << "\n";
+                //TRACELOG(LOG_WARNING, "Parsed uniforms %s at binding %u", set->bindings[i]->name, (unsigned)set->bindings[i]->binding);// << ": " <<  set->bindings[i]->descriptor_type << "\n";
                 
             }
         }
         //std::cout << std::endl;
     }
     program.buildReflection();
-    for(uint32_t i = 0;i < program.getNumUniformBlocks();i++){
+    for(int i = 0;i < program.getNumUniformBlocks();i++){
         std::string name = program.getUniformBlockName(i);
         ResourceTypeDescriptor insert zeroinit;
         //std::cout << program.getUniformBlock(i).getBinding() << ": " << program.getUniformBlockName(i) << " readonly: " << program.getUniformBlock(i).getType()->getStorageQualifierString() << "\n";
@@ -538,8 +540,8 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
         std::string storageOrUniform = program.getUniformBlock(i).getType()->getStorageQualifierString();
         bool uniform = storageOrUniform.find("uniform") != std::string::npos;
         insert.type = uniform ? uniform_buffer : storage_buffer;
-        ret[program.getUniformBlockName(i)] = insert;
-        auto& inserted = *ret.find(program.getUniformBlockName(i));
+        ret[name] = insert;
+        auto& inserted = *ret.find(name);
         inserted.second.visibility = ShaderStageMask(inserted.second.visibility | ShaderStageMask(program.getUniformBlock(i).stages));
     }
 //
@@ -607,8 +609,8 @@ DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     glslSources.language = sourceTypeGLSL;
     
     glslSources.sourceCount = 2;
-    glslSources.sources[0].data = vs;
-    glslSources.sources[0].sizeInBytes = std::strlen(vs);
+    glslSources.sources[0].data = vs ? vs : vertexSourceGLSL;
+    glslSources.sources[0].sizeInBytes = std::strlen((const char*)glslSources.sources[0].data);
     glslSources.sources[0].stageMask = ShaderStageMask_Vertex;
 
     glslSources.sources[1].data = fs;

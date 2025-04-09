@@ -80,7 +80,7 @@ typedef struct RenderSettings{
     bool depthTest;
     bool faceCull;
     uint32_t sampleCount;
-    uint32_t lineWidth;
+    float lineWidth;
     WGVKBlendState blendState;    
     FrontFace frontFace;
     CompareFunction depthCompare;

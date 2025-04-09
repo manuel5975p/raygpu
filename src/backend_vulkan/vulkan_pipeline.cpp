@@ -119,7 +119,7 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-    rasterizer.lineWidth = 1.0f;
+    rasterizer.lineWidth = mst.settings.lineWidth;
 
     // Incorporate face culling from RenderSettings
     // TODO: Cull modes
