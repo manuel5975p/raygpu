@@ -1829,7 +1829,9 @@ void EndTextureMode(){
 extern "C" void BeginWindowMode(SubWindow sw){
     auto& swref = g_renderstate.createdSubwindows.at(sw.handle);
     g_renderstate.activeSubWindow = sw;
+    #if SUPPORT_VULKAN_BACKEND == 1
     PrepareFrameGlobals();
+    #endif
     GetNewTexture(&swref.surface);
 
 

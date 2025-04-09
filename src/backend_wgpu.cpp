@@ -1452,6 +1452,42 @@ extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t newWidth, uint32_t
                            1
     );
 }
+
+extern "C" void PrepareFrameGlobals(){
+    //vboptr_base = (vertex*)RL_CALLOC(uint64_t(RENDERBATCH_SIZE), sizeof(vertex));
+    //vboptr = vboptr_base;
+    /*uint32_t cacheIndex = g_wgpustate.device->submittedFrames % framesInFlight;
+    auto& cache = g_wgpustate.device->frameCaches[cacheIndex];
+    if(vbo_buf != 0){
+        wgvkBufferUnmap(vbo_buf);
+    }
+    if(cache.unusedBatchBuffers.empty()){
+        WGVKBufferDescriptor bdesc{
+            .usage = BufferUsage_CopyDst | BufferUsage_MapWrite | BufferUsage_Vertex,
+            .size = (RENDERBATCH_SIZE * sizeof(vertex))
+        };
+
+        vbo_buf = wgvkDeviceCreateBuffer(g_wgpustate.device,  &bdesc);
+        
+        cache.usedBatchBuffers.push_back(vbo_buf);
+        wgvkBufferAddRef(vbo_buf);
+
+        wgvkBufferMap(vbo_buf, MapMode_Write, 0, bdesc.size, (void**)&vboptr_base);
+        vboptr = vboptr_base;
+        
+    }
+    else{
+        vbo_buf = cache.unusedBatchBuffers.back();
+        cache.unusedBatchBuffers.pop_back();
+        cache.usedBatchBuffers.push_back(vbo_buf);
+        VmaAllocationInfo allocationInfo zeroinit;
+        vmaGetAllocationInfo(g_wgpustate.device->allocator, vbo_buf->allocation, &allocationInfo);
+        wgvkBufferMap(vbo_buf, MapMode_Write, 0, allocationInfo.size, (void**)&vboptr_base);
+        vboptr = vboptr_base;
+        wgvkBufferAddRef(vbo_buf);
+    }*/
+}
+
 extern "C" DescribedRenderpass LoadRenderpassEx(RenderSettings settings, bool colorClear, DColor colorClearValue, bool depthClear, float depthClearValue){
     DescribedRenderpass ret{};
 
@@ -1690,93 +1726,83 @@ RenderTexture LoadRenderTexture(uint32_t width, uint32_t height){
 }
 const std::unordered_map<WGPUFeatureName, std::string> featureSpellingTable = [](){
     std::unordered_map<WGPUFeatureName, std::string> ret;
-    #ifdef __EMSCRIPTEN__
-    ret[WGPUFeatureName_DepthClipControl] = "DepthClipControl";
-    ret[WGPUFeatureName_Depth32FloatStencil8] = "Depth32FloatStencil8";
-    ret[WGPUFeatureName_TimestampQuery] = "TimestampQuery";
-    ret[WGPUFeatureName_TextureCompressionBC] = "TextureCompressionBC";
-    ret[WGPUFeatureName_TextureCompressionETC2] = "TextureCompressionETC2";
-    ret[WGPUFeatureName_TextureCompressionASTC] = "TextureCompressionASTC";
-    ret[WGPUFeatureName_IndirectFirstInstance] = "IndirectFirstInstance";
-    ret[WGPUFeatureName_ShaderF16] = "ShaderF16";
-    ret[WGPUFeatureName_RG11B10UfloatRenderable] = "RG11B10UfloatRenderable";
-    ret[WGPUFeatureName_BGRA8UnormStorage] = "BGRA8UnormStorage";
-    ret[WGPUFeatureName_Float32Filterable] = "Float32Filterable";
-    ret[WGPUFeatureName_Float32Blendable] = "Float32Blendable";
-    ret[WGPUFeatureName_Subgroups] = "Subgroups";
-    ret[WGPUFeatureName_SubgroupsF16] = "SubgroupsF16";
-    ret[WGPUFeatureName_Force32] = "Force32";
-    #else
-    ret[WGPUFeatureName_DepthClipControl] = "DepthClipControl";
-    ret[WGPUFeatureName_Depth32FloatStencil8] = "Depth32FloatStencil8";
-    ret[WGPUFeatureName_TimestampQuery] = "TimestampQuery";
-    ret[WGPUFeatureName_TextureCompressionBC] = "TextureCompressionBC";
-    ret[WGPUFeatureName_TextureCompressionETC2] = "TextureCompressionETC2";
-    ret[WGPUFeatureName_TextureCompressionASTC] = "TextureCompressionASTC";
-    ret[WGPUFeatureName_IndirectFirstInstance] = "IndirectFirstInstance";
-    ret[WGPUFeatureName_ShaderF16] = "ShaderF16";
-    ret[WGPUFeatureName_RG11B10UfloatRenderable] = "RG11B10UfloatRenderable";
-    ret[WGPUFeatureName_BGRA8UnormStorage] = "BGRA8UnormStorage";
-    ret[WGPUFeatureName_Float32Filterable] = "Float32Filterable";
-    ret[WGPUFeatureName_Float32Blendable] = "Float32Blendable";
-    ret[WGPUFeatureName_Subgroups] = "Subgroups";
-    ret[WGPUFeatureName_SubgroupsF16] = "SubgroupsF16";
-    ret[WGPUFeatureName_DawnInternalUsages] = "DawnInternalUsages";
-    ret[WGPUFeatureName_DawnMultiPlanarFormats] = "DawnMultiPlanarFormats";
-    ret[WGPUFeatureName_DawnNative] = "DawnNative";
-    ret[WGPUFeatureName_ChromiumExperimentalTimestampQueryInsidePasses] = "ChromiumExperimentalTimestampQueryInsidePasses";
-    ret[WGPUFeatureName_ImplicitDeviceSynchronization] = "ImplicitDeviceSynchronization";
-    ret[WGPUFeatureName_ChromiumExperimentalImmediateData] = "ChromiumExperimentalImmediateData";
-    ret[WGPUFeatureName_TransientAttachments] = "TransientAttachments";
-    ret[WGPUFeatureName_MSAARenderToSingleSampled] = "MSAARenderToSingleSampled";
-    ret[WGPUFeatureName_DualSourceBlending] = "DualSourceBlending";
-    ret[WGPUFeatureName_D3D11MultithreadProtected] = "D3D11MultithreadProtected";
-    ret[WGPUFeatureName_ANGLETextureSharing] = "ANGLETextureSharing";
-    ret[WGPUFeatureName_PixelLocalStorageCoherent] = "PixelLocalStorageCoherent";
-    ret[WGPUFeatureName_PixelLocalStorageNonCoherent] = "PixelLocalStorageNonCoherent";
-    ret[WGPUFeatureName_Unorm16TextureFormats] = "Unorm16TextureFormats";
-    ret[WGPUFeatureName_Snorm16TextureFormats] = "Snorm16TextureFormats";
-    ret[WGPUFeatureName_MultiPlanarFormatExtendedUsages] = "MultiPlanarFormatExtendedUsages";
-    ret[WGPUFeatureName_MultiPlanarFormatP010] = "MultiPlanarFormatP010";
-    ret[WGPUFeatureName_HostMappedPointer] = "HostMappedPointer";
-    ret[WGPUFeatureName_MultiPlanarRenderTargets] = "MultiPlanarRenderTargets";
-    ret[WGPUFeatureName_MultiPlanarFormatNv12a] = "MultiPlanarFormatNv12a";
-    ret[WGPUFeatureName_FramebufferFetch] = "FramebufferFetch";
-    ret[WGPUFeatureName_BufferMapExtendedUsages] = "BufferMapExtendedUsages";
-    ret[WGPUFeatureName_AdapterPropertiesMemoryHeaps] = "AdapterPropertiesMemoryHeaps";
-    ret[WGPUFeatureName_AdapterPropertiesD3D] = "AdapterPropertiesD3D";
-    ret[WGPUFeatureName_AdapterPropertiesVk] = "AdapterPropertiesVk";
-    ret[WGPUFeatureName_R8UnormStorage] = "R8UnormStorage";
-    ret[WGPUFeatureName_Norm16TextureFormats] = "Norm16TextureFormats";
-    ret[WGPUFeatureName_MultiPlanarFormatNv16] = "MultiPlanarFormatNv16";
-    ret[WGPUFeatureName_MultiPlanarFormatNv24] = "MultiPlanarFormatNv24";
-    ret[WGPUFeatureName_MultiPlanarFormatP210] = "MultiPlanarFormatP210";
-    ret[WGPUFeatureName_MultiPlanarFormatP410] = "MultiPlanarFormatP410";
-    ret[WGPUFeatureName_SharedTextureMemoryVkDedicatedAllocation] = "SharedTextureMemoryVkDedicatedAllocation";
-    ret[WGPUFeatureName_SharedTextureMemoryAHardwareBuffer] = "SharedTextureMemoryAHardwareBuffer";
-    ret[WGPUFeatureName_SharedTextureMemoryDmaBuf] = "SharedTextureMemoryDmaBuf";
-    ret[WGPUFeatureName_SharedTextureMemoryOpaqueFD] = "SharedTextureMemoryOpaqueFD";
-    ret[WGPUFeatureName_SharedTextureMemoryZirconHandle] = "SharedTextureMemoryZirconHandle";
-    ret[WGPUFeatureName_SharedTextureMemoryDXGISharedHandle] = "SharedTextureMemoryDXGISharedHandle";
-    ret[WGPUFeatureName_SharedTextureMemoryD3D11Texture2D] = "SharedTextureMemoryD3D11Texture2D";
-    ret[WGPUFeatureName_SharedTextureMemoryIOSurface] = "SharedTextureMemoryIOSurface";
-    ret[WGPUFeatureName_SharedTextureMemoryEGLImage] = "SharedTextureMemoryEGLImage";
-    ret[WGPUFeatureName_SharedFenceVkSemaphoreOpaqueFD] = "SharedFenceVkSemaphoreOpaqueFD";
-    ret[WGPUFeatureName_SharedFenceSyncFD] = "SharedFenceSyncFD";
-    ret[WGPUFeatureName_SharedFenceVkSemaphoreZirconHandle] = "SharedFenceVkSemaphoreZirconHandle";
-    ret[WGPUFeatureName_SharedFenceDXGISharedHandle] = "SharedFenceDXGISharedHandle";
-    ret[WGPUFeatureName_SharedFenceMTLSharedEvent] = "SharedFenceMTLSharedEvent";
-    ret[WGPUFeatureName_SharedBufferMemoryD3D12Resource] = "SharedBufferMemoryD3D12Resource";
-    ret[WGPUFeatureName_StaticSamplers] = "StaticSamplers";
-    ret[WGPUFeatureName_YCbCrVulkanSamplers] = "YCbCrVulkanSamplers";
-    ret[WGPUFeatureName_ShaderModuleCompilationOptions] = "ShaderModuleCompilationOptions";
-    ret[WGPUFeatureName_DawnLoadResolveTexture] = "DawnLoadResolveTexture";
-    ret[WGPUFeatureName_DawnPartialLoadResolveTexture] = "DawnPartialLoadResolveTexture";
-    ret[WGPUFeatureName_MultiDrawIndirect] = "MultiDrawIndirect";
-    ret[WGPUFeatureName_ClipDistances] = "ClipDistances";
-    ret[WGPUFeatureName_DawnTexelCopyBufferRowAlignment] = "DawnTexelCopyBufferRowAlignment";
-    ret[WGPUFeatureName_FlexibleTextureViews] = "FlexibleTextureViews";
-    ret[WGPUFeatureName_Force32] = "Force32";
+    ret[WGPUFeatureName_DepthClipControl] = "WGPUFeatureName_DepthClipControl";
+    ret[WGPUFeatureName_Depth32FloatStencil8] = "WGPUFeatureName_Depth32FloatStencil8";
+    ret[WGPUFeatureName_TimestampQuery] = "WGPUFeatureName_TimestampQuery";
+    ret[WGPUFeatureName_TextureCompressionBC] = "WGPUFeatureName_TextureCompressionBC";
+    ret[WGPUFeatureName_TextureCompressionBCSliced3D] = "WGPUFeatureName_TextureCompressionBCSliced3D";
+    ret[WGPUFeatureName_TextureCompressionETC2] = "WGPUFeatureName_TextureCompressionETC2";
+    ret[WGPUFeatureName_TextureCompressionASTC] = "WGPUFeatureName_TextureCompressionASTC";
+    ret[WGPUFeatureName_TextureCompressionASTCSliced3D] = "WGPUFeatureName_TextureCompressionASTCSliced3D";
+    ret[WGPUFeatureName_IndirectFirstInstance] = "WGPUFeatureName_IndirectFirstInstance";
+    ret[WGPUFeatureName_ShaderF16] = "WGPUFeatureName_ShaderF16";
+    #ifndef __EMSCRIPTEN__
+    ret[WGPUFeatureName_RG11B10UfloatRenderable] = "WGPUFeatureName_RG11B10UfloatRenderable";
+    ret[WGPUFeatureName_BGRA8UnormStorage] = "WGPUFeatureName_BGRA8UnormStorage";
+    ret[WGPUFeatureName_Float32Filterable] = "WGPUFeatureName_Float32Filterable";
+    ret[WGPUFeatureName_Float32Blendable] = "WGPUFeatureName_Float32Blendable";
+    ret[WGPUFeatureName_ClipDistances] = "WGPUFeatureName_ClipDistances";
+    ret[WGPUFeatureName_DualSourceBlending] = "WGPUFeatureName_DualSourceBlending";
+    ret[WGPUFeatureName_Subgroups] = "WGPUFeatureName_Subgroups";
+    ret[WGPUFeatureName_CoreFeaturesAndLimits] = "WGPUFeatureName_CoreFeaturesAndLimits";
+    ret[WGPUFeatureName_DawnInternalUsages] = "WGPUFeatureName_DawnInternalUsages";
+    ret[WGPUFeatureName_DawnMultiPlanarFormats] = "WGPUFeatureName_DawnMultiPlanarFormats";
+    ret[WGPUFeatureName_DawnNative] = "WGPUFeatureName_DawnNative";
+    ret[WGPUFeatureName_ChromiumExperimentalTimestampQueryInsidePasses] = "WGPUFeatureName_ChromiumExperimentalTimestampQueryInsidePasses";
+    ret[WGPUFeatureName_ImplicitDeviceSynchronization] = "WGPUFeatureName_ImplicitDeviceSynchronization";
+    ret[WGPUFeatureName_ChromiumExperimentalImmediateData] = "WGPUFeatureName_ChromiumExperimentalImmediateData";
+    ret[WGPUFeatureName_TransientAttachments] = "WGPUFeatureName_TransientAttachments";
+    ret[WGPUFeatureName_MSAARenderToSingleSampled] = "WGPUFeatureName_MSAARenderToSingleSampled";
+    ret[WGPUFeatureName_SubgroupsF16] = "WGPUFeatureName_SubgroupsF16";
+    ret[WGPUFeatureName_D3D11MultithreadProtected] = "WGPUFeatureName_D3D11MultithreadProtected";
+    ret[WGPUFeatureName_ANGLETextureSharing] = "WGPUFeatureName_ANGLETextureSharing";
+    ret[WGPUFeatureName_PixelLocalStorageCoherent] = "WGPUFeatureName_PixelLocalStorageCoherent";
+    ret[WGPUFeatureName_PixelLocalStorageNonCoherent] = "WGPUFeatureName_PixelLocalStorageNonCoherent";
+    ret[WGPUFeatureName_Unorm16TextureFormats] = "WGPUFeatureName_Unorm16TextureFormats";
+    ret[WGPUFeatureName_Snorm16TextureFormats] = "WGPUFeatureName_Snorm16TextureFormats";
+    ret[WGPUFeatureName_MultiPlanarFormatExtendedUsages] = "WGPUFeatureName_MultiPlanarFormatExtendedUsages";
+    ret[WGPUFeatureName_MultiPlanarFormatP010] = "WGPUFeatureName_MultiPlanarFormatP010";
+    ret[WGPUFeatureName_HostMappedPointer] = "WGPUFeatureName_HostMappedPointer";
+    ret[WGPUFeatureName_MultiPlanarRenderTargets] = "WGPUFeatureName_MultiPlanarRenderTargets";
+    ret[WGPUFeatureName_MultiPlanarFormatNv12a] = "WGPUFeatureName_MultiPlanarFormatNv12a";
+    ret[WGPUFeatureName_FramebufferFetch] = "WGPUFeatureName_FramebufferFetch";
+    ret[WGPUFeatureName_BufferMapExtendedUsages] = "WGPUFeatureName_BufferMapExtendedUsages";
+    ret[WGPUFeatureName_AdapterPropertiesMemoryHeaps] = "WGPUFeatureName_AdapterPropertiesMemoryHeaps";
+    ret[WGPUFeatureName_AdapterPropertiesD3D] = "WGPUFeatureName_AdapterPropertiesD3D";
+    ret[WGPUFeatureName_AdapterPropertiesVk] = "WGPUFeatureName_AdapterPropertiesVk";
+    ret[WGPUFeatureName_R8UnormStorage] = "WGPUFeatureName_R8UnormStorage";
+    ret[WGPUFeatureName_DawnFormatCapabilities] = "WGPUFeatureName_DawnFormatCapabilities";
+    ret[WGPUFeatureName_DawnDrmFormatCapabilities] = "WGPUFeatureName_DawnDrmFormatCapabilities";
+    ret[WGPUFeatureName_Norm16TextureFormats] = "WGPUFeatureName_Norm16TextureFormats";
+    ret[WGPUFeatureName_MultiPlanarFormatNv16] = "WGPUFeatureName_MultiPlanarFormatNv16";
+    ret[WGPUFeatureName_MultiPlanarFormatNv24] = "WGPUFeatureName_MultiPlanarFormatNv24";
+    ret[WGPUFeatureName_MultiPlanarFormatP210] = "WGPUFeatureName_MultiPlanarFormatP210";
+    ret[WGPUFeatureName_MultiPlanarFormatP410] = "WGPUFeatureName_MultiPlanarFormatP410";
+    ret[WGPUFeatureName_SharedTextureMemoryVkDedicatedAllocation] = "WGPUFeatureName_SharedTextureMemoryVkDedicatedAllocation";
+    ret[WGPUFeatureName_SharedTextureMemoryAHardwareBuffer] = "WGPUFeatureName_SharedTextureMemoryAHardwareBuffer";
+    ret[WGPUFeatureName_SharedTextureMemoryDmaBuf] = "WGPUFeatureName_SharedTextureMemoryDmaBuf";
+    ret[WGPUFeatureName_SharedTextureMemoryOpaqueFD] = "WGPUFeatureName_SharedTextureMemoryOpaqueFD";
+    ret[WGPUFeatureName_SharedTextureMemoryZirconHandle] = "WGPUFeatureName_SharedTextureMemoryZirconHandle";
+    ret[WGPUFeatureName_SharedTextureMemoryDXGISharedHandle] = "WGPUFeatureName_SharedTextureMemoryDXGISharedHandle";
+    ret[WGPUFeatureName_SharedTextureMemoryD3D11Texture2D] = "WGPUFeatureName_SharedTextureMemoryD3D11Texture2D";
+    ret[WGPUFeatureName_SharedTextureMemoryIOSurface] = "WGPUFeatureName_SharedTextureMemoryIOSurface";
+    ret[WGPUFeatureName_SharedTextureMemoryEGLImage] = "WGPUFeatureName_SharedTextureMemoryEGLImage";
+    ret[WGPUFeatureName_SharedFenceVkSemaphoreOpaqueFD] = "WGPUFeatureName_SharedFenceVkSemaphoreOpaqueFD";
+    ret[WGPUFeatureName_SharedFenceSyncFD] = "WGPUFeatureName_SharedFenceSyncFD";
+    ret[WGPUFeatureName_SharedFenceVkSemaphoreZirconHandle] = "WGPUFeatureName_SharedFenceVkSemaphoreZirconHandle";
+    ret[WGPUFeatureName_SharedFenceDXGISharedHandle] = "WGPUFeatureName_SharedFenceDXGISharedHandle";
+    ret[WGPUFeatureName_SharedFenceMTLSharedEvent] = "WGPUFeatureName_SharedFenceMTLSharedEvent";
+    ret[WGPUFeatureName_SharedBufferMemoryD3D12Resource] = "WGPUFeatureName_SharedBufferMemoryD3D12Resource";
+    ret[WGPUFeatureName_StaticSamplers] = "WGPUFeatureName_StaticSamplers";
+    ret[WGPUFeatureName_YCbCrVulkanSamplers] = "WGPUFeatureName_YCbCrVulkanSamplers";
+    ret[WGPUFeatureName_ShaderModuleCompilationOptions] = "WGPUFeatureName_ShaderModuleCompilationOptions";
+    ret[WGPUFeatureName_DawnLoadResolveTexture] = "WGPUFeatureName_DawnLoadResolveTexture";
+    ret[WGPUFeatureName_DawnPartialLoadResolveTexture] = "WGPUFeatureName_DawnPartialLoadResolveTexture";
+    ret[WGPUFeatureName_MultiDrawIndirect] = "WGPUFeatureName_MultiDrawIndirect";
+    ret[WGPUFeatureName_DawnTexelCopyBufferRowAlignment] = "WGPUFeatureName_DawnTexelCopyBufferRowAlignment";
+    ret[WGPUFeatureName_FlexibleTextureViews] = "WGPUFeatureName_FlexibleTextureViews";
+    ret[WGPUFeatureName_ChromiumExperimentalSubgroupMatrix] = "WGPUFeatureName_ChromiumExperimentalSubgroupMatrix";
+    ret[WGPUFeatureName_SharedFenceEGLSync] = "WGPUFeatureName_SharedFenceEGLSync";
     #endif
     return ret;
 }();

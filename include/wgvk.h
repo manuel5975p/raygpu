@@ -60,6 +60,7 @@ typedef struct ResourceTypeDescriptor{
     //Applicable for storage buffers and textures
     access_type access;
     format_or_sample_type fstype;
+    ShaderStageMask visibility;
 }ResourceTypeDescriptor;
 
 typedef struct ResourceDescriptor {
