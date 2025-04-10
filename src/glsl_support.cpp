@@ -258,7 +258,7 @@ std::vector<uint32_t> glsl_to_spirv_single(const char* cs, EShLanguage stage){
     glslang::TShader shader(stage);
     shader.setEnvInput (glslang::EShSourceGlsl, stage, glslang::EShClientOpenGL, 460);
     shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_4);
-    shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_4);
+    shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
     shader.setStrings(&cs, 1);
     //shader.setAutoMapLocations(true);
     TBuiltInResource Resources = {};
@@ -357,7 +357,7 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
         }
         ShaderStage stage = (ShaderStage)std::countr_zero(uint32_t(sources.sources[i].stageMask));
         shaders.emplace_back(ShaderStageToGlslanguage(stage), std::make_unique<glslang::TShader>(ShaderStageToGlslanguage(stage)));
-        shaders.back().second->setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_4);
+        shaders.back().second->setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_3);
     }
 
     const TBuiltInResource* Resources = &DefaultTBuiltInResource_RG;
@@ -433,7 +433,7 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
         }
         ShaderStage stage = (ShaderStage)std::countr_zero(uint32_t(sources.sources[i].stageMask));
         shaders.emplace_back(ShaderStageToGlslanguage(stage), std::make_unique<glslang::TShader>(ShaderStageToGlslanguage(stage)));
-        shaders.back().second->setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_4);
+        shaders.back().second->setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
     }
 
     TBuiltInResource Resources = DefaultTBuiltInResource_RG;
@@ -491,6 +491,8 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
         std::vector<uint32_t> stageSpirv;
         //glslang::SpvOptions options{.generateDebugInfo = true};
         glslang::GlslangToSpv(*intermediate, stageSpirv);
+        glslang::TIntermTraverser traverser;
+        //intermediate->getTreeRoot()(&traverser);
         spv_reflect::ShaderModule mod(stageSpirv);
         uint32_t count = 0;
         SpvReflectResult result = spvReflectEnumerateDescriptorSets(&mod.GetShaderModule(), &count, NULL);
@@ -503,7 +505,7 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
         spvReflectEnumerateInputVariables(&mod.GetShaderModule(), &varcount, nullptr);
         vars.resize(varcount);
         spvReflectEnumerateInputVariables(&mod.GetShaderModule(), &varcount, vars.data());
-
+        
         for(auto set : sets){
         
             for(uint32_t i = 0;i < set->binding_count;i++){
@@ -512,6 +514,7 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
                 
                 if(set->bindings[i]->descriptor_type != SpvReflectDescriptorType::SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER && set->bindings[i]->descriptor_type != SpvReflectDescriptorType::SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER){
                     ResourceTypeDescriptor insert zeroinit;
+                    auto& binding = set->bindings[i];
                     insert.fstype = we_dont_know;
                     insert.type = spvdsToResourceType(set->bindings[i]->descriptor_type);
                     insert.location = set->bindings[i]->binding;

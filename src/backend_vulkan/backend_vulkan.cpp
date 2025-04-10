@@ -3,7 +3,7 @@
 #include <raygpu.h>
 #undef Font
 #include <set>
-#include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan.h>
 #include <renderstate.hpp>
 #include "vulkan_internals.hpp"
 #define RGFW_VULKAN
@@ -35,22 +35,8 @@ void BufferData(DescribedBuffer* buffer, void* data, size_t size){
     }
 }
 
-
-void ResetSyncState(){
-    //g_vulkanstate.queue->syncState[0].submitsInThisFrame = 0;
-    //g_vulkanstate.syncState.semaphoresInThisFrame.clear();
-}
-__attribute__((noinline)) VkResult vkQueuePresentKHR_Profilable(VkQueue queue, const VkPresentInfoKHR *pPresentInfo){
-    return vkQueuePresentKHR(queue, pPresentInfo);
-}
-
-__attribute__((noinline)) VkResult vkQueueSubmit_Profilable(VkQueue queue, uint32_t submitCount, const VkSubmitInfo *pSubmits, VkFence fence){
-    return vkQueueSubmit(queue, submitCount, pSubmits, fence);
-}
-
 void PresentSurface(FullSurface* surface){
     wgvkSurfacePresent((WGVKSurface)surface->surface);
-    //static VkSemaphore transitionSemaphore[framesInFlight] = {CreateSemaphore()};
     WGVKSurface wgvksurf = (WGVKSurface)surface->surface;
     
     PostPresentSurface();

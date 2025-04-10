@@ -450,7 +450,7 @@ static inline WGPUTextureSampleType toTextureSampleType(format_or_sample_type fm
     switch(fmt){
         case format_or_sample_type::sample_f32: return WGPUTextureSampleType_Float;
         case format_or_sample_type::sample_u32: return WGPUTextureSampleType_Uint;
-        default: rg_unreachable();
+        default: return WGPUTextureSampleType_Float;//rg_unreachable();
     }
     return WGPUTextureSampleType_Force32;
 }
@@ -470,7 +470,7 @@ DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* unifo
     }
 
     
-    WGPUBindGroupLayoutEntry* blayouts = (WGPUBindGroupLayoutEntry*)calloc(uniformCount, sizeof(WGPUBindGroupLayoutEntry));
+    WGPUBindGroupLayoutEntry* blayouts = (WGPUBindGroupLayoutEntry*)RL_CALLOC(uniformCount, sizeof(WGPUBindGroupLayoutEntry));
     WGPUBindGroupLayoutDescriptor bglayoutdesc{};
 
     for(size_t i = 0;i < uniformCount;i++){
@@ -498,7 +498,7 @@ DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* unifo
                 blayouts[i].storageTexture.access = toStorageTextureAccess(uniforms[i].access);
                 blayouts[i].visibility = vfragmentOnly;
                 blayouts[i].storageTexture.format = toStorageTextureFormat(uniforms[i].fstype);
-                blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;
+                blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;    
             break;
             case texture_sampler:
                 blayouts[i].visibility = vfragmentOnly;
@@ -1057,10 +1057,13 @@ void InitBackend(){
                 case wgpu::ErrorType::NoError:
                     errorTypeName = "No Error";
                     break;
+                case wgpu::ErrorType::Internal:
+                    errorTypeName = "Internal";
+                    break;
                 default:
                     rg_unreachable();
             }
-            //std::cerr << errorTypeName << " error: " << std::string(message.data, message.length);
+            TRACELOG(LOG_ERROR, "%s error: %s", errorTypeName, std::string(message.data, message.length).c_str());
             rg_trap();
         });
 
