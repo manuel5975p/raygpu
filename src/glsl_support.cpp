@@ -411,6 +411,37 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
     }
     return ret;
 }
+namespace glslang{
+    struct aggregateTraverser: TIntermTraverser{
+        std::vector<std::string> textureNames;
+        virtual void visitSymbol(TIntermSymbol* sym)override{
+            textureNames.emplace_back(sym->getName());
+        }
+    };
+    template<typename callable>
+    struct testTraverser : TIntermTraverser{
+        callable m_callable;
+        virtual void visitSymbol(TIntermSymbol* sym)           {if(false)std::cout << sym->getCompleteString() << " visited.\n"; }
+        virtual void visitConstantUnion(TIntermConstantUnion*) { }
+        virtual bool visitBinary(TVisit, TIntermBinary*)       { return true; }
+        virtual bool visitUnary(TVisit, TIntermUnary* unary)   {
+            if(false)std::cout << unary->getCompleteString() << " visited\n"; return true;
+        }
+        virtual bool visitSelection(TVisit, TIntermSelection* sel) { if(false)  std::cout << sel->getCompleteString() << "\n";return true; }
+        virtual bool visitAggregate(TVisit, TIntermAggregate* agg) {
+            if(agg->isSampling()){
+                aggregateTraverser agt{};
+                agg->traverse(&agt);
+                callable(agg->getType(), agt.textureNames);
+                return false;
+            }
+            return true; 
+        }
+        virtual bool visitLoop(TVisit, TIntermLoop*)           { return true; }
+        virtual bool visitBranch(TVisit, TIntermBranch*)       { return true; }
+        virtual bool visitSwitch(TVisit, TIntermSwitch*)       { return true; }
+    };
+}
 
 std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSources sources){
     const int glslVersion = 460;
@@ -491,8 +522,11 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
         std::vector<uint32_t> stageSpirv;
         //glslang::SpvOptions options{.generateDebugInfo = true};
         glslang::GlslangToSpv(*intermediate, stageSpirv);
-        glslang::TIntermTraverser traverser;
-        //intermediate->getTreeRoot()(&traverser);
+        auto marker = [](const glslang::TType& tt, std::vector<std::string> textureNames){
+
+        };
+        glslang::testTraverser<decltype(marker)> traverser{marker};
+        intermediate->getTreeRoot()->traverse(&traverser);
         spv_reflect::ShaderModule mod(stageSpirv);
         uint32_t count = 0;
         SpvReflectResult result = spvReflectEnumerateDescriptorSets(&mod.GetShaderModule(), &count, NULL);

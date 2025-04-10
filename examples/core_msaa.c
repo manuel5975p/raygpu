@@ -33,7 +33,6 @@ void mainloop(void){
     EndDrawing();
 }
 int main(void){
-
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(800, 600, "WebGPU window");
     textWidth = MeasureText("Hello MSAA Enjoyer", 50);
