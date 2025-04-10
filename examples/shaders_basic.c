@@ -17,31 +17,40 @@ layout(binding = 2) uniform sampler texSampler;    // Sampler (binding = 2)
 void main() {
     // Sample the texture using the combined sampler.
     vec4 texColor = texture(sampler2D(texture0, texSampler), frag_uv);
-    outColor = texColor * frag_color;
+    outColor = (texColor * frag_color).yzxw + vec4(0.4f,0,0,0.4f);
 }
 )";
 int main(){
     InitWindow(800, 800, "Shaders example");
     Shader colorInverter = LoadShaderFromMemory(NULL, fragSourceGLSL);
-    
-    Matrix matrix = GetMatrix();
-
+    Matrix matrix = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
+    Matrix identity = MatrixIdentity();
     DescribedBuffer* matrixbuffer = GenUniformBuffer(&matrix, sizeof(Matrix));
-    DescribedBuffer* matrixbuffers = GenStorageBuffer(&matrix, sizeof(Matrix));
-    Texture tex = GetDefaultTexture();
+    DescribedBuffer* matrixbuffers = GenStorageBuffer(&identity, sizeof(Matrix));
+    
+    Texture tex = LoadTexture(TextFormat("%s/tileset.png",FindDirectory("resources", 3)));
     DescribedSampler sampler = LoadSampler(repeat, filter_linear);
-
-   
-
+    
     while(!WindowShouldClose()){
         BeginDrawing();
+        ClearBackground(BLACK);
         BeginPipelineMode(colorInverter.id);
         SetPipelineUniformBuffer(colorInverter.id, 0, matrixbuffer);
         SetPipelineTexture(colorInverter.id, 1, tex);
         SetPipelineSampler(colorInverter.id, 2, sampler);
         SetPipelineStorageBuffer(colorInverter.id, 3, matrixbuffers);
-        DrawRectangle(200,200,200,200,RED);
+        
+        DrawTexturePro(
+            tex,
+            (Rectangle){0, 0, (float)tex.width, (float)tex.height}, 
+            (Rectangle){0, 0, (float)tex.width, (float)tex.height}, 
+            (Vector2)  {0, 0},
+            0.0f,
+            WHITE
+        );
+        
         EndPipelineMode();
+        DrawFPS(5, 5);
         EndDrawing();
     }
 }
