@@ -260,7 +260,8 @@ inline VertexBufferLayoutSet getBufferLayoutRepresentation(const AttributeAndRes
 
     for(size_t i = 0;i < number_of_buffers;i++){
         attributeOffsets[i] = poolOffset;
-        std::memcpy(attributePool.data() + poolOffset, buffer_to_attributes[i].data(), buffer_to_attributes[i].size() * sizeof(VertexAttribute));
+        if(buffer_to_attributes[i].size())
+            std::memcpy(attributePool.data() + poolOffset, buffer_to_attributes[i].data(), buffer_to_attributes[i].size() * sizeof(VertexAttribute));
         poolOffset += buffer_to_attributes[i].size();
     }
 
