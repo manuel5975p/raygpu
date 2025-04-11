@@ -436,12 +436,7 @@ void SetMatrix(Matrix m){
 }
 
 void adaptRenderPass(DescribedRenderpass* drp, const ModifiablePipelineState& settings){
-    drp->settings.blendState  = settings.settings.blendState;
-    drp->settings.depthTest   = settings.settings.depthTest;
-    drp->settings.sampleCount = settings.settings.sampleCount;
-
-    //drp->renderPassDesc.colorAttachments = settings.depthTest ? drp->rca : nullptr;
-    //drp->renderPassDesc.depthStencilAttachment = settings.depthTest ? drp->dsa : nullptr;
+    drp->settings = settings.settings;
 }
 
 void FillReflectionInfo(DescribedShaderModule* module){

@@ -322,6 +322,10 @@ struct PerframeCache{
     std::unordered_map<WGVKBindGroupLayout, std::vector<std::pair<VkDescriptorPool, VkDescriptorSet>>> bindGroupCache;
 };
 
+typedef struct WGVKInstanceImpl{
+    VkInstance instance;
+}WGVKInstanceImpl;
+
 typedef struct WGVKAdapterImpl{
     VkPhysicalDevice physicalDevice;
     VkPhysicalDeviceRayTracingPipelinePropertiesKHR rayTracingPipelineProperties;

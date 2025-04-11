@@ -715,23 +715,6 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, Resou
         TRACELOG(LOG_FATAL, "Invalid ResourceDescriptor");
     }
 
-    
-    //if(bg->releaseOnClear & (1 << index)){
-    //    //donotcache = true;
-    //    if(bg->entries[index].buffer){
-    //        WGVKBuffer wBuffer = (WGVKBuffer)bg->entries[index].buffer;
-    //        wgvkReleaseBuffer(wBuffer);
-    //    }
-    //    else if(bg->entries[index].textureView){
-    //        //Todo: currently not the case anyway, but this is nadinöf
-    //        //vkDestroyImageView((VkImageView)bg->entries[index].textureView);
-    //    }
-    //    else if(bg->entries[index].sampler){
-    //        //wgpuSamplerRelease((WGPUSampler)bg->entries[index].sampler);
-    //    }
-    //    bg->releaseOnClear &= ~(1 << index);
-    //}
-
     bg->entries[index] = entry;
     //bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
     WGVKBindGroup wB = (WGVKBindGroup)bg->bindGroup;
@@ -747,84 +730,6 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, Resou
     
     //bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
 }
-/*DescribedBindGroup LoadBindGroup_Vk(const DescribedBindGroupLayout* layout, const ResourceDescriptor* resources, uint32_t count){
-    DescribedBindGroup         ret   zeroinit;
-    VkDescriptorPool           dpool zeroinit;
-    VkDescriptorSet            dset  zeroinit;
-    VkDescriptorPoolCreateInfo dpci  zeroinit;
-    dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    dpci.flags |= VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-    std::unordered_map<VkDescriptorType, uint32_t> counts;
-    for(uint32_t i = 0;i < layout->entryCount;i++){
-        ++counts[toVulkanResourceType(layout->entries[i].type)];
-    }
-    std::vector<VkDescriptorPoolSize> sizes;
-    sizes.reserve(counts.size());
-    for(const auto& [t, s] : counts){
-        sizes.push_back(VkDescriptorPoolSize{.type = t, .descriptorCount = s});
-    }
-
-    //dpci.poolSizeCount = sizes.size();
-    //dpci.pPoolSizes = sizes.data();
-    //dpci.maxSets = 1;
-    //vkCreateDescriptorPool(g_vulkanstate.device, &dpci, nullptr, &dpool);
-    
-    //VkCopyDescriptorSet copy{};
-    //copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
-    
-    //VkDescriptorSetAllocateInfo dsai{};
-    //dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    //dsai.descriptorPool = dpool;
-    //dsai.descriptorSetCount = 1;
-    //dsai.pSetLayouts = (VkDescriptorSetLayout*)&layout->layout;
-    //vkAllocateDescriptorSets(g_vulkanstate.device, &dsai, &dset);
-    
-    ret.layout = layout;
-    ret.bindGroup = callocnewpp(WGVKBindGroupImpl);
-    WGVKBindGroup wgvkBindGroup = (WGVKBindGroup)ret.bindGroup;
-    
-    ((WGVKBindGroup)ret.bindGroup)->refCount = 1;
-
-    ((WGVKBindGroup)ret.bindGroup)->pool = dpool;
-    ((WGVKBindGroup)ret.bindGroup)->set = dset;
-
-    ret.entries = (ResourceDescriptor*)std::calloc(count, sizeof(ResourceDescriptor));
-    ret.entryCount = count;
-    std::memcpy(ret.entries, resources, count * sizeof(ResourceDescriptor));
-    //small_vector<VkWriteDescriptorSet> writes(count, VkWriteDescriptorSet{});
-    //small_vector<VkDescriptorBufferInfo> bufferInfos(count, VkDescriptorBufferInfo{});
-    //small_vector<VkDescriptorImageInfo> imageInfos(count, VkDescriptorImageInfo{});
-    //for(uint32_t i = 0;i < count;i++){
-    //    writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    //    uint32_t binding = resources[i].binding;
-    //    writes[i].dstBinding = binding;
-    //    writes[i].dstSet = dset;
-    //    writes[i].descriptorType = toVulkanResourceType(layout->entries[i].type);
-    //    writes[i].descriptorCount = 1;
-    //    if(layout->entries[i].type == uniform_buffer || layout->entries->type == storage_buffer){
-    //        bufferInfos[i].buffer = (VkBuffer)resources[i].buffer;
-    //        bufferInfos[i].offset = resources[i].offset;
-    //        bufferInfos[i].range = resources[i].size;
-    //        writes[i].pBufferInfo = bufferInfos.data() + i;
-    //    }
-//
-    //    if(layout->entries[i].type == texture2d || layout->entries[i].type == texture3d){
-    //        imageInfos[i].imageView = (VkImageView)resources[i].textureView;
-    //        imageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    //        writes[i].pImageInfo = imageInfos.data() + i;
-    //    }
-//
-    //    if(layout->entries[i].type == texture_sampler){
-    //        VkSampler vksampler = (VkSampler)ret.entries[i].sampler;
-    //        imageInfos[i].sampler = vksampler;
-    //        writes[i].pImageInfo = imageInfos.data() + i;
-    //    }
-    //}
-//
-    //vkUpdateDescriptorSets(g_vulkanstate.device, writes.size(), writes.data(), 0, nullptr);//count, &copy);
-    ret.needsUpdate = true;
-    return ret;
-}*/
 
 void UpdateBindGroup(DescribedBindGroup* bg){
     const auto* layout = bg->layout;

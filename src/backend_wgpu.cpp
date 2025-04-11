@@ -784,7 +784,7 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, Resou
 // TODOIMPORTANT: 
 // Implement headless for wgpu
 extern "C" void GetNewTexture(FullSurface* fsurface){
-    if(fsurface->surface == 0){
+    if(fsurface->headless){
         return;
     }
     else{

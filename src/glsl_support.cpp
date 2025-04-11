@@ -415,12 +415,14 @@ namespace glslang{
     struct aggregateTraverser: TIntermTraverser{
         std::vector<std::string> textureNames;
         virtual void visitSymbol(TIntermSymbol* sym)override{
-            textureNames.emplace_back(sym->getName());
+            if(sym->getType().isTexture())
+                textureNames.emplace_back(sym->getName());
         }
     };
     template<typename callable>
     struct testTraverser : TIntermTraverser{
-        
+        std::unordered_map<std::string, format_or_sample_type> sampleTypes;
+
         testTraverser(callable c) : m_callable(std::move(c)){
 
         }
@@ -428,15 +430,17 @@ namespace glslang{
         virtual void visitSymbol(TIntermSymbol* sym)           {if(false)std::cout << sym->getCompleteString() << " visited.\n"; }
         virtual void visitConstantUnion(TIntermConstantUnion*) { }
         virtual bool visitBinary(TVisit, TIntermBinary*)       { return true; }
-        virtual bool visitUnary(TVisit, TIntermUnary* unary)   {
-            if(false)std::cout << unary->getCompleteString() << " visited\n"; return true;
-        }
+        virtual bool visitUnary(TVisit, TIntermUnary* unary)   { return true;   }
         virtual bool visitSelection(TVisit, TIntermSelection* sel) { if(false)  std::cout << sel->getCompleteString() << "\n";return true; }
         virtual bool visitAggregate(TVisit, TIntermAggregate* agg) {
             if(agg->isSampling()){
                 aggregateTraverser agt{};
                 agg->traverse(&agt);
                 m_callable(agg->getType(), agt.textureNames);
+                format_or_sample_type type = agg->getType().isFloatingDomain() ? format_or_sample_type::sample_f32 : format_or_sample_type::sample_u32;
+                for(const std::string& x : agt.textureNames){
+                    sampleTypes.emplace(x, type);
+                }
                 return false;
             }
             return true; 
