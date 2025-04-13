@@ -423,9 +423,7 @@ namespace glslang{
     struct testTraverser : TIntermTraverser{
         std::unordered_map<std::string, format_or_sample_type> sampleTypes;
 
-        testTraverser(callable c) : m_callable(std::move(c)){
-
-        }
+        testTraverser(callable c) : m_callable(std::move(c)){}
         callable m_callable;
         virtual void visitSymbol(TIntermSymbol* sym)           {if(false)std::cout << sym->getCompleteString() << " visited.\n"; }
         virtual void visitConstantUnion(TIntermConstantUnion*) { }

@@ -114,6 +114,7 @@ struct WGVKTextureViewImpl;
 struct WGVKBufferImpl;
 struct WGVKBindGroupImpl;
 struct WGVKBindGroupLayoutImpl;
+struct WGVKPipelineLayoutImpl;
 struct WGVKBufferImpl;
 struct WGVKRenderPassEncoderImpl;
 struct WGVKComputePassEncoderImpl;
@@ -135,6 +136,7 @@ struct WGVKRaytracingPassEncoderImpl;
 
 typedef struct WGVKSurfaceImpl* WGVKSurface;
 typedef struct WGVKBindGroupLayoutImpl* WGVKBindGroupLayout;
+typedef struct WGVKPipelineLayoutImpl* WGVKPipelineLayout;
 typedef struct WGVKBindGroupImpl* WGVKBindGroup;
 typedef struct WGVKBufferImpl* WGVKBuffer;
 typedef struct WGVKQueueImpl* WGVKQueue;
@@ -309,6 +311,14 @@ typedef struct WGVKBindGroupDescriptor{
     size_t entryCount;
     const ResourceDescriptor* entries;
 }WGVKBindGroupDescriptor;
+
+typedef struct WGVKPipelineLayoutDescriptor {
+    const void* nextInChain;
+    WGVKStringView label;
+    size_t bindGroupLayoutCount;
+    const WGVKBindGroupLayout * bindGroupLayouts;
+    uint32_t immediateDataRangeByteSize;
+}WGVKPipelineLayoutDescriptor;
 
 typedef struct WGVKSurfaceCapabilities{
     TextureUsage usages;
