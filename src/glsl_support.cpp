@@ -533,6 +533,7 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
         };
         glslang::testTraverser<decltype(marker)> traverser(marker);
         intermediate->getTreeRoot()->traverse(&traverser);
+
         spv_reflect::ShaderModule mod(stageSpirv);
         uint32_t count = 0;
         SpvReflectResult result = spvReflectEnumerateDescriptorSets(&mod.GetShaderModule(), &count, NULL);
@@ -555,7 +556,7 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
                 if(set->bindings[i]->descriptor_type != SpvReflectDescriptorType::SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER && set->bindings[i]->descriptor_type != SpvReflectDescriptorType::SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER){
                     ResourceTypeDescriptor insert zeroinit;
                     auto& binding = set->bindings[i];
-                    insert.fstype = we_dont_know;
+                    insert.fstype = traverser.sampleTypes[set->bindings[i]->name];
                     insert.type = spvdsToResourceType(set->bindings[i]->descriptor_type);
                     insert.location = set->bindings[i]->binding;
                     ret[set->bindings[i]->name] = insert;

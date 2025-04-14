@@ -28,6 +28,12 @@ if(NOT MSVC AND NOT EMSCRIPTEN)
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -DNDEBUG -fno-exceptions -g")
 endif()
 
+if(MSVC)
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /GR-")
+else()
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-rtti")
+endif()
+
 if(NOT SUPPORT_GLFW)
     set(DAWN_USE_GLFW OFF)
     if(NOT SUPPORT_SDL2)

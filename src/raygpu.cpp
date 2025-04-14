@@ -769,8 +769,8 @@ void BeginDrawing(){
         //if(g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture.id)
         //    UnloadTexture(g_renderstate.renderTargetStack[g_renderstate.renderTargetStackPosition].texture);
         #if SUPPORT_WGPU_BACKEND == 1
-        if(g_renderstate.createdSubwindows[g_renderstate.window].surface.renderTarget.texture.id)
-            UnloadTexture(g_renderstate.createdSubwindows[g_renderstate.window].surface.renderTarget.texture);
+        //if(g_renderstate.createdSubwindows[g_renderstate.window].surface.renderTarget.texture.id)
+        //    UnloadTexture(g_renderstate.createdSubwindows[g_renderstate.window].surface.renderTarget.texture);
         #endif
 
         //g_renderstate.drawmutex.lock();
@@ -1248,9 +1248,9 @@ Shader LoadShaderFromMemory(const char *vsCode, const char *fsCode){
         shader.locs[SHADER_LOC_MAP_NORMAL] = rlGetLocationUniform(shader.id, RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE2);
     }
     #else // If glsl isn't supported, 
-    int* x = 0;
-    x[0] = 5;
+    TRACELOG(LOG_ERROR, "GLSL parsing not supported");
     #endif
+    
     return shader;
 }
 extern "C" Texture3D LoadTexture3DEx(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format){
