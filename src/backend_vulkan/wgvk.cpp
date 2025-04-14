@@ -406,6 +406,35 @@ extern "C" WGVKBindGroupLayout wgvkDeviceCreateBindGroupLayout(WGVKDevice device
     
     return ret;
 }
+extern "C" void wgvkReleasePipelineLayout(WGVKPipelineLayout pllayout){
+    for(uint32_t i = 0;i < pllayout->bindGroupLayoutCount;i++){
+        wgvkBindGroupLayoutAddRef(pllayout->bindGroupLayouts[i]);
+    }
+    std::free((void*)pllayout->bindGroupLayouts);
+}
+extern "C" WGVKPipelineLayout wgvkDeviceCreatePipelineLayout(WGVKDevice device, const WGVKPipelineLayoutDescriptor* pldesc){
+    WGVKPipelineLayout ret = callocnewpp(WGVKPipelineLayoutImpl);
+    rassert(ret->bindGroupLayoutCount <= 8, "Only supports up to 8 BindGroupLayouts");
+    ret->bindGroupLayoutCount = pldesc->bindGroupLayoutCount;
+    ret->bindGroupLayouts = (WGVKBindGroupLayout*)RL_CALLOC(pldesc->bindGroupLayoutCount, sizeof(void*));
+    std::memcpy((void*)ret->bindGroupLayouts, (void*)pldesc->bindGroupLayouts, pldesc->bindGroupLayoutCount * sizeof(void*));
+    VkDescriptorSetLayout dslayouts[8] zeroinit;
+    for(uint32_t i = 0;i < ret->bindGroupLayoutCount;i++){
+        wgvkBindGroupLayoutAddRef(ret->bindGroupLayouts[i]);
+        dslayouts[i] = ret->bindGroupLayouts[i]->layout;
+    }
+    VkPipelineLayoutCreateInfo lci zeroinit;
+    lci.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    lci.pSetLayouts = dslayouts;
+    lci.setLayoutCount = ret->bindGroupLayoutCount;
+    VkResult res = vkCreatePipelineLayout(device->device, &lci, nullptr, &ret->layout);
+    if(res != VK_SUCCESS){
+        wgvkReleasePipelineLayout(ret);
+        ret = nullptr;
+    }
+    return ret;
+}
+
 
 extern "C" WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, const WGVKCommandEncoderDescriptor* desc){
     WGVKCommandEncoder ret = callocnewpp(WGVKCommandEncoderImpl);
@@ -1026,6 +1055,17 @@ void wgvkBindGroupRelease(WGVKBindGroup dshandle) {
         std::free(dshandle);
     }
 }
+
+void wgvkBindGroupLayoutRelease(WGVKBindGroupLayout bglayout){
+    --bglayout->refCount;
+    if(bglayout->refCount == 0){
+        vkDestroyDescriptorSetLayout(bglayout->device->device, bglayout->layout, nullptr);
+        bglayout->~WGVKBindGroupLayoutImpl();
+        std::free(const_cast<ResourceTypeDescriptor*>(bglayout->entries));
+        std::free(bglayout);
+    }
+}
+
 extern "C" void wgvkReleaseBindGroupLayout(WGVKBindGroupLayout bglayout){
     --bglayout->refCount;
     if(bglayout->refCount == 0){
@@ -1318,4 +1358,7 @@ extern "C" void wgvkBufferAddRef(WGVKBuffer buffer){
 }
 extern "C" void wgvkBindGroupAddRef(WGVKBindGroup bindGroup){
     ++bindGroup->refCount;
+}
+extern "C" void wgvkBindGroupLayoutAddRef(WGVKBindGroupLayout bindGroupLayout){
+    ++bindGroupLayout->refCount;
 }

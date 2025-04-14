@@ -372,10 +372,12 @@ void wgvkBufferUnmap(WGVKBuffer buffer);
 size_t wgvkBufferGetSize(WGVKBuffer buffer);
 void wgvkQueueWriteTexture(WGVKQueue queue, WGVKTexelCopyTextureInfo const * destination, void const * data, size_t dataSize, WGVKTexelCopyBufferLayout const * dataLayout, WGVKExtent3D const * writeSize);
 WGVKBindGroupLayout wgvkDeviceCreateBindGroupLayout(WGVKDevice device, const ResourceTypeDescriptor* entries, uint32_t entryCount);
+WGVKPipelineLayout wgvkDeviceCreatePipelineLayout(WGVKDevice device, const WGVKPipelineLayoutDescriptor* pldesc);
 WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVKBindGroupDescriptor* bgdesc);
 void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup, const WGVKBindGroupDescriptor* bgdesc);
-WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, const WGVKCommandEncoderDescriptor* cdesc);
 
+
+WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, const WGVKCommandEncoderDescriptor* cdesc);
 WGVKCommandBuffer wgvkCommandEncoderFinish    (WGVKCommandEncoder commandEncoder);
 void wgvkQueueSubmit                          (WGVKQueue queue, size_t commandCount, const WGVKCommandBuffer* buffers);
 void wgvkCommandEncoderCopyBufferToBuffer     (WGVKCommandEncoder commandEncoder, WGVKBuffer source, uint64_t sourceOffset, WGVKBuffer destination, uint64_t destinationOffset, uint64_t size);
@@ -408,12 +410,14 @@ void wgvkTextureAddRef                        (WGVKTexture texture);
 void wgvkTextureViewAddRef                    (WGVKTextureView textureView);
 void wgvkBufferAddRef                         (WGVKBuffer buffer);
 void wgvkBindGroupAddRef                      (WGVKBindGroup bindGroup);
+void wgvkBindGroupLayoutAddRef                (WGVKBindGroupLayout bindGroupLayout);
 void wgvkReleaseCommandEncoder                (WGVKCommandEncoder commandBuffer);
 void wgvkReleaseCommandBuffer                 (WGVKCommandBuffer commandBuffer);
 void wgvkReleaseRenderPassEncoder             (WGVKRenderPassEncoder rpenc);
 void wgvkReleaseComputePassEncoder            (WGVKComputePassEncoder rpenc);
 void wgvkBufferRelease                        (WGVKBuffer commandBuffer);
 void wgvkBindGroupRelease                     (WGVKBindGroup commandBuffer);
+void wgvkBindGroupLayoutRelease               (WGVKBindGroupLayout commandBuffer);
 void wgvkReleaseBindGroupLayout               (WGVKBindGroupLayout bglayout);
 void wgvkReleaseTexture                       (WGVKTexture texture);
 void wgvkReleaseTextureView                   (WGVKTextureView view);

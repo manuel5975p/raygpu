@@ -207,6 +207,13 @@ typedef struct WGVKBindGroupLayoutImpl{
     refcount_type refCount;
 }WGVKBindGroupLayoutImpl;
 
+typedef struct WGVKPipelineLayoutImpl{
+    VkPipelineLayout layout;
+    WGVKBindGroupLayout* bindGroupLayouts;
+    uint32_t bindGroupLayoutCount;
+    refcount_type refCount;
+}WGVKPipelineLayoutImpl;
+
 typedef struct WGVKBufferImpl{
     VkBuffer buffer;
     WGVKDevice device;
