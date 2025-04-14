@@ -47,26 +47,7 @@ typedef void* NativeRenderPassEncoderHandle;
 typedef void* NativeComputePassEncoderHandle;
 
 
-typedef struct WGVKBlendComponent {
-    BlendOperation operation;
-    BlendFactor srcFactor;
-    BlendFactor dstFactor;
-    #ifdef __cplusplus
-    constexpr bool operator==(const WGVKBlendComponent& other)const noexcept{
-        return operation == other.operation && srcFactor == other.srcFactor && dstFactor == other.dstFactor;
-    }
-    #endif
-} WGVKBlendComponent;
 
-typedef struct WGVKBlendState {
-    WGVKBlendComponent color;
-    WGVKBlendComponent alpha;
-    #ifdef __cplusplus
-    constexpr bool operator==(const WGVKBlendState& other)const noexcept{
-        return color == other.color && alpha == other.alpha;
-    }
-    #endif
-} WGVKBlendState;
 //TODO: Stencil attachment
 /**
  * @brief This struct handles the settings that GL handles with global functions
@@ -122,15 +103,6 @@ typedef struct DescribedBindGroup{
     uint64_t descriptorHash; //currently unused
     
 }DescribedBindGroup;
-
-
-
-typedef struct VertexAttribute {
-    void* nextInChain;
-    VertexFormat format;
-    uint64_t offset;
-    uint32_t shaderLocation;
-}VertexAttribute;
 
 typedef struct AttributeAndResidence{
     VertexAttribute attr;

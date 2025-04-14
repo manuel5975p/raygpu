@@ -156,6 +156,19 @@ typedef struct WGVKBottomLevelAccelerationStructureImpl* WGVKBottomLevelAccelera
 typedef struct WGVKRaytracingPipelineImpl* WGVKRaytracingPipeline;
 typedef struct WGVKRaytracingPassEncoderImpl* WGVKRaytracingPassEncoder;
 
+typedef enum WGVKStencilOperation {
+    WGVKStencilOperation_Undefined = 0x00000000,
+    WGVKStencilOperation_Keep = 0x00000001,
+    WGVKStencilOperation_Zero = 0x00000002,
+    WGVKStencilOperation_Replace = 0x00000003,
+    WGVKStencilOperation_Invert = 0x00000004,
+    WGVKStencilOperation_IncrementClamp = 0x00000005,
+    WGVKStencilOperation_DecrementClamp = 0x00000006,
+    WGVKStencilOperation_IncrementWrap = 0x00000007,
+    WGVKStencilOperation_DecrementWrap = 0x00000008,
+    WGVKStencilOperation_Force32 = 0x7FFFFFFF
+} WGVKStencilOperation;
+
 typedef struct WGVKStringView{
     const char* data;
     size_t length;
@@ -327,6 +340,114 @@ typedef struct WGVKSurfaceCapabilities{
     size_t presentModeCount;
     PresentMode const * presentModes;
 }WGVKSurfaceCapabilities;
+
+typedef struct WGVKConstantEntry {
+    void* nextInChain;
+    WGVKStringView key;
+    double value;
+} WGVKConstantEntry;
+typedef struct VertexAttribute {
+    void* nextInChain;
+    VertexFormat format;
+    uint64_t offset;
+    uint32_t shaderLocation;
+}VertexAttribute;
+
+typedef struct WGVKVertexBufferLayout {
+    void* nextInChain;
+    VertexStepMode stepMode;
+    uint64_t arrayStride;
+    size_t attributeCount;
+    const VertexAttribute* attributes;
+} WGVKVertexBufferLayout;
+
+typedef struct WGVKVertexState {
+    void* nextInChain;
+    WGVKShaderModule module;
+    WGVKStringView entryPoint;
+    size_t constantCount;
+    const WGVKConstantEntry* constants;
+    size_t bufferCount;
+    const WGVKVertexBufferLayout* buffers;
+} WGVKVertexState;
+typedef struct WGVKBlendComponent {
+    BlendOperation operation;
+    BlendFactor srcFactor;
+    BlendFactor dstFactor;
+    #ifdef __cplusplus
+    constexpr bool operator==(const WGVKBlendComponent& other)const noexcept{
+        return operation == other.operation && srcFactor == other.srcFactor && dstFactor == other.dstFactor;
+    }
+    #endif
+} WGVKBlendComponent;
+
+typedef struct WGVKBlendState {
+    WGVKBlendComponent color;
+    WGVKBlendComponent alpha;
+    #ifdef __cplusplus
+    constexpr bool operator==(const WGVKBlendState& other)const noexcept{
+        return color == other.color && alpha == other.alpha;
+    }
+    #endif
+} WGVKBlendState;
+
+typedef struct WGVKColorTargetState {
+    void* nextInChain;
+    PixelFormat format;
+    const WGVKBlendState* blend;
+    //WGVKColorWriteMask writeMask;
+} WGVKColorTargetState;
+
+typedef struct WGVKFragmentState {
+    void* nextInChain;
+    WGVKShaderModule module;
+    WGVKStringView entryPoint;
+    size_t constantCount;
+    const WGVKConstantEntry* constants;
+    size_t targetCount;
+    const WGVKColorTargetState* targets;
+} WGPUFragmentState;
+
+typedef struct WGVKPrimitiveState {
+    void* nextInChain;
+    PrimitiveType topology;
+    IndexFormat stripIndexFormat;
+    FrontFace frontFace;
+    WGVKCullMode cullMode;
+    Bool32 unclippedDepth;
+} WGVKPrimitiveState;
+
+typedef struct WGPUStencilFaceState {
+    CompareFunction compare;
+    WGVKStencilOperation failOp;
+    WGVKStencilOperation depthFailOp;
+    WGVKStencilOperation passOp;
+} WGPUStencilFaceState;
+
+typedef struct WGVkDepthStencilState {
+    void* nextInChain;
+    PixelFormat format;
+    Bool32 depthWriteEnabled;
+    CompareFunction depthCompare;
+    
+    WGPUStencilFaceState stencilFront;
+    WGPUStencilFaceState stencilBack;
+    uint32_t stencilReadMask;
+    uint32_t stencilWriteMask;
+    int32_t depthBias;
+    float depthBiasSlopeScale;
+    float depthBiasClamp;
+} WGVKDepthStencilState;
+typedef struct WGVKRenderPipelineDescriptor {
+    void* nextInChain;
+    WGVKStringView label;
+    WGVKPipelineLayout layout;
+    WGVKVertexState vertex;
+    WGVKPrimitiveState primitive;
+    const WGVKDepthStencilState* depthStencil;
+    WGVKMultisampleState multisample;
+    const WGVKFragmentState* fragment;
+} WGVKRenderPipelineDescriptor;
 
 typedef struct WGVKSurfaceConfiguration {
     WGVKDevice device;                     // Device that surface belongs to (WPGUDevice or WGVKDevice)

@@ -408,7 +408,7 @@ extern "C" WGVKBindGroupLayout wgvkDeviceCreateBindGroupLayout(WGVKDevice device
 }
 extern "C" void wgvkReleasePipelineLayout(WGVKPipelineLayout pllayout){
     for(uint32_t i = 0;i < pllayout->bindGroupLayoutCount;i++){
-        wgvkBindGroupLayoutAddRef(pllayout->bindGroupLayouts[i]);
+        wgvkBindGroupLayoutRelease(pllayout->bindGroupLayouts[i]);
     }
     std::free((void*)pllayout->bindGroupLayouts);
 }

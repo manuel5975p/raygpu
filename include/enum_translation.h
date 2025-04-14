@@ -227,6 +227,14 @@ typedef enum FrontFace { FrontFace_Undefined = 0x00000000, FrontFace_CCW = 0x000
 
 typedef enum IndexFormat { IndexFormat_Undefined = 0x00000000, IndexFormat_Uint16 = 0x00000001, IndexFormat_Uint32 = 0x00000002, IndexFormat_Force32 = 0x7FFFFFFF } IndexFormat;
 
+typedef enum WGVKCullMode{
+    WGVKCullMode_Undefined = 0x00000000,
+    WGVKCullMode_None = 0x00000001,
+    WGVKCullMode_Front = 0x00000002,
+    WGVKCullMode_Back = 0x00000003,
+    WGVKCullMode_Force32 = 0x7FFFFFFF
+}WGVKCullMode;
+
 typedef enum LoadOp {
     LoadOp_Undefined = 0x00000000,
     LoadOp_Load = 0x00000001,
