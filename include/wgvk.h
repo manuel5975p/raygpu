@@ -126,6 +126,7 @@ struct WGVKBindGroupImpl;
 struct WGVKBindGroupLayoutImpl;
 struct WGVKPipelineLayoutImpl;
 struct WGVKBufferImpl;
+struct WGVKFutureImpl;
 struct WGVKRenderPassEncoderImpl;
 struct WGVKComputePassEncoderImpl;
 struct WGVKCommandEncoderImpl;
@@ -150,6 +151,7 @@ typedef struct WGVKBindGroupLayoutImpl* WGVKBindGroupLayout;
 typedef struct WGVKPipelineLayoutImpl* WGVKPipelineLayout;
 typedef struct WGVKBindGroupImpl* WGVKBindGroup;
 typedef struct WGVKBufferImpl* WGVKBuffer;
+typedef struct WGVKFutureImpl* WGVKFuture;
 typedef struct WGVKQueueImpl* WGVKQueue;
 typedef struct WGVKInstanceImpl* WGVKInstance;
 typedef struct WGVKAdapterImpl* WGVKAdapter;
@@ -225,6 +227,26 @@ typedef struct WGVKChainedStruct {
     struct WGVKChainedStruct* next;
     WGVKSType sType;
 } WGVKChainedStruct;
+
+typedef struct WGVKRequestAdapterOptions {
+    WGVKChainedStruct * nextInChain;
+    int featureLevel;
+    int powerPreference;
+    Bool32 forceFallbackAdapter;
+    int backendType;
+    WGVKSurface compatibleSurface;
+} WGVKRequestAdapterOptions;
+
+typedef struct WGVKInstanceCapabilities {
+    WGVKChainedStruct* nextInChain;
+    Bool32 timedWaitAnyEnable;
+    size_t timedWaitAnyMaxCount;
+} WGVKInstanceCapabilities;
+
+typedef struct WGVKInstanceDescriptor {
+    WGVKChainedStruct* nextInChain;
+    WGVKInstanceCapabilities capabilities;
+} WGVKInstanceDescriptor;
 
 typedef struct WGVKBindGroupEntry{
     WGVKChainedStruct* nextInChain;
@@ -499,7 +521,14 @@ typedef struct WGVKSurfaceConfiguration {
     PixelFormat format;               // Pixel format of the surface
     PresentMode presentMode;          // Present mode for image presentation
 } WGVKSurfaceConfiguration;
-
+typedef void (*WGVKRequestAdapterCallback)(WGVKRequestAdapterStatus status, WGVKAdapter adapter, struct WGVKStringView message, void* userdata1, void* userdata2);
+typedef struct WGVKRequestAdapterCallbackInfo {
+    WGVKChainedStruct * nextInChain;
+    int mode;
+    WGVKRequestAdapterCallback callback;
+    void* userdata1;
+    void* userdata2;
+} WGVKRequestAdapterCallbackInfo;
 
 typedef struct WGVKBottomLevelAccelerationStructureDescriptor {
     WGVKBuffer vertexBuffer;            // Buffer containing vertex data
@@ -529,7 +558,7 @@ WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccelerationStru
 
 WGVKInstance wgvkCreateInstance(const WGVKInstanceDescriptor *descriptor);
 WGVKFuture wgvkInstanceRequestAdapter(WGVKInstance instance, const WGVKRequestAdapterOptions* options, WGVKRequestAdapterCallbackInfo callbackInfo);
-WGVKDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGVKDeviceDescriptor *descriptor);
+WGVKDevice wgpuAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescriptor *descriptor);
 
 void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, WGVKAdapter adapter, WGVKSurfaceCapabilities* capabilities);
 void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* config);
@@ -601,13 +630,14 @@ WGVKCommandEncoder wgvkResetCommandBuffer(WGVKCommandBuffer commandEncoder);
 void wgvkCommandEncoderTraceRays(WGVKRenderPassEncoder encoder);
 #ifdef __cplusplus
 } //extern "C"
-constexpr bool operator==(const WGVKBlendComponent& a, const WGVKBlendComponent& b) noexcept{
-    return a.operation == b.operation && a.srcFactor == b.srcFactor && a.dstFactor == b.dstFactor;
-}
-
-constexpr bool operator==(const WGVKBlendState& a, const WGVKBlendState& b) noexcept{
-    return a.color == b.color && a.alpha == b.alpha;
-}
+    #if SUPPORT_WGPU_BACKEND == 1
+        constexpr bool operator==(const WGVKBlendComponent& a, const WGVKBlendComponent& b) noexcept{
+            return a.operation == b.operation && a.srcFactor == b.srcFactor && a.dstFactor == b.dstFactor;
+        }
+        constexpr bool operator==(const WGVKBlendState& a, const WGVKBlendState& b) noexcept{
+            return a.color == b.color && a.alpha == b.alpha;
+        }
+    #endif
 #endif
 
 #endif // WGVK_H_INCLUDED

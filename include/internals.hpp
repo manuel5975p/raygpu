@@ -382,7 +382,7 @@ typedef struct VertexArray{
 
             // Update the rest of the attribute properties
             it->stepMode = stepmode;
-            it->attr.format = toWebGPUVertexFormat(fmt);
+            it->attr.format = (fmt);
             it->attr.offset = offset;
             it->enabled = true;
 
@@ -418,7 +418,7 @@ typedef struct VertexArray{
 
             // Set the attribute properties
             insert.stepMode = stepmode;
-            insert.attr.format = toWebGPUVertexFormat(fmt);
+            insert.attr.format = (fmt);
             insert.attr.offset = offset;
             insert.attr.shaderLocation = shaderLocation;
             attributes.emplace_back(insert);
@@ -437,7 +437,7 @@ typedef struct VertexArray{
                 if(_buffer.second == stepmode){
                     insert.bufferSlot = i;
                     insert.stepMode = stepmode;
-                    insert.attr.format = toWebGPUVertexFormat(fmt);
+                    insert.attr.format = fmt;
                     insert.attr.offset = offset;
                     insert.attr.shaderLocation = shaderLocation;
                     attributes.push_back(insert);
@@ -452,7 +452,7 @@ typedef struct VertexArray{
         insert.bufferSlot = buffers.size();
         buffers.push_back({buffer, stepmode});
         insert.stepMode = stepmode;
-        insert.attr.format = toWebGPUVertexFormat(fmt);
+        insert.attr.format = (fmt);
         insert.attr.offset = offset;
         insert.attr.shaderLocation = shaderLocation;
         attributes.push_back(insert);

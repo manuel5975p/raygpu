@@ -169,36 +169,7 @@ typedef enum ShaderStageMask{
     ShaderStageMask_EnumCount = (1u << ShaderStage_EnumCount)
 }ShaderStageMask;
 
-typedef enum BlendFactor {
-    BlendFactor_Undefined = 0x00000000,
-    BlendFactor_Zero = 0x00000001,
-    BlendFactor_One = 0x00000002,
-    BlendFactor_Src = 0x00000003,
-    BlendFactor_OneMinusSrc = 0x00000004,
-    BlendFactor_SrcAlpha = 0x00000005,
-    BlendFactor_OneMinusSrcAlpha = 0x00000006,
-    BlendFactor_Dst = 0x00000007,
-    BlendFactor_OneMinusDst = 0x00000008,
-    BlendFactor_DstAlpha = 0x00000009,
-    BlendFactor_OneMinusDstAlpha = 0x0000000A,
-    BlendFactor_SrcAlphaSaturated = 0x0000000B,
-    BlendFactor_Constant = 0x0000000C,
-    BlendFactor_OneMinusConstant = 0x0000000D,
-    BlendFactor_Src1 = 0x0000000E,
-    BlendFactor_OneMinusSrc1 = 0x0000000F,
-    BlendFactor_Src1Alpha = 0x00000010,
-    BlendFactor_OneMinusSrc1Alpha = 0x00000011,
-} BlendFactor;
 
-typedef enum BlendOperation {
-    BlendOperation_Undefined = 0x00000000,
-    BlendOperation_Add = 0x00000001,
-    BlendOperation_Subtract = 0x00000002,
-    BlendOperation_ReverseSubtract = 0x00000003,
-    BlendOperation_Min = 0x00000004,
-    BlendOperation_Max = 0x00000005,
-    //BlendOperation_Force32 = 0x7FFFFFFF
-} BlendOperation;
 typedef enum PresentMode{ 
     PresentMode_Undefined = 0x00000000,
     PresentMode_Fifo = 0x00000001,
@@ -227,6 +198,8 @@ typedef enum FrontFace { FrontFace_Undefined = 0x00000000, FrontFace_CCW = 0x000
 
 typedef enum IndexFormat { IndexFormat_Undefined = 0x00000000, IndexFormat_Uint16 = 0x00000001, IndexFormat_Uint32 = 0x00000002, IndexFormat_Force32 = 0x7FFFFFFF } IndexFormat;
 
+
+
 typedef enum WGVKCullMode{
     WGVKCullMode_Undefined = 0x00000000,
     WGVKCullMode_None = 0x00000001,
@@ -249,7 +222,15 @@ typedef enum StoreOp {
     StoreOp_Discard = 0x00000002,
     StoreOp_Force32 = 0x7FFFFFFF
 } StoreOp;
-#ifdef SUPPORT_VULKAN_BACKEND
+#if SUPPORT_VULKAN_BACKEND == 1
+typedef enum WGVKRequestAdapterStatus {
+    WGVKRequestAdapterStatus_Success = 0x00000001,
+    WGVKRequestAdapterStatus_InstanceDropped = 0x00000002,
+    WGVKRequestAdapterStatus_Unavailable = 0x00000003,
+    WGVKRequestAdapterStatus_Error = 0x00000004,
+    WGVKRequestAdapterStatus_Force32 = 0x7FFFFFFF
+} WGVKRequestAdapterStatus;
+
 typedef enum VertexFormat {
     VertexFormat_Uint8 = 0x00000001,
     VertexFormat_Uint8x2 = 0x00000002,
@@ -294,6 +275,36 @@ typedef enum VertexFormat {
     VertexFormat_Unorm8x4BGRA = 0x00000029,
     VertexFormat_Force32 = 0x7FFFFFFF
 } VertexFormat;
+typedef enum BlendFactor {
+    BlendFactor_Undefined = 0x00000000,
+    BlendFactor_Zero = 0x00000001,
+    BlendFactor_One = 0x00000002,
+    BlendFactor_Src = 0x00000003,
+    BlendFactor_OneMinusSrc = 0x00000004,
+    BlendFactor_SrcAlpha = 0x00000005,
+    BlendFactor_OneMinusSrcAlpha = 0x00000006,
+    BlendFactor_Dst = 0x00000007,
+    BlendFactor_OneMinusDst = 0x00000008,
+    BlendFactor_DstAlpha = 0x00000009,
+    BlendFactor_OneMinusDstAlpha = 0x0000000A,
+    BlendFactor_SrcAlphaSaturated = 0x0000000B,
+    BlendFactor_Constant = 0x0000000C,
+    BlendFactor_OneMinusConstant = 0x0000000D,
+    BlendFactor_Src1 = 0x0000000E,
+    BlendFactor_OneMinusSrc1 = 0x0000000F,
+    BlendFactor_Src1Alpha = 0x00000010,
+    BlendFactor_OneMinusSrc1Alpha = 0x00000011,
+} BlendFactor;
+
+typedef enum BlendOperation {
+    BlendOperation_Undefined = 0x00000000,
+    BlendOperation_Add = 0x00000001,
+    BlendOperation_Subtract = 0x00000002,
+    BlendOperation_ReverseSubtract = 0x00000003,
+    BlendOperation_Min = 0x00000004,
+    BlendOperation_Max = 0x00000005,
+    //BlendOperation_Force32 = 0x7FFFFFFF
+} BlendOperation;
 #else 
 typedef WGPUVertexFormat VertexFormat;
 #define VertexFormat_Uint8 WGPUVertexFormat_Uint8
@@ -338,6 +349,13 @@ typedef WGPUVertexFormat VertexFormat;
 #define VertexFormat_Unorm10_10_10_2 WGPUVertexFormat_Unorm10_10_10_2
 #define VertexFormat_Unorm8x4BGRA WGPUVertexFormat_Unorm8x4BGRA
 #define VertexFormat_Force32 WGPUVertexFormat_Force32
+typedef WGPURequestAdapterStatus WGVKRequestAdapterStatus;
+
+#define WGVKRequestAdapterStatus_Success WGVKRequestAdapterStatus_Success
+#define WGVKRequestAdapterStatus_InstanceDropped WGVKRequestAdapterStatus_InstanceDropped
+#define WGVKRequestAdapterStatus_Unavailable WGVKRequestAdapterStatus_Unavailable
+#define WGVKRequestAdapterStatus_Error WGVKRequestAdapterStatus_Error
+#define WGVKRequestAdapterStatus_Force32 WGVKRequestAdapterStatus_Force32
 #endif
 
 typedef enum VertexStepMode { VertexStepMode_None = 0x0, VertexStepMode_Vertex = 0x1, VertexStepMode_Instance = 0x2, VertexStepMode_Force32 = 0x7FFFFFFF } VertexStepMode;
