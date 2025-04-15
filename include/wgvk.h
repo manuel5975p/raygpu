@@ -28,7 +28,9 @@ typedef WGPUBindGroupLayout WGVKBindGroupLayout;
 typedef WGPUPipelineLayout WGVKPipelineLayout;
 typedef WGPUBindGroup WGVKBindGroup;
 typedef WGPUBuffer WGVKBuffer;
+typedef WGPUInstance WGVKInstance;
 typedef WGPUAdapter WGVKAdapter;
+typedef WGPUFuture WGVKFuture;
 typedef WGPUDevice WGVKDevice;
 typedef WGPUQueue WGVKQueue;
 typedef WGPURenderPassEncoder WGVKRenderPassEncoder;
@@ -84,6 +86,10 @@ typedef WGPUTextureDescriptor WGVKTextureDescriptor;
 typedef WGPUTextureViewDescriptor WGVKTextureViewDescriptor;
 typedef WGPUBufferDescriptor WGVKBufferDescriptor;
 typedef WGPUBindGroupDescriptor WGVKBindGroupDescriptor;
+typedef WGPUInstanceDescriptor WGVKInstanceDescriptor;
+typedef WGPURequestAdapterOptions WGVKRequestAdapterOptions;
+typedef WGPURequestAdapterCallbackInfo WGVKRequestAdapterCallbackInfo;
+typedef WGPUDeviceDescriptor WGVKDeviceDescriptor;
 typedef WGPUVertexAttribute VertexAttribute;
 typedef WGPURenderPipelineDescriptor WGVKRenderPipelineDescriptor;
 typedef WGPUPipelineLayoutDescriptor WGVKPipelineLayoutDescriptor;
@@ -511,6 +517,7 @@ typedef struct WGVKTopLevelAccelerationStructureDescriptor {
     uint32_t *instanceShaderBindingTableRecordOffsets;       // Optional SBT record offsets
     VkGeometryInstanceFlagsKHR *instanceFlags;               // Optional instance flags
 }WGVKTopLevelAccelerationStructureDescriptor;
+
 void wgvkQueueTransitionLayout                (WGVKQueue cSelf, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
 void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
 void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
@@ -519,6 +526,11 @@ void wgvkRenderPassEncoderBindVertexBuffer    (WGVKRenderPassEncoder rpe, uint32
 WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAccelerationStructure(WGVKDevice device, const WGVKTopLevelAccelerationStructureDescriptor *descriptor);
 WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccelerationStructure(WGVKDevice device, const WGVKBottomLevelAccelerationStructureDescriptor *descriptor);
 #endif
+
+WGVKInstance wgvkCreateInstance(const WGVKInstanceDescriptor *descriptor);
+WGVKFuture wgvkInstanceRequestAdapter(WGVKInstance instance, const WGVKRequestAdapterOptions* options, WGVKRequestAdapterCallbackInfo callbackInfo);
+WGVKDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGVKDeviceDescriptor *descriptor);
+
 void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, WGVKAdapter adapter, WGVKSurfaceCapabilities* capabilities);
 void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* config);
 WGVKTexture wgvkDeviceCreateTexture(WGVKDevice device, const WGVKTextureDescriptor* descriptor);

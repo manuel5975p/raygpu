@@ -209,6 +209,15 @@ void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group
 void wgvkRenderPassEncoderBindPipeline(WGVKRenderPassEncoder rpe, struct DescribedPipeline* pipeline){
     wgpuRenderPassEncoderSetPipeline(rpe, (WGPURenderPipeline)pipeline); //UUUUUUH this assumes that the WGVKRenderPipeline is the first member of the DescribedPipeline
 }
+WGVKInstance wgvkCreateInstance(const WGVKInstanceDescriptor *descriptor){
+    return wgpuCreateInstance(descriptor);
+}
+WGVKFuture wgvkInstanceRequestAdapter(WGVKInstance instance, const WGVKRequestAdapterOptions* options, WGVKRequestAdapterCallbackInfo callbackInfo){
+    return wgpuInstanceRequestAdapter(instance, options, callbackInfo);
+}
+WGVKDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGVKDeviceDescriptor *descriptor){
+
+}
 //void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, VkPipeline pipeline, VkPipelineLayout layout){
     //TODO 
     //wgpuRenderPassEncoderSetPipeline(rpe, pipeline, layout);
