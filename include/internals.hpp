@@ -246,6 +246,7 @@ inline VertexBufferLayoutSet getBufferLayoutRepresentation(const AttributeAndRes
     std::vector<uint32_t> strides  (number_of_buffers, 0);
     std::vector<VertexStepMode> stepmodes(number_of_buffers, VertexStepMode_None);
     std::vector<uint32_t> attrIndex(number_of_buffers, 0);
+
     for(size_t i = 0;i < number_of_attribs;i++){
         buffer_to_attributes[attributes[i].bufferSlot].push_back(attributes[i].attr);
         strides[attributes[i].bufferSlot] += attributeSize(attributes[i].attr.format);
@@ -381,7 +382,7 @@ typedef struct VertexArray{
 
             // Update the rest of the attribute properties
             it->stepMode = stepmode;
-            it->attr.format = fmt;
+            it->attr.format = toWebGPUVertexFormat(fmt);
             it->attr.offset = offset;
             it->enabled = true;
 
@@ -417,7 +418,7 @@ typedef struct VertexArray{
 
             // Set the attribute properties
             insert.stepMode = stepmode;
-            insert.attr.format = fmt;
+            insert.attr.format = toWebGPUVertexFormat(fmt);
             insert.attr.offset = offset;
             insert.attr.shaderLocation = shaderLocation;
             attributes.emplace_back(insert);
@@ -436,7 +437,7 @@ typedef struct VertexArray{
                 if(_buffer.second == stepmode){
                     insert.bufferSlot = i;
                     insert.stepMode = stepmode;
-                    insert.attr.format = fmt;
+                    insert.attr.format = toWebGPUVertexFormat(fmt);
                     insert.attr.offset = offset;
                     insert.attr.shaderLocation = shaderLocation;
                     attributes.push_back(insert);
@@ -451,7 +452,7 @@ typedef struct VertexArray{
         insert.bufferSlot = buffers.size();
         buffers.push_back({buffer, stepmode});
         insert.stepMode = stepmode;
-        insert.attr.format = fmt;
+        insert.attr.format = toWebGPUVertexFormat(fmt);
         insert.attr.offset = offset;
         insert.attr.shaderLocation = shaderLocation;
         attributes.push_back(insert);

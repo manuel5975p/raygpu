@@ -249,8 +249,8 @@ typedef enum StoreOp {
     StoreOp_Discard = 0x00000002,
     StoreOp_Force32 = 0x7FFFFFFF
 } StoreOp;
+#ifdef SUPPORT_VULKAN_BACKEND
 typedef enum VertexFormat {
-    
     VertexFormat_Uint8 = 0x00000001,
     VertexFormat_Uint8x2 = 0x00000002,
     VertexFormat_Uint8x4 = 0x00000003,
@@ -294,6 +294,51 @@ typedef enum VertexFormat {
     VertexFormat_Unorm8x4BGRA = 0x00000029,
     VertexFormat_Force32 = 0x7FFFFFFF
 } VertexFormat;
+#else 
+typedef WGPUVertexFormat VertexFormat;
+#define VertexFormat_Uint8 WGPUVertexFormat_Uint8
+#define VertexFormat_Uint8x2 WGPUVertexFormat_Uint8x2
+#define VertexFormat_Uint8x4 WGPUVertexFormat_Uint8x4
+#define VertexFormat_Sint8 WGPUVertexFormat_Sint8
+#define VertexFormat_Sint8x2 WGPUVertexFormat_Sint8x2
+#define VertexFormat_Sint8x4 WGPUVertexFormat_Sint8x4
+#define VertexFormat_Unorm8 WGPUVertexFormat_Unorm8
+#define VertexFormat_Unorm8x2 WGPUVertexFormat_Unorm8x2
+#define VertexFormat_Unorm8x4 WGPUVertexFormat_Unorm8x4
+#define VertexFormat_Snorm8 WGPUVertexFormat_Snorm8
+#define VertexFormat_Snorm8x2 WGPUVertexFormat_Snorm8x2
+#define VertexFormat_Snorm8x4 WGPUVertexFormat_Snorm8x4
+#define VertexFormat_Uint16 WGPUVertexFormat_Uint16
+#define VertexFormat_Uint16x2 WGPUVertexFormat_Uint16x2
+#define VertexFormat_Uint16x4 WGPUVertexFormat_Uint16x4
+#define VertexFormat_Sint16 WGPUVertexFormat_Sint16
+#define VertexFormat_Sint16x2 WGPUVertexFormat_Sint16x2
+#define VertexFormat_Sint16x4 WGPUVertexFormat_Sint16x4
+#define VertexFormat_Unorm16 WGPUVertexFormat_Unorm16
+#define VertexFormat_Unorm16x2 WGPUVertexFormat_Unorm16x2
+#define VertexFormat_Unorm16x4 WGPUVertexFormat_Unorm16x4
+#define VertexFormat_Snorm16 WGPUVertexFormat_Snorm16
+#define VertexFormat_Snorm16x2 WGPUVertexFormat_Snorm16x2
+#define VertexFormat_Snorm16x4 WGPUVertexFormat_Snorm16x4
+#define VertexFormat_Float16 WGPUVertexFormat_Float16
+#define VertexFormat_Float16x2 WGPUVertexFormat_Float16x2
+#define VertexFormat_Float16x4 WGPUVertexFormat_Float16x4
+#define VertexFormat_Float32 WGPUVertexFormat_Float32
+#define VertexFormat_Float32x2 WGPUVertexFormat_Float32x2
+#define VertexFormat_Float32x3 WGPUVertexFormat_Float32x3
+#define VertexFormat_Float32x4 WGPUVertexFormat_Float32x4
+#define VertexFormat_Uint32 WGPUVertexFormat_Uint32
+#define VertexFormat_Uint32x2 WGPUVertexFormat_Uint32x2
+#define VertexFormat_Uint32x3 WGPUVertexFormat_Uint32x3
+#define VertexFormat_Uint32x4 WGPUVertexFormat_Uint32x4
+#define VertexFormat_Sint32 WGPUVertexFormat_Sint32
+#define VertexFormat_Sint32x2 WGPUVertexFormat_Sint32x2
+#define VertexFormat_Sint32x3 WGPUVertexFormat_Sint32x3
+#define VertexFormat_Sint32x4 WGPUVertexFormat_Sint32x4
+#define VertexFormat_Unorm10_10_10_2 WGPUVertexFormat_Unorm10_10_10_2
+#define VertexFormat_Unorm8x4BGRA WGPUVertexFormat_Unorm8x4BGRA
+#define VertexFormat_Force32 WGPUVertexFormat_Force32
+#endif
 
 typedef enum VertexStepMode { VertexStepMode_None = 0x0, VertexStepMode_Vertex = 0x1, VertexStepMode_Instance = 0x2, VertexStepMode_Force32 = 0x7FFFFFFF } VertexStepMode;
 

@@ -618,21 +618,14 @@ extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const A
     ret->bglayout = LoadBindGroupLayout(uniforms, uniformCount, false);
     ret->shaderModule = mod;
     //auto [spirV, spirF] = glsl_to_spirv(vsSource, fsSource);
-
-    
     //ret->sh = LoadShaderModuleFromSPIRV_Vk(spirV.data(), spirV.size() * 4, spirF.data(), spirF.size() * 4);
-
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 1;
-    pipelineLayoutInfo.pSetLayouts = (VkDescriptorSetLayout*)&(reinterpret_cast<WGVKBindGroupLayout>(ret->bglayout.layout)->layout);
-    pipelineLayoutInfo.pushConstantRangeCount = 0;
-    pipelineLayoutInfo.pPushConstantRanges = nullptr;
     
-    ret->layout.layout = wgvkDeviceCreatePipelineLayout(g_vulkanstate.device, const WGVKPipelineLayoutDescriptor *pldesc)
-    if (vkCreatePipelineLayout(g_vulkanstate.device->device, &pipelineLayoutInfo, nullptr, ) != VK_SUCCESS) {
-        TRACELOG(LOG_FATAL, "failed to create pipeline layout!");
-    }
+    WGVKPipelineLayoutDescriptor pldesc zeroinit;
+    pldesc.bindGroupLayoutCount = 1;
+    WGVKBindGroupLayout bgls[1] = {ret->bglayout.layout};
+    pldesc.bindGroupLayouts = bgls;
+
+    ret->layout.layout = wgvkDeviceCreatePipelineLayout(g_vulkanstate.device, &pldesc);
     std::vector<ResourceDescriptor> bge(uniformCount);
 
     for(uint32_t i = 0;i < bge.size();i++){

@@ -84,7 +84,7 @@ typedef struct RenderSettings{
 
 
 typedef struct DescribedBindGroupLayout{
-    NativeBindgroupLayoutHandle layout;
+    WGVKBindGroupLayout layout;
     uint32_t entryCount;
     ResourceTypeDescriptor* entries;
 }DescribedBindGroupLayout;

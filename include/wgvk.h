@@ -23,10 +23,9 @@ typedef struct WGPUTextureImpl WGVKTextureImpl;
 typedef struct WGPUTextureViewImpl WGVKTextureViewImpl;
 
 
-
-
 typedef WGPUSurface WGVKSurface;
 typedef WGPUBindGroupLayout WGVKBindGroupLayout;
+typedef WGPUPipelineLayout WGVKPipelineLayout;
 typedef WGPUBindGroup WGVKBindGroup;
 typedef WGPUBuffer WGVKBuffer;
 typedef WGPUAdapter WGVKAdapter;
@@ -85,6 +84,11 @@ typedef WGPUTextureDescriptor WGVKTextureDescriptor;
 typedef WGPUTextureViewDescriptor WGVKTextureViewDescriptor;
 typedef WGPUBufferDescriptor WGVKBufferDescriptor;
 typedef WGPUBindGroupDescriptor WGVKBindGroupDescriptor;
+typedef WGPUVertexAttribute VertexAttribute;
+typedef WGPURenderPipelineDescriptor WGVKRenderPipelineDescriptor;
+typedef WGPUPipelineLayoutDescriptor WGVKPipelineLayoutDescriptor;
+typedef WGPUBlendComponent WGVKBlendComponent;
+typedef WGPUBlendState WGVKBlendState;
 typedef void* WGVKRaytracingPipeline;
 typedef void* WGVKRaytracingPassEncoder;
 typedef void* WGVKBottomLevelAccelerationStructure;
@@ -585,6 +589,13 @@ WGVKCommandEncoder wgvkResetCommandBuffer(WGVKCommandBuffer commandEncoder);
 void wgvkCommandEncoderTraceRays(WGVKRenderPassEncoder encoder);
 #ifdef __cplusplus
 } //extern "C"
+constexpr bool operator==(const WGVKBlendComponent& a, const WGVKBlendComponent& b) noexcept{
+    return a.operation == b.operation && a.srcFactor == b.srcFactor && a.dstFactor == b.dstFactor;
+}
+
+constexpr bool operator==(const WGVKBlendState& a, const WGVKBlendState& b) noexcept{
+    return a.color == b.color && a.alpha == b.alpha;
+}
 #endif
 
 #endif // WGVK_H_INCLUDED

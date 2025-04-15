@@ -1369,8 +1369,7 @@ EXTERN_C_BEGIN
     WGVKQueue   GetQueue   (cwoid);
     void*       GetSurface (cwoid);
     
-    
-    inline uint32_t attributeSize(VertexFormat fmt){
+    static inline uint32_t attributeSize(const VertexFormat fmt){
         switch(fmt){
             case VertexFormat_Uint8x4:
             case VertexFormat_Unorm8x4:

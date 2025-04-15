@@ -120,7 +120,7 @@ extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
         allAttribsInOneBuffer.push_back(AttributeAndResidence{
             .attr = VertexAttribute{
                 .nextInChain = nullptr,
-                .format = format,
+                .format = toWebGPUVertexFormat(format),
                 .offset = offset,
                 .shaderLocation = location
             },

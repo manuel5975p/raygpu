@@ -520,19 +520,19 @@ void DisableDepthTest(cwoid){
 extern "C" void BeginBlendMode(rlBlendMode blendMode) {
     // Get a reference to the blend state part of the current settings
     auto& blendState = g_renderstate.currentSettings.blendState;
-
+    
     // Default common operation
-    blendState.color.operation = BlendOperation_Add;
-    blendState.alpha.operation = BlendOperation_Add;
+    blendState.color.operation = toWebGPUBlendOperation(BlendOperation_Add);
+    blendState.alpha.operation = toWebGPUBlendOperation(BlendOperation_Add);
 
     switch (blendMode) {
         case BLEND_ALPHA:
             // Alpha blend: SrcColor * SrcAlpha + DstColor * (1 - SrcAlpha)
             // Alpha blend: SrcAlpha * 1 + DstAlpha * (1 - SrcAlpha)
-            blendState.color.srcFactor = BlendFactor_SrcAlpha;
-            blendState.color.dstFactor = BlendFactor_OneMinusSrcAlpha;
-            blendState.alpha.srcFactor = BlendFactor_One; // Often One or SrcAlpha
-            blendState.alpha.dstFactor = BlendFactor_OneMinusSrcAlpha;
+            blendState.color.srcFactor = toWebGPUBlendFactor(BlendFactor_SrcAlpha);
+            blendState.color.dstFactor = toWebGPUBlendFactor(BlendFactor_OneMinusSrcAlpha);
+            blendState.alpha.srcFactor = toWebGPUBlendFactor(BlendFactor_One); // Often One or SrcAlpha
+            blendState.alpha.dstFactor = toWebGPUBlendFactor(BlendFactor_OneMinusSrcAlpha);
             // Operation is already BlendOperation_Add
             break;
 
@@ -542,10 +542,10 @@ extern "C" void BeginBlendMode(rlBlendMode blendMode) {
             // This matches glBlendFunc(GL_SRC_ALPHA, GL_ONE) and glBlendEquation(GL_FUNC_ADD)
             // Often, additive alpha is just (One, One) or preserves dest alpha (Zero, One)
             // Let's assume (SrcAlpha, One) for color and (One, One) for alpha for brightness.
-            blendState.color.srcFactor = BlendFactor_SrcAlpha;
-            blendState.color.dstFactor = BlendFactor_One;
-            blendState.alpha.srcFactor = BlendFactor_One; // Could be SrcAlpha or Zero depending on desired alpha result
-            blendState.alpha.dstFactor = BlendFactor_One; // Could be One or Zero
+            blendState.color.srcFactor = toWebGPUBlendFactor(BlendFactor_SrcAlpha);
+            blendState.color.dstFactor = toWebGPUBlendFactor(BlendFactor_One);
+            blendState.alpha.srcFactor = toWebGPUBlendFactor(BlendFactor_One); // Could be SrcAlpha or Zero depending on desired alpha result
+            blendState.alpha.dstFactor = toWebGPUBlendFactor(BlendFactor_One); // Could be One or Zero
             // Operation is already BlendOperation_Add
             break;
 
@@ -555,10 +555,10 @@ extern "C" void BeginBlendMode(rlBlendMode blendMode) {
             // Matches glBlendFuncSeparate(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE) commonly used for multiply
             // The original code used glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA) which would affect alpha too.
             // Let's implement the common separate logic for better results.
-            blendState.color.srcFactor = BlendFactor_Dst;
-            blendState.color.dstFactor = BlendFactor_OneMinusSrcAlpha;
-            blendState.alpha.srcFactor = BlendFactor_Zero; // Keeps destination alpha
-            blendState.alpha.dstFactor = BlendFactor_One;
+            blendState.color.srcFactor = toWebGPUBlendFactor(BlendFactor_Dst);
+            blendState.color.dstFactor = toWebGPUBlendFactor(BlendFactor_OneMinusSrcAlpha);
+            blendState.alpha.srcFactor = toWebGPUBlendFactor(BlendFactor_Zero); // Keeps destination alpha
+            blendState.alpha.dstFactor = toWebGPUBlendFactor(BlendFactor_One);
             // Operation is already BlendOperation_Add
             break;
 
@@ -566,10 +566,10 @@ extern "C" void BeginBlendMode(rlBlendMode blendMode) {
             // Add colors blend: SrcColor * 1 + DstColor * 1
             // Alpha blend: SrcAlpha * 1 + DstAlpha * 1
             // Matches glBlendFunc(GL_ONE, GL_ONE) and glBlendEquation(GL_FUNC_ADD)
-            blendState.color.srcFactor = BlendFactor_One;
-            blendState.color.dstFactor = BlendFactor_One;
-            blendState.alpha.srcFactor = BlendFactor_One;
-            blendState.alpha.dstFactor = BlendFactor_One;
+            blendState.color.srcFactor = toWebGPUBlendFactor(BlendFactor_One);
+            blendState.color.dstFactor = toWebGPUBlendFactor(BlendFactor_One);
+            blendState.alpha.srcFactor = toWebGPUBlendFactor(BlendFactor_One);
+            blendState.alpha.dstFactor = toWebGPUBlendFactor(BlendFactor_One);
             // Operation is already BlendOperation_Add
             break;
 
@@ -580,22 +580,22 @@ extern "C" void BeginBlendMode(rlBlendMode blendMode) {
             // Alpha blend: DstAlpha * 1 - SrcAlpha * 1 (or Add alpha?)
             // Matches glBlendFunc(GL_ONE, GL_ONE) and glBlendEquation(GL_FUNC_SUBTRACT)
             // Applying SUBTRACT operation to both color and alpha based on glBlendEquation.
-            blendState.color.srcFactor = BlendFactor_One;
-            blendState.color.dstFactor = BlendFactor_One;
-            blendState.color.operation = BlendOperation_Subtract; // Or ReverseSubtract depending on desired outcome
-            blendState.alpha.srcFactor = BlendFactor_One;
-            blendState.alpha.dstFactor = BlendFactor_One;
-            blendState.alpha.operation = BlendOperation_Subtract; // Apply to alpha too, mimicking glBlendEquation
+            blendState.color.srcFactor = toWebGPUBlendFactor(BlendFactor_One);
+            blendState.color.dstFactor = toWebGPUBlendFactor(BlendFactor_One);
+            blendState.color.operation = toWebGPUBlendOperation(BlendOperation_Subtract); // Or ReverseSubtract depending on desired outcome
+            blendState.alpha.srcFactor = toWebGPUBlendFactor(BlendFactor_One);
+            blendState.alpha.dstFactor = toWebGPUBlendFactor(BlendFactor_One);
+            blendState.alpha.operation = toWebGPUBlendOperation(BlendOperation_Subtract); // Apply to alpha too, mimicking glBlendEquation
             break;
 
         case BLEND_ALPHA_PREMULTIPLY:
             // Premultiplied alpha blend: SrcColor * 1 + DstColor * (1 - SrcAlpha)
             // Alpha blend: SrcAlpha * 1 + DstAlpha * (1 - SrcAlpha)
             // Matches glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA) and glBlendEquation(GL_FUNC_ADD)
-            blendState.color.srcFactor = BlendFactor_One;
-            blendState.color.dstFactor = BlendFactor_OneMinusSrcAlpha;
-            blendState.alpha.srcFactor = BlendFactor_One;
-            blendState.alpha.dstFactor = BlendFactor_OneMinusSrcAlpha;
+            blendState.color.srcFactor = toWebGPUBlendFactor(BlendFactor_One);
+            blendState.color.dstFactor = toWebGPUBlendFactor(BlendFactor_OneMinusSrcAlpha);
+            blendState.alpha.srcFactor = toWebGPUBlendFactor(BlendFactor_One);
+            blendState.alpha.dstFactor = toWebGPUBlendFactor(BlendFactor_OneMinusSrcAlpha);
             // Operation is already BlendOperation_Add
             break;
 
@@ -1984,12 +1984,12 @@ RenderSettings GetDefaultSettings(){
     ret.depthCompare = CompareFunction_LessEqual;
     ret.sampleCount = (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
 
-    ret.blendState.alpha.srcFactor = BlendFactor_One;
-    ret.blendState.alpha.dstFactor = BlendFactor_OneMinusSrcAlpha;
-    ret.blendState.alpha.operation = BlendOperation_Add;
-    ret.blendState.color.srcFactor = BlendFactor_SrcAlpha;
-    ret.blendState.color.dstFactor = BlendFactor_OneMinusSrcAlpha;
-    ret.blendState.color.operation = BlendOperation_Add;
+    ret.blendState.alpha.srcFactor = toWebGPUBlendFactor(BlendFactor_One);
+    ret.blendState.alpha.dstFactor = toWebGPUBlendFactor(BlendFactor_OneMinusSrcAlpha);
+    ret.blendState.alpha.operation = toWebGPUBlendOperation(BlendOperation_Add);
+    ret.blendState.color.srcFactor = toWebGPUBlendFactor(BlendFactor_SrcAlpha);
+    ret.blendState.color.dstFactor = toWebGPUBlendFactor(BlendFactor_OneMinusSrcAlpha);
+    ret.blendState.color.operation = toWebGPUBlendOperation(BlendOperation_Add);
     
     return ret;
 }
