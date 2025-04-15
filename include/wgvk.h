@@ -127,6 +127,7 @@ struct WGVKInstanceImpl;
 struct WGVKAdapterImpl;
 struct WGVKDeviceImpl;
 struct WGVKSurfaceImpl;
+struct WGVKShaderModuleImpl;
 struct WGVKRenderPipelineImpl;
 struct WGVKComputePipelineImpl;
 struct WGVKTopLevelAccelerationStructureImpl;
@@ -150,6 +151,7 @@ typedef struct WGVKCommandEncoderImpl* WGVKCommandEncoder;
 typedef struct WGVKTextureImpl* WGVKTexture;
 typedef struct WGVKTextureViewImpl* WGVKTextureView;
 typedef struct WGVKRenderPipelineImpl* WGVKRenderPipeline;
+typedef struct WGVKShaderModuleImpl* WGVKShaderModule;
 typedef struct WGVKComputePipelineImpl* WGVKComputePipeline;
 typedef struct WGVKTopLevelAccelerationStructureImpl* WGVKTopLevelAccelerationStructure;
 typedef struct WGVKBottomLevelAccelerationStructureImpl* WGVKBottomLevelAccelerationStructure;
@@ -168,6 +170,11 @@ typedef enum WGVKStencilOperation {
     WGVKStencilOperation_DecrementWrap = 0x00000008,
     WGVKStencilOperation_Force32 = 0x7FFFFFFF
 } WGVKStencilOperation;
+
+typedef enum WGVKSType {
+    WGVKSType_ShaderSourceSPIRV = 0x00000001,
+    WGVKSType_ShaderSourceWGSL = 0x00000002,
+}WGVKSType;
 
 typedef struct WGVKStringView{
     const char* data;
@@ -390,6 +397,22 @@ typedef struct WGVKBlendState {
     }
     #endif
 } WGVKBlendState;
+typedef struct WGVKChainedStruct {
+    struct WGVKChainedStruct * next;
+    WGVKSType sType;
+} WGVKChainedStruct;
+
+
+typedef struct WGVKShaderSourceSPIRV {
+    WGVKChainedStruct chain;
+    uint32_t codeSize;
+    const uint32_t* code;
+} WGVKShaderSourceSPIRV;
+
+typedef struct WGVKShaderModuleDescriptor {
+    WGVKChainedStruct* nextInChain;
+    WGVKStringView label;
+} WGVKShaderModuleDescriptor;
 
 typedef struct WGVKColorTargetState {
     void* nextInChain;
@@ -406,7 +429,7 @@ typedef struct WGVKFragmentState {
     const WGVKConstantEntry* constants;
     size_t targetCount;
     const WGVKColorTargetState* targets;
-} WGPUFragmentState;
+} WGVKFragmentState;
 
 typedef struct WGVKPrimitiveState {
     void* nextInChain;
@@ -417,12 +440,12 @@ typedef struct WGVKPrimitiveState {
     Bool32 unclippedDepth;
 } WGVKPrimitiveState;
 
-typedef struct WGPUStencilFaceState {
+typedef struct WGVKStencilFaceState {
     CompareFunction compare;
     WGVKStencilOperation failOp;
     WGVKStencilOperation depthFailOp;
     WGVKStencilOperation passOp;
-} WGPUStencilFaceState;
+} WGVKStencilFaceState;
 
 typedef struct WGVkDepthStencilState {
     void* nextInChain;
@@ -430,14 +453,22 @@ typedef struct WGVkDepthStencilState {
     Bool32 depthWriteEnabled;
     CompareFunction depthCompare;
     
-    WGPUStencilFaceState stencilFront;
-    WGPUStencilFaceState stencilBack;
+    WGVKStencilFaceState stencilFront;
+    WGVKStencilFaceState stencilBack;
     uint32_t stencilReadMask;
     uint32_t stencilWriteMask;
     int32_t depthBias;
     float depthBiasSlopeScale;
     float depthBiasClamp;
 } WGVKDepthStencilState;
+
+typedef struct WGVKMultisampleState {
+    void* nextInChain;
+    uint32_t count;
+    uint32_t mask;
+    Bool32 alphaToCoverageEnabled;
+} WGVKMultisampleState;
+
 typedef struct WGVKRenderPipelineDescriptor {
     void* nextInChain;
     WGVKStringView label;
