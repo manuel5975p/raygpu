@@ -1056,6 +1056,10 @@ void wgvkBindGroupRelease(WGVKBindGroup dshandle) {
     }
 }
 
+WGVKRenderPipeline wgpuDeviceCreateRenderPipeline(WGVKDevice device, WGVKRenderPipelineDescriptor const * descriptor){
+    WGVKRenderPipeline ret = callocnewpp(WGVKRenderPipelineImpl);
+    return ret;
+}
 void wgvkBindGroupLayoutRelease(WGVKBindGroupLayout bglayout){
     --bglayout->refCount;
     if(bglayout->refCount == 0){
@@ -1176,7 +1180,7 @@ void wgvkRenderPassEncoderBindPipeline(WGVKRenderPassEncoder rpe, DescribedPipel
 
 extern "C" void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, WGVKRenderPipeline renderPipeline) { 
     vkCmdBindPipeline(rpe->cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, renderPipeline->renderPipeline);
-    rpe->lastLayout = renderPipeline->layout; 
+    rpe->lastLayout = renderPipeline->layout->layout; 
 }
 
 // Implementation of RenderPassDescriptorBindDescriptorSet
@@ -1208,7 +1212,7 @@ void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group
 }
 extern "C" void wgvkComputePassEncoderSetPipeline (WGVKComputePassEncoder cpe, WGVKComputePipeline computePipeline){
     vkCmdBindPipeline(cpe->cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, computePipeline->graphicsPipeline);
-    cpe->lastLayout = computePipeline->layout;
+    cpe->lastLayout = computePipeline->layout->layout;
 }
 extern "C" void wgvkComputePassEncoderSetBindGroup(WGVKComputePassEncoder cpe, uint32_t groupIndex, WGVKBindGroup bindGroup){
     rassert(cpe->lastLayout != nullptr, "Must bind at least one pipeline with wgvkComputePassEncoderSetPipeline before wgvkComputePassEncoderSetBindGroup");
@@ -1361,4 +1365,7 @@ extern "C" void wgvkBindGroupAddRef(WGVKBindGroup bindGroup){
 }
 extern "C" void wgvkBindGroupLayoutAddRef(WGVKBindGroupLayout bindGroupLayout){
     ++bindGroupLayout->refCount;
+}
+void wgvkPipelineLayoutAddRef(WGVKPipelineLayout pipelineLayout){
+    ++pipelineLayout->refCount;
 }

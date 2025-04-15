@@ -380,14 +380,15 @@ typedef struct WGVKTextureImpl{
 
 typedef struct WGVKRenderPipelineImpl{
     VkPipeline renderPipeline;
-    VkPipelineLayout layout;
+    refcount_type refCount;
+    WGVKPipelineLayout layout;
     std::vector<VkDynamicState> dynamicStates;
 }WGVKRenderPipelineImpl;
 
 
 typedef struct WGVKComputePipelineImpl{
     VkPipeline graphicsPipeline;
-    VkPipelineLayout layout;
+    WGVKPipelineLayout layout;
 }WGVKComputePipelineImpl;
 
 typedef struct WGVKRaytracingPipelineImpl{

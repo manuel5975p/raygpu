@@ -228,7 +228,7 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     pipelineInfo.pDepthStencilState = settings.settings.depthTest ? &depthStencil : nullptr; // Enable depth stencil if needed
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
-    pipelineInfo.layout = (VkPipelineLayout)pllayout.layout;
+    pipelineInfo.layout = pllayout.layout->layout;
 
     RenderPassLayout rpLayout zeroinit;
     rpLayout.colorAttachmentCount = 1;
@@ -274,7 +274,8 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
     ret->dynamicStates = dynamicStates;
-    ret->layout = pipelineInfo.layout;
+    ret->layout = pllayout.layout;
+    wgvkPipelineLayoutAddRef(pllayout.layout);
     if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&ret->renderPipeline) != VK_SUCCESS) {
         TRACELOG(LOG_FATAL, "Trianglelist pipiline creation failed");
     }
@@ -628,7 +629,8 @@ extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const A
     pipelineLayoutInfo.pushConstantRangeCount = 0;
     pipelineLayoutInfo.pPushConstantRanges = nullptr;
     
-    if (vkCreatePipelineLayout(g_vulkanstate.device->device, &pipelineLayoutInfo, nullptr, (VkPipelineLayout*)&ret->layout.layout) != VK_SUCCESS) {
+    ret->layout.layout = wgvkDeviceCreatePipelineLayout(g_vulkanstate.device, const WGVKPipelineLayoutDescriptor *pldesc)
+    if (vkCreatePipelineLayout(g_vulkanstate.device->device, &pipelineLayoutInfo, nullptr, ) != VK_SUCCESS) {
         TRACELOG(LOG_FATAL, "failed to create pipeline layout!");
     }
     std::vector<ResourceDescriptor> bge(uniformCount);

@@ -114,7 +114,7 @@ typedef struct AttributeAndResidence{
 
 
 typedef struct DescribedPipelineLayout{
-    NativePipelineLayoutHandle layout;
+    WGVKPipelineLayout layout;
 
     uint32_t bindgroupCount;
     DescribedBindGroupLayout bindgroupLayouts[4]; //4 is a reasonable max

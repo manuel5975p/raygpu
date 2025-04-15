@@ -211,8 +211,13 @@ typedef struct WGVKTexelCopyTextureInfo {
     VkImageAspectFlagBits aspect;
 } WGVKTexelCopyTextureInfo;
 
+typedef struct WGVKChainedStruct {
+    struct WGVKChainedStruct* next;
+    WGVKSType sType;
+} WGVKChainedStruct;
+
 typedef struct WGVKBindGroupEntry{
-    void* nextInChain;
+    WGVKChainedStruct* nextInChain;
     uint32_t binding;
     WGVKBuffer buffer;
     uint64_t offset;
@@ -247,10 +252,10 @@ typedef struct DColor{
     double r,g,b,a;
 }DColor;
 typedef struct WGVKDeviceDescriptor{
-    const void* nextInChain;
+    const WGVKChainedStruct* nextInChain;
 }WGVKDeviceDescriptor;
 typedef struct WGVKRenderPassColorAttachment{
-    void* nextInChain;
+    WGVKChainedStruct* nextInChain;
     WGVKTextureView view;
     WGVKTextureView resolveTarget;
     uint32_t depthSlice;
@@ -260,7 +265,7 @@ typedef struct WGVKRenderPassColorAttachment{
 }WGVKRenderPassColorAttachment;
 
 typedef struct WGVKRenderPassDepthStencilAttachment{
-    void* nextInChain;
+    WGVKChainedStruct* nextInChain;
     WGVKTextureView view;
     LoadOp depthLoadOp;
     StoreOp depthStoreOp;
@@ -273,7 +278,7 @@ typedef struct WGVKRenderPassDepthStencilAttachment{
 }WGVKRenderPassDepthStencilAttachment;
 
 typedef struct WGVKRenderPassDescriptor{
-    void* nextInChain;
+    WGVKChainedStruct* nextInChain;
     WGVKStringView label;
     size_t colorAttachmentCount;
     WGVKRenderPassColorAttachment const* colorAttachments;
@@ -285,7 +290,7 @@ typedef struct WGVKRenderPassDescriptor{
 }WGVKRenderPassDescriptor;
 
 typedef struct WGVKCommandEncoderDescriptor{
-    void* nextInChain;
+    WGVKChainedStruct* nextInChain;
     WGVKStringView label;
     bool recyclable;
 }WGVKCommandEncoderDescriptor;
@@ -295,7 +300,7 @@ typedef struct Extent3D{
 }Extent3D;
 
 typedef struct WGVKTextureDescriptor{
-    void* nextInChain;
+    WGVKChainedStruct* nextInChain;
     WGVKStringView label;
     TextureUsage usage;
     TextureDimension dimension;
@@ -307,7 +312,7 @@ typedef struct WGVKTextureDescriptor{
 }WGVKTextureDescriptor;
 
 typedef struct WGVKTextureViewDescriptor{
-    void* nextInChain;
+    WGVKChainedStruct* nextInChain;
     WGVKStringView label;
     PixelFormat format;
     TextureViewDimension dimension;
@@ -325,7 +330,7 @@ typedef struct WGVKBufferDescriptor{
 }WGVKBufferDescriptor;
 
 typedef struct WGVKBindGroupDescriptor{
-    void* nextInChain;
+    WGVKChainedStruct* nextInChain;
     WGVKStringView label;
     WGVKBindGroupLayout layout;
     size_t entryCount;
@@ -333,7 +338,7 @@ typedef struct WGVKBindGroupDescriptor{
 }WGVKBindGroupDescriptor;
 
 typedef struct WGVKPipelineLayoutDescriptor {
-    const void* nextInChain;
+    const WGVKChainedStruct* nextInChain;
     WGVKStringView label;
     size_t bindGroupLayoutCount;
     const WGVKBindGroupLayout * bindGroupLayouts;
@@ -349,19 +354,19 @@ typedef struct WGVKSurfaceCapabilities{
 }WGVKSurfaceCapabilities;
 
 typedef struct WGVKConstantEntry {
-    void* nextInChain;
+    WGVKChainedStruct* nextInChain;
     WGVKStringView key;
     double value;
 } WGVKConstantEntry;
 typedef struct VertexAttribute {
-    void* nextInChain;
+    WGVKChainedStruct* nextInChain;
     VertexFormat format;
     uint64_t offset;
     uint32_t shaderLocation;
 }VertexAttribute;
 
 typedef struct WGVKVertexBufferLayout {
-    void* nextInChain;
+    WGVKChainedStruct* nextInChain;
     VertexStepMode stepMode;
     uint64_t arrayStride;
     size_t attributeCount;
@@ -369,7 +374,7 @@ typedef struct WGVKVertexBufferLayout {
 } WGVKVertexBufferLayout;
 
 typedef struct WGVKVertexState {
-    void* nextInChain;
+    WGVKChainedStruct* nextInChain;
     WGVKShaderModule module;
     WGVKStringView entryPoint;
     size_t constantCount;
@@ -397,10 +402,7 @@ typedef struct WGVKBlendState {
     }
     #endif
 } WGVKBlendState;
-typedef struct WGVKChainedStruct {
-    struct WGVKChainedStruct * next;
-    WGVKSType sType;
-} WGVKChainedStruct;
+
 
 
 typedef struct WGVKShaderSourceSPIRV {
@@ -415,14 +417,14 @@ typedef struct WGVKShaderModuleDescriptor {
 } WGVKShaderModuleDescriptor;
 
 typedef struct WGVKColorTargetState {
-    void* nextInChain;
+    WGVKChainedStruct* nextInChain;
     PixelFormat format;
     const WGVKBlendState* blend;
     //WGVKColorWriteMask writeMask;
 } WGVKColorTargetState;
 
 typedef struct WGVKFragmentState {
-    void* nextInChain;
+    WGVKChainedStruct* nextInChain;
     WGVKShaderModule module;
     WGVKStringView entryPoint;
     size_t constantCount;
@@ -432,7 +434,7 @@ typedef struct WGVKFragmentState {
 } WGVKFragmentState;
 
 typedef struct WGVKPrimitiveState {
-    void* nextInChain;
+    WGVKChainedStruct* nextInChain;
     PrimitiveType topology;
     IndexFormat stripIndexFormat;
     FrontFace frontFace;
@@ -448,7 +450,7 @@ typedef struct WGVKStencilFaceState {
 } WGVKStencilFaceState;
 
 typedef struct WGVkDepthStencilState {
-    void* nextInChain;
+    WGVKChainedStruct* nextInChain;
     PixelFormat format;
     Bool32 depthWriteEnabled;
     CompareFunction depthCompare;
@@ -463,14 +465,14 @@ typedef struct WGVkDepthStencilState {
 } WGVKDepthStencilState;
 
 typedef struct WGVKMultisampleState {
-    void* nextInChain;
+    WGVKChainedStruct* nextInChain;
     uint32_t count;
     uint32_t mask;
     Bool32 alphaToCoverageEnabled;
 } WGVKMultisampleState;
 
 typedef struct WGVKRenderPipelineDescriptor {
-    void* nextInChain;
+    WGVKChainedStruct* nextInChain;
     WGVKStringView label;
     WGVKPipelineLayout layout;
     WGVKVertexState vertex;
@@ -525,6 +527,8 @@ size_t wgvkBufferGetSize(WGVKBuffer buffer);
 void wgvkQueueWriteTexture(WGVKQueue queue, WGVKTexelCopyTextureInfo const * destination, void const * data, size_t dataSize, WGVKTexelCopyBufferLayout const * dataLayout, WGVKExtent3D const * writeSize);
 WGVKBindGroupLayout wgvkDeviceCreateBindGroupLayout(WGVKDevice device, const ResourceTypeDescriptor* entries, uint32_t entryCount);
 WGVKPipelineLayout wgvkDeviceCreatePipelineLayout(WGVKDevice device, const WGVKPipelineLayoutDescriptor* pldesc);
+WGVKRenderPipeline wgpuDeviceCreateRenderPipeline(WGVKDevice device, WGVKRenderPipelineDescriptor const * descriptor);
+
 WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVKBindGroupDescriptor* bgdesc);
 void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup, const WGVKBindGroupDescriptor* bgdesc);
 
@@ -563,6 +567,7 @@ void wgvkTextureViewAddRef                    (WGVKTextureView textureView);
 void wgvkBufferAddRef                         (WGVKBuffer buffer);
 void wgvkBindGroupAddRef                      (WGVKBindGroup bindGroup);
 void wgvkBindGroupLayoutAddRef                (WGVKBindGroupLayout bindGroupLayout);
+void wgvkPipelineLayoutAddRef                 (WGVKPipelineLayout pipelineLayout);
 void wgvkReleaseCommandEncoder                (WGVKCommandEncoder commandBuffer);
 void wgvkReleaseCommandBuffer                 (WGVKCommandBuffer commandBuffer);
 void wgvkReleaseRenderPassEncoder             (WGVKRenderPassEncoder rpenc);
