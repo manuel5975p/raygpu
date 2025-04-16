@@ -71,7 +71,7 @@ typedef struct Image{
                              // Have to have a multiple of 256 bytes as row length 
 }Image;
 #ifndef MAX_MIP_LEVELS
-#define MAX_MIP_LEVELS 16
+#define MAX_MIP_LEVELS 8
 #endif
 typedef struct Texture2D{
     WGVKTexture id;
@@ -108,8 +108,11 @@ typedef struct Rectangle {
 
 typedef struct RenderTexture{
     Texture texture;
+    Texture moreColorAttachments[MAX_COLOR_ATTTACHMENTS - 1];
     Texture colorMultisample;
     Texture depth;
+
+    uint32_t colorAttachmentCount;
 }RenderTexture;
 
 

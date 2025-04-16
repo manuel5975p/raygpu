@@ -1388,36 +1388,38 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     dsa.depthLoadOp = renderPass->depthLoadOp;
     dsa.depthStoreOp = renderPass->depthStoreOp;
     dsa.view = (WGVKTextureView)rtex.depth.view;
-    WGVKRenderPassColorAttachment rca zeroinit;
-    rca.depthSlice = 0;
-    rca.clearValue = renderPass->colorClear;
-    rca.loadOp = renderPass->colorLoadOp;
-    rca.storeOp = renderPass->colorStoreOp;
+    WGVKRenderPassColorAttachment rca[max_color_attachments] zeroinit;
+    rca[0].depthSlice = 0;
+    rca[0].clearValue = renderPass->colorClear;
+    rca[0].loadOp = renderPass->colorLoadOp;
+    rca[0].storeOp = renderPass->colorStoreOp;
     if(rtex.colorMultisample.view){
-        rca.view = (WGVKTextureView)rtex.colorMultisample.view;
-        rca.resolveTarget = (WGVKTextureView)rtex.texture.view;
-        reinterpret_cast<WGVKCommandEncoder>(renderPass->cmdEncoder)->initializeOrTransition(rca.view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        reinterpret_cast<WGVKCommandEncoder>(renderPass->cmdEncoder)->initializeOrTransition(rca.resolveTarget->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        if(rca.view->texture->layout != VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL){
-            //wgvkCommandEncoderTransitionTextureLayout((WGVKCommandEncoder)renderPass->cmdEncoder, rca.view->texture, rca.view->texture->layout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        }
-        if(rca.resolveTarget->texture->layout != VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL){
-            //wgvkCommandEncoderTransitionTextureLayout((WGVKCommandEncoder)renderPass->cmdEncoder, rca.resolveTarget->texture, rca.resolveTarget->texture->layout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        }
+        rca[0].view = (WGVKTextureView)rtex.colorMultisample.view;
+        rca[0].resolveTarget = (WGVKTextureView)rtex.texture.view;
+        reinterpret_cast<WGVKCommandEncoder>(renderPass->cmdEncoder)->initializeOrTransition(rca[0].view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        reinterpret_cast<WGVKCommandEncoder>(renderPass->cmdEncoder)->initializeOrTransition(rca[0].resolveTarget->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     }
     else{
-        rca.view = (WGVKTextureView)rtex.texture.view;
-        reinterpret_cast<WGVKCommandEncoder>(renderPass->cmdEncoder)->initializeOrTransition(rca.view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        if(rca.view->texture->layout != VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL){
-            //wgvkCommandEncoderTransitionTextureLayout((WGVKCommandEncoder)renderPass->cmdEncoder, rca.view->texture, rca.view->texture->layout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        }
+        rca[0].view = (WGVKTextureView)rtex.texture.view;
+        reinterpret_cast<WGVKCommandEncoder>(renderPass->cmdEncoder)->initializeOrTransition(rca[0].view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     }
     if(renderPass->settings.depthTest){
         rpdesc.depthStencilAttachment = &dsa;
     }
-    rpdesc.colorAttachments = &rca;
-    rpdesc.colorAttachmentCount = 1;
-    //fbci.pAttachments = fbAttachments;
+    if(rpdesc.colorAttachmentCount > 1){
+        for(uint32_t i = 0;i < rpdesc.colorAttachmentCount - 1;i++){
+            WGVKRenderPassColorAttachment& ar = rca[i + 1];
+            ar.depthSlice = 0;
+            ar.clearValue = renderPass->colorClear;
+            ar.loadOp = renderPass->colorLoadOp;
+            ar.storeOp = renderPass->colorStoreOp;
+            ar.view = rtex.moreColorAttachments[i].view;
+            reinterpret_cast<WGVKCommandEncoder>(renderPass->cmdEncoder)->initializeOrTransition(ar.view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        }
+    }
+    rpdesc.colorAttachments = rca;
+    rpdesc.colorAttachmentCount = rtex.colorAttachmentCount;
+    //fbci.pAttachments = fbAttac   hments;
     //fbci.attachmentCount = 2;
     //fbci.width = rtex.texture.width;
     //fbci.height = rtex.texture.height;

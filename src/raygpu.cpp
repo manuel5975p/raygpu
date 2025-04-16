@@ -1339,6 +1339,7 @@ RenderTexture LoadRenderTextureEx(uint32_t width, uint32_t height, PixelFormat c
     if(sampleCount > 1){
         ret.colorMultisample = LoadTexturePro(width, height, colorFormat, TextureUsage_RenderAttachment | TextureUsage_CopySrc, sampleCount, 1);
     }
+    ret.colorAttachmentCount = 1;
     return ret;
 }
 
