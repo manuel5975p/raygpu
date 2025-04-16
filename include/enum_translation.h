@@ -39,7 +39,6 @@ using std::uint64_t;
 #endif
 
 #include <macros_and_constants.h>
-
 #if SUPPORT_WGPU_BACKEND == 1
 #include <webgpu/webgpu.h>
 #endif
@@ -305,7 +304,11 @@ typedef enum BlendOperation {
     BlendOperation_Max = 0x00000005,
     //BlendOperation_Force32 = 0x7FFFFFFF
 } BlendOperation;
+typedef int WGVKDeviceLostReason;
+typedef int WGVKErrorType;
 #else 
+typedef WGPUDeviceLostReason WGVKDeviceLostReason;
+typedef WGPUErrorType WGVKErrorType;
 typedef WGPUVertexFormat VertexFormat;
 #define VertexFormat_Uint8 WGPUVertexFormat_Uint8
 #define VertexFormat_Uint8x2 WGPUVertexFormat_Uint8x2
@@ -356,6 +359,36 @@ typedef WGPURequestAdapterStatus WGVKRequestAdapterStatus;
 #define WGVKRequestAdapterStatus_Unavailable WGVKRequestAdapterStatus_Unavailable
 #define WGVKRequestAdapterStatus_Error WGVKRequestAdapterStatus_Error
 #define WGVKRequestAdapterStatus_Force32 WGVKRequestAdapterStatus_Force32
+
+
+typedef WGPUBlendFactor BlendFactor;
+#define BlendFactor_Undefined WGPUBlendFactor_Undefined
+#define BlendFactor_Zero WGPUBlendFactor_Zero
+#define BlendFactor_One WGPUBlendFactor_One
+#define BlendFactor_Src WGPUBlendFactor_Src
+#define BlendFactor_OneMinusSrc WGPUBlendFactor_OneMinusSrc
+#define BlendFactor_SrcAlpha WGPUBlendFactor_SrcAlpha
+#define BlendFactor_OneMinusSrcAlpha WGPUBlendFactor_OneMinusSrcAlpha
+#define BlendFactor_Dst WGPUBlendFactor_Dst
+#define BlendFactor_OneMinusDst WGPUBlendFactor_OneMinusDst
+#define BlendFactor_DstAlpha WGPUBlendFactor_DstAlpha
+#define BlendFactor_OneMinusDstAlpha WGPUBlendFactor_OneMinusDstAlpha
+#define BlendFactor_SrcAlphaSaturated WGPUBlendFactor_SrcAlphaSaturated
+#define BlendFactor_Constant WGPUBlendFactor_Constant
+#define BlendFactor_OneMinusConstant WGPUBlendFactor_OneMinusConstant
+#define BlendFactor_Src1 WGPUBlendFactor_Src1
+#define BlendFactor_OneMinusSrc1 WGPUBlendFactor_OneMinusSrc1
+#define BlendFactor_Src1Alpha WGPUBlendFactor_Src1Alpha
+#define BlendFactor_OneMinusSrc1Alpha WGPUBlendFactor_OneMinusSrc1Alpha
+
+typedef WGPUBlendOperation BlendOperation;
+#define BlendOperation_Undefined WGPUBlendOperation_Undefined
+#define BlendOperation_Add WGPUBlendOperation_Add
+#define BlendOperation_Subtract WGPUBlendOperation_Subtract
+#define BlendOperation_ReverseSubtract WGPUBlendOperation_ReverseSubtract
+#define BlendOperation_Min WGPUBlendOperation_Min
+#define BlendOperation_Max WGPUBlendOperation_Max
+
 #endif
 
 typedef enum VertexStepMode { VertexStepMode_None = 0x0, VertexStepMode_Vertex = 0x1, VertexStepMode_Instance = 0x2, VertexStepMode_Force32 = 0x7FFFFFFF } VertexStepMode;
@@ -1267,62 +1300,64 @@ static inline WGPUCompareFunction toWebGPUCompareFunction(CompareFunction cf) {
 
 // Translation function for BlendFactor to WGPUBlendFactor
 static inline WGPUBlendFactor toWebGPUBlendFactor(BlendFactor bf) {
-    switch (bf) {
-    case BlendFactor_Zero:
-        return WGPUBlendFactor_Zero;
-    case BlendFactor_One:
-        return WGPUBlendFactor_One;
-    case BlendFactor_Src:
-        return WGPUBlendFactor_Src;
-    case BlendFactor_OneMinusSrc:
-        return WGPUBlendFactor_OneMinusSrc;
-    case BlendFactor_SrcAlpha:
-        return WGPUBlendFactor_SrcAlpha;
-    case BlendFactor_OneMinusSrcAlpha:
-        return WGPUBlendFactor_OneMinusSrcAlpha;
-    case BlendFactor_Dst:
-        return WGPUBlendFactor_Dst;
-    case BlendFactor_OneMinusDst:
-        return WGPUBlendFactor_OneMinusDst;
-    case BlendFactor_DstAlpha:
-        return WGPUBlendFactor_DstAlpha;
-    case BlendFactor_OneMinusDstAlpha:
-        return WGPUBlendFactor_OneMinusDstAlpha;
-    case BlendFactor_SrcAlphaSaturated:
-        return WGPUBlendFactor_SrcAlphaSaturated;
-    case BlendFactor_Constant:
-        return WGPUBlendFactor_Constant;
-    case BlendFactor_OneMinusConstant:
-        return WGPUBlendFactor_OneMinusConstant;
-    case BlendFactor_Src1:
-        return WGPUBlendFactor_Src1;
-    case BlendFactor_OneMinusSrc1:
-        return WGPUBlendFactor_OneMinusSrc1;
-    case BlendFactor_Src1Alpha:
-        return WGPUBlendFactor_Src1Alpha;
-    case BlendFactor_OneMinusSrc1Alpha:
-        return WGPUBlendFactor_OneMinusSrc1Alpha;
-    default:
-        return WGPUBlendFactor_One; // Default fallback
-    }
+    return bf;
+    //switch (bf) {
+    //case BlendFactor_Zero:
+    //    return WGPUBlendFactor_Zero;
+    //case BlendFactor_One:
+    //    return WGPUBlendFactor_One;
+    //case BlendFactor_Src:
+    //    return WGPUBlendFactor_Src;
+    //case BlendFactor_OneMinusSrc:
+    //    return WGPUBlendFactor_OneMinusSrc;
+    //case BlendFactor_SrcAlpha:
+    //    return WGPUBlendFactor_SrcAlpha;
+    //case BlendFactor_OneMinusSrcAlpha:
+    //    return WGPUBlendFactor_OneMinusSrcAlpha;
+    //case BlendFactor_Dst:
+    //    return WGPUBlendFactor_Dst;
+    //case BlendFactor_OneMinusDst:
+    //    return WGPUBlendFactor_OneMinusDst;
+    //case BlendFactor_DstAlpha:
+    //    return WGPUBlendFactor_DstAlpha;
+    //case BlendFactor_OneMinusDstAlpha:
+    //    return WGPUBlendFactor_OneMinusDstAlpha;
+    //case BlendFactor_SrcAlphaSaturated:
+    //    return WGPUBlendFactor_SrcAlphaSaturated;
+    //case BlendFactor_Constant:
+    //    return WGPUBlendFactor_Constant;
+    //case BlendFactor_OneMinusConstant:
+    //    return WGPUBlendFactor_OneMinusConstant;
+    //case BlendFactor_Src1:
+    //    return WGPUBlendFactor_Src1;
+    //case BlendFactor_OneMinusSrc1:
+    //    return WGPUBlendFactor_OneMinusSrc1;
+    //case BlendFactor_Src1Alpha:
+    //    return WGPUBlendFactor_Src1Alpha;
+    //case BlendFactor_OneMinusSrc1Alpha:
+    //    return WGPUBlendFactor_OneMinusSrc1Alpha;
+    //default:
+    //    return WGPUBlendFactor_One; // Default fallback
+    //}
 }
 
 // Translation function for BlendOperation to WGPUBlendOperation
 static inline WGPUBlendOperation toWebGPUBlendOperation(BlendOperation bo) {
-    switch (bo) {
-    case BlendOperation_Add:
-        return WGPUBlendOperation_Add;
-    case BlendOperation_Subtract:
-        return WGPUBlendOperation_Subtract;
-    case BlendOperation_ReverseSubtract:
-        return WGPUBlendOperation_ReverseSubtract;
-    case BlendOperation_Min:
-        return WGPUBlendOperation_Min;
-    case BlendOperation_Max:
-        return WGPUBlendOperation_Max;
-    default:
-        return WGPUBlendOperation_Add; // Default fallback
-    }
+    return bo;
+    //switch (bo) {
+    //case BlendOperation_Add:
+    //    return WGPUBlendOperation_Add;
+    //case BlendOperation_Subtract:
+    //    return WGPUBlendOperation_Subtract;
+    //case BlendOperation_ReverseSubtract:
+    //    return WGPUBlendOperation_ReverseSubtract;
+    //case BlendOperation_Min:
+    //    return WGPUBlendOperation_Min;
+    //case BlendOperation_Max:
+    //    return WGPUBlendOperation_Max;
+    //default:
+    //    return WGPUBlendOperation_Add; // Default fallback
+    //}
 }
 
 // Translation function for TFilterMode to WGPUFilterMode

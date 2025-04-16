@@ -82,6 +82,7 @@ layout(binding = 0) uniform Perspective_View {
 layout(binding = 3) readonly buffer modelMatrix {
     mat4 modelMatrices[];  // Array of model matrices.
 };
+
 void main() {
     gl_PointSize = 1.0f;
     

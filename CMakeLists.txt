@@ -198,6 +198,7 @@ set(RG_SOURCES
     
     "src/models.cpp"
     "src/windows_stuff.c"
+    "include/enum_translation.h"
 )
 if(SUPPORT_VULKAN_BACKEND)
     list(APPEND RG_SOURCES "src/backend_vulkan/vulkan_textures.cpp")

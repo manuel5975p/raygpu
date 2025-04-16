@@ -283,9 +283,104 @@ typedef struct ResourceDescriptor {
 typedef struct DColor{
     double r,g,b,a;
 }DColor;
-typedef struct WGVKDeviceDescriptor{
-    const WGVKChainedStruct* nextInChain;
-}WGVKDeviceDescriptor;
+typedef enum WGVKFeatureLevel {
+    WGVKFeatureLevel_Undefined = 0x00000000,
+    WGVKFeatureLevel_Compatibility = 0x00000001,
+    WGVKFeatureLevel_Core = 0x00000002,
+    WGVKFeatureLevel_Force32 = 0x7FFFFFFF
+} WGVKFeatureLevel;
+typedef enum WGVKFeatureName {
+    WGVKFeatureName_DepthClipControl = 0x00000001,
+    WGVKFeatureName_Depth32FloatStencil8 = 0x00000002,
+    WGVKFeatureName_TimestampQuery = 0x00000003,
+    WGVKFeatureName_TextureCompressionBC = 0x00000004,
+    WGVKFeatureName_TextureCompressionBCSliced3D = 0x00000005,
+    WGVKFeatureName_TextureCompressionETC2 = 0x00000006,
+    WGVKFeatureName_TextureCompressionASTC = 0x00000007,
+    WGVKFeatureName_TextureCompressionASTCSliced3D = 0x00000008,
+    WGVKFeatureName_IndirectFirstInstance = 0x00000009,
+    WGVKFeatureName_ShaderF16 = 0x0000000A,
+    WGVKFeatureName_RG11B10UfloatRenderable = 0x0000000B,
+    WGVKFeatureName_BGRA8UnormStorage = 0x0000000C,
+    WGVKFeatureName_Float32Filterable = 0x0000000D,
+    WGVKFeatureName_Float32Blendable = 0x0000000E,
+    WGVKFeatureName_ClipDistances = 0x0000000F,
+    WGVKFeatureName_DualSourceBlending = 0x00000010,
+    WGVKFeatureName_Subgroups = 0x00000011,
+    WGVKFeatureName_CoreFeaturesAndLimits = 0x00000012,
+    WGVKFeatureName_Force32 = 0x7FFFFFFF
+} WGVKFeatureName;
+typedef struct WGVKLimits {
+    WGVKChainedStruct* nextInChain;
+    uint32_t maxTextureDimension1D;
+    uint32_t maxTextureDimension2D;
+    uint32_t maxTextureDimension3D;
+    uint32_t maxTextureArrayLayers;
+    uint32_t maxBindGroups;
+    uint32_t maxBindGroupsPlusVertexBuffers;
+    uint32_t maxBindingsPerBindGroup;
+    uint32_t maxDynamicUniformBuffersPerPipelineLayout;
+    uint32_t maxDynamicStorageBuffersPerPipelineLayout;
+    uint32_t maxSampledTexturesPerShaderStage;
+    uint32_t maxSamplersPerShaderStage;
+    uint32_t maxStorageBuffersPerShaderStage;
+    uint32_t maxStorageTexturesPerShaderStage;
+    uint32_t maxUniformBuffersPerShaderStage;
+    uint64_t maxUniformBufferBindingSize;
+    uint64_t maxStorageBufferBindingSize;
+    uint32_t minUniformBufferOffsetAlignment;
+    uint32_t minStorageBufferOffsetAlignment;
+    uint32_t maxVertexBuffers;
+    uint64_t maxBufferSize;
+    uint32_t maxVertexAttributes;
+    uint32_t maxVertexBufferArrayStride;
+    uint32_t maxInterStageShaderVariables;
+    uint32_t maxColorAttachments;
+    uint32_t maxColorAttachmentBytesPerSample;
+    uint32_t maxComputeWorkgroupStorageSize;
+    uint32_t maxComputeInvocationsPerWorkgroup;
+    uint32_t maxComputeWorkgroupSizeX;
+    uint32_t maxComputeWorkgroupSizeY;
+    uint32_t maxComputeWorkgroupSizeZ;
+    uint32_t maxComputeWorkgroupsPerDimension;
+    uint32_t maxStorageBuffersInVertexStage;
+    uint32_t maxStorageTexturesInVertexStage;
+    uint32_t maxStorageBuffersInFragmentStage;
+    uint32_t maxStorageTexturesInFragmentStage;
+}WGVKLimits;
+
+typedef struct WGVKQueueDescriptor {
+    WGVKChainedStruct* nextInChain;
+    WGVKStringView label;
+}WGVKQueueDescriptor;
+
+typedef void (*WGVKDeviceLostCallback)(const WGVKDevice*, WGVKDeviceLostReason, struct WGVKStringView, void*, void*);
+typedef void (*WGVKUncapturedErrorCallback)(const WGVKDevice*, WGVKErrorType, struct WGVKStringView, void*, void*);
+
+typedef struct WGVKDeviceLostCallbackInfo {
+    WGVKChainedStruct * nextInChain;
+    int mode;
+    WGVKDeviceLostCallback callback;
+    void* userdata1;
+    void* userdata2;
+} WGVKDeviceLostCallbackInfo;
+typedef struct WGVKUncapturedErrorCallbackInfo {
+    WGVKChainedStruct * nextInChain;
+    WGVKUncapturedErrorCallback callback;
+    void* userdata1;
+    void* userdata2;
+} WGVKUncapturedErrorCallbackInfo;
+typedef struct WGVKDeviceDescriptor {
+    WGVKChainedStruct * nextInChain;
+    WGVKStringView label;
+    size_t requiredFeatureCount;
+    WGVKFeatureName const * requiredFeatures;
+    WGVKLimits const * requiredLimits;
+    WGVKQueueDescriptor defaultQueue;
+    WGVKDeviceLostCallbackInfo deviceLostCallbackInfo;
+    WGVKUncapturedErrorCallbackInfo uncapturedErrorCallbackInfo;
+} WGVKDeviceDescriptor;
+
 typedef struct WGVKRenderPassColorAttachment{
     WGVKChainedStruct* nextInChain;
     WGVKTextureView view;
@@ -558,7 +653,7 @@ WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccelerationStru
 
 WGVKInstance wgvkCreateInstance(const WGVKInstanceDescriptor *descriptor);
 WGVKFuture wgvkInstanceRequestAdapter(WGVKInstance instance, const WGVKRequestAdapterOptions* options, WGVKRequestAdapterCallbackInfo callbackInfo);
-WGVKDevice wgpuAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescriptor *descriptor);
+WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescriptor *descriptor);
 
 void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, WGVKAdapter adapter, WGVKSurfaceCapabilities* capabilities);
 void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* config);
@@ -586,7 +681,7 @@ void wgvkCommandEncoderCopyBufferToTexture    (WGVKCommandEncoder commandEncoder
 void wgvkCommandEncoderCopyTextureToBuffer    (WGVKCommandEncoder commandEncoder, const WGVKTexelCopyTextureInfo* source, const WGVKTexelCopyBufferInfo* destination, const WGVKExtent3D* copySize);
 void wgvkCommandEncoderCopyTextureToTexture   (WGVKCommandEncoder commandEncoder, const WGVKTexelCopyTextureInfo* source, const WGVKTexelCopyTextureInfo* destination, const WGVKExtent3D* copySize);
 void wgvkRenderpassEncoderDraw                (WGVKRenderPassEncoder rpe, uint32_t vertices, uint32_t instances, uint32_t firstvertex, uint32_t firstinstance);
-void wgvkRenderpassEncoderDrawIndexed         (WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t firstinstance);
+void wgvkRenderpassEncoderDrawIndexed         (WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t basevertex, uint32_t firstinstance);
 void wgvkRenderPassEncoderSetBindGroup        (WGVKRenderPassEncoder rpe, uint32_t group, WGVKBindGroup dset);
 void wgvkRenderPassEncoderSetPipeline         (WGVKRenderPassEncoder rpe, WGVKRenderPipeline renderPipeline);
 void wgvkComputePassEncoderSetPipeline        (WGVKComputePassEncoder cpe, WGVKComputePipeline computePipeline);

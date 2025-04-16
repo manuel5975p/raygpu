@@ -673,13 +673,17 @@ extern "C" DescribedPipeline* LoadPipelineForVAOEx(ShaderSources sources, Vertex
     return pl;
 }
 
-extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry){
+extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t location, ResourceDescriptor entry){
 
     WGVKBindGroup bgImpl = (WGVKBindGroup)bg->bindGroup;
-    if(index >= bg->entryCount){
-        TRACELOG(LOG_WARNING, "Trying to set entry %d on a BindGroup with only %d entries", (int)index, (int)bg->entryCount);
-        //return;
+    uint32_t index = ~0u;
+    for(uint32_t i = 0;i < bg->entryCount;i++){
+        if(bg->entries[i].binding == location){
+            index = i; break;
+        }
     }
+    rassert(index != ~0u, "No entry was found with given location");
+
     auto& newpuffer = entry.buffer;
     auto& newtexture = entry.textureView;
     if(newtexture && bg->entries[index].textureView == newtexture){

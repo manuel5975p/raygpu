@@ -15,8 +15,8 @@ static inline WGPUStorageTextureAccess toStorageTextureAccess(access_type acc){
 static inline WGPUBufferBindingType toStorageBufferAccess(access_type acc){
     switch(acc){
         case access_type::readonly: return WGPUBufferBindingType_ReadOnlyStorage;
-        case access_type::readwrite:return WGPUBufferBindingType_Storage;
-        case access_type::writeonly:return WGPUBufferBindingType_Storage;
+        case access_type::writeonly: [[fallthrough]];
+        case access_type::readwrite: return WGPUBufferBindingType_Storage;
         default: rg_unreachable();
     }
     return WGPUBufferBindingType_Force32;
@@ -199,15 +199,11 @@ void wgvkCommandEncoderCopyTextureToTexture(WGVKCommandEncoder commandEncoder, W
 void wgvkRenderpassEncoderDraw(WGVKRenderPassEncoder rpe, uint32_t vertices, uint32_t instances, uint32_t firstvertex, uint32_t firstinstance){
     wgpuRenderPassEncoderDraw(rpe, vertices, instances, firstvertex, firstinstance);
 }
-void wgvkRenderpassEncoderDrawIndexed(WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t firstinstance){
-    //TODO basevertex?
-    wgpuRenderPassEncoderDrawIndexed(rpe, indices, instances, firstindex, 0, firstinstance);
+void wgvkRenderpassEncoderDrawIndexed(WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t baseVertex, uint32_t firstinstance){
+    wgpuRenderPassEncoderDrawIndexed(rpe, indices, instances, firstindex, baseVertex, firstinstance);
 }
 void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group, WGVKBindGroup dset){
     wgpuRenderPassEncoderSetBindGroup(rpe, group, dset, 0, nullptr);
-}
-void wgvkRenderPassEncoderBindPipeline(WGVKRenderPassEncoder rpe, struct DescribedPipeline* pipeline){
-    wgpuRenderPassEncoderSetPipeline(rpe, (WGPURenderPipeline)pipeline); //UUUUUUH this assumes that the WGVKRenderPipeline is the first member of the DescribedPipeline
 }
 WGVKInstance wgvkCreateInstance(const WGVKInstanceDescriptor *descriptor){
     return wgpuCreateInstance(descriptor);
@@ -215,8 +211,8 @@ WGVKInstance wgvkCreateInstance(const WGVKInstanceDescriptor *descriptor){
 WGVKFuture wgvkInstanceRequestAdapter(WGVKInstance instance, const WGVKRequestAdapterOptions* options, WGVKRequestAdapterCallbackInfo callbackInfo){
     return wgpuInstanceRequestAdapter(instance, options, callbackInfo);
 }
-WGVKDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGVKDeviceDescriptor *descriptor){
-
+WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescriptor *descriptor){
+    return wgpuAdapterCreateDevice(adapter, descriptor);
 }
 //void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, VkPipeline pipeline, VkPipelineLayout layout){
     //TODO 

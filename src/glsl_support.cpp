@@ -256,12 +256,31 @@ std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char
 }
 std::vector<uint32_t> glsl_to_spirv_single(const char* cs, EShLanguage stage){
     glslang::TShader shader(stage);
-    shader.setEnvInput (glslang::EShSourceGlsl, stage, glslang::EShClientOpenGL, 460);
+    shader.setEnvInput (glslang::EShSourceGlsl, stage, glslang::EShClientVulkan, glslang::EShTargetVulkan_1_4);
     shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_4);
     shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
     shader.setStrings(&cs, 1);
-    //shader.setAutoMapLocations(true);
-    TBuiltInResource Resources = {};
+
+    auto stageToString = [](EShLanguage stage){
+        switch(stage){
+            case EShLangVertex: return "EShLangVertex";
+            case EShLangTessControl: return "EShLangTessControl";
+            case EShLangTessEvaluation: return "EShLangTessEvaluation";
+            case EShLangGeometry: return "EShLangGeometry";
+            case EShLangFragment: return "EShLangFragment";
+            case EShLangCompute: return "EShLangCompute";
+            case EShLangRayGen: return "EShLangRayGen";
+            case EShLangIntersect: return "EShLangIntersect";
+            case EShLangAnyHit: return "EShLangAnyHit";
+            case EShLangClosestHit: return "EShLangClosestHit";
+            case EShLangMiss: return "EShLangMiss";
+            case EShLangCallable: return "EShLangCallable";
+            case EShLangTask: return "EShLangTask";
+            case EShLangMesh: return "EShLangMesh";
+            default: return "??unknown ShaderStage??";
+        }
+    };
+    TBuiltInResource Resources zeroinit;
     Resources.maxComputeWorkGroupSizeX = 1024;
     Resources.maxComputeWorkGroupSizeY = 1024;
     Resources.maxComputeWorkGroupSizeZ = 1024;
@@ -269,13 +288,12 @@ std::vector<uint32_t> glsl_to_spirv_single(const char* cs, EShLanguage stage){
 
     Resources.limits.generalUniformIndexing = true;
     Resources.limits.generalVariableIndexing = true;
-    Resources.maxDrawBuffers = true;
+    Resources.maxDrawBuffers = MAX_COLOR_ATTTACHMENTS;
 
     EShMessages messages = (EShMessages)(EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules);
 
-    if(!shader.parse(&Resources, 460, ECoreProfile, false, false, messages)){
-        
-        TRACELOG(LOG_ERROR, "Compute GLSL Parsing Failed: %s", shader.getInfoLog());
+    if(!shader.parse(&Resources, glslang::EShTargetVulkan_1_4, ECoreProfile, false, false, messages)){
+        TRACELOG(LOG_ERROR, "%s GLSL Parsing Failed: %s", stageToString(stage), shader.getInfoLog());
     }
     glslang::TProgram program;
     program.addShader(&shader);
@@ -657,8 +675,8 @@ DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     glslSources.sources[0].sizeInBytes = std::strlen((const char*)glslSources.sources[0].data);
     glslSources.sources[0].stageMask = ShaderStageMask_Vertex;
 
-    glslSources.sources[1].data = fs;
-    glslSources.sources[1].sizeInBytes = std::strlen(fs);
+    glslSources.sources[1].data = fs ? fs : fragmentSourceGLSL;
+    glslSources.sources[1].sizeInBytes = std::strlen((const char*)glslSources.sources[1].data);
     glslSources.sources[1].stageMask = ShaderStageMask_Fragment;
 
     DescribedShaderModule shaderModule = LoadShaderModuleGLSL(glslSources);

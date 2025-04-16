@@ -10,11 +10,13 @@ void main() {
 const char fragmentSourceGLSL[] = R"(
 #version 450
 layout(location = 0) out vec4 fragColor;
+layout(location = 1) out vec4 fragColor2;
 layout(binding = 5) uniform color {
     vec4 colorval;
 };
 void main() {
     fragColor = colorval;
+    fragColor2 = vec4(0, colorval.yzw);
 }
 )";
 int main(){

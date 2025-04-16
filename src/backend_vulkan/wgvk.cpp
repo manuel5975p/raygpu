@@ -1164,18 +1164,11 @@ void wgvkRenderpassEncoderDraw(WGVKRenderPassEncoder rpe, uint32_t vertices, uin
 }
 
 // Implementation of RenderpassEncoderDrawIndexed
-void wgvkRenderpassEncoderDrawIndexed(WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t firstinstance) {
+extern "C" void wgvkRenderpassEncoderDrawIndexed(WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t baseVertex, uint32_t firstinstance) {
     assert(rpe != nullptr && "RenderPassEncoderHandle is null");
 
-    // Assuming vertexOffset is 0. Modify if you have a different offset.
-    int32_t vertexOffset = 0;
-
     // Record the indexed draw command into the command buffer
-    vkCmdDrawIndexed(rpe->cmdBuffer, indices, instances, firstindex, vertexOffset, firstinstance);
-}
-void wgvkRenderPassEncoderBindPipeline(WGVKRenderPassEncoder rpe, DescribedPipeline *pipeline) { 
-    rpe->lastLayout = (VkPipelineLayout)pipeline->layout.layout; 
-    vkCmdBindPipeline(rpe->cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipeline)pipeline->activePipeline->renderPipeline);
+    vkCmdDrawIndexed(rpe->cmdBuffer, indices, instances, firstindex, (int32_t)(baseVertex & 0x7fffffff), firstinstance);
 }
 
 extern "C" void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, WGVKRenderPipeline renderPipeline) { 

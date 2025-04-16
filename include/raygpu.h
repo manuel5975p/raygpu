@@ -74,9 +74,9 @@ typedef struct Image{
 #define MAX_MIP_LEVELS 16
 #endif
 typedef struct Texture2D{
-    NativeImageHandle id;
-    NativeImageViewHandle view;
-    NativeImageViewHandle mipViews[MAX_MIP_LEVELS];
+    WGVKTexture id;
+    WGVKTextureView view;
+    WGVKTextureView mipViews[MAX_MIP_LEVELS];
     
     uint32_t width, height;
     PixelFormat format;
@@ -86,8 +86,8 @@ typedef struct Texture2D{
 typedef Texture2D Texture;
 
 typedef struct Texture3D{
-    NativeImageHandle id;
-    NativeImageViewHandle view;
+    WGVKTexture id;
+    WGVKTextureView view;
     uint32_t width, height, depth;
     PixelFormat format;
     uint32_t sampleCount;
@@ -1407,6 +1407,7 @@ EXTERN_C_BEGIN
         abort();
         return 0;
     }
+    const char* vkErrorString(int code);
 EXTERN_C_END
 #if defined(__cplusplus) && SUPPORT_WGPU_BACKEND == 1
     wgpu::Instance& GetCXXInstance();

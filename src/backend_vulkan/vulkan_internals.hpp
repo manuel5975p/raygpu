@@ -29,7 +29,7 @@
 #include <SDL2/SDL_vulkan.h>
 #endif
 
-extern "C" const char* vkErrorString(VkResult code);
+
 
 inline std::pair<std::vector<VkVertexInputAttributeDescription>, std::vector<VkVertexInputBindingDescription>> genericVertexLayoutSetToVulkan(const VertexBufferLayoutSet& vls){
     std::pair<std::vector<VkVertexInputAttributeDescription>, std::vector<VkVertexInputBindingDescription>> ret{};

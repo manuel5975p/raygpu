@@ -890,7 +890,7 @@ extern "C" void RenderPassDraw        (DescribedRenderpass* drp, uint32_t vertex
     //wgpuRenderPassEncoderDraw((WGPURenderPassEncoder)drp->rpEncoder, vertexCount, instanceCount, firstVertex, firstInstance);
 }
 extern "C" void RenderPassDrawIndexed (DescribedRenderpass* drp, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t baseVertex, uint32_t firstInstance){
-    wgvkRenderpassEncoderDrawIndexed((WGVKRenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, baseVertex, firstInstance);
+    wgvkRenderpassEncoderDrawIndexed((WGVKRenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
     //wgpuRenderPassEncoderDrawIndexed((WGPURenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
 }
 extern "C" void PrepareFrameGlobals(){
@@ -1596,7 +1596,8 @@ extern "C" void EndRenderpassPro(DescribedRenderpass* rp, bool renderTexture){
 void DispatchCompute(uint32_t x, uint32_t y, uint32_t z){
     wgvkComputePassEncoderDispatchWorkgroups((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder, x, y, z);
 }
-const char* vkErrorString(VkResult code){
+extern "C" const char* vkErrorString(int code){
+    
     switch(code){
         case VK_NOT_READY: return "VK_NOT_READY";
         case VK_TIMEOUT: return "VK_TIMEOUT";
