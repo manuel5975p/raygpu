@@ -302,7 +302,7 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
         );
         g_vulkanstate.queue->syncState[cacheIndex].acquireImageSemaphoreSignalled = true;
         if(acquireResult != VK_SUCCESS){
-            std::cerr << "acquireResult is " << acquireResult << std::endl;
+            TRACELOG(LOG_WARNING, "vkAcquireNextImageKHR returned %s", vkErrorString(acquireResult));
         }
         WGVKDevice surfaceDevice = ((WGVKSurface)fsurface->surface)->device;
         VkCommandBuffer buf = ((WGVKSurface)fsurface->surface)->device->queue->presubmitCache->buffer;
@@ -1339,6 +1339,7 @@ RenderTexture LoadRenderTexture(uint32_t width, uint32_t height){
     if(ret.colorMultisample.id)
         wgvkQueueTransitionLayout(g_vulkanstate.queue, ((WGVKTexture)ret.colorMultisample.id), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     wgvkQueueTransitionLayout(g_vulkanstate.queue, ((WGVKTexture)ret.depth.id), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    ret.colorAttachmentCount = 1;
     return ret;
 }
 extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){

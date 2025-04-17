@@ -685,6 +685,7 @@ typedef struct ShaderRefletionInfo{
     ShaderEntryPoint ep[16];
     StringToUniformMap* uniforms;
     StringToAttributeMap* attributes;
+    uint32_t colorAttachmentCount;
 }ShaderReflectionInfo;
 
 typedef struct StageInModule{

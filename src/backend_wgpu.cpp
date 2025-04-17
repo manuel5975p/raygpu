@@ -1725,6 +1725,7 @@ RenderTexture LoadRenderTexture(uint32_t width, uint32_t height){
     if(g_renderstate.windowFlags & FLAG_MSAA_4X_HINT){
         ret.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_renderstate.frameBufferFormat, TextureUsage_RenderAttachment | TextureUsage_CopySrc, 4, 1);
     }
+    ret.colorAttachmentCount = 1;
     return ret;
 }
 const std::unordered_map<WGPUFeatureName, std::string> featureSpellingTable = [](){

@@ -505,6 +505,7 @@ extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* 
                                   (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
                                   1
     );
+    fsurface.renderTarget.colorAttachmentCount = 1;
     //fsurface.renderTarget.depth = LoadDepthTexture(width, height);
     g_renderstate.createdSubwindows[createdWindow.handle].surface = fsurface;
     #endif

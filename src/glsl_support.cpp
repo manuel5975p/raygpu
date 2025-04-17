@@ -176,84 +176,6 @@ const TBuiltInResource DefaultTBuiltInResource_RG = {
 
 extern std::unordered_map<uint32_t, std::string> uniformTypeNames;
 bool glslang_initialized = false;
-std::pair<std::vector<uint32_t>, std::vector<uint32_t>> glsl_to_spirv(const char *vs, const char *fs) {
-
-    if (!glslang_initialized){
-        glslang::InitializeProcess();
-        glslang_initialized = true;
-    }
-
-    glslang::TShader shader(EShLangVertex);
-    glslang::TShader fragshader(EShLangFragment);
-    const char *shaderStrings[2];
-    shaderStrings[0] = vs;//shaderCode.c_str();
-    shaderStrings[1] = fs;//fragCode.c_str();
-    shader.setStrings(shaderStrings, 1);
-    fragshader.setStrings(shaderStrings + 1, 1);
-    int ver = 430;
-    // Set shader version and other options
-    shader.setEnvInput(glslang::EShSourceGlsl, EShLangVertex, glslang::EShClientOpenGL, ver);
-    shader.setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
-    shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
-
-    fragshader.setEnvInput(glslang::EShSourceGlsl, EShLangFragment, glslang::EShClientOpenGL, ver);
-    fragshader.setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
-    fragshader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
-    // Define resources (required for some shaders)
-    TBuiltInResource Resources = {};
-
-    Resources.limits.generalUniformIndexing = true;
-    Resources.limits.generalVariableIndexing = true;
-    Resources.maxDrawBuffers = true;
-
-    EShMessages messages = (EShMessages)(EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules);
-
-    // Parse the shader
-    shader.setAutoMapLocations(false);
-    if (!shader.parse(&Resources, ver, ECoreProfile, false, false, messages)) {
-        TRACELOG(LOG_ERROR, "Vertex GLSL Parsing Failed: %s", shader.getInfoLog());
-    }
-    fragshader.setAutoMapLocations(false);
-    if (!fragshader.parse(&Resources, ver, ECoreProfile, false, false, messages)) {
-        TRACELOG(LOG_ERROR, "Fragment GLSL Parsing Failed: %s", fragshader.getInfoLog());
-    }
-
-    // Link the program
-    glslang::TProgram program;
-    program.addShader(&shader);
-    program.addShader(&fragshader);
-    program.link(messages);
-    //if (!program.link(messages)) {
-    //    std::cerr << "GLSL Linking Failed:\n" << program.getInfoLog() << std::endl;
-    //}
-
-    // Retrieve the intermediate representation
-    //program.buildReflection();
-    //int uniformCount = program.getNumUniformVariables();
-
-    //std::cout << uniformCount << "\n";
-    //glslang::TIntermediate *vertexIntermediate   = shader.getIntermediate();
-    //glslang::TIntermediate *fragmentIntermediate = fragshader.getIntermediate();
-
-    glslang::TIntermediate *vertexIntermediate = program.getIntermediate(EShLanguage(EShLangVertex));
-    glslang::TIntermediate *fragmentIntermediate = program.getIntermediate(EShLanguage(EShLangFragment));
-    if (!vertexIntermediate) {
-        std::cerr << "Failed to get intermediate representation for vertex" << std::endl;
-    }
-    if (!fragmentIntermediate) {
-        std::cerr << "Failed to get intermediate representation for fragment" << std::endl;
-    }
-    
-
-    // Convert to SPIR-V
-    std::vector<uint32_t> spirvV, spirvF;
-    glslang::SpvOptions opt;
-    opt.disableOptimizer = false;
-    glslang::GlslangToSpv(*vertexIntermediate, spirvV, &opt);
-    glslang::GlslangToSpv(*fragmentIntermediate, spirvF, &opt);
-
-    return {spirvV, spirvF};
-}
 std::vector<uint32_t> glsl_to_spirv_single(const char* cs, EShLanguage stage){
     glslang::TShader shader(stage);
     shader.setEnvInput (glslang::EShSourceGlsl, stage, glslang::EShClientVulkan, glslang::EShTargetVulkan_1_4);
@@ -412,7 +334,9 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
     std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> ret;
     uint32_t attributeCount = program.getNumLiveAttributes();
 
-    
+    int pouts = program.getNumPipeOutputs();
+    std::cout << program.getPipeOutput(0).getType()->getCompleteString() << std::endl;
+    rg_trap();
     for(int32_t i = 0;i < attributeCount;i++){
         int glattrib = program.getAttributeType(i);
         std::string attribname = program.getAttributeName(i);
