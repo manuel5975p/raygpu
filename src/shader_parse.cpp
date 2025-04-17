@@ -247,15 +247,15 @@ ShaderSources wgsl_to_spirv(ShaderSources sources){
     return ret;
     #endif
 }
-std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributesWGSL(ShaderSources sources){
+InOutAttributeInfo getAttributesWGSL(ShaderSources sources){
     //TODo
     const char* shaderSourceWGSL = (const char*)sources.sources[0].data;
     rassert(shaderSourceWGSL != nullptr, "vertexAndFragmentSource must be set for WGSL");
     
     std::string_view source_view = std::string_view((const char*)sources.sources[0].data, (const char*)sources.sources[0].data + sources.sources[0].sizeInBytes);
-
-    std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> ret;
-
+    InOutAttributeInfo retvalue;
+    std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>>& ret = retvalue.vertexAttributes;
+    //TODO attachmentss
 #if SUPPORT_WGSL_PARSER == 1
     tint::Source::File f("path", shaderSourceWGSL);
     tint::wgsl::reader::Options options{};
@@ -368,7 +368,7 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
         }
     }
 #endif
-    return ret;
+    return retvalue;
 }
 std::unordered_map<std::string, ResourceTypeDescriptor> getBindings(ShaderSources sources){
     std::unordered_map<std::string, ResourceTypeDescriptor> ret;
@@ -705,7 +705,7 @@ void CAT(fprefix, create)() {
     // function body
 }
 
-std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes(ShaderSources sources){
+InOutAttributeInfo getAttributes(ShaderSources sources){
     
     rassert(sources.language != ShaderSourceType::sourceTypeUnknown, "Source type must be known");
     const ShaderSourceType language = sources.language;

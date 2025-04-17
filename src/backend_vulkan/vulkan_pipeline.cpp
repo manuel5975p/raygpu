@@ -557,9 +557,9 @@ extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const Att
 }
 extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
     ShaderSources sources = dualStage(shaderSource, sourceTypeWGSL, ShaderStage_Vertex, ShaderStage_Fragment);
-    std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> attribs = getAttributesWGSL(sources);
+    auto [attribs, attachments] = getAttributesWGSL(sources);
     std::vector<AttributeAndResidence> allAttribsInOneBuffer;
-
+    
     allAttribsInOneBuffer.reserve(attribs.size());
     uint32_t offset = 0;
     for(const auto& [name, attr] : attribs){

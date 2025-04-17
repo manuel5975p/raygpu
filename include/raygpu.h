@@ -805,9 +805,14 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindings(ShaderSource
  * @param shaderSource 
  * @return std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> 
  */
-std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributesWGSL(ShaderSources sources);
-std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributesGLSL(ShaderSources sources);
-std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes(ShaderSources sources);
+struct InOutAttributeInfo{
+    std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> vertexAttributes;
+    std::vector<std::pair<uint32_t, format_or_sample_type>> attachments;    
+};
+
+InOutAttributeInfo getAttributesWGSL(ShaderSources sources);
+InOutAttributeInfo getAttributesGLSL(ShaderSources sources);
+InOutAttributeInfo getAttributes    (ShaderSources sources);
 #endif
 
 EXTERN_C_BEGIN
@@ -1122,7 +1127,8 @@ EXTERN_C_BEGIN
     }
     void rlBegin(PrimitiveType mode);
     void rlEnd(cwoid);
-
+    void BeginTextureAndPipelineMode(RenderTexture rtex, DescribedPipeline* pl);
+    void EndTextureAndPipelineMode(RenderTexture rtex);
     void BeginTextureMode(RenderTexture rtex);
     void EndTextureMode(cwoid);
     void BeginWindowMode(SubWindow sw);

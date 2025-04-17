@@ -279,9 +279,9 @@ VertexFormat fromGLVertexFormat(uint32_t glType){
     }
     rg_unreachable();
 };
-std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributesGLSL(ShaderSources sources){
+InOutAttributeInfo getAttributesGLSL(ShaderSources sources){
     const int glslVersion = 460;
-    
+    InOutAttributeInfo ret;
     if (!glslang_initialized){
         glslang::InitializeProcess();
         glslang_initialized = true;
@@ -329,13 +329,30 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
         //TRACELOG(LOG_INFO, "Program linked successfully");
     }
     program.buildReflection();
-    std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> ret;
+    std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>>& retInputs = ret.vertexAttributes;
     uint32_t attributeCount = program.getNumLiveAttributes();
 
     int pouts = program.getNumPipeOutputs();
-    if(pouts > 1){
-        std::cout << program.getPipeOutput(0).getType()->getCompleteString() << std::endl;
-        std::cout << program.getPipeOutput(1).getType()->getCompleteString() << std::endl;
+    ret.attachments.reserve(pouts);
+    for(int i = 0;i < pouts;i++){
+        int vectorsize = -1;
+        format_or_sample_type sample_type = format_or_sample_type::we_dont_know;
+
+        if(program.getPipeOutput(i).getType()->isVector()){
+            vectorsize = program.getPipeOutput(i).getType()->getVectorSize();
+            glslang::TBasicType ebt = program.getPipeOutput(i).getType()->getBasicType();
+            sample_type = ebt == glslang::EbtFloat ? format_or_sample_type::sample_f32 : format_or_sample_type::sample_u32;
+        }
+        else if(program.getPipeOutput(0).getType()->isScalar()){
+            glslang::TBasicType ebt = program.getPipeOutput(i).getType()->getBasicType();
+            sample_type = ebt == glslang::EbtFloat ? format_or_sample_type::sample_f32 : format_or_sample_type::sample_u32;
+            vectorsize = 1;
+        }
+        glslang::TString tstr = program.getPipeOutput(0).getType()->getCompleteString();
+        const char* tstr_cstr = tstr.c_str();
+        rassert(vectorsize != -1, "Could not make sense of this type: %s", tstr_cstr);
+        
+        ret.attachments[i] = {};
     }
     for(int32_t i = 0;i < attributeCount;i++){
         int glattrib = program.getAttributeType(i);
@@ -346,7 +363,7 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
             
             VertexFormat type = fromGLVertexFormat(glattrib);
             if(!attribname.starts_with("gl_")){
-                ret[attribname] = {type, location};
+                retInputs[attribname] = {type, location};
             }
         }
 
@@ -587,7 +604,9 @@ DescribedShaderModule LoadShaderModuleGLSL(ShaderSources sourcesGLSL){
     ret.reflectionInfo.uniforms = callocnewpp(StringToUniformMap);
     ret.reflectionInfo.attributes = callocnewpp(StringToAttributeMap);
     ret.reflectionInfo.uniforms->uniforms = getBindingsGLSL(sourcesGLSL);
-    ret.reflectionInfo.attributes->attributes = getAttributesGLSL(sourcesGLSL);
+    
+    InOutAttributeInfo attribs = getAttributesGLSL(sourcesGLSL);
+    ret.reflectionInfo.attributes->attributes = attribs.vertexAttributes;
     return ret;
 }
 DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
