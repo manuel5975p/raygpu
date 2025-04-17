@@ -276,8 +276,6 @@ VertexFormat fromGLVertexFormat(uint32_t glType){
         case GL_FLOAT_VEC2: return VertexFormat_Float32x2;
         case GL_FLOAT_VEC3: return VertexFormat_Float32x3;
         case GL_FLOAT_VEC4: return VertexFormat_Float32x4;
-        
-        
     }
     rg_unreachable();
 };
@@ -335,8 +333,10 @@ std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> getAttributes
     uint32_t attributeCount = program.getNumLiveAttributes();
 
     int pouts = program.getNumPipeOutputs();
-    std::cout << program.getPipeOutput(0).getType()->getCompleteString() << std::endl;
-    rg_trap();
+    if(pouts > 1){
+        std::cout << program.getPipeOutput(0).getType()->getCompleteString() << std::endl;
+        std::cout << program.getPipeOutput(1).getType()->getCompleteString() << std::endl;
+    }
     for(int32_t i = 0;i < attributeCount;i++){
         int glattrib = program.getAttributeType(i);
         std::string attribname = program.getAttributeName(i);

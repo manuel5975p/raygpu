@@ -1167,7 +1167,7 @@ EXTERN_C_BEGIN
     void UnloadPipeline(DescribedPipeline* pl);
 
     RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
-    RenderTexture LoadRenderTextureEx(uint32_t width, uint32_t height, PixelFormat colorFormat, uint32_t sampleCount);
+    RenderTexture LoadRenderTextureEx(uint32_t width, uint32_t height, PixelFormat colorFormat, uint32_t sampleCount, uint32_t attachmentCount);
     const char* TextureFormatName(PixelFormat fmt);
     size_t GetPixelSizeInBytes(PixelFormat format);
     

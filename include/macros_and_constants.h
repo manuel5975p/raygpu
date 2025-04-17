@@ -107,15 +107,17 @@ constexpr float RAD2DEG = 180.0 / M_PI;
 #define rassert(Condition, Message) __builtin_assume(Condition)
 
 #else
-#define rassert(Condition, Message)                                     \
-do {                                                                    \
-    if (!(Condition)) {                                                 \
-        TRACELOG(LOG_ERROR, "Assertion failed: %s", Message);           \
-        TRACELOG(LOG_ERROR, "Condition: %s", #Condition);               \
-        TRACELOG(LOG_ERROR, "Location: %s:%d", __FILE__, __LINE__);     \
-        rg_trap();                                               \
-        abort();                                                        \
-    }                                                                   \
+#define rassert(Condition, Message, ...)                                                          \
+do {                                                                                              \
+    char buffer[2048] = {0};                                                                      \
+    snprintf(buffer, 2048, "Assertion failed: %s", Message);                                      \
+    if (!(Condition)) {                                                                           \
+        TRACELOG(LOG_ERROR, buffer, ##__VA_ARGS__);                                               \
+        TRACELOG(LOG_ERROR, "Condition: %s", #Condition);                                         \
+        TRACELOG(LOG_ERROR, "Location: %s:%d", __FILE__, __LINE__);                               \
+        rg_trap();                                                                                \
+        abort();                                                                                  \
+    }                                                                                             \
 } while (0)
 
 #endif

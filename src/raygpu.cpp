@@ -1157,7 +1157,7 @@ Shader LoadShader(const char *vsFileName, const char *fsFileName){
 }
 
 extern "C" FullSurface CreateHeadlessSurface(uint32_t width, uint32_t height, PixelFormat format){
-    FullSurface ret{};
+    FullSurface ret zeroinit;
     ret.headless = 1;
     ret.surfaceConfig.device = GetDevice();
     ret.surfaceConfig.width = width;
@@ -1167,7 +1167,7 @@ extern "C" FullSurface CreateHeadlessSurface(uint32_t width, uint32_t height, Pi
     #else
     ret.surfaceConfig.format = toWGPUPixelFormat(format);
     #endif
-    ret.renderTarget = LoadRenderTextureEx(width, height, format, 1);
+    ret.renderTarget = LoadRenderTextureEx(width, height, format, 1, 1);
     return ret;
 }
 
@@ -1330,7 +1330,7 @@ Texture LoadBlankTexture(uint32_t width, uint32_t height){
 Texture LoadDepthTexture(uint32_t width, uint32_t height){
     return LoadTextureEx(width, height, Depth32, true);
 }
-RenderTexture LoadRenderTextureEx(uint32_t width, uint32_t height, PixelFormat colorFormat, uint32_t sampleCount){
+RenderTexture LoadRenderTextureEx(uint32_t width, uint32_t height, PixelFormat colorFormat, uint32_t sampleCount, uint32_t attachmentCount){
     RenderTexture ret{
         .texture = LoadTextureEx(width, height, colorFormat, true),
         .colorMultisample = Texture{}, 
@@ -1339,7 +1339,13 @@ RenderTexture LoadRenderTextureEx(uint32_t width, uint32_t height, PixelFormat c
     if(sampleCount > 1){
         ret.colorMultisample = LoadTexturePro(width, height, colorFormat, TextureUsage_RenderAttachment | TextureUsage_CopySrc, sampleCount, 1);
     }
-    ret.colorAttachmentCount = 1;
+    if(attachmentCount > 1){
+        rassert(sampleCount == 1, "Multisampled and multi-Attachment tendertextures not supported yet");
+        for(uint32_t i = 0;i < attachmentCount - 1;i++){
+            ret.moreColorAttachments[i] = LoadTexturePro(width, height, colorFormat, TextureUsage_RenderAttachment | TextureUsage_CopySrc, sampleCount, 1);
+        }
+    }
+    ret.colorAttachmentCount = attachmentCount;
     return ret;
 }
 

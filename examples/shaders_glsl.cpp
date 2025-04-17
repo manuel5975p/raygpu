@@ -1,4 +1,10 @@
 #include <raygpu.h>
+#include <source_location>
+
+
+struct A{
+    int b;
+};
 const char vertexSourceGLSL[] = R"(
 #version 450
 layout(location = 1) in vec2 position;
@@ -9,18 +15,21 @@ void main() {
 )";
 const char fragmentSourceGLSL[] = R"(
 #version 450
-layout(location = 0) out vec4 fragColor;
-layout(location = 1) out vec4 fragColor2;
 layout(binding = 5) uniform color {
     vec4 colorval;
 };
+
+layout(location = 0) out vec4 fragColor;
+layout(location = 1) out uvec3 fragColor2;
+
 void main() {
     fragColor = colorval;
-    fragColor2 = vec4(0, colorval.yzw);
+    fragColor2 = uvec3(0, colorval.yz);
 }
 )";
 int main(){
     InitWindow(800, 800, "Shaders example");
+
     Shader colorInverter = LoadShaderFromMemory(vertexSourceGLSL, fragmentSourceGLSL);
 
     Matrix matrix = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
@@ -28,9 +37,9 @@ int main(){
     DescribedBuffer* matrixbuffer = GenUniformBuffer(&matrix, sizeof(Matrix));
     DescribedBuffer* matrixbuffers = GenStorageBuffer(&identity, sizeof(Matrix));
     
-    Texture tex = LoadTexture(TextFormat("%s/tileset.png",FindDirectory("resources", 3)));
+    Texture tex = LoadTexture(TextFormat("%s/tileset.png", FindDirectory("resources", 3)));
     DescribedSampler sampler = LoadSampler(repeat, filter_linear);
-    
+
     float vertices[6] = {0,-0.5,-0.5,0.5,0.5,0.5};
     DescribedBuffer* buffer = GenVertexBuffer(vertices, sizeof(vertices));
     VertexArray* vao = LoadVertexArray();
