@@ -178,14 +178,31 @@ typedef struct VertexStateToPipelineMap{
     std::unordered_map<VertexBufferLayoutSet, RenderPipelineQuartet, std::hash<VertexBufferLayoutSet>, vblayoutVectorCompare> pipelines;
 }VertexStateToPipelineMap;
 
+struct ColorAttachmentState{
+    PixelFormat attachmentFormats[MAX_COLOR_ATTTACHMENTS];
+    uint32_t colorAttachmentCount;
+    bool operator==(const ColorAttachmentState& other)const noexcept{
+        if(colorAttachmentCount == other.colorAttachmentCount){
+            for(uint32_t i = 0;i < colorAttachmentCount;i++){
+                if(attachmentFormats[i] != other.attachmentFormats[i]){
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+};
+
 typedef struct ModifiablePipelineState{
     std::vector<AttributeAndResidence> vertexAttributes;
     PrimitiveType primitiveType;
     RenderSettings settings;
+    ColorAttachmentState colorAttachmentState;
     bool operator==(const ModifiablePipelineState& mfps)const noexcept{
         return attributeVectorCompare{}(vertexAttributes, mfps.vertexAttributes)
         && primitiveType == mfps.primitiveType &&
-        settings == mfps.settings;
+           settings == mfps.settings && colorAttachmentState == mfps.colorAttachmentState;
         return false;
     }
 }ModifiablePipelineState;
@@ -197,7 +214,11 @@ typedef struct ModifiablePipelineState{
 namespace std{
     template<> struct hash<ModifiablePipelineState>{
         size_t operator()(const ModifiablePipelineState& mfps)const noexcept{
-            return hash<vector<AttributeAndResidence>>{}(mfps.vertexAttributes) ^ hash_bytes(&mfps.settings, sizeof(RenderSettings)) ^ ROT_BYTES(mfps.primitiveType, 17);
+            size_t ret = hash<vector<AttributeAndResidence>>{}(mfps.vertexAttributes) ^ hash_bytes(&mfps.settings, sizeof(RenderSettings)) ^ ROT_BYTES(mfps.primitiveType, 17);
+            for(uint32_t i = 0;i < mfps.colorAttachmentState.colorAttachmentCount;i++){
+                ret = ROT_BYTES(mfps.primitiveType, 3) ^ size_t(mfps.colorAttachmentState.attachmentFormats[i]);
+            }
+            return ret;
         }
     };
 }

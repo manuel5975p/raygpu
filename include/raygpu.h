@@ -1128,7 +1128,7 @@ EXTERN_C_BEGIN
     void rlBegin(PrimitiveType mode);
     void rlEnd(cwoid);
     void BeginTextureAndPipelineMode(RenderTexture rtex, DescribedPipeline* pl);
-    void EndTextureAndPipelineMode(RenderTexture rtex);
+    void EndTextureAndPipelineMode(cwoid);
     void BeginTextureMode(RenderTexture rtex);
     void EndTextureMode(cwoid);
     void BeginWindowMode(SubWindow sw);

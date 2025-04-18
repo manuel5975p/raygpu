@@ -42,10 +42,11 @@
 // Detect and define DEFAULT_BACKEND based on the target platform
 #if defined(_WIN32) || defined(_WIN64)
     // Windows platform detected
-    #ifndef _MSC_VER
-        #define DEFAULT_BACKEND WGPUBackendType_Vulkan
-    #else
+    // If msvc, default to DirectX, otherwise (e.g. w64devkit) use vulkan
+    #ifdef _MSC_VER
         #define DEFAULT_BACKEND WGPUBackendType_D3D12
+    #else
+        #define DEFAULT_BACKEND WGPUBackendType_Vulkan
     #endif
 #elif defined(__APPLE__) && defined(__MACH__)
     // Apple platform detected (macOS, iOS, etc.)
@@ -80,7 +81,7 @@
     #define MAX_COLOR_ATTTACHMENTS 4
 #endif
 
-#define VULKAN_USE_DYNAMIC_RENDERING 0
+#define VULKAN_USE_DYNAMIC_RENDERING 1
 #define VULKAN_ENABLE_RAYTRACING 0
 
 #if !defined(RL_MALLOC) && !defined(RL_CALLOC) && !defined(RL_REALLOC) && !defined(RL_FREE)

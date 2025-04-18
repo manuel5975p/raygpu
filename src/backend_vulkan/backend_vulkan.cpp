@@ -407,10 +407,6 @@ VkInstance createInstance() {
     assert(res && "SDL extensions error");
     #elif SUPPORT_SDL3 == 1
     windowExtensions = SDL_Vulkan_GetInstanceExtensions(&requiredGLFWExtensions);
-    for(uint32_t i = 0;i < requiredGLFWExtensions;i++){
-        std::string ext(windowExtensions[i]);
-        std::cout << ext << "\n";
-    }
     #elif SUPPORT_RGFW == 1
     requiredGLFWExtensions = 2;
     windowExtensions = (const char**)std::calloc(requiredGLFWExtensions, sizeof(char*));
@@ -1086,15 +1082,20 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
         VK_KHR_SPIRV_1_4_EXTENSION_NAME,                   // "VK_KHR_spirv_1_4" - required for ray tracing shaders
         VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME,        // "VK_KHR_shader_float_controls" - required by spirv_1_4
         #endif
+        VK_KHR_VIDEO_QUEUE_EXTENSION_NAME,
+        VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME,
+        VK_KHR_VIDEO_DECODE_AV1_EXTENSION_NAME,
         // Add other required extensions here
     };
 
     // Specify device features
 
     {
-        VkPhysicalDeviceExtendedDynamicState3PropertiesEXT props{};
-        props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_PROPERTIES_EXT;
-        props.dynamicPrimitiveTopologyUnrestricted = VK_TRUE;
+        VkPhysicalDeviceExtendedDynamicState3PropertiesEXT props{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_PROPERTIES_EXT,
+            .pNext = nullptr,
+            .dynamicPrimitiveTopologyUnrestricted = VK_TRUE
+        };
     }
     
     VkPhysicalDeviceFeatures deviceFeatures{};
@@ -1105,7 +1106,7 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
     VkDeviceCreateInfo createInfo zeroinit;
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
-    VkPhysicalDeviceVulkan13Features v13features{};
+    VkPhysicalDeviceVulkan13Features v13features zeroinit;
     v13features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
     #if VULKAN_USE_DYNAMIC_RENDERING == 1
     v13features.dynamicRendering = VK_TRUE;
@@ -1136,7 +1137,10 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
     pipelineFeatures.rayTracingPipeline = VK_TRUE;
     accelerationrStructureFeatures.pNext = &pipelineFeatures;
     #endif
-
+    
+    
+    
+    
     // (Optional) Enable validation layers for device-specific debugging
     ret.first = callocnewpp(WGVKDeviceImpl);
     ret.second = callocnewpp(WGVKQueueImpl);
@@ -1251,6 +1255,8 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
         device->adapter = adapter;
         queue->device = device;
     }
+    VkVideoDecodeH264SessionParametersCreateInfoKHR infokhr zeroinit;
+
     return ret.first;
 }
 extern "C" void raytracing_LoadDeviceFunctions(VkDevice device);
@@ -1390,6 +1396,7 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     dsa.depthStoreOp = renderPass->depthStoreOp;
     dsa.view = (WGVKTextureView)rtex.depth.view;
     WGVKRenderPassColorAttachment rca[max_color_attachments] zeroinit;
+    rpdesc.colorAttachmentCount = rtex.colorAttachmentCount;
     rca[0].depthSlice = 0;
     rca[0].clearValue = renderPass->colorClear;
     rca[0].loadOp = renderPass->colorLoadOp;
@@ -1419,7 +1426,7 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
         }
     }
     rpdesc.colorAttachments = rca;
-    rpdesc.colorAttachmentCount = rtex.colorAttachmentCount;
+    
     //fbci.pAttachments = fbAttac   hments;
     //fbci.attachmentCount = 2;
     //fbci.width = rtex.texture.width;
@@ -1444,8 +1451,10 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     scissor.offset.y = 0;
     scissor.extent.width =  rtex.texture.width;
     scissor.extent.height = rtex.texture.height;
-    vkCmdSetViewport(((WGVKRenderPassEncoder)renderPass->rpEncoder)->cmdBuffer, 0, 1, &viewport);
-    vkCmdSetScissor (((WGVKRenderPassEncoder)renderPass->rpEncoder)->cmdBuffer, 0, 1, &scissor);
+    for(uint32_t i = 0;i < rpdesc.colorAttachmentCount;i++){
+        vkCmdSetViewport(((WGVKRenderPassEncoder)renderPass->rpEncoder)->cmdBuffer, i, 1, &viewport);
+        vkCmdSetScissor (((WGVKRenderPassEncoder)renderPass->rpEncoder)->cmdBuffer, i, 1, &scissor);
+    }
     //wgvkRenderPassEncoderBindPipeline((WGVKRenderPassEncoder)renderPass->rpEncoder, g_renderstate.defaultPipeline);
     g_renderstate.activeRenderpass = renderPass;
     //UpdateBindGroup_Vk(&g_renderstate.defaultPipeline->bindGroup);

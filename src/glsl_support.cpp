@@ -333,7 +333,7 @@ InOutAttributeInfo getAttributesGLSL(ShaderSources sources){
     uint32_t attributeCount = program.getNumLiveAttributes();
 
     int pouts = program.getNumPipeOutputs();
-    ret.attachments.reserve(pouts);
+    ret.attachments.resize(pouts);
     for(int i = 0;i < pouts;i++){
         int vectorsize = -1;
         format_or_sample_type sample_type = format_or_sample_type::we_dont_know;
@@ -607,6 +607,7 @@ DescribedShaderModule LoadShaderModuleGLSL(ShaderSources sourcesGLSL){
     
     InOutAttributeInfo attribs = getAttributesGLSL(sourcesGLSL);
     ret.reflectionInfo.attributes->attributes = attribs.vertexAttributes;
+    ret.reflectionInfo.colorAttachmentCount = attribs.attachments.size();
     return ret;
 }
 DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){

@@ -20,16 +20,16 @@ layout(binding = 5) uniform color {
 };
 
 layout(location = 0) out vec4 fragColor;
-layout(location = 1) out uvec3 fragColor2;
+layout(location = 1) out vec4 fragColor2;
 
 void main() {
     fragColor = colorval;
-    fragColor2 = uvec3(0, colorval.yz);
+    fragColor2 = vec4(1, 0, 0, 1);
 }
 )";
 int main(){
     InitWindow(800, 800, "Shaders example");
-
+    RenderTexture multi = LoadRenderTextureEx(800, 800, BGRA8, 1, 2);
     Shader colorInverter = LoadShaderFromMemory(vertexSourceGLSL, fragmentSourceGLSL);
 
     Matrix matrix = ScreenMatrix(GetScreenWidth(), GetScreenHeight());
@@ -45,15 +45,18 @@ int main(){
     VertexArray* vao = LoadVertexArray();
     VertexAttribPointer(vao, buffer, 1, VertexFormat_Float32x2, 0, VertexStepMode_Vertex);
     EnableVertexAttribArray(vao, 0);
-    float color[4] = {1,1,1,1};
+    float color[4] = {1,1,0,1};
     SetPipelineUniformBufferData(colorInverter.id, 5, color, sizeof(color));
     while(!WindowShouldClose()){
         BeginDrawing();
         ClearBackground(BLACK);
-        BeginPipelineMode(colorInverter.id);
+        BeginTextureAndPipelineMode(multi, colorInverter.id);
         BindVertexArray(vao);
         DrawArrays(RL_TRIANGLES, 3);
-        EndPipelineMode();
+        EndTextureAndPipelineMode();
+
+        //DrawTexturePro(multi.texture, Rectangle{0,0,800,800}, Rectangle{0,0,800,800}, Vector2{0,0}, 0.0f, WHITE);
+        DrawTexturePro(multi.moreColorAttachments[0], Rectangle{0,0,800,800}, Rectangle{0,0,800,800}, Vector2{0,0}, 0.0f, WHITE);
         DrawFPS(5, 5);
         EndDrawing();
     }

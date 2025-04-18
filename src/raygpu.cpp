@@ -1342,7 +1342,7 @@ RenderTexture LoadRenderTextureEx(uint32_t width, uint32_t height, PixelFormat c
     if(attachmentCount > 1){
         rassert(sampleCount == 1, "Multisampled and multi-Attachment tendertextures not supported yet");
         for(uint32_t i = 0;i < attachmentCount - 1;i++){
-            ret.moreColorAttachments[i] = LoadTexturePro(width, height, colorFormat, TextureUsage_RenderAttachment | TextureUsage_CopySrc, sampleCount, 1);
+            ret.moreColorAttachments[i] = LoadTexturePro(width, height, colorFormat, TextureUsage_TextureBinding | TextureUsage_RenderAttachment | TextureUsage_CopySrc, sampleCount, 1);
         }
     }
     ret.colorAttachmentCount = attachmentCount;
@@ -1798,6 +1798,29 @@ DescribedPipeline* Relayout(DescribedPipeline* pl, VertexArray* vao){
     //PreparePipeline(klon, vao);
     return pl;
 }
+
+
+// TODO 
+// BeginTextureAndPipelineMode and BeginTextureMode are very similar, maybe abstract away their common parts
+void BeginTextureAndPipelineMode(RenderTexture rtex, DescribedPipeline* pl){
+    if(g_renderstate.activeRenderpass){
+        EndRenderpass();
+    }
+    g_renderstate.renderTargetStack.push(rtex);
+    g_renderstate.renderExtentX = rtex.texture.width;
+    g_renderstate.renderExtentY = rtex.texture.height;
+    PushMatrix();
+    Matrix mat = ScreenMatrix(g_renderstate.renderExtentX, g_renderstate.renderExtentY);
+    SetMatrix(mat);
+
+    g_renderstate.activePipeline = pl;
+    uint32_t location = GetUniformLocation(g_renderstate.activePipeline, RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION_VIEW);
+    if(location != LOCATION_NOT_FOUND){
+        SetUniformBufferData(location, &g_renderstate.matrixStack.peek().first, sizeof(Matrix));
+    }
+    BeginRenderpass();
+}
+
 void BeginTextureMode(RenderTexture rtex){
     if(g_renderstate.activeRenderpass){
         EndRenderpass();
@@ -1805,13 +1828,30 @@ void BeginTextureMode(RenderTexture rtex){
     g_renderstate.renderTargetStack.push(rtex);
     g_renderstate.renderExtentX = rtex.texture.width;
     g_renderstate.renderExtentY = rtex.texture.height;
-    //std::cout << std::format("{} x {}\n", g_renderstate.renderExtentX, g_renderstate.renderExtentY);
-    //setTargetTextures(g_renderstate.rstate, rtex.texture.view, rtex.colorMultisample.view, rtex.depth.view);
+
     PushMatrix();
     Matrix mat = ScreenMatrix(g_renderstate.renderExtentX, g_renderstate.renderExtentY);
     SetMatrix(mat);
     SetUniformBufferData(0, &mat, sizeof(Matrix));
     BeginRenderpass();
+}
+
+void EndTextureAndPipelineMode(){
+    drawCurrentBatch();
+
+    EndRenderpassPro(GetActiveRenderPass(), true);
+
+    g_renderstate.renderTargetStack.pop();
+    g_renderstate.activePipeline = g_renderstate.defaultPipeline;
+    PopMatrix();
+    if(!g_renderstate.renderTargetStack.empty()){
+        g_renderstate.renderExtentX = g_renderstate.renderTargetStack.peek().texture.width;
+        g_renderstate.renderExtentY = g_renderstate.renderTargetStack.peek().texture.height;
+        Matrix mat = ScreenMatrix((int)g_renderstate.renderExtentX, (int)g_renderstate.renderExtentY);
+        //SetUniformBuffer(0, g_renderstate.defaultScreenMatrix);
+        SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
+        BeginRenderpass();
+    }
 }
 
 void EndTextureMode(){

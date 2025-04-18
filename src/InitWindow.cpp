@@ -245,38 +245,8 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
 
         void* wgpu_or_wgvk_surface = CreateSurfaceForWindow(createdWindow);
         
-        #if SUPPORT_WGPU_BACKEND == 1
-        WGPUSurface wSurface = (WGPUSurface)wgpu_or_wgvk_surface;
-        g_renderstate.createdSubwindows[createdWindow.handle].surface = CreateSurface(wSurface, width, height);
-        #else
         WGVKSurface wSurface = (WGVKSurface)wgpu_or_wgvk_surface;
         g_renderstate.createdSubwindows[createdWindow.handle].surface = CreateSurface(wSurface, width, height);
-        
-        //WGVKSurface vSurface = (WGVKSurface)wgpu_or_wgvk_surface;
-        //SurfaceCapabilities surfaceCapabilities;
-        //wgvkSurfaceGetCapabilities(vSurface, 0, &surfaceCapabilities);
-        //SurfaceConfiguration config{};
-        //config.device = g_vulkanstate.device;
-        //config.width = width;
-        //config.height = height;
-        //config.format = BGRA8;
-        //config.presentMode = PresentMode_Immediate;
-        //wgvkSurfaceConfigure(vSurface, &config);
-        //FullSurface fsurface zeroinit;
-        //fsurface.surfaceConfig = config;
-        //fsurface.surface = vSurface;
-        //if(g_renderstate.windowFlags & FLAG_MSAA_4X_HINT)
-        //    fsurface.renderTarget.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_renderstate.frameBufferFormat, TextureUsage_RenderAttachment | TextureUsage_TextureBinding | TextureUsage_CopyDst | TextureUsage_CopySrc, 4, 1);
-        //fsurface.renderTarget.depth = LoadTexturePro(width,
-        //                              height, 
-        //                              Depth32, 
-        //                              TextureUsage_RenderAttachment | TextureUsage_TextureBinding | TextureUsage_CopyDst | TextureUsage_CopySrc, 
-        //                              (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
-        //                              1
-        //);
-        //fsurface.renderTarget.depth = LoadDepthTexture(width, height);
-        //g_renderstate.createdSubwindows[createdWindow.handle].surface = fsurface;
-        #endif
 
         g_renderstate.window = (GLFWwindow*)createdWindow.handle;
         auto it = g_renderstate.createdSubwindows.find(g_renderstate.window);
@@ -296,16 +266,16 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         //std::cout << "Supported Framebuffer Format: 0x" << std::hex << (WGPUTextureFormat)config.format << std::dec << "\n";        
     }else{
         g_renderstate.frameBufferFormat = BGRA8;
-        g_renderstate.createdSubwindows[nullptr].surface = CreateHeadlessSurface(width, height, BGRA8);
+        g_renderstate.createdSubwindows[nullptr].surface = CreateHeadlessSurface(width, height, g_renderstate.frameBufferFormat);
     }
     
 
 
     ResourceTypeDescriptor uniforms[4] = {
-        ResourceTypeDescriptor{uniform_buffer, 64, 0, readonly, format_or_sample_type(0)},
+        ResourceTypeDescriptor{uniform_buffer, 64, 0, readonly, format_or_sample_type::we_dont_know},
         ResourceTypeDescriptor{texture2d, 0, 1      , readonly, sample_f32},
-        ResourceTypeDescriptor{texture_sampler, 0, 2, readonly, format_or_sample_type(0)},
-        ResourceTypeDescriptor{storage_buffer, 64, 3, readonly, format_or_sample_type(0)}
+        ResourceTypeDescriptor{texture_sampler, 0, 2, readonly, format_or_sample_type::we_dont_know},
+        ResourceTypeDescriptor{storage_buffer, 64, 3, readonly, format_or_sample_type::we_dont_know}
     };
 
     AttributeAndResidence attrs[4] = {

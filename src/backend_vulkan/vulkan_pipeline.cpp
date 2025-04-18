@@ -158,32 +158,36 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     }
 
     // Color Blend Attachment Setup
-    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask = 
-        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | 
-        VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    
-    // Enable blending based on whether blend operations are set
-    bool blendingEnabled = 
-        settings.settings.blendState.alpha.operation != BlendOperation_Add || 
-        settings.settings.blendState.alpha.srcFactor != BlendFactor_One ||
-        settings.settings.blendState.alpha.dstFactor != BlendFactor_Zero ||
-        settings.settings.blendState.alpha.operation != BlendOperation_Add ||
-        settings.settings.blendState.alpha.srcFactor != BlendFactor_One ||
-        settings.settings.blendState.alpha.dstFactor != BlendFactor_Zero;
 
-    colorBlendAttachment.blendEnable = blendingEnabled ? VK_TRUE : VK_FALSE;
-
-    if (blendingEnabled) {
-        // Configure blending for color
-        colorBlendAttachment.srcColorBlendFactor = toVulkanBlendFactor   (settings.settings.blendState.color.srcFactor);
-        colorBlendAttachment.dstColorBlendFactor = toVulkanBlendFactor   (settings.settings.blendState.color.dstFactor);
-        colorBlendAttachment.colorBlendOp =        toVulkanBlendOperation(settings.settings.blendState.color.operation);
+    VkPipelineColorBlendAttachmentState colorBlendAttachments[max_color_attachments];
+    for(uint32_t i = 0;i < mst.colorAttachmentState.colorAttachmentCount;i++){
+        VkPipelineColorBlendAttachmentState& colorBlendAttachment = colorBlendAttachments[i];
+        colorBlendAttachment.colorWriteMask = 
+            VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | 
+            VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
         
-        // Configure blending for alpha
-        colorBlendAttachment.srcAlphaBlendFactor = toVulkanBlendFactor   (settings.settings.blendState.alpha.srcFactor);
-        colorBlendAttachment.dstAlphaBlendFactor = toVulkanBlendFactor   (settings.settings.blendState.alpha.dstFactor);
-        colorBlendAttachment.alphaBlendOp =        toVulkanBlendOperation(settings.settings.blendState.alpha.operation);
+        // Enable blending based on whether blend operations are set
+        bool blendingEnabled = 
+            settings.settings.blendState.alpha.operation != BlendOperation_Add || 
+            settings.settings.blendState.alpha.srcFactor != BlendFactor_One ||
+            settings.settings.blendState.alpha.dstFactor != BlendFactor_Zero ||
+            settings.settings.blendState.alpha.operation != BlendOperation_Add ||
+            settings.settings.blendState.alpha.srcFactor != BlendFactor_One ||
+            settings.settings.blendState.alpha.dstFactor != BlendFactor_Zero;
+
+        colorBlendAttachment.blendEnable = blendingEnabled ? VK_TRUE : VK_FALSE;
+
+        if (blendingEnabled) {
+            // Configure blending for color
+            colorBlendAttachment.srcColorBlendFactor = toVulkanBlendFactor   (settings.settings.blendState.color.srcFactor);
+            colorBlendAttachment.dstColorBlendFactor = toVulkanBlendFactor   (settings.settings.blendState.color.dstFactor);
+            colorBlendAttachment.colorBlendOp =        toVulkanBlendOperation(settings.settings.blendState.color.operation);
+
+            // Configure blending for alpha
+            colorBlendAttachment.srcAlphaBlendFactor = toVulkanBlendFactor   (settings.settings.blendState.alpha.srcFactor);
+            colorBlendAttachment.dstAlphaBlendFactor = toVulkanBlendFactor   (settings.settings.blendState.alpha.dstFactor);
+            colorBlendAttachment.alphaBlendOp =        toVulkanBlendOperation(settings.settings.blendState.alpha.operation);
+        }
     }
 
     // Color Blending State Setup
@@ -191,8 +195,8 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     colorBlending.logicOpEnable = VK_FALSE;
     colorBlending.logicOp = VK_LOGIC_OP_COPY;
-    colorBlending.attachmentCount = 1;
-    colorBlending.pAttachments = &colorBlendAttachment;
+    colorBlending.attachmentCount = mst.colorAttachmentState.colorAttachmentCount;
+    colorBlending.pAttachments = colorBlendAttachments;
     colorBlending.blendConstants[0] = 1.0f;
     colorBlending.blendConstants[1] = 1.0f;
     colorBlending.blendConstants[2] = 1.0f;
@@ -231,16 +235,18 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     pipelineInfo.layout = pllayout.layout->layout;
 
     RenderPassLayout rpLayout zeroinit;
-    rpLayout.colorAttachmentCount = 1;
+    rpLayout.colorAttachmentCount = mst.colorAttachmentState.colorAttachmentCount;
     rpLayout.depthAttachmentPresent = settings.settings.depthTest;
     
-    rpLayout.colorAttachments[0].format = toVulkanPixelFormat(BGRA8);
-    rpLayout.colorAttachments[0].loadop = LoadOp_Load;
-    rpLayout.colorAttachments[0].storeop = StoreOp_Store;
-    rpLayout.colorAttachments[0].sampleCount = settings.settings.sampleCount;
+    for(uint32_t i = 0;i < rpLayout.colorAttachmentCount;i++){
+        rpLayout.colorAttachments[i].format = toVulkanPixelFormat(mst.colorAttachmentState.attachmentFormats[i]);
+        rpLayout.colorAttachments[i].loadop = LoadOp_Load;
+        rpLayout.colorAttachments[i].storeop = StoreOp_Store;
+        rpLayout.colorAttachments[i].sampleCount = settings.settings.sampleCount;
+    }
     
     if(rpLayout.colorAttachments[0].sampleCount > 1){
-        rpLayout.colorResolveAttachments[0].format = toVulkanPixelFormat(BGRA8);
+        rpLayout.colorResolveAttachments[0].format = toVulkanPixelFormat(mst.colorAttachmentState.attachmentFormats[0]);
         rpLayout.colorResolveAttachments[0].loadop = LoadOp_Load;
         rpLayout.colorResolveAttachments[0].storeop = StoreOp_Store;
         rpLayout.colorResolveAttachments[0].sampleCount = 1;
@@ -260,9 +266,13 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     #if VULKAN_USE_DYNAMIC_RENDERING == 1
     VkPipelineRenderingCreateInfo rci zeroinit;
     rci.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
-    rci.colorAttachmentCount = 1;
-    VkFormat colorAttachmentFormat = VK_FORMAT_B8G8R8A8_UNORM;
-    rci.pColorAttachmentFormats = &colorAttachmentFormat;
+    rci.colorAttachmentCount = mst.colorAttachmentState.colorAttachmentCount;
+    VkFormat colorAttachmentFormat[max_color_attachments];
+    for(uint32_t i = 0;i < mst.colorAttachmentState.colorAttachmentCount;i++){
+        colorAttachmentFormat[i] = toVulkanPixelFormat(mst.colorAttachmentState.attachmentFormats[i]);
+    }
+
+    rci.pColorAttachmentFormats = colorAttachmentFormat;
     rci.depthAttachmentFormat = VK_FORMAT_D32_SFLOAT;
     pipelineInfo.pNext = &rci;
     #else
@@ -617,6 +627,9 @@ extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const A
     ret->state.vertexAttributes = std::vector<AttributeAndResidence>(attribs, attribs + attribCount); 
     ret->bglayout = LoadBindGroupLayout(uniforms, uniformCount, false);
     ret->shaderModule = mod;
+    ret->state.colorAttachmentState.colorAttachmentCount = mod.reflectionInfo.colorAttachmentCount;
+
+    std::fill(ret->state.colorAttachmentState.attachmentFormats, ret->state.colorAttachmentState.attachmentFormats  + ret->state.colorAttachmentState.colorAttachmentCount, BGRA8);
     //auto [spirV, spirF] = glsl_to_spirv(vsSource, fsSource);
     //ret->sh = LoadShaderModuleFromSPIRV_Vk(spirV.data(), spirV.size() * 4, spirF.data(), spirF.size() * 4);
     
