@@ -533,7 +533,9 @@ DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* unifo
     bglayoutdesc.entries = blayouts;
 
     ret.entries = (ResourceTypeDescriptor*)std::calloc(uniformCount, sizeof(ResourceTypeDescriptor));
-    std::memcpy(ret.entries, uniforms, uniformCount * sizeof(ResourceTypeDescriptor));
+    if(uniformCount > 0){
+        std::memcpy(ret.entries, uniforms, uniformCount * sizeof(ResourceTypeDescriptor));
+    }
     ret.layout = wgpuDeviceCreateBindGroupLayout((WGPUDevice)GetDevice(), &bglayoutdesc);
 
     std::free(blayouts);

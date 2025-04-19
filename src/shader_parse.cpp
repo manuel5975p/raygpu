@@ -113,7 +113,9 @@ DescribedShaderModule LoadShaderModuleWGSL(ShaderSources sources) {
     ret.reflectionInfo.uniforms = callocnewpp(StringToUniformMap);
     ret.reflectionInfo.attributes = callocnewpp(StringToAttributeMap);
     ret.reflectionInfo.uniforms->uniforms = getBindings(sources);
-    ret.reflectionInfo.attributes->attributes = getAttributesWGSL(sources);
+    auto [attribs, attachments] = getAttributesWGSL(sources);
+    ret.reflectionInfo.attributes->attributes = attribs;
+    ret.reflectionInfo.colorAttachmentCount = attachments.size();
     return ret;
 }
 format_or_sample_type extractFormat(const tint::ast::Identifier* iden){
@@ -370,7 +372,7 @@ InOutAttributeInfo getAttributesWGSL(ShaderSources sources){
 #endif
     return retvalue;
 }
-std::unordered_map<std::string, ResourceTypeDescriptor> getBindings(ShaderSources sources){
+std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsWGSL(ShaderSources sources){
     std::unordered_map<std::string, ResourceTypeDescriptor> ret;
     
 #if SUPPORT_WGSL_PARSER == 1
@@ -723,6 +725,27 @@ InOutAttributeInfo getAttributes(ShaderSources sources){
     }
     if(language == sourceTypeSPIRV){
         TRACELOG(LOG_FATAL, "Attempted to get SPIRV attributes, not yet implemented");
+    }
+    return {};
+}
+std::unordered_map<std::string, ResourceTypeDescriptor> getBindings(ShaderSources sources){
+    
+    rassert(sources.language != ShaderSourceType::sourceTypeUnknown, "Source type must be known");
+    const ShaderSourceType language = sources.language;
+    if(language == sourceTypeGLSL){
+        #if SUPPORT_GLSL_PARSER == 1
+        return getBindingsGLSL(sources);
+        #endif
+        TRACELOG(LOG_FATAL, "Attempted to get GLSL bindings without GLSL parser enabled");
+    }
+    if(language == sourceTypeWGSL){
+        #if SUPPORT_WGSL_PARSER == 1
+        return getBindingsWGSL(sources);
+        #endif
+        TRACELOG(LOG_FATAL, "Attempted to get WGSL bindings without WGSL parser enabled");
+    }
+    if(language == sourceTypeSPIRV){
+        TRACELOG(LOG_FATAL, "Attempted to get SPIRV bindings, not yet implemented");
     }
     return {};
 }

@@ -31,8 +31,8 @@ extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const WGVKBuffer
         propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
     }
     else{
-        //propertyToFind = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-        propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+        propertyToFind = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        //propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
     }
     VmaAllocationCreateInfo vallocInfo zeroinit;
     vallocInfo.preferredFlags = propertyToFind;
@@ -537,6 +537,12 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
         colorAttachments[i].clearValue.color.float32[3] = rpdesc->colorAttachments[i].clearValue.a;
         colorAttachments[i].imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         colorAttachments[i].imageView = rpdesc->colorAttachments[i].view->view;
+        if(rpdesc->colorAttachments[i].resolveTarget){
+            colorAttachments[i].resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            colorAttachments[i].resolveImageView = rpdesc->colorAttachments[i].resolveTarget->view;
+            colorAttachments[i].resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+            ret->resourceUsage.track(rpdesc->colorAttachments[i].resolveTarget, TextureUsage_RenderAttachment);
+        }
         ret->resourceUsage.track(rpdesc->colorAttachments[i].view, TextureUsage_RenderAttachment);
         colorAttachments[i].loadOp = toVulkanLoadOperation(rpdesc->colorAttachments[i].loadOp);
         colorAttachments[i].storeOp = toVulkanStoreOperation(rpdesc->colorAttachments[i].storeOp);
@@ -644,6 +650,7 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
 
 extern "C" void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
     #if VULKAN_USE_DYNAMIC_RENDERING == 1
+    //vkCmdResolveImage(VkCommandBuffer commandBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageResolve *pRegions)
     vkCmdEndRendering(renderPassEncoder->cmdBuffer);
     #else
     vkCmdEndRenderPass(renderPassEncoder->cmdBuffer);
@@ -1204,7 +1211,7 @@ void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group
     }
 }
 extern "C" void wgvkComputePassEncoderSetPipeline (WGVKComputePassEncoder cpe, WGVKComputePipeline computePipeline){
-    vkCmdBindPipeline(cpe->cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, computePipeline->graphicsPipeline);
+    vkCmdBindPipeline(cpe->cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, computePipeline->computePipeline);
     cpe->lastLayout = computePipeline->layout->layout;
 }
 extern "C" void wgvkComputePassEncoderSetBindGroup(WGVKComputePassEncoder cpe, uint32_t groupIndex, WGVKBindGroup bindGroup){

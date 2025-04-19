@@ -357,6 +357,14 @@ MAPI Vector3 Vector3Negate(Vector3 x){
 MAPI Vector2 Vector2Negate(Vector2 x){
     return CLITERAL(Vector2){-x.x, -x.y};
 }
+MAPI float Vector3Norm(Vector3 x){
+    //hypot?
+    return sqrtf(x.x * x.x + x.y * x.y + x.z * x.z);
+}
+MAPI float Vector2Norm(Vector2 x){
+    //hypot?
+    return sqrtf(x.x * x.x + x.y * x.y);
+}
 MAPI int FloatEquals(float x, float y){
     #if !defined(EPSILON)
         #define EPSILON 0.000001f

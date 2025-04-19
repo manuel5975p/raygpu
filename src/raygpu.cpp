@@ -77,6 +77,7 @@ ShaderSourceType detectShaderLanguage(const void* data, size_t sizeInBytes){
         return sourceTypeUnknown;
     }
 }
+
 void detectShaderLanguage(ShaderSources* sourcesPointer){
     ShaderSources& sources = *sourcesPointer;
     for(uint32_t i = 0;i < sourcesPointer->sourceCount;i++){
@@ -1788,6 +1789,20 @@ void UseNoTexture(){
     if(g_renderstate.activePipeline->bindGroup.entries[textureLocation].textureView == g_renderstate.whitePixel.view)return;
     drawCurrentBatch();
     SetTexture(textureLocation, g_renderstate.whitePixel);
+}
+
+UniformAccessor DescribedComputePipeline::operator[](const char* uniformName){
+
+    auto it = shaderModule.reflectionInfo.uniforms->uniforms.find(uniformName);
+    if(it == shaderModule.reflectionInfo.uniforms->uniforms.end()){
+        TRACELOG(LOG_ERROR, "Accessing nonexistent uniform %s", uniformName);
+        return UniformAccessor{.index = LOCATION_NOT_FOUND, .bindgroup = nullptr};
+    }
+    uint32_t location = it->second.location;
+    return UniformAccessor{.index = location, .bindgroup = &this->bindGroup};
+}
+void UniformAccessor::operator=(DescribedBuffer* buf){
+    SetBindgroupStorageBuffer(bindgroup, index, buf);
 }
 
 //TODO: this function should clone the pipeline, but it doesn't right now

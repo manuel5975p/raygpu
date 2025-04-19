@@ -798,7 +798,10 @@ namespace std{
  * @param shaderSource 
  * @return std::unordered_map<std::string, std::pair<uint32_t, UniformDescriptor>> 
  */
+std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsWGSL(ShaderSources source);
+std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSources source);
 std::unordered_map<std::string, ResourceTypeDescriptor> getBindings(ShaderSources source);
+
 /**
  * @brief returning a map from 
  * Attribute name -> Attribute format (vec2f, vec3f, etc.) and attribute location
@@ -813,6 +816,7 @@ struct InOutAttributeInfo{
 InOutAttributeInfo getAttributesWGSL(ShaderSources sources);
 InOutAttributeInfo getAttributesGLSL(ShaderSources sources);
 InOutAttributeInfo getAttributes    (ShaderSources sources);
+
 #endif
 
 EXTERN_C_BEGIN

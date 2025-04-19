@@ -110,7 +110,7 @@ extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
     src.sizeInBytes = std::strlen(shaderSource);
     std::unordered_map<std::string, ResourceTypeDescriptor> bindings = getBindings(sources);
 
-    std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> attribs = getAttributes(sources);
+    auto [attribs, attachmentState] = getAttributes(sources);
     
     std::vector<AttributeAndResidence> allAttribsInOneBuffer;
     allAttribsInOneBuffer.reserve(attribs.size());
@@ -295,13 +295,8 @@ extern "C" DescribedPipeline* LoadPipelineForVAOEx(ShaderSources sources, Vertex
 }
 extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
     
-    ShaderSources sources zeroinit;
-    sources.sourceCount = 1;
-    sources.language = sourceTypeWGSL;
-    sources.sources[0].data = shaderSource;
-    sources.sources[0].sizeInBytes = std::strlen(shaderSource);
-    sources.sources[0].stageMask = ShaderStageMask(ShaderStageMask_Vertex | ShaderStageMask_Fragment);
-    DescribedShaderModule mod = LoadShaderModuleWGSL(sources);
+    ShaderSources sources = singleStage(shaderSource, detectShaderLanguage(shaderSource, std::strlen(shaderSource)), (ShaderStage)(ShaderStage_Vertex | ShaderStage_Fragment));
+    DescribedShaderModule mod = LoadShaderModule(sources);
 
     return LoadPipelineMod(mod, attribs, attribCount, uniforms, uniformCount, settings);
 }
@@ -360,13 +355,7 @@ WGPUBuffer cloneBuffer(WGPUBuffer b, WGPUBufferUsage usage){
 //    return cloned;
 //}
 DescribedComputePipeline* LoadComputePipeline(const char* shaderCode){
-    ShaderSources sources zeroinit;
-    sources.sourceCount = 1;
-    sources.language = sourceTypeWGSL;
-
-    sources.sources[0].data = shaderCode;
-    sources.sources[0].sizeInBytes = std::strlen(shaderCode);
-    sources.sources[0].stageMask = ShaderStageMask_Compute;
+    ShaderSources sources = singleStage(shaderCode, detectShaderLanguage(shaderCode, std::strlen(shaderCode)), ShaderStage_Compute);
 
     auto bindmap = getBindings(sources);
     std::vector<ResourceTypeDescriptor> udesc;
@@ -380,12 +369,8 @@ DescribedComputePipeline* LoadComputePipeline(const char* shaderCode){
     
 }
 DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount){
-    ShaderSources sources zeroinit;
-    sources.sourceCount = 1;
-    sources.language = sourceTypeWGSL;
-    sources.sources[0].data = shaderCode;
-    sources.sources[0].sizeInBytes = std::strlen(shaderCode);
-    sources.sources[0].stageMask = ShaderStageMask_Compute;
+    ShaderSources sources = singleStage(shaderCode, detectShaderLanguage(shaderCode, std::strlen(shaderCode)), ShaderStage_Compute);
+
 
     auto bindmap = getBindings(sources);
     DescribedComputePipeline* ret = callocnew(DescribedComputePipeline);
@@ -396,7 +381,7 @@ DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const Re
     pldesc.bindGroupLayoutCount = 1;
     pldesc.bindGroupLayouts = (WGPUBindGroupLayout*) &ret->bglayout.layout;
     WGPUPipelineLayout playout = wgpuDeviceCreatePipelineLayout((WGPUDevice)GetDevice(), &pldesc);
-    ret->shaderModule = LoadShaderModuleWGSL(sources);
+    ret->shaderModule = LoadShaderModule(sources);
     desc.compute.module = (WGPUShaderModule) ret->shaderModule.stages[ShaderStage_Compute].module;
 
     desc.compute.entryPoint = WGPUStringView{ret->shaderModule.reflectionInfo.ep[ShaderStage_Compute].name, std::strlen(ret->shaderModule.reflectionInfo.ep[ShaderStage_Compute].name)};
@@ -482,16 +467,4 @@ extern "C" void UnloadBindGroupLayout(DescribedBindGroupLayout* bglayout){
     free(bglayout->entries);
     wgpuBindGroupLayoutRelease((WGPUBindGroupLayout)bglayout->layout);
 }
-void UniformAccessor::operator=(DescribedBuffer* buf){
-    SetBindgroupStorageBuffer(bindgroup, index, buf);
-}
-UniformAccessor DescribedComputePipeline::operator[](const char* uniformName){
 
-    auto it = shaderModule.reflectionInfo.uniforms->uniforms.find(uniformName);
-    if(it == shaderModule.reflectionInfo.uniforms->uniforms.end()){
-        TRACELOG(LOG_ERROR, "Accessing nonexistent uniform %s", uniformName);
-        return UniformAccessor{.index = LOCATION_NOT_FOUND, .bindgroup = nullptr};
-    }
-    uint32_t location = it->second.location;
-    return UniformAccessor{.index = location, .bindgroup = &this->bindGroup};
-}

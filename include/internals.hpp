@@ -342,6 +342,7 @@ static inline ShaderSources dualStage(const char* code1, const char* code2, Shad
 }
 
 void detectShaderLanguage(ShaderSources* sources);
+ShaderSourceType detectShaderLanguage(const void* sourceptr, size_t size);
 std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSources source);
 std::vector<std::pair<ShaderStage, std::string>> getEntryPointsWGSL(const char* shaderSourceWGSL);
 DescribedShaderModule LoadShaderModule(ShaderSources source);

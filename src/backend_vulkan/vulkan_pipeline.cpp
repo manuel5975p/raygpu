@@ -589,7 +589,7 @@ extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
     }
     
 
-    auto bindings = getBindings(sources);
+    auto bindings = getBindingsWGSL(sources);
 
     std::vector<ResourceTypeDescriptor> values;
     values.reserve(bindings.size());
@@ -807,7 +807,7 @@ void SetBindGroupSampler_Vk(DescribedBindGroup* bg, uint32_t binding, DescribedS
 
 extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount){
     DescribedComputePipeline* ret = callocnew(DescribedComputePipeline);
-    ShaderSources sources = singleStage(shaderCode, sourceTypeWGSL, ShaderStage_Compute);
+    ShaderSources sources = singleStage(shaderCode, detectShaderLanguage(shaderCode, std::strlen(shaderCode)), ShaderStage_Compute);
     DescribedShaderModule computeShaderModule = LoadShaderModule(sources);
     
     
@@ -830,7 +830,14 @@ extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCod
     cpci.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     cpci.layout = layout;
     cpci.stage = computeStage;
-    vkCreateComputePipelines(g_vulkanstate.device->device, nullptr, 1, &cpci, nullptr, (VkPipeline*)&ret->pipeline);
+    WGVKComputePipeline retpipeline = callocnewpp(WGVKComputePipelineImpl);
+    ret->pipeline = retpipeline;
+    WGVKPipelineLayout retlayout = callocnewpp(WGVKPipelineLayoutImpl);
+    retlayout->refCount = 2;
+    retlayout->layout = layout;
+    vkCreateComputePipelines(g_vulkanstate.device->device, nullptr, 1, &cpci, nullptr, &retpipeline->computePipeline);
+    ret->layout = retlayout;
+    retpipeline->layout = retlayout;
     ret->bglayout = bgl;
     std::vector<ResourceDescriptor> bge(uniformCount);
     
@@ -845,7 +852,7 @@ extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCod
 }
 
 extern "C" DescribedComputePipeline* LoadComputePipeline(const char* shaderCode){
-    ShaderSources source = singleStage(shaderCode, sourceTypeWGSL, ShaderStage_Compute);
+    ShaderSources source = singleStage(shaderCode, detectShaderLanguage(shaderCode, std::strlen(shaderCode)), ShaderStage_Compute);
     std::unordered_map<std::string, ResourceTypeDescriptor> bindings = getBindings(source);
     std::vector<ResourceTypeDescriptor> values;
     values.reserve(bindings.size());

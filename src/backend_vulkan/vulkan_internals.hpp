@@ -387,7 +387,7 @@ typedef struct WGVKRenderPipelineImpl{
 
 
 typedef struct WGVKComputePipelineImpl{
-    VkPipeline graphicsPipeline;
+    VkPipeline computePipeline;
     WGVKPipelineLayout layout;
 }WGVKComputePipelineImpl;
 
