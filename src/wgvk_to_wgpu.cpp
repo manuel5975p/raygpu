@@ -218,6 +218,9 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
     return nullptr;
     #endif
 }
+WGVKFuture wgvkInstanceRequestAdapter(WGVKInstance instance, const WGVKRequestAdapterOptions* options, WGVKRequestAdapterCallbackInfo callbackInfo){
+    
+}
 //void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, VkPipeline pipeline, VkPipelineLayout layout){
     //TODO 
     //wgpuRenderPassEncoderSetPipeline(rpe, pipeline, layout);

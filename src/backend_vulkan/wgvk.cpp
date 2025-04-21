@@ -45,7 +45,7 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
     // Collect unique queue families
     std::vector<uint32_t> queueFamilies;
     {
-        std::set<uint32_t> uniqueQueueFamilies; // = { g_vulkanstate.graphicsFamily, g_vulkanstate.presentFamily };
+        std::set<uint32_t> uniqueQueueFamilies;
 
         uniqueQueueFamilies.insert(adapter->queueIndices.computeIndex);
         uniqueQueueFamilies.insert(adapter->queueIndices.graphicsIndex);
@@ -203,7 +203,7 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
     ret.second->presubmitCache = wgvkDeviceCreateCommandEncoder(ret.first, &cedesc);
 
     VmaAllocatorCreateInfo aci zeroinit;
-    aci.instance = g_vulkanstate.instance;
+    aci.instance = adapter->instance->instance;
     aci.physicalDevice = adapter->physicalDevice;
     aci.device = ret.first->device;
     #if VULKAN_ENABLE_RAYTRACING == 1
@@ -240,7 +240,14 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
 
         VmaPoolCreateInfo vpci zeroinit;
         vpci.minAllocationAlignment = 64;
-        vpci.memoryTypeIndex = g_vulkanstate.memoryTypes.hostVisibleCoherent;
+        vkGetPhysicalDeviceMemoryProperties(adapter->physicalDevice, &memoryProperties);
+        uint32_t hostVisibleCoherentIndex = 0;
+        for(;hostVisibleCoherentIndex < memoryProperties.memoryTypeCount;hostVisibleCoherentIndex++){
+            if(memoryProperties.memoryTypes[hostVisibleCoherentIndex].propertyFlags & (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)){
+                break;
+            }
+        }
+        vpci.memoryTypeIndex = hostVisibleCoherentIndex;
         vpci.blockSize = (1 << 16);
         vmaCreatePool(ret.first->allocator, &vpci, &ret.first->aligned_hostVisiblePool);
         // TODO
@@ -287,10 +294,6 @@ extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const WGVKBuffer
     bufferDesc.size = desc->size;
     bufferDesc.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     bufferDesc.usage = toVulkanBufferUsage(desc->usage);
-    
-    //VkResult bufferCreateResult = vkCreateBuffer(device->device, &bufferDesc, nullptr, &wgvkBuffer->buffer);
-    //VkMemoryRequirements memRequirements;
-    //vkGetBufferMemoryRequirements(g_vulkanstate.device->device, wgvkBuffer->buffer, &memRequirements);
     
     VkMemoryPropertyFlags propertyToFind = 0;
     if(desc->usage & (BufferUsage_MapRead | BufferUsage_MapWrite)){
@@ -418,7 +421,7 @@ extern "C" void wgvkQueueWriteTexture(WGVKQueue cSelf, const WGVKTexelCopyTextur
 extern "C" WGVKTexture wgvkDeviceCreateTexture(WGVKDevice device, const WGVKTextureDescriptor* descriptor){
     VkDeviceMemory imageMemory zeroinit;
     // Adjust usage flags based on format (e.g., depth formats might need different usages)
-    WGVKTexture ret = callocnew(WGVKTextureImpl);
+    WGVKTexture ret = callocnewpp(WGVKTextureImpl);
 
     VkImageCreateInfo imageInfo zeroinit;
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -444,6 +447,7 @@ extern "C" WGVKTexture wgvkDeviceCreateTexture(WGVKDevice device, const WGVKText
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memReq.size;
     allocInfo.memoryTypeIndex = findMemoryType(
+        device->adapter->physicalDevice,
         memReq.memoryTypeBits, 
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
     );
@@ -780,6 +784,7 @@ extern "C" WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVK
     ret->depthOrArrayLayers = texture->depthOrArrayLayers;
     return ret;
 }
+
 extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, const WGVKRenderPassDescriptor* rpdesc){
     WGVKRenderPassEncoder ret = callocnewpp(WGVKRenderPassEncoderImpl);
 
@@ -1075,7 +1080,7 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
     wgvkReleaseCommandEncoder(queue->presubmitCache);
     wgvkReleaseCommandBuffer(cachebuffer);
     WGVKCommandEncoderDescriptor cedesc zeroinit;
-    queue->presubmitCache = wgvkDeviceCreateCommandEncoder(g_vulkanstate.device, &cedesc);
+    queue->presubmitCache = wgvkDeviceCreateCommandEncoder(queue->device, &cedesc);
     //queue->semaphoreThatTheNextBufferWillNeedToWaitFor = VK_NULL_HANDLE;
     //queue->presubmitCache = wgvkResetCommandBuffer(cachebuffer);
     //VkPipelineStageFlags bop[1] = {VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT};
@@ -1124,6 +1129,7 @@ extern "C" void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, WGVKAdapter 
 
 void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* config){
     auto device = WGVKDevice(config->device);
+    surface->device = config->device;
     surface->lastConfig = *config;
     vkDeviceWaitIdle(device->device);
     if(surface->imageViews){
@@ -1140,13 +1146,13 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* c
     std::free(surface->imageViews);
     std::free(surface->images);
     vkDestroySwapchainKHR(device->device, surface->swapchain, nullptr);
-    SwapChainSupportDetails swapChainSupport = querySwapChainSupport(g_vulkanstate.physicalDevice->physicalDevice, surface->surface);
+    SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device->adapter->physicalDevice, surface->surface);
     VkSwapchainCreateInfoKHR createInfo{};
 
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     createInfo.surface = surface->surface;
     VkSurfaceCapabilitiesKHR vkCapabilities;
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(g_vulkanstate.physicalDevice->physicalDevice, surface->surface, &vkCapabilities);
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(surface->device->adapter->physicalDevice, surface->surface, &vkCapabilities);
     uint32_t correctedWidth, correctedHeight;
     
     if(config->width < vkCapabilities.minImageExtent.width || config->width > vkCapabilities.maxImageExtent.width){
@@ -1169,16 +1175,16 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* c
     createInfo.imageFormat = toVulkanPixelFormat(config->format);//swapchainImageFormat;
     surface->width  = correctedWidth;
     surface->height = correctedHeight;
-    surface->device = (WGVKDevice)config->device;
+    surface->device = config->device;
     VkExtent2D newExtent{correctedWidth, correctedHeight};
     createInfo.imageExtent = newExtent;
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
     // Queue family indices
-    uint32_t queueFamilyIndices[] = {g_vulkanstate.graphicsFamily, g_vulkanstate.presentFamily};
+    uint32_t queueFamilyIndices[2] = {device->adapter->queueIndices.graphicsIndex, device->adapter->queueIndices.transferIndex};
 
-    if (g_vulkanstate.graphicsFamily != g_vulkanstate.presentFamily) {
+    if (queueFamilyIndices[0] != queueFamilyIndices[1]) {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         createInfo.queueFamilyIndexCount = 2;
         createInfo.pQueueFamilyIndices = queueFamilyIndices;
@@ -1206,7 +1212,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* c
 
     //surface->imageViews = (VkImageView*)std::calloc(surface->imagecount, sizeof(VkImageView));
     TRACELOG(LOG_INFO, "Imagecount: %d", (int)surface->imagecount);
-    vkGetSwapchainImagesKHR(g_vulkanstate.device->device, surface->swapchain, &surface->imagecount, tmpImages.data());
+    vkGetSwapchainImagesKHR(device->device, surface->swapchain, &surface->imagecount, tmpImages.data());
     surface->images = (WGVKTexture*)std::calloc(surface->imagecount, sizeof(WGVKTexture));
     for (uint32_t i = 0; i < surface->imagecount; i++) {
         surface->images[i] = callocnew(WGVKTextureImpl);
@@ -1322,7 +1328,7 @@ void wgvkBufferRelease(WGVKBuffer buffer) {
             vmaDestroyBuffer(buffer->device->allocator, buffer->buffer, buffer->allocation);
             //vkDestroyBuffer(buffer->device->device, buffer->buffer, nullptr);
             //vmaFreeMemory(buffer->device->allocator, buffer->allocation);
-            //vkFreeMemory(g_vulkanstate.device->device, buffer->memory, nullptr);
+            //vkFreeMemory(dshandle->device->device, buffer->memory, nullptr);
         }*/
         buffer->~WGVKBufferImpl();
         std::free(buffer);
@@ -1336,8 +1342,8 @@ void wgvkBindGroupRelease(WGVKBindGroup dshandle) {
         dshandle->device->frameCaches[dshandle->cacheIndex].bindGroupCache[dshandle->layout].emplace_back(dshandle->pool, dshandle->set);
         
         //DONT delete them, they are cached
-        //vkFreeDescriptorSets(g_vulkanstate.device->device, dshandle->pool, 1, &dshandle->set);
-        //vkDestroyDescriptorPool(g_vulkanstate.device->device, dshandle->pool, nullptr);
+        //vkFreeDescriptorSets(dshandle->device->device, dshandle->pool, 1, &dshandle->set);
+        //vkDestroyDescriptorPool(dshandle->device->device, dshandle->pool, nullptr);
         
         dshandle->~WGVKBindGroupImpl();
         std::free(dshandle);
@@ -1552,7 +1558,7 @@ extern "C" void wgvkSurfacePresent(WGVKSurface surface){
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     
     presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = &g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore;
+    presentInfo.pWaitSemaphores = &surface->device->frameCaches[cacheIndex].finalTransitionSemaphore;
     VkSwapchainKHR swapChains[] = {surface->swapchain};
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = swapChains;
@@ -1581,12 +1587,12 @@ extern "C" void wgvkSurfacePresent(WGVKSurface surface){
     VkPipelineStageFlags wsmask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
     cbsinfo.pWaitDstStageMask = &wsmask;
 
-    cbsinfo.pWaitSemaphores = &g_vulkanstate.queue->syncState[cacheIndex].semaphores[g_vulkanstate.queue->syncState[cacheIndex].submits];
+    cbsinfo.pWaitSemaphores = &surface->device->queue->syncState[cacheIndex].semaphores[surface->device->queue->syncState[cacheIndex].submits];
     //TRACELOG(LOG_INFO, "Submit waiting for semaphore index: %u", g_vulkanstate.queue->syncState[cacheIndex].submits);
     
-    cbsinfo.pSignalSemaphores = &g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionSemaphore;
+    cbsinfo.pSignalSemaphores = &surface->device->frameCaches[cacheIndex].finalTransitionSemaphore;
     
-    VkFence finalTransitionFence = g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence;
+    VkFence finalTransitionFence = surface->device->frameCaches[cacheIndex].finalTransitionFence;
     vkQueueSubmit(surface->device->queue->graphicsQueue, 1, &cbsinfo, finalTransitionFence);
     
     
@@ -1598,10 +1604,10 @@ extern "C" void wgvkSurfacePresent(WGVKSurface surface){
        //it->second.insert(WGVKCommandBuffer{});
     }
 
-    VkResult presentRes = vkQueuePresentKHR(g_vulkanstate.queue->presentQueue, &presentInfo);
-    //vkQueueWaitIdle(g_vulkanstate.queue->graphicsQueue);
+    VkResult presentRes = vkQueuePresentKHR(surface->device->queue->presentQueue, &presentInfo);
+
     ++surface->device->submittedFrames;
-    vmaSetCurrentFrameIndex(g_vulkanstate.device->allocator, surface->device->submittedFrames % framesInFlight);
+    vmaSetCurrentFrameIndex(surface->device->allocator, surface->device->submittedFrames % framesInFlight);
     if(presentRes != VK_SUCCESS && presentRes != VK_SUBOPTIMAL_KHR){
         if(presentRes == VK_ERROR_OUT_OF_DATE_KHR){
             TRACELOG(LOG_ERROR, "presentRes is VK_ERROR_OUT_OF_DATE_KHR");
@@ -1617,9 +1623,218 @@ extern "C" void wgvkSurfacePresent(WGVKSurface surface){
     }
 }
 
+extern "C" void EncodeTransitionImageLayout(
+    VkCommandBuffer commandBuffer,
+    VkImageLayout oldLayout,
+    VkImageLayout newLayout,
+    WGVKTexture texture
+) {
+    VkImage image = texture->image;
+    // --- 1. Define the Image Memory Barrier ---
+    // This structure describes the memory dependency for a specific image subresource range.
+    // It tells Vulkan how access to an image needs to be synchronized between operations.
+    VkImageMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = oldLayout; // Layout the image is currently in
+    barrier.newLayout = newLayout; // Layout the image needs to be transitioned to
+
+    // --- Queue Family Ownership ---
+    // If the image ownership is being transferred between different queue families (e.g., graphics to compute),
+    // you would specify the src and dst queue family indices here.
+    // VK_QUEUE_FAMILY_IGNORED means we are not transferring ownership, or the transition happens
+    // within the same queue family.
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+
+    // --- Image and Subresource Range ---
+    barrier.image = image; // The specific image resource to transition
+
+    // Define which part(s) of the image are affected by this barrier.
+    // aspectMask: Specifies which aspects (color, depth, stencil) are affected.
+    // TODO: A more robust implementation would check the actual VkFormat of the image.
+    if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL ||
+        newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL ||
+        oldLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL || // Check old layout too
+        oldLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL )
+    {
+         // Check format here if available to see if stencil exists
+         // bool hasStencil = (format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT);
+         // barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | (hasStencil ? VK_IMAGE_ASPECT_STENCIL_BIT : 0);
+         barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT; // Simple default for now
+         // If format has stencil, add: | VK_IMAGE_ASPECT_STENCIL_BIT;
+    } else {
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    }
+
+    barrier.subresourceRange.baseMipLevel = 0;   // First mip level to transition
+    barrier.subresourceRange.levelCount = 1;     // Number of mip levels to transition
+    barrier.subresourceRange.baseArrayLayer = 0; // First array layer to transition
+    barrier.subresourceRange.layerCount = 1;     // Number of array layers to transition
+
+    // --- 2. Define Pipeline Stages and Access Masks ---
+    // This is the crucial part for performance and correctness. We need to specify:
+    // - sourceStageMask: Which pipeline stage(s) must complete *before* the barrier executes.
+    //                    This relates to operations using the `oldLayout`.
+    // - destinationStageMask: Which pipeline stage(s) must wait *for* the barrier to complete
+    //                         before they can start. This relates to operations using the `newLayout`.
+    // - srcAccessMask: What kind of memory access (read/write) was performed in the source stages
+    //                  that needs to be made available/visible *before* the transition.
+    // - dstAccessMask: What kind of memory access (read/write) will be performed in the destination stages
+    //                  that needs to wait *for* the transition to complete.
+
+    VkPipelineStageFlags sourceStage;
+    VkPipelineStageFlags destinationStage;
+
+    // --- Determine Source Stage & Access Mask based on oldLayout ---
+    switch (oldLayout) {
+        case VK_IMAGE_LAYOUT_UNDEFINED:
+            // No need to wait for any stage, as the image content is undefined or discarded.
+            // No prior access needs to be synchronized.
+            barrier.srcAccessMask = 0;
+            sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // Represents the very start, no actual stage dependency.
+            break;
+
+        case VK_IMAGE_LAYOUT_PREINITIALIZED:
+             // Image data was prepared by the host.
+            barrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
+            sourceStage = VK_PIPELINE_STAGE_HOST_BIT; // Wait for host writes to be visible.
+            break;
+
+        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+            // Image was last used for reading in a transfer operation.
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            break;
+
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+            // Image was last used for writing in a transfer operation (e.g., vkCmdCopyBufferToImage).
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_TRANSFER_READ_BIT;
+            sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT; // Wait for transfer writes to complete.
+            break;
+
+        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+            // Image was last used as a color attachment (written to by fragment shader output).
+            barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            sourceStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT; // Wait for color writes to complete.
+            break;
+
+        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+            // Image was last used as a depth/stencil attachment (read/written by depth/stencil tests).
+            barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+            sourceStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT; // Wait for depth/stencil ops.
+            break;
+
+        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+            // Image was last read by a shader.
+            barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            // Which shader stage? Could be vertex, fragment, compute, etc.
+            // To be safe, we might sync against all relevant shader stages,
+            // or ideally, track the actual usage. Let's use a common one.
+            // VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT is common, but compute might also read.
+            sourceStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT; // Or VERTEX, COMPUTE, etc.
+             // A more robust barrier could use VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT or add VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+            break;
+
+        case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+             // Image was just presented. Generally, you transition *to* this layout at the end
+             // of a frame and the swapchain handles the transition *from* it implicitly when
+             // acquiring the next image. If you manually transition *from* it (e.g. for reuse),
+             // usually no specific GPU access needs synchronizing from the presentation itself.
+             barrier.srcAccessMask = 0; // Or maybe MEMORY_READ if WSI requires it? Safest is 0.
+             sourceStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT; // Presentation is implicitly after all commands.
+             break;
+
+        case VK_IMAGE_LAYOUT_GENERAL:
+             // General layout could have been used for *anything*. This often implies less optimal access.
+             // We need a conservative barrier. Assume it could have been written or read from anywhere.
+             // This is often a sign that layout tracking could be improved.
+             barrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT; // Any potential access
+             sourceStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT; // Wait for any possible command
+             break;
+
+        default:
+            // If we encounter an unhandled layout, assert or log an error.
+            // Using a very broad barrier as a fallback is dangerous and inefficient.
+            rassert(false, "Unsupported oldLayout for transition!");
+            barrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT; // Fallback guess
+            sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // Fallback guess
+            break;
+    }
+
+    // --- Determine Destination Stage & Access Mask based on newLayout ---
+    switch (newLayout) {
+        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+            // Image will be used for reading in a transfer operation.
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT; // Transfer stage needs to wait.
+            break;
+
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+            // Image will be used for writing in a transfer operation.
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT; // Transfer stage needs to wait.
+            break;
+
+        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+            // Image will be used as a color attachment (written by fragment shader).
+            barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT; // Might be read for blending too
+            destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT; // Color output stage needs to wait.
+            break;
+
+        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+            // Image will be used as a depth/stencil attachment (read/written by tests).
+            barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+            destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT; // Depth/stencil stages need to wait.
+            break;
+
+        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+            // Image will be read by a shader.
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            // Which shader stage will read it? Fragment is common for textures.
+            // Compute is common for imageLoad/Store or sampled images.
+            // Vertex shaders can also read textures (vertex texture fetch).
+            // Let's assume fragment for now, but be aware it could be others.
+            destinationStage = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT; 
+            break;
+
+        case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+            // Image will be presented to the screen.
+            // The presentation engine reads the image implicitly after all commands complete.
+            barrier.dstAccessMask = 0; // No specific GPU access needs to be made available *for* presentation itself via this barrier. Some WSI layers might implicitly need MEMORY_READ. 0 is usually fine.
+            destinationStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT; // Ensure all commands finish before presentation can potentially start.
+            break;
+
+        case VK_IMAGE_LAYOUT_GENERAL:
+             // General layout can be used for *anything* next. This might indicate suboptimal planning.
+             // Subsequent operations need to wait. Assume any kind of access might happen.
+             barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT; // Make memory available for any access
+             destinationStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT; // Any subsequent command might use it.
+             break;
+
+        default:
+            // If we encounter an unhandled layout, assert or log an error.
+            rassert(false, "Unsupported newLayout for transition!");
+            barrier.dstAccessMask = 0; // Fallback guess
+            destinationStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT; // Fallback guess
+            break;
+    }
+
+    // --- 3. Record the Pipeline Barrier Command ---
+    // This command injects the dependency into the command buffer.
+    vkCmdPipelineBarrier(
+        commandBuffer,
+        sourceStage,        // Pipeline stage(s) before the barrier
+        destinationStage,   // Pipeline stage(s) after the barrier
+        0,                  // Dependency flags (usually 0, VK_DEPENDENCY_BY_REGION_BIT is an optimization)
+        0, nullptr,         // Global memory barriers (not needed here)
+        0, nullptr,         // Buffer memory barriers (not needed here)
+        1, &barrier         // Image memory barriers (we have one)
+    );
+}
+
 void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t binding, WGVKBuffer buffer, VkDeviceSize offset) {
-    assert(rpe != nullptr && "RenderPassEncoderHandle is null");
-    assert(buffer != nullptr && "BufferHandle is null");
+    rassert(rpe != nullptr, "RenderPassEncoderHandle is null");
+    rassert(buffer != nullptr, "BufferHandle is null");
     
     // Bind the vertex buffer to the command buffer at the specified binding point
     vkCmdBindVertexBuffers(rpe->cmdBuffer, binding, 1, &(buffer->buffer), &offset);
@@ -1650,6 +1865,61 @@ extern "C" void wgvkBindGroupAddRef(WGVKBindGroup bindGroup){
 extern "C" void wgvkBindGroupLayoutAddRef(WGVKBindGroupLayout bindGroupLayout){
     ++bindGroupLayout->refCount;
 }
-void wgvkPipelineLayoutAddRef(WGVKPipelineLayout pipelineLayout){
+extern "C" void wgvkPipelineLayoutAddRef(WGVKPipelineLayout pipelineLayout){
     ++pipelineLayout->refCount;
+}
+
+extern "C" const char* vkErrorString(int code){
+    
+    switch(code){
+        case VK_NOT_READY: return "VK_NOT_READY";
+        case VK_TIMEOUT: return "VK_TIMEOUT";
+        case VK_EVENT_SET: return "VK_EVENT_SET";
+        case VK_EVENT_RESET: return "VK_EVENT_RESET";
+        case VK_INCOMPLETE: return "VK_INCOMPLETE";
+        case VK_ERROR_OUT_OF_HOST_MEMORY: return "VK_ERROR_OUT_OF_HOST_MEMORY";
+        case VK_ERROR_OUT_OF_DEVICE_MEMORY: return "VK_ERROR_OUT_OF_DEVICE_MEMORY";
+        case VK_ERROR_INITIALIZATION_FAILED: return "VK_ERROR_INITIALIZATION_FAILED";
+        case VK_ERROR_DEVICE_LOST: return "VK_ERROR_DEVICE_LOST";
+        case VK_ERROR_MEMORY_MAP_FAILED: return "VK_ERROR_MEMORY_MAP_FAILED";
+        case VK_ERROR_LAYER_NOT_PRESENT: return "VK_ERROR_LAYER_NOT_PRESENT";
+        case VK_ERROR_EXTENSION_NOT_PRESENT: return "VK_ERROR_EXTENSION_NOT_PRESENT";
+        case VK_ERROR_FEATURE_NOT_PRESENT: return "VK_ERROR_FEATURE_NOT_PRESENT";
+        case VK_ERROR_INCOMPATIBLE_DRIVER: return "VK_ERROR_INCOMPATIBLE_DRIVER";
+        case VK_ERROR_TOO_MANY_OBJECTS: return "VK_ERROR_TOO_MANY_OBJECTS";
+        case VK_ERROR_FORMAT_NOT_SUPPORTED: return "VK_ERROR_FORMAT_NOT_SUPPORTED";
+        case VK_ERROR_FRAGMENTED_POOL: return "VK_ERROR_FRAGMENTED_POOL";
+        case VK_ERROR_UNKNOWN: return "VK_ERROR_UNKNOWN";
+        case VK_ERROR_OUT_OF_POOL_MEMORY: return "VK_ERROR_OUT_OF_POOL_MEMORY";
+        case VK_ERROR_INVALID_EXTERNAL_HANDLE: return "VK_ERROR_INVALID_EXTERNAL_HANDLE";
+        case VK_ERROR_FRAGMENTATION: return "VK_ERROR_FRAGMENTATION";
+        case VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS: return "VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS";
+        case VK_PIPELINE_COMPILE_REQUIRED: return "VK_PIPELINE_COMPILE_REQUIRED";
+        case VK_ERROR_NOT_PERMITTED: return "VK_ERROR_NOT_PERMITTED";
+        case VK_ERROR_SURFACE_LOST_KHR: return "VK_ERROR_SURFACE_LOST_KHR";
+        case VK_ERROR_NATIVE_WINDOW_IN_USE_KHR: return "VK_ERROR_NATIVE_WINDOW_IN_USE_KHR";
+        case VK_SUBOPTIMAL_KHR: return "VK_SUBOPTIMAL_KHR";
+        case VK_ERROR_OUT_OF_DATE_KHR: return "VK_ERROR_OUT_OF_DATE_KHR";
+        case VK_ERROR_INCOMPATIBLE_DISPLAY_KHR: return "VK_ERROR_INCOMPATIBLE_DISPLAY_KHR";
+        case VK_ERROR_VALIDATION_FAILED_EXT: return "VK_ERROR_VALIDATION_FAILED_EXT";
+        case VK_ERROR_INVALID_SHADER_NV: return "VK_ERROR_INVALID_SHADER_NV";
+        case VK_ERROR_IMAGE_USAGE_NOT_SUPPORTED_KHR: return "VK_ERROR_IMAGE_USAGE_NOT_SUPPORTED_KHR";
+        case VK_ERROR_VIDEO_PICTURE_LAYOUT_NOT_SUPPORTED_KHR: return "VK_ERROR_VIDEO_PICTURE_LAYOUT_NOT_SUPPORTED_KHR";
+        case VK_ERROR_VIDEO_PROFILE_OPERATION_NOT_SUPPORTED_KHR: return "VK_ERROR_VIDEO_PROFILE_OPERATION_NOT_SUPPORTED_KHR";
+        case VK_ERROR_VIDEO_PROFILE_FORMAT_NOT_SUPPORTED_KHR: return "VK_ERROR_VIDEO_PROFILE_FORMAT_NOT_SUPPORTED_KHR";
+        case VK_ERROR_VIDEO_PROFILE_CODEC_NOT_SUPPORTED_KHR: return "VK_ERROR_VIDEO_PROFILE_CODEC_NOT_SUPPORTED_KHR";
+        case VK_ERROR_VIDEO_STD_VERSION_NOT_SUPPORTED_KHR: return "VK_ERROR_VIDEO_STD_VERSION_NOT_SUPPORTED_KHR";
+        case VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT: return "VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT";
+        case VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT: return "VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT";
+        case VK_THREAD_IDLE_KHR: return "VK_THREAD_IDLE_KHR";
+        case VK_THREAD_DONE_KHR: return "VK_THREAD_DONE_KHR";
+        case VK_OPERATION_DEFERRED_KHR: return "VK_OPERATION_DEFERRED_KHR";
+        case VK_OPERATION_NOT_DEFERRED_KHR: return "VK_OPERATION_NOT_DEFERRED_KHR";
+        case VK_ERROR_INVALID_VIDEO_STD_PARAMETERS_KHR: return "VK_ERROR_INVALID_VIDEO_STD_PARAMETERS_KHR";
+        case VK_ERROR_COMPRESSION_EXHAUSTED_EXT: return "VK_ERROR_COMPRESSION_EXHAUSTED_EXT";
+        case VK_INCOMPATIBLE_SHADER_BINARY_EXT: return "VK_INCOMPATIBLE_SHADER_BINARY_EXT";
+        case VK_PIPELINE_BINARY_MISSING_KHR: return "VK_PIPELINE_BINARY_MISSING_KHR";
+        case VK_ERROR_NOT_ENOUGH_SPACE_KHR: return "VK_ERROR_NOT_ENOUGH_SPACE_KHR";
+        default: return "<Unknown VkResult enum>";
+    }
 }

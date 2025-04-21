@@ -572,7 +572,7 @@ QueueIndices findQueueFamilies(WGVKAdapter adapter) {
         //TRACELOG(LOG_WARNING, "Using the SDL3 route");
         std::cout << SDL_GetError() << "\n";
         SDL_CreateWindow("dummy", 0, 0, SDL_WINDOW_HIDDEN | SDL_WINDOW_VULKAN);
-        bool presentSupport = SDL_Vulkan_GetPresentationSupport(g_vulkanstate.instance, adapter->physicalDevice, i);
+        bool presentSupport = SDL_Vulkan_GetPresentationSupport(g_vulkanstate.instance->instance, adapter->physicalDevice, i);
         #elif defined(MAIN_WINDOW_SDL2) //uuh 
         VkBool32 presentSupport = VK_TRUE;
         #elif defined(MAIN_WINDOW_GLFW)
@@ -622,16 +622,16 @@ extern "C" DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescri
 }
 
 // Function to pick a suitable physical device (GPU)
-WGVKAdapter pickPhysicalDevice() {
+WGVKAdapter pickPhysicalDevice(WGVKInstance instance) {
     uint32_t deviceCount = 0;
-    vkEnumeratePhysicalDevices(g_vulkanstate.instance, &deviceCount, nullptr);
+    vkEnumeratePhysicalDevices(instance->instance, &deviceCount, nullptr);
 
     if (deviceCount == 0) {
         TRACELOG(LOG_FATAL, "Failed to find GPUs with Vulkan support!");
     }
 
     std::vector<VkPhysicalDevice> devices(deviceCount);
-    vkEnumeratePhysicalDevices(g_vulkanstate.instance, &deviceCount, devices.data());
+    vkEnumeratePhysicalDevices(instance->instance, &deviceCount, devices.data());
     
     std::vector<std::pair<VkPhysicalDevice, VkPhysicalDeviceProperties>> dwp;
     dwp.reserve(deviceCount);
@@ -672,6 +672,7 @@ WGVKAdapter pickPhysicalDevice() {
     TRACELOG(LOG_INFO, "Running on Vulkan %d.%d.%d", major, minor, patch);
     WGVKAdapter reta = callocnewpp(WGVKAdapterImpl);
     reta->physicalDevice = ret;
+    reta->instance = instance;
     vkGetPhysicalDeviceMemoryProperties(ret, &reta->memProperties);
     reta->queueIndices = findQueueFamilies(reta);
     return reta;
@@ -1038,9 +1039,9 @@ void InitBackend(){
     #if SUPPORT_GLFW
     glfwInit();
     #endif
-    
-    g_vulkanstate.instance = createInstance();
-    g_vulkanstate.physicalDevice = pickPhysicalDevice();
+    WGVKInstanceDescriptor idesc zeroinit;
+    g_vulkanstate.instance = wgvkCreateInstance(&idesc);
+    g_vulkanstate.physicalDevice = pickPhysicalDevice(g_vulkanstate.instance);
 
     vkGetPhysicalDeviceMemoryProperties(g_vulkanstate.physicalDevice->physicalDevice, &g_vulkanstate.memProperties);
 
@@ -1378,58 +1379,4 @@ extern "C" void EndRenderpassPro(DescribedRenderpass* rp, bool renderTexture){
 }
 void DispatchCompute(uint32_t x, uint32_t y, uint32_t z){
     wgvkComputePassEncoderDispatchWorkgroups((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder, x, y, z);
-}
-extern "C" const char* vkErrorString(int code){
-    
-    switch(code){
-        case VK_NOT_READY: return "VK_NOT_READY";
-        case VK_TIMEOUT: return "VK_TIMEOUT";
-        case VK_EVENT_SET: return "VK_EVENT_SET";
-        case VK_EVENT_RESET: return "VK_EVENT_RESET";
-        case VK_INCOMPLETE: return "VK_INCOMPLETE";
-        case VK_ERROR_OUT_OF_HOST_MEMORY: return "VK_ERROR_OUT_OF_HOST_MEMORY";
-        case VK_ERROR_OUT_OF_DEVICE_MEMORY: return "VK_ERROR_OUT_OF_DEVICE_MEMORY";
-        case VK_ERROR_INITIALIZATION_FAILED: return "VK_ERROR_INITIALIZATION_FAILED";
-        case VK_ERROR_DEVICE_LOST: return "VK_ERROR_DEVICE_LOST";
-        case VK_ERROR_MEMORY_MAP_FAILED: return "VK_ERROR_MEMORY_MAP_FAILED";
-        case VK_ERROR_LAYER_NOT_PRESENT: return "VK_ERROR_LAYER_NOT_PRESENT";
-        case VK_ERROR_EXTENSION_NOT_PRESENT: return "VK_ERROR_EXTENSION_NOT_PRESENT";
-        case VK_ERROR_FEATURE_NOT_PRESENT: return "VK_ERROR_FEATURE_NOT_PRESENT";
-        case VK_ERROR_INCOMPATIBLE_DRIVER: return "VK_ERROR_INCOMPATIBLE_DRIVER";
-        case VK_ERROR_TOO_MANY_OBJECTS: return "VK_ERROR_TOO_MANY_OBJECTS";
-        case VK_ERROR_FORMAT_NOT_SUPPORTED: return "VK_ERROR_FORMAT_NOT_SUPPORTED";
-        case VK_ERROR_FRAGMENTED_POOL: return "VK_ERROR_FRAGMENTED_POOL";
-        case VK_ERROR_UNKNOWN: return "VK_ERROR_UNKNOWN";
-        case VK_ERROR_OUT_OF_POOL_MEMORY: return "VK_ERROR_OUT_OF_POOL_MEMORY";
-        case VK_ERROR_INVALID_EXTERNAL_HANDLE: return "VK_ERROR_INVALID_EXTERNAL_HANDLE";
-        case VK_ERROR_FRAGMENTATION: return "VK_ERROR_FRAGMENTATION";
-        case VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS: return "VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS";
-        case VK_PIPELINE_COMPILE_REQUIRED: return "VK_PIPELINE_COMPILE_REQUIRED";
-        case VK_ERROR_NOT_PERMITTED: return "VK_ERROR_NOT_PERMITTED";
-        case VK_ERROR_SURFACE_LOST_KHR: return "VK_ERROR_SURFACE_LOST_KHR";
-        case VK_ERROR_NATIVE_WINDOW_IN_USE_KHR: return "VK_ERROR_NATIVE_WINDOW_IN_USE_KHR";
-        case VK_SUBOPTIMAL_KHR: return "VK_SUBOPTIMAL_KHR";
-        case VK_ERROR_OUT_OF_DATE_KHR: return "VK_ERROR_OUT_OF_DATE_KHR";
-        case VK_ERROR_INCOMPATIBLE_DISPLAY_KHR: return "VK_ERROR_INCOMPATIBLE_DISPLAY_KHR";
-        case VK_ERROR_VALIDATION_FAILED_EXT: return "VK_ERROR_VALIDATION_FAILED_EXT";
-        case VK_ERROR_INVALID_SHADER_NV: return "VK_ERROR_INVALID_SHADER_NV";
-        case VK_ERROR_IMAGE_USAGE_NOT_SUPPORTED_KHR: return "VK_ERROR_IMAGE_USAGE_NOT_SUPPORTED_KHR";
-        case VK_ERROR_VIDEO_PICTURE_LAYOUT_NOT_SUPPORTED_KHR: return "VK_ERROR_VIDEO_PICTURE_LAYOUT_NOT_SUPPORTED_KHR";
-        case VK_ERROR_VIDEO_PROFILE_OPERATION_NOT_SUPPORTED_KHR: return "VK_ERROR_VIDEO_PROFILE_OPERATION_NOT_SUPPORTED_KHR";
-        case VK_ERROR_VIDEO_PROFILE_FORMAT_NOT_SUPPORTED_KHR: return "VK_ERROR_VIDEO_PROFILE_FORMAT_NOT_SUPPORTED_KHR";
-        case VK_ERROR_VIDEO_PROFILE_CODEC_NOT_SUPPORTED_KHR: return "VK_ERROR_VIDEO_PROFILE_CODEC_NOT_SUPPORTED_KHR";
-        case VK_ERROR_VIDEO_STD_VERSION_NOT_SUPPORTED_KHR: return "VK_ERROR_VIDEO_STD_VERSION_NOT_SUPPORTED_KHR";
-        case VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT: return "VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT";
-        case VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT: return "VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT";
-        case VK_THREAD_IDLE_KHR: return "VK_THREAD_IDLE_KHR";
-        case VK_THREAD_DONE_KHR: return "VK_THREAD_DONE_KHR";
-        case VK_OPERATION_DEFERRED_KHR: return "VK_OPERATION_DEFERRED_KHR";
-        case VK_OPERATION_NOT_DEFERRED_KHR: return "VK_OPERATION_NOT_DEFERRED_KHR";
-        case VK_ERROR_INVALID_VIDEO_STD_PARAMETERS_KHR: return "VK_ERROR_INVALID_VIDEO_STD_PARAMETERS_KHR";
-        case VK_ERROR_COMPRESSION_EXHAUSTED_EXT: return "VK_ERROR_COMPRESSION_EXHAUSTED_EXT";
-        case VK_INCOMPATIBLE_SHADER_BINARY_EXT: return "VK_INCOMPATIBLE_SHADER_BINARY_EXT";
-        case VK_PIPELINE_BINARY_MISSING_KHR: return "VK_PIPELINE_BINARY_MISSING_KHR";
-        case VK_ERROR_NOT_ENOUGH_SPACE_KHR: return "VK_ERROR_NOT_ENOUGH_SPACE_KHR";
-        default: return "<Unknown VkResult enum>";
-    }
 }

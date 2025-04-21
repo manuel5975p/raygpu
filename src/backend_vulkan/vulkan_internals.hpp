@@ -335,6 +335,7 @@ typedef struct WGVKInstanceImpl{
 
 typedef struct WGVKAdapterImpl{
     VkPhysicalDevice physicalDevice;
+    WGVKInstance instance;
     VkPhysicalDeviceRayTracingPipelinePropertiesKHR rayTracingPipelineProperties;
     VkPhysicalDeviceMemoryProperties memProperties;
     QueueIndices queueIndices;
@@ -791,7 +792,7 @@ struct memory_types{
 };
 
 struct VulkanState {
-    VkInstance instance = VK_NULL_HANDLE;
+    WGVKInstance instance = VK_NULL_HANDLE;
     WGVKAdapter physicalDevice = nullptr;
     VkPhysicalDeviceMemoryProperties memProperties;
 
