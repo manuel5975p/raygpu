@@ -186,6 +186,7 @@ typedef enum WGVKStencilOperation {
 typedef enum WGVKSType {
     WGVKSType_ShaderSourceSPIRV = 0x00000001,
     WGVKSType_ShaderSourceWGSL = 0x00000002,
+    WGVKSType_InstanceValidationLayerSelection = 0x10000001
 }WGVKSType;
 
 typedef struct WGVKStringView{
@@ -242,6 +243,11 @@ typedef struct WGVKInstanceCapabilities {
     Bool32 timedWaitAnyEnable;
     size_t timedWaitAnyMaxCount;
 } WGVKInstanceCapabilities;
+typedef struct WGVKInstanceLayerSelection{
+    WGVKChainedStruct chain;
+    const char* const* instanceLayers;
+    uint32_t instanceLayerCount;
+}WGVKInstanceLayerSelection;
 
 typedef struct WGVKInstanceDescriptor {
     WGVKChainedStruct* nextInChain;

@@ -6,11 +6,47 @@
 #include <external/VmaUsage.h>
 #include <unordered_set>
 #include <set>
+static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
+    auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+    if (func != nullptr) {
+        return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
+    } else {
+        return VK_ERROR_EXTENSION_NOT_PRESENT;
+    }
+}
+
+static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT messageType,
+    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+    void* pUserData) {
+    if(messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT){
+        TRACELOG(LOG_ERROR, pCallbackData->pMessage);
+        rg_trap();
+    }
+    else if(messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT){
+        TRACELOG(LOG_WARNING, pCallbackData->pMessage);
+    }
+    else if(messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT){
+        TRACELOG(LOG_INFO, pCallbackData->pMessage);
+    }
+    
+
+    return VK_FALSE;
+}
 
 WGVKInstance wgvkCreateInstance(const WGVKInstanceDescriptor* descriptor){
     WGVKInstance ret = callocnew(WGVKInstanceImpl);
     WGVKInstanceCapabilities capabilities;
     VkInstanceCreateInfo ici zeroinit;
+    VkApplicationInfo appInfo{};
+    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    appInfo.pApplicationName = "Vulkan App";
+    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.pEngineName = "No Engine";
+    appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.apiVersion = VK_API_VERSION_1_3;
+    ici.pApplicationInfo = &appInfo;
     ici.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     uint32_t propertyCount = 0;
     int vkresult = 0;
@@ -30,7 +66,39 @@ WGVKInstance wgvkCreateInstance(const WGVKInstanceDescriptor* descriptor){
     });
     ici.ppEnabledExtensionNames = charPointers.data();
     ici.enabledExtensionCount = charPointers.size();
+    
+    if(descriptor->nextInChain && descriptor->nextInChain->sType == WGVKSType_InstanceValidationLayerSelection){
+        WGVKInstanceLayerSelection* ils = reinterpret_cast<WGVKInstanceLayerSelection*>(descriptor->nextInChain);
+        ici.ppEnabledLayerNames = ils->instanceLayers;
+        ici.enabledLayerCount = ils->instanceLayerCount;
+    }
+    VkValidationFeatureEnableEXT enables[] = { 
+        VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT 
+    };
+    
+    VkValidationFeaturesEXT validationFeatures = {};
+    validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+    validationFeatures.enabledValidationFeatureCount = 1;
+    validationFeatures.pEnabledValidationFeatures = enables;
+    if(ici.enabledLayerCount > 0){
+        ici.pNext = &validationFeatures;
+    }
+
     vkresult |= vkCreateInstance(&ici, nullptr, &ret->instance);
+
+    VkDebugUtilsMessengerEXT debugMessenger zeroinit;{
+        VkDebugUtilsMessengerCreateInfoEXT createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+        createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+        createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+        createInfo.pfnUserCallback = debugCallback;
+        createInfo.pUserData = nullptr; // Optional
+        VkResult dbcResult = CreateDebugUtilsMessengerEXT(ret->instance, &createInfo, nullptr, &debugMessenger);
+        if (dbcResult != VK_SUCCESS) {
+            TRACELOG(LOG_ERROR, "Failed to set up debug callback, error code: %d! Valudation errors will be printed but ignored", (int)dbcResult);
+        }
+    }
+
     return ret;
 }
 WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescriptor* descriptor){
@@ -834,6 +902,7 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
         .offset = VkOffset2D{0, 0},
         .extent = VkExtent2D{rpdesc->colorAttachments[0].view->width, rpdesc->colorAttachments[0].view->height}
     };
+    uint64_t v = (uint64_t)reinterpret_cast<PFN_vkCmdBeginRendering>(vkCmdBeginRendering);
     vkCmdBeginRendering(ret->cmdBuffer, &info);
     #else
     RenderPassLayout rplayout = GetRenderPassLayout(rpdesc);
@@ -896,7 +965,7 @@ extern "C" WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEn
     fbci.layers = 1;
     
     fbci.renderPass = ret->renderPass;
-    VkResult fbresult = vkCreateFramebuffer(g_vulkanstate.device->device, &fbci, nullptr, &ret->frameBuffer);
+    VkResult fbresult = vkCreateFramebuffer(enc->device->device, &fbci, nullptr, &ret->frameBuffer);
     if(fbresult != VK_SUCCESS){
         TRACELOG(LOG_FATAL, "Error creating framebuffer: %d", (int)fbresult);
     }

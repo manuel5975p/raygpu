@@ -383,7 +383,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 
     return VK_FALSE;
 }
-VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
+static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
     auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
     if (func != nullptr) {
         return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
@@ -576,9 +576,9 @@ QueueIndices findQueueFamilies(WGVKAdapter adapter) {
         #elif defined(MAIN_WINDOW_SDL2) //uuh 
         VkBool32 presentSupport = VK_TRUE;
         #elif defined(MAIN_WINDOW_GLFW)
-        VkBool32 presentSupport = glfwGetPhysicalDevicePresentationSupport(g_vulkanstate.instance, adapter->physicalDevice, i) ? VK_TRUE : VK_FALSE;
+        VkBool32 presentSupport = glfwGetPhysicalDevicePresentationSupport(g_vulkanstate.instance->instance, adapter->physicalDevice, i) ? VK_TRUE : VK_FALSE;
         #elif SUPPORT_RGFW == 1
-        VkBool32 presentSupport = RGFW_getVKPresentationSupport_noinline(g_vulkanstate.instance, adapter->physicalDevice, i);
+        VkBool32 presentSupport = RGFW_getVKPresentationSupport_noinline(g_vulkanstate.instance->instance, adapter->physicalDevice, i);
         #else
         VkBool32 presentSupport = VK_FALSE;
         #endif
@@ -1036,10 +1036,36 @@ void InitBackend(){
     #if SUPPORT_SDL2 == 1 || SUPPORT_SDL3 == 1
     SDL_Init(SDL_INIT_VIDEO);
     #endif
-    #if SUPPORT_GLFW
+    #if SUPPORT_GLFW == 1
     glfwInit();
     #endif
+
+    uint32_t layerCount = 0;
+    vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+
+    std::vector<VkLayerProperties> availableLayers(layerCount);
+    vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+
+    std::vector<const char *> validationLayers;
+    for (const auto &layer : availableLayers) {
+        if (std::string(layer.layerName).find("valid") != std::string::npos) {
+            #ifndef NDEBUG
+            TRACELOG(LOG_INFO, "Selecting Validation Layer %s",layer.layerName);
+            validationLayers.push_back(layer.layerName);
+            #else
+            TRACELOG(LOG_INFO, "Validation Layer %s available but not selected since NDEBUG is defined",layer.layerName);
+            #endif
+        }
+    }
+
+    WGVKInstanceLayerSelection instanceLayers zeroinit;
+    instanceLayers.chain.sType = WGVKSType_InstanceValidationLayerSelection;
+    
+    instanceLayers.instanceLayers = validationLayers.data();
+    instanceLayers.instanceLayerCount = validationLayers.size();
+    
     WGVKInstanceDescriptor idesc zeroinit;
+    idesc.nextInChain = &instanceLayers.chain;
     g_vulkanstate.instance = wgvkCreateInstance(&idesc);
     g_vulkanstate.physicalDevice = pickPhysicalDevice(g_vulkanstate.instance);
 
