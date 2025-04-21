@@ -651,10 +651,10 @@ void rlSetLineWidth(float lineWidth){
     g_renderstate.currentSettings.lineWidth = lineWidth;
 }
 
-uint32_t GetScreenWidth (cwoid){
+int GetScreenWidth (cwoid){
     return g_renderstate.width;
 }
-uint32_t GetScreenHeight(cwoid){
+int GetScreenHeight(cwoid){
     return g_renderstate.height;
 }
 
@@ -807,10 +807,10 @@ void BeginDrawing(){
     //UseNoTexture();
     //updateBindGroup(g_renderstate.rstate);
 }
-uint32_t GetRenderWidth  (cwoid){
+int GetRenderWidth  (cwoid){
     return g_renderstate.renderExtentX;
 }
-uint32_t GetRenderHeight (cwoid){
+int GetRenderHeight (cwoid){
     return g_renderstate.renderExtentY;
 }
     

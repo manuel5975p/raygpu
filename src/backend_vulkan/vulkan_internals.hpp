@@ -736,6 +736,7 @@ struct WGVKSurfaceImpl{
     VkSurfaceKHR surface;
     VkSwapchainKHR swapchain;
     WGVKDevice device;
+    WGVKSurfaceConfiguration lastConfig;
     uint32_t imagecount;
 
     uint32_t activeImageIndex;

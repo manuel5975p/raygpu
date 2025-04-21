@@ -307,6 +307,7 @@ uint32_t GetMonitorWidth_SDL3(cwoid){
     }
     return mode->w;
 }
+
 uint32_t GetMonitorHeight_SDL3(cwoid){
     Initialize_SDL3();
     SDL_Point zeropoint{};

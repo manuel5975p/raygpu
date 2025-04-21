@@ -1759,7 +1759,6 @@ const std::unordered_map<WGPUFeatureName, std::string> featureSpellingTable = []
     ret[WGPUFeatureName_ChromiumExperimentalImmediateData] = "WGPUFeatureName_ChromiumExperimentalImmediateData";
     ret[WGPUFeatureName_TransientAttachments] = "WGPUFeatureName_TransientAttachments";
     ret[WGPUFeatureName_MSAARenderToSingleSampled] = "WGPUFeatureName_MSAARenderToSingleSampled";
-    ret[WGPUFeatureName_SubgroupsF16] = "WGPUFeatureName_SubgroupsF16";
     ret[WGPUFeatureName_D3D11MultithreadProtected] = "WGPUFeatureName_D3D11MultithreadProtected";
     ret[WGPUFeatureName_ANGLETextureSharing] = "WGPUFeatureName_ANGLETextureSharing";
     ret[WGPUFeatureName_PixelLocalStorageCoherent] = "WGPUFeatureName_PixelLocalStorageCoherent";

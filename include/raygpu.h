@@ -838,12 +838,12 @@ EXTERN_C_BEGIN
     void PostPresentSurface(cwoid);
     void DummySubmitOnQueue(cwoid);
 
-    uint32_t GetScreenWidth  (cwoid);                     //Window width
-    uint32_t GetScreenHeight (cwoid);                     //Window height
-    uint32_t GetMonitorWidth (cwoid);                     //Monitor height
-    uint32_t GetMonitorHeight(cwoid);                     //Monitor height
-    uint32_t GetRenderWidth  (cwoid);                     //Render width (e.g. Rendertexture)
-    uint32_t GetRenderHeight (cwoid);                     //Render height (e.g. Rendertexture)
+    int GetScreenWidth  (cwoid);                          //Window width
+    int GetScreenHeight (cwoid);                          //Window height
+    int GetMonitorWidth (cwoid);                     //Monitor height
+    int GetMonitorHeight(cwoid);                     //Monitor height
+    int GetRenderWidth  (cwoid);                     //Render width (e.g. Rendertexture)
+    int GetRenderHeight (cwoid);                     //Render height (e.g. Rendertexture)
     
     
     void ToggleFullscreen(cwoid);

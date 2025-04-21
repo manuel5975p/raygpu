@@ -504,15 +504,9 @@ Vector2 GetTouchPosition(int index){
     #endif
 }
 int GetTouchPointCount(cwoid){
-    #ifdef MAIN_WINDOW_GLFW
-    return 0;//GetTouchPointCount_GLFW();
-    #elif defined(MAIN_WINDOW_SDL2)
-    return GetTouchPointCount_SDL2();
-    #else
-    return 0;
-    #endif
+    return static_cast<int>(g_renderstate.input_map[g_renderstate.activeSubWindow.handle].touchPoints.size());
 }
-uint32_t GetMonitorWidth(cwoid){
+int GetMonitorWidth(cwoid){
     #ifdef MAIN_WINDOW_GLFW
     return GetMonitorWidth_GLFW();
     #elif defined(MAIN_WINDOW_SDL2)
@@ -522,7 +516,7 @@ uint32_t GetMonitorWidth(cwoid){
     #endif
     return 0;
 }
-uint32_t GetMonitorHeight(cwoid){
+int GetMonitorHeight(cwoid){
     #ifdef MAIN_WINDOW_GLFW
     return GetMonitorHeight_GLFW();
     #elif defined(MAIN_WINDOW_SDL2)

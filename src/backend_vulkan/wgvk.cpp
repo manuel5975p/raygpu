@@ -1124,7 +1124,7 @@ extern "C" void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, WGVKAdapter 
 
 void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* config){
     auto device = WGVKDevice(config->device);
-
+    surface->lastConfig = *config;
     vkDeviceWaitIdle(device->device);
     if(surface->imageViews){
         for (uint32_t i = 0; i < surface->imagecount; i++) {
@@ -1147,15 +1147,30 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* c
     createInfo.surface = surface->surface;
     VkSurfaceCapabilitiesKHR vkCapabilities;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(g_vulkanstate.physicalDevice->physicalDevice, surface->surface, &vkCapabilities);
+    uint32_t correctedWidth, correctedHeight;
     
+    if(config->width < vkCapabilities.minImageExtent.width || config->width > vkCapabilities.maxImageExtent.width){
+        correctedWidth = std::clamp(config->width, vkCapabilities.minImageExtent.width, vkCapabilities.maxImageExtent.width);
+        TRACELOG(LOG_WARNING, "Invalid SurfaceConfiguration::width %u, adjusting to %u", config->width, correctedWidth);
+    }
+    else{
+        correctedWidth = config->width;
+    }
+    if(config->height < vkCapabilities.minImageExtent.height || config->height > vkCapabilities.maxImageExtent.height){
+        correctedHeight = std::clamp(config->height, vkCapabilities.minImageExtent.height, vkCapabilities.maxImageExtent.height);
+        TRACELOG(LOG_WARNING, "Invalid SurfaceConfiguration::height %u, adjusting to %u", config->height, correctedHeight);
+    }
+    else{
+        correctedHeight = config->height;
+    }
     TRACELOG(LOG_INFO, "Capabilities minImageCount: %d", (int)vkCapabilities.minImageCount);
     
     createInfo.minImageCount = vkCapabilities.minImageCount + 1;
     createInfo.imageFormat = toVulkanPixelFormat(config->format);//swapchainImageFormat;
-    surface->width = config->width;
-    surface->height = config->height;
+    surface->width  = correctedWidth;
+    surface->height = correctedHeight;
     surface->device = (WGVKDevice)config->device;
-    VkExtent2D newExtent{config->width, config->height};
+    VkExtent2D newExtent{correctedWidth, correctedHeight};
     createInfo.imageExtent = newExtent;
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -1196,8 +1211,8 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* c
     for (uint32_t i = 0; i < surface->imagecount; i++) {
         surface->images[i] = callocnew(WGVKTextureImpl);
         surface->images[i]->device = device;
-        surface->images[i]->width = config->width;
-        surface->images[i]->height = config->height;
+        surface->images[i]->width = correctedWidth;
+        surface->images[i]->height = correctedHeight;
         surface->images[i]->depthOrArrayLayers = 1;
         surface->images[i]->refCount = 1;
         surface->images[i]->sampleCount = 1;
@@ -1596,6 +1611,9 @@ extern "C" void wgvkSurfacePresent(WGVKSurface surface){
     }
     else if(presentRes == VK_SUBOPTIMAL_KHR){
         TRACELOG(LOG_WARNING, "presentRes is VK_SUBOPTIMAL_KHR");
+    }
+    if(presentRes != VK_SUCCESS){
+        wgvkSurfaceConfigure(surface, &surface->lastConfig);
     }
 }
 

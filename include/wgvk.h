@@ -610,7 +610,7 @@ typedef struct WGVKRenderPipelineDescriptor {
 } WGVKRenderPipelineDescriptor;
 
 typedef struct WGVKSurfaceConfiguration {
-    WGVKDevice device;                     // Device that surface belongs to (WPGUDevice or WGVKDevice)
+    WGVKDevice device;                // Device that surface belongs to (WPGUDevice or WGVKDevice)
     uint32_t width;                   // Width of the rendering surface
     uint32_t height;                  // Height of the rendering surface
     PixelFormat format;               // Pixel format of the surface
@@ -626,9 +626,9 @@ typedef struct WGVKRequestAdapterCallbackInfo {
 } WGVKRequestAdapterCallbackInfo;
 
 typedef struct WGVKBottomLevelAccelerationStructureDescriptor {
-    WGVKBuffer vertexBuffer;            // Buffer containing vertex data
+    WGVKBuffer vertexBuffer;          // Buffer containing vertex data
     uint32_t vertexCount;             // Number of vertices
-    WGVKBuffer indexBuffer;             // Optional index buffer
+    WGVKBuffer indexBuffer;           // Optional index buffer
     uint32_t indexCount;              // Number of indices
     VkDeviceSize vertexStride;        // Size of each vertex
 }WGVKBottomLevelAccelerationStructureDescriptor;
