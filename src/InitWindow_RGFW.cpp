@@ -1,13 +1,16 @@
 #define RGFW_IMPLEMENTATION
 #define RGFW_USE_XDL
-#define RGFW_VULKAN
+
 
 #define Font rlFont
     #include <raygpu.h>
 #undef Font
 #if SUPPORT_VULKAN_BACKEND == 1
+    #define RGFW_VULKAN
     #include <X11/Xlib.h>
     #include <vulkan/vulkan_xlib.h>
+#else
+    #define RGFW_WASM
 #endif
 #include <external/RGFW.h>
 #include <internals.hpp>
@@ -42,6 +45,7 @@ extern "C" void* CreateSurfaceForWindow_RGFW(void* windowHandle){
     RGFW_window_createVKSurface((RGFW_window*)windowHandle, g_vulkanstate.instance, &retp->surface);
     return retp;
     #else
+    std::cout << GetInstance() << "\n";
     WGPUSurface surf = (WGPUSurface)RGFW_GetWGPUSurface(GetInstance(), (RGFW_window*) windowHandle);
     return surf;
     #endif

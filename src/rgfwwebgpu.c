@@ -1,3 +1,6 @@
+#ifdef __EMSCRIPTEN__
+#define RGFW_WASM
+#endif
 #include <external/RGFW.h>
 #include <webgpu/webgpu.h> // Make sure this is included
 #include <stdio.h>         // For fprintf, potentially NULL
@@ -130,6 +133,13 @@ WGPUSurface RGFW_GetWGPUSurface(WGPUInstance instance, RGFW_window* window) {
     fprintf(stderr, "RGFW Error: RGFW_UNIX defined, but no Wayland or X11 surface could be created.\n");
     return NULL;
 
+#elif defined(__EMSCRIPTEN__)
+    WGPUEmscriptenSurfaceSourceCanvasHTMLSelector canvasDesc = {0};
+    canvasDesc.chain.sType = WGPUSType_EmscriptenSurfaceSourceCanvasHTMLSelector;
+    canvasDesc.selector = (WGPUStringView){.data = "#canvas", .length = 7};
+    
+    surfaceDesc.nextInChain = &canvasDesc.chain;
+    return wgpuInstanceCreateSurface(instance, &surfaceDesc);
 #else
     // --- Other/Unsupported Platforms ---
     #warning "RGFW_GetWGPUSurface: Platform not explicitly supported (only Windows, macOS/Cocoa, Wayland, X11 implemented)."

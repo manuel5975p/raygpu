@@ -242,7 +242,7 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         Initialize_SDL2();
         SubWindow createdWindow = InitWindow_SDL2(width, height, title);
         #endif
-
+        
         void* wgpu_or_wgvk_surface = CreateSurfaceForWindow(createdWindow);
         
         WGVKSurface wSurface = (WGVKSurface)wgpu_or_wgvk_surface;

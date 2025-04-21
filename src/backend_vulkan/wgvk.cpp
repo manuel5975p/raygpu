@@ -1,9 +1,38 @@
 #include <macros_and_constants.h>
 #include "vulkan_internals.hpp"
 #include <algorithm>
+#include <array>
 #include <numeric>
 #include <external/VmaUsage.h>
 #include <unordered_set>
+
+WGVKInstance wgvkCreateInstance(const WGVKInstanceDescriptor* descriptor){
+    WGVKInstance ret = callocnew(WGVKInstanceImpl);
+    WGVKInstanceCapabilities capabilities;
+    VkInstanceCreateInfo ici zeroinit;
+    ici.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    uint32_t propertyCount = 0;
+    int vkresult = 0;
+    vkresult |= vkEnumerateInstanceExtensionProperties(nullptr, &propertyCount, nullptr);
+    std::vector<VkExtensionProperties> eproperties(propertyCount);
+    vkEnumerateInstanceExtensionProperties(nullptr, &propertyCount, eproperties.data());
+    
+    std::vector<std::array<char, VK_MAX_EXTENSION_NAME_SIZE>> extensionNames(propertyCount); 
+    std::transform(eproperties.begin(), eproperties.end(), extensionNames.begin(), [](const VkExtensionProperties& prop){
+        std::array<char, VK_MAX_EXTENSION_NAME_SIZE> ret;
+        std::copy(prop.extensionName, prop.extensionName + VK_MAX_EXTENSION_NAME_SIZE, ret.begin());
+        return ret;
+    });
+    std::vector<const char*> charPointers(propertyCount);
+    std::transform(extensionNames.begin(), extensionNames.end(), charPointers.begin(), [](const std::array<char, VK_MAX_EXTENSION_NAME_SIZE>& prop){
+        return prop.data();
+    });
+    ici.ppEnabledExtensionNames = charPointers.data();
+    ici.enabledExtensionCount = charPointers.size();
+    vkresult |= vkCreateInstance(&ici, nullptr, &ret->instance);
+    return ret;
+}
+
 
 extern "C" WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const WGVKBufferDescriptor* desc){
     //vmaCreateAllocator(const VmaAllocatorCreateInfo * _Nonnull pCreateInfo, VmaAllocator  _Nullable * _Nonnull pAllocator)

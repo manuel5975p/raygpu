@@ -212,7 +212,11 @@ WGVKFuture wgvkInstanceRequestAdapter(WGVKInstance instance, const WGVKRequestAd
     return wgpuInstanceRequestAdapter(instance, options, callbackInfo);
 }
 WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescriptor *descriptor){
+    #ifndef __EMSCRIPTEN__
     return wgpuAdapterCreateDevice(adapter, descriptor);
+    #else
+    return nullptr;
+    #endif
 }
 //void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, VkPipeline pipeline, VkPipelineLayout layout){
     //TODO 
