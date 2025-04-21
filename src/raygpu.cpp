@@ -1892,18 +1892,7 @@ extern "C" void BeginWindowMode(SubWindow sw){
     PrepareFrameGlobals();
     #endif
     GetNewTexture(&swref.surface);
-
-
-    //WGPUTextureView nextTexture = wgpuTextureCreateView(surfaceTexture.texture,nullptr);
-    //wgpuTextureViewRelease(g_renderstate.activeSubWindow.frameBuffer.color.view);
-    //wgpuTextureRelease(g_renderstate.activeSubWindow.frameBuffer.color.id);
-    //sw.frameBuffer.texture.view = nextTexture;
-    //sw.frameBuffer.texture.id = surfaceTexture.texture;
     BeginTextureMode(swref.surface.renderTarget);
-    //++g_renderstate.renderTargetStackPosition;
-    
-    //g_renderstate.currentDefaultRenderTarget = sw.frameBuffer;
-    //BeginRenderpass();
 }
 
 

@@ -304,7 +304,7 @@ MAPI Matrix MatrixPerspective(double fovY, double aspect, double nearPlane, doub
     result.data[idx_scramble(9 )] = ((float)top + (float)bottom)/tb;
     result.data[idx_scramble(10)] = -((float)farPlane + (float)nearPlane)/fn;
     result.data[idx_scramble(11)] = -1.0f;
-    result.data[idx_scramble(14)] = -((float)farPlane*(float)nearPlane*2.0f)/fn;
+    result.data[idx_scramble(14)] = -((float)farPlane*(float)nearPlane*1.0f)/fn;
 
     return result;
 }
