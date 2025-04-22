@@ -1527,7 +1527,7 @@ void wgvkRenderpassEncoderDraw(WGVKRenderPassEncoder rpe, uint32_t vertices, uin
 }
 
 // Implementation of RenderpassEncoderDrawIndexed
-extern "C" void wgvkRenderpassEncoderDrawIndexed(WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t baseVertex, uint32_t firstinstance) {
+extern "C" void wgvkRenderpassEncoderDrawIndexed(WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, int32_t baseVertex, uint32_t firstinstance) {
     assert(rpe != nullptr && "RenderPassEncoderHandle is null");
 
     // Record the indexed draw command into the command buffer

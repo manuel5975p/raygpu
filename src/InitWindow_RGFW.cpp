@@ -5,6 +5,7 @@
 #define Font rlFont
     #include <raygpu.h>
 #undef Font
+#include <array>
 enum struct RGFW_key_alt {
 	RGFW_keyNULL = 0,
 	RGFW_escape = '\033',
@@ -265,10 +266,9 @@ extern "C" void* CreateSurfaceForWindow_RGFW(void* windowHandle){
     
     #if SUPPORT_VULKAN_BACKEND == 1
     WGVKSurface retp = callocnew(WGVKSurfaceImpl);
-    RGFW_window_createVKSurface((RGFW_window*)windowHandle, g_vulkanstate.instance, &retp->surface);
+    RGFW_window_createVKSurface((RGFW_window*)windowHandle, g_vulkanstate.instance->instance, &retp->surface);
     return retp;
     #else
-    std::cout << GetInstance() << "\n";
     WGPUSurface surf = (WGPUSurface)RGFW_GetWGPUSurface(GetInstance(), (RGFW_window*) windowHandle);
     return surf;
     #endif
