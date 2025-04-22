@@ -251,6 +251,19 @@ void keyfunc_rgfw(RGFW_window* window, RGFW_key key, unsigned char keyChar, RGFW
     KeyboardKey kii = (KeyboardKey)keyMappingRGFW_[key];
     g_renderstate.input_map[window].keydown[kii] = pressed ? 1 : 0;
 }
+void mouseMotionfunc_rgfw(RGFW_window* win, RGFW_point point, RGFW_point vector){
+    g_renderstate.input_map[win].mousePos = CLITERAL(Vector2){(float)point.x, (float)point.y};
+}
+void windowQuitfunc_rgfw(RGFW_window* window){
+    g_renderstate.closeFlag = true;
+}
+void windowResizedfunc_rgfw(RGFW_window* window, RGFW_rect rect){
+    ResizeSurface(&g_renderstate.createdSubwindows[window].surface, rect.w, rect.h);
+    if((void*)window == (void*)g_renderstate.window){
+        g_renderstate.mainWindowRenderTarget = g_renderstate.createdSubwindows[window].surface.renderTarget;
+    }
+    Matrix newcamera = ScreenMatrix(rect.w, rect.h);
+}
 
 void PollEvents_RGFW(){
     for(const auto& [handle, subwindow] : g_renderstate.createdSubwindows){
@@ -261,6 +274,9 @@ void PollEvents_RGFW(){
 }
 void setupRGFWCallbacks(RGFW_window* window){
     RGFW_setKeyCallback(keyfunc_rgfw);
+    RGFW_setWindowResizedCallback(windowResizedfunc_rgfw);
+    RGFW_setMousePosCallback(mouseMotionfunc_rgfw);
+    RGFW_setWindowQuitCallback(windowQuitfunc_rgfw);
 }
 extern "C" void* CreateSurfaceForWindow_RGFW(void* windowHandle){
     

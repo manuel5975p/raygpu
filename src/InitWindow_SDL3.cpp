@@ -318,9 +318,8 @@ uint32_t GetMonitorHeight_SDL3(cwoid){
 
 void ResizeCallback(SDL_Window* window, int width, int height){
 
-    TRACELOG(LOG_INFO, "SDL3's ResizeCallback called with %d x %d", width, height);
+    //TRACELOG(LOG_INFO, "SDL3's ResizeCallback called with %d x %d", width, height);
     ResizeSurface(&g_renderstate.createdSubwindows[window].surface, width, height);
-    
     if((void*)window == (void*)g_renderstate.window){
         g_renderstate.mainWindowRenderTarget = g_renderstate.createdSubwindows[window].surface.renderTarget;
     }

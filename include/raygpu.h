@@ -816,116 +816,118 @@ struct InOutAttributeInfo{
 InOutAttributeInfo getAttributesWGSL(ShaderSources sources);
 InOutAttributeInfo getAttributesGLSL(ShaderSources sources);
 InOutAttributeInfo getAttributes    (ShaderSources sources);
-
+#endif
+      
+#ifdef _WIN32
+    #ifdef RG_EXPORTS
+        #define RGAPI __declspec(dllexport)
+    #else
+        #define RGAPI __declspec(dllimport)
+    #endif
+#else
+    #define RGAPI __attribute__((visibility("default")))
 #endif
 
+
 EXTERN_C_BEGIN
-    void* InitWindow(uint32_t width, uint32_t height, const char* title);
-    void InitBackend(cwoid);
-    void requestAnimationFrameLoopWithJSPI(void (*callback)(void), int /* unused */, int/* unused */);
-    void requestAnimationFrameLoopWithJSPIArg(void (*callback)(void*), void* userData, int/* unused */, int/* unused */);
-    void SetWindowShouldClose(cwoid);
-    bool WindowShouldClose(cwoid);
-    SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* title);
-    SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char* title);
-    SubWindow InitWindow_SDL3(uint32_t width, uint32_t height, const char* title);
-    void CloseSubWindow(SubWindow subWindow);
-    FullSurface CreateSurface (void* nsurface, uint32_t width, uint32_t height);
-    FullSurface CreateHeadlessSurface(uint32_t width, uint32_t height, PixelFormat format);
-    void ResizeSurface (FullSurface* fsurface, uint32_t width, uint32_t height);
-    void GetNewTexture (FullSurface* fsurface);
-    void PresentSurface(FullSurface* fsurface);
-    void PostPresentSurface(cwoid);
-    void DummySubmitOnQueue(cwoid);
+    RGAPI void* InitWindow(uint32_t width, uint32_t height, const char* title);
+    RGAPI void InitBackend(cwoid);
+    RGAPI void requestAnimationFrameLoopWithJSPI(void (*callback)(void), int /* unused */, int/* unused */);
+    RGAPI void requestAnimationFrameLoopWithJSPIArg(void (*callback)(void*), void* userData, int/* unused */, int/* unused */);
+    RGAPI void SetWindowShouldClose(cwoid);
+    RGAPI bool WindowShouldClose(cwoid);
+    RGAPI SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* title);
+    RGAPI SubWindow InitWindow_SDL2(uint32_t width, uint32_t height, const char* title);
+    RGAPI SubWindow InitWindow_SDL3(uint32_t width, uint32_t height, const char* title);
+    RGAPI void CloseSubWindow(SubWindow subWindow);
+    RGAPI FullSurface CreateSurface (void* nsurface, uint32_t width, uint32_t height);
+    RGAPI FullSurface CreateHeadlessSurface(uint32_t width, uint32_t height, PixelFormat format);
+    RGAPI void ResizeSurface (FullSurface* fsurface, uint32_t width, uint32_t height);
+    RGAPI void GetNewTexture (FullSurface* fsurface);
+    RGAPI void PresentSurface(FullSurface* fsurface);
+    RGAPI void PostPresentSurface(cwoid);
+    RGAPI void DummySubmitOnQueue(cwoid);
 
-    int GetScreenWidth  (cwoid);                          //Window width
-    int GetScreenHeight (cwoid);                          //Window height
-    int GetMonitorWidth (cwoid);                     //Monitor height
-    int GetMonitorHeight(cwoid);                     //Monitor height
-    int GetRenderWidth  (cwoid);                     //Render width (e.g. Rendertexture)
-    int GetRenderHeight (cwoid);                     //Render height (e.g. Rendertexture)
+    RGAPI int GetScreenWidth  (cwoid);                          //Window width
+    RGAPI int GetScreenHeight (cwoid);                          //Window height
+    RGAPI int GetMonitorWidth (cwoid);                     //Monitor height
+    RGAPI int GetMonitorHeight(cwoid);                     //Monitor height
+    RGAPI int GetRenderWidth  (cwoid);                     //Render width (e.g. Rendertexture)
+    RGAPI int GetRenderHeight (cwoid);                     //Render height (e.g. Rendertexture)
     
     
-    void ToggleFullscreen(cwoid);
+    RGAPI void ToggleFullscreen(cwoid);
+    RGAPI int GetCurrentMonitor(void);
+    RGAPI bool IsKeyDown(int key);
+    RGAPI bool IsKeyPressed(int key);
+    RGAPI int GetCharPressed(cwoid);
+    RGAPI int GetMouseX(cwoid);
+    RGAPI int GetMouseY(cwoid);
+    RGAPI int GetTouchX(void);                                    // Get touch position X for touch point 0 (relative to screen size)
+    RGAPI int GetTouchY(void);                                    // Get touch position Y for touch point 0 (relative to screen size)
+    RGAPI Vector2 GetTouchPosition(int index);                    // Get touch position XY for a touch point index (relative to screen size)
+    RGAPI int GetTouchPointId(int index);                         // Get touch point identifier for given index
+    RGAPI int GetTouchPointCount(void);                           // Get number of touch points
+    RGAPI float GetGesturePinchZoom(cwoid);
+    RGAPI float GetGesturePinchAngle(cwoid);
+    RGAPI Vector2 GetMousePosition(cwoid);
+    RGAPI Vector2 GetMouseDelta(cwoid);
+    RGAPI float GetMouseWheelMove(void);                          // Get mouse wheel movement for X or Y, whichever is larger
+    RGAPI Vector2 GetMouseWheelMoveV(void);                       // Get mouse wheel movement for both X and Y
+    RGAPI bool IsMouseButtonPressed(int button);
+    RGAPI bool IsMouseButtonDown(int button);
+    RGAPI bool IsMouseButtonReleased(int button);
+    RGAPI void ShowCursor(cwoid);                                      // Shows cursor
+    RGAPI void HideCursor(cwoid);                                      // Hides cursor
+    RGAPI bool IsCursorHidden(cwoid);                                  // Check if cursor is not visible
+    RGAPI void EnableCursor(cwoid);                                    // Enables cursor (unlock cursor)
+    RGAPI void DisableCursor(cwoid);                                   // Disables cursor (lock cursor)
+    RGAPI bool IsCursorOnScreen(cwoid);                                // Check if cursor is on the screen
+    RGAPI void PollEvents(cwoid);
+    RGAPI void PollEvents_SDL2(cwoid);
+    RGAPI void PollEvents_SDL3(cwoid);
+    RGAPI void PollEvents_GLFW(cwoid);
+    RGAPI void PollEvents_RGFW(cwoid);
+    RGAPI uint32_t GetMonitorWidth_GLFW(cwoid);
+    RGAPI uint32_t GetMonitorWidth_SDL2(cwoid);
+    RGAPI uint32_t GetMonitorWidth_SDL3(cwoid);
+    RGAPI uint32_t GetMonitorHeight_SDL3(cwoid);
+    RGAPI uint32_t GetMonitorHeight_GLFW(cwoid);
+    RGAPI uint32_t GetMonitorHeight_SDL2(cwoid);
+    RGAPI int GetTouchPointCount_SDL2(cwoid);
+    RGAPI Vector2 GetTouchPosition_SDL2(int);
+    RGAPI void SetWindowShouldClose_GLFW(GLFWwindow* win);
+    RGAPI void Initialize_SDL2(cwoid);
+    RGAPI void Initialize_SDL3(cwoid);
+
+    RGAPI bool WindowShouldClose_GLFW(GLFWwindow* win);
+    RGAPI SubWindow InitWindow_GLFW(int width, int height, const char* title);
+    RGAPI SubWindow InitWindow_RGFW(int width, int height, const char* title);
     
-    int GetCurrentMonitor(void);
-
-    bool IsKeyDown(int key);
-    bool IsKeyPressed(int key);
-    int GetCharPressed(cwoid);
-
-    int GetMouseX(cwoid);
-    int GetMouseY(cwoid);
-
-    int GetTouchX(void);                                    // Get touch position X for touch point 0 (relative to screen size)
-    int GetTouchY(void);                                    // Get touch position Y for touch point 0 (relative to screen size)
-    Vector2 GetTouchPosition(int index);                    // Get touch position XY for a touch point index (relative to screen size)
-    int GetTouchPointId(int index);                         // Get touch point identifier for given index
-    int GetTouchPointCount(void);                           // Get number of touch points
-
-
-    float GetGesturePinchZoom(cwoid);
-    float GetGesturePinchAngle(cwoid);
-    
-    Vector2 GetMousePosition(cwoid);
-    Vector2 GetMouseDelta(cwoid);
-    float GetMouseWheelMove(void);                          // Get mouse wheel movement for X or Y, whichever is larger
-    Vector2 GetMouseWheelMoveV(void);                       // Get mouse wheel movement for both X and Y
-    bool IsMouseButtonPressed(int button);
-    bool IsMouseButtonDown(int button);
-    bool IsMouseButtonReleased(int button);
-
-    void ShowCursor(cwoid);                                      // Shows cursor
-    void HideCursor(cwoid);                                      // Hides cursor
-    bool IsCursorHidden(cwoid);                                  // Check if cursor is not visible
-    void EnableCursor(cwoid);                                    // Enables cursor (unlock cursor)
-    void DisableCursor(cwoid);                                   // Disables cursor (lock cursor)
-    bool IsCursorOnScreen(cwoid);                                // Check if cursor is on the screen
-    void PollEvents(cwoid);
-    void PollEvents_SDL2(cwoid);
-    void PollEvents_SDL3(cwoid);
-    void PollEvents_GLFW(cwoid);
-    void PollEvents_RGFW(cwoid);
-    uint32_t GetMonitorWidth_GLFW(cwoid);
-    uint32_t GetMonitorWidth_SDL2(cwoid);
-    uint32_t GetMonitorWidth_SDL3(cwoid);
-    uint32_t GetMonitorHeight_SDL3(cwoid);
-    uint32_t GetMonitorHeight_GLFW(cwoid);
-    uint32_t GetMonitorHeight_SDL2(cwoid);
-    int GetTouchPointCount_SDL2(cwoid);
-    Vector2 GetTouchPosition_SDL2(int);
-    void SetWindowShouldClose_GLFW(GLFWwindow* win);
-    void Initialize_SDL2(cwoid);
-    void Initialize_SDL3(cwoid);
-
-    bool WindowShouldClose_GLFW(GLFWwindow* win);
-    SubWindow InitWindow_GLFW(int width, int height, const char* title);
-    SubWindow InitWindow_RGFW(int width, int height, const char* title);
-    
-    void ToggleFullscreen_GLFW(cwoid);
-    void ToggleFullscreen_SDL2(cwoid);
-    void ToggleFullscreen_SDL3(cwoid);
-    SubWindow OpenSubWindow_GLFW(uint32_t width, uint32_t height, const char* title);
-    SubWindow OpenSubWindow_SDL2(uint32_t width, uint32_t height, const char* title);
-    SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title);
+    RGAPI void ToggleFullscreen_GLFW(cwoid);
+    RGAPI void ToggleFullscreen_SDL2(cwoid);
+    RGAPI void ToggleFullscreen_SDL3(cwoid);
+    RGAPI SubWindow OpenSubWindow_GLFW(uint32_t width, uint32_t height, const char* title);
+    RGAPI SubWindow OpenSubWindow_SDL2(uint32_t width, uint32_t height, const char* title);
+    RGAPI SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title);
 
     /**
      * @brief Get the time elapsed since InitWindow() in seconds since 
      * 
      * @return double
      */
-    double GetTime(cwoid);
-    int GetRandomValue(int min, int max);
-    void SetTraceLogFile(FILE* file);
-    void SetTraceLogLevel(int logLevel);
-    void TraceLog(int logType, const char *text, ...);
+    RGAPI double GetTime(cwoid);
+    RGAPI int GetRandomValue(int min, int max);
+    RGAPI void SetTraceLogFile(FILE* file);
+    RGAPI void SetTraceLogLevel(int logLevel);
+    RGAPI void TraceLog(int logType, const char *text, ...);
     /**
      * @brief Return the unix timestamp in nanosecond precision
      *
      * (implemented with high_resolution_clock::now().time_since_epoch())
      * @return uint64_t 
      */
-    uint64_t NanoTime(cwoid);
+    RGAPI uint64_t NanoTime(cwoid);
     
     /**
      * @brief This function exists to request limits that are higher than the default ones
@@ -936,152 +938,152 @@ EXTERN_C_BEGIN
      * @param limit The limit type, e.g. maxTextureDimension2D, maxBufferSize
      * @param value The new value for this limit
      */
-    void RequestLimit(LimitType limit, uint64_t value);
+    RGAPI void RequestLimit(LimitType limit, uint64_t value);
     
     /**
      * @brief Use a specific backend for the adapter. 
      * 
      * @param backend The backend to use, e.g. WGPUBackendType_Vulkan, WGPUBackendType_D3D12
      */
-    void RequestBackend(BackendType backend);
+    RGAPI void RequestBackend(BackendType backend);
     
     /**
      * @brief Force a specific adapter type, namely WGPUAdapterType_DiscreteGPU, WGPUAdapterType_IntegratedGPU or WGPUAdapterType_CPU.
      * Not all types are guaranteed to exist.
      * @param type The adapter type
      */
-    void RequestAdapterType(AdapterType type);
-    void SetConfigFlags(int /* enum WindowFlag */ flag);
+    RGAPI void RequestAdapterType(AdapterType type);
+    RGAPI void SetConfigFlags(int /* enum WindowFlag */ flag);
     
     
-    bool IsATerminal(FILE *stream);
-    void SetTargetFPS(int fps);                                 // Set target FPS (maximum)
-    int GetTargetFPS(cwoid);
-    uint64_t GetFrameCount(cwoid);
-    float GetFrameTime(cwoid);                                  // Get time in seconds for last frame drawn (delta time)
-    void DrawFPS(int posX, int posY);                           // Draw current FPS
-    void NanoWait(uint64_t time);
-    uint32_t GetFPS(cwoid);
-    void ClearBackground(Color clearColor);
-    void BeginDrawing(cwoid);
-    void EndDrawing(cwoid);
-    void StartGIFRecording(cwoid);
-    void EndGIFRecording(cwoid);
-    Texture GetDepthTexture(cwoid);
-    Texture GetMultisampleColorTarget(cwoid);
+    RGAPI bool IsATerminal(FILE *stream);
+    RGAPI void SetTargetFPS(int fps);                                 // Set target FPS (maximum)
+    RGAPI int GetTargetFPS(cwoid);
+    RGAPI uint64_t GetFrameCount(cwoid);
+    RGAPI float GetFrameTime(cwoid);                                  // Get time in seconds for last frame drawn (delta time)
+    RGAPI void DrawFPS(int posX, int posY);                           // Draw current FPS
+    RGAPI void NanoWait(uint64_t time);
+    RGAPI uint32_t GetFPS(cwoid);
+    RGAPI void ClearBackground(Color clearColor);
+    RGAPI void BeginDrawing(cwoid);
+    RGAPI void EndDrawing(cwoid);
+    RGAPI void StartGIFRecording(cwoid);
+    RGAPI void EndGIFRecording(cwoid);
+    RGAPI Texture GetDepthTexture(cwoid);
+    RGAPI Texture GetMultisampleColorTarget(cwoid);
 
 
-    DescribedRenderpass LoadRenderpassEx(RenderSettings settings, bool colorClear, DColor colorClearValue, bool depthClear, float depthClearValue);
-    //void UpdateRenderpass(DescribedRenderpass* rp, RenderSettings newSettings);
-    void UnloadRenderpass(DescribedRenderpass rp);
+    RGAPI DescribedRenderpass LoadRenderpassEx(RenderSettings settings, bool colorClear, DColor colorClearValue, bool depthClear, float depthClearValue);
+    RGAPI void UnloadRenderpass(DescribedRenderpass rp);
+    RGAPI void BeginRenderpass(cwoid);
+    RGAPI void EndRenderpass(cwoid);
+    RGAPI void BeginComputepass(cwoid);
+    RGAPI void BindComputePipeline(DescribedComputePipeline* cpl);
+    RGAPI void DispatchCompute(uint32_t x, uint32_t y, uint32_t z);
+    RGAPI void CopyBufferToBuffer(DescribedBuffer* source, DescribedBuffer* dest, size_t count/* in bytes*/);
+    RGAPI void CopyTextureToTexture(Texture source, Texture dest);
+    RGAPI void ComputepassEndOnlyComputing(cwoid);
+    RGAPI void EndComputepass(cwoid);
+    RGAPI void BeginComputepassEx(DescribedComputepass* computePass);
+    RGAPI void EndComputepassEx(DescribedComputepass* computePass);
+    RGAPI void BeginRenderpassEx(DescribedRenderpass* renderPass);
+    RGAPI void EndRenderpassEx(DescribedRenderpass* renderPass);
+    RGAPI void EndRenderpassPro(DescribedRenderpass* renderPass, bool isRenderTexture);
+    RGAPI void BeginPipelineMode(DescribedPipeline* pipeline);
+    RGAPI void EndPipelineMode(cwoid);
+    RGAPI void DisableDepthTest(cwoid);
+    RGAPI void BeginBlendMode(rlBlendMode blendMode);
+    RGAPI void EndBlendMode(void);
+    RGAPI void BeginMode2D(Camera2D camera);
+    RGAPI void EndMode2D(cwoid);
+    RGAPI void BeginMode3D(Camera3D camera);
+    RGAPI void EndMode3D(cwoid);
+    RGAPI void LoadIdentity(cwoid);
+    RGAPI void PushMatrix(cwoid);
+    RGAPI void PopMatrix(cwoid);
+    RGAPI Matrix GetMatrix(cwoid);
+
+   
+
+    RGAPI char* LoadFileText(const char* fileName);
+    RGAPI void UnloadFileText(char* content);
+    RGAPI void* LoadFileData(const char* fileName, size_t* dataSize);
+    RGAPI void UnloadFileData(void* content);
+    RGAPI const char* GetDirectoryPath(const char* arg);
+    RGAPI const char* FindDirectory(const char* directoryName, int maxOutwardSearch);
+    RGAPI bool IsFileExtension(const char *fileName, const char *ext);
     
-    void BeginRenderpass(cwoid);
-    void EndRenderpass(cwoid);
-    void BeginComputepass(cwoid);
-    void BindComputePipeline(DescribedComputePipeline* cpl);
-    void DispatchCompute(uint32_t x, uint32_t y, uint32_t z);
-    void CopyBufferToBuffer(DescribedBuffer* source, DescribedBuffer* dest, size_t count/* in bytes*/);
-    void CopyTextureToTexture(Texture source, Texture dest);
-    void ComputepassEndOnlyComputing(cwoid);
-    void EndComputepass(cwoid);
-    void BeginComputepassEx(DescribedComputepass* computePass);
-    void EndComputepassEx(DescribedComputepass* computePass);
-    void BeginRenderpassEx(DescribedRenderpass* renderPass);
-    void EndRenderpassEx(DescribedRenderpass* renderPass);
-    void EndRenderpassPro(DescribedRenderpass* renderPass, bool isRenderTexture);
-    void BeginPipelineMode(DescribedPipeline* pipeline);
-    void EndPipelineMode(cwoid);
-    void DisableDepthTest(cwoid);
-    void BeginBlendMode(rlBlendMode blendMode);
-    void EndBlendMode(void);
-    void BeginMode2D(Camera2D camera);
-    void EndMode2D(cwoid);
-    void BeginMode3D(Camera3D camera);
-    void EndMode3D(cwoid);
-    void LoadIdentity(cwoid);
-    void PushMatrix(cwoid);
-    void PopMatrix(cwoid);
-    Matrix GetMatrix(cwoid);
+    RGAPI DescribedSampler LoadSampler(addressMode amode, filterMode fmode);
+    RGAPI DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode mipmapFilter, float maxAnisotropy);
+    RGAPI void UnloadSampler(DescribedSampler sampler);
 
-    void rlSetLineWidth(float lineWidth);
-
-    char* LoadFileText(const char* fileName);
-    void UnloadFileText(char* content);
-    void* LoadFileData(const char* fileName, size_t* dataSize);
-    void UnloadFileData(void* content);
-    const char* GetDirectoryPath(const char* arg);
-    const char* FindDirectory(const char* directoryName, int maxOutwardSearch);
-    bool IsFileExtension(const char *fileName, const char *ext);
+    RGAPI NativeImageHandle GetActiveColorTarget(cwoid);
+    RGAPI Texture2DArray LoadTextureArray(uint32_t width, uint32_t height, uint32_t layerCount, PixelFormat format);
+    RGAPI void* GetActiveWindowHandle(cwoid);
+    RGAPI Texture LoadTextureFromImage(Image img);
+    RGAPI void ImageFormat(Image* img, PixelFormat newFormat);
+    RGAPI Image LoadImageFromTexture(Texture tex);
+    RGAPI Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel);
+    RGAPI void TakeScreenshot(const char* filename);
+    RGAPI Image LoadImage(const char* filename);
+    RGAPI Image ImageFromImage(Image img, Rectangle rec);
+    RGAPI Color* LoadImageColors(Image img);
+    RGAPI void UnloadImageColors(Color* cols);
     
-    DescribedSampler LoadSampler(addressMode amode, filterMode fmode);
-    DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode mipmapFilter, float maxAnisotropy);
-    void UnloadSampler(DescribedSampler sampler);
+    RGAPI uint32_t RoundUpToNextMultipleOf256(uint32_t x);
+    RGAPI void UnloadImage(Image img);
+    RGAPI void UnloadTexture(Texture tex);
+    RGAPI Image LoadImageFromMemory(const char* extension, const void* data, size_t dataSize);
+    RGAPI Image GenImageColor(Color a, uint32_t width, uint32_t height);
+    RGAPI Image GenImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32_t checkerCount);
+    RGAPI void SaveImage(Image img, const char* filepath);
 
-    NativeImageHandle GetActiveColorTarget(cwoid);
-    Texture2DArray LoadTextureArray(uint32_t width, uint32_t height, uint32_t layerCount, PixelFormat format);
-    void* GetActiveWindowHandle(cwoid);
-    Texture LoadTextureFromImage(Image img);
-    void ImageFormat(Image* img, PixelFormat newFormat);
-    Image LoadImageFromTexture(Texture tex);
-    Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel);
-    void TakeScreenshot(const char* filename);
-    Image LoadImage(const char* filename);
-    Image ImageFromImage(Image img, Rectangle rec);
-    Color* LoadImageColors(Image img);
-    void UnloadImageColors(Color* cols);
+    RGAPI unsigned char *DecodeDataBase64(const unsigned char *data, int *outputSize);
+    RGAPI char *EncodeDataBase64(const unsigned char *data, int dataSize, int *outputSize);    
+    RGAPI float TextToFloat(const char *text);
+    RGAPI const char *TextToLower(const char *text);
+    RGAPI const char **TextSplit(const char *text, char delimiter, int *count);
+    RGAPI unsigned char *CompressData(const unsigned char *data, int dataSize, int *compDataSize);
+    RGAPI unsigned char *DecompressData(const unsigned char *compData, int compDataSize, int *dataSize);
+    RGAPI const char *CodepointToUTF8(int codepoint, int *utf8Size);
+    RGAPI int TextToInteger(const char *text);
+    RGAPI void UnloadCodepoints(int *codepoints);
+    RGAPI int *LoadCodepoints(const char *text, int *count);
+    RGAPI int GetCodepoint(const char *text, int *codepointSize);
+    RGAPI int GetCodepointPrevious(const char *text, int *codepointSize);
+    RGAPI void DrawText(const char *text, int posX, int posY, int fontSize, Color color);       // Draw text (using default font)
+    RGAPI void DrawTextEx(Font font, const char *text, Vector2 position, float fontSize, float spacing, Color tint); // Draw text using font and additional parameters
+    RGAPI void DrawTextPro(Font font, const char *text, Vector2 position, Vector2 origin, float rotation, float fontSize, float spacing, Color tint); // Draw text using Font and pro parameters (rotation)
+    RGAPI void DrawTextCodepoint(Font font, int codepoint, Vector2 position, float fontSize, Color tint); // Draw one character (codepoint)
+    RGAPI void DrawTextCodepoints(Font font, const int *codepoints, int codepointCount, Vector2 position, float fontSize, float spacing, Color tint); // Draw multiple character (codepoint)
+    RGAPI int GetCodepointNext(const char *text, int *codepointSize);
+    RGAPI unsigned int TextLength(const char *text);
     
-    uint32_t RoundUpToNextMultipleOf256(uint32_t x);
-    void UnloadImage(Image img);
-    void UnloadTexture(Texture tex);
-    Image LoadImageFromMemory(const char* extension, const void* data, size_t dataSize);
-    Image GenImageColor(Color a, uint32_t width, uint32_t height);
-    Image GenImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32_t checkerCount);
-    void SaveImage(Image img, const char* filepath);
-
-    unsigned char *DecodeDataBase64(const unsigned char *data, int *outputSize);
-    char *EncodeDataBase64(const unsigned char *data, int dataSize, int *outputSize);    
-    float TextToFloat(const char *text);
-    const char *TextToLower(const char *text);
-    const char **TextSplit(const char *text, char delimiter, int *count);
-    unsigned char *CompressData(const unsigned char *data, int dataSize, int *compDataSize);
-    unsigned char *DecompressData(const unsigned char *compData, int compDataSize, int *dataSize);
-    const char *CodepointToUTF8(int codepoint, int *utf8Size);
-    int TextToInteger(const char *text);
-    void UnloadCodepoints(int *codepoints);
-    int *LoadCodepoints(const char *text, int *count);
-    int GetCodepoint(const char *text, int *codepointSize);
-    int GetCodepointPrevious(const char *text, int *codepointSize);
-    void DrawText(const char *text, int posX, int posY, int fontSize, Color color);       // Draw text (using default font)
-    void DrawTextEx(Font font, const char *text, Vector2 position, float fontSize, float spacing, Color tint); // Draw text using font and additional parameters
-    void DrawTextPro(Font font, const char *text, Vector2 position, Vector2 origin, float rotation, float fontSize, float spacing, Color tint); // Draw text using Font and pro parameters (rotation)
-    void DrawTextCodepoint(Font font, int codepoint, Vector2 position, float fontSize, Color tint); // Draw one character (codepoint)
-    void DrawTextCodepoints(Font font, const int *codepoints, int codepointCount, Vector2 position, float fontSize, float spacing, Color tint); // Draw multiple character (codepoint)
-    int GetCodepointNext(const char *text, int *codepointSize);
-    unsigned int TextLength(const char *text);
-    
-    void SetTextLineSpacing(int spacing);                                                 // Set vertical line spacing when drawing with line-breaks
-    int MeasureText(const char *text, int fontSize);                                      // Measure string width for default font
-    Vector2 MeasureTextEx(Font font, const char *text, float fontSize, float spacing);    // Measure string size for Font
-    int GetGlyphIndex(Font font, int codepoint);                                          // Get glyph index position in font for a codepoint (unicode character), fallback to '?' if not found
-    GlyphInfo GetGlyphInfo(Font font, int codepoint);                                     // Get glyph font info data for a codepoint (unicode character), fallback to '?' if not found
-    Rectangle GetGlyphAtlasRec(Font font, int codepoint);                                 // Get glyph rectangle in font atlas for a codepoint (unicode character), fallback to '?' if not found
-    Font LoadFontEx(const char *fileName, int fontSize, int *codepoints, int codepointCount);
-    Font LoadFontFromImage(Image img, Color key, int firstchar);
-    Font LoadFontFromMemory(const char *fileType, const unsigned char *fileData, int dataSize, int fontSize, int *codepoints, int codepointCount);
-    void LoadFontDefault(void);
-    Font GetFontDefault(void);
-    GlyphInfo* LoadFontData(const unsigned char *fileData, int dataSize, int fontSize, int *codepoints, int codepointCount, int type);
-    Image GenImageFontAtlas(const GlyphInfo *glyphs, Rectangle **glyphRecs, int glyphCount, int fontSize, int padding, int packMethod);
-    void SetShapesTexture(Texture tex, Rectangle rec);
-    void UseTexture(Texture tex);
-    void UseNoTexture(cwoid);
-    void drawCurrentBatch(cwoid);
-    static Color Fade(Color col, float fade_alpha){
+    RGAPI void SetTextLineSpacing(int spacing);                                                 // Set vertical line spacing when drawing with line-breaks
+    RGAPI int MeasureText(const char *text, int fontSize);                                      // Measure string width for default font
+    RGAPI Vector2 MeasureTextEx(Font font, const char *text, float fontSize, float spacing);    // Measure string size for Font
+    RGAPI int GetGlyphIndex(Font font, int codepoint);                                          // Get glyph index position in font for a codepoint (unicode character), fallback to '?' if not found
+    RGAPI GlyphInfo GetGlyphInfo(Font font, int codepoint);                                     // Get glyph font info data for a codepoint (unicode character), fallback to '?' if not found
+    RGAPI Rectangle GetGlyphAtlasRec(Font font, int codepoint);                                 // Get glyph rectangle in font atlas for a codepoint (unicode character), fallback to '?' if not found
+    RGAPI Font LoadFontEx(const char *fileName, int fontSize, int *codepoints, int codepointCount);
+    RGAPI Font LoadFontFromImage(Image img, Color key, int firstchar);
+    RGAPI Font LoadFontFromMemory(const char *fileType, const unsigned char *fileData, int dataSize, int fontSize, int *codepoints, int codepointCount);
+    RGAPI void LoadFontDefault(void);
+    RGAPI Font GetFontDefault(void);
+    RGAPI GlyphInfo* LoadFontData(const unsigned char *fileData, int dataSize, int fontSize, int *codepoints, int codepointCount, int type);
+    RGAPI Image GenImageFontAtlas(const GlyphInfo *glyphs, Rectangle **glyphRecs, int glyphCount, int fontSize, int padding, int packMethod);
+    RGAPI void SetShapesTexture(Texture tex, Rectangle rec);
+    RGAPI void UseTexture(Texture tex);
+    RGAPI void UseNoTexture(cwoid);
+    RGAPI void drawCurrentBatch(cwoid);
+    static inline Color Fade(Color col, float fade_alpha){
         float v = (1.0f - fade_alpha);
-        uint8_t a = (uint8_t)roundf(col.a * v);
+        uint8_t a = (uint8_t)roundf(((float)col.a) * v);
         return CLITERAL(Color){col.r, col.g, col.b, a};
     }
-    static Color GetColor(unsigned int hexValue){
+
+    
+    static inline Color GetColor(unsigned int hexValue){
         Color color;
 
         color.r = (uint8_t)(hexValue >> 24) & 0xFF;
@@ -1129,132 +1131,131 @@ EXTERN_C_BEGIN
             drawCurrentBatch();
         }
     }
-    void rlBegin(PrimitiveType mode);
-    void rlEnd(cwoid);
-    void BeginTextureAndPipelineMode(RenderTexture rtex, DescribedPipeline* pl);
-    void EndTextureAndPipelineMode(cwoid);
-    void BeginTextureMode(RenderTexture rtex);
-    void EndTextureMode(cwoid);
-    void BeginWindowMode(SubWindow sw);
-    void EndWindowMode(cwoid);
-
-    void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode);
-    void BindComputePipeline(DescribedComputePipeline* pipeline);
-
-    DescribedShaderModule LoadShaderModuleWGSL (ShaderSources sourcesWGSL);
-    DescribedShaderModule LoadShaderModuleGLSL (ShaderSources sourcesGLSL);
-    DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sourcesSpirv);
-    DescribedShaderModule LoadShaderModule     (ShaderSources source);
-
-    const char* GetStageEntryPointName         (ShaderReflectionInfo reflectionInfo, ShaderStage stage);
-    uint32_t    GetReflectionUniformLocation   (ShaderReflectionInfo reflectionInfo, const char* name );
-    uint32_t    GetReflectionAttributeLocation (ShaderReflectionInfo reflectionInfo, const char* name );
-
-    Shader LoadShader          (const char *vsFileName, const char *fsFileName);
-    Shader LoadShaderFromMemory(const char *vsCode    , const char *fsCode    );
-
-
-    DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, bool compute);
-    DescribedBindGroupLayout LoadBindGroupLayoutMod(const DescribedShaderModule* shaderModule);
-
-    WGVKRaytracingPipeline LoadRTPipeline(const DescribedShaderModule* module);
-    //DescribedPipeline* ClonePipeline(const DescribedPipeline* pl);
-    //DescribedPipeline* ClonePipelineWithSettings(const DescribedPipeline* pl, RenderSettings settings);
-    DescribedPipeline* LoadPipeline(const char* shaderSource);
-    DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
-    DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
-    DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao);
-
-    DescribedPipeline* LoadPipelineForVAOEx(ShaderSources sources, VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
-    DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs);
-    DescribedPipeline* LoadPipelinePro(cwoid);
+    RGAPI void rlSetLineWidth(float lineWidth);
     
+    RGAPI void rlBegin(PrimitiveType mode);
+    RGAPI void rlEnd(cwoid);
+    RGAPI void BeginTextureAndPipelineMode(RenderTexture rtex, DescribedPipeline* pl);
+    RGAPI void EndTextureAndPipelineMode(cwoid);
+    RGAPI void BeginTextureMode(RenderTexture rtex);
+    RGAPI void EndTextureMode(cwoid);
+    RGAPI void BeginWindowMode(SubWindow sw);
+    RGAPI void EndWindowMode(cwoid);
 
-    DescribedPipeline* DefaultPipeline(cwoid);
-    Shader DefaultShader(cwoid);
-    RenderSettings GetDefaultSettings(cwoid);
-    Texture GetDefaultTexture(cwoid);
-    void UnloadPipeline(DescribedPipeline* pl);
+    RGAPI void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode);
+    RGAPI void BindComputePipeline(DescribedComputePipeline* pipeline);
 
-    RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
-    RenderTexture LoadRenderTextureEx(uint32_t width, uint32_t height, PixelFormat colorFormat, uint32_t sampleCount, uint32_t attachmentCount);
-    const char* TextureFormatName(PixelFormat fmt);
-    size_t GetPixelSizeInBytes(PixelFormat format);
+    RGAPI DescribedShaderModule LoadShaderModuleWGSL (ShaderSources sourcesWGSL);
+    RGAPI DescribedShaderModule LoadShaderModuleGLSL (ShaderSources sourcesGLSL);
+    RGAPI DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sourcesSpirv);
+    RGAPI DescribedShaderModule LoadShaderModule     (ShaderSources source);
+
+    RGAPI const char* GetStageEntryPointName         (ShaderReflectionInfo reflectionInfo, ShaderStage stage);
+    RGAPI uint32_t    GetReflectionUniformLocation   (ShaderReflectionInfo reflectionInfo, const char* name );
+    RGAPI uint32_t    GetReflectionAttributeLocation (ShaderReflectionInfo reflectionInfo, const char* name );
+
+    RGAPI Shader LoadShader          (const char *vsFileName, const char *fsFileName);
+    RGAPI Shader LoadShaderFromMemory(const char *vsCode    , const char *fsCode    );
+
+
+    RGAPI DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, bool compute);
+    RGAPI DescribedBindGroupLayout LoadBindGroupLayoutMod(const DescribedShaderModule* shaderModule);
+
+    RGAPI WGVKRaytracingPipeline LoadRTPipeline(const DescribedShaderModule* module);
+    RGAPI DescribedPipeline* ClonePipeline(const DescribedPipeline* pl);
+    RGAPI DescribedPipeline* ClonePipelineWithSettings(const DescribedPipeline* pl, RenderSettings settings);
+    RGAPI DescribedPipeline* LoadPipeline(const char* shaderSource);
+    RGAPI DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
+    RGAPI DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
+    RGAPI DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, VertexArray* vao);
+    RGAPI DescribedPipeline* LoadPipelineForVAOEx(ShaderSources sources, VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
+    RGAPI DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs);
+    RGAPI DescribedPipeline* LoadPipelinePro(cwoid);
+    RGAPI DescribedPipeline* DefaultPipeline(cwoid);
+    RGAPI Shader DefaultShader(cwoid);
+    RGAPI RenderSettings GetDefaultSettings(cwoid);
+    RGAPI Texture GetDefaultTexture(cwoid);
+    RGAPI void UnloadPipeline(DescribedPipeline* pl);
+
+    RGAPI RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
+    RGAPI RenderTexture LoadRenderTextureEx(uint32_t width, uint32_t height, PixelFormat colorFormat, uint32_t sampleCount, uint32_t attachmentCount);
+    RGAPI const char* TextureFormatName(PixelFormat fmt);
+    RGAPI size_t GetPixelSizeInBytes(PixelFormat format);
     
-    Texture LoadBlankTexture(uint32_t width, uint32_t height);
-    Texture LoadTexture(const char* filename);
-    Texture LoadDepthTexture(uint32_t width, uint32_t height);
-    Texture LoadTextureEx(uint32_t width, uint32_t height,  PixelFormat format, bool to_be_used_as_rendertarget);
-    Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat format, TextureUsage usage, uint32_t sampleCount, uint32_t mipmaps);
-    void GenTextureMipmaps(Texture2D* tex);
-    Texture3D LoadTexture3DEx(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format);
-    Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format, TextureUsage usage, uint32_t sampleCount);
+    RGAPI Texture LoadBlankTexture(uint32_t width, uint32_t height);
+    RGAPI Texture LoadTexture(const char* filename);
+    RGAPI Texture LoadDepthTexture(uint32_t width, uint32_t height);
+    RGAPI Texture LoadTextureEx(uint32_t width, uint32_t height,  PixelFormat format, bool to_be_used_as_rendertarget);
+    RGAPI Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat format, TextureUsage usage, uint32_t sampleCount, uint32_t mipmaps);
+    RGAPI void GenTextureMipmaps(Texture2D* tex);
+    RGAPI Texture3D LoadTexture3DEx(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format);
+    RGAPI Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format, TextureUsage usage, uint32_t sampleCount);
     
-    RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
-    void UpdateTexture(Texture tex, void* data);
+    RGAPI RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
+    RGAPI void UpdateTexture(Texture tex, void* data);
 
-    StagingBuffer GenStagingBuffer(size_t size, BufferUsage usage);
-    void UpdateStagingBuffer(StagingBuffer* buffer);
-    void RecreateStagingBuffer(StagingBuffer* buffer);
-    void MapStagingBuffer(size_t size, BufferUsage usage);
-    void UnloadStagingBuffer(StagingBuffer* buf);
+    RGAPI StagingBuffer GenStagingBuffer(size_t size, BufferUsage usage);
+    RGAPI void UpdateStagingBuffer(StagingBuffer* buffer);
+    RGAPI void RecreateStagingBuffer(StagingBuffer* buffer);
+    RGAPI void MapStagingBuffer(size_t size, BufferUsage usage);
+    RGAPI void UnloadStagingBuffer(StagingBuffer* buf);
     
-    DescribedBuffer* GenUniformBuffer(const void* data, size_t size);
-    DescribedBuffer* GenStorageBuffer(const void* data, size_t size);
-    DescribedBuffer* GenIndexBuffer(const void* data, size_t size);
-    DescribedBuffer* GenVertexBuffer(const void* data, size_t size);
-    DescribedBuffer* GenBufferEx(const void* data, size_t size, BufferUsage usage);
-    void UnloadBuffer(DescribedBuffer* buffer);
-    void BufferData(DescribedBuffer* buffer, const void* data, size_t size);
-    void ResizeBuffer(DescribedBuffer* buffer, size_t newSize);
-    void ResizeBufferAndConserve(DescribedBuffer* buffer, size_t newSize);
-    void BindVertexBuffer(const DescribedBuffer* buffer);
+    RGAPI DescribedBuffer* GenUniformBuffer(const void* data, size_t size);
+    RGAPI DescribedBuffer* GenStorageBuffer(const void* data, size_t size);
+    RGAPI DescribedBuffer* GenIndexBuffer(const void* data, size_t size);
+    RGAPI DescribedBuffer* GenVertexBuffer(const void* data, size_t size);
+    RGAPI DescribedBuffer* GenBufferEx(const void* data, size_t size, BufferUsage usage);
+    RGAPI void UnloadBuffer(DescribedBuffer* buffer);
+    RGAPI void BufferData(DescribedBuffer* buffer, const void* data, size_t size);
+    RGAPI void ResizeBuffer(DescribedBuffer* buffer, size_t newSize);
+    RGAPI void ResizeBufferAndConserve(DescribedBuffer* buffer, size_t newSize);
+    RGAPI void BindVertexBuffer(const DescribedBuffer* buffer);
 
-    DescribedRenderpass* GetActiveRenderPass(cwoid);
-    DescribedPipeline* GetActivePipeline(cwoid);
+    RGAPI DescribedRenderpass* GetActiveRenderPass(cwoid);
+    RGAPI DescribedPipeline* GetActivePipeline(cwoid);
 
-    void RenderPassSetIndexBuffer (DescribedRenderpass* drp, DescribedBuffer* buffer, IndexFormat format, uint64_t offset);
-    void RenderPassSetVertexBuffer(DescribedRenderpass* drp, uint32_t slot, DescribedBuffer* buffer, uint64_t offset);
-    void RenderPassSetBindGroup   (DescribedRenderpass* drp, uint32_t group, DescribedBindGroup* buffer);
-    void ComputePassSetBindGroup  (DescribedComputepass* drp, uint32_t group, DescribedBindGroup* buffer);
+    RGAPI void RenderPassSetIndexBuffer (DescribedRenderpass* drp, DescribedBuffer* buffer, IndexFormat format, uint64_t offset);
+    RGAPI void RenderPassSetVertexBuffer(DescribedRenderpass* drp, uint32_t slot, DescribedBuffer* buffer, uint64_t offset);
+    RGAPI void RenderPassSetBindGroup   (DescribedRenderpass* drp, uint32_t group, DescribedBindGroup* buffer);
+    RGAPI void ComputePassSetBindGroup  (DescribedComputepass* drp, uint32_t group, DescribedBindGroup* buffer);
 
-    void RenderPassDraw        (DescribedRenderpass* drp, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance);
-    void RenderPassDrawIndexed (DescribedRenderpass* drp, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t baseVertex, uint32_t firstInstance);
+    RGAPI void RenderPassDraw        (DescribedRenderpass* drp, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance);
+    RGAPI void RenderPassDrawIndexed (DescribedRenderpass* drp, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t baseVertex, uint32_t firstInstance);
 
-    uint32_t GetUniformLocation       (const DescribedPipeline* pl,         const char* uniformName);
-    uint32_t GetUniformLocationCompute(const DescribedComputePipeline* pl,  const char* uniformName);
-    uint32_t rlGetLocationUniform     (const void* renderorcomputepipeline, const char* uniformName);
-    uint32_t rlGetLocationAttrib      (const void* renderorcomputepipeline, const char*  attribName);
-    void SetPipelineTexture           (      DescribedPipeline* pl, uint32_t index, Texture tex);
-    void SetPipelineSampler           (      DescribedPipeline* pl, uint32_t index, DescribedSampler sampler);
-    void SetPipelineUniformBuffer     (      DescribedPipeline* pl, uint32_t index, DescribedBuffer* buffer);
-    void SetPipelineStorageBuffer     (      DescribedPipeline* pl, uint32_t index, DescribedBuffer* buffer);
-    void SetPipelineUniformBufferData (      DescribedPipeline* pl, uint32_t index, const void* data, size_t size);
-    void SetPipelineStorageBufferData (      DescribedPipeline* pl, uint32_t index, const void* data, size_t size);
+    RGAPI uint32_t GetUniformLocation       (const DescribedPipeline* pl,         const char* uniformName);
+    RGAPI uint32_t GetUniformLocationCompute(const DescribedComputePipeline* pl,  const char* uniformName);
+    RGAPI uint32_t rlGetLocationUniform     (const void* renderorcomputepipeline, const char* uniformName);
+    RGAPI uint32_t rlGetLocationAttrib      (const void* renderorcomputepipeline, const char*  attribName);
+    RGAPI void SetPipelineTexture           (      DescribedPipeline* pl, uint32_t index, Texture tex);
+    RGAPI void SetPipelineSampler           (      DescribedPipeline* pl, uint32_t index, DescribedSampler sampler);
+    RGAPI void SetPipelineUniformBuffer     (      DescribedPipeline* pl, uint32_t index, DescribedBuffer* buffer);
+    RGAPI void SetPipelineStorageBuffer     (      DescribedPipeline* pl, uint32_t index, DescribedBuffer* buffer);
+    RGAPI void SetPipelineUniformBufferData (      DescribedPipeline* pl, uint32_t index, const void* data, size_t size);
+    RGAPI void SetPipelineStorageBufferData (      DescribedPipeline* pl, uint32_t index, const void* data, size_t size);
 
     /**
      * These functions modify the bindgroup of the currently bound pipeline, 
      * i.e. the default pipeline or the one set with BeginPipelineMode
      */
-    void SetTexture                    (uint32_t index, Texture tex);
-    void SetSampler                    (uint32_t index, DescribedSampler sampler);
-    void SetUniformBuffer              (uint32_t index, DescribedBuffer* buffer);
-    void SetStorageBuffer              (uint32_t index, DescribedBuffer* buffer);
-    void SetUniformBufferData          (uint32_t index, const void* data, size_t size);
-    void SetStorageBufferData          (uint32_t index, const void* data, size_t size);
+    RGAPI void SetTexture                    (uint32_t index, Texture tex);
+    RGAPI void SetSampler                    (uint32_t index, DescribedSampler sampler);
+    RGAPI void SetUniformBuffer              (uint32_t index, DescribedBuffer* buffer);
+    RGAPI void SetStorageBuffer              (uint32_t index, DescribedBuffer* buffer);
+    RGAPI void SetUniformBufferData          (uint32_t index, const void* data, size_t size);
+    RGAPI void SetStorageBufferData          (uint32_t index, const void* data, size_t size);
 
 
     /**
      * These functions operate directly on a bindgroup
      */
-    void SetBindgroupUniformBuffer     (DescribedBindGroup* bg, uint32_t index, DescribedBuffer* buffer);
-    void SetBindgroupStorageBuffer     (DescribedBindGroup* bg, uint32_t index, DescribedBuffer* buffer);
-    void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size);
-    void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size);
-    void SetBindgroupTexture3D         (DescribedBindGroup* bg, uint32_t index, Texture3D tex);
-    void SetBindgroupTextureView       (DescribedBindGroup* bg, uint32_t index, WGVKTextureView texView);
-    void SetBindgroupTexture           (DescribedBindGroup* bg, uint32_t index, Texture tex);
-    void SetBindgroupSampler           (DescribedBindGroup* bg, uint32_t index, DescribedSampler sampler);
+    RGAPI void SetBindgroupUniformBuffer     (DescribedBindGroup* bg, uint32_t index, DescribedBuffer* buffer);
+    RGAPI void SetBindgroupStorageBuffer     (DescribedBindGroup* bg, uint32_t index, DescribedBuffer* buffer);
+    RGAPI void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size);
+    RGAPI void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size);
+    RGAPI void SetBindgroupTexture3D         (DescribedBindGroup* bg, uint32_t index, Texture3D tex);
+    RGAPI void SetBindgroupTextureView       (DescribedBindGroup* bg, uint32_t index, WGVKTextureView texView);
+    RGAPI void SetBindgroupTexture           (DescribedBindGroup* bg, uint32_t index, Texture tex);
+    RGAPI void SetBindgroupSampler           (DescribedBindGroup* bg, uint32_t index, DescribedSampler sampler);
 
 
 
@@ -1266,29 +1267,29 @@ EXTERN_C_BEGIN
         The functions LoadVertexArray, VertexAttribPointer, EnableVertexAttribArray, DisableVertexAttribArray
         aim to replicate the behaviour of OpenGL as closely as possible.
      */
-    VertexArray* LoadVertexArray (cwoid);
-    void VertexAttribPointer     (VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, VertexFormat format, uint32_t offset, VertexStepMode stepmode);
-    void EnableVertexAttribArray (VertexArray* array, uint32_t attribLocation);
-    void DisableVertexAttribArray(VertexArray* array, uint32_t attribLocation);
+    RGAPI VertexArray* LoadVertexArray (cwoid);
+    RGAPI void VertexAttribPointer     (VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, VertexFormat format, uint32_t offset, VertexStepMode stepmode);
+    RGAPI void EnableVertexAttribArray (VertexArray* array, uint32_t attribLocation);
+    RGAPI void DisableVertexAttribArray(VertexArray* array, uint32_t attribLocation);
 
-    void PreparePipeline        (DescribedPipeline* pipeline, VertexArray* va);
-    void BindPipelineVertexArray(DescribedPipeline* pipeline, VertexArray* va);
-    void BindVertexArray        (VertexArray* va);
+    RGAPI void PreparePipeline        (DescribedPipeline* pipeline, VertexArray* va);
+    RGAPI void BindPipelineVertexArray(DescribedPipeline* pipeline, VertexArray* va);
+    RGAPI void BindVertexArray        (VertexArray* va);
 
-    void DrawArrays                (PrimitiveType drawMode, uint32_t vertexCount);
-    void DrawArraysInstanced       (PrimitiveType drawMode, uint32_t vertexCount, uint32_t instanceCount);
-    void DrawArraysIndexed         (PrimitiveType drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount);
-    void DrawArraysIndexedInstanced(PrimitiveType drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount, uint32_t instanceCount);
+    RGAPI void DrawArrays                (PrimitiveType drawMode, uint32_t vertexCount);
+    RGAPI void DrawArraysInstanced       (PrimitiveType drawMode, uint32_t vertexCount, uint32_t instanceCount);
+    RGAPI void DrawArraysIndexed         (PrimitiveType drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount);
+    RGAPI void DrawArraysIndexedInstanced(PrimitiveType drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount, uint32_t instanceCount);
 
-    Material LoadMaterialDefault(cwoid);
-    ModelAnimation *LoadModelAnimations(const char *fileName, int *animCount);
-    void UpdateModelAnimationBones(Model model, ModelAnimation anim, int frame);
-    void UpdateModelAnimation(Model model, ModelAnimation anim, int frame);
-    Model LoadModel(const char *fileName);                                                // Load model from files (meshes and materials)
-    Model LoadModelFromMesh(Mesh mesh);                                                   // Load model from generated mesh (default material)
-    bool IsModelValid(Model model);                                                       // Check if a model is valid (loaded in GPU, VAO/VBOs)
-    void UnloadModel(Model model);                                                        // Unload model (including meshes) from memory (RAM and/or VRAM)
-    BoundingBox GetModelBoundingBox(Model model);                                         // Compute model bounding box limits (considers all meshes)
+    RGAPI Material LoadMaterialDefault(cwoid);
+    RGAPI ModelAnimation *LoadModelAnimations(const char *fileName, int *animCount);
+    RGAPI void UpdateModelAnimationBones(Model model, ModelAnimation anim, int frame);
+    RGAPI void UpdateModelAnimation(Model model, ModelAnimation anim, int frame);
+    RGAPI Model LoadModel(const char *fileName);                                                // Load model from files (meshes and materials)
+    RGAPI Model LoadModelFromMesh(Mesh mesh);                                                   // Load model from generated mesh (default material)
+    RGAPI bool IsModelValid(Model model);                                                       // Check if a model is valid (loaded in GPU, VAO/VBOs)
+    RGAPI void UnloadModel(Model model);                                                        // Unload model (including meshes) from memory (RAM and/or VRAM)
+    RGAPI BoundingBox GetModelBoundingBox(Model model);                                         // Compute model bounding box limits (considers all meshes)
 
     // Model drawing functions
     void DrawModel(Model model, Vector3 position, float scale, Color tint);                            // Draw a model (with texture if set)
@@ -1303,85 +1304,84 @@ EXTERN_C_BEGIN
     void DrawBillboardPro(Camera camera, Texture2D texture, Rectangle source, Vector3 position, Vector3 up, Vector2 size, Vector2 origin, float rotation, Color tint); // Draw a billboard texture defined by source and rotation
 
     // Mesh management functions
-    void UploadMesh(Mesh *mesh, bool dynamic);                                            // Upload mesh vertex data in GPU and provide VAO/VBO ids
-    void UpdateMeshBuffer(Mesh mesh, int index, const void *data, int dataSize, int offset); // Update mesh vertex data in GPU for a specific buffer index
-    void UnloadMesh(Mesh mesh);                                                           // Unload mesh data from CPU and GPU
-    void DrawMesh(Mesh mesh, Material material, Matrix transform);                        // Draw a 3d mesh with material and transform
-    void DrawMeshInstanced(Mesh mesh, Material material, const Matrix *transforms, int instances); // Draw multiple mesh instances with material and different transforms
-    BoundingBox GetMeshBoundingBox(Mesh mesh);                                            // Compute mesh bounding box limits
-    void GenMeshTangents(Mesh *mesh);                                                     // Compute mesh tangents
-    Mesh GenMeshCube(float width, float height, float length);
-    Mesh GenMeshPoly(int sides, float radius);
-    Mesh GenMeshPlane(float width, float length, int resX, int resZ);
-    Mesh GenMeshSphere(float radius, int rings, int slices);
-    Mesh GenMeshHemiSphere(float radius, int rings, int slices);
-    Mesh GenMeshCylinder(float radius, float height, int slices);
-    Mesh GenMeshCone(float radius, float height, int slices);
-    Mesh GenMeshTorus(float radius, float size, int radSeg, int sides);
-    Mesh GenMeshKnot(float radius, float size, int radSeg, int sides);
-    Mesh GenMeshHeightmap(Image heightmap, Vector3 size);
-    Mesh GenMeshCubicmap(Image cubicmap, Vector3 cubeSize);
+    RGAPI void UploadMesh(Mesh *mesh, bool dynamic);                                            // Upload mesh vertex data in GPU and provide VAO/VBO ids
+    RGAPI void UpdateMeshBuffer(Mesh mesh, int index, const void *data, int dataSize, int offset); // Update mesh vertex data in GPU for a specific buffer index
+    RGAPI void UnloadMesh(Mesh mesh);                                                           // Unload mesh data from CPU and GPU
+    RGAPI void DrawMesh(Mesh mesh, Material material, Matrix transform);                        // Draw a 3d mesh with material and transform
+    RGAPI void DrawMeshInstanced(Mesh mesh, Material material, const Matrix *transforms, int instances); // Draw multiple mesh instances with material and different transforms
+    RGAPI BoundingBox GetMeshBoundingBox(Mesh mesh);                                            // Compute mesh bounding box limits
+    RGAPI void GenMeshTangents(Mesh *mesh);                                                     // Compute mesh tangents
+    RGAPI Mesh GenMeshCube(float width, float height, float length);
+    RGAPI Mesh GenMeshPoly(int sides, float radius);
+    RGAPI Mesh GenMeshPlane(float width, float length, int resX, int resZ);
+    RGAPI Mesh GenMeshSphere(float radius, int rings, int slices);
+    RGAPI Mesh GenMeshHemiSphere(float radius, int rings, int slices);
+    RGAPI Mesh GenMeshCylinder(float radius, float height, int slices);
+    RGAPI Mesh GenMeshCone(float radius, float height, int slices);
+    RGAPI Mesh GenMeshTorus(float radius, float size, int radSeg, int sides);
+    RGAPI Mesh GenMeshKnot(float radius, float size, int radSeg, int sides);
+    RGAPI Mesh GenMeshHeightmap(Image heightmap, Vector3 size);
+    RGAPI Mesh GenMeshCubicmap(Image cubicmap, Vector3 cubeSize);
     //bool ExportMesh(Mesh mesh, const char *fileName);                                     // Export mesh data to file, returns true on success
     //bool ExportMeshAsCode(Mesh mesh, const char *fileName);                               // Export mesh as code file (.h) defining multiple arrays of vertex attributes
 
 
-    bool CheckCollisionPointRec(Vector2 point, Rectangle rec);
-    const char *TextFormat(const char *text, ...);
+    RGAPI bool CheckCollisionPointRec(Vector2 point, Rectangle rec);
+    RGAPI const char *TextFormat(const char *text, ...);
 
-    void DrawTexturePro(Texture texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint);
-    void DrawTexture(Texture texture, int posX, int posY, Color tint);
-    void DrawTextureV(Texture texture, Vector2 position, Color tint);                                // Draw a Texture2D with position defined as Vector2
-    void DrawTextureEx(Texture texture, Vector2 position, float rotation, float scale, Color tint);  // Draw a Texture2D with extended parameters
-    void DrawTextureRec(Texture texture, Rectangle source, Vector2 position, Color tint);            // Draw a part of a texture defined by a rectangle
-    void DrawTexturePro(Texture texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint); // Draw a part of a texture defined by a rectangle with 'pro' parameters
-    //void DrawTextureNPatch(Texture2D texture, NPatchInfo nPatchInfo, Rectangle dest, Vector2 origin, float rotation, Color tint); // Draws a texture (or part of it) that stretches or shrinks nicely
-    void DrawPixel(int posX, int posY, Color color);
-    void DrawPixelV(Vector2 position, Color color);
-    void DrawGrid(int slices, float spacing);
-    void DrawLine(int startPosX, int startPosY, int endPosX, int endPosY, Color color);
-    void DrawLineV(Vector2 startPos, Vector2 endPos, Color color);
-    void DrawLine3D(Vector3 startPos, Vector3 endPos, Color color);
-    void DrawLineStrip(const Vector2 *points, int pointCount, Color color);
-    void DrawLineBezier(Vector2 startPos, Vector2 endPos, float thick, Color color);
-    void DrawLineEx(Vector2 startPos, Vector2 endPos, float thick, Color color);
-    void DrawCircle(int centerX, int centerY, float radius, Color color);
-    void DrawCircleV(Vector2 center, float radius, Color color);
-    void DrawCircleSector(Vector2 center, float radius, float startAngle, float endAngle, int segments, Color color);
-    void DrawCircleSectorLines(Vector2 center, float radius, float startAngle, float endAngle, int segments, Color color);
-    void DrawCircleGradient(int centerX, int centerY, float radius, Color inner, Color outer);
-    void DrawCircleLines(int centerX, int centerY, float radius, Color color);
-    void DrawCircleLinesV(Vector2 center, float radius, Color color);
-    void DrawEllipse(int centerX, int centerY, float radiusH, float radiusV, Color color);
-    void DrawEllipseLines(int centerX, int centerY, float radiusH, float radiusV, Color color);
-    void DrawRing(Vector2 center, float innerRadius, float outerRadius, float startAngle, float endAngle, int segments, Color color);
-    void DrawRingLines(Vector2 center, float innerRadius, float outerRadius, float startAngle, float endAngle, int segments, Color color);
-    void DrawRectangle(int posX, int posY, int width, int height, Color color);
-    void DrawRectangleV(Vector2 position, Vector2 size, Color color);
-    void DrawRectangleRec(Rectangle rec, Color color);
-    void DrawRectanglePro(Rectangle rec, Vector2 origin, float rotation, Color color);
-    void DrawRectangleGradientV(int posX, int posY, int width, int height, Color top, Color bottom);
-    void DrawRectangleGradientH(int posX, int posY, int width, int height, Color left, Color right);
-    void DrawRectangleGradientEx(Rectangle rec, Color topLeft, Color bottomLeft, Color topRight, Color bottomRight);
-    void DrawRectangleLines(int posX, int posY, int width, int height, Color color);
-    void DrawRectangleLinesEx(Rectangle rec, float lineThick, Color color);
-    void DrawRectangleRounded(Rectangle rec, float roundness, int segments, Color color);
-    void DrawRectangleRoundedLines(Rectangle rec, float roundness, int segments, Color color);
-    void DrawRectangleRoundedLinesEx(Rectangle rec, float roundness, int segments, float lineThick, Color color);
-    void DrawTriangle(Vector2 v1, Vector2 v2, Vector2 v3, Color color);
-    void DrawTriangleLines(Vector2 v1, Vector2 v2, Vector2 v3, Color color);
-    void DrawTriangleFan(const Vector2 *points, int pointCount, Color color);
-    void DrawTriangleStrip(const Vector2 *points, int pointCount, Color color);
-    void DrawPoly(Vector2 center, int sides, float radius, float rotation, Color color);
-    void DrawPolyLines(Vector2 center, int sides, float radius, float rotation, Color color);
-    void DrawPolyLinesEx(Vector2 center, int sides, float radius, float rotation, float lineThick, Color color);
-    void DrawSplineSegmentBezierQuadratic(Vector2 p1, Vector2 c2, Vector2 p3, float thick, Color color);
-    void DrawSplineSegmentBezierCubic(Vector2 p1, Vector2 c2, Vector2 c3, Vector2 p4, float thick, Color color);
+    RGAPI void DrawTexturePro(Texture texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint);
+    RGAPI void DrawTexture(Texture texture, int posX, int posY, Color tint);
+    RGAPI void DrawTextureV(Texture texture, Vector2 position, Color tint);                                // Draw a Texture2D with position defined as Vector2
+    RGAPI void DrawTextureEx(Texture texture, Vector2 position, float rotation, float scale, Color tint);  // Draw a Texture2D with extended parameters
+    RGAPI void DrawTextureRec(Texture texture, Rectangle source, Vector2 position, Color tint);            // Draw a part of a texture defined by a rectangle
+    RGAPI void DrawTexturePro(Texture texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint); // Draw a part of a texture defined by a rectangle with 'pro' parameters
+    RGAPI void DrawPixel(int posX, int posY, Color color);
+    RGAPI void DrawPixelV(Vector2 position, Color color);
+    RGAPI void DrawGrid(int slices, float spacing);
+    RGAPI void DrawLine(int startPosX, int startPosY, int endPosX, int endPosY, Color color);
+    RGAPI void DrawLineV(Vector2 startPos, Vector2 endPos, Color color);
+    RGAPI void DrawLine3D(Vector3 startPos, Vector3 endPos, Color color);
+    RGAPI void DrawLineStrip(const Vector2 *points, int pointCount, Color color);
+    RGAPI void DrawLineBezier(Vector2 startPos, Vector2 endPos, float thick, Color color);
+    RGAPI void DrawLineEx(Vector2 startPos, Vector2 endPos, float thick, Color color);
+    RGAPI void DrawCircle(int centerX, int centerY, float radius, Color color);
+    RGAPI void DrawCircleV(Vector2 center, float radius, Color color);
+    RGAPI void DrawCircleSector(Vector2 center, float radius, float startAngle, float endAngle, int segments, Color color);
+    RGAPI void DrawCircleSectorLines(Vector2 center, float radius, float startAngle, float endAngle, int segments, Color color);
+    RGAPI void DrawCircleGradient(int centerX, int centerY, float radius, Color inner, Color outer);
+    RGAPI void DrawCircleLines(int centerX, int centerY, float radius, Color color);
+    RGAPI void DrawCircleLinesV(Vector2 center, float radius, Color color);
+    RGAPI void DrawEllipse(int centerX, int centerY, float radiusH, float radiusV, Color color);
+    RGAPI void DrawEllipseLines(int centerX, int centerY, float radiusH, float radiusV, Color color);
+    RGAPI void DrawRing(Vector2 center, float innerRadius, float outerRadius, float startAngle, float endAngle, int segments, Color color);
+    RGAPI void DrawRingLines(Vector2 center, float innerRadius, float outerRadius, float startAngle, float endAngle, int segments, Color color);
+    RGAPI void DrawRectangle(int posX, int posY, int width, int height, Color color);
+    RGAPI void DrawRectangleV(Vector2 position, Vector2 size, Color color);
+    RGAPI void DrawRectangleRec(Rectangle rec, Color color);
+    RGAPI void DrawRectanglePro(Rectangle rec, Vector2 origin, float rotation, Color color);
+    RGAPI void DrawRectangleGradientV(int posX, int posY, int width, int height, Color top, Color bottom);
+    RGAPI void DrawRectangleGradientH(int posX, int posY, int width, int height, Color left, Color right);
+    RGAPI void DrawRectangleGradientEx(Rectangle rec, Color topLeft, Color bottomLeft, Color topRight, Color bottomRight);
+    RGAPI void DrawRectangleLines(int posX, int posY, int width, int height, Color color);
+    RGAPI void DrawRectangleLinesEx(Rectangle rec, float lineThick, Color color);
+    RGAPI void DrawRectangleRounded(Rectangle rec, float roundness, int segments, Color color);
+    RGAPI void DrawRectangleRoundedLines(Rectangle rec, float roundness, int segments, Color color);
+    RGAPI void DrawRectangleRoundedLinesEx(Rectangle rec, float roundness, int segments, float lineThick, Color color);
+    RGAPI void DrawTriangle(Vector2 v1, Vector2 v2, Vector2 v3, Color color);
+    RGAPI void DrawTriangleLines(Vector2 v1, Vector2 v2, Vector2 v3, Color color);
+    RGAPI void DrawTriangleFan(const Vector2 *points, int pointCount, Color color);
+    RGAPI void DrawTriangleStrip(const Vector2 *points, int pointCount, Color color);
+    RGAPI void DrawPoly(Vector2 center, int sides, float radius, float rotation, Color color);
+    RGAPI void DrawPolyLines(Vector2 center, int sides, float radius, float rotation, Color color);
+    RGAPI void DrawPolyLinesEx(Vector2 center, int sides, float radius, float rotation, float lineThick, Color color);
+    RGAPI void DrawSplineSegmentBezierQuadratic(Vector2 p1, Vector2 c2, Vector2 p3, float thick, Color color);
+    RGAPI void DrawSplineSegmentBezierCubic(Vector2 p1, Vector2 c2, Vector2 c3, Vector2 p4, float thick, Color color);
 
-    void*       GetInstance(cwoid);
-    WGVKAdapter GetAdapter (cwoid);
-    WGVKDevice  GetDevice  (cwoid);
-    WGVKQueue   GetQueue   (cwoid);
-    void*       GetSurface (cwoid);
+    RGAPI void*       GetInstance(cwoid);
+    RGAPI WGVKAdapter GetAdapter (cwoid);
+    RGAPI WGVKDevice  GetDevice  (cwoid);
+    RGAPI WGVKQueue   GetQueue   (cwoid);
+    RGAPI void*       GetSurface (cwoid);
     
     static inline uint32_t attributeSize(const VertexFormat fmt){
         switch(fmt){
