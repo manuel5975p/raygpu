@@ -43,14 +43,15 @@ void PresentSurface(FullSurface* surface){
 
 }
 void DummySubmitOnQueue(){
-    uint32_t cacheIndex = g_vulkanstate.device->submittedFrames % framesInFlight;
+    const uint32_t cacheIndex = g_vulkanstate.device->submittedFrames % framesInFlight;
+    const uint32_t submits = g_vulkanstate.queue->syncState[cacheIndex].submits;
     if(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence == 0){
         g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence = CreateFence();
     }
     VkSubmitInfo emptySubmit zeroinit;
     emptySubmit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     emptySubmit.waitSemaphoreCount = 1;
-    emptySubmit.pWaitSemaphores = g_vulkanstate.queue->syncState[cacheIndex].semaphores.data() + g_vulkanstate.queue->syncState[cacheIndex].submits;
+    emptySubmit.pWaitSemaphores = g_vulkanstate.queue->syncState[cacheIndex].semaphores.data() + submits;
     VkPipelineStageFlags waitmask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     emptySubmit.pWaitDstStageMask = &waitmask;
     vkQueueSubmit(g_vulkanstate.device->queue->graphicsQueue, 1, &emptySubmit, g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence);
