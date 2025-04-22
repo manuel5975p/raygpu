@@ -1,3 +1,4 @@
+#define VK_NO_PROTOTYPES
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_error.h>
@@ -6,6 +7,7 @@
 #include <internals.hpp>
 #include <renderstate.hpp>
 #if SUPPORT_VULKAN_BACKEND == 1
+#include <external/volk.h>
 #include <vulkan/vulkan.h>
 #include <SDL3/SDL_vulkan.h>
 #include "backend_vulkan/vulkan_internals.hpp"

@@ -1,10 +1,10 @@
 #ifndef VULKAN_INTERNALS_HPP
 #define VULKAN_INTERNALS_HPP
 #define VMA_MIN_ALIGNMENT 32
+#define VK_NO_PROTOTYPES
+#include <external/volk.h>
 #include <external/VmaUsage.h>
-#include <external/small_vector.hpp>
 #include <unordered_set>
-#include <vulkan/vulkan.h>
 #include <vector>
 #include <utility>
 #include <map>
@@ -13,8 +13,6 @@
 #include <wgvk.h>
 //#define SUPPORT_VULKAN_BACKEND 1
 #include <enum_translation.h>
-#include <vulkan/vulkan_core.h>
-#include <vulkan/vulkan_core.h>
 #if SUPPORT_GLFW == 1
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>

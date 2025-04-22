@@ -5,7 +5,7 @@
 #include <enum_translation.h>
 #include <macros_and_constants.h>
 #if SUPPORT_VULKAN_BACKEND == 1
-#include <vulkan/vulkan.h>
+#include <external/volk.h>
 #endif
 #ifdef __cplusplus
 #include <cstdint>

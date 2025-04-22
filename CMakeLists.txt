@@ -6,7 +6,7 @@ option(SUPPORT_SDL2 "Enable windowing with SDL2" OFF)
 option(SUPPORT_SDL3 "Enable windowing with SDL3" OFF)
 option(SUPPORT_GLFW "Enable windowing with GLFW" OFF)
 option(SUPPORT_RGFW "Enable windowing with RGFW" OFF)
-
+option(RAYGPU_BUILD_SHARED_LIBRARY "Build shared raygpu library" OFF)
 option(RAYGPU_ENABLE_INSTALL "(EXPERIMENTAL!) Enable install targets for raygpu" OFF)
 
 if(NOT SUPPORT_WGPU_BACKEND)
@@ -22,6 +22,10 @@ else()
 endif()
 
 if(NOT MSVC AND NOT EMSCRIPTEN)
+    if(RAYGPU_BUILD_SHARED_LIBRARY)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+    endif()
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address,undefined")
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address,undefined -fno-exceptions")
     set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 -DNDEBUG -g")
@@ -207,6 +211,7 @@ if(SUPPORT_VULKAN_BACKEND)
     list(APPEND RG_SOURCES "src/backend_vulkan/backend_vulkan.cpp")
     list(APPEND RG_SOURCES "src/backend_vulkan/vma_impl.cpp")
     list(APPEND RG_SOURCES "src/backend_vulkan/wgvk.cpp")
+    list(APPEND RG_SOURCES "src/backend_vulkan/volk.c")
 endif()
 if(SUPPORT_WGPU_BACKEND)
     list(APPEND RG_SOURCES
@@ -248,9 +253,11 @@ if(DAWN_ENABLE_METAL)
 endif()
 
 
-
-add_library(raygpu ${RG_SOURCES})
-
+if(RAYGPU_BUILD_SHARED_LIBRARY)
+add_library(raygpu SHARED ${RG_SOURCES})
+else()
+add_library(raygpu STATIC ${RG_SOURCES})
+endif()
 if(DAWN_USE_X11)
     target_compile_definitions(raygpu PUBLIC RAYGPU_USE_X11=1)
 endif()
@@ -376,7 +383,7 @@ else()
         find_package(Vulkan REQUIRED)
     endif()
     if(SUPPORT_VULKAN_BACKEND)
-        target_link_libraries(raygpu PUBLIC Vulkan::Vulkan glslang)
+        target_link_libraries(raygpu PUBLIC glslang)
     else()
         target_link_libraries(raygpu PUBLIC
             webgpu_dawn

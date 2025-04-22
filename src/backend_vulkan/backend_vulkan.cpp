@@ -3,7 +3,7 @@
 #include <raygpu.h>
 #undef Font
 #include <set>
-#include <vulkan/vulkan.h>
+#include <external/volk.h>
 #include <renderstate.hpp>
 #include "vulkan_internals.hpp"
 #define RGFW_VULKAN

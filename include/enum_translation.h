@@ -43,7 +43,8 @@ using std::uint64_t;
 #include <webgpu/webgpu.h>
 #endif
 #if SUPPORT_VULKAN_BACKEND == 1
-#include <vulkan/vulkan.h>
+#define VK_NO_PROTOTYPES
+#include <vulkan/vulkan_core.h>
 #endif
 // ------------------------- Enum Definitions -------------------------
 

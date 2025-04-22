@@ -40,7 +40,7 @@
 
 #else  // #ifdef _WIN32
 
-#include <vulkan/vulkan.h>
+#include <external/volk.h>
 
 #endif  // #ifdef _WIN32
 
@@ -96,7 +96,7 @@ include all public interface declarations. Example:
     #pragma clang diagnostic ignored "-Wnullability-completeness"
 #endif
 
-#include <vulkan/vulkan.h>
+#include <external/volk.h>
 #ifdef _WIN32
 #include <vulkan/vulkan_win32.h>
 #endif
