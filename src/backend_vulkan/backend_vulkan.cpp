@@ -274,7 +274,7 @@ DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode m
 }
 
 
-extern "C" void GetNewTexture(FullSurface *fsurface){
+extern "C" void GetNewTexture(FullSurface* fsurface){
 
     const size_t submittedframes = fsurface->surfaceConfig.device->submittedFrames;
     const uint32_t cacheIndex = fsurface->surfaceConfig.device->submittedFrames % framesInFlight;
@@ -285,7 +285,8 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
         VkSubmitInfo submitInfo zeroinit;
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = &g_vulkanstate.queue->syncState[cacheIndex].semaphores[0];
+        submitInfo.pSignalSemaphores = &g_vulkanstate.queue->syncState[cacheIndex].acquireImageSemaphore;
+        g_vulkanstate.queue->syncState[cacheIndex].acquireImageSemaphoreSignalled = true;
         vkQueueSubmit(g_vulkanstate.queue->graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
     }
     else{
@@ -309,14 +310,6 @@ extern "C" void GetNewTexture(FullSurface *fsurface){
         VkCommandBuffer buf = ((WGVKSurface)fsurface->surface)->device->queue->presubmitCache->buffer;
         EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, wgvksurf->images[imageIndex]);
         EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, (WGVKTexture)fsurface->renderTarget.depth.id);
-        //vkEndCommandBuffer(buf);
-        //VkSubmitInfo submitInfo zeroinit;
-        //submitInfo.commandBufferCount = 1;
-        //submitInfo.pCommandBuffers = &buf;
-        //submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        //submitInfo.signalSemaphoreCount = 1;
-        //submitInfo.pSignalSemaphores = &g_vulkanstate.queue->syncState[cacheIndex].semaphores[0];
-        // submitInfo.
         
         fsurface->renderTarget.texture.id = wgvksurf->images[imageIndex];
         fsurface->renderTarget.texture.view = wgvksurf->imageViews[imageIndex];

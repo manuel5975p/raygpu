@@ -1054,16 +1054,17 @@ void TakeScreenshot(const char* filename){
 
 
 extern "C" bool IsKeyDown(int key){
-    return g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].keydown[key];
+    void* ah = GetActiveWindowHandle();
+    return g_renderstate.input_map[GetActiveWindowHandle()].keydown[key];
 }
 extern "C" bool IsKeyPressed(int key){
-    return g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].keydown[key] && !g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].keydownPrevious[key];
+    return g_renderstate.input_map[GetActiveWindowHandle()].keydown[key] && !g_renderstate.input_map[GetActiveWindowHandle()].keydownPrevious[key];
 }
 extern "C" int GetCharPressed(){
     int fc = 0;
-    if(!g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].charQueue.empty()){
-        fc = g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].charQueue.front();
-        g_renderstate.input_map[(GLFWwindow*)GetActiveWindowHandle()].charQueue.pop_front();
+    if(!g_renderstate.input_map     [GetActiveWindowHandle()].charQueue.empty()){
+        fc = g_renderstate.input_map[GetActiveWindowHandle()].charQueue.front();
+        g_renderstate.input_map     [GetActiveWindowHandle()].charQueue.pop_front();
     }
     return fc;
 }

@@ -246,7 +246,9 @@ void* InitWindow(uint32_t width, uint32_t height, const char* title){
         void* wgpu_or_wgvk_surface = CreateSurfaceForWindow(createdWindow);
         
         WGVKSurface wSurface = (WGVKSurface)wgpu_or_wgvk_surface;
-        g_renderstate.createdSubwindows[createdWindow.handle].surface = CreateSurface(wSurface, width, height);
+        createdWindow.surface = CreateSurface(wSurface, width, height);
+        
+        g_renderstate.createdSubwindows[createdWindow.handle] = createdWindow;
 
         g_renderstate.window = (GLFWwindow*)createdWindow.handle;
         auto it = g_renderstate.createdSubwindows.find(g_renderstate.window);

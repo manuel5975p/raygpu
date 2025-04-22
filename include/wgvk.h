@@ -687,7 +687,7 @@ void wgvkCommandEncoderCopyBufferToTexture    (WGVKCommandEncoder commandEncoder
 void wgvkCommandEncoderCopyTextureToBuffer    (WGVKCommandEncoder commandEncoder, const WGVKTexelCopyTextureInfo* source, const WGVKTexelCopyBufferInfo* destination, const WGVKExtent3D* copySize);
 void wgvkCommandEncoderCopyTextureToTexture   (WGVKCommandEncoder commandEncoder, const WGVKTexelCopyTextureInfo* source, const WGVKTexelCopyTextureInfo* destination, const WGVKExtent3D* copySize);
 void wgvkRenderpassEncoderDraw                (WGVKRenderPassEncoder rpe, uint32_t vertices, uint32_t instances, uint32_t firstvertex, uint32_t firstinstance);
-void wgvkRenderpassEncoderDrawIndexed         (WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t basevertex, uint32_t firstinstance);
+void wgvkRenderpassEncoderDrawIndexed         (WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, int32_t basevertex, uint32_t firstinstance);
 void wgvkRenderPassEncoderSetBindGroup        (WGVKRenderPassEncoder rpe, uint32_t group, WGVKBindGroup dset);
 void wgvkRenderPassEncoderSetPipeline         (WGVKRenderPassEncoder rpe, WGVKRenderPipeline renderPipeline);
 void wgvkComputePassEncoderSetPipeline        (WGVKComputePassEncoder cpe, WGVKComputePipeline computePipeline);

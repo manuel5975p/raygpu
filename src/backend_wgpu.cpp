@@ -783,8 +783,7 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, Resou
     //bg->bindGroup = wgpuDeviceCreateBindGroup((WGPUDevice)GetDevice(), &(bg->desc));
 }
 
-// TODOIMPORTANT: 
-// Implement headless for wgpu
+
 extern "C" void GetNewTexture(FullSurface* fsurface){
     if(fsurface->headless){
         return;
@@ -792,6 +791,13 @@ extern "C" void GetNewTexture(FullSurface* fsurface){
     else{
         WGPUSurfaceTexture surfaceTexture;
         wgpuSurfaceGetCurrentTexture((WGPUSurface)fsurface->surface, &surfaceTexture);
+
+        // TODO: some better surface recovery handling, doesn't seem to be an issue for now however
+        // if(surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal){
+        //     wgpuSurfaceConfigure((WGPUSurface)fsurface->surface, &fsurface->surfaceConfig);
+        //     wgpuSurfaceGetCurrentTexture((WGPUSurface)fsurface->surface, &surfaceTexture);
+        // }
+        // rassert(surfaceTexture.status == WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal, "WGPUSurface did not return optimal, instead: %d", surfaceTexture.status);
         fsurface->renderTarget.texture.id = surfaceTexture.texture;
         fsurface->renderTarget.texture.width = wgpuTextureGetWidth(surfaceTexture.texture);
         fsurface->renderTarget.texture.height = wgpuTextureGetHeight(surfaceTexture.texture);

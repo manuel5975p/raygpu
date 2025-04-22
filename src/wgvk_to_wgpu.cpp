@@ -199,8 +199,8 @@ void wgvkCommandEncoderCopyTextureToTexture(WGVKCommandEncoder commandEncoder, W
 void wgvkRenderpassEncoderDraw(WGVKRenderPassEncoder rpe, uint32_t vertices, uint32_t instances, uint32_t firstvertex, uint32_t firstinstance){
     wgpuRenderPassEncoderDraw(rpe, vertices, instances, firstvertex, firstinstance);
 }
-void wgvkRenderpassEncoderDrawIndexed(WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, uint32_t baseVertex, uint32_t firstinstance){
-    wgpuRenderPassEncoderDrawIndexed(rpe, indices, instances, firstindex, baseVertex, firstinstance);
+void wgvkRenderpassEncoderDrawIndexed(WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, int32_t baseVertex, uint32_t firstinstance){
+    wgpuRenderPassEncoderDrawIndexed(rpe, indices, instances, firstindex, (int32_t)baseVertex, firstinstance);
 }
 void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group, WGVKBindGroup dset){
     wgpuRenderPassEncoderSetBindGroup(rpe, group, dset, 0, nullptr);
@@ -217,9 +217,6 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
     #else
     return nullptr;
     #endif
-}
-WGVKFuture wgvkInstanceRequestAdapter(WGVKInstance instance, const WGVKRequestAdapterOptions* options, WGVKRequestAdapterCallbackInfo callbackInfo){
-    
 }
 //void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, VkPipeline pipeline, VkPipelineLayout layout){
     //TODO 
