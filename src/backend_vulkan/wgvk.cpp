@@ -294,6 +294,10 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
         }
     };
     aci.pDeviceMemoryCallbacks = &callbacks;
+    VmaVulkanFunctions vmaVulkanFunctions zeroinit;
+    vmaVulkanFunctions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
+    vmaVulkanFunctions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
+    aci.pVulkanFunctions = &vmaVulkanFunctions;
     VkResult allocatorCreateResult = vmaCreateAllocator(&aci, &ret.first->allocator);
 
     if(allocatorCreateResult != VK_SUCCESS){

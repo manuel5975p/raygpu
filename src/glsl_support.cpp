@@ -55,6 +55,13 @@
 #include <bitset>
 
 #if SUPPORT_GLSL_PARSER == 1
+
+#if SUPPORT_VULKAN_BACKEND == 1 && defined(VULKAN_ENABLE_RAYTRACING) && VULKAN_ENABLE_RAYTRACING == 1
+constexpr auto defaultSpirvVersion = glslang::EShTargetSpv_1_4;
+#else
+constexpr auto defaultSpirvVersion = glslang::EShTargetSpv_1_3;
+#endif
+
 extern "C" const char vertexSourceGLSL[];
 extern "C" const char fragmentSourceGLSL[];
 const TBuiltInResource DefaultTBuiltInResource_RG = {
@@ -180,7 +187,7 @@ std::vector<uint32_t> glsl_to_spirv_single(const char* cs, EShLanguage stage){
     glslang::TShader shader(stage);
     shader.setEnvInput (glslang::EShSourceGlsl, stage, glslang::EShClientVulkan, glslang::EShTargetVulkan_1_4);
     shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_4);
-    shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
+    shader.setEnvTarget(glslang::EShTargetSpv, defaultSpirvVersion);
     shader.setStrings(&cs, 1);
 
     auto stageToString = [](EShLanguage stage){
@@ -295,7 +302,7 @@ InOutAttributeInfo getAttributesGLSL(ShaderSources sources){
         }
         ShaderStage stage = (ShaderStage)std::countr_zero(uint32_t(sources.sources[i].stageMask));
         shaders.emplace_back(ShaderStageToGlslanguage(stage), std::make_unique<glslang::TShader>(ShaderStageToGlslanguage(stage)));
-        shaders.back().second->setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_3);
+        shaders.back().second->setEnvTarget(glslang::EshTargetSpv, defaultSpirvVersion);
     }
 
     const TBuiltInResource* Resources = &DefaultTBuiltInResource_RG;
@@ -429,7 +436,7 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
         }
         ShaderStage stage = (ShaderStage)std::countr_zero(uint32_t(sources.sources[i].stageMask));
         shaders.emplace_back(ShaderStageToGlslanguage(stage), std::make_unique<glslang::TShader>(ShaderStageToGlslanguage(stage)));
-        shaders.back().second->setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
+        shaders.back().second->setEnvTarget(glslang::EShTargetSpv, defaultSpirvVersion);
     }
 
     TBuiltInResource Resources = DefaultTBuiltInResource_RG;

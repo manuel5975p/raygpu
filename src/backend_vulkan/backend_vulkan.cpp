@@ -1033,7 +1033,7 @@ void InitBackend(){
     #if SUPPORT_GLFW == 1
     glfwInit();
     #endif
-
+    volkInitialize();
     uint32_t layerCount = 0;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
@@ -1061,6 +1061,7 @@ void InitBackend(){
     WGVKInstanceDescriptor idesc zeroinit;
     idesc.nextInChain = &instanceLayers.chain;
     g_vulkanstate.instance = wgvkCreateInstance(&idesc);
+    volkLoadInstance(g_vulkanstate.instance->instance);
     g_vulkanstate.physicalDevice = pickPhysicalDevice(g_vulkanstate.instance);
 
     vkGetPhysicalDeviceMemoryProperties(g_vulkanstate.physicalDevice->physicalDevice, &g_vulkanstate.memProperties);
