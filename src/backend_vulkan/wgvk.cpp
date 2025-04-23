@@ -223,11 +223,12 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
     // (Optional) Enable validation layers for device-specific debugging
     ret.first = callocnewpp(WGVKDeviceImpl);
     ret.second = callocnewpp(WGVKQueueImpl);
-    auto dcresult = vkCreateDevice(adapter->physicalDevice, &createInfo, nullptr, &(ret.first->device));
+    VkResult dcresult = vkCreateDevice(adapter->physicalDevice, &createInfo, nullptr, &(ret.first->device));
     if (dcresult != VK_SUCCESS) {
         TRACELOG(LOG_FATAL, "Failed to create logical device!");
     } else {
-        TRACELOG(LOG_INFO, "Successfully created logical device");
+        //TRACELOG(LOG_INFO, "Successfully created logical device");
+        volkLoadDevice(ret.first->device);
     }
 
     // Retrieve and assign queues

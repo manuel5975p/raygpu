@@ -82,7 +82,7 @@
 #endif
 
 #define VULKAN_USE_DYNAMIC_RENDERING 0
-#define VULKAN_ENABLE_RAYTRACING 1
+#define VULKAN_ENABLE_RAYTRACING 0
 
 #if !defined(RL_MALLOC) && !defined(RL_CALLOC) && !defined(RL_REALLOC) && !defined(RL_FREE)
 #define RL_MALLOC  malloc
