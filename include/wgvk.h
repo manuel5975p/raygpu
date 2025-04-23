@@ -162,6 +162,7 @@ typedef struct WGVKCommandBufferImpl* WGVKCommandBuffer;
 typedef struct WGVKCommandEncoderImpl* WGVKCommandEncoder;
 typedef struct WGVKTextureImpl* WGVKTexture;
 typedef struct WGVKTextureViewImpl* WGVKTextureView;
+typedef struct WGVKSamplerImpl* WGVKSampler;
 typedef struct WGVKRenderPipelineImpl* WGVKRenderPipeline;
 typedef struct WGVKShaderModuleImpl* WGVKShaderModule;
 typedef struct WGVKComputePipelineImpl* WGVKComputePipeline;
@@ -281,10 +282,25 @@ typedef struct ResourceDescriptor {
     /*NULLABLE*/  WGVKBuffer buffer;
     uint64_t offset;
     uint64_t size;
-    /*NULLABLE*/ void* sampler;
+    /*NULLABLE*/ WGVKSampler sampler;
     /*NULLABLE*/ WGVKTextureView textureView;
     /*NULLABLE*/ WGVKTopLevelAccelerationStructure accelerationStructure;
 } ResourceDescriptor;
+
+typedef struct WGVKSamplerDescriptor {
+    WGVKChainedStruct * nextInChain;
+    WGVKStringView label;
+    addressMode addressModeU;
+    addressMode addressModeV;
+    addressMode addressModeW;
+    filterMode magFilter;
+    filterMode minFilter;
+    filterMode mipmapFilter;
+    float lodMinClamp;
+    float lodMaxClamp;
+    CompareFunction compare;
+    uint16_t maxAnisotropy;
+} WGVKSamplerDescriptor;
 
 typedef struct DColor{
     double r,g,b,a;
@@ -665,6 +681,7 @@ void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, WGVKAdapter adapter, WG
 void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* config);
 WGVKTexture wgvkDeviceCreateTexture(WGVKDevice device, const WGVKTextureDescriptor* descriptor);
 WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureViewDescriptor *descriptor);
+WGVKSampler wgvkDeviceCreateSampler(WGVKDevice device, const WGVKSamplerDescriptor* descriptor);
 WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const WGVKBufferDescriptor* desc);
 void wgvkQueueWriteBuffer(WGVKQueue cSelf, WGVKBuffer buffer, uint64_t bufferOffset, const void* data, size_t size);
 void wgvkBufferMap(WGVKBuffer buffer, MapMode mapmode, size_t offset, size_t size, void** data);
@@ -710,6 +727,7 @@ void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder);
 void wgvkReleaseRaytracingPassEncoder         (WGVKRaytracingPassEncoder rtenc);
 void wgvkTextureAddRef                        (WGVKTexture texture);
 void wgvkTextureViewAddRef                    (WGVKTextureView textureView);
+void wgvkSamplerAddRef                        (WGVKSampler texture);
 void wgvkBufferAddRef                         (WGVKBuffer buffer);
 void wgvkBindGroupAddRef                      (WGVKBindGroup bindGroup);
 void wgvkBindGroupLayoutAddRef                (WGVKBindGroupLayout bindGroupLayout);
@@ -724,6 +742,7 @@ void wgvkBindGroupLayoutRelease               (WGVKBindGroupLayout commandBuffer
 void wgvkReleaseBindGroupLayout               (WGVKBindGroupLayout bglayout);
 void wgvkReleaseTexture                       (WGVKTexture texture);
 void wgvkReleaseTextureView                   (WGVKTextureView view);
+void wgvkSamplerRelease                       (WGVKSampler sampler);
 
 
 WGVKCommandEncoder wgvkResetCommandBuffer(WGVKCommandBuffer commandEncoder);

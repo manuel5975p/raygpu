@@ -1186,7 +1186,7 @@ extern "C" void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, WGVKAdapter 
     uint32_t presentModeCount;
     vkGetPhysicalDeviceSurfacePresentModesKHR(vk_physicalDevice, surface, &presentModeCount, nullptr);
     if (presentModeCount != 0) {
-        wgvkSurface->presentModeCache = (PresentMode*)std::calloc(presentModeCount, sizeof(PresentMode));
+        wgvkSurface->presentModeCache = (PresentMode*)RL_CALLOC(presentModeCount, sizeof(PresentMode));
         std::vector<VkPresentModeKHR> presentModes(presentModeCount);
         vkGetPhysicalDeviceSurfacePresentModesKHR(vk_physicalDevice, surface, &presentModeCount, presentModes.data());
         for(size_t i = 0;i < presentModeCount;i++){
@@ -1384,6 +1384,12 @@ void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc) {
         //vkDestroyRenderPass(rpenc->device->device, rpenc->renderPass, nullptr);
         rpenc->~WGVKRenderPassEncoderImpl();
         std::free(rpenc);
+    }
+}
+void wgvkSamplerRelease(WGVKSampler sampler){
+    if(!--sampler->refcount){
+        vkDestroySampler(sampler->device->device, sampler->sampler, nullptr);
+        RL_FREE(sampler);
     }
 }
 void wgvkBufferRelease(WGVKBuffer buffer) {
@@ -1905,7 +1911,41 @@ extern "C" void EncodeTransitionImageLayout(
         1, &barrier         // Image memory barriers (we have one)
     );
 }
+WGVKSampler wgvkDeviceCreateSampler(WGVKDevice device, const WGVKSamplerDescriptor* descriptor){
+    auto vkamode = [](addressMode a){
+        switch(a){
+            case addressMode::clampToEdge:
+                return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            case addressMode::mirrorRepeat:
+                return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+            case addressMode::repeat:
+                return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            default:
+                rg_unreachable();
+        }
+    };
 
+    WGVKSampler ret = callocnewpp(WGVKSamplerImpl);
+    ret->refcount = 1;
+    VkSamplerCreateInfo sci zeroinit;
+    sci.compareEnable = VK_FALSE;
+    //sci.compareOp = VK_COMPARE_OP_LESS;
+    sci.maxLod = 10;
+    sci.minLod = 0;
+    sci.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    sci.addressModeU = vkamode(descriptor->addressModeU);
+    sci.addressModeV = vkamode(descriptor->addressModeV);
+    sci.addressModeW = vkamode(descriptor->addressModeW);
+    
+    sci.mipmapMode = ((descriptor->mipmapFilter == filter_linear) ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST);
+
+    sci.anisotropyEnable = false;
+    sci.maxAnisotropy = descriptor->maxAnisotropy;
+    sci.magFilter = ((descriptor->magFilter == filter_linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
+    sci.minFilter = ((descriptor->minFilter == filter_linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
+    VkResult result = vkCreateSampler(device->device, &sci, nullptr, &(ret->sampler));
+    return ret;
+}
 void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t binding, WGVKBuffer buffer, VkDeviceSize offset) {
     rassert(rpe != nullptr, "RenderPassEncoderHandle is null");
     rassert(buffer != nullptr, "BufferHandle is null");
@@ -1941,6 +1981,9 @@ extern "C" void wgvkBindGroupLayoutAddRef(WGVKBindGroupLayout bindGroupLayout){
 }
 extern "C" void wgvkPipelineLayoutAddRef(WGVKPipelineLayout pipelineLayout){
     ++pipelineLayout->refCount;
+}
+extern "C" void wgvkSamplerAddRef(WGVKSampler sampler){
+    ++sampler->refcount;
 }
 
 extern "C" const char* vkErrorString(int code){

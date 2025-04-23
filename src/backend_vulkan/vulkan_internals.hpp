@@ -182,9 +182,13 @@ namespace std{
             return ret.x64;
         }
     };
-    
 }
 
+typedef struct WGVKSamplerImpl{
+    VkSampler sampler;
+    refcount_type refcount;
+    WGVKDevice device;
+}WGVKSamplerImpl;
 
 typedef struct WGVKBindGroupImpl{
     VkDescriptorSet set;

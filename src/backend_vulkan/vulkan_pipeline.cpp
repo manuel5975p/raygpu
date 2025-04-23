@@ -715,13 +715,13 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t location, Re
         // TODO
     }
     if(entry.buffer){
-        wgvkBufferAddRef((WGVKBuffer)entry.buffer);
+        wgvkBufferAddRef(entry.buffer);
     }
     else if(entry.textureView){
-        wgvkTextureViewAddRef((WGVKTextureView)entry.textureView);
+        wgvkTextureViewAddRef(entry.textureView);
     }
     else if(entry.sampler){
-        // TODO
+        wgvkSamplerAddRef(entry.sampler);
     }
     else{
         TRACELOG(LOG_FATAL, "Invalid ResourceDescriptor");

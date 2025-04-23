@@ -150,7 +150,7 @@ typedef struct DescribedBuffer{
 }DescribedBuffer;
 
 typedef struct DescribedSampler{
-    NativeSamplerHandle sampler;
+    WGVKSampler sampler;
     addressMode addressModeU;
     addressMode addressModeV;
     addressMode addressModeW;

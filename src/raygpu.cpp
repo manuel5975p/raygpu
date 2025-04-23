@@ -1304,7 +1304,7 @@ DescribedBindGroupLayout LoadBindGroupLayoutMod(const DescribedShaderModule* sha
     std::vector<ResourceTypeDescriptor> flat;
     flat.reserve(shaderModule->reflectionInfo.uniforms->uniforms.size());
 
-    for(auto [x, y] : shaderModule->reflectionInfo.uniforms->uniforms){
+    for(const auto& [x, y] : shaderModule->reflectionInfo.uniforms->uniforms){
         flat.push_back(y);
     }
 
