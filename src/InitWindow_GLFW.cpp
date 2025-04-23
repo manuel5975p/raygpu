@@ -32,7 +32,6 @@ float calculateScrollScale(int deltaMode) {
 #if SUPPORT_VULKAN_BACKEND == 1
 #include "backend_vulkan/vulkan_internals.hpp"
 #endif
-extern wgpustate g_wgpustate;
 void setupGLFWCallbacks(GLFWwindow* window);
 void ResizeCallback(GLFWwindow* window, int width, int height){
     

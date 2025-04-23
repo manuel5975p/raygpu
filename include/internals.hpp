@@ -70,6 +70,86 @@ static inline uint32_t bitcount64(uint64_t x){
     return std::popcount(x);
     #endif
 }
+#if defined(__cplusplus) && SUPPORT_WGPU_BACKEND == 1
+extern const std::unordered_map<WGPUTextureFormat, std::string> textureFormatSpellingTable;
+extern const std::unordered_map<WGPUPresentMode, std::string> presentModeSpellingTable;
+extern const std::unordered_map<WGPUBackendType, std::string> backendTypeSpellingTable;
+extern const std::unordered_map<WGPUFeatureName, std::string> featureSpellingTable;
+wgpu::Instance& GetCXXInstance();
+wgpu::Adapter&  GetCXXAdapter ();
+wgpu::Device&   GetCXXDevice  ();
+wgpu::Queue&    GetCXXQueue   ();
+wgpu::Surface&  GetCXXSurface ();
+#endif
+#ifdef __cplusplus
+struct xorshiftstate{
+    uint64_t x64;
+    constexpr void update(uint64_t x) noexcept{
+        x64 ^= x * 0x2545F4914F6CDD1D;
+        x64 ^= x64 << 13;
+        x64 ^= x64 >> 7;
+        x64 ^= x64 << 17;
+    }
+    constexpr void update(uint32_t x, uint32_t y)noexcept{
+        x64 ^= ((uint64_t(x) << 32) | uint64_t(y)) * 0x2545F4914F6CDD1D;
+        x64 ^= x64 << 13;
+        x64 ^= x64 >> 7;
+        x64 ^= x64 << 17;
+    }
+};
+namespace std{
+    template<>
+    struct hash<AttributeAndResidence>{
+        size_t operator()(const AttributeAndResidence& res)const noexcept{
+            uint64_t attrh = ROT_BYTES(res.attr.shaderLocation * uint64_t(41), 31) ^ ROT_BYTES(res.attr.offset, 11);
+            attrh *= 111;
+            attrh ^= ROT_BYTES(res.attr.format, 48) * uint64_t(44497);
+            uint64_t v = ROT_BYTES(res.bufferSlot * uint64_t(756839), 13) ^ ROT_BYTES(attrh * uint64_t(1171), 47);
+            v ^= ROT_BYTES(res.enabled * uint64_t(2976221), 23);
+            return v;
+        }
+    };
+    template<>
+    struct hash<std::vector<AttributeAndResidence>>{
+        size_t operator()(const std::vector<AttributeAndResidence>& res)const noexcept{
+            uint64_t hv = 0;
+            for(const auto& aar: res){
+                hv ^= hash<AttributeAndResidence>{}(aar);
+                hv = ROT_BYTES(hv, 7);
+            }
+            return hv;
+        }
+    };
+}
+
+
+
+#endif
+/**
+ * @brief Get the Bindings object, returning a map from 
+ * Uniform name -> UniformDescriptor (type and minimum size and binding location)
+ * 
+ * @param shaderSource 
+ * @return std::unordered_map<std::string, std::pair<uint32_t, UniformDescriptor>> 
+ */
+std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsWGSL(ShaderSources source);
+std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSources source);
+std::unordered_map<std::string, ResourceTypeDescriptor> getBindings(ShaderSources source);
+
+/**
+ * @brief returning a map from 
+ * Attribute name -> Attribute format (vec2f, vec3f, etc.) and attribute location
+ * @param shaderSource 
+ * @return std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> 
+ */
+struct InOutAttributeInfo{
+    std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> vertexAttributes;
+    std::vector<std::pair<uint32_t, format_or_sample_type>> attachments;    
+};
+
+InOutAttributeInfo getAttributesWGSL(ShaderSources sources);
+InOutAttributeInfo getAttributesGLSL(ShaderSources sources);
+InOutAttributeInfo getAttributes    (ShaderSources sources);
 
 extern "C" void PrepareFrameGlobals();
 extern "C" DescribedBuffer* UpdateVulkanRenderbatch();
