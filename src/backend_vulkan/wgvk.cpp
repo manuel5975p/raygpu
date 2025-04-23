@@ -644,7 +644,7 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
         }
 
         if(entryi.type == texture_sampler){
-            VkSampler vksampler = (VkSampler)bgdesc->entries[i].sampler;
+            VkSampler vksampler = bgdesc->entries[i].sampler->sampler;
             imageInfos[i].sampler = vksampler;
             writes[i].pImageInfo = imageInfos.data() + i;
         }
@@ -1930,8 +1930,8 @@ WGVKSampler wgvkDeviceCreateSampler(WGVKDevice device, const WGVKSamplerDescript
     VkSamplerCreateInfo sci zeroinit;
     sci.compareEnable = VK_FALSE;
     //sci.compareOp = VK_COMPARE_OP_LESS;
-    sci.maxLod = 10;
-    sci.minLod = 0;
+    sci.maxLod = descriptor->lodMaxClamp;
+    sci.minLod = descriptor->lodMinClamp;
     sci.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     sci.addressModeU = vkamode(descriptor->addressModeU);
     sci.addressModeV = vkamode(descriptor->addressModeV);

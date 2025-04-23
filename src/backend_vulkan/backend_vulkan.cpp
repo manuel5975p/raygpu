@@ -264,10 +264,6 @@ DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode m
     ret.maxAnisotropy = maxAnisotropy;
     ret.compare = CompareFunction_Less;//huh??
     ret.sampler = wgvkDeviceCreateSampler(g_vulkanstate.device, &sdesc);
-    VkResult scr = vkCreateSampler(g_vulkanstate.device->device, &sci, nullptr, (VkSampler*)&ret.sampler);
-    if(scr != VK_SUCCESS){
-        TRACELOG(LOG_FATAL, "Sampler creation failed: %s", (int)scr);
-    }
     return ret;
 }
 
