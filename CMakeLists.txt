@@ -457,10 +457,7 @@ if(NOT MSVC)
     target_compile_options(raygpu PRIVATE "-fno-rtti")
     endif()
 endif()
-set(CMAKE_SHARED_LIBRARY_PREFIX "")
-add_library(pybindtest.cpython-313-x86_64-linux-gnu SHARED pybindtest.cpp)
-target_link_libraries(pybindtest.cpython-313-x86_64-linux-gnu PUBLIC raygpu)
-target_include_directories(pybindtest.cpython-313-x86_64-linux-gnu PUBLIC "/usr/include/python3.13" "/usr/lib/python3.13/site-packages/pybind11/include")
+
 #target_compile_features(example PUBLIC cxx_std_20)
 #target_link_libraries(example PUBLIC raygpu)
 #if(CMAKE_BUILD_TYPE MATCHES Debug)
@@ -497,7 +494,16 @@ endif()
 message(STATUS "")
 message(STATUS "------ CONFIGURATION OVERVIEW -------")
 message(STATUS "")
-
+find_package(pybind11 CONFIG REQUIRED)    
+if (NOT pybind11_FOUND)
+    message(FATAL_ERROR "Pybind11 not found. Install it (e.g., 'pip install pybind11' or system package).")
+endif()
+pybind11_add_module(
+    pyraygpu            # Internal CMake target name (conventionally starts with _)
+    pyraygpu            # The name you 'import' in Python: 'import pybindtest'
+    pyraygpu.cpp        # Your source file containing PYBIND11_MODULE
+)
+target_link_libraries(pyraygpu PUBLIC raygpu)
 #if(NOT SUPPORT_VULKAN_BACKEND AND FALSE)
 #install(
 #    TARGETS ${EXPORT_RG_TARGETS}

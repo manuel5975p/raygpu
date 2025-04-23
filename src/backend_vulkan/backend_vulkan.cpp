@@ -342,7 +342,16 @@ void negotiateSurfaceFormatAndPresentMode(WGVKAdapter adapter, const void* Surfa
     else{
         g_renderstate.unthrottled_PresentMode = PresentMode_Fifo;
     }
-
+    uint32_t surfaceFormatCount = 0;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(adapter->physicalDevice, surface->surface, &surfaceFormatCount, nullptr);
+    std::vector<VkSurfaceFormatKHR> surfaceFormats(surfaceFormatCount);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(adapter->physicalDevice, surface->surface, &surfaceFormatCount, surfaceFormats.data());
+    for(uint32_t i = 0;i < surfaceFormats.size();i++){
+        VkSurfaceFormatKHR fmt = surfaceFormats[i];
+        TRACELOG(LOG_INFO, "Supported surface formats: %d, %d, ", fmt.format, fmt.colorSpace);
+    }
+    TRACELOG(LOG_INFO, "\n");
+    
     g_renderstate.frameBufferFormat = BGRA8;
 }
 void* GetInstance(){
