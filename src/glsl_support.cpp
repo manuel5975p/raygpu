@@ -34,7 +34,7 @@
 #include "glslang/Public/ResourceLimits.h"
 
 #include <glslang/Public/ShaderLang.h>
-#include <glslang/SPIRV/GlslangToSpv.h>
+#include <SPIRV/GlslangToSpv.h>
 #include <glslang/MachineIndependent/localintermediate.h>
 #include <glslang/Public/resource_limits_c.h>
 #include <spirv_reflect.h>

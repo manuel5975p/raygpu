@@ -140,13 +140,14 @@ function(download_file_if_not_exists url filename)
 endfunction()
 if(NOT EMSCRIPTEN AND SUPPORT_GLSL_PARSER)
     option(ENABLE_OPT "Enable glslang spirv optimizations (requires spirv-tools)" OFF)
-    FetchContent_Declare(
-        khrGlslang
-        URL      https://github.com/KhronosGroup/glslang/archive/refs/tags/15.1.0.tar.gz
-        DOWNLOAD_EXTRACT_TIMESTAMP True
-    )
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/amalgamation/glslang)
+    #FetchContent_Declare(
+    #    khrGlslang
+    #    URL      https://github.com/KhronosGroup/glslang/archive/refs/tags/15.1.0.tar.gz
+    #    DOWNLOAD_EXTRACT_TIMESTAMP True
+    #)
     #if(NOT DAWN_IS_IN_USE)
-        FetchContent_MakeAvailable(khrGlslang)
+        #FetchContent_MakeAvailable(khrGlslang)
     #endif()    
 endif()
 
