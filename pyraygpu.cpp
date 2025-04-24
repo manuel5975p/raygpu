@@ -1,6 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h> // For vector, list conversions
 #include <pybind11/operators.h> // For comparison operators on structs (will use lambdas instead for safety)
+#include <pybind11/numpy.h> // For comparison operators on structs (will use lambdas instead for safety)
 #include <raygpu.h>
 
 #include <vector>
@@ -223,6 +224,16 @@ PYBIND11_MODULE(pyraygpu, m) {
         //.def("__eq__", [](const Vector3& a, const Vector3& b) { return a.x == b.x && a.y == b.y && a.z == b.z; })
         //.def("__ne__", [](const Vector3& a, const Vector3& b) { return !(a.x == b.x && a.y == b.y && a.z == b.z); });
         ;
+    py::class_<DescribedBuffer>(m, "DescribedBuffer");
+    m.def("GenVertexBuffer", [](py::array& x, size_t size){
+        DescribedBuffer* ret = nullptr;
+        if(x.dtype().char_() == 'f'){
+            std::vector<float> vec(x.size());
+            std::transform(x.begin(), x.end(), vec.begin(), [](const auto& x){
+                
+            });
+        }
+    }, py::arg("data"), py::arg("size"), py::return_value_policy::reference);
 
     m.def("init_window", &InitWindow);
     m.def("begin_drawing", &BeginDrawing);

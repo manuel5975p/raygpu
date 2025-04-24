@@ -598,9 +598,7 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
             //wgvkTextureViewAddRef((WGVKTextureView)entry.textureView);
         }
         else if(entry.sampler){
-            // TODO
-            // Currently, WGVKSampler does not exist. It is simply a VkSampler and therefore a bit unsafe
-            // But since Samplers are not resource intensive objects, this can be neglected for now
+            newResourceUsage.track(entry.sampler);
         }
     }
     wvBindGroup->resourceUsage.releaseAllAndClear();
@@ -1387,7 +1385,7 @@ void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc) {
     }
 }
 void wgvkSamplerRelease(WGVKSampler sampler){
-    if(!--sampler->refcount){
+    if(!--sampler->refCount){
         vkDestroySampler(sampler->device->device, sampler->sampler, nullptr);
         RL_FREE(sampler);
     }
@@ -1926,7 +1924,7 @@ WGVKSampler wgvkDeviceCreateSampler(WGVKDevice device, const WGVKSamplerDescript
     };
 
     WGVKSampler ret = callocnewpp(WGVKSamplerImpl);
-    ret->refcount = 1;
+    ret->refCount = 1;
     VkSamplerCreateInfo sci zeroinit;
     sci.compareEnable = VK_FALSE;
     //sci.compareOp = VK_COMPARE_OP_LESS;
@@ -1983,7 +1981,7 @@ extern "C" void wgvkPipelineLayoutAddRef(WGVKPipelineLayout pipelineLayout){
     ++pipelineLayout->refCount;
 }
 extern "C" void wgvkSamplerAddRef(WGVKSampler sampler){
-    ++sampler->refcount;
+    ++sampler->refCount;
 }
 
 extern "C" const char* vkErrorString(int code){

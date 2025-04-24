@@ -79,6 +79,7 @@ typedef struct ResourceUsage{
     ref_holder<WGVKTexture> referencedTextures;
     typed_ref_holder<WGVKTextureView, TextureUsage> referencedTextureViews;
     ref_holder<WGVKBindGroup> referencedBindGroups;
+    ref_holder<WGVKSampler> referencedSamplers;
 
     std::unordered_map<WGVKTexture, std::pair<VkImageLayout, VkImageLayout>> entryAndFinalLayouts;
 
@@ -86,11 +87,13 @@ typedef struct ResourceUsage{
     bool contains(WGVKTexture texture)const noexcept;
     bool contains(WGVKTextureView view)const noexcept;
     bool contains(WGVKBindGroup bindGroup)const noexcept;
+    bool contains(WGVKSampler bindGroup)const noexcept;
 
     void track(WGVKBuffer buffer)noexcept;
     void track(WGVKTexture texture)noexcept;
     void track(WGVKTextureView view, TextureUsage usage)noexcept;
     void track(WGVKBindGroup bindGroup)noexcept;
+    void track(WGVKSampler sampler)noexcept;
     
     void registerTransition(WGVKTexture tex, VkImageLayout from, VkImageLayout to){
         auto it = entryAndFinalLayouts.find(tex);
@@ -186,7 +189,7 @@ namespace std{
 
 typedef struct WGVKSamplerImpl{
     VkSampler sampler;
-    refcount_type refcount;
+    refcount_type refCount;
     WGVKDevice device;
 }WGVKSamplerImpl;
 
@@ -424,6 +427,9 @@ inline bool ResourceUsage::contains(WGVKTextureView view)const noexcept{
 inline bool ResourceUsage::contains(WGVKBindGroup bindGroup)const noexcept{
     return referencedBindGroups.find(bindGroup) != referencedBindGroups.end();
 }
+inline bool ResourceUsage::contains(WGVKSampler sampler)const noexcept{
+    return referencedSamplers.find(sampler) != referencedSamplers.end();
+}
 
 inline void ResourceUsage::track(WGVKBuffer buffer)noexcept{
     if(!contains(buffer)){
@@ -450,6 +456,12 @@ inline void ResourceUsage::track(WGVKBindGroup bindGroup)noexcept{
         referencedBindGroups.insert(bindGroup);
     }
 }
+inline void ResourceUsage::track(WGVKSampler sampler)noexcept{
+    if(!contains(sampler)){
+        ++sampler->refCount;
+        referencedSamplers.insert(sampler);
+    }
+}
 inline void ResourceUsage::releaseAllAndClear()noexcept{
     for(auto buffer : referencedBuffers){
         wgvkBufferRelease(buffer);
@@ -463,10 +475,14 @@ inline void ResourceUsage::releaseAllAndClear()noexcept{
     for(const auto [view, _] : referencedTextureViews){
         wgvkReleaseTextureView(view);
     }
+    for(const auto smp : referencedSamplers){
+        wgvkSamplerRelease(smp);
+    }
     referencedBuffers.clear();
     referencedTextures.clear();
     referencedTextureViews.clear();
     referencedBindGroups.clear();
+    referencedSamplers.clear();
 }
 typedef struct WGVKRenderPassEncoderImpl{
     VkCommandBuffer cmdBuffer;
