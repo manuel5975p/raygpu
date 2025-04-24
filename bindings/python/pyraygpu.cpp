@@ -191,10 +191,21 @@ PYBIND11_MODULE(pyraygpu, m) {
             return ResourceWrapperValue<Image, UnloadImage>(img);
         }, py::arg("color"), py::arg("width"), py::arg("height"), "Generate image: plain color");
 
+    m.def("draw_fps", DrawFPS, py::arg("x") = 5, py::arg("y") = 5);
+    m.def("gen_image_color", GenImageColor, py::arg("color"), py::arg("width"), py::arg("height"), "Generate image: plain color");
+    m.def("gen_image_checker", GenImageChecker, py::arg("color1"), py::arg("color2"), py::arg("width"), py::arg("height"), py::arg("checkerCount"), "Generate image: plain color");
+
     py::class_<Image>(m, "Image")
         .def_readonly("data", &Image::data);
-        
-    m.attr("LIGHTGRAY")  = LIGHTGRAY; m.attr("GRAY")       = GRAY;      m.attr("DARKGRAY")   = DARKGRAY;
+    
+    py::class_<Texture>(m, "Texture")
+        .def_readonly("width", &Texture::width)
+        .def_readonly("height", &Texture::height);
+    
+    m.def("load_texture_from_image", LoadTextureFromImage, py::arg("image"));
+    m.def("draw_texture", DrawTexture, py::arg("texture"), py::arg("posX"), py::arg("posY"), py::arg("tint") = WHITE);
+
+    m.attr("LIGHTGRAY")      = LIGHTGRAY; m.attr("GRAY")       = GRAY;      m.attr("DARKGRAY")   = DARKGRAY;
         m.attr("YELLOW")     = YELLOW;    m.attr("GOLD")       = GOLD;      m.attr("ORANGE")     = ORANGE;
         m.attr("PINK")       = PINK;      m.attr("RED")        = RED;       m.attr("MAROON")     = MAROON;
         m.attr("GREEN")      = GREEN;     m.attr("LIME")       = LIME;      m.attr("DARKGREEN")  = DARKGREEN;
@@ -203,6 +214,9 @@ PYBIND11_MODULE(pyraygpu, m) {
         m.attr("BEIGE")      = BEIGE;     m.attr("BROWN")      = BROWN;     m.attr("DARKBROWN")  = DARKBROWN;
         m.attr("WHITE")      = WHITE;     m.attr("BLACK")      = BLACK;     m.attr("BLANK")      = BLANK;
         m.attr("MAGENTA")    = MAGENTA;   m.attr("RAYWHITE")   = RAYWHITE;
+    py::enum_<PrimitiveType>(m, "primitive_type").value("triangles", RL_TRIANGLES).export_values();
+
+
     py::class_<Vector3>(m, "Vector3")
         .def(py::init<float, float, float>(), py::arg("x") = 0.0f, py::arg("y") = 0.0f, py::arg("z") = 0.0f)
         .def_readwrite("x", &Vector3::x)
@@ -225,15 +239,27 @@ PYBIND11_MODULE(pyraygpu, m) {
         //.def("__ne__", [](const Vector3& a, const Vector3& b) { return !(a.x == b.x && a.y == b.y && a.z == b.z); });
         ;
     py::class_<DescribedBuffer>(m, "DescribedBuffer");
-    m.def("GenVertexBuffer", [](py::array& x, size_t size){
+    m.def("GenVertexBuffer", [](const std::vector<float>& data){
         DescribedBuffer* ret = nullptr;
-        if(x.dtype().char_() == 'f'){
-            std::vector<float> vec(x.size());
-            std::transform(x.begin(), x.end(), vec.begin(), [](const auto& x){
-                
-            });
-        }
-    }, py::arg("data"), py::arg("size"), py::return_value_policy::reference);
+        std::vector<float> vec(data.size());
+        //for(const auto& elem : data){
+        //    std::cout << elem << "\n";
+        //}
+        //std::transform(x.begin(), x.end(), vec.begin(), [](const auto& x){
+        //    
+        //});
+        return ret;
+    }, py::arg("data"), py::return_value_policy::reference);
+    m.def("begin", rlBegin, py::arg("PrimitiveType"));
+    m.def("end", rlEnd);
+
+    m.def("vertex2f", rlVertex2f, py::arg("x"), py::arg("y"));
+    m.def("vertex3f", rlVertex3f, py::arg("x"), py::arg("y"), py::arg("z"));
+    m.def("texCoord2f", rlTexCoord2f, py::arg("u"), py::arg("v"));
+    m.def("color3f", rlColor3f, py::arg("r"), py::arg("g"), py::arg("b"));
+    m.def("color4f", rlColor4f, py::arg("r"), py::arg("g"), py::arg("b"), py::arg("a"));
+    m.def("color4ub", rlColor4ub, py::arg("r"), py::arg("g"), py::arg("b"), py::arg("a"));
+    
 
     m.def("init_window", &InitWindow);
     m.def("begin_drawing", &BeginDrawing);

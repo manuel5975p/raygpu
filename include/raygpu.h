@@ -59,8 +59,6 @@ struct RGBA32FColor{
     float r, g, b, a;
 };
 
-
-
 typedef struct Image{
     void* data;
     uint32_t width, height;
@@ -70,9 +68,11 @@ typedef struct Image{
                              // One reason for this is the fact that Texture to Buffer copy commands
                              // Have to have a multiple of 256 bytes as row length 
 }Image;
+
 #ifndef MAX_MIP_LEVELS
-#define MAX_MIP_LEVELS 8
+    #define MAX_MIP_LEVELS 8
 #endif
+
 typedef struct Texture2D{
     WGVKTexture id;
     WGVKTextureView view;

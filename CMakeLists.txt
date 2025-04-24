@@ -476,15 +476,14 @@ endif()
 if(SUPPORT_SDL3)
     list(APPEND EXPORT_RG_TARGETS SDL3::SDL3)
 endif()
-set(PYBIND11_FINDPYTHON ON) 
-find_package(pybind11 CONFIG REQUIRED)    
+set(PYBIND11_FINDPYTHON ON)
+find_package(pybind11 CONFIG REQUIRED)
 if (NOT pybind11_FOUND)
     message(FATAL_ERROR "Pybind11 not found. Install it (e.g., 'pip install pybind11' or system package).")
 endif()
 pybind11_add_module(
-    pyraygpu            # Internal CMake target name (conventionally starts with _)
-    pyraygpu            # The name you 'import' in Python: 'import pybindtest'
-    pyraygpu.cpp        # Your source file containing PYBIND11_MODULE
+    pyraygpu
+    bindings/python/pyraygpu.cpp
 )
 target_link_libraries(pyraygpu PUBLIC raygpu)
 message(STATUS "")
