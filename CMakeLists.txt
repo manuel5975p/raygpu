@@ -477,9 +477,15 @@ if(SUPPORT_SDL3)
     list(APPEND EXPORT_RG_TARGETS SDL3::SDL3)
 endif()
 set(PYBIND11_FINDPYTHON ON)
-find_package(pybind11 CONFIG REQUIRED)
+
+
+find_package(pybind11 CONFIG QUIET)
 if (NOT pybind11_FOUND)
-    message(FATAL_ERROR "Pybind11 not found. Install it (e.g., 'pip install pybind11' or system package).")
+    FetchContent_Declare(pybind11fetch
+        URL https://github.com/pybind/pybind11/archive/refs/tags/v2.13.6.tar.gz
+        DOWNLOAD_EXTRACT_TIMESTAMP True
+    )
+    FetchContent_MakeAvailable(pybind11fetch)
 endif()
 pybind11_add_module(
     pyraygpu
