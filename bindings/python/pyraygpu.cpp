@@ -164,26 +164,14 @@ Vector3 Vector3Scale_pb(const Vector3& v, float s) {
 Vector3 Vector3cwp(const Vector3& v, const Vector3& v2) {
     return Vector3{v.x * v2.x, v.y * v2.y, v.z * v2.z};
 }
+struct image_deleter{
+    void operator()(Image* img)const noexcept{
+        UnloadImage(*img);
+    }
+};
 PYBIND11_MODULE(pyraygpu, m) {
     m.doc() = "Minimal Pybind11 wrapper for raygpu library";
 
-    // --- Basic Types ---
-    // Vector2
-    py::class_<Vector2>(m, "Vector2")
-        .def_readwrite("x",      &Vector2::x)
-        .def_readwrite("y",      &Vector2::y)
-    ;
-    py::class_<Vector3>(m, "Vector3")
-        .def_readwrite("x",      &Vector3::x)
-        .def_readwrite("y",      &Vector3::y)
-        .def_readwrite("z",      &Vector3::z)
-    ;
-    py::class_<Vector4>(m, "Vector4")
-        .def_readwrite("x",      &Vector4::x)
-        .def_readwrite("y",      &Vector4::y)
-        .def_readwrite("z",      &Vector4::z)
-        .def_readwrite("w",      &Vector4::w)
-    ;
     
     py::class_<Color>(m, "Color")
         .def(py::init<uint8_t, uint8_t, uint8_t, uint8_t>(), py::arg("r") = 0, py::arg("g") = 0, py::arg("b") = 0, py::arg("a") = 255)
@@ -197,22 +185,26 @@ PYBIND11_MODULE(pyraygpu, m) {
         .def("__eq__", [](const Color& a, const Color& b) { return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a; })
         .def("__ne__", [](const Color& a, const Color& b) { return !(a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a); });
 
-    m.def("gen_image_color", 
-        [](Color color, uint32_t width, uint32_t height) {
-            Image img = GenImageColor(color, width, height);
-            if (img.width == 0 || img.height == 0 || img.data == nullptr) { // Check generation failure
-                return ResourceWrapperValue<Image, UnloadImage>(); // Return invalid wrapper
-            }
-            return ResourceWrapperValue<Image, UnloadImage>(img);
-        }, py::arg("color"), py::arg("width"), py::arg("height"), "Generate image: plain color");
+         
 
     m.def("draw_fps", DrawFPS, py::arg("x") = 5, py::arg("y") = 5);
-    m.def("gen_image_color", GenImageColor, py::arg("color"), py::arg("width"), py::arg("height"), "Generate image: plain color");
-    m.def("gen_image_checker", GenImageChecker, py::arg("color1"), py::arg("color2"), py::arg("width"), py::arg("height"), py::arg("checkerCount"), "Generate image: plain color");
-
-    py::class_<Image>(m, "Image")
+    m.def("gen_image_color",   [](Color a, uint32_t width, uint32_t height){return GenImageColor(a, width, height);}, py::arg("color"), py::arg("width"), py::arg("height"), "Generate image: plain color");
+    m.def("gen_image_checker", [](Color a, Color b, uint32_t width, uint32_t height, uint32_t checkerCount){return GenImageChecker(a, b, width, height, checkerCount);}, py::arg("color1"), py::arg("color2"), py::arg("width"), py::arg("height"), py::arg("checkerCount"), "Generate image: plain color", py::return_value_policy::reference);
+    
+    //py::class_<std::unique_ptr<int>>(m, "intpointer")
+    //    //.def("value", [](const std::unique_ptr<int>& ptr) -> py::int_ {return *ptr;})
+    //;
+    
+    py::class_<Image, std::unique_ptr<Image, image_deleter>>(m, "Image")
         .def_readonly("data", &Image::data)
-        .def("__del__", UnloadImage);    
+        //.def("__del__", [](Image &self, py::args){ 
+        //    UnloadImage(self);
+        //})
+        .def("__enter__", [](Image &self) -> Image& { return self; },
+            py::return_value_policy::reference)
+        .def("__exit__", [](Image &self, py::args){ 
+            //UnloadImage(self);
+        });
     ;
     py::class_<Rectangle>(m, "Rectangle")
         .def_readwrite("x",      &Rectangle::x)
@@ -239,28 +231,44 @@ PYBIND11_MODULE(pyraygpu, m) {
         m.attr("MAGENTA")    = MAGENTA;   m.attr("RAYWHITE")   = RAYWHITE;
     py::enum_<PrimitiveType>(m, "primitive_type").value("triangles", RL_TRIANGLES).export_values();
 
+    py::class_<Vector2>(m, "Vector2")
+        .def(py::init<float, float>(), py::arg("x") = 0.0f, py::arg("y") = 0.0f)
+        .def_readwrite("x", &Vector2::x)
+        .def_readwrite("y", &Vector2::y)
+        .def("repr", [](const Vector2& v) -> py::str {
+        return "<Vector2 x=" + std::to_string(v.x) + ", y=" + std::to_string(v.y) + ">";
+        })
+        .def("add", [](const Vector2& a, const Vector2& b){ return Vector2{a.x + b.x, a.y + b.y}; })
+        .def("subtract", [](const Vector2& a, const Vector2& b){ return Vector2{a.x - b.x, a.y - b.y}; })
+        .def("mul", Vector2Scale)
+    ;
 
     py::class_<Vector3>(m, "Vector3")
         .def(py::init<float, float, float>(), py::arg("x") = 0.0f, py::arg("y") = 0.0f, py::arg("z") = 0.0f)
         .def_readwrite("x", &Vector3::x)
         .def_readwrite("y", &Vector3::y)
         .def_readwrite("z", &Vector3::z)
-
-         .def("__repr__", [](const Vector3& v) -> py::str { // Explicit return type
+        .def("__repr__", [](const Vector3& v) -> py::str { // Explicit return type
             return "<Vector3 x=" + std::to_string(v.x) + ", y=" + std::to_string(v.y) + ", z=" + std::to_string(v.z) + ">";
         })
-        //// Bind operators using lambdas for robustness
         .def("__add__", [](const Vector3& a, const Vector3& b){ return Vector3{a.x + b.x, a.y + b.y, a.z + b.z}; })
         .def("__subtract__", [](const Vector3& a, const Vector3& b){ return Vector3{a.x - b.x, a.y - b.y, a.z - b.z}; })
-        //.def(py::self - py::self, [](const Vector3& a, const Vector3& b){ return Vector3{a.x - b.x, a.y - b.y, a.z - b.z}; })
-        .def("__mul__", Vector3Scale_pb)
-        .def("__mul__", Vector3cwp)
-        //.def(float() * py::self, [](float s, const Vector3& v){ return Vector3{v.x * s, v.y * s, v.z * s}; })
-        //.def(py::self / float(), [](const Vector3& v, float s){ if (s == 0) throw std::runtime_error("Division by zero Vector3"); return Vector3{v.x / s, v.y / s, v.z / s}; })
-        //.def(-py::self, [](const Vector3& v){ return Vector3{-v.x, -v.y, -v.z}; })
-        //.def("__eq__", [](const Vector3& a, const Vector3& b) { return a.x == b.x && a.y == b.y && a.z == b.z; })
-        //.def("__ne__", [](const Vector3& a, const Vector3& b) { return !(a.x == b.x && a.y == b.y && a.z == b.z); });
-        ;
+        .def("__mul__", Vector3Scale)
+    ;
+
+    py::class_<Vector4>(m, "Vector4")
+        .def(py::init<float, float, float, float>(), py::arg("x") = 0.0f, py::arg("y") = 0.0f, py::arg("z") = 0.0f, py::arg("w") = 0.0f)
+        .def_readwrite("x", &Vector4::x)
+        .def_readwrite("y", &Vector4::y)
+        .def_readwrite("z", &Vector4::z)
+        .def_readwrite("w", &Vector4::w)
+        .def("__repr__", [](const Vector4& v) -> py::str {
+            return "<Vector4 x=" + std::to_string(v.x) + ", y=" + std::to_string(v.y) + ", z=" + std::to_string(v.z) + ", w=" + std::to_string(v.w) + ">";
+        })
+        .def("__add__", [](const Vector4& a, const Vector4& b){ return Vector4{a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w}; })
+        .def("__subtract__", [](const Vector4& a, const Vector4& b){ return Vector4{a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w}; })
+        .def("__mul__", Vector4Scale)
+    ;
     py::class_<DescribedBuffer>(m, "DescribedBuffer");
     m.def("GenVertexBuffer", [](const std::vector<float>& data){
         DescribedBuffer* ret = nullptr;
@@ -285,6 +293,7 @@ PYBIND11_MODULE(pyraygpu, m) {
     
 
     m.def("init_window", &InitWindow);
+    m.def("window_should_close", &WindowShouldClose);
     m.def("begin_drawing", &BeginDrawing);
     m.def("end_drawing", &EndDrawing);
     m.def("draw_rectangle", &DrawRectangle);
