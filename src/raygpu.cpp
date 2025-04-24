@@ -1563,23 +1563,23 @@ extern "C" char* LoadFileText(const char *fileName) {
     std::streamsize size = file.tellg();
     file.seekg(0, std::ios::beg);
 
-    char* buffer = (char*)malloc(size + 1);
+    char* buffer = (char*)RL_MALLOC(size + 1);
     if (!buffer) {
         return nullptr;
     }
 
     if (!file.read(static_cast<char*>(buffer), size)) {
-        free(buffer);
+        RL_FREE(buffer);
         return nullptr;
     }
     buffer[size] = '\0';
     return buffer;
 }
 extern "C" void UnloadFileText(char* content){
-    free((void*)content);
+    RL_FREE((void*)content);
 }
 extern "C" void UnloadFileData(void* content){
-    free((void*)content);
+    RL_FREE((void*)content);
 }
 extern "C" void* LoadFileData(const char *fileName, size_t *dataSize) {
     std::ifstream file(fileName, std::ios::binary | std::ios::ate);
@@ -1592,7 +1592,7 @@ extern "C" void* LoadFileData(const char *fileName, size_t *dataSize) {
     std::streamsize size = file.tellg();
     file.seekg(0, std::ios::beg);
 
-    void* buffer = malloc(size);
+    void* buffer = RL_MALLOC(size);
     if (!buffer) {
         *dataSize = 0;
         TRACELOG(LOG_ERROR, "Failed to load file %s", fileName);
@@ -1600,7 +1600,7 @@ extern "C" void* LoadFileData(const char *fileName, size_t *dataSize) {
     }
 
     if (!file.read(static_cast<char*>(buffer), size)) {
-        free(buffer);
+        RL_FREE(buffer);
         *dataSize = 0;
         TRACELOG(LOG_ERROR, "Failed to load file %s", fileName);
         return nullptr;
@@ -1612,12 +1612,12 @@ extern "C" void* LoadFileData(const char *fileName, size_t *dataSize) {
 extern "C" Image LoadImage(const char* filename){
     size_t size;
     std::string fn_cpp(filename);
-    const char* extbegin = fn_cpp.data() + fn_cpp.rfind("."); 
+    const char* extbegin = fn_cpp.data() + fn_cpp.rfind('.'); 
     void* data = LoadFileData(filename, &size);
 
     if(size != 0){
         Image ld =  LoadImageFromMemory(extbegin, data, size);
-        free(data);
+        RL_FREE(data);
         return ld;
     }
     else{
@@ -1627,14 +1627,15 @@ extern "C" Image LoadImage(const char* filename){
 }
 
 void UnloadImage(Image img){
-    free(img.data);
+    TRACELOG(LOG_INFO, "UnloadImage called");
+    RL_FREE(img.data);
     img.data = nullptr;
 }
 extern "C" Image LoadImageFromMemory(const char* extension, const void* data, size_t dataSize){
     Image image zeroinit;
     image.mipmaps = 1;
     uint32_t comp;
-    image.data = stbi_load_from_memory((stbi_uc*)data, dataSize, (int*)&image.width, (int*)&image.height, (int*)&comp, 0);
+    image.data = stbi_load_from_memory((stbi_uc*)data, static_cast<int>(dataSize), (int*)&image.width, (int*)&image.height, (int*)&comp, 0);
     image.rowStrideInBytes = comp * image.width;
     if(comp == 4){
         image.format = RGBA8;
@@ -1645,7 +1646,7 @@ extern "C" Image LoadImageFromMemory(const char* extension, const void* data, si
 }
 extern "C" Image GenImageColor(Color a, uint32_t width, uint32_t height){
     Image ret{
-        .data = std::calloc(width * height, sizeof(Color)),
+        .data = RL_CALLOC(width * height, sizeof(Color)),
         .width = width, 
         .height = height,
         .mipmaps = 1,
@@ -1662,7 +1663,7 @@ extern "C" Image GenImageColor(Color a, uint32_t width, uint32_t height){
 }
 extern "C" Image GenImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32_t checkerCount){
     Image ret{
-        .data = std::calloc(width * height, sizeof(Color)),
+        .data = RL_CALLOC(width * height, sizeof(Color)),
         .width = width, 
         .height = height, 
         .mipmaps = 1,

@@ -1412,11 +1412,12 @@ void wgvkBufferRelease(WGVKBuffer buffer) {
         std::free(buffer);
     }
 }
+
 void wgvkBindGroupRelease(WGVKBindGroup dshandle) {
     --dshandle->refCount;
     if (dshandle->refCount == 0) {
         dshandle->resourceUsage.releaseAllAndClear();
-        wgvkReleaseBindGroupLayout(dshandle->layout);
+        wgvkBindGroupLayoutRelease(dshandle->layout);
         dshandle->device->frameCaches[dshandle->cacheIndex].bindGroupCache[dshandle->layout].emplace_back(dshandle->pool, dshandle->set);
         
         //DONT delete them, they are cached
@@ -1432,17 +1433,7 @@ WGVKRenderPipeline wgpuDeviceCreateRenderPipeline(WGVKDevice device, WGVKRenderP
     WGVKRenderPipeline ret = callocnewpp(WGVKRenderPipelineImpl);
     return ret;
 }
-void wgvkBindGroupLayoutRelease(WGVKBindGroupLayout bglayout){
-    --bglayout->refCount;
-    if(bglayout->refCount == 0){
-        vkDestroyDescriptorSetLayout(bglayout->device->device, bglayout->layout, nullptr);
-        bglayout->~WGVKBindGroupLayoutImpl();
-        std::free(const_cast<ResourceTypeDescriptor*>(bglayout->entries));
-        std::free(bglayout);
-    }
-}
-
-extern "C" void wgvkReleaseBindGroupLayout(WGVKBindGroupLayout bglayout){
+extern "C" void wgvkBindGroupLayoutRelease(WGVKBindGroupLayout bglayout){
     --bglayout->refCount;
     if(bglayout->refCount == 0){
         vkDestroyDescriptorSetLayout(bglayout->device->device, bglayout->layout, nullptr);

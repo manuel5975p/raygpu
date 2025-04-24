@@ -169,7 +169,22 @@ PYBIND11_MODULE(pyraygpu, m) {
 
     // --- Basic Types ---
     // Vector2
-
+    py::class_<Vector2>(m, "Vector2")
+        .def_readwrite("x",      &Vector2::x)
+        .def_readwrite("y",      &Vector2::y)
+    ;
+    py::class_<Vector3>(m, "Vector3")
+        .def_readwrite("x",      &Vector3::x)
+        .def_readwrite("y",      &Vector3::y)
+        .def_readwrite("z",      &Vector3::z)
+    ;
+    py::class_<Vector4>(m, "Vector4")
+        .def_readwrite("x",      &Vector4::x)
+        .def_readwrite("y",      &Vector4::y)
+        .def_readwrite("z",      &Vector4::z)
+        .def_readwrite("w",      &Vector4::w)
+    ;
+    
     py::class_<Color>(m, "Color")
         .def(py::init<uint8_t, uint8_t, uint8_t, uint8_t>(), py::arg("r") = 0, py::arg("g") = 0, py::arg("b") = 0, py::arg("a") = 255)
         .def_readwrite("r", &Color::r)
@@ -196,7 +211,15 @@ PYBIND11_MODULE(pyraygpu, m) {
     m.def("gen_image_checker", GenImageChecker, py::arg("color1"), py::arg("color2"), py::arg("width"), py::arg("height"), py::arg("checkerCount"), "Generate image: plain color");
 
     py::class_<Image>(m, "Image")
-        .def_readonly("data", &Image::data);
+        .def_readonly("data", &Image::data)
+        .def("__del__", UnloadImage);    
+    ;
+    py::class_<Rectangle>(m, "Rectangle")
+        .def_readwrite("x",      &Rectangle::x)
+        .def_readwrite("y",      &Rectangle::y)
+        .def_readwrite("width",  &Rectangle::width)
+        .def_readwrite("height", &Rectangle::height)
+    ;
     
     py::class_<Texture>(m, "Texture")
         .def_readonly("width", &Texture::width)

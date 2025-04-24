@@ -79,6 +79,7 @@ typedef struct ResourceUsage{
     ref_holder<WGVKTexture> referencedTextures;
     typed_ref_holder<WGVKTextureView, TextureUsage> referencedTextureViews;
     ref_holder<WGVKBindGroup> referencedBindGroups;
+    ref_holder<WGVKBindGroupLayout> referencedBindGroupLayouts;
     ref_holder<WGVKSampler> referencedSamplers;
 
     std::unordered_map<WGVKTexture, std::pair<VkImageLayout, VkImageLayout>> entryAndFinalLayouts;
@@ -87,12 +88,14 @@ typedef struct ResourceUsage{
     bool contains(WGVKTexture texture)const noexcept;
     bool contains(WGVKTextureView view)const noexcept;
     bool contains(WGVKBindGroup bindGroup)const noexcept;
+    bool contains(WGVKBindGroupLayout bindGroupLayout)const noexcept;
     bool contains(WGVKSampler bindGroup)const noexcept;
 
     void track(WGVKBuffer buffer)noexcept;
     void track(WGVKTexture texture)noexcept;
     void track(WGVKTextureView view, TextureUsage usage)noexcept;
     void track(WGVKBindGroup bindGroup)noexcept;
+    void track(WGVKBindGroupLayout bindGroupLayout)noexcept;
     void track(WGVKSampler sampler)noexcept;
     
     void registerTransition(WGVKTexture tex, VkImageLayout from, VkImageLayout to){
@@ -254,19 +257,20 @@ typedef struct WGVKTopLevelAccelerationStructureImpl {
 } WGVKTopLevelAccelerationStructureImpl;
 
 constexpr uint32_t framesInFlight = 2;
-namespace std{
-    template<>
-    struct hash<WGVKBindGroupLayout>{
-        constexpr size_t operator()(const WGVKBindGroupLayout bglayout)const noexcept{
-            xorshiftstate ret{0x2545F4918F6CDD1D};
-            for(uint32_t i = 0;i < bglayout->entryCount;i++){
-                ret.update((uint32_t)bglayout->entries[i].fstype, (uint32_t)bglayout->entries[i].type);
-                ret.update((uint32_t)bglayout->entries[i].access, (uint32_t)bglayout->entries[i].location);
-            }
-            return ret.x64;
-        }
-    };
-}
+
+//namespace std{
+//    template<>
+//    struct hash<WGVKBindGroupLayout>{
+//        constexpr size_t operator()(const WGVKBindGroupLayout bglayout)const noexcept{
+//            xorshiftstate ret{0x2545F4918F6CDD1D};
+//            for(uint32_t i = 0;i < bglayout->entryCount;i++){
+//                ret.update((uint32_t)bglayout->entries[i].fstype, (uint32_t)bglayout->entries[i].type);
+//                ret.update((uint32_t)bglayout->entries[i].access, (uint32_t)bglayout->entries[i].location);
+//            }
+//            return ret.x64;
+//        }
+//    };
+//}
 typedef struct MappableBufferMemory{
     VkBuffer buffer;
     VmaAllocation allocation;
@@ -427,6 +431,9 @@ inline bool ResourceUsage::contains(WGVKTextureView view)const noexcept{
 inline bool ResourceUsage::contains(WGVKBindGroup bindGroup)const noexcept{
     return referencedBindGroups.find(bindGroup) != referencedBindGroups.end();
 }
+inline bool ResourceUsage::contains(WGVKBindGroupLayout bindGroupLayout)const noexcept{
+    return referencedBindGroupLayouts.find(bindGroupLayout) != referencedBindGroupLayouts.end();
+}
 inline bool ResourceUsage::contains(WGVKSampler sampler)const noexcept{
     return referencedSamplers.find(sampler) != referencedSamplers.end();
 }
@@ -456,6 +463,13 @@ inline void ResourceUsage::track(WGVKBindGroup bindGroup)noexcept{
         referencedBindGroups.insert(bindGroup);
     }
 }
+inline void ResourceUsage::track(WGVKBindGroupLayout bindGroupLayout)noexcept{
+    rassert(bindGroupLayout->layout != nullptr, "Layout is nullptr");
+    if(!contains(bindGroupLayout)){
+        ++bindGroupLayout->refCount;
+        referencedBindGroupLayouts.insert(bindGroupLayout);
+    }
+}
 inline void ResourceUsage::track(WGVKSampler sampler)noexcept{
     if(!contains(sampler)){
         ++sampler->refCount;
@@ -468,6 +482,9 @@ inline void ResourceUsage::releaseAllAndClear()noexcept{
     }
     for(auto bindGroup : referencedBindGroups){
         wgvkBindGroupRelease(bindGroup);
+    }
+    for(auto bindGroupLayout : referencedBindGroupLayouts){
+        wgvkBindGroupLayoutRelease(bindGroupLayout);
     }
     for(auto texture : referencedTextures){
         wgvkReleaseTexture(texture);
