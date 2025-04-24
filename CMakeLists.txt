@@ -385,6 +385,7 @@ else()
     endif()
     if(SUPPORT_VULKAN_BACKEND)
         target_link_libraries(raygpu PUBLIC glslang)
+		target_include_directories(raygpu PUBLIC "amalgamation/vulkan_headers/Include")
     else()
         target_link_libraries(raygpu PUBLIC
             webgpu_dawn

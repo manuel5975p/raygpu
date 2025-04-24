@@ -7,7 +7,7 @@
 #include <renderstate.hpp>
 #include "vulkan_internals.hpp"
 #define RGFW_VULKAN
-#include <external/RGFW.h>
+//#include <external/RGFW.h>
 
 VulkanState g_vulkanstate{};
 

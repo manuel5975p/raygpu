@@ -33,10 +33,10 @@
     #define WIN32_LEAN_AND_MEAN
 #endif
 
-#include <windows.h>
-#if !defined(VK_USE_PLATFORM_WIN32_KHR)
-    #define VK_USE_PLATFORM_WIN32_KHR
-#endif // #if !defined(VK_USE_PLATFORM_WIN32_KHR)
+//#include <windows.h>
+//#if !defined(VK_USE_PLATFORM_WIN32_KHR)
+//    #define VK_USE_PLATFORM_WIN32_KHR
+//#endif // #if !defined(VK_USE_PLATFORM_WIN32_KHR)
 
 #else  // #ifdef _WIN32
 
@@ -98,7 +98,7 @@ include all public interface declarations. Example:
 
 #include <external/volk.h>
 #ifdef _WIN32
-#include <vulkan/vulkan_win32.h>
+//#include <vulkan/vulkan_win32.h>
 #endif
 
 #include "vk_mem_alloc.h"
