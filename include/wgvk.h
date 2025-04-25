@@ -634,12 +634,15 @@ typedef struct WGVKRenderPipelineDescriptor {
 } WGVKRenderPipelineDescriptor;
 
 typedef struct WGVKSurfaceConfiguration {
+    WGVKChainedStruct* nextInChain;
     WGVKDevice device;                // Device that surface belongs to (WPGUDevice or WGVKDevice)
     uint32_t width;                   // Width of the rendering surface
     uint32_t height;                  // Height of the rendering surface
     PixelFormat format;               // Pixel format of the surface
+    WGVKCompositeAlphaMode alphaMode; // Composite alpha mode
     PresentMode presentMode;          // Present mode for image presentation
 } WGVKSurfaceConfiguration;
+
 typedef void (*WGVKRequestAdapterCallback)(WGVKRequestAdapterStatus status, WGVKAdapter adapter, struct WGVKStringView message, void* userdata1, void* userdata2);
 typedef struct WGVKRequestAdapterCallbackInfo {
     WGVKChainedStruct * nextInChain;

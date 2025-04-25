@@ -75,6 +75,7 @@ SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title)
     #if SUPPORT_VULKAN_BACKEND == 1
     windowFlags |= SDL_WINDOW_VULKAN;
     #endif
+    
     ret.handle = SDL_CreateWindow(title, width, height, windowFlags);
     #if SUPPORT_VULKAN_BACKEND == 1
     //WGVKSurface vSurface = callocnew(WGVKSurfaceImpl);

@@ -28,8 +28,6 @@ if(NOT MSVC AND NOT EMSCRIPTEN)
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address,undefined")
     set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 -DNDEBUG -g")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -DNDEBUG -fno-exceptions -g")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flto=full")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto=full")
 endif()
 
 #if(MSVC)

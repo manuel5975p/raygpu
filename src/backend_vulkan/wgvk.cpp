@@ -1166,7 +1166,8 @@ extern "C" void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, WGVKAdapter 
     VkSurfaceCapabilitiesKHR scap{};
     VkPhysicalDevice vk_physicalDevice = adapter->physicalDevice;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vk_physicalDevice, surface, &scap);
-
+    
+    TRACELOG(LOG_INFO, "scalphaflags: %d", scap.supportedCompositeAlpha);
     // Formats
     uint32_t formatCount;
     vkGetPhysicalDeviceSurfaceFormatsKHR(vk_physicalDevice, surface, &formatCount, nullptr);

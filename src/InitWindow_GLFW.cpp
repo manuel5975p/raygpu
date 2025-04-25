@@ -389,6 +389,7 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
     if (!glfwInit()) {
         abort();
     }
+
     GLFWmonitor* mon = nullptr;
 
     glfwSetErrorCallback([](int code, const char* message) {
