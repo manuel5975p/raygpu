@@ -199,25 +199,19 @@ DescribedBuffer* renderBatchVBO;
 PrimitiveType current_drawmode;
 //DescribedBuffer vbomap;
 
-extern "C" VertexArray* LoadVertexArray(){
+RGAPICXX VertexArray* LoadVertexArray(){
     VertexArray* ret = callocnew(VertexArray);
     new (ret) VertexArray;
     return ret;
 }
-extern "C" void VertexAttribPointer(VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, VertexFormat format, uint32_t offset, VertexStepMode stepmode){
+RGAPICXX void VertexAttribPointer(VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, VertexFormat format, uint32_t offset, VertexStepMode stepmode){
     array->add(buffer, attribLocation, format, offset, stepmode);
 }
-void BindVertexArray(VertexArray* va){
+RGAPICXX void BindVertexArray(VertexArray* va){
     BindPipelineVertexArray(GetActivePipeline(), va);
 }
 
-
-
-
-
-
-
-extern "C" void BindPipelineVertexArray(DescribedPipeline* pipeline, VertexArray* va){
+RGAPICXX void BindPipelineVertexArray(DescribedPipeline* pipeline, VertexArray* va){
     PreparePipeline(pipeline, va);
     // Iterate over each buffer
     for(unsigned i = 0; i < va->buffers.size(); i++){
@@ -248,15 +242,15 @@ extern "C" void BindPipelineVertexArray(DescribedPipeline* pipeline, VertexArray
     }
     
 }
-extern "C" void EnableVertexAttribArray(VertexArray* array, uint32_t attribLocation){
+RGAPICXX void EnableVertexAttribArray(VertexArray* array, uint32_t attribLocation){
     array->enableAttribute(attribLocation);
     return;
 }
-extern "C" void DisableVertexAttribArray(VertexArray* array, uint32_t attribLocation){
+RGAPICXX void DisableVertexAttribArray(VertexArray* array, uint32_t attribLocation){
     array->disableAttribute(attribLocation);
     return;
 }
-extern "C" void DrawArrays(PrimitiveType drawMode, uint32_t vertexCount){
+RGAPICXX void DrawArrays(PrimitiveType drawMode, uint32_t vertexCount){
     BindPipeline(GetActivePipeline(), drawMode);
 
     if(GetActivePipeline()->bindGroup.needsUpdate){
@@ -264,7 +258,7 @@ extern "C" void DrawArrays(PrimitiveType drawMode, uint32_t vertexCount){
     }
     RenderPassDraw(GetActiveRenderPass(), vertexCount, 1, 0, 0);
 }
-extern "C" void DrawArraysIndexed(PrimitiveType drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount){
+RGAPICXX void DrawArraysIndexed(PrimitiveType drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount){
     BindPipeline(GetActivePipeline(), drawMode);
     //PreparePipeline(GetActivePipeline(), VertexArray *va)
     //TRACELOG(LOG_INFO, "a oooo");
@@ -275,7 +269,7 @@ extern "C" void DrawArraysIndexed(PrimitiveType drawMode, DescribedBuffer indexB
     RenderPassSetIndexBuffer(GetActiveRenderPass(), &indexBuffer, IndexFormat_Uint32, 0);
     RenderPassDrawIndexed(GetActiveRenderPass(), vertexCount, 1, 0, 0, 0);
 }
-extern "C" void DrawArraysIndexedInstanced(PrimitiveType drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount, uint32_t instanceCount){
+RGAPICXX void DrawArraysIndexedInstanced(PrimitiveType drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount, uint32_t instanceCount){
     BindPipeline(GetActivePipeline(), drawMode);
     if(GetActivePipeline()->bindGroup.needsUpdate){
         UpdateBindGroup(&GetActivePipeline()->bindGroup);
@@ -284,7 +278,7 @@ extern "C" void DrawArraysIndexedInstanced(PrimitiveType drawMode, DescribedBuff
     RenderPassSetIndexBuffer(GetActiveRenderPass(), &indexBuffer, IndexFormat_Uint32, 0);
     RenderPassDrawIndexed(GetActiveRenderPass(), vertexCount, instanceCount, 0, 0, 0);
 }
-extern "C" void DrawArraysInstanced(PrimitiveType drawMode, uint32_t vertexCount, uint32_t instanceCount){
+RGAPICXX void DrawArraysInstanced(PrimitiveType drawMode, uint32_t vertexCount, uint32_t instanceCount){
     BindPipeline(GetActivePipeline(), drawMode);
     //if(GetActivePipeline()->bindGroup.needsUpdate){
     //    UpdateBindGroup(&GetActivePipeline()->bindGroup);
@@ -294,15 +288,15 @@ extern "C" void DrawArraysInstanced(PrimitiveType drawMode, uint32_t vertexCount
 }
 
 
-Texture GetDepthTexture(){
+RGAPICXX Texture GetDepthTexture(){
     return g_renderstate.renderTargetStack.peek().depth;
 }
-Texture GetMultisampleColorTarget(){
+RGAPICXX Texture GetMultisampleColorTarget(){
     return g_renderstate.renderTargetStack.peek().colorMultisample;
 }
 
 
-void drawCurrentBatch(){
+RGAPICXX void drawCurrentBatch(){
     size_t vertexCount = vboptr - vboptr_base;
     //std::cout << "vcoun = " << vertexCount << "\n";
     if(vertexCount == 0)return;
@@ -490,7 +484,7 @@ static inline bool RenderSettingsCompatible(const ModifiablePipelineState& state
            state.settings.depthTest == settings2.depthTest;
 }
 
-extern "C" void BeginPipelineMode(DescribedPipeline* pipeline){
+RGAPICXX void BeginPipelineMode(DescribedPipeline* pipeline){
     drawCurrentBatch();
     if(!RenderSettingsCompatible(pipeline->state, g_renderstate.renderpass.settings)){
         EndRenderpass();
@@ -504,7 +498,7 @@ extern "C" void BeginPipelineMode(DescribedPipeline* pipeline){
     }
     //BindPipeline(pipeline, drawMode);
 }
-extern "C" void EndPipelineMode(){
+RGAPICXX void EndPipelineMode(){
     drawCurrentBatch();
     if(!RenderSettingsCompatible(g_renderstate.defaultPipeline->state, g_renderstate.renderpass.settings)){
         EndRenderpass();
@@ -514,11 +508,11 @@ extern "C" void EndPipelineMode(){
     g_renderstate.activePipeline = g_renderstate.defaultPipeline;
     //BindPipeline(g_renderstate.activePipeline, g_renderstate.activePipeline->lastUsedAs);
 }
-void DisableDepthTest(cwoid){
+RGAPICXX void DisableDepthTest(cwoid){
     drawCurrentBatch();
     g_renderstate.currentSettings.depthTest = 0;
 }
-extern "C" void BeginBlendMode(rlBlendMode blendMode) {
+RGAPICXX void BeginBlendMode(rlBlendMode blendMode) {
     // Get a reference to the blend state part of the current settings
     auto& blendState = g_renderstate.currentSettings.blendState;
     
@@ -613,10 +607,10 @@ extern "C" void BeginBlendMode(rlBlendMode blendMode) {
             break;
     }
 }
-extern "C" void EndBlendMode(void){
+RGAPICXX void EndBlendMode(void){
     g_renderstate.currentSettings.blendState = GetDefaultSettings().blendState;
 }
-extern "C" void BeginMode2D(Camera2D camera){
+RGAPICXX void BeginMode2D(Camera2D camera){
     drawCurrentBatch();
     Matrix mat = GetCameraMatrix2D(camera);
     mat = MatrixMultiply(ScreenMatrix(g_renderstate.renderExtentX, g_renderstate.renderExtentY), mat);
@@ -625,13 +619,13 @@ extern "C" void BeginMode2D(Camera2D camera){
     uint32_t uniformLoc = GetUniformLocation(GetActivePipeline(), RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION_VIEW);
     SetUniformBufferData(uniformLoc, &mat, sizeof(Matrix));
 }
-extern "C" void EndMode2D(){
+RGAPICXX void EndMode2D(){
     drawCurrentBatch();
     PopMatrix();
     //g_renderstate.activeScreenMatrix = ScreenMatrix(g_renderstate.renderExtentX, g_renderstate.renderExtentY);
     SetUniformBufferData(GetUniformLocation(GetActivePipeline(), RL_DEFAULT_SHADER_UNIFORM_NAME_PROJECTION_VIEW), GetMatrixPtr(), sizeof(Matrix));
 }
-void BeginMode3D(Camera3D camera){
+RGAPICXX void BeginMode3D(Camera3D camera){
     drawCurrentBatch();
     Matrix mat = GetCameraMatrix3D(camera, float(g_renderstate.renderExtentX) / g_renderstate.renderExtentY);
     //g_renderstate.activeScreenMatrix = mat;
@@ -639,7 +633,7 @@ void BeginMode3D(Camera3D camera){
     SetMatrix(mat);
     SetUniformBufferData(0, &mat, sizeof(Matrix));
 }
-void EndMode3D(){
+RGAPICXX void EndMode3D(){
     drawCurrentBatch();
     
     //g_renderstate.activeScreenMatrix = ScreenMatrix(g_renderstate.renderExtentX, g_renderstate.renderExtentY);
@@ -647,22 +641,22 @@ void EndMode3D(){
     SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
 }
 
-void rlSetLineWidth(float lineWidth){
+RGAPICXX void rlSetLineWidth(float lineWidth){
     g_renderstate.currentSettings.lineWidth = lineWidth;
 }
 
-int GetScreenWidth (cwoid){
+RGAPICXX int GetScreenWidth (cwoid){
     return g_renderstate.width;
 }
-int GetScreenHeight(cwoid){
+RGAPICXX int GetScreenHeight(cwoid){
     return g_renderstate.height;
 }
 
 
-void BeginRenderpass(cwoid){
+RGAPICXX void BeginRenderpass(cwoid){
     BeginRenderpassEx(&g_renderstate.renderpass);
 }
-void EndRenderpass(cwoid){
+RGAPICXX void EndRenderpass(cwoid){
     if(g_renderstate.activeRenderpass){
         EndRenderpassEx(g_renderstate.activeRenderpass);
     }
@@ -671,7 +665,7 @@ void EndRenderpass(cwoid){
     }
     g_renderstate.activeRenderpass = nullptr;
 }
-extern "C" void ClearBackground(Color clearColor){
+RGAPICXX void ClearBackground(Color clearColor){
     bool rpActive = GetActiveRenderPass() != nullptr;
     DescribedRenderpass* backup = GetActiveRenderPass();
     if(rpActive){
@@ -685,11 +679,11 @@ extern "C" void ClearBackground(Color clearColor){
     }
 
 }
-void BeginComputepass(){
+RGAPICXX void BeginComputepass(){
     BeginComputepassEx(&g_renderstate.computepass);
 }
 
-void EndComputepass(){
+RGAPICXX void EndComputepass(){
     EndComputepassEx(&g_renderstate.computepass);
 }
 
@@ -726,14 +720,14 @@ EM_JS(void, requestAnimationFrameLoopWithJSPIArg_impl, (FrameCallbackArg callbac
 });
 //#define emscripten_set_main_loop requestAnimationFrameLoopWithJSPI
 #endif
-void requestAnimationFrameLoopWithJSPIArg(void (*callback)(void*), void* userData, int, int){
+RGAPICXX void requestAnimationFrameLoopWithJSPIArg(void (*callback)(void*), void* userData, int, int){
     #ifdef __EMSCRIPTEN__
     requestAnimationFrameLoopWithJSPIArg_impl(callback, userData);
     #else
     TRACELOG(LOG_WARNING, "requestAnimationFrame not supported outside of emscripten");
     #endif
 }
-void requestAnimationFrameLoopWithJSPI(void (*callback)(void), int, int){
+RGAPICXX void requestAnimationFrameLoopWithJSPI(void (*callback)(void), int, int){
     #ifdef __EMSCRIPTEN__
     requestAnimationFrameLoopWithJSPI_impl(callback);
     #else
@@ -741,7 +735,7 @@ void requestAnimationFrameLoopWithJSPI(void (*callback)(void), int, int){
     #endif
 }
 RenderTexture headless_rtex;
-void BeginDrawing(){
+RGAPICXX void BeginDrawing(){
 
     //++g_renderstate.renderTargetStackPosition;
     
@@ -807,14 +801,14 @@ void BeginDrawing(){
     //UseNoTexture();
     //updateBindGroup(g_renderstate.rstate);
 }
-int GetRenderWidth  (cwoid){
+RGAPICXX int GetRenderWidth  (cwoid){
     return g_renderstate.renderExtentX;
 }
-int GetRenderHeight (cwoid){
+RGAPICXX int GetRenderHeight (cwoid){
     return g_renderstate.renderExtentY;
 }
     
-void EndDrawing(){
+RGAPICXX void EndDrawing(){
     if(g_renderstate.activeRenderpass){    
         EndRenderpassEx(g_renderstate.activeRenderpass);
     }
@@ -955,13 +949,13 @@ void rlBegin(PrimitiveType mode){
     }
     current_drawmode = mode;
 }
-void rlEnd(){
+RGAPICXX void rlEnd(){
     
 }
-uint32_t RoundUpToNextMultipleOf256(uint32_t x) {
+RGAPICXX uint32_t RoundUpToNextMultipleOf256(uint32_t x) {
     return (x + 255) & ~0xFF;
 }
-uint32_t RoundUpToNextMultipleOf16(uint32_t x) {
+RGAPICXX uint32_t RoundUpToNextMultipleOf16(uint32_t x) {
     return (x + 15) & ~0xF;
 }
 #ifdef __EMSCRIPTEN__
@@ -1001,7 +995,7 @@ void FormatImage_Impl(const Image& source, Image& dest){
         FormatRange<from, to>(dataptr, destptr, source.width);
     }
 }
-void ImageFormat(Image* img, PixelFormat newFormat){
+RGAPICXX void ImageFormat(Image* img, PixelFormat newFormat){
     uint32_t psize = GetPixelSizeInBytes(newFormat);
     Image newimg zeroinit;
     newimg.format = newFormat;
@@ -1028,16 +1022,16 @@ void ImageFormat(Image* img, PixelFormat newFormat){
     img->rowStrideInBytes = newimg.rowStrideInBytes;
     
 }
-Color* LoadImageColors(Image img){
+RGAPICXX Color* LoadImageColors(Image img){
     Image copy = ImageFromImage(img, Rectangle{0,0,(float)img.width, (float)img.height});
     ImageFormat(&copy, RGBA8);
     return (RGBA8Color*)copy.data;
 }
-void UnloadImageColors(Color* cols){
+RGAPICXX void UnloadImageColors(Color* cols){
     free(cols);
 }
 
-Image LoadImageFromTexture(Texture tex){
+RGAPICXX Image LoadImageFromTexture(Texture tex){
     //#ifndef __EMSCRIPTEN__
     //auto& device = g_renderstate.device;
     return LoadImageFromTextureEx((WGVKTexture)tex.id, 0);
@@ -1046,21 +1040,21 @@ Image LoadImageFromTexture(Texture tex){
     //return Image{};
     //#endif
 }
-void TakeScreenshot(const char* filename){
+RGAPICXX void TakeScreenshot(const char* filename){
     Image img = LoadImageFromTextureEx((WGVKTexture)g_renderstate.mainWindowRenderTarget.texture.id, 0);
     SaveImage(img, filename);
     UnloadImage(img);
 }
 
 
-extern "C" bool IsKeyDown(int key){
+RGAPICXX bool IsKeyDown(int key){
     void* ah = GetActiveWindowHandle();
     return g_renderstate.input_map[GetActiveWindowHandle()].keydown[key];
 }
-extern "C" bool IsKeyPressed(int key){
+RGAPICXX bool IsKeyPressed(int key){
     return g_renderstate.input_map[GetActiveWindowHandle()].keydown[key] && !g_renderstate.input_map[GetActiveWindowHandle()].keydownPrevious[key];
 }
-extern "C" int GetCharPressed(){
+RGAPICXX int GetCharPressed(){
     int fc = 0;
     if(!g_renderstate.input_map     [GetActiveWindowHandle()].charQueue.empty()){
         fc = g_renderstate.input_map[GetActiveWindowHandle()].charQueue.front();
@@ -1068,10 +1062,10 @@ extern "C" int GetCharPressed(){
     }
     return fc;
 }
-int GetMouseX(cwoid){
+RGAPICXX int GetMouseX(cwoid){
     return (int)GetMousePosition().x;
 }
-int GetMouseY(cwoid){
+RGAPICXX int GetMouseY(cwoid){
     return (int)GetMousePosition().y;
 }
 

@@ -747,14 +747,20 @@ typedef struct full_renderstate full_renderstate;
 typedef struct GLFWwindow GLFWwindow;
 
       
-#ifdef _WIN32
-    #ifdef RG_EXPORTS
+#if defined(RG_STATIC) && RG_STATIC != 0
+    #define RGAPI
+    #define RGAPICXX extern "C"
+#elif defined(_WIN32)
+    #if defined(RG_EXPORTS) && RG_EXPORTS != 0
         #define RGAPI __declspec(dllexport)
+        #define RGAPICXX extern "C" __declspec(dllexport)
     #else
         #define RGAPI __declspec(dllimport)
+        #define RGAPICXX extern "C" __declspec(dllimport)
     #endif
 #else
     #define RGAPI __attribute__((visibility("default")))
+    #define RGAPICXX extern "C" __attribute__((visibility("default")))
 #endif
 
 
@@ -777,13 +783,12 @@ EXTERN_C_BEGIN
     RGAPI void PostPresentSurface(cwoid);
     RGAPI void DummySubmitOnQueue(cwoid);
 
-    RGAPI int GetScreenWidth  (cwoid);                          //Window width
-    RGAPI int GetScreenHeight (cwoid);                          //Window height
+    RGAPI int GetScreenWidth  (cwoid);                     //Window width
+    RGAPI int GetScreenHeight (cwoid);                     //Window height
     RGAPI int GetMonitorWidth (cwoid);                     //Monitor height
     RGAPI int GetMonitorHeight(cwoid);                     //Monitor height
     RGAPI int GetRenderWidth  (cwoid);                     //Render width (e.g. Rendertexture)
     RGAPI int GetRenderHeight (cwoid);                     //Render height (e.g. Rendertexture)
-    
     
     RGAPI void ToggleFullscreen(cwoid);
     RGAPI int GetCurrentMonitor(void);
