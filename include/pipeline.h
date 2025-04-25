@@ -158,7 +158,7 @@ typedef struct DescribedBuffer DescribedBuffer;
 struct UniformAccessor{
     uint32_t index;
     DescribedBindGroup* bindgroup;
-    void operator=(DescribedBuffer* buf);
+    RGAPI void operator=(DescribedBuffer* buf);
 };
 #endif
 
@@ -183,8 +183,8 @@ EXTERN_C_BEGIN
     void UnloadBindGroup(DescribedBindGroup* bg);
     
     DescribedPipeline* Relayout(DescribedPipeline* pl, VertexArray* vao);
-    DescribedComputePipeline* LoadComputePipeline(const char* shaderCode);
-    DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount);
+    RGAPI DescribedComputePipeline* LoadComputePipeline(const char* shaderCode);
+    RGAPI DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount);
 
     DescribedRaytracingPipeline* LoadRaytracingPipeline(const DescribedShaderModule* shaderModule); 
 

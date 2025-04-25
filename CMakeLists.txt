@@ -24,20 +24,19 @@ endif()
 if(NOT MSVC AND NOT EMSCRIPTEN)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
-    if(RAYGPU_BUILD_SHARED_LIBRARY)
-    endif()
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address,undefined")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-exceptions -fsanitize=address,undefined")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address,undefined")
     set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 -DNDEBUG -g")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -DNDEBUG -fno-exceptions -g")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flto=full")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto=full")
 endif()
 
-if(MSVC)
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /GR-")
-else()
-
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
-endif()
+#if(MSVC)
+#    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /GR-")
+#else()
+#    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+#endif()
 
 if(NOT SUPPORT_GLFW)
     set(DAWN_USE_GLFW OFF)
@@ -72,7 +71,7 @@ if(SUPPORT_WGPU_BACKEND OR SUPPORT_WGSL_PARSER)
     set(DAWN_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "" FORCE)
     set(DAWN_FETCH_DEPENDENCIES OFF CACHE BOOL "" FORCE)
-    set(DAWN_BUILD_MONOLITHIC_LIBRARY ON CACHE BOOL "" FORCE)
+    set(DAWN_BUILD_MONOLITHIC_LIBRARY STATIC CACHE BOOL "" FORCE)
     set(DAWN_ENABLE_OPENGLES OFF CACHE BOOL "" FORCE)
     set(DAWN_ENABLE_DESKTOP_GL OFF CACHE BOOL "" FORCE)
     set(DAWN_ENABLE_SPIRV_VALIDATION OFF CACHE BOOL "" FORCE)
@@ -257,10 +256,10 @@ endif()
 
 if(RAYGPU_BUILD_SHARED_LIBRARY)
     add_library(raygpu SHARED ${RG_SOURCES})
-    target_compile_definitions(raygpu PRIVATE )
+    target_compile_definitions(raygpu PRIVATE RG_EXPORTS=1)
 else()
     add_library(raygpu STATIC ${RG_SOURCES})
-
+    target_compile_definitions(raygpu PUBLIC RG_STATIC=1)
 endif()
 if(DAWN_USE_X11)
     target_compile_definitions(raygpu PUBLIC RAYGPU_USE_X11=1)
@@ -358,37 +357,34 @@ if(EMSCRIPTEN)
     endif()
     #target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
 else()
-    if(SUPPORT_VULKAN_BACKEND)
-        if(WIN32 AND NOT VULKAN_SDK)
-            message(WARNING "Vulkan SDK path not set. Looking for them in C:/VulkanSDK/")
-            # Glob all directories in C:\VulkanSDK\
-            file(GLOB VULKAN_SDK_DIRS "C:/VulkanSDK/*")
-
-            # Sort the list and try the highest version first
-            list(SORT VULKAN_SDK_DIRS)
-            list(REVERSE VULKAN_SDK_DIRS)
-
-            set(VULKAN_SDK_FOUND FALSE)
-            foreach(SDK_DIR ${VULKAN_SDK_DIRS})
-                # Check if the directory contains the Vulkan header
-                if(EXISTS "${SDK_DIR}/Include/vulkan/vulkan.h")
-                    set(VULKAN_SDK ${SDK_DIR})
-                    set(VULKAN_SDK_FOUND TRUE)
-                    break()
-                endif()
-            endforeach()
-
-            if(NOT VULKAN_SDK_FOUND)
-                message(FATAL_ERROR "Vulkan SDK not found in C:/VulkanSDK/!")
-            endif()
-            message(STATUS "Found Vulkan SDK at: ${VULKAN_SDK}")
-            list(APPEND CMAKE_PREFIX_PATH ${VULKAN_SDK})
-        endif()
-        find_package(Vulkan REQUIRED)
-    endif()
+    # if(SUPPORT_VULKAN_BACKEND)
+    #     if(WIN32 AND NOT VULKAN_SDK)
+    #         message(WARNING "Vulkan SDK path not set. Looking for them in C:/VulkanSDK/")
+    #         # Glob all directories in C:\VulkanSDK\
+    #         file(GLOB VULKAN_SDK_DIRS "C:/VulkanSDK/*")
+    #         # Sort the list and try the highest version first
+    #         list(SORT VULKAN_SDK_DIRS)
+    #         list(REVERSE VULKAN_SDK_DIRS)
+    #         set(VULKAN_SDK_FOUND FALSE)
+    #         foreach(SDK_DIR ${VULKAN_SDK_DIRS})
+    #             # Check if the directory contains the Vulkan header
+    #             if(EXISTS "${SDK_DIR}/Include/vulkan/vulkan.h")
+    #                 set(VULKAN_SDK ${SDK_DIR})
+    #                 set(VULKAN_SDK_FOUND TRUE)
+    #                 break()
+    #             endif()
+    #         endforeach()
+    #         if(NOT VULKAN_SDK_FOUND)
+    #             message(FATAL_ERROR "Vulkan SDK not found in C:/VulkanSDK/!")
+    #         endif()
+    #         message(STATUS "Found Vulkan SDK at: ${VULKAN_SDK}")
+    #         list(APPEND CMAKE_PREFIX_PATH ${VULKAN_SDK})
+    #     endif()
+    #     find_package(Vulkan REQUIRED)
+    # endif()
     if(SUPPORT_VULKAN_BACKEND)
         target_link_libraries(raygpu PUBLIC glslang)
-		target_include_directories(raygpu PUBLIC "amalgamation/vulkan_headers/Include")
+		target_include_directories(raygpu PUBLIC "amalgamation/vulkan_headers/include")
     else()
         target_link_libraries(raygpu PUBLIC
             webgpu_dawn
@@ -470,6 +466,14 @@ endif()
 if(EMSCRIPTEN)
     set(CMAKE_EXECUTABLE_SUFFIX ".html") # This line is used to set your executable to build with the emscripten html template so that you can directly open it.
 endif()
+if(WIN32)
+    if(NOT MSVC)
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
+        if(RAYGPU_BUILD_SHARED_LIBRARY)
+            target_link_options(raygpu PRIVATE "-static-libgcc" "-static-libstdc++")
+        endif()
+    endif()
+endif()
 
 add_subdirectory("examples")
 
@@ -480,22 +484,22 @@ endif()
 if(SUPPORT_SDL3)
     list(APPEND EXPORT_RG_TARGETS SDL3::SDL3)
 endif()
-set(PYBIND11_FINDPYTHON ON)
-
-
-find_package(pybind11 CONFIG QUIET)
-if (NOT pybind11_FOUND)
-    FetchContent_Declare(pybind11fetch
-        URL https://github.com/pybind/pybind11/archive/refs/tags/v2.13.6.tar.gz
-        DOWNLOAD_EXTRACT_TIMESTAMP True
+if(RAYGPU_GENERATE_PYTHON_BINDINGS)
+    set(PYBIND11_FINDPYTHON ON)
+    find_package(pybind11 CONFIG QUIET)
+    if (NOT pybind11_FOUND)
+        FetchContent_Declare(pybind11fetch
+            URL https://github.com/pybind/pybind11/archive/refs/tags/v2.13.6.tar.gz
+            DOWNLOAD_EXTRACT_TIMESTAMP True
+        )
+        FetchContent_MakeAvailable(pybind11fetch)
+    endif()
+    pybind11_add_module(
+        pyraygpu
+        bindings/python/pyraygpu.cpp
     )
-    FetchContent_MakeAvailable(pybind11fetch)
+    target_link_libraries(pyraygpu PUBLIC raygpu)
 endif()
-pybind11_add_module(
-    pyraygpu
-    bindings/python/pyraygpu.cpp
-)
-target_link_libraries(pyraygpu PUBLIC raygpu)
 message(STATUS "")
 message(STATUS "------ CONFIGURATION OVERVIEW -------")
 message(STATUS "")

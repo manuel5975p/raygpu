@@ -1621,7 +1621,7 @@ extern "C" Image LoadImage(const char* filename){
 }
 
 void UnloadImage(Image img){
-    TRACELOG(LOG_INFO, "UnloadImage called");
+    //TRACELOG(LOG_INFO, "UnloadImage called");
     RL_FREE(img.data);
     img.data = nullptr;
 }

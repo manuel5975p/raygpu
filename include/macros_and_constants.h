@@ -100,6 +100,21 @@ constexpr float RAD2DEG = 180.0 / M_PI;
     #define rg_trap(...) __builtin_trap();
 #endif
 
+#if defined(RG_STATIC) && RG_STATIC != 0
+    #define RGAPI
+    #define RGAPICXX extern "C"
+#elif defined(_WIN32)
+    #if defined(RG_EXPORTS) && RG_EXPORTS != 0
+        #define RGAPI __declspec(dllexport)
+        #define RGAPICXX extern "C" __declspec(dllexport)
+    #else
+        #define RGAPI __declspec(dllimport)
+        #define RGAPICXX extern "C" __declspec(dllimport)
+    #endif
+#else
+    #define RGAPI __attribute__((visibility("default")))
+    #define RGAPICXX extern "C" __attribute__((visibility("default")))
+#endif
 
 
 #if RAYGPU_DISABLE_ASSERT == 1

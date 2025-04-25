@@ -39,6 +39,7 @@ typedef WGPUCommandBuffer WGVKCommandBuffer;
 typedef WGPUCommandEncoder WGVKCommandEncoder;
 typedef WGPUTexture WGVKTexture;
 typedef WGPUTextureView WGVKTextureView;
+typedef WGPUSampler WGVKSampler;
 typedef WGPURenderPipeline WGVKRenderPipeline;
 typedef WGPUComputePipeline WGVKComputePipeline;
 
@@ -84,6 +85,7 @@ typedef WGPUCommandEncoderDescriptor WGVKCommandEncoderDescriptor;
 typedef WGPUExtent3D WGVKExtent3D;
 typedef WGPUTextureDescriptor WGVKTextureDescriptor;
 typedef WGPUTextureViewDescriptor WGVKTextureViewDescriptor;
+typedef WGPUSamplerDescriptor WGVKSamplerDescriptor;
 typedef WGPUBufferDescriptor WGVKBufferDescriptor;
 typedef WGPUBindGroupDescriptor WGVKBindGroupDescriptor;
 typedef WGPUInstanceDescriptor WGVKInstanceDescriptor;

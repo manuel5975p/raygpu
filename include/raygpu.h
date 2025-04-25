@@ -706,7 +706,7 @@ typedef struct DescribedComputePipeline{
     DescribedBindGroupLayout bglayout;
     DescribedBindGroup bindGroup;
     #ifdef __cplusplus
-    UniformAccessor operator[](const char* uniformName);
+    RGAPI UniformAccessor operator[](const char* uniformName);
     #endif
 }DescribedComputePipeline;
 
@@ -747,21 +747,7 @@ typedef struct full_renderstate full_renderstate;
 typedef struct GLFWwindow GLFWwindow;
 
       
-#if defined(RG_STATIC) && RG_STATIC != 0
-    #define RGAPI
-    #define RGAPICXX extern "C"
-#elif defined(_WIN32)
-    #if defined(RG_EXPORTS) && RG_EXPORTS != 0
-        #define RGAPI __declspec(dllexport)
-        #define RGAPICXX extern "C" __declspec(dllexport)
-    #else
-        #define RGAPI __declspec(dllimport)
-        #define RGAPICXX extern "C" __declspec(dllimport)
-    #endif
-#else
-    #define RGAPI __attribute__((visibility("default")))
-    #define RGAPICXX extern "C" __attribute__((visibility("default")))
-#endif
+
 
 
 EXTERN_C_BEGIN
