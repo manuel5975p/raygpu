@@ -2,11 +2,11 @@
 
 #ifndef WGVK_H_INCLUDED
 #define WGVK_H_INCLUDED
-#include <enum_translation.h>
 #include <macros_and_constants.h>
 #if SUPPORT_VULKAN_BACKEND == 1
-#include <external/volk.h>
+    #include <external/volk.h>
 #endif
+#include <webgpu/webgpu.h>
 #ifdef __cplusplus
 #include <cstdint>
 extern "C"{
@@ -18,6 +18,7 @@ extern "C"{
 #define VMA_MIN_ALIGNMENT 32
 
 #if SUPPORT_WGPU_BACKEND == 1
+
 typedef struct WGPUBufferImpl WGVKBufferImpl;
 typedef struct WGPUTextureImpl WGVKTextureImpl;
 typedef struct WGPUTextureViewImpl WGVKTextureViewImpl;
@@ -54,16 +55,7 @@ typedef WGPUOrigin3D WGVKOrigin3D;
 typedef WGPUTexelCopyTextureInfo WGVKTexelCopyTextureInfo;
 typedef WGPUBindGroupEntry WGVKBindGroupEntry;
 
-typedef struct ResourceTypeDescriptor{
-    uniform_type type;
-    uint32_t minBindingSize;
-    uint32_t location; //only for @binding attribute in bindgroup 0
 
-    //Applicable for storage buffers and textures
-    access_type access;
-    format_or_sample_type fstype;
-    ShaderStageMask visibility;
-}ResourceTypeDescriptor;
 
 typedef struct ResourceDescriptor {
     void const * nextInChain; //hmm
@@ -172,6 +164,294 @@ typedef struct WGVKTopLevelAccelerationStructureImpl* WGVKTopLevelAccelerationSt
 typedef struct WGVKBottomLevelAccelerationStructureImpl* WGVKBottomLevelAccelerationStructure;
 typedef struct WGVKRaytracingPipelineImpl* WGVKRaytracingPipeline;
 typedef struct WGVKRaytracingPassEncoderImpl* WGVKRaytracingPassEncoder;
+#endif
+
+typedef enum PresentMode{ 
+    PresentMode_Undefined = 0x00000000,
+    PresentMode_Fifo = 0x00000001,
+    PresentMode_FifoRelaxed = 0x00000002,
+    PresentMode_Immediate = 0x00000003,
+    PresentMode_Mailbox = 0x00000004,
+}PresentMode;
+
+typedef enum TextureAspect {
+    TextureAspect_Undefined = 0x00000000,
+    TextureAspect_All = 0x00000001,
+    TextureAspect_StencilOnly = 0x00000002,
+    TextureAspect_DepthOnly = 0x00000003,
+    TextureAspect_Plane0Only = 0x00050000,
+    TextureAspect_Plane1Only = 0x00050001,
+    TextureAspect_Plane2Only = 0x00050002,
+    TextureAspect_Force32 = 0x7FFFFFFF
+} TextureAspect;
+typedef enum PrimitiveType{
+    RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS, RL_LINES, RL_POINTS
+}PrimitiveType;
+typedef enum VertexStepMode { VertexStepMode_None = 0x0, VertexStepMode_Vertex = 0x1, VertexStepMode_Instance = 0x2, VertexStepMode_Force32 = 0x7FFFFFFF } VertexStepMode;
+
+typedef uint64_t BufferUsage;
+typedef uint64_t TextureUsage;
+
+typedef enum TFilterMode { TFilterMode_Undefined = 0x00000000, TFilterMode_Nearest = 0x00000001, TFilterMode_Linear = 0x00000002, TFilterMode_Force32 = 0x7FFFFFFF } TFilterMode;
+
+typedef enum FrontFace { FrontFace_Undefined = 0x00000000, FrontFace_CCW = 0x00000001, FrontFace_CW = 0x00000002, FrontFace_Force32 = 0x7FFFFFFF } FrontFace;
+
+typedef enum IndexFormat { IndexFormat_Undefined = 0x00000000, IndexFormat_Uint16 = 0x00000001, IndexFormat_Uint32 = 0x00000002, IndexFormat_Force32 = 0x7FFFFFFF } IndexFormat;
+
+typedef enum uniform_type { uniform_type_undefined, uniform_buffer, storage_buffer, texture2d, texture2d_array, storage_texture2d, texture_sampler, texture3d, storage_texture3d, storage_texture2d_array, acceleration_structure, combined_image_sampler} uniform_type;
+
+typedef enum access_type { readonly, readwrite, writeonly } access_type;
+
+typedef enum format_or_sample_type { we_dont_know, sample_f32, sample_u32, format_r32float, format_r32uint, format_rgba8unorm, format_rgba32float } format_or_sample_type;
+
+
+typedef enum ShaderStage{
+    ShaderStage_Vertex,
+    ShaderStage_TessControl,
+    ShaderStage_TessEvaluation,
+    ShaderStage_Geometry,
+    ShaderStage_Fragment,
+    ShaderStage_Compute,
+    ShaderStage_RayGen,
+    ShaderStage_RayGenNV = ShaderStage_RayGen,
+    ShaderStage_Intersect,
+    ShaderStage_IntersectNV = ShaderStage_Intersect,
+    ShaderStage_AnyHit,
+    ShaderStage_AnyHitNV = ShaderStage_AnyHit,
+    ShaderStage_ClosestHit,
+    ShaderStage_ClosestHitNV = ShaderStage_ClosestHit,
+    ShaderStage_Miss,
+    ShaderStage_MissNV = ShaderStage_Miss,
+    ShaderStage_Callable,
+    ShaderStage_CallableNV = ShaderStage_Callable,
+    ShaderStage_Task,
+    ShaderStage_TaskNV = ShaderStage_Task,
+    ShaderStage_Mesh,
+    ShaderStage_MeshNV = ShaderStage_Mesh,
+    ShaderStage_EnumCount
+}ShaderStage;
+
+typedef enum ShaderStageMask{
+    ShaderStageMask_Vertex = (1u << ShaderStage_Vertex),
+    ShaderStageMask_TessControl = (1u << ShaderStage_TessControl),
+    ShaderStageMask_TessEvaluation = (1u << ShaderStage_TessEvaluation),
+    ShaderStageMask_Geometry = (1u << ShaderStage_Geometry),
+    ShaderStageMask_Fragment = (1u << ShaderStage_Fragment),
+    ShaderStageMask_Compute = (1u << ShaderStage_Compute),
+    ShaderStageMask_RayGen = (1u << ShaderStage_RayGen),
+    ShaderStageMask_RayGenNV = (1u << ShaderStage_RayGenNV),
+    ShaderStageMask_Intersect = (1u << ShaderStage_Intersect),
+    ShaderStageMask_IntersectNV = (1u << ShaderStage_IntersectNV),
+    ShaderStageMask_AnyHit = (1u << ShaderStage_AnyHit),
+    ShaderStageMask_AnyHitNV = (1u << ShaderStage_AnyHitNV),
+    ShaderStageMask_ClosestHit = (1u << ShaderStage_ClosestHit),
+    ShaderStageMask_ClosestHitNV = (1u << ShaderStage_ClosestHitNV),
+    ShaderStageMask_Miss = (1u << ShaderStage_Miss),
+    ShaderStageMask_MissNV = (1u << ShaderStage_MissNV),
+    ShaderStageMask_Callable = (1u << ShaderStage_Callable),
+    ShaderStageMask_CallableNV = (1u << ShaderStage_CallableNV),
+    ShaderStageMask_Task = (1u << ShaderStage_Task),
+    ShaderStageMask_TaskNV = (1u << ShaderStage_TaskNV),
+    ShaderStageMask_Mesh = (1u << ShaderStage_Mesh),
+    ShaderStageMask_MeshNV = (1u << ShaderStage_MeshNV),
+    ShaderStageMask_EnumCount = (1u << ShaderStage_EnumCount)
+}ShaderStageMask;
+
+
+typedef enum filterMode {
+    filter_nearest = 0x1,
+    filter_linear = 0x2,
+} filterMode;
+
+typedef enum addressMode {
+    clampToEdge = 0x1,
+    repeat = 0x2,
+    mirrorRepeat = 0x3,
+} addressMode;
+
+typedef enum PixelFormat {
+    RGBA8      = 0x12, //WGPUTextureFormat_RGBA8Unorm,
+    RGBA8_Srgb = 0x13, //WGPUTextureFormat_RGBA8UnormSrgb,
+    BGRA8      = 0x17, //WGPUTextureFormat_BGRA8Unorm,
+    BGRA8_Srgb = 0x18, //WGPUTextureFormat_BGRA8UnormSrgb,
+    RGBA16F    = 0x22, //WGPUTextureFormat_RGBA16Float,
+    RGBA32F    = 0x23, //WGPUTextureFormat_RGBA32Float,
+    Depth24    = 0x28, //WGPUTextureFormat_Depth24Plus,
+    Depth32    = 0x2A, //WGPUTextureFormat_Depth32Float,
+
+    GRAYSCALE = 0x100000, // No WGPU_ equivalent
+    RGB8 = 0x100001,      // No WGPU_ equivalent
+    PixelFormat_Force32 = 0x7FFFFFFF
+} PixelFormat;
+
+typedef enum CompareFunction {
+    CompareFunction_Undefined = 0x00000000,
+    CompareFunction_Never = 0x00000001,
+    CompareFunction_Less = 0x00000002,
+    CompareFunction_Equal = 0x00000003,
+    CompareFunction_LessEqual = 0x00000004,
+    CompareFunction_Greater = 0x00000005,
+    CompareFunction_NotEqual = 0x00000006,
+    CompareFunction_GreaterEqual = 0x00000007,
+    CompareFunction_Always = 0x00000008
+} CompareFunction;
+typedef enum MapMode{
+    MapMode_Read,
+    MapMode_Write,
+    MapMode_ReadWrite,
+}MapMode;
+
+typedef enum TextureDimension{
+    TextureDimension_Undefined = 0x00000000,
+    TextureDimension_1D = 0x00000001,
+    TextureDimension_2D = 0x00000002,
+    //TextureViewDimension_2DArray = 0x00000003,
+    //TextureViewDimension_Cube = 0x00000004,
+    //TextureViewDimension_CubeArray = 0x00000005,
+    TextureDimension_3D = 0x00000003
+}TextureDimension;
+typedef enum TextureViewDimension{
+    TextureViewDimension_Undefined = 0x00000000,
+    TextureViewDimension_1D = 0x00000001,
+    TextureViewDimension_2D = 0x00000002,
+    TextureViewDimension_2DArray = 0x00000003,
+    //TextureViewDimension_Cube = 0x00000004,
+    //TextureViewDimension_CubeArray = 0x00000005,
+    TextureViewDimension_3D = 0x00000006,
+    TextureViewDimension_Force32 = 0x7FFFFFFF
+}TextureViewDimension;
+
+typedef enum WGVKCompositeAlphaMode {
+    WGVKCompositeAlphaMode_Auto = 0x00000000,
+    WGVKCompositeAlphaMode_Opaque = 0x00000001,
+    WGVKCompositeAlphaMode_Premultiplied = 0x00000002,
+    WGVKCompositeAlphaMode_Unpremultiplied = 0x00000003,
+    WGVKCompositeAlphaMode_Inherit = 0x00000004,
+    WGVKCompositeAlphaMode_Force32 = 0x7FFFFFFF
+} WGVKCompositeAlphaMode;
+
+typedef enum WGVKCullMode{
+    WGVKCullMode_Undefined = 0x00000000,
+    WGVKCullMode_None = 0x00000001,
+    WGVKCullMode_Front = 0x00000002,
+    WGVKCullMode_Back = 0x00000003,
+    WGVKCullMode_Force32 = 0x7FFFFFFF
+}WGVKCullMode;
+
+typedef enum LoadOp {
+    LoadOp_Undefined = 0x00000000,
+    LoadOp_Load = 0x00000001,
+    LoadOp_Clear = 0x00000002,
+    LoadOp_ExpandResolveTexture = 0x00050003,
+    LoadOp_Force32 = 0x7FFFFFFF
+} LoadOp;
+
+typedef enum StoreOp {
+    StoreOp_Undefined = 0x00000000,
+    StoreOp_Store = 0x00000001,
+    StoreOp_Discard = 0x00000002,
+    StoreOp_Force32 = 0x7FFFFFFF
+} StoreOp;
+
+
+typedef enum VertexFormat {
+    VertexFormat_Uint8 = 0x00000001,
+    VertexFormat_Uint8x2 = 0x00000002,
+    VertexFormat_Uint8x4 = 0x00000003,
+    VertexFormat_Sint8 = 0x00000004,
+    VertexFormat_Sint8x2 = 0x00000005,
+    VertexFormat_Sint8x4 = 0x00000006,
+    VertexFormat_Unorm8 = 0x00000007,
+    VertexFormat_Unorm8x2 = 0x00000008,
+    VertexFormat_Unorm8x4 = 0x00000009,
+    VertexFormat_Snorm8 = 0x0000000A,
+    VertexFormat_Snorm8x2 = 0x0000000B,
+    VertexFormat_Snorm8x4 = 0x0000000C,
+    VertexFormat_Uint16 = 0x0000000D,
+    VertexFormat_Uint16x2 = 0x0000000E,
+    VertexFormat_Uint16x4 = 0x0000000F,
+    VertexFormat_Sint16 = 0x00000010,
+    VertexFormat_Sint16x2 = 0x00000011,
+    VertexFormat_Sint16x4 = 0x00000012,
+    VertexFormat_Unorm16 = 0x00000013,
+    VertexFormat_Unorm16x2 = 0x00000014,
+    VertexFormat_Unorm16x4 = 0x00000015,
+    VertexFormat_Snorm16 = 0x00000016,
+    VertexFormat_Snorm16x2 = 0x00000017,
+    VertexFormat_Snorm16x4 = 0x00000018,
+    VertexFormat_Float16 = 0x00000019,
+    VertexFormat_Float16x2 = 0x0000001A,
+    VertexFormat_Float16x4 = 0x0000001B,
+    VertexFormat_Float32 = 0x0000001C,
+    VertexFormat_Float32x2 = 0x0000001D,
+    VertexFormat_Float32x3 = 0x0000001E,
+    VertexFormat_Float32x4 = 0x0000001F,
+    VertexFormat_Uint32 = 0x00000020,
+    VertexFormat_Uint32x2 = 0x00000021,
+    VertexFormat_Uint32x3 = 0x00000022,
+    VertexFormat_Uint32x4 = 0x00000023,
+    VertexFormat_Sint32 = 0x00000024,
+    VertexFormat_Sint32x2 = 0x00000025,
+    VertexFormat_Sint32x3 = 0x00000026,
+    VertexFormat_Sint32x4 = 0x00000027,
+    VertexFormat_Unorm10_10_10_2 = 0x00000028,
+    VertexFormat_Unorm8x4BGRA = 0x00000029,
+    VertexFormat_Force32 = 0x7FFFFFFF
+} VertexFormat;
+typedef enum BlendFactor {
+    BlendFactor_Undefined = 0x00000000,
+    BlendFactor_Zero = 0x00000001,
+    BlendFactor_One = 0x00000002,
+    BlendFactor_Src = 0x00000003,
+    BlendFactor_OneMinusSrc = 0x00000004,
+    BlendFactor_SrcAlpha = 0x00000005,
+    BlendFactor_OneMinusSrcAlpha = 0x00000006,
+    BlendFactor_Dst = 0x00000007,
+    BlendFactor_OneMinusDst = 0x00000008,
+    BlendFactor_DstAlpha = 0x00000009,
+    BlendFactor_OneMinusDstAlpha = 0x0000000A,
+    BlendFactor_SrcAlphaSaturated = 0x0000000B,
+    BlendFactor_Constant = 0x0000000C,
+    BlendFactor_OneMinusConstant = 0x0000000D,
+    BlendFactor_Src1 = 0x0000000E,
+    BlendFactor_OneMinusSrc1 = 0x0000000F,
+    BlendFactor_Src1Alpha = 0x00000010,
+    BlendFactor_OneMinusSrc1Alpha = 0x00000011,
+} BlendFactor;
+
+typedef enum BlendOperation {
+    BlendOperation_Undefined = 0x00000000,
+    BlendOperation_Add = 0x00000001,
+    BlendOperation_Subtract = 0x00000002,
+    BlendOperation_ReverseSubtract = 0x00000003,
+    BlendOperation_Min = 0x00000004,
+    BlendOperation_Max = 0x00000005,
+    //BlendOperation_Force32 = 0x7FFFFFFF
+} BlendOperation;
+
+typedef struct ResourceTypeDescriptor{
+    uniform_type type;
+    uint32_t minBindingSize;
+    uint32_t location; //only for @binding attribute in bindgroup 0
+
+    //Applicable for storage buffers and textures
+    access_type access;
+    format_or_sample_type fstype;
+    ShaderStageMask visibility;
+}ResourceTypeDescriptor;
+
+#if SUPPORT_VULKAN_BACKEND == 1
+typedef enum WGVKRequestAdapterStatus {
+    WGVKRequestAdapterStatus_Success = 0x00000001,
+    WGVKRequestAdapterStatus_InstanceDropped = 0x00000002,
+    WGVKRequestAdapterStatus_Unavailable = 0x00000003,
+    WGVKRequestAdapterStatus_Error = 0x00000004,
+    WGVKRequestAdapterStatus_Force32 = 0x7FFFFFFF
+} WGVKRequestAdapterStatus;
+
+
+
+
 
 typedef enum WGVKStencilOperation {
     WGVKStencilOperation_Undefined = 0x00000000,
@@ -191,6 +471,9 @@ typedef enum WGVKSType {
     WGVKSType_ShaderSourceWGSL = 0x00000002,
     WGVKSType_InstanceValidationLayerSelection = 0x10000001
 }WGVKSType;
+
+typedef int WGVKDeviceLostReason;
+typedef int WGVKErrorType;
 
 typedef struct WGVKStringView{
     const char* data;
@@ -246,6 +529,7 @@ typedef struct WGVKInstanceCapabilities {
     Bool32 timedWaitAnyEnable;
     size_t timedWaitAnyMaxCount;
 } WGVKInstanceCapabilities;
+
 typedef struct WGVKInstanceLayerSelection{
     WGVKChainedStruct chain;
     const char* const* instanceLayers;

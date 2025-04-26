@@ -11,7 +11,7 @@
 
 extern "C" DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sources){
     DescribedShaderModule ret zeroinit;
-    
+
     for(uint32_t i = 0;i < sources.sourceCount;i++){
         VkShaderModuleCreateInfo csCreateInfo zeroinit;
         csCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -45,7 +45,7 @@ extern "C" DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sources){
                         return ShaderStage_EnumCount;
                 }
             }(epStage);
-            
+
             ret.reflectionInfo.ep[stage].stage = stage;
             ret.stages[stage].module = insert;
             std::memset(ret.reflectionInfo.ep[stage].name, 0, sizeof(ret.reflectionInfo.ep[stage].name));
@@ -81,7 +81,7 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     // Vertex Input Setup
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    
+
     auto vls = getBufferLayoutRepresentation(mst.vertexAttributes.data(), mst.vertexAttributes.size());
     auto [vad, vbd] = genericVertexLayoutSetToVulkan(vls);
 
@@ -103,11 +103,11 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     viewportState.scissorCount = 1;
     VkRect2D scissor{0, 0, g_vulkanstate.surface.surfaceConfig.width, g_vulkanstate.surface.surfaceConfig.height};
     VkViewport fullView{
-        0.0f, 
-        (float)g_vulkanstate. surface.surfaceConfig.height, 
-        (float)g_vulkanstate. surface.surfaceConfig.width, 
-        -((float)g_vulkanstate.surface.surfaceConfig.height), 
-        0.0f, 
+        0.0f,
+        (float)g_vulkanstate. surface.surfaceConfig.height,
+        (float)g_vulkanstate. surface.surfaceConfig.width,
+        -((float)g_vulkanstate.surface.surfaceConfig.height),
+        0.0f,
         1.0f
     };
     viewportState.pScissors = &scissor;
@@ -122,7 +122,7 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
 
     // Incorporate face culling from RenderSettings
     // TODO: Cull modes
-    rasterizer.cullMode = VK_CULL_MODE_NONE; 
+    rasterizer.cullMode = VK_CULL_MODE_NONE;
     rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 
     rasterizer.depthBiasEnable = VK_FALSE;
@@ -144,7 +144,7 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     VkPipelineMultisampleStateCreateInfo multisampling{};
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable = VK_FALSE;
-    
+
     // Map sampleCount from RenderSettings to VkSampleCountFlagBits
     switch (settings.settings.sampleCount) {
         case 1: multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT; break;
@@ -162,13 +162,13 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     VkPipelineColorBlendAttachmentState colorBlendAttachments[max_color_attachments];
     for(uint32_t i = 0;i < mst.colorAttachmentState.colorAttachmentCount;i++){
         VkPipelineColorBlendAttachmentState& colorBlendAttachment = colorBlendAttachments[i];
-        colorBlendAttachment.colorWriteMask = 
-            VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | 
+        colorBlendAttachment.colorWriteMask =
+            VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
             VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-        
+
         // Enable blending based on whether blend operations are set
-        bool blendingEnabled = 
-            settings.settings.blendState.alpha.operation != BlendOperation_Add || 
+        bool blendingEnabled =
+            settings.settings.blendState.alpha.operation != BlendOperation_Add ||
             settings.settings.blendState.alpha.srcFactor != BlendFactor_One ||
             settings.settings.blendState.alpha.dstFactor != BlendFactor_Zero ||
             settings.settings.blendState.alpha.operation != BlendOperation_Add ||
@@ -203,22 +203,22 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     colorBlending.blendConstants[3] = 1.0f;
     // Dynamic State Setup (optional based on RenderSettings)
     std::vector<VkDynamicState> dynamicStates = {
-        VK_DYNAMIC_STATE_VIEWPORT, 
+        VK_DYNAMIC_STATE_VIEWPORT,
         VK_DYNAMIC_STATE_SCISSOR,
-        //VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY, 
-        //VK_DYNAMIC_STATE_VERTEX_INPUT_EXT, 
+        //VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY,
+        //VK_DYNAMIC_STATE_VERTEX_INPUT_EXT,
     };
-    
+
     VkPipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    
+
     // You can make dynamic states configurable via RenderSettings if needed
     dynamicState.dynamicStateCount = static_cast<uint32_t>(2);
     dynamicState.pDynamicStates = dynamicStates.data();
-    
+
     // Pipeline Layout Setup
-    
-    
+
+
     // Graphics Pipeline Creation
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -237,14 +237,14 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     RenderPassLayout rpLayout zeroinit;
     rpLayout.colorAttachmentCount = mst.colorAttachmentState.colorAttachmentCount;
     rpLayout.depthAttachmentPresent = settings.settings.depthTest;
-    
+
     for(uint32_t i = 0;i < rpLayout.colorAttachmentCount;i++){
         rpLayout.colorAttachments[i].format = toVulkanPixelFormat(mst.colorAttachmentState.attachmentFormats[i]);
         rpLayout.colorAttachments[i].loadop = LoadOp_Load;
         rpLayout.colorAttachments[i].storeop = StoreOp_Store;
         rpLayout.colorAttachments[i].sampleCount = settings.settings.sampleCount;
     }
-    
+
     if(rpLayout.colorAttachments[0].sampleCount > 1){
         rpLayout.colorResolveAttachments[0].format = toVulkanPixelFormat(mst.colorAttachmentState.attachmentFormats[0]);
         rpLayout.colorResolveAttachments[0].loadop = LoadOp_Load;
@@ -261,8 +261,7 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
         rpLayout.depthAttachment.storeop = StoreOp_Store;
         rpLayout.depthAttachment.sampleCount = settings.settings.sampleCount;
     }
-    
-    
+
     #if VULKAN_USE_DYNAMIC_RENDERING == 1
     VkPipelineRenderingCreateInfo rci zeroinit;
     rci.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
@@ -280,7 +279,7 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     pipelineInfo.renderPass = rp.renderPass;
     pipelineInfo.subpass = 0;
     #endif
-    
+
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
     ret->dynamicStates = dynamicStates;
@@ -315,7 +314,7 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayoutSet(DescribedPipeline* ret
     // Vertex Input Setup
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    
+
     auto [vad, vbd] = genericVertexLayoutSetToVulkan(vls);
 
     vertexInputInfo.vertexBindingDescriptionCount = vbd.size();
@@ -336,11 +335,11 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayoutSet(DescribedPipeline* ret
     viewportState.scissorCount = 1;
     VkRect2D scissor{0, 0, g_vulkanstate.surface.surfaceConfig.width, g_vulkanstate.surface.surfaceConfig.height};
     VkViewport fullView{
-        0.0f, 
-        (float)g_vulkanstate. surface.surfaceConfig.height, 
-        (float)g_vulkanstate. surface.surfaceConfig.width, 
-        -((float)g_vulkanstate.surface.surfaceConfig.height), 
-        0.0f, 
+        0.0f,
+        (float)g_vulkanstate. surface.surfaceConfig.height,
+        (float)g_vulkanstate. surface.surfaceConfig.width,
+        -((float)g_vulkanstate.surface.surfaceConfig.height),
+        0.0f,
         1.0f
     };
     viewportState.pScissors = &scissor;
@@ -383,7 +382,7 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayoutSet(DescribedPipeline* ret
     VkPipelineMultisampleStateCreateInfo multisampling{};
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable = VK_FALSE;
-    
+
     // Map sampleCount from RenderSettings to VkSampleCountFlagBits
     switch (settings.sampleCount) {
         case 1: multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT; break;
@@ -398,13 +397,13 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayoutSet(DescribedPipeline* ret
 
     // Color Blend Attachment Setup
     VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask = 
-        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | 
+    colorBlendAttachment.colorWriteMask =
+        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
         VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    
+
     // Enable blending based on whether blend operations are set
-    bool blendingEnabled = 
-        settings.blendOperationAlpha != BlendOperation_Add || 
+    bool blendingEnabled =
+        settings.blendOperationAlpha != BlendOperation_Add ||
         settings.blendFactorSrcAlpha != BlendFactor_One ||
         settings.blendFactorDstAlpha != BlendFactor_Zero ||
         settings.blendOperationColor != BlendOperation_Add ||
@@ -418,7 +417,7 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayoutSet(DescribedPipeline* ret
         colorBlendAttachment.srcColorBlendFactor = toVulkanBlendFactor(settings.blendFactorSrcColor);
         colorBlendAttachment.dstColorBlendFactor = toVulkanBlendFactor(settings.blendFactorDstColor);
         colorBlendAttachment.colorBlendOp =        toVulkanBlendOperation(settings.blendOperationColor);
-        
+
         // Configure blending for alpha
         colorBlendAttachment.srcAlphaBlendFactor = toVulkanBlendFactor(settings.blendFactorSrcAlpha);
         colorBlendAttachment.dstAlphaBlendFactor = toVulkanBlendFactor(settings.blendFactorDstAlpha);
@@ -436,25 +435,25 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayoutSet(DescribedPipeline* ret
     colorBlending.blendConstants[1] = 1.0f;
     colorBlending.blendConstants[2] = 1.0f;
     colorBlending.blendConstants[3] = 1.0f;
-    
+
     // Dynamic State Setup (optional based on RenderSettings)
     std::vector<VkDynamicState> dynamicStates = {
-        VK_DYNAMIC_STATE_VIEWPORT, 
+        VK_DYNAMIC_STATE_VIEWPORT,
         VK_DYNAMIC_STATE_SCISSOR,
-        //VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY, 
-        //VK_DYNAMIC_STATE_VERTEX_INPUT_EXT, 
+        //VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY,
+        //VK_DYNAMIC_STATE_VERTEX_INPUT_EXT,
     };
-    
+
     VkPipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    
+
     // You can make dynamic states configurable via RenderSettings if needed
     dynamicState.dynamicStateCount = static_cast<uint32_t>(2);
     dynamicState.pDynamicStates = dynamicStates.data();
-    
+
     // Pipeline Layout Setup
-    
-    
+
+
     // Graphics Pipeline Creation
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -473,12 +472,12 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayoutSet(DescribedPipeline* ret
     RenderPassLayout rpLayout zeroinit;
     rpLayout.colorAttachmentCount = 1;
     rpLayout.depthAttachmentPresent = settings.depthTest;
-    
+
     rpLayout.colorAttachments[0].format = toVulkanPixelFormat(BGRA8);
     rpLayout.colorAttachments[0].loadop = LoadOp_Load;
     rpLayout.colorAttachments[0].storeop = StoreOp_Store;
     rpLayout.colorAttachments[0].sampleCount = settings.sampleCount;
-    
+
     if(settings.depthTest){
         rpLayout.depthAttachment.format = toVulkanPixelFormat(Depth32);
         rpLayout.depthAttachment.loadop = LoadOp_Load;
@@ -508,7 +507,7 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayoutSet(DescribedPipeline* ret
     pipelineInfo.renderPass = rp;
     pipelineInfo.subpass = 0;
     #endif
-    
+
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
     RenderPipelineQuartet quartet{
@@ -547,7 +546,7 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayoutSet(DescribedPipeline* ret
 //}
 
 //extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline *ret, const std::vector<AttributeAndResidence>& attribs){
-//    
+//
 //    VertexBufferLayoutSet layoutset = getBufferLayoutRepresentation(attribs.data(), attribs.size());
 //
 //    auto ait = ret->createdPipelines->pipelines.find(layoutset);
@@ -560,7 +559,7 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayoutSet(DescribedPipeline* ret
 
 extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
     ShaderSources sources = dualStage(shaderSource, sourceTypeWGSL, ShaderStage_Vertex, ShaderStage_Fragment);
-    
+
     DescribedShaderModule mod = LoadShaderModule(sources);
     //std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> attribs = getAttributes(shaderSource);
     return LoadPipelineMod(mod, attribs, attribCount, uniforms, uniformCount, settings);
@@ -569,7 +568,7 @@ extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
     ShaderSources sources = dualStage(shaderSource, sourceTypeWGSL, ShaderStage_Vertex, ShaderStage_Fragment);
     auto [attribs, attachments] = getAttributesWGSL(sources);
     std::vector<AttributeAndResidence> allAttribsInOneBuffer;
-    
+
     allAttribsInOneBuffer.reserve(attribs.size());
     uint32_t offset = 0;
     for(const auto& [name, attr] : attribs){
@@ -587,7 +586,7 @@ extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
         );
         offset += attributeSize(format);
     }
-    
+
 
     auto bindings = getBindingsWGSL(sources);
 
@@ -624,7 +623,7 @@ extern "C" void UpdatePipelineWithNewLayout(DescribedPipeline* ret, const std::v
 extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
     DescribedPipeline* ret = callocnewpp(DescribedPipeline);
     ret->state.settings = settings;
-    ret->state.vertexAttributes = std::vector<AttributeAndResidence>(attribs, attribs + attribCount); 
+    ret->state.vertexAttributes = std::vector<AttributeAndResidence>(attribs, attribs + attribCount);
     ret->bglayout = LoadBindGroupLayout(uniforms, uniformCount, false);
     ret->shaderModule = mod;
     ret->state.colorAttachmentState.colorAttachmentCount = mod.reflectionInfo.colorAttachmentCount;
@@ -632,7 +631,7 @@ extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const A
     std::fill(ret->state.colorAttachmentState.attachmentFormats, ret->state.colorAttachmentState.attachmentFormats  + ret->state.colorAttachmentState.colorAttachmentCount, BGRA8);
     //auto [spirV, spirF] = glsl_to_spirv(vsSource, fsSource);
     //ret->sh = LoadShaderModuleFromSPIRV_Vk(spirV.data(), spirV.size() * 4, spirF.data(), spirF.size() * 4);
-    
+
     WGVKPipelineLayoutDescriptor pldesc zeroinit;
     pldesc.bindGroupLayoutCount = 1;
     WGVKBindGroupLayout bgls[1] = {ret->bglayout.layout};
@@ -646,11 +645,11 @@ extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const A
         bge[i].binding = uniforms[i].location;
     }
     ret->bindGroup = LoadBindGroup(&ret->bglayout, bge.data(), bge.size());
-    
+
     //ret->vertexLayout = getBufferLayoutRepresentation(attribs, attribCount);
-    
-    //UpdatePipeline(ret);//, std::vector<AttributeAndResidence>{attribs, attribs + attribCount});    
-    
+
+    //UpdatePipeline(ret);//, std::vector<AttributeAndResidence>{attribs, attribs + attribCount});
+
     return ret;
 
 }
@@ -659,27 +658,27 @@ extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const A
 
 
 DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSource, const VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
-    
+
     ShaderSources sources zeroinit;
     sources.sourceCount = 2;
     sources.sources[0].data = vsSource;
     sources.sources[0].sizeInBytes = std::strlen(vsSource);
     sources.sources[0].stageMask = ShaderStageMask_Vertex;
-    
+
     sources.sources[1].data = fsSource;
     sources.sources[1].sizeInBytes = std::strlen(fsSource);
     sources.sources[1].stageMask = ShaderStageMask_Fragment;
 
     DescribedShaderModule sh = LoadShaderModule(sources);
     return LoadPipelineMod(sh, vao->attributes.data(), vao->attributes.size(), uniforms, uniformCount, settings);
-    
+
 }
 
 extern "C" DescribedPipeline* LoadPipelineForVAOEx(ShaderSources sources, VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
     //detectShaderLanguage()
-    
+
     DescribedShaderModule module = LoadShaderModule(sources);
-    
+
     DescribedPipeline* pl = LoadPipelineMod(module, vao->attributes.data(), vao->attributes.size(), uniforms, uniformCount, settings);
     //DescribedPipeline* pl = LoadPipelineEx(shaderSource, nullptr, 0, uniforms, uniformCount, settings);
     PreparePipeline(pl, vao);
@@ -739,7 +738,7 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t location, Re
     //    bg->bindGroup = nullptr;
     //}
     bg->needsUpdate = true;
-    
+
     //bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &(bg->desc));
 }
 
@@ -756,9 +755,9 @@ void UpdateBindGroup(DescribedBindGroup* bg){
     WGVKBindGroupLayout wvl = (WGVKBindGroupLayout)bg->layout->layout;
     bgdesc.layout = wvl;
     std::vector<ResourceTypeDescriptor> ldtypes(wvl->entries, wvl->entries + wvl->entryCount);
-    //bgdesc.entries 
-    if(bg->bindGroup && ((WGVKBindGroup)bg->bindGroup)->refCount == 1){  
-        WGVKBindGroup writeTo = (WGVKBindGroup)bg->bindGroup;      
+    //bgdesc.entries
+    if(bg->bindGroup && ((WGVKBindGroup)bg->bindGroup)->refCount == 1){
+        WGVKBindGroup writeTo = (WGVKBindGroup)bg->bindGroup;
         wgvkWriteBindGroup(g_vulkanstate.device, writeTo, &bgdesc);
     }
     else{
@@ -783,7 +782,7 @@ void SetBindGroupTexture_Vk(DescribedBindGroup* bg, uint32_t binding, Texture te
     bg->needsUpdate = true;
 }
 void SetBindGroupBuffer_Vk(DescribedBindGroup* bg, uint32_t binding, DescribedBuffer* buf){
-    
+
     //TODO: actually, one would need to iterate entries to find out where .binding == binding
     bg->entries[binding].buffer = (WGVKBuffer)buf->buffer;
     if(bg->bindGroup){
@@ -793,7 +792,7 @@ void SetBindGroupBuffer_Vk(DescribedBindGroup* bg, uint32_t binding, DescribedBu
     bg->needsUpdate = true;
 }
 void SetBindGroupSampler_Vk(DescribedBindGroup* bg, uint32_t binding, DescribedSampler buf){
-    
+
     //TODO: actually, one would need to iterate entries to find out where .binding == binding
     bg->entries[binding].sampler = buf.sampler;
 
@@ -809,8 +808,8 @@ extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCod
     DescribedComputePipeline* ret = callocnew(DescribedComputePipeline);
     ShaderSources sources = singleStage(shaderCode, detectShaderLanguage(shaderCode, std::strlen(shaderCode)), ShaderStage_Compute);
     DescribedShaderModule computeShaderModule = LoadShaderModule(sources);
-    
-    
+
+
     DescribedBindGroupLayout bgl = LoadBindGroupLayout(uniforms, uniformCount, true);
     VkPipelineLayoutCreateInfo lci zeroinit;
     lci.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -821,11 +820,11 @@ extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCod
     VkPipelineShaderStageCreateInfo computeStage zeroinit;
     computeStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     computeStage.module = (VkShaderModule)computeShaderModule.stages[ShaderStage_Compute].module;
-    
-    
+
+
     computeStage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     computeStage.pName = computeShaderModule.reflectionInfo.ep[ShaderStage_Compute].name;
-    
+
     VkComputePipelineCreateInfo cpci zeroinit;
     cpci.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     cpci.layout = layout;
@@ -840,7 +839,7 @@ extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCod
     retpipeline->layout = retlayout;
     ret->bglayout = bgl;
     std::vector<ResourceDescriptor> bge(uniformCount);
-    
+
     for(uint32_t i = 0;i < bge.size();i++){
         bge[i] = ResourceDescriptor{};
         bge[i].binding = uniforms[i].location;

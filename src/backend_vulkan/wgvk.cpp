@@ -2,10 +2,10 @@
 #include "vulkan_internals.hpp"
 #include <algorithm>
 #include <array>
-#include <numeric>
 #include <external/VmaUsage.h>
 #include <unordered_set>
 #include <set>
+#include <wgvk.h>
 static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
     auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
     if (func != nullptr) {
@@ -1167,7 +1167,7 @@ extern "C" void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, WGVKAdapter 
     VkPhysicalDevice vk_physicalDevice = adapter->physicalDevice;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vk_physicalDevice, surface, &scap);
     
-    TRACELOG(LOG_INFO, "scalphaflags: %d", scap.supportedCompositeAlpha);
+    //TRACELOG(LOG_INFO, "scalphaflags: %d", scap.supportedCompositeAlpha);
     // Formats
     uint32_t formatCount;
     vkGetPhysicalDeviceSurfaceFormatsKHR(vk_physicalDevice, surface, &formatCount, nullptr);
@@ -1226,6 +1226,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* c
     createInfo.surface = surface->surface;
     VkSurfaceCapabilitiesKHR vkCapabilities;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(surface->device->adapter->physicalDevice, surface->surface, &vkCapabilities);
+
     uint32_t correctedWidth, correctedHeight;
     
     if(config->width < vkCapabilities.minImageExtent.width || config->width > vkCapabilities.maxImageExtent.width){
