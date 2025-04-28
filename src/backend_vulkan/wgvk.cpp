@@ -106,10 +106,53 @@ typedef struct userdataforcreateadapter{
     WGVKRequestAdapterCallbackInfo info;
     WGVKRequestAdapterOptions options;
 } userdataforcreateadapter;
-
+static inline VkPhysicalDeviceType tvkpdt(AdapterType atype){
+    switch(atype){
+        case DISCRETE_GPU: return VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
+        case INTEGRATED_GPU: return VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;
+        case SOFTWARE_RENDERER: return VK_PHYSICAL_DEVICE_TYPE_CPU;
+        rg_unreachable();
+    }
+    return (VkPhysicalDeviceType)-1;
+}
 void wgvkCreateAdapter_impl(void* userdata_v){
     userdataforcreateadapter* userdata = (userdataforcreateadapter*)userdata_v;
+    uint32_t physicalDeviceCount;
+    vkEnumeratePhysicalDevices(userdata->instance->instance, &physicalDeviceCount, nullptr);
+    VkPhysicalDevice* pds = (VkPhysicalDevice*)RL_CALLOC(physicalDeviceCount, sizeof(VkPhysicalDevice));
+    vkEnumeratePhysicalDevices(userdata->instance->instance, &physicalDeviceCount, pds);
+    uint32_t i = 0;
+    for(i = 0;i < physicalDeviceCount;i++){
+        VkPhysicalDeviceProperties properties zeroinit;
+        vkGetPhysicalDeviceProperties(pds[i], &properties);
+        if(properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU || properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU){
+            break;
+        }
+    }
+    WGVKAdapter adapter = callocnewpp(WGVKAdapterImpl);
+    adapter->instance = userdata->instance;
+    adapter->physicalDevice = pds[i];
+    vkGetPhysicalDeviceMemoryProperties(adapter->physicalDevice, &adapter->memProperties);
+    uint32_t QueueFamilyPropertyCount;
+    vkGetPhysicalDeviceQueueFamilyProperties(adapter->physicalDevice, &QueueFamilyPropertyCount, nullptr);
     
+    VkQueueFamilyProperties* props = (VkQueueFamilyProperties*)RL_CALLOC(QueueFamilyPropertyCount, sizeof(QueueFamilyPropertyCount));
+    adapter->queueIndices = QueueIndices{
+        VK_QUEUE_FAMILY_IGNORED,
+        VK_QUEUE_FAMILY_IGNORED,
+        VK_QUEUE_FAMILY_IGNORED,
+        VK_QUEUE_FAMILY_IGNORED
+    };
+    for(uint32_t i = 0;i < QueueFamilyPropertyCount;i++){
+        if(adapter->queueIndices.graphicsIndex == VK_QUEUE_FAMILY_IGNORED && (props[i].queueCount & VK_QUEUE_GRAPHICS_BIT) && (props[i].queueCount & VK_QUEUE_COMPUTE_BIT)){
+            adapter->queueIndices.graphicsIndex = i;
+            adapter->queueIndices.computeIndex = i;
+            adapter->queueIndices.transferIndex = i;
+            adapter->queueIndices.presentIndex = i;
+            break;
+        }
+    }
+    userdata->info.callback(WGVKRequestAdapterStatus(0), adapter, userdata->info.userdata1, userdata->info.userdata2);
 }
 WGVKFuture wgvkInstanceRequestAdapter(WGVKInstance instance, const WGVKRequestAdapterOptions* options, WGVKRequestAdapterCallbackInfo callbackInfo){
     userdataforcreateadapter* info = (userdataforcreateadapter*)RL_CALLOC(1, sizeof(userdataforcreateadapter));
