@@ -7,9 +7,10 @@ DescribedBuffer* vbo;
 DescribedPipeline* pipeline;
 void mainloop(cwoid){
     BeginDrawing();
+    ClearBackground(BLACK);
     BeginPipelineMode(pipeline);
     BindPipelineVertexArray(pipeline, vao);
-    DrawArrays(WGPUPrimitiveTopology_TriangleList, 3);
+    DrawArrays(RL_TRIANGLES, 3);
     EndPipelineMode();
     DrawFPS(0,0);
     EndDrawing();
@@ -24,9 +25,9 @@ int main(void){
         1,0,
         0,1
     };
-    vbo = GenBuffer(vertices, sizeof(vertices)); 
+    vbo = GenVertexBuffer(vertices, sizeof(vertices)); 
     vao = LoadVertexArray();
-    VertexAttribPointer(vao, vbo, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, vbo, 0, VertexFormat_Float32x2, 0, VertexStepMode_Vertex);
     EnableVertexAttribArray(vao, 0);
     pipeline = LoadPipeline(shaderSource);
 

@@ -1,13 +1,16 @@
 # RayGPU
-A fast and simple [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API) based graphics library for **C and C++**, inspired by and based on [raylib](https://github.com/raysan5/raylib/). Primarily targeting WebGPU for browsers and desktop through [Dawn](https://dawn.googlesource.com/dawn), it also supports a direct and lightweight Vulkan backend.
+A fast and simple [WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API) or [Vulkan](https://www.vulkan.org/) based graphics library for **C and C++**, inspired by and based on [raylib](https://github.com/raysan5/raylib/). Primarily targeting WebGPU for browsers and desktop through [Dawn](https://dawn.googlesource.com/dawn), it also supports a direct and lightweight Vulkan backend.
+```mermaid
 
+```
 - [Getting Started](#getting-started)
 - [Building](#building)
 - [OpenGL compatibility](#opengl-compatibility-and-similarity)
 - [Examples and snippets](#more-advanced-examples)
 ___
 ### Why WebGPU
-[WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API) is a new graphics API meant to give portable access to advanced GPU features. The supported backends are
+[WebGPU](https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API) is a new graphics API meant to give portable access to GPU features. <br> 
+[Dawn](https://github.com/google/dawn) is a chromium's implementation of the webgpu api, supporting the following backends
 - DirectX 11/12 
 - Vulkan (includes Android)
 - OpenGL
@@ -25,7 +28,6 @@ Mobile support is done with SDL, Web support for C++/ wasm programs is done by [
   - Highly portable, rendering backend is discovered at runtime
 - **Cons**
   - Not as lightweight and ubiquitous as OpenGL
-  - Still in development
   - No support for platforms older than OpenGLES 3
 ## Notable Differences to [raylib](https://github.com/raysan5/raylib/)
 - Rendertextures are **not** upside down
