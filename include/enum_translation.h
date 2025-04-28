@@ -198,8 +198,6 @@ typedef enum FrontFace { FrontFace_Undefined = 0x00000000, FrontFace_CCW = 0x000
 
 typedef enum IndexFormat { IndexFormat_Undefined = 0x00000000, IndexFormat_Uint16 = 0x00000001, IndexFormat_Uint32 = 0x00000002, IndexFormat_Force32 = 0x7FFFFFFF } IndexFormat;
 
-
-
 typedef enum WGVKCullMode{
     WGVKCullMode_Undefined = 0x00000000,
     WGVKCullMode_None = 0x00000001,
@@ -223,6 +221,15 @@ typedef enum StoreOp {
     StoreOp_Force32 = 0x7FFFFFFF
 } StoreOp;
 #if SUPPORT_VULKAN_BACKEND == 1
+typedef enum WGVKCompositeAlphaMode {
+    WGVKCompositeAlphaMode_Auto = 0x00000000,
+    WGVKCompositeAlphaMode_Opaque = 0x00000001,
+    WGVKCompositeAlphaMode_Premultiplied = 0x00000002,
+    WGVKCompositeAlphaMode_Unpremultiplied = 0x00000003,
+    WGVKCompositeAlphaMode_Inherit = 0x00000004,
+    WGVKCompositeAlphaMode_Force32 = 0x7FFFFFFF
+} WGVKCompositeAlphaMode;
+
 typedef enum WGVKRequestAdapterStatus {
     WGVKRequestAdapterStatus_Success = 0x00000001,
     WGVKRequestAdapterStatus_InstanceDropped = 0x00000002,
@@ -389,6 +396,14 @@ typedef WGPUBlendOperation BlendOperation;
 #define BlendOperation_ReverseSubtract WGPUBlendOperation_ReverseSubtract
 #define BlendOperation_Min WGPUBlendOperation_Min
 #define BlendOperation_Max WGPUBlendOperation_Max
+
+typedef WGPUCompositeAlphaMode WGVKCompositeAlphaMode;
+#define WGVKCompositeAlphaMode_Auto WGPUCompositeAlphaMode_Auto
+#define WGVKCompositeAlphaMode_Opaque WGPUCompositeAlphaMode_Opaque
+#define WGVKCompositeAlphaMode_Premultiplied WGPUCompositeAlphaMode_Premultiplied
+#define WGVKCompositeAlphaMode_Unpremultiplied WGPUCompositeAlphaMode_Unpremultiplied
+#define WGVKCompositeAlphaMode_Inherit WGPUCompositeAlphaMode_Inherit
+#define WGVKCompositeAlphaMode_Force32 WGPUCompositeAlphaMode_Force32
 
 #endif
 

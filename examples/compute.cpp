@@ -110,7 +110,7 @@ DescribedBuffer* positionsnew;
 
 constexpr bool headless = false;
 
-constexpr size_t parts = (1 << 20);
+constexpr size_t parts = (1 << 17);
 void mainloop(void){
     BeginDrawing();
     BeginComputepass();
@@ -140,7 +140,7 @@ int main(){
     //if(headless)
     //    SetConfigFlags(FLAG_HEADLESS);
     //RequestLimit(maxBufferSize, 1ull << 30);
-    InitWindow(2560, 1440, "Compute Shader");
+    InitWindow(3840, 2160, "Compute Shader");
     SetTargetFPS(0);
     
     

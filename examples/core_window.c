@@ -13,7 +13,8 @@ SubWindow sdlwin;
 void mainloop(void){
 
     BeginDrawing();
-    ClearBackground((Color){230, 230, 230,255});
+    //ClearBackground((Color){230, 230, 230, 0});
+    ClearBackground(BLANK);
     int fontsize = GetScreenWidth() < GetScreenHeight() ? GetScreenWidth() : GetScreenHeight();
     fontsize /= 20;
     DrawText(text, GetScreenWidth() / 2 - MeasureText(text, fontsize) / 2, 300, fontsize, (Color){190, 190, 190,255});
@@ -26,7 +27,7 @@ void mainloop(void){
     if(IsKeyPressed(KEY_E)){
         DisableDepthTest();
     }
-    drawCurrentBatch();
+    //drawCurrentBatch();
     
     EndDrawing();
     if((GetFrameCount() & 0x7ff) == 0){
