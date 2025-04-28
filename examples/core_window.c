@@ -27,7 +27,7 @@ void mainloop(void){
     if(IsKeyPressed(KEY_E)){
         DisableDepthTest();
     }
-    drawCurrentBatch();
+    //drawCurrentBatch();
     
     EndDrawing();
     if((GetFrameCount() & 0x7ff) == 0){

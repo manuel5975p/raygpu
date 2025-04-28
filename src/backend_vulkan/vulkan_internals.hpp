@@ -342,6 +342,11 @@ typedef struct WGVKInstanceImpl{
     VkInstance instance;
 }WGVKInstanceImpl;
 
+typedef struct WGVKFutureImpl{
+    void* userdataForFunction;
+    void (*functionCalledOnWaitAny)(void*);
+}WGVKFutureImpl;
+
 typedef struct WGVKAdapterImpl{
     VkPhysicalDevice physicalDevice;
     WGVKInstance instance;

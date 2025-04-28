@@ -101,6 +101,26 @@ WGVKInstance wgvkCreateInstance(const WGVKInstanceDescriptor* descriptor){
 
     return ret;
 }
+typedef struct userdataforcreateadapter{
+    WGVKInstance instance;
+    WGVKRequestAdapterCallbackInfo info;
+    WGVKRequestAdapterOptions options;
+} userdataforcreateadapter;
+
+void wgvkCreateAdapter_impl(void* userdata_v){
+    userdataforcreateadapter* userdata = (userdataforcreateadapter*)userdata_v;
+    
+}
+WGVKFuture wgvkInstanceRequestAdapter(WGVKInstance instance, const WGVKRequestAdapterOptions* options, WGVKRequestAdapterCallbackInfo callbackInfo){
+    userdataforcreateadapter* info = (userdataforcreateadapter*)RL_CALLOC(1, sizeof(userdataforcreateadapter));
+    info->instance = instance;
+    info->options = *options;
+    info->info = callbackInfo;
+    WGVKFuture ret zeroinit;
+    ret->userdataForFunction = info;
+    ret->functionCalledOnWaitAny = wgvkCreateAdapter_impl;
+    return ret;
+}
 WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescriptor* descriptor){
     std::pair<WGVKDevice, WGVKQueue> ret{};
     for(uint32_t i = 0;i < descriptor->requiredFeatureCount;i++){
