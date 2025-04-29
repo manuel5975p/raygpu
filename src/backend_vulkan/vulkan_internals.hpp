@@ -8,7 +8,6 @@
 #include <vector>
 #include <utility>
 #include <map>
-#include <raygpu.h>
 #include <internals.hpp>
 #include <wgvk.h>
 //#define SUPPORT_VULKAN_BACKEND 1
@@ -340,6 +339,7 @@ struct PerframeCache{
 
 typedef struct WGVKInstanceImpl{
     VkInstance instance;
+    VkDebugUtilsMessengerEXT debugMessenger;
 }WGVKInstanceImpl;
 
 typedef struct WGVKFutureImpl{

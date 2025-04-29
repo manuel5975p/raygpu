@@ -30,11 +30,11 @@ if(NOT MSVC AND NOT EMSCRIPTEN)
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -DNDEBUG -fno-exceptions -g")
 endif()
 
-#if(MSVC)
-#    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /GR-")
-#else()
-#    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
-#endif()
+if(MSVC)
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /GR-")
+else()
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-rtti")
+endif()
 
 if(NOT SUPPORT_GLFW)
     set(DAWN_USE_GLFW OFF)
@@ -50,6 +50,7 @@ endif()
 
 if(SUPPORT_WGPU_BACKEND OR SUPPORT_WGSL_PARSER)
     set(DAWN_IS_IN_USE True)
+    
     #set(TINT_BUILD_CMD_TOOLS ON CACHE BOOL "" FORCE)
     #set(TINT_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
     set(DAWN_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
@@ -84,6 +85,7 @@ if(SUPPORT_WGPU_BACKEND OR SUPPORT_WGSL_PARSER)
     set(TINT_ENABLE_INSTALL ON CACHE BOOL "Enable install step for Tint libraries" FORCE)
     set(BUILD_GMOCK ON CACHE BOOL "" FORCE)
     endif()
+    set(DAWN_BUILD_MONOLITHIC_LIBRARY "SHARED")
     if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/dawn/CMakeLists.txt")
         # Use the local dawn directory
         add_subdirectory("dawn")
@@ -102,20 +104,6 @@ if(SUPPORT_WGPU_BACKEND OR SUPPORT_WGSL_PARSER)
 else()
     set(DAWN_IS_IN_USE False)
 endif()
-#set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
-#set(DAWN_BUILD_MONOLITHIC_LIBRARY ON CACHE BOOL "" FORCE)
-#set(DAWN_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
-#set(TINT_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
-#set(DAWN_ENABLE_OPENGLES OFF CACHE BOOL "" FORCE)
-#set(DAWN_ENABLE_DESKTOP_GL OFF CACHE BOOL "" FORCE)
-#set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "" FORCE)
-#set(TINT_BUILD_GLSL_WRITER OFF CACHE BOOL "" FORCE)
-#set(ENABLE_HLSL OFF CACHE BOOL "" FORCE)
-#set(ENABLE_PCH OFF CACHE BOOL "" FORCE)
-#set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
-#set(TINT_BUILD_CMD_TOOLS OFF CACHE BOOL "" FORCE)
-#set(TINT_BUILD_GLSL_VALIDATOR OFF CACHE BOOL "" FORCE)
-#set(TINT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 
 # Define the download function
 
@@ -183,7 +171,7 @@ endif()
 #download_file_if_not_exists("https://raw.githubusercontent.com/raysan5/raygui/refs/heads/master/src/raygui.h" "raygui.h")
 
 if(ANDROID)
-include_directories("${ANDROID_NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include")
+    include_directories("${ANDROID_NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include")
 endif()
 
 
@@ -288,6 +276,7 @@ endif()
 if(SUPPORT_WGSL_PARSER)    
     target_compile_definitions(raygpu PUBLIC SUPPORT_WGSL_PARSER=1)
 endif()
+
 if(NOT MSVC AND NOT EMSCRIPTEN)
     #foreach(source_file IN LISTS RG_SOURCES)
     #    set_source_files_properties(${source_file} PROPERTIES COMPILE_FLAGS "-fno-inline")
@@ -327,23 +316,10 @@ if(EMSCRIPTEN)
     target_link_libraries(raygpu PUBLIC
         emdawnwebgpu_c
         emdawnwebgpu_cpp
-        #glfw
-        #tint_lang_spirv
-        #tint_lang_spirv_reader
-        #tint_lang_spirv_reader_lower
-        #tint_lang_spirv_intrinsic
-        #tint_lang_spirv_ir
-        #tint_lang_spirv_type
-        #tint_lang_spirv_reader_parser
-        #glslang
     )
     if(SUPPORT_WGSL_PARSER)
         target_link_libraries(raygpu PUBLIC
             tint_api
-            tint_api_common
-            tint_lang_core
-            tint_lang_wgsl
-            tint_lang_wgsl_reader
         )
     endif()
     if(SUPPORT_SDL2)
@@ -354,77 +330,18 @@ if(EMSCRIPTEN)
     endif()
     #target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
 else()
-    # if(SUPPORT_VULKAN_BACKEND)
-    #     if(WIN32 AND NOT VULKAN_SDK)
-    #         message(WARNING "Vulkan SDK path not set. Looking for them in C:/VulkanSDK/")
-    #         # Glob all directories in C:\VulkanSDK\
-    #         file(GLOB VULKAN_SDK_DIRS "C:/VulkanSDK/*")
-    #         # Sort the list and try the highest version first
-    #         list(SORT VULKAN_SDK_DIRS)
-    #         list(REVERSE VULKAN_SDK_DIRS)
-    #         set(VULKAN_SDK_FOUND FALSE)
-    #         foreach(SDK_DIR ${VULKAN_SDK_DIRS})
-    #             # Check if the directory contains the Vulkan header
-    #             if(EXISTS "${SDK_DIR}/Include/vulkan/vulkan.h")
-    #                 set(VULKAN_SDK ${SDK_DIR})
-    #                 set(VULKAN_SDK_FOUND TRUE)
-    #                 break()
-    #             endif()
-    #         endforeach()
-    #         if(NOT VULKAN_SDK_FOUND)
-    #             message(FATAL_ERROR "Vulkan SDK not found in C:/VulkanSDK/!")
-    #         endif()
-    #         message(STATUS "Found Vulkan SDK at: ${VULKAN_SDK}")
-    #         list(APPEND CMAKE_PREFIX_PATH ${VULKAN_SDK})
-    #     endif()
-    #     find_package(Vulkan REQUIRED)
-    # endif()
-    if(SUPPORT_VULKAN_BACKEND)
+
+    if(SUPPORT_GLSL_PARSER)
         target_link_libraries(raygpu PUBLIC glslang)
-		target_include_directories(raygpu PUBLIC "amalgamation/vulkan_headers/include")
+    endif()
+    if(SUPPORT_VULKAN_BACKEND)
+        target_include_directories(raygpu PUBLIC "amalgamation/vulkan_headers/include")
     else()
-        target_link_libraries(raygpu PUBLIC
-            webgpu_dawn
-            #webgpu_cpp
-            #tint_api_common
-            #tint_lang_wgsl_reader
-            #dawn_internal_config
-            #tint_lang_wgsl
-            #tint_api
-            #glslang
-
-            #dawn::dawn_native
-            #dawn::dawn_common
-            #dawn::dawn_system_utils
-            #dawn::dawn_wgpu_utils
-            #dawn::dawn_test_utils
-            #dawn::dawn_proc
-
-            #target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
-        )
-        target_link_libraries(raygpu PRIVATE tint_api)
-        # target_include_directories(raygpu PUBLIC
-        #     $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/include/>  
-        #     $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/src>
-        #     $<BUILD_INTERFACE:${dawn_SOURCE_DIR}>
-        #     $<INSTALL_INTERFACE:include/raygpu/dawn/include>
-        #     $<INSTALL_INTERFACE:include/raygpu/dawn/src>
-        #     $<INSTALL_INTERFACE:include/raygpu/dawn/>
-        # )
-
+        target_link_libraries(raygpu PUBLIC webgpu_dawn)
     endif()
     if(SUPPORT_WGSL_PARSER)
-        target_link_libraries(raygpu PRIVATE tint_api) #tint_lang_wgsl_reader tint_lang_wgsl_inspector tint_lang_wgsl_resolver tint_lang_spirv_writer)
-        #target_include_directories(raygpu PUBLIC  
-        #    $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/include/>  
-        #    $<BUILD_INTERFACE:${dawn_SOURCE_DIR}/src>
-        #    $<BUILD_INTERFACE:${dawn_SOURCE_DIR}>
-        #    $<INSTALL_INTERFACE:include/raygpu/dawn/include>
-        #    $<INSTALL_INTERFACE:include/raygpu/dawn/src>
-        #    $<INSTALL_INTERFACE:include/raygpu/dawn/>
-        #)
+        target_link_libraries(raygpu PRIVATE tint_api)
     endif()
-
     if(SUPPORT_SDL2)
         target_link_libraries(raygpu PUBLIC SDL2::SDL2)
     endif()

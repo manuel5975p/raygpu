@@ -368,6 +368,27 @@ InOutAttributeInfo getAttributesWGSL(ShaderSources sources){
             }
             //std::cout << "\n";
         }
+        else if(insp.GetEntryPoints()[i].stage == ti::PipelineStage::kFragment){
+            const std::vector<ti::StageVariable> vec_outvariables = insp.GetEntryPoints()[i].output_variables;
+            
+            for(auto& outvar: vec_outvariables){
+                uint32_t dim = ~0;
+                format_or_sample_type type = format_or_sample_type::we_dont_know;
+                switch(outvar.composition_type){
+                    case ti::CompositionType::kVec4:   dim = 4; break;
+                    case ti::CompositionType::kVec3:   dim = 3; break;
+                    case ti::CompositionType::kVec2:   dim = 2; break;
+                    case ti::CompositionType::kScalar: dim = 1; break;
+                    default: rg_trap();
+                }
+                switch(outvar.component_type){
+                    case ti::ComponentType::kF32: type = format_or_sample_type::sample_f32; break;
+                    case ti::ComponentType::kU32: type = format_or_sample_type::sample_u32; break;
+                    default: rg_trap();
+                }
+                retvalue.attachments.emplace_back(outvar.attributes.location.value_or(LOCATION_NOT_FOUND), type);
+            }
+        }
     }
 #endif
     return retvalue;

@@ -51,7 +51,7 @@ void mainloop(){
     }
     BufferData(poso, offsets.data(), offsets.size() * sizeof(Vector2));
     BeginDrawing();
-    ClearBackground(BLANK);
+    //ClearBackground(BLUE);
     BeginPipelineMode(pl);
     BindPipelineVertexArray(pl, vao);
     DrawArraysIndexedInstanced(RL_TRIANGLES, *ibo, 6, offsets.size());
@@ -60,7 +60,7 @@ void mainloop(){
     EndDrawing();
 }
 int main(){
-    SetConfigFlags(FLAG_VSYNC_LOWLATENCY_HINT);
+    //SetConfigFlags(FLAG_VSYNC_LOWLATENCY_HINT);
     //SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(1920, 1080, "VAO");
     std::mt19937_64 gen(42);

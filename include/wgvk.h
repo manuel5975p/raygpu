@@ -173,6 +173,13 @@ typedef struct WGVKBottomLevelAccelerationStructureImpl* WGVKBottomLevelAccelera
 typedef struct WGVKRaytracingPipelineImpl* WGVKRaytracingPipeline;
 typedef struct WGVKRaytracingPassEncoderImpl* WGVKRaytracingPassEncoder;
 
+typedef enum WGVKWaitStatus {
+    WGVKWaitStatus_Success = 0x00000001,
+    WGVKWaitStatus_TimedOut = 0x00000002,
+    WGVKWaitStatus_Error = 0x00000003,
+    WGVKWaitStatus_Force32 = 0x7FFFFFFF
+} WGVKWaitStatus;
+
 typedef enum WGVKStencilOperation {
     WGVKStencilOperation_Undefined = 0x00000000,
     WGVKStencilOperation_Keep = 0x00000001,
@@ -303,6 +310,10 @@ typedef struct WGVKSamplerDescriptor {
     CompareFunction compare;
     uint16_t maxAnisotropy;
 } WGVKSamplerDescriptor;
+typedef struct WGVKFutureWaitInfo {
+    WGVKFuture future;
+    Bool32 completed;
+} WGVKFutureWaitInfo;
 
 typedef struct DColor{
     double r,g,b,a;
@@ -679,6 +690,7 @@ WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccelerationStru
 #endif
 
 WGVKInstance wgvkCreateInstance(const WGVKInstanceDescriptor *descriptor);
+WGVKWaitStatus wgvkInstanceWaitAny(WGVKInstance instance, size_t futureCount, WGVKFutureWaitInfo* futures, uint64_t timeoutNS);
 WGVKFuture wgvkInstanceRequestAdapter(WGVKInstance instance, const WGVKRequestAdapterOptions* options, WGVKRequestAdapterCallbackInfo callbackInfo);
 WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescriptor *descriptor);
 
