@@ -1,4 +1,8 @@
+#define Font rlFont
+    #include <raygpu.h>
+#undef Font
 #include <macros_and_constants.h>
+#include <wgvk.h>
 #include "vulkan_internals.hpp"
 #include <algorithm>
 #include <array>
@@ -6,6 +10,8 @@
 #include <external/VmaUsage.h>
 #include <unordered_set>
 #include <set>
+
+
 static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
     auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
     if (func != nullptr) {
@@ -35,72 +41,208 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     return VK_FALSE;
 }
 
-WGVKInstance wgvkCreateInstance(const WGVKInstanceDescriptor* descriptor){
-    WGVKInstance ret = callocnew(WGVKInstanceImpl);
-    WGVKInstanceCapabilities capabilities;
-    VkInstanceCreateInfo ici zeroinit;
-    VkApplicationInfo appInfo{};
-    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = "Vulkan App";
-    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.pEngineName = "No Engine";
-    appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_3;
-    ici.pApplicationInfo = &appInfo;
-    ici.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    uint32_t propertyCount = 0;
-    int vkresult = 0;
-    vkresult |= vkEnumerateInstanceExtensionProperties(nullptr, &propertyCount, nullptr);
-    std::vector<VkExtensionProperties> eproperties(propertyCount);
-    vkEnumerateInstanceExtensionProperties(nullptr, &propertyCount, eproperties.data());
+WGVKInstance wgvkCreateInstance(const WGVKInstanceDescriptor* descriptor) {
+    #if SUPPORT_VULKAN_BACKEND == 0
+        fprintf(stderr, "Vulkan backend is not enabled in this build.\n");
+        return NULL;
+    #else
     
-    std::vector<std::array<char, VK_MAX_EXTENSION_NAME_SIZE>> extensionNames(propertyCount); 
-    std::transform(eproperties.begin(), eproperties.end(), extensionNames.begin(), [](const VkExtensionProperties& prop){
-        std::array<char, VK_MAX_EXTENSION_NAME_SIZE> ret;
-        std::copy(prop.extensionName, prop.extensionName + VK_MAX_EXTENSION_NAME_SIZE, ret.begin());
-        return ret;
-    });
-    std::vector<const char*> charPointers(propertyCount);
-    std::transform(extensionNames.begin(), extensionNames.end(), charPointers.begin(), [](const std::array<char, VK_MAX_EXTENSION_NAME_SIZE>& prop){
-        return prop.data();
-    });
-    ici.ppEnabledExtensionNames = charPointers.data();
-    ici.enabledExtensionCount = charPointers.size();
-    
-    if(descriptor->nextInChain && descriptor->nextInChain->sType == WGVKSType_InstanceValidationLayerSelection){
-        WGVKInstanceLayerSelection* ils = reinterpret_cast<WGVKInstanceLayerSelection*>(descriptor->nextInChain);
-        ici.ppEnabledLayerNames = ils->instanceLayers;
-        ici.enabledLayerCount = ils->instanceLayerCount;
-    }
-    VkValidationFeatureEnableEXT enables[] = { 
-        VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT 
-    };
-    
-    VkValidationFeaturesEXT validationFeatures = {};
-    validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
-    validationFeatures.enabledValidationFeatureCount = 1;
-    validationFeatures.pEnabledValidationFeatures = enables;
-    if(ici.enabledLayerCount > 0){
-        ici.pNext = &validationFeatures;
-    }
-
-    vkresult |= vkCreateInstance(&ici, nullptr, &ret->instance);
-
-    VkDebugUtilsMessengerEXT debugMessenger zeroinit;{
-        VkDebugUtilsMessengerCreateInfoEXT createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-        createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-        createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-        createInfo.pfnUserCallback = debugCallback;
-        createInfo.pUserData = nullptr; // Optional
-        VkResult dbcResult = CreateDebugUtilsMessengerEXT(ret->instance, &createInfo, nullptr, &debugMessenger);
-        if (dbcResult != VK_SUCCESS) {
-            TRACELOG(LOG_ERROR, "Failed to set up debug callback, error code: %d! Valudation errors will be printed but ignored", (int)dbcResult);
+        WGVKInstance ret = (WGVKInstance)RL_CALLOC(1, sizeof(WGVKInstanceImpl));
+        volkInitialize();
+        if (!ret) {
+            fprintf(stderr, "Failed to allocate memory for WGVKInstanceImpl\n");
+            return NULL;
         }
-    }
+        ret->instance = VK_NULL_HANDLE;
+        ret->debugMessenger = VK_NULL_HANDLE;
+    
+        // 1. Define Application Info
+        VkApplicationInfo appInfo zeroinit;
+        appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+        appInfo.pApplicationName = "WGVK Application";
+        appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+        appInfo.pEngineName = "WGVK Engine";
+        appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+        appInfo.apiVersion = VK_API_VERSION_1_3; // Request Vulkan 1.3
+    
+        // 2. Define Instance Create Info
+        VkInstanceCreateInfo ici zeroinit;
+        ici.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+        ici.flags = 0; // May be updated for portability
+        ici.pApplicationInfo = &appInfo;
+    
+        // 3. --- Query Available Extensions and Select Required Surface/Debug Extensions ---
+        uint32_t availableExtensionCount = 0;
+        VkResult enumResult = vkEnumerateInstanceExtensionProperties(NULL, &availableExtensionCount, NULL);
+        VkExtensionProperties* availableExtensions = NULL;
+        const char** enabledExtensions = NULL; // Array of pointers to enabled names
+        uint32_t enabledExtensionCount = 0;
+        constexpr uint32_t maxEnabledExtensions = 16;
+    
+        // Define the list of extensions we *want* to enable if available
 
-    return ret;
-}
+    
+    
+        if (enumResult != VK_SUCCESS || availableExtensionCount == 0) {
+            fprintf(stderr, "Warning: Failed to query instance extensions or none found (Error: %d). Proceeding without optional extensions.\n", (int)enumResult);
+            availableExtensionCount = 0;
+        } else {
+            availableExtensions = (VkExtensionProperties*)RL_CALLOC(availableExtensionCount, sizeof(VkExtensionProperties));
+            if (!availableExtensions) {
+                fprintf(stderr, "Error: Failed to allocate memory for available instance extensions properties.\n");
+                RL_FREE(ret);
+                return NULL;
+            }
+            enumResult = vkEnumerateInstanceExtensionProperties(NULL, &availableExtensionCount, availableExtensions);
+            if (enumResult != VK_SUCCESS) {
+                fprintf(stderr, "Warning: Failed to retrieve instance extension properties (Error: %d). Proceeding without optional extensions.\n", (int)enumResult);
+                RL_FREE(availableExtensions);
+                availableExtensions = NULL;
+                availableExtensionCount = 0;
+            }
+        }
+    
+        // Allocate buffer for the names of extensions we will actually enable
+        enabledExtensions = (const char**)RL_CALLOC(maxEnabledExtensions, sizeof(const char*));
+        if (!enabledExtensions) {
+            fprintf(stderr, "Error: Failed to allocate memory for enabled instance extensions list.\n");
+            RL_FREE(availableExtensions);
+            RL_FREE(ret);
+            return NULL;
+        }
+    
+        int needsPortabilityEnumeration = 0;
+        int portabilityEnumerationAvailable = 0;
+    
+        // Iterate through available extensions and enable the desired ones
+        fprintf(stdout, "Checking available instance extensions:\n");
+        for (uint32_t i = 0; i < availableExtensionCount; ++i) {
+            const char* currentExtName = availableExtensions[i].extensionName;
+            int desired = 0;
+    
+            
+        }
+    
+        // Handle portability enumeration: Enable it *if* needed and available
+        if (needsPortabilityEnumeration) {
+            if (portabilityEnumerationAvailable && enabledExtensionCount < maxEnabledExtensions) {
+                fprintf(stdout, "  - Enabling: %s (Required by enabled surface extension)\n", VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+                enabledExtensions[enabledExtensionCount++] = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
+                ici.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+                fprintf(stdout, "  * Enabling VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR flag.\n");
+            } else if (!portabilityEnumerationAvailable) {
+                 fprintf(stderr, "Error: An enabled surface extension requires '%s', but it is not available! Instance creation may fail.\n", VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+                 // Proceed anyway, vkCreateInstance will likely fail.
+            } else {
+                 fprintf(stderr, "Warning: Portability enumeration needed but exceeded max enabled count (%u).\n", maxEnabledExtensions);
+            }
+        }
+    
+    
+        // --- End Extension Handling ---
+        ici.enabledExtensionCount = enabledExtensionCount;
+        ici.ppEnabledExtensionNames = enabledExtensions;
+    
+    
+        // 4. Specify Layers (if requested)
+        const char* const* requestedLayers = NULL;
+        uint32_t requestedLayerCount = 0;
+        VkValidationFeaturesEXT validationFeatures zeroinit;
+        WGVKInstanceLayerSelection* ils = NULL;
+        int debugUtilsAvailable = 0; // Check if debug utils was actually enabled
+    
+        for (uint32_t i = 0; i < enabledExtensionCount; ++i) {
+            if (strcmp(enabledExtensions[i], VK_EXT_DEBUG_UTILS_EXTENSION_NAME) == 0) {
+                debugUtilsAvailable = 1;
+                break;
+            }
+        }
+    
+        if (descriptor && descriptor->nextInChain) {
+            if (((WGVKChainedStruct*)descriptor->nextInChain)->sType == WGVKSType_InstanceValidationLayerSelection) {
+                ils = (WGVKInstanceLayerSelection*)descriptor->nextInChain;
+                requestedLayers = ils->instanceLayers;
+                requestedLayerCount = ils->instanceLayerCount;
+                fprintf(stdout, "Requesting %u validation layers provided in descriptor.\n", requestedLayerCount);
+            }
+            // TODO: Handle other potential structs in nextInChain if necessary
+        }
+    
+        ici.enabledLayerCount = requestedLayerCount;
+        ici.ppEnabledLayerNames = requestedLayers;
+    
+        // If layers are enabled, configure specific validation features, BUT only if debug utils is available
+        if (requestedLayerCount > 0) {
+            if(debugUtilsAvailable) {
+                VkValidationFeatureEnableEXT enables[] = {
+                    VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
+                };
+                validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+                validationFeatures.enabledValidationFeatureCount = sizeof(enables) / sizeof(enables[0]);
+                validationFeatures.pEnabledValidationFeatures = enables;
+                validationFeatures.pNext = ici.pNext; // Chain it
+                ici.pNext = &validationFeatures;      // Point ici.pNext to this struct
+                fprintf(stdout, "Enabling synchronization validation feature.\n");
+            } else {
+                 fprintf(stderr, "Warning: Requested validation layers but VK_EXT_debug_utils extension was not found/enabled. Debug messenger and specific validation features cannot be enabled.\n");
+                 ici.enabledLayerCount = 0; // Disable layers if debug utils isn't there
+                 ici.ppEnabledLayerNames = NULL;
+                 requestedLayerCount = 0; // Update count for subsequent checks
+                 fprintf(stdout, "Disabling requested layers due to missing VK_EXT_debug_utils.\n");
+            }
+        } else {
+            fprintf(stdout, "Validation layers not requested or not found in descriptor chain.\n");
+        }
+    
+        // 5. Create the Vulkan Instance
+        VkResult result = vkCreateInstance(&ici, NULL, &ret->instance);
+    
+        // --- Free temporary extension memory ---
+        RL_FREE(availableExtensions); // Properties buffer
+        RL_FREE(enabledExtensions);   // Names buffer (pointers into availableExtensions)
+        availableExtensions = NULL;
+        enabledExtensions = NULL;
+        // --- End Freeing Extension Memory ---
+    
+    
+        if (result != VK_SUCCESS) {
+            fprintf(stderr, "vkCreateInstance failed with error code: %d\n", (int)result);
+            RL_FREE(ret);
+            return NULL;
+        }
+        fprintf(stdout, "Vulkan Instance created successfully.\n");
+    
+        // 6. Load instance-level functions using volk
+        volkLoadInstance(ret->instance);
+    
+        // 7. Create Debug Messenger (if layers requested AND debug utils was available/enabled)
+        if (requestedLayerCount > 0 && debugUtilsAvailable && vkCreateDebugUtilsMessengerEXT) {
+            VkDebugUtilsMessengerCreateInfoEXT dbgCreateInfo zeroinit;
+            dbgCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+            dbgCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+                                            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+            dbgCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                                        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                                        VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+            dbgCreateInfo.pfnUserCallback = debugCallback;
+    
+            result = CreateDebugUtilsMessengerEXT(ret->instance, &dbgCreateInfo, NULL, &ret->debugMessenger);
+            if (result != VK_SUCCESS) {
+                fprintf(stderr, "Warning: Failed to create debug messenger (Error: %d).\n", (int)result);
+                ret->debugMessenger = VK_NULL_HANDLE;
+            } else {
+                fprintf(stdout, "Vulkan Debug Messenger created successfully.\n");
+            }
+        } else if (requestedLayerCount > 0) {
+             fprintf(stdout, "Debug messenger creation skipped because VK_EXT_debug_utils extension was not available/enabled or layers were disabled.\n");
+        }
+    
+    
+        // 8. Return the created instance handle
+        return ret;
+    
+    #endif // SUPPORT_VULKAN_BACKEND
+    }
 typedef struct userdataforcreateadapter{
     WGVKInstance instance;
     WGVKRequestAdapterCallbackInfo info;
