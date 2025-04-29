@@ -1939,7 +1939,7 @@ RGAPICXX WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WG
     pipelineInfo.pDepthStencilState = (descriptor->depthStencil) ? &depthStencil : nullptr;
     pipelineInfo.pColorBlendState = (descriptor->fragment) ? &colorBlending : nullptr; // Only if frag shader exists
     pipelineInfo.pDynamicState = &dynamicState;
-    pipelineInfo.layout = layoutImpl->vulkanLayout;
+    pipelineInfo.layout = layoutImpl->layout;
 
     // RenderPass needs to be obtained from somewhere, usually associated with the command buffer recording.
     // WGVK API hides this detail? We might need to use dynamic rendering or query/cache render passes.
@@ -1957,9 +1957,10 @@ RGAPICXX WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WG
         return nullptr;
     }
     pipelineImpl->device = device;
-    pipelineImpl->vulkanLayout = layoutImpl->vulkanLayout; // Store for potential use
-
-    VkResult result = vkCreateGraphicsPipelines(deviceImpl->vulkanDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipelineImpl->vulkanPipeline);
+    //wgvkDeviceAddRef(device);
+    pipelineImpl->layout = layoutImpl; // Store for potential use
+    wgvkPipelineLayoutAddRef(layoutImpl);
+    VkResult result = vkCreateGraphicsPipelines(device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipelineImpl->renderPipeline);
 
     if (result != VK_SUCCESS) {
         // Handle pipeline creation failure

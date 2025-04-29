@@ -398,6 +398,7 @@ typedef struct WGVKShaderModuleImpl{
 typedef struct WGVKRenderPipelineImpl{
     VkPipeline renderPipeline;
     refcount_type refCount;
+    WGVKDevice device;
     WGVKPipelineLayout layout;
     std::vector<VkDynamicState> dynamicStates;
 }WGVKRenderPipelineImpl;
