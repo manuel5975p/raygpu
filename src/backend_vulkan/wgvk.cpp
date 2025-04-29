@@ -48,7 +48,15 @@ WGVKInstance wgvkCreateInstance(const WGVKInstanceDescriptor* descriptor){
     appInfo.apiVersion = VK_API_VERSION_1_3;
     ici.pApplicationInfo = &appInfo;
     ici.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    
+    uint32_t layerCount = 0;
+    vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+
+    std::vector<VkLayerProperties> availableLayers(layerCount);
+    vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+    
     uint32_t propertyCount = 0;
+    
     int vkresult = 0;
     vkresult |= vkEnumerateInstanceExtensionProperties(nullptr, &propertyCount, nullptr);
     std::vector<VkExtensionProperties> eproperties(propertyCount);
@@ -101,6 +109,18 @@ WGVKInstance wgvkCreateInstance(const WGVKInstanceDescriptor* descriptor){
 
     return ret;
 }
+
+WGVKWaitStatus wgvkInstanceWaitAny(WGVKInstance instance, size_t futureCount, WGVKFutureWaitInfo* futures, uint64_t timeoutNS){
+    for(uint32_t i = 0;i < futureCount;i++){
+        if(!futures[i].completed){
+            futures[i].future->functionCalledOnWaitAny(futures[i].future->userdataForFunction);
+            futures[i].completed = 1;
+        }
+    }
+    return WGVKWaitStatus_Success;
+}
+
+
 typedef struct userdataforcreateadapter{
     WGVKInstance instance;
     WGVKRequestAdapterCallbackInfo info;
@@ -120,7 +140,12 @@ void wgvkCreateAdapter_impl(void* userdata_v){
     uint32_t physicalDeviceCount;
     vkEnumeratePhysicalDevices(userdata->instance->instance, &physicalDeviceCount, nullptr);
     VkPhysicalDevice* pds = (VkPhysicalDevice*)RL_CALLOC(physicalDeviceCount, sizeof(VkPhysicalDevice));
-    vkEnumeratePhysicalDevices(userdata->instance->instance, &physicalDeviceCount, pds);
+    VkResult result = vkEnumeratePhysicalDevices(userdata->instance->instance, &physicalDeviceCount, pds);
+    if(result != VK_SUCCESS){
+        const char res[] = "vkEnumeratePhysicalDevices failed";
+        userdata->info.callback(WGVKRequestAdapterStatus_Unavailable, nullptr, WGVKStringView{res, sizeof(res) - 1},userdata->info.userdata1, userdata->info.userdata2);
+        return;
+    }
     uint32_t i = 0;
     for(i = 0;i < physicalDeviceCount;i++){
         VkPhysicalDeviceProperties properties zeroinit;
@@ -152,7 +177,9 @@ void wgvkCreateAdapter_impl(void* userdata_v){
             break;
         }
     }
-    userdata->info.callback(WGVKRequestAdapterStatus(0), adapter, userdata->info.userdata1, userdata->info.userdata2);
+    RL_FREE((void*)pds);
+    RL_FREE((void*)props);
+    userdata->info.callback(WGVKRequestAdapterStatus_Success, adapter, CLITERAL(WGVKStringView){NULL, 0}, userdata->info.userdata1, userdata->info.userdata2);
 }
 WGVKFuture wgvkInstanceRequestAdapter(WGVKInstance instance, const WGVKRequestAdapterOptions* options, WGVKRequestAdapterCallbackInfo callbackInfo){
     userdataforcreateadapter* info = (userdataforcreateadapter*)RL_CALLOC(1, sizeof(userdataforcreateadapter));

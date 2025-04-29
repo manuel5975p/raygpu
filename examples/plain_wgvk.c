@@ -10,7 +10,7 @@ void adapterCallbackFunction(
         void* userdata1,
         void* userdata2
     ){
-
+    printf("helo %p\n", adapter);
 }
 
 int main(){
@@ -28,5 +28,9 @@ int main(){
     
 
     WGVKFuture aFuture = wgvkInstanceRequestAdapter(instance, &adapterOptions, adapterCallback);
-    
+    WGVKFutureWaitInfo winfo = {
+        .future = aFuture,
+        .completed = 0
+    };
+    wgvkInstanceWaitAny(instance, 1, &winfo, ~0ull);
 }
