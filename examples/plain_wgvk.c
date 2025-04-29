@@ -1,7 +1,4 @@
 #include <wgvk.h>
-void TraceLog(int logType, const char *text, ...){
-    
-}
 
 void adapterCallbackFunction(
         enum WGVKRequestAdapterStatus status,

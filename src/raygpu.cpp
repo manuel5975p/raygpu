@@ -2072,7 +2072,7 @@ void TraceLog(int logType, const char *text, ...){
     //    return;
     //}
     constexpr size_t MAX_TRACELOG_MSG_LENGTH = 16384;
-    char buffer[MAX_TRACELOG_MSG_LENGTH] = { 0 };
+    char buffer[MAX_TRACELOG_MSG_LENGTH] = {0};
     int needs_reset = 0;
     switch (logType)
     {

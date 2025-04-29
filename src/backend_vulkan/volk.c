@@ -72,6 +72,9 @@ static PFN_vkVoidFunction nullProcAddrStub(void* context, const char* name)
 
 VkResult volkInitialize(void)
 {
+	if(loadedModule != NULL){
+		return VK_SUCCESS;
+	}
 #if defined(_WIN32)
 	HMODULE module = LoadLibraryA("vulkan-1.dll");
 	if (!module)
