@@ -312,6 +312,20 @@ typedef enum BlendOperation {
     BlendOperation_Max = 0x00000005,
     //BlendOperation_Force32 = 0x7FFFFFFF
 } BlendOperation;
+
+typedef enum WGVKStencilOperation {
+    WGVKStencilOperation_Undefined = 0x00000000,
+    WGVKStencilOperation_Keep = 0x00000001,
+    WGVKStencilOperation_Zero = 0x00000002,
+    WGVKStencilOperation_Replace = 0x00000003,
+    WGVKStencilOperation_Invert = 0x00000004,
+    WGVKStencilOperation_IncrementClamp = 0x00000005,
+    WGVKStencilOperation_DecrementClamp = 0x00000006,
+    WGVKStencilOperation_IncrementWrap = 0x00000007,
+    WGVKStencilOperation_DecrementWrap = 0x00000008,
+    WGVKStencilOperation_Force32 = 0x7FFFFFFF
+} WGVKStencilOperation;
+
 typedef int WGVKDeviceLostReason;
 typedef int WGVKErrorType;
 #else 
@@ -1007,6 +1021,27 @@ static inline VkAttachmentLoadOp toVulkanLoadOperation(LoadOp lop) {
         return VK_ATTACHMENT_LOAD_OP_LOAD; // Example fallback
     default:
         return VK_ATTACHMENT_LOAD_OP_LOAD; // Default fallback
+    }
+}
+static inline VkStencilOp toVulkanStencilOperation(WGVKStencilOperation op){
+    switch(op){
+        case WGVKStencilOperation_Keep: return VK_STENCIL_OP_KEEP;
+        case WGVKStencilOperation_Zero: return VK_STENCIL_OP_ZERO;
+        case WGVKStencilOperation_Replace: return VK_STENCIL_OP_REPLACE;
+        case WGVKStencilOperation_Invert: return VK_STENCIL_OP_INVERT;
+        case WGVKStencilOperation_IncrementClamp: return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+        case WGVKStencilOperation_DecrementClamp: return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
+        case WGVKStencilOperation_IncrementWrap: return VK_STENCIL_OP_INCREMENT_AND_WRAP;
+        case WGVKStencilOperation_DecrementWrap: return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+        default: rg_unreachable();
+    }
+}
+static inline VkCullModeFlags toVulkanCullMode(WGVKCullMode cm){
+    switch(cm){
+        case WGVKCullMode_Back: return VK_CULL_MODE_BACK_BIT;
+        case WGVKCullMode_Front: return VK_CULL_MODE_FRONT_BIT;
+        case WGVKCullMode_None: return 0;
+        default: rg_unreachable();
     }
 }
 

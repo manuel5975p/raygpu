@@ -1700,10 +1700,275 @@ void wgvkBindGroupRelease(WGVKBindGroup dshandle) {
         std::free(dshandle);
     }
 }
+RGAPICXX WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WGVKRenderPipelineDescriptor const * descriptor) {
+    WGVKDeviceImpl* deviceImpl = reinterpret_cast<WGVKDeviceImpl*>(device);
+    WGVKPipelineLayoutImpl* layoutImpl = reinterpret_cast<WGVKPipelineLayoutImpl*>(descriptor->layout);
 
-WGVKRenderPipeline wgpuDeviceCreateRenderPipeline(WGVKDevice device, WGVKRenderPipelineDescriptor const * descriptor){
-    WGVKRenderPipeline ret = callocnewpp(WGVKRenderPipelineImpl);
-    return ret;
+    std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
+
+    // Vertex Stage
+    VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+    vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    vertShaderStageInfo.module = reinterpret_cast<WGVKShaderModule>(descriptor->vertex.module)->vulkanModule;
+    vertShaderStageInfo.pName = descriptor->vertex.entryPoint.data; // Assuming null-terminated or careful length handling elsewhere
+    // TODO: Handle constants if necessary via specialization constants
+    // vertShaderStageInfo.pSpecializationInfo = ...;
+    shaderStages.push_back(vertShaderStageInfo);
+
+    // Fragment Stage (Optional)
+    VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
+    if (descriptor->fragment) {
+        fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        fragShaderStageInfo.module = reinterpret_cast<WGVKShaderModule>(descriptor->fragment->module)->vulkanModule;
+        fragShaderStageInfo.pName = descriptor->fragment->entryPoint.data;
+        // TODO: Handle constants
+        // fragShaderStageInfo.pSpecializationInfo = ...;
+        shaderStages.push_back(fragShaderStageInfo);
+    }
+
+    // Vertex Input State
+    std::vector<VkVertexInputBindingDescription> bindingDescriptions(descriptor->vertex.bufferCount);
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
+    uint32_t currentBinding = 0;
+    for (size_t i = 0; i < descriptor->vertex.bufferCount; ++i) {
+        const WGVKVertexBufferLayout* layout = &descriptor->vertex.buffers[i];
+        bindingDescriptions[i].binding = currentBinding; // Assuming bindings are contiguous from 0
+        bindingDescriptions[i].stride = (uint32_t)layout->arrayStride;
+        bindingDescriptions[i].inputRate = toVulkanVertexStepMode(layout->stepMode);
+
+        for (size_t j = 0; j < layout->attributeCount; ++j) {
+            const VertexAttribute* attrib = &layout->attributes[j];
+            VkVertexInputAttributeDescription vkAttrib{};
+            vkAttrib.binding = currentBinding;
+            vkAttrib.location = attrib->shaderLocation;
+            vkAttrib.format = toVulkanVertexFormat(attrib->format);
+            vkAttrib.offset = (uint32_t)attrib->offset;
+            attributeDescriptions.push_back(vkAttrib);
+        }
+        currentBinding++;
+    }
+
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(bindingDescriptions.size());
+    vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions.data();
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+
+    // Input Assembly State
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+    inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssembly.topology = toVulkanPrimitive(descriptor->primitive.topology);
+    inputAssembly.primitiveRestartEnable = VK_FALSE; // WGVK doesn't expose primitive restart? Assume false.
+     // Strip index formats are for degenerate triangles/lines, only matters if topology is strip and primitiveRestart is enabled.
+     // Vulkan handles this via primitiveRestartEnable flag usually. VkIndexType part is handled by vkCmdBindIndexBuffer.
+
+    // Viewport State (Dynamic)
+    VkPipelineViewportStateCreateInfo viewportState{};
+    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportState.viewportCount = 1;
+    viewportState.scissorCount = 1;
+
+    // Rasterization State
+    VkPipelineRasterizationStateCreateInfo rasterizer{};
+    rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizer.depthClampEnable = VK_FALSE; // Usually false unless specific features needed
+    rasterizer.rasterizerDiscardEnable = VK_FALSE;
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL; // Default
+    rasterizer.lineWidth = 1.0f;
+    rasterizer.cullMode =  toVulkanCullMode(descriptor->primitive.cullMode);
+    rasterizer.frontFace = toVulkanFrontFace(descriptor->primitive.frontFace);
+    rasterizer.depthBiasEnable = descriptor->depthStencil ? (descriptor->depthStencil->depthBias != 0 || descriptor->depthStencil->depthBiasSlopeScale != 0.0f || descriptor->depthStencil->depthBiasClamp != 0.0f) : VK_FALSE;
+    rasterizer.depthBiasConstantFactor = descriptor->depthStencil ? (float)descriptor->depthStencil->depthBias : 0.0f;
+    rasterizer.depthBiasClamp = descriptor->depthStencil ? descriptor->depthStencil->depthBiasClamp : 0.0f;
+    rasterizer.depthBiasSlopeFactor = descriptor->depthStencil ? descriptor->depthStencil->depthBiasSlopeScale : 0.0f;
+    // TODO: Handle descriptor->primitive.unclippedDepth (requires VK_EXT_depth_clip_enable or VK 1.3 feature)
+    // If unclippedDepth is true, rasterizer.depthClampEnable should probably be VK_FALSE (confusingly).
+    // Requires checking device features. Assume false for now.
+
+    // Multisample State
+    VkPipelineMultisampleStateCreateInfo multisampling{};
+    multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampling.sampleShadingEnable = VK_FALSE; // Basic case
+    multisampling.rasterizationSamples = (VkSampleCountFlagBits)descriptor->multisample.count; // Assume direct mapping
+    multisampling.minSampleShading = 1.0f;
+    multisampling.pSampleMask = &descriptor->multisample.mask;
+    multisampling.alphaToCoverageEnable = descriptor->multisample.alphaToCoverageEnabled ? VK_TRUE : VK_FALSE;
+    multisampling.alphaToOneEnable = VK_FALSE; // Basic case
+
+    // Depth Stencil State (Optional)
+    VkPipelineDepthStencilStateCreateInfo depthStencil{};
+    depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    if (descriptor->depthStencil) {
+        const WGVKDepthStencilState* ds = descriptor->depthStencil;
+        depthStencil.depthTestEnable = VK_TRUE; // If struct exists, assume depth test is desired
+        depthStencil.depthWriteEnable = ds->depthWriteEnabled ? VK_TRUE : VK_FALSE;
+        depthStencil.depthCompareOp = toVulkanCompareFunction(ds->depthCompare);
+        depthStencil.depthBoundsTestEnable = VK_FALSE; // Not in WGVK descriptor
+        depthStencil.minDepthBounds = 0.0f;
+        depthStencil.maxDepthBounds = 1.0f;
+
+        bool stencilTestRequired =
+            ds->stencilFront.compare != CompareFunction_Undefined || ds->stencilFront.failOp != WGVKStencilOperation_Undefined ||
+            ds->stencilBack.compare != CompareFunction_Undefined || ds->stencilBack.failOp != WGVKStencilOperation_Undefined ||
+            ds->stencilReadMask != 0 || ds->stencilWriteMask != 0;
+
+        depthStencil.stencilTestEnable = stencilTestRequired ? VK_TRUE : VK_FALSE;
+        if(stencilTestRequired) {
+             depthStencil.front.failOp      = toVulkanStencilOperation(ds->stencilFront.failOp);
+             depthStencil.front.passOp      = toVulkanStencilOperation(ds->stencilFront.passOp);
+             depthStencil.front.depthFailOp = toVulkanStencilOperation(ds->stencilFront.depthFailOp);
+             depthStencil.front.compareOp   = toVulkanCompareFunction(ds->stencilFront.compare);
+             depthStencil.front.compareMask = ds->stencilReadMask;
+             depthStencil.front.writeMask   = ds->stencilWriteMask;
+             depthStencil.front.reference   = 0; // Dynamic state usually
+
+             depthStencil.back.failOp       = toVulkanStencilOperation(ds->stencilBack.failOp);
+             depthStencil.back.passOp       = toVulkanStencilOperation(ds->stencilBack.passOp);
+             depthStencil.back.depthFailOp  = toVulkanStencilOperation(ds->stencilBack.depthFailOp);
+             depthStencil.back.compareOp    = toVulkanCompareFunction(ds->stencilBack.compare);
+             depthStencil.back.compareMask  = ds->stencilReadMask;
+             depthStencil.back.writeMask    = ds->stencilWriteMask;
+             depthStencil.back.reference    = 0; // Dynamic state usually
+        }
+    } else {
+        depthStencil.depthTestEnable = VK_FALSE;
+        depthStencil.depthWriteEnable = VK_FALSE;
+        depthStencil.stencilTestEnable = VK_FALSE;
+    }
+
+    // Color Blend State (Requires fragment shader)
+    std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments;
+    VkPipelineColorBlendStateCreateInfo colorBlending{};
+    colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorBlending.logicOpEnable = VK_FALSE;
+    colorBlending.logicOp = VK_LOGIC_OP_COPY; // Optional
+    colorBlending.blendConstants[0] = 0.0f;
+    colorBlending.blendConstants[1] = 0.0f;
+    colorBlending.blendConstants[2] = 0.0f;
+    colorBlending.blendConstants[3] = 0.0f;
+
+    if (descriptor->fragment) {
+        colorBlendAttachments.resize(descriptor->fragment->targetCount);
+        for (size_t i = 0; i < descriptor->fragment->targetCount; ++i) {
+            const WGVKColorTargetState* target = &descriptor->fragment->targets[i];
+            // Defaults for no blending
+            colorBlendAttachments[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT; // TODO: Map WGVKColorWriteMask if exists
+            colorBlendAttachments[i].blendEnable = VK_FALSE;
+            colorBlendAttachments[i].srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+            colorBlendAttachments[i].dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+            colorBlendAttachments[i].colorBlendOp = VK_BLEND_OP_ADD;
+            colorBlendAttachments[i].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+            colorBlendAttachments[i].dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+            colorBlendAttachments[i].alphaBlendOp = VK_BLEND_OP_ADD;
+
+            if (target->blend) {
+                colorBlendAttachments[i].blendEnable = VK_TRUE; // Enable if blend state is provided
+                colorBlendAttachments[i].srcColorBlendFactor = toVulkanBlendFactor(target->blend->color.srcFactor);
+                colorBlendAttachments[i].dstColorBlendFactor = toVulkanBlendFactor(target->blend->color.dstFactor);
+                colorBlendAttachments[i].colorBlendOp = toVulkanBlendOperation(target->blend->color.operation);
+                colorBlendAttachments[i].srcAlphaBlendFactor = toVulkanBlendFactor(target->blend->alpha.srcFactor);
+                colorBlendAttachments[i].dstAlphaBlendFactor = toVulkanBlendFactor(target->blend->alpha.dstFactor);
+                colorBlendAttachments[i].alphaBlendOp = toVulkanBlendOperation(target->blend->alpha.operation);
+            }
+        }
+        colorBlending.attachmentCount = static_cast<uint32_t>(colorBlendAttachments.size());
+        colorBlending.pAttachments = colorBlendAttachments.data();
+    } else {
+        // No fragment shader means no color attachments needed? Check spec.
+        // Typically, rasterizerDiscardEnable would be true if no fragment shader, but let's allow it.
+        colorBlending.attachmentCount = 0;
+        colorBlending.pAttachments = nullptr;
+    }
+
+
+    // Dynamic State
+    std::vector<VkDynamicState> dynamicStates = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR
+        // Add VK_DYNAMIC_STATE_STENCIL_REFERENCE if stencil test is enabled and reference is not fixed
+    };
+    if (depthStencil.stencilTestEnable) {
+       dynamicStates.push_back(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
+    }
+     if (rasterizer.depthBiasEnable) {
+         dynamicStates.push_back(VK_DYNAMIC_STATE_DEPTH_BIAS);
+     }
+
+
+    VkPipelineDynamicStateCreateInfo dynamicState{};
+    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+    dynamicState.pDynamicStates = dynamicStates.data();
+
+    // Pipeline Rendering Info (for dynamic rendering if used, otherwise NULL)
+    // Assuming traditional render passes for now based on WGVK structure.
+    VkPipelineRenderingCreateInfo pipelineRenderingCreateInfo{}; // Zero initialize
+    pipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    // Check if dynamic rendering should be used based on descriptor or device capabilities?
+    // For simplicity, assuming we have a VkRenderPass (not provided here, usually comes from RenderPassEncoder Begin).
+    // If using dynamic rendering, fill format info here. Example:
+    /*
+    std::vector<VkFormat> colorFormats;
+    if (descriptor->fragment) {
+        for(size_t i=0; i < descriptor->fragment->targetCount; ++i) {
+            colorFormats.push_back(translate_PixelFormat_to_vk(descriptor->fragment->targets[i].format));
+        }
+    }
+    pipelineRenderingCreateInfo.colorAttachmentCount = colorFormats.size();
+    pipelineRenderingCreateInfo.pColorAttachmentFormats = colorFormats.data();
+    pipelineRenderingCreateInfo.depthAttachmentFormat = descriptor->depthStencil ? translate_PixelFormat_to_vk(descriptor->depthStencil->format) : VK_FORMAT_UNDEFINED;
+    pipelineRenderingCreateInfo.stencilAttachmentFormat = descriptor->depthStencil ? translate_PixelFormat_to_vk(descriptor->depthStencil->format) : VK_FORMAT_UNDEFINED; // Often same as depth
+    */
+    // We'll assume VkRenderPass is provided externally during vkCreateGraphicsPipelines call for non-dynamic rendering
+
+
+    // Graphics Pipeline Create Info
+    VkGraphicsPipelineCreateInfo pipelineInfo{};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    // pipelineInfo.pNext = &pipelineRenderingCreateInfo; // Only if using dynamic rendering extension (VK_KHR_dynamic_rendering)
+    pipelineInfo.stageCount = static_cast<uint32_t>(shaderStages.size());
+    pipelineInfo.pStages = shaderStages.data();
+    pipelineInfo.pVertexInputState = &vertexInputInfo;
+    pipelineInfo.pInputAssemblyState = &inputAssembly;
+    pipelineInfo.pViewportState = &viewportState;
+    pipelineInfo.pRasterizationState = &rasterizer;
+    pipelineInfo.pMultisampleState = &multisampling;
+    pipelineInfo.pDepthStencilState = (descriptor->depthStencil) ? &depthStencil : nullptr;
+    pipelineInfo.pColorBlendState = (descriptor->fragment) ? &colorBlending : nullptr; // Only if frag shader exists
+    pipelineInfo.pDynamicState = &dynamicState;
+    pipelineInfo.layout = layoutImpl->vulkanLayout;
+
+    // RenderPass needs to be obtained from somewhere, usually associated with the command buffer recording.
+    // WGVK API hides this detail? We might need to use dynamic rendering or query/cache render passes.
+    // Placeholder: Assume renderPass is NULL and we rely on dynamic rendering or compatibility context.
+    pipelineInfo.renderPass = VK_NULL_HANDLE; // Needs a valid VkRenderPass unless VK_KHR_dynamic_rendering is used and enabled.
+    pipelineInfo.subpass = 0; // Assuming subpass 0
+
+    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
+    pipelineInfo.basePipelineIndex = -1; // Optional
+
+
+    WGVKRenderPipelineImpl* pipelineImpl = (WGVKRenderPipelineImpl*)malloc(sizeof(WGVKRenderPipelineImpl));
+    if (!pipelineImpl) {
+        // Handle allocation failure
+        return nullptr;
+    }
+    pipelineImpl->device = device;
+    pipelineImpl->vulkanLayout = layoutImpl->vulkanLayout; // Store for potential use
+
+    VkResult result = vkCreateGraphicsPipelines(deviceImpl->vulkanDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipelineImpl->vulkanPipeline);
+
+    if (result != VK_SUCCESS) {
+        // Handle pipeline creation failure
+        free(pipelineImpl);
+        // Optionally log error based on result code
+        return nullptr;
+    }
+
+    return reinterpret_cast<WGVKRenderPipeline>(pipelineImpl);
 }
 extern "C" void wgvkBindGroupLayoutRelease(WGVKBindGroupLayout bglayout){
     --bglayout->refCount;

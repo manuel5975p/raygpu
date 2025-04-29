@@ -392,7 +392,9 @@ typedef struct WGVKTextureImpl{
     uint32_t mipLevels;
     uint32_t sampleCount;
 }ImageHandleImpl;
-
+typedef struct WGVKShaderModuleImpl{
+    VkShaderModule vulkanModule;
+}WGVKShaderModuleImpl;
 typedef struct WGVKRenderPipelineImpl{
     VkPipeline renderPipeline;
     refcount_type refCount;

@@ -180,18 +180,7 @@ typedef enum WGVKWaitStatus {
     WGVKWaitStatus_Force32 = 0x7FFFFFFF
 } WGVKWaitStatus;
 
-typedef enum WGVKStencilOperation {
-    WGVKStencilOperation_Undefined = 0x00000000,
-    WGVKStencilOperation_Keep = 0x00000001,
-    WGVKStencilOperation_Zero = 0x00000002,
-    WGVKStencilOperation_Replace = 0x00000003,
-    WGVKStencilOperation_Invert = 0x00000004,
-    WGVKStencilOperation_IncrementClamp = 0x00000005,
-    WGVKStencilOperation_DecrementClamp = 0x00000006,
-    WGVKStencilOperation_IncrementWrap = 0x00000007,
-    WGVKStencilOperation_DecrementWrap = 0x00000008,
-    WGVKStencilOperation_Force32 = 0x7FFFFFFF
-} WGVKStencilOperation;
+
 
 typedef enum WGVKSType {
     WGVKSType_ShaderSourceSPIRV = 0x00000001,
@@ -707,7 +696,7 @@ size_t wgvkBufferGetSize(WGVKBuffer buffer);
 void wgvkQueueWriteTexture(WGVKQueue queue, WGVKTexelCopyTextureInfo const * destination, void const * data, size_t dataSize, WGVKTexelCopyBufferLayout const * dataLayout, WGVKExtent3D const * writeSize);
 WGVKBindGroupLayout wgvkDeviceCreateBindGroupLayout(WGVKDevice device, const ResourceTypeDescriptor* entries, uint32_t entryCount);
 WGVKPipelineLayout wgvkDeviceCreatePipelineLayout(WGVKDevice device, const WGVKPipelineLayoutDescriptor* pldesc);
-WGVKRenderPipeline wgpuDeviceCreateRenderPipeline(WGVKDevice device, WGVKRenderPipelineDescriptor const * descriptor);
+WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WGVKRenderPipelineDescriptor const * descriptor);
 
 WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVKBindGroupDescriptor* bgdesc);
 void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup, const WGVKBindGroupDescriptor* bgdesc);
