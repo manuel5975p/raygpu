@@ -2,7 +2,6 @@
 #define WGVK_STRUCTS_IMPL_H
 #include <wgvk.h>
 #include <raygpu.h>
-#include <external/volk.h>
 #include <unordered_set>
 #include <map>
 #include <external/VmaUsage.h>

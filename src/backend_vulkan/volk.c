@@ -1,5 +1,15 @@
 /* This file is part of volk library; see volk.h for version/license details */
 /* clang-format off */
+#if SUPPORT_XLIB_SURFACE == 1
+	#define VK_KHR_xlib_surface
+	#include <X11/Xlib.h>
+	#define VK_NO_PROTOTYPES
+	#include <vulkan/vulkan.h>
+	#include <vulkan/vulkan_xlib.h>
+#endif
+#if SUPPORT_XCB_SURFACE == 1
+
+#endif
 #include <external/volk.h>
 
 #ifdef _WIN32

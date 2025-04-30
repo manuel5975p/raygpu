@@ -1,7 +1,11 @@
 #define RGFW_IMPLEMENTATION
 #define RGFW_USE_XDL
 
-
+#define VK_KHR_xlib_surface
+#define VK_NO_PROTOTYPES
+#include <vulkan/vulkan.h>
+#include <X11/Xlib.h>
+#include <vulkan/vulkan_xlib.h>
 #define Font rlFont
     #include <raygpu.h>
 #undef Font
@@ -228,7 +232,7 @@ const std::array<short, 512> keyMappingRGFW_ = [](){
 #if SUPPORT_VULKAN_BACKEND == 1
     #define RGFW_VULKAN
     #include <X11/Xlib.h>
-    #include <vulkan/vulkan_xlib.h>
+    #include <external/volk.h>
 #else
     #ifdef __EMSCRIPTEN__
         #define RGFW_WASM
@@ -236,10 +240,9 @@ const std::array<short, 512> keyMappingRGFW_ = [](){
 #endif
 #include <external/RGFW.h>
 #include <internals.hpp>
-
 #include <renderstate.hpp>
 #if SUPPORT_VULKAN_BACKEND == 1
-    #include "backend_vulkan/vulkan_internals.hpp"
+    #include <wgvk_structs_impl.h>
 #endif
 #if SUPPORT_VULKAN_BACKEND == 1
 VkBool32 RGFW_getVKPresentationSupport_noinline(VkInstance instance, VkPhysicalDevice pd, uint32_t i){
@@ -282,7 +285,7 @@ extern "C" void* CreateSurfaceForWindow_RGFW(void* windowHandle){
     
     #if SUPPORT_VULKAN_BACKEND == 1
     WGVKSurface retp = callocnew(WGVKSurfaceImpl);
-    RGFW_window_createVKSurface((RGFW_window*)windowHandle, g_vulkanstate.instance->instance, &retp->surface);
+    RGFW_window_createVKSurface((RGFW_window*)windowHandle, ((WGVKInstance)GetInstance())->instance, &retp->surface);
     return retp;
     #else
     WGPUSurface surf = (WGPUSurface)RGFW_GetWGPUSurface(GetInstance(), (RGFW_window*) windowHandle);

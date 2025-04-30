@@ -7,9 +7,10 @@
 #include <renderstate.hpp>
 #include "vulkan_internals.hpp"
 #include <wgvk_structs_impl.h>
-#define RGFW_VULKAN
-//#include <external/RGFW.h>
-
+#if SUPPORT_RGFW == 1
+    #define RGFW_VULKAN
+    #include <external/RGFW.h>
+#endif
 VulkanState g_vulkanstate{};
 
 void BufferData(DescribedBuffer* buffer, void* data, size_t size){
