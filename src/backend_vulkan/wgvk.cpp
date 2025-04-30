@@ -10,11 +10,7 @@ void wgvkTraceLog(int logType, const char *text, ...);
 #include <wgvk.h>
 #include "vulkan_internals.hpp"
 #include <algorithm>
-#include <array>
-#include <numeric>
 #include <external/VmaUsage.h>
-#include <unordered_set>
-#include <set>
 #include <stdarg.h>
 
 
@@ -372,6 +368,31 @@ WGVKFuture wgvkInstanceRequestAdapter(WGVKInstance instance, const WGVKRequestAd
     ret->functionCalledOnWaitAny = wgvkCreateAdapter_impl;
     return ret;
 }
+int cmp_uint32_(const void *a, const void *b) {
+    uint32_t ua = *(const uint32_t *)a;
+    uint32_t ub = *(const uint32_t *)b;
+    if (ua < ub) return -1;
+    if (ua > ub) return 1;
+    return 0;
+}
+
+size_t sort_uniqueuints(uint32_t *arr, size_t count) {
+    if (count <= 1) return count;
+    qsort(arr, count, sizeof(uint32_t), cmp_uint32_);
+    size_t unique_count = 1;
+    for (size_t i = 1; i < count; ++i) {
+        if (arr[i] != arr[unique_count - 1]) {
+            arr[unique_count++] = arr[i];
+        }
+    }
+    return unique_count;
+}
+#define RG_SWAP(a, b) do { \
+    typeof(a) temp = (a); \
+    (a) = (b); \
+    (b) = temp; \
+} while (0)
+
 WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescriptor* descriptor){
     std::pair<WGVKDevice, WGVKQueue> ret{};
     for(uint32_t i = 0;i < descriptor->requiredFeatureCount;i++){
@@ -382,26 +403,20 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
         }
     }
     // Collect unique queue families
-    std::vector<uint32_t> queueFamilies;
-    {
-        std::set<uint32_t> uniqueQueueFamilies;
-
-        uniqueQueueFamilies.insert(adapter->queueIndices.computeIndex);
-        uniqueQueueFamilies.insert(adapter->queueIndices.graphicsIndex);
-        uniqueQueueFamilies.insert(adapter->queueIndices.presentIndex);
-        auto it = uniqueQueueFamilies.find(VK_QUEUE_FAMILY_IGNORED);
-        if(it != uniqueQueueFamilies.end()){
-            uniqueQueueFamilies.erase(it);
-        }
-        // Example: Include computeFamily if it's different
-        queueFamilies = std::vector<uint32_t>(uniqueQueueFamilies.begin(), uniqueQueueFamilies.end());
-    }
+    uint32_t queueFamilies[3] = {
+        adapter->queueIndices.graphicsIndex,
+        adapter->queueIndices.computeIndex,
+        adapter->queueIndices.presentIndex
+    };
+    uint32_t queueFamilyCount = sort_uniqueuints(queueFamilies, 3);
+    
     // Create queue create infos
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
     float queuePriority = 1.0f;
 
-    for (uint32_t queueFamily : queueFamilies) {
-        VkDeviceQueueCreateInfo queueCreateInfo{};
+    for (uint32_t queueFamilyIndex = 0;queueFamilyIndex < queueFamilyCount; queueFamilyIndex++) {
+        uint32_t queueFamily = queueFamilies[queueFamilyIndex]; 
+        VkDeviceQueueCreateInfo queueCreateInfo zeroinit;
         queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
         queueCreateInfo.queueFamilyIndex = queueFamily;
         queueCreateInfo.queueCount = 1;
@@ -411,15 +426,10 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
     
     uint32_t deviceExtensionCount = 0;
     vkEnumerateDeviceExtensionProperties(adapter->physicalDevice, nullptr, &deviceExtensionCount, nullptr);
-    std::vector<VkExtensionProperties> deprops(deviceExtensionCount);
-    vkEnumerateDeviceExtensionProperties(adapter->physicalDevice, nullptr, &deviceExtensionCount, deprops.data());
+    VkExtensionProperties* deprops = (VkExtensionProperties*)RL_CALLOC(deviceExtensionCount, sizeof(VkExtensionProperties));
+    vkEnumerateDeviceExtensionProperties(adapter->physicalDevice, nullptr, &deviceExtensionCount, deprops);
     
-    for(auto e : deprops){
-        //std::cout << e.extensionName << ", ";
-    }
-    // Specify device extensions
-    
-    std::vector<const char *> deviceExtensions = {
+    const char* deviceExtensionsToLookFor[] = {
         #ifndef FORCE_HEADLESS
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         #endif
@@ -432,23 +442,29 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
         VK_KHR_SPIRV_1_4_EXTENSION_NAME,                   // "VK_KHR_spirv_1_4" - required for ray tracing shaders
         VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME,       // "VK_KHR_shader_float_controls" - required by spirv_1_4
         #endif
-        //VK_KHR_VIDEO_QUEUE_EXTENSION_NAME,
-        //VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME,
-        //VK_KHR_VIDEO_DECODE_AV1_EXTENSION_NAME,
-        // Add other required extensions here
     };
-
+    constexpr uint32_t deviceExtensionsToLookForCount = sizeof(deviceExtensionsToLookFor) / sizeof(const char*);
+    
+    const char* deviceExtensionsFound[deviceExtensionsToLookForCount];
+    uint32_t extInsertIndex = 0;
+    for(uint32_t i = 0;i < deviceExtensionsToLookForCount;i++){
+        for(uint32_t j = 0;j < deviceExtensionCount;j++){
+            if(strcmp(deviceExtensionsToLookFor[i], deprops[j].extensionName) == 0){
+                deviceExtensionsFound[extInsertIndex++] = deviceExtensionsToLookFor[i];
+            }
+        }
+    }
     // Specify device features
 
     {
-        VkPhysicalDeviceExtendedDynamicState3PropertiesEXT props{
+        VkPhysicalDeviceExtendedDynamicState3PropertiesEXT props = {
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_PROPERTIES_EXT,
             .pNext = nullptr,
             .dynamicPrimitiveTopologyUnrestricted = VK_TRUE
         };
     }
     
-    VkPhysicalDeviceFeatures2 deviceFeatures{};
+    VkPhysicalDeviceFeatures2 deviceFeatures zeroinit;
     deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     vkGetPhysicalDeviceFeatures2(adapter->physicalDevice, &deviceFeatures);
     TRACELOG(LOG_INFO, "Wide lines are %s", (deviceFeatures.features.wideLines) ? "supported" : "not supported");
@@ -468,8 +484,8 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
     createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
     createInfo.pQueueCreateInfos = queueCreateInfos.data();
 
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
-    createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+    createInfo.enabledExtensionCount = extInsertIndex;
+    createInfo.ppEnabledExtensionNames = deviceExtensionsFound;
 
     createInfo.pEnabledFeatures = &deviceFeatures.features;
     #if VULKAN_ENABLE_RAYTRACING == 1
