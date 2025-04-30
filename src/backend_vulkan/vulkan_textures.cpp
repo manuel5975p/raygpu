@@ -1,3 +1,4 @@
+#include <wgvk_structs_impl.h>
 #include "vulkan_internals.hpp"
 #include <raygpu.h>
 #include <cstddef>
@@ -26,114 +27,7 @@ uint32_t FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, Vk
 }
 
 // Function to create a Vulkan buffer
-VkBuffer CreateBuffer(WGVKDevice device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkDeviceMemory& bufferMemory) {
-    VkBufferCreateInfo bufferInfo{};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = size;
-    bufferInfo.usage = usage;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    
-    VkBuffer buffer;
-    if (vkCreateBuffer(device->device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
-        TRACELOG(LOG_FATAL, "Failed to create buffer!");
-    
-    VkMemoryRequirements memReq;
-    vkGetBufferMemoryRequirements(device->device, buffer, &memReq);
-    
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memReq.size;
-    allocInfo.memoryTypeIndex = FindMemoryType(
-        g_vulkanstate.physicalDevice->physicalDevice, 
-        memReq.memoryTypeBits, 
-        properties
-    );
-    
-    if (vkAllocateMemory(device->device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
-        TRACELOG(LOG_FATAL, "Failed to allocate buffer memory!");
-    
-    vkBindBufferMemory(device->device, buffer, bufferMemory, 0);
-    
-    return buffer;
-}
 
-// Function to create a Vulkan image
-WGVKTexture CreateImage(WGVKDevice device, uint32_t width, uint32_t height, uint32_t sampleCount, uint32_t mipLevelCount, VkFormat format, VkImageUsageFlags usage, VkDeviceMemory& imageMemory) {
-    WGVKTexture ret = callocnew(WGVKTextureImpl);
-
-    VkImageCreateInfo imageInfo{};
-    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imageInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageInfo.extent = { width, height, 1 };
-    imageInfo.mipLevels = mipLevelCount;
-    imageInfo.arrayLayers = 1;
-    imageInfo.format = format;
-    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    imageInfo.usage = usage;
-    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    imageInfo.samples = toVulkanSampleCount(sampleCount);
-    
-    VkImage image;
-    if (vkCreateImage(device->device, &imageInfo, nullptr, &image) != VK_SUCCESS)
-        TRACELOG(LOG_FATAL, "Failed to create image!");
-    
-    VkMemoryRequirements memReq;
-    vkGetImageMemoryRequirements(device->device, image, &memReq);
-    
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memReq.size;
-    allocInfo.memoryTypeIndex = FindMemoryType(
-        g_vulkanstate.physicalDevice->physicalDevice, 
-        memReq.memoryTypeBits, 
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-    );
-    
-    if (vkAllocateMemory(device->device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS){
-        TRACELOG(LOG_FATAL, "Failed to allocate image memory!");
-        //abort();
-    }
-    vkBindImageMemory(device->device, image, imageMemory, 0);
-    ret->image = image;
-    ret->memory = imageMemory;
-    ret->device = device;
-    ret->width = width;
-    ret->height = height;
-    ret->format = format;
-    ret->sampleCount = sampleCount;
-    ret->depthOrArrayLayers = 1;
-    ret->layout = VK_IMAGE_LAYOUT_UNDEFINED;
-    ret->refCount = 1;
-    ret->mipLevels = mipLevelCount;
-    return ret;
-}
-
-// Function to create an image view
-WGVKTextureView CreateImageView(WGVKDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags) {
-    WGVKTextureView ret = callocnew(WGVKTextureViewImpl);
-    VkImageViewCreateInfo viewInfo{};
-    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    viewInfo.image = image;
-    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    viewInfo.format = format;
-    viewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-    viewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-    viewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-    viewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-    viewInfo.subresourceRange.aspectMask = aspectFlags;
-    viewInfo.subresourceRange.baseMipLevel = 0;
-    viewInfo.subresourceRange.levelCount = 1;
-    viewInfo.subresourceRange.baseArrayLayer = 0;
-    viewInfo.subresourceRange.layerCount = 1;
-    
-    VkImageView imageView;
-    if (vkCreateImageView(device->device, &viewInfo, nullptr, &ret->view) != VK_SUCCESS)
-        TRACELOG(LOG_FATAL, "Failed to create image view!");
-    ret->format = viewInfo.format;
-    ret->refCount = 1;
-    return ret;
-}
 
 // Function to begin a single-use command buffer
 VkCommandBuffer transientCommandBuffer{};
@@ -235,44 +129,7 @@ void CopyBufferToImage(WGVKDevice device, VkCommandPool commandPool, VkQueue que
     EndSingleTimeCommandsAndSubmit(device, commandPool, queue, commandBuffer);
 }
 
-// Main function to create Vulkan image from RGBA8 data or as empty
-WGVKTexture CreateVkImage(WGVKDevice device, VkPhysicalDevice physicalDevice, VkCommandPool commandPool, VkQueue queue, 
-                                                const uint8_t* data, uint32_t width, uint32_t height, uint32_t sampleCount,uint32_t mipLevelCount, VkFormat format, VkImageUsageFlags usage, bool hasData) {
-    VkDeviceMemory imageMemory;
-    // Adjust usage flags based on format (e.g., depth formats might need different usages)
-    
-    
-    WGVKTexture image = CreateImage(device, width, height, sampleCount, mipLevelCount, format, usage, imageMemory);
-    
-    if (hasData && data != nullptr) {
-        // Create staging buffer
-        VkDeviceSize imageSize = width * height * 4; // Adjust based on format if necessary
-        VkDeviceMemory stagingMemory;
-        VkBuffer stagingBuffer = CreateBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
-                                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingMemory);
-        
-        // Map and copy data to staging buffer
-        void* mappedData;
-        vkMapMemory(device->device, stagingMemory, 0, imageSize, 0, &mappedData);
-        std::memcpy(mappedData, data, static_cast<size_t>(imageSize));
-        vkUnmapMemory(device->device, stagingMemory);
-        
-        // Transition image layout to TRANSFER_DST_OPTIMAL
-        TransitionImageLayout(device, commandPool, queue, image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-        
-        // Copy buffer to image
-        CopyBufferToImage(device, commandPool, queue, stagingBuffer, image->image, width, height);
-        
-        // Transition image layout to SHADER_READ_ONLY_OPTIMAL
-        TransitionImageLayout(device, commandPool, queue, image, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        
-        // Cleanup staging resources
-        vkDestroyBuffer(device->device, stagingBuffer, nullptr);
-        vkFreeMemory(device->device, stagingMemory, nullptr);
-    }
-    
-    return image;
-}
+
 
 // Generalized LoadTexturePro function
 
@@ -406,7 +263,15 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
         vkCreateCommandPool(g_vulkanstate.device->device, &pci, nullptr, &ret);
         return ret;
     }();
-    static VkFence fence = CreateFence();
+    VkFenceCreateInfo fci = {
+        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+        .pNext = NULL, 
+        .flags = 0
+    };
+    static VkFence fence = VK_NULL_HANDLE;
+    if(fence == VK_NULL_HANDLE){
+        vkCreateFence(g_vulkanstate.device->device, &fci, nullptr, &fence);
+    }
     Image ret zeroinit;
     VkBufferImageCopy region{};
 
@@ -423,7 +288,11 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
     region.imageExtent = VkExtent3D{tex->width, tex->height, 1u};
     VkDeviceMemory bufferMemory{};
     size_t bufferSize = size * tex->width * tex->height;
-    VkBuffer stagingBuffer = CreateBuffer(g_vulkanstate.device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, bufferMemory);
+    WGVKBufferDescriptor bdesc = {
+        .usage = BufferUsage_CopyDst | BufferUsage_CopySrc | BufferUsage_MapWrite,
+        .size = bufferSize 
+    };
+    WGVKBuffer stagingBuffer = wgvkDeviceCreateBuffer(g_vulkanstate.device, &bdesc);
     VkCommandBuffer commandBuffer = BeginSingleTimeCommands(g_vulkanstate.device, transientPool);
     VkImageLayout oldLayout = tex->layout;
     if(oldLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
@@ -433,7 +302,7 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
         commandBuffer,
         tex->image,
         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        stagingBuffer,
+        stagingBuffer->buffer,
         1,
         &region
     );
@@ -474,7 +343,7 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
     }
     vkUnmapMemory(g_vulkanstate.device->device, bufferMemory);
     vkFreeMemory(g_vulkanstate.device->device, bufferMemory, nullptr);
-    vkDestroyBuffer(g_vulkanstate.device->device, stagingBuffer, nullptr);
+    wgvkBufferRelease(stagingBuffer);
     return ret;
 } 
 // Updated LoadTextureFromImage_Vk function using LoadTexturePro

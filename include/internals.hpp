@@ -33,8 +33,7 @@
 #include <algorithm>
 #include <vector>
 
-template<typename T>
-using small_vector = std::vector<T>;
+
 template<typename T>
 struct rl_free_deleter{
     void operator()(T* t)const noexcept{

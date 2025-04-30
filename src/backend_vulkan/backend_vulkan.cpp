@@ -6,6 +6,7 @@
 #include <external/volk.h>
 #include <renderstate.hpp>
 #include "vulkan_internals.hpp"
+#include <wgvk_structs_impl.h>
 #define RGFW_VULKAN
 //#include <external/RGFW.h>
 
@@ -46,7 +47,12 @@ void DummySubmitOnQueue(){
     const uint32_t cacheIndex = g_vulkanstate.device->submittedFrames % framesInFlight;
     const uint32_t submits = g_vulkanstate.queue->syncState[cacheIndex].submits;
     if(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence == 0){
-        g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence = CreateFence();
+        VkFenceCreateInfo vci = {
+            .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+            .pNext = NULL,
+            .flags = 0,
+        };
+        vkCreateFence(g_vulkanstate.device->device, &vci, nullptr, &g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence);
     }
     VkSubmitInfo emptySubmit zeroinit;
     emptySubmit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;

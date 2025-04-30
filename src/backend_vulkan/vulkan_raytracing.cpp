@@ -2,6 +2,7 @@
 #include <macros_and_constants.h>
 #include <vulkan/vulkan.h>
 #include <wgvk.h>
+#include <wgvk_structs_impl.h>
 
 #define X(A) PFN_vk##A fulk##A;
 RTFunctions

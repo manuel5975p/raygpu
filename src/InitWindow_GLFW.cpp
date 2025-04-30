@@ -30,7 +30,7 @@ float calculateScrollScale(int deltaMode) {
 }
 #endif  //
 #if SUPPORT_VULKAN_BACKEND == 1
-#include "backend_vulkan/vulkan_internals.hpp"
+#include <wgvk_structs_impl.h>
 #endif
 void setupGLFWCallbacks(GLFWwindow* window);
 void ResizeCallback(GLFWwindow* window, int width, int height){
@@ -370,7 +370,8 @@ void ToggleFullscreen_GLFW(){
 extern "C" void* CreateSurfaceForWindow_GLFW(void* windowHandle){
     #if SUPPORT_VULKAN_BACKEND == 1
     WGVKSurface retp = callocnew(WGVKSurfaceImpl);
-    glfwCreateWindowSurface(g_vulkanstate.instance->instance, (GLFWwindow*)windowHandle, nullptr, &retp->surface);
+    
+    glfwCreateWindowSurface(((WGVKInstance)GetInstance())->instance, (GLFWwindow*)windowHandle, nullptr, &retp->surface);
     return retp;
     #else
     wgpu::Surface rs = wgpu::glfw::CreateSurfaceForWindow((WGPUInstance)GetInstance(), (GLFWwindow*)windowHandle);

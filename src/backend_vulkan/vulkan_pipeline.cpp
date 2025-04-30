@@ -9,6 +9,7 @@
 #include <spirv_reflect.h>
 #include <enum_translation.h>
 
+#include <wgvk_structs_impl.h>
 extern "C" DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sources){
     DescribedShaderModule ret zeroinit;
     

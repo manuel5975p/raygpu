@@ -14,6 +14,174 @@ void wgvkTraceLog(int logType, const char *text, ...);
 #include <stdarg.h>
 
 
+// WGVK struct implementations
+
+#include <wgvk_structs_impl.h>
+
+// End WGVK struct implementations
+
+
+
+RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescriptor* rpdesc){
+    RenderPassLayout ret{};
+    //ret.colorResolveIndex = VK_ATTACHMENT_UNUSED;
+    
+    if(rpdesc->depthStencilAttachment){
+        rassert(rpdesc->depthStencilAttachment->view, "Depth stencil attachment passed but null view");
+        ret.depthAttachmentPresent = 1U;
+        ret.depthAttachment = AttachmentDescriptor{
+            .format = rpdesc->depthStencilAttachment->view->format, 
+            .sampleCount = rpdesc->depthStencilAttachment->view->sampleCount,
+            .loadop = rpdesc->depthStencilAttachment->depthLoadOp,
+            .storeop = rpdesc->depthStencilAttachment->depthStoreOp
+        };
+    }
+
+    
+    ret.colorAttachmentCount = rpdesc->colorAttachmentCount;
+    rassert(ret.colorAttachmentCount < max_color_attachments, "Too many color attachments");
+    for(uint32_t i = 0;i < rpdesc->colorAttachmentCount;i++){
+        ret.colorAttachments[i] = AttachmentDescriptor{
+            .format = rpdesc->colorAttachments[i].view->format, 
+            .sampleCount = rpdesc->colorAttachments[i].view->sampleCount,
+            .loadop = rpdesc->colorAttachments[i].loadOp,
+            .storeop = rpdesc->colorAttachments[i].storeOp
+        };
+        bool ihasresolve = rpdesc->colorAttachments[i].resolveTarget;
+        if(i > 0){
+            bool iminus1hasresolve = rpdesc->colorAttachments[i - 1].resolveTarget;
+            rassert(ihasresolve == iminus1hasresolve, "Some of the attachments have resolve, others do not, impossible");
+        }
+        if(rpdesc->colorAttachments[i].resolveTarget != 0){
+            //i++;
+            //ret.colorResolveIndex = i;
+            ret.colorResolveAttachments[i] = AttachmentDescriptor{
+                .format = rpdesc->colorAttachments[i].resolveTarget->format, 
+                .sampleCount = rpdesc->colorAttachments[i].resolveTarget->sampleCount,
+                .loadop = rpdesc->colorAttachments[i].loadOp,
+                .storeop = rpdesc->colorAttachments[i].storeOp
+            };
+        }
+    }
+
+    return ret;
+}
+
+LayoutedRenderPass LoadRenderPassFromLayout(WGVKDevice device, RenderPassLayout layout){
+    auto it = device->renderPassCache.find(layout);
+    if(it != device->renderPassCache.end()){
+        return it->second;
+    }
+    TRACELOG(LOG_INFO, "Loading new renderpass");
+    auto transformLambda = [](const AttachmentDescriptor& att){
+        VkAttachmentDescription ret zeroinit;
+        ret.samples    = toVulkanSampleCount(att.sampleCount);
+        ret.format     = att.format;
+        ret.loadOp     = toVulkanLoadOperation(att.loadop);
+        ret.storeOp    = toVulkanStoreOperation(att.storeop);
+        ret.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        ret.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        ret.initialLayout  = (att.loadop == LoadOp_Load ? (is__depth(att.format) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) : (VK_IMAGE_LAYOUT_UNDEFINED));
+        if(is__depth(att.format)){
+            ret.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        }else{
+            ret.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        }
+        return ret;
+    };
+    
+    std::vector<VkAttachmentDescription> allAttachments;
+    uint32_t depthAttachmentIndex = VK_ATTACHMENT_UNUSED; // index for depth attachment if any
+    uint32_t colorResolveIndex = VK_ATTACHMENT_UNUSED; // index for depth attachment if any
+
+    std::transform(
+        layout.colorAttachments, 
+        layout.colorAttachments + layout.colorAttachmentCount, 
+        std::back_inserter(allAttachments), 
+        transformLambda
+    );
+    if(layout.depthAttachmentPresent){
+        depthAttachmentIndex = allAttachments.size();
+        allAttachments.push_back(transformLambda(layout.depthAttachment));
+    }
+    //TODO check if there
+    if(layout.colorAttachmentCount && layout.colorResolveAttachments[0].format){
+        colorResolveIndex = allAttachments.size();
+        std::transform(
+            layout.colorResolveAttachments, 
+            layout.colorResolveAttachments + layout.colorAttachmentCount, 
+            std::back_inserter(allAttachments), 
+            transformLambda
+        );
+    }
+
+    
+    uint32_t colorAttachmentCount = layout.colorAttachmentCount;
+    
+
+    // Set up color attachment references for the subpass.
+    VkAttachmentReference colorRefs[max_color_attachments] = {}; // list of color attachments
+    uint32_t colorIndex = 0;
+    for (uint32_t i = 0; i < layout.colorAttachmentCount; i++) {
+        if (!is__depth(layout.colorAttachments[i].format)) {
+            colorRefs[colorIndex].attachment = i;
+            colorRefs[colorIndex].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            ++colorIndex;
+        }
+    }
+
+    // Set up subpass description.
+    VkSubpassDescription subpass zeroinit;
+    subpass.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount    = colorIndex;
+    subpass.pColorAttachments       = colorIndex ? colorRefs : nullptr;
+
+
+    // Assign depth attachment if present.
+    VkAttachmentReference depthRef = {};
+    if (depthAttachmentIndex != VK_ATTACHMENT_UNUSED) {
+        depthRef.attachment = depthAttachmentIndex;
+        depthRef.layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        subpass.pDepthStencilAttachment = &depthRef;
+    } else {
+        subpass.pDepthStencilAttachment = nullptr;
+    }
+
+    VkAttachmentReference resolveRef = {};
+    if (colorResolveIndex != VK_ATTACHMENT_UNUSED) {
+        resolveRef.attachment = colorResolveIndex;
+        resolveRef.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        subpass.pResolveAttachments = &resolveRef;
+    } else {
+        subpass.pResolveAttachments = nullptr;
+    }
+    
+
+    // Create render pass create info.
+    VkRenderPassCreateInfo rpci = {};
+    rpci.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    rpci.attachmentCount = allAttachments.size();
+    rpci.pAttachments    = allAttachments.data();
+    VkFramebufferCreateInfo fbci;
+
+    rpci.subpassCount    = 1;
+    rpci.pSubpasses      = &subpass;
+    // (Optional: add subpass dependencies if needed.)
+    LayoutedRenderPass ret zeroinit;
+    ret.allAttachments = std::move(allAttachments);
+    VkResult result = vkCreateRenderPass(device->device, &rpci, nullptr, &ret.renderPass);
+    // (Handle errors appropriately in production code)
+    if(result == VK_SUCCESS){
+        device->renderPassCache.emplace(layout, ret);
+        ret.layout = layout;
+        return ret;
+    }
+    TRACELOG(LOG_FATAL, "Error creating renderpass: %s", vkErrorString(result));
+    rg_trap();
+    return ret;
+}
+
+
 
 
 void wgvkTraceLog(int logType, const char *text, ...){
@@ -91,7 +259,18 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 
     return VK_FALSE;
 }
-
+static inline int endswith_(const char* str, const char* suffix) {
+    if (!str || !suffix)
+        return 0;
+        
+    size_t str_len = strlen(str);
+    size_t suffix_len = strlen(suffix);
+    
+    if (suffix_len > str_len)
+        return 0;
+        
+    return strcmp(str + str_len - suffix_len, suffix) == 0;
+}
 WGVKInstance wgvkCreateInstance(const WGVKInstanceDescriptor* descriptor) {
 #if SUPPORT_VULKAN_BACKEND == 0
     fprintf(stderr, "Vulkan backend is not enabled in this build.\n");
@@ -166,7 +345,7 @@ WGVKInstance wgvkCreateInstance(const WGVKInstanceDescriptor* descriptor) {
     uint32_t enabledExtensionCount = 0;
     for (uint32_t i = 0; i < availableExtensionCount; ++i) {
         const char* currentExtName = availableExtensions[i].extensionName;
-        if(strstr(currentExtName, "surface") != NULL || strstr(currentExtName, "debug") != NULL){
+        if(endswith_(currentExtName, "surface") || strstr(currentExtName, "debug") != NULL){
             enabledExtensions[enabledExtensionCount++] = currentExtName;
         }
         int desired = 0;
@@ -2026,6 +2205,16 @@ extern "C" void wgvkCommandEncoderCopyBufferToBuffer  (WGVKCommandEncoder comman
     copy.dstOffset = destinationOffset;
     copy.size = size;
     vkCmdCopyBuffer(commandEncoder->buffer, source->buffer, destination->buffer, 1, &copy);
+    VkBufferMemoryBarrier bufferbarr zeroinit;
+    bufferbarr.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+    bufferbarr.buffer = destination->buffer;
+    bufferbarr.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_TRANSFER_READ_BIT;
+    bufferbarr.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_TRANSFER_READ_BIT;
+    bufferbarr.size = VK_WHOLE_SIZE;
+
+    bufferbarr.dstQueueFamilyIndex = commandEncoder->device->adapter->queueIndices.graphicsIndex;
+    bufferbarr.srcQueueFamilyIndex = commandEncoder->device->adapter->queueIndices.graphicsIndex;
+    vkCmdPipelineBarrier(commandEncoder->buffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, 0, 1, &bufferbarr, 0, 0);
 }
 extern "C" void wgvkCommandEncoderCopyBufferToTexture (WGVKCommandEncoder commandEncoder, WGVKTexelCopyBufferInfo const * source, WGVKTexelCopyTextureInfo const * destination, WGVKExtent3D const * copySize){
     
@@ -2528,6 +2717,120 @@ extern "C" void wgvkPipelineLayoutAddRef(WGVKPipelineLayout pipelineLayout){
 extern "C" void wgvkSamplerAddRef(WGVKSampler sampler){
     ++sampler->refCount;
 }
+SafelyResettableCommandPool::SafelyResettableCommandPool(WGVKDevice p_device) : 
+    pool(VK_NULL_HANDLE),
+    finishingFence(VK_NULL_HANDLE),
+    device(p_device)
+{
+    VkCommandPoolCreateInfo pci zeroinit;
+    pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    pci.queueFamilyIndex = device->adapter->queueIndices.graphicsIndex;
+    VkResult pcr = vkCreateCommandPool(device->device, &pci, nullptr, &pool);
+    if(pcr != VK_SUCCESS){
+        TRACELOG(LOG_ERROR, "Could not create command pool: %s", vkErrorString(pcr));
+    }
+    VkFenceCreateInfo vci zeroinit;
+    vci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    vkCreateFence(device->device, &vci, nullptr, &finishingFence);
+}
+
+void SafelyResettableCommandPool::finish(){
+    VkSubmitInfo sinfo;
+    sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    vkQueueSubmit(device->queue->graphicsQueue, 1, &sinfo, finishingFence);
+}
+
+void SafelyResettableCommandPool::reset(){
+    vkWaitForFences(device->device, 1, &finishingFence, VK_TRUE, uint64_t(1) << 32); // Wait about 4.2 seconds
+    vkResetCommandPool(device->device, pool, 0);
+    std::copy(currentlyInUse.begin(), currentlyInUse.end(), std::back_inserter(availableForUse));
+    currentlyInUse.clear();
+}
+
+
+bool ResourceUsage::contains(WGVKBuffer buffer)const noexcept{
+    return referencedBuffers.find(buffer) != referencedBuffers.end();
+}
+bool ResourceUsage::contains(WGVKTexture texture)const noexcept{
+    return referencedTextures.find(texture) != referencedTextures.end();
+}
+bool ResourceUsage::contains(WGVKTextureView view)const noexcept{
+    return referencedTextureViews.find(view) != referencedTextureViews.end();
+}
+bool ResourceUsage::contains(WGVKBindGroup bindGroup)const noexcept{
+    return referencedBindGroups.find(bindGroup) != referencedBindGroups.end();
+}
+bool ResourceUsage::contains(WGVKBindGroupLayout bindGroupLayout)const noexcept{
+    return referencedBindGroupLayouts.find(bindGroupLayout) != referencedBindGroupLayouts.end();
+}
+bool ResourceUsage::contains(WGVKSampler sampler)const noexcept{
+    return referencedSamplers.find(sampler) != referencedSamplers.end();
+}
+
+void ResourceUsage::track(WGVKBuffer buffer)noexcept{
+    if(!contains(buffer)){
+        ++buffer->refCount;
+        referencedBuffers.insert(buffer);
+    }
+}
+void ResourceUsage::track(WGVKTexture texture)noexcept{
+    if(!contains(texture)){
+        ++texture->refCount;
+        referencedTextures.insert(texture);
+    }
+}
+void ResourceUsage::track(WGVKTextureView view, TextureUsage usage)noexcept{
+    if(!contains(view)){
+        ++view->refCount;
+        referencedTextureViews.emplace(view, usage);
+    }
+}
+void ResourceUsage::track(WGVKBindGroup bindGroup)noexcept{
+    rassert(bindGroup->layout != nullptr, "Layout is nullptr");
+    if(!contains(bindGroup)){
+        ++bindGroup->refCount;
+        referencedBindGroups.insert(bindGroup);
+    }
+}
+void ResourceUsage::track(WGVKBindGroupLayout bindGroupLayout)noexcept{
+    rassert(bindGroupLayout->layout != nullptr, "Layout is nullptr");
+    if(!contains(bindGroupLayout)){
+        ++bindGroupLayout->refCount;
+        referencedBindGroupLayouts.insert(bindGroupLayout);
+    }
+}
+void ResourceUsage::track(WGVKSampler sampler)noexcept{
+    if(!contains(sampler)){
+        ++sampler->refCount;
+        referencedSamplers.insert(sampler);
+    }
+}
+void ResourceUsage::releaseAllAndClear()noexcept{
+    for(auto buffer : referencedBuffers){
+        wgvkBufferRelease(buffer);
+    }
+    for(auto bindGroup : referencedBindGroups){
+        wgvkBindGroupRelease(bindGroup);
+    }
+    for(auto bindGroupLayout : referencedBindGroupLayouts){
+        wgvkBindGroupLayoutRelease(bindGroupLayout);
+    }
+    for(auto texture : referencedTextures){
+        wgvkReleaseTexture(texture);
+    }
+    for(const auto [view, _] : referencedTextureViews){
+        wgvkReleaseTextureView(view);
+    }
+    for(const auto smp : referencedSamplers){
+        wgvkSamplerRelease(smp);
+    }
+    referencedBuffers.clear();
+    referencedTextures.clear();
+    referencedTextureViews.clear();
+    referencedBindGroups.clear();
+    referencedSamplers.clear();
+}
+
 
 extern "C" const char* vkErrorString(int code){
     
