@@ -198,6 +198,9 @@ if(SUPPORT_VULKAN_BACKEND)
     list(APPEND RG_SOURCES "src/backend_vulkan/vma_impl.cpp")
     list(APPEND RG_SOURCES "src/backend_vulkan/wgvk.cpp")
     list(APPEND RG_SOURCES "src/backend_vulkan/volk.c")
+    set_source_files_properties(src/backend_vulkan/volk.c
+        PROPERTIES COMPILE_DEFINITIONS SUPPORT_XLIB_SURFACE=1
+    )
 endif()
 if(SUPPORT_WGPU_BACKEND)
     list(APPEND RG_SOURCES

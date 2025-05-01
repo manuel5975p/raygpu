@@ -10,7 +10,7 @@
 #include <external/volk.h>
 #include <vulkan/vulkan.h>
 #include <SDL3/SDL_vulkan.h>
-#include "backend_vulkan/vulkan_internals.hpp"
+#include <wgvk_structs_impl.h>
 #elif SUPPORT_WGPU_BACKEND == 1 || defined(__EMSCRIPTEN__)
 #include "sdl3webgpu.h"
 #endif
@@ -60,7 +60,7 @@ void Initialize_SDL3(){
 extern "C" void* CreateSurfaceForWindow_SDL3(void* windowHandle){
     #if SUPPORT_VULKAN_BACKEND == 1
     WGVKSurface retp = callocnew(WGVKSurfaceImpl);
-    SDL_Vulkan_CreateSurface((SDL_Window*)windowHandle, g_vulkanstate.instance->instance, nullptr, &retp->surface);
+    SDL_Vulkan_CreateSurface((SDL_Window*)windowHandle, ((WGVKInstance)GetInstance())->instance, nullptr, &retp->surface);
     return retp;
     #else
     return SDL3_GetWGPUSurface((WGPUInstance)GetInstance(), (SDL_Window*)windowHandle);

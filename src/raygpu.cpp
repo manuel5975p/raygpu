@@ -906,14 +906,15 @@ RGAPICXX void EndDrawing(){
     //if(!(g_renderstate.windowFlags & FLAG_HEADLESS))
     //    g_renderstate.drawmutex.unlock();
     uint64_t nanosecondsPerFrame = GetTargetFPS() > 0 ? std::floor(1e9 / GetTargetFPS()) : 0;
-    //std::cout << nanosecondsPerFrame << "\n";
-    uint64_t beginframe_stmp = g_renderstate.last_timestamps[(g_renderstate.total_frames) % 64];
+    uint64_t beginframe_stmp = g_renderstate.last_timestamps[(g_renderstate.total_frames - 1) % 64];
     ++g_renderstate.total_frames;
     g_renderstate.last_timestamps[g_renderstate.total_frames % 64] = NanoTime();
     uint64_t elapsed = NanoTime() - beginframe_stmp;
     if(elapsed & (1ull << 63))return;
-    if(!(g_renderstate.windowFlags & FLAG_VSYNC_HINT) && nanosecondsPerFrame > elapsed && GetTargetFPS() > 0)
-        NanoWait(nanosecondsPerFrame - elapsed);
+    std::cout << elapsed << "\n";
+    std::this_thread::sleep_for(std::chrono::nanoseconds(nanosecondsPerFrame - elapsed));
+    //if(!(g_renderstate.windowFlags & FLAG_VSYNC_HINT) && nanosecondsPerFrame > elapsed && GetTargetFPS() > 0)
+    //    NanoWait(nanosecondsPerFrame - elapsed);
     
     g_renderstate.renderTargetStack.pop();
     //std::this_thread::sleep_for(std::chrono::milliseconds(1000));

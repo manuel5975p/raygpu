@@ -1129,8 +1129,9 @@ extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t he
     ret.surfaceConfig.height = config.width;
     ret.surfaceConfig.format = (PixelFormat)config.format;
     
-    ret.renderTarget = LoadRenderTexture(width, height);
     wgvkSurfaceConfigure((WGVKSurface)ret.surface, &config);
+    WGVKSurface wvS = (WGVKSurface)ret.surface;
+    ret.renderTarget = LoadRenderTexture(wvS->width, wvS->height);
     return ret;
 }
 

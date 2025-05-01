@@ -47,9 +47,9 @@ layout(location = 1) in vec2 offset;
 layout(location = 0) out vec4 coler;
 
 void main() {
-    float dist = length(position);
+    float dist = length(offset);
     //coler = vec4(1.0f / dist, 1.0f / (dist * 3.0f) * (dist * 3.0f), 1.0f / (dist * 3.0f) * (dist * 3.0f), 1.0f);
-    coler = vec4(0.01f / dist, 0.0f, 0.0f, 1.0f);
+    coler = vec4(0.1f / dist, 0.0f, 0.0f, 1.0f);
     gl_Position = vec4(position.xy + offset.xy, 0.0f, 1.0f);
 }
 )";
@@ -135,13 +135,13 @@ void mainloop(void){
     }
 }
 int main(){
-    SetConfigFlags(FLAG_MSAA_4X_HINT);
+    //SetConfigFlags(FLAG_MSAA_4X_HINT);
     //SetConfigFlags(FLAG_STDOUT_TO_FFMPEG);
     //if(headless)
     //    SetConfigFlags(FLAG_HEADLESS);
     //RequestLimit(maxBufferSize, 1ull << 30);
-    InitWindow(3840, 2160, "Compute Shader");
-    SetTargetFPS(0);
+    InitWindow(1600, 900, "Compute Shader");
+    SetTargetFPS(60);
     
     
     std::mt19937_64 gen(53);
@@ -167,7 +167,7 @@ int main(){
         1,1
     };
     for(int i = 0;i < 8;i++){
-        quadpos[i] *= 0.003f;
+        quadpos[i] *= 0.004f;
     }
     quad = GenBufferEx(quadpos, sizeof(quadpos), BufferUsage_Vertex | BufferUsage_CopyDst);
 

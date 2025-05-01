@@ -231,7 +231,6 @@ const std::array<short, 512> keyMappingRGFW_ = [](){
 }();
 #if SUPPORT_VULKAN_BACKEND == 1
     #define RGFW_VULKAN
-    #include <X11/Xlib.h>
     #include <external/volk.h>
 #else
     #ifdef __EMSCRIPTEN__
@@ -296,7 +295,7 @@ extern "C" void* CreateSurfaceForWindow_RGFW(void* windowHandle){
 SubWindow InitWindow_RGFW(int width, int height, const char* title){
     SubWindow ret{};
     ret.type = windowType_rgfw;
-    ret.handle = RGFW_createWindow(title, RGFW_rect{0, 0, width, height}, RGFW_windowCenter);
+    ret.handle = RGFW_createWindow(title, RGFW_rect{0, 0, width, height}, RGFW_windowCenter | RGFW_windowNoInitAPI);
     
     setupRGFWCallbacks((RGFW_window*)ret.handle);
     return ret;
