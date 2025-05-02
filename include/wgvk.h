@@ -97,6 +97,10 @@ typedef WGPURenderPipelineDescriptor WGVKRenderPipelineDescriptor;
 typedef WGPUPipelineLayoutDescriptor WGVKPipelineLayoutDescriptor;
 typedef WGPUBlendComponent WGVKBlendComponent;
 typedef WGPUBlendState WGVKBlendState;
+typedef WGPUFutureWaitInfo WGVKFutureWaitInfo;
+typedef WGPUSurfaceDescriptor WGVKSurfaceDescriptor;
+typedef WGPUComputePipelineDescriptor WGVKComputePipelineDescriptor;
+typedef WGPUWaitStatus WGVKWaitStatus;
 typedef void* WGVKRaytracingPipeline;
 typedef void* WGVKRaytracingPassEncoder;
 typedef void* WGVKBottomLevelAccelerationStructure;
@@ -646,6 +650,13 @@ typedef struct WGVKMultisampleState {
     uint32_t mask;
     Bool32 alphaToCoverageEnabled;
 } WGVKMultisampleState;
+typedef struct WGVKComputeState {
+    WGVKChainedStruct * nextInChain;
+    WGVKShaderModule module;
+    WGVKStringView entryPoint;
+    size_t constantCount;
+    WGVKConstantEntry const * constants;
+} WGVKComputeState;
 
 typedef struct WGVKRenderPipelineDescriptor {
     WGVKChainedStruct* nextInChain;
@@ -657,6 +668,12 @@ typedef struct WGVKRenderPipelineDescriptor {
     WGVKMultisampleState multisample;
     const WGVKFragmentState* fragment;
 } WGVKRenderPipelineDescriptor;
+
+typedef struct WGVKComputePipelineDescriptor {
+    WGVKChainedStruct* nextInChain;
+    WGVKStringView label;
+    WGVKComputeState compute;
+} WGVKComputePipelineDescriptor;
 
 typedef struct WGVKSurfaceConfiguration {
     WGVKChainedStruct* nextInChain;
@@ -723,6 +740,7 @@ void wgvkQueueWriteTexture(WGVKQueue queue, WGVKTexelCopyTextureInfo const * des
 WGVKBindGroupLayout wgvkDeviceCreateBindGroupLayout(WGVKDevice device, const ResourceTypeDescriptor* entries, uint32_t entryCount);
 WGVKPipelineLayout wgvkDeviceCreatePipelineLayout(WGVKDevice device, const WGVKPipelineLayoutDescriptor* pldesc);
 WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WGVKRenderPipelineDescriptor const * descriptor);
+WGVKRenderPipeline wgvkDeviceCreateComputePipeline(WGVKDevice device, WGVKComputePipelineDescriptor const * descriptor);
 
 WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVKBindGroupDescriptor* bgdesc);
 void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup, const WGVKBindGroupDescriptor* bgdesc);

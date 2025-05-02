@@ -1,5 +1,22 @@
+#if SUPPORT_WAYLAND_SURFACE == 1
+    #define VK_KHR_wayland_surface 1 // Define set to 1 for clarity
+#endif
+#if SUPPORT_WAYLAND_SURFACE == 1
+    #define VK_KHR_wayland_surface 1 // Define set to 1 for clarity
+#endif
+#if SUPPORT_WIN32_SURFACE == 1
+    #define VK_KHR_win32_surface 1 // Define set to 1 for clarity
+#endif
+#if SUPPORT_ANDROID_SURFACE == 1
+    #define VK_KHR_android_surface 1 // Define set to 1 for clarity
+#endif
+#if SUPPORT_METAL_SURFACE == 1 // For macOS/iOS using MoltenVK
+    #define VK_EXT_metal_surface 1 // Define set to 1 for clarity (Note: EXT, not KHR)
+#endif
+
+
+
 #if SUPPORT_XLIB_SURFACE == 1
-    #define VK_KHR_xlib_surface 1 // Define set to 1 for clarity
     #include <X11/Xlib.h>
     #define VK_NO_PROTOTYPES
     #include <vulkan/vulkan.h>
@@ -7,7 +24,6 @@
 #endif
 
 #if SUPPORT_WAYLAND_SURFACE == 1
-    #define VK_KHR_wayland_surface 1 // Define set to 1 for clarity
     #include <wayland-client.h>
     #define VK_NO_PROTOTYPES
     #include <vulkan/vulkan.h>
@@ -15,7 +31,6 @@
 #endif
 
 #if SUPPORT_WIN32_SURFACE == 1
-    #define VK_KHR_win32_surface 1 // Define set to 1 for clarity
     #include <windows.h>
     #define VK_NO_PROTOTYPES
     #include <vulkan/vulkan.h>
@@ -23,7 +38,6 @@
 #endif
 
 #if SUPPORT_ANDROID_SURFACE == 1
-    #define VK_KHR_android_surface 1 // Define set to 1 for clarity
     #include <android/native_window.h>
     #define VK_NO_PROTOTYPES
     #include <vulkan/vulkan.h>
@@ -38,6 +52,7 @@
     #include <vulkan/vulkan.h>
     #include <vulkan/vulkan_metal.h>
 #endif
+#include <external/volk.h>
 
 #define Font rlFont
     #include <raygpu.h>
@@ -75,6 +90,8 @@ WGVKSurface wgvkInstanceCreateSurface(WGVKInstance instance, const WGVKSurfaceDe
         case WGVKSType_SurfaceSourceXlibWindow:{
             WGVKSurfaceSourceXlibWindow* xlibSource = (WGVKSurfaceSourceXlibWindow*)descriptor->nextInChain;
             VkXlibSurfaceCreateInfoKHR sci zeroinit;
+            sci.window = (uint64_t)xlibSource->window;
+            sci.dpy = (Display*)xlibSource->display;
             vkCreateXlibSurfaceKHR(
                 instance->instance,
                 &sci,
@@ -84,7 +101,16 @@ WGVKSurface wgvkInstanceCreateSurface(WGVKInstance instance, const WGVKSurfaceDe
             
         }break;
         case WGVKSType_SurfaceSourceWaylandSurface:{
-
+            WGVKSurfaceSourceWaylandSurface* waylandSource = (WGVKSurfaceSourceWaylandSurface*)descriptor->nextInChain;
+            VkWaylandSurfaceCreateInfoKHR sci zeroinit;
+            sci.surface = (wl_surface*)waylandSource->surface;
+            sci.display = (wl_display*)waylandSource->display;
+            vkCreateWaylandSurfaceKHR(
+                instance->instance,
+                &sci,
+                nullptr,
+                &ret->surface
+            );
         }break;
         case WGVKSType_SurfaceSourceAndroidNativeWindow:{
 
@@ -99,6 +125,7 @@ WGVKSurface wgvkInstanceCreateSurface(WGVKInstance instance, const WGVKSurfaceDe
             rassert(false, "Invalid SType for SurfaceDescriptor.nextInChain");
         }
     }
+    return ret;
 }
 
 
@@ -605,7 +632,7 @@ void wgvkCreateAdapter_impl(void* userdata_v){
     };
 
     for(uint32_t i = 0;i < QueueFamilyPropertyCount;i++){
-        if(adapter->queueIndices.graphicsIndex == VK_QUEUE_FAMILY_IGNORED && (props[i].queueCount & VK_QUEUE_GRAPHICS_BIT) && (props[i].queueCount & VK_QUEUE_COMPUTE_BIT)){
+        if(adapter->queueIndices.graphicsIndex == VK_QUEUE_FAMILY_IGNORED && (props[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) && (props[i].queueFlags & VK_QUEUE_COMPUTE_BIT)){
             adapter->queueIndices.graphicsIndex = i;
             adapter->queueIndices.computeIndex = i;
             adapter->queueIndices.transferIndex = i;
@@ -726,7 +753,6 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
     VkPhysicalDeviceFeatures2 deviceFeatures zeroinit;
     deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     vkGetPhysicalDeviceFeatures2(adapter->physicalDevice, &deviceFeatures);
-    TRACELOG(LOG_INFO, "Wide lines are %s", (deviceFeatures.features.wideLines) ? "supported" : "not supported");
 
     VkDeviceCreateInfo createInfo zeroinit;
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -763,12 +789,10 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
     accelerationrStructureFeatures.pNext = &pipelineFeatures;
     #endif
     
-    
-    
-    
     // (Optional) Enable validation layers for device-specific debugging
     ret.first = callocnewpp(WGVKDeviceImpl);
     ret.second = callocnewpp(WGVKQueueImpl);
+
     VkResult dcresult = vkCreateDevice(adapter->physicalDevice, &createInfo, nullptr, &(ret.first->device));
     if (dcresult != VK_SUCCESS) {
         TRACELOG(LOG_FATAL, "Failed to create logical device!");
@@ -1982,7 +2006,7 @@ RGAPICXX WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WG
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
 
     // Vertex Stage
-    VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+    VkPipelineShaderStageCreateInfo vertShaderStageInfo zeroinit;
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
     vertShaderStageInfo.module = reinterpret_cast<WGVKShaderModule>(descriptor->vertex.module)->vulkanModule;
@@ -1992,7 +2016,7 @@ RGAPICXX WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WG
     shaderStages.push_back(vertShaderStageInfo);
 
     // Fragment Stage (Optional)
-    VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
+    VkPipelineShaderStageCreateInfo fragShaderStageInfo zeroinit;
     if (descriptor->fragment) {
         fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -2025,7 +2049,7 @@ RGAPICXX WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WG
         currentBinding++;
     }
 
-    VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo zeroinit;
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(bindingDescriptions.size());
     vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions.data();
@@ -2033,7 +2057,7 @@ RGAPICXX WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WG
     vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
     // Input Assembly State
-    VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly zeroinit;
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     inputAssembly.topology = toVulkanPrimitive(descriptor->primitive.topology);
     inputAssembly.primitiveRestartEnable = VK_FALSE; // WGVK doesn't expose primitive restart? Assume false.
@@ -2041,13 +2065,13 @@ RGAPICXX WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WG
      // Vulkan handles this via primitiveRestartEnable flag usually. VkIndexType part is handled by vkCmdBindIndexBuffer.
 
     // Viewport State (Dynamic)
-    VkPipelineViewportStateCreateInfo viewportState{};
+    VkPipelineViewportStateCreateInfo viewportState zeroinit;
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewportState.viewportCount = 1;
     viewportState.scissorCount = 1;
 
     // Rasterization State
-    VkPipelineRasterizationStateCreateInfo rasterizer{};
+    VkPipelineRasterizationStateCreateInfo rasterizer zeroinit;
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizer.depthClampEnable = VK_FALSE; // Usually false unless specific features needed
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
@@ -2064,7 +2088,7 @@ RGAPICXX WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WG
     // Requires checking device features. Assume false for now.
 
     // Multisample State
-    VkPipelineMultisampleStateCreateInfo multisampling{};
+    VkPipelineMultisampleStateCreateInfo multisampling zeroinit;
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable = VK_FALSE; // Basic case
     multisampling.rasterizationSamples = (VkSampleCountFlagBits)descriptor->multisample.count; // Assume direct mapping
@@ -2074,7 +2098,7 @@ RGAPICXX WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WG
     multisampling.alphaToOneEnable = VK_FALSE; // Basic case
 
     // Depth Stencil State (Optional)
-    VkPipelineDepthStencilStateCreateInfo depthStencil{};
+    VkPipelineDepthStencilStateCreateInfo depthStencil zeroinit;
     depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     if (descriptor->depthStencil) {
         const WGVKDepthStencilState* ds = descriptor->depthStencil;
@@ -2092,21 +2116,21 @@ RGAPICXX WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WG
 
         depthStencil.stencilTestEnable = stencilTestRequired ? VK_TRUE : VK_FALSE;
         if(stencilTestRequired) {
-             depthStencil.front.failOp      = toVulkanStencilOperation(ds->stencilFront.failOp);
-             depthStencil.front.passOp      = toVulkanStencilOperation(ds->stencilFront.passOp);
-             depthStencil.front.depthFailOp = toVulkanStencilOperation(ds->stencilFront.depthFailOp);
-             depthStencil.front.compareOp   = toVulkanCompareFunction(ds->stencilFront.compare);
-             depthStencil.front.compareMask = ds->stencilReadMask;
-             depthStencil.front.writeMask   = ds->stencilWriteMask;
-             depthStencil.front.reference   = 0; // Dynamic state usually
+            depthStencil.front.failOp      = toVulkanStencilOperation(ds->stencilFront.failOp);
+            depthStencil.front.passOp      = toVulkanStencilOperation(ds->stencilFront.passOp);
+            depthStencil.front.depthFailOp = toVulkanStencilOperation(ds->stencilFront.depthFailOp);
+            depthStencil.front.compareOp   = toVulkanCompareFunction(ds->stencilFront.compare);
+            depthStencil.front.compareMask = ds->stencilReadMask;
+            depthStencil.front.writeMask   = ds->stencilWriteMask;
+            depthStencil.front.reference   = 0; // Dynamic state usually
 
-             depthStencil.back.failOp       = toVulkanStencilOperation(ds->stencilBack.failOp);
-             depthStencil.back.passOp       = toVulkanStencilOperation(ds->stencilBack.passOp);
-             depthStencil.back.depthFailOp  = toVulkanStencilOperation(ds->stencilBack.depthFailOp);
-             depthStencil.back.compareOp    = toVulkanCompareFunction(ds->stencilBack.compare);
-             depthStencil.back.compareMask  = ds->stencilReadMask;
-             depthStencil.back.writeMask    = ds->stencilWriteMask;
-             depthStencil.back.reference    = 0; // Dynamic state usually
+            depthStencil.back.failOp       = toVulkanStencilOperation(ds->stencilBack.failOp);
+            depthStencil.back.passOp       = toVulkanStencilOperation(ds->stencilBack.passOp);
+            depthStencil.back.depthFailOp  = toVulkanStencilOperation(ds->stencilBack.depthFailOp);
+            depthStencil.back.compareOp    = toVulkanCompareFunction(ds->stencilBack.compare);
+            depthStencil.back.compareMask  = ds->stencilReadMask;
+            depthStencil.back.writeMask    = ds->stencilWriteMask;
+            depthStencil.back.reference    = 0; // Dynamic state usually
         }
     } else {
         depthStencil.depthTestEnable = VK_FALSE;
@@ -2116,7 +2140,7 @@ RGAPICXX WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WG
 
     // Color Blend State (Requires fragment shader)
     std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments;
-    VkPipelineColorBlendStateCreateInfo colorBlending{};
+    VkPipelineColorBlendStateCreateInfo colorBlending zeroinit;
     colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     colorBlending.logicOpEnable = VK_FALSE;
     colorBlending.logicOp = VK_LOGIC_OP_COPY; // Optional
@@ -2173,7 +2197,7 @@ RGAPICXX WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WG
      }
 
 
-    VkPipelineDynamicStateCreateInfo dynamicState{};
+    VkPipelineDynamicStateCreateInfo dynamicState zeroinit;
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
     dynamicState.pDynamicStates = dynamicStates.data();
@@ -2201,7 +2225,7 @@ RGAPICXX WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WG
 
 
     // Graphics Pipeline Create Info
-    VkGraphicsPipelineCreateInfo pipelineInfo{};
+    VkGraphicsPipelineCreateInfo pipelineInfo zeroinit;
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     // pipelineInfo.pNext = &pipelineRenderingCreateInfo; // Only if using dynamic rendering extension (VK_KHR_dynamic_rendering)
     pipelineInfo.stageCount = static_cast<uint32_t>(shaderStages.size());
@@ -2239,7 +2263,7 @@ RGAPICXX WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WG
 
     if (result != VK_SUCCESS) {
         // Handle pipeline creation failure
-        free(pipelineImpl);
+        RL_FREE(pipelineImpl);
         // Optionally log error based on result code
         return nullptr;
     }

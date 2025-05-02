@@ -18,10 +18,11 @@ int main(){
     vkEnumerateInstanceLayerProperties(&propertyCount, props);
 
     WGVKInstanceLayerSelection lsel = {0};
+
     for(uint32_t i = 0;i < propertyCount;i++){
         if(strstr(props[i].layerName, "validation") != NULL){
             lsel.instanceLayerCount = 1;
-            lsel.instanceLayers = &(props[i].layerName);
+            lsel.instanceLayers = (const char* const *)(&(props[i].layerName));
             break;
         }
     }

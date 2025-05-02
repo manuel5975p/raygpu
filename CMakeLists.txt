@@ -191,7 +191,10 @@ set(RG_SOURCES
     "include/enum_translation.h"
 )
 if(SUPPORT_VULKAN_BACKEND)
-    
+    add_library(wgvk_standalone STATIC "src/backend_vulkan/wgvk.cpp" "src/backend_vulkan/vma_impl.cpp" "src/backend_vulkan/volk.c")
+
+    target_include_directories(wgvk_standalone PUBLIC "include" "amalgamation/vulkan_headers/include")
+    target_compile_definitions(wgvk_standalone PUBLIC SUPPORT_VULKAN_BACKEND=1)
     list(APPEND RG_SOURCES "src/backend_vulkan/vulkan_textures.cpp")
     list(APPEND RG_SOURCES "src/backend_vulkan/vulkan_pipeline.cpp")
     list(APPEND RG_SOURCES "src/backend_vulkan/vulkan_raytracing.cpp")
@@ -208,23 +211,23 @@ if(SUPPORT_VULKAN_BACKEND)
     
     # Windows Surface (Win32)
     if(WIN32)
-        set_property(SOURCE ${TARGET_SOURCE_FILE} APPEND PROPERTY
-            COMPILE_DEFINITIONS SUPPORT_WIN32_SURFACE=1)
+        set_property(SOURCE ${TARGET_SOURCE_FILE} APPEND PROPERTY COMPILE_DEFINITIONS SUPPORT_WIN32_SURFACE=1)
+        target_compile_definitions(wgvk_standalone PUBLIC SUPPORT_WIN32_SURFACE=1)
         # Note: No extra find_package needed; headers are part of Windows SDK
     endif()
     
     # Apple Surface (Metal/MoltenVK via CAMetalLayer)
     if(APPLE)
         # Metal.framework is usually implicitly available on Apple platforms
-        set_property(SOURCE ${TARGET_SOURCE_FILE} APPEND PROPERTY
-            COMPILE_DEFINITIONS SUPPORT_METAL_SURFACE=1)
+        set_property(SOURCE ${TARGET_SOURCE_FILE} APPEND PROPERTY COMPILE_DEFINITIONS SUPPORT_METAL_SURFACE=1)
+        target_compile_definitions(wgvk_standalone PUBLIC SUPPORT_METAL_SURFACE=1)
         # You might need: find_library(METAL_LIBRARY Metal) and link it later
     endif()
     
     # Android Surface
     if(ANDROID)
-        set_property(SOURCE ${TARGET_SOURCE_FILE} APPEND PROPERTY
-            COMPILE_DEFINITIONS SUPPORT_ANDROID_SURFACE=1)
+        set_property(SOURCE ${TARGET_SOURCE_FILE} APPEND PROPERTY COMPILE_DEFINITIONS SUPPORT_ANDROID_SURFACE=1)
+        target_compile_definitions(wgvk_standalone PUBLIC SUPPORT_ANDROID_SURFACE=1)
         # Note: No extra find_package needed; headers are part of Android NDK
     endif()
     
@@ -233,8 +236,8 @@ if(SUPPORT_VULKAN_BACKEND)
         # Wayland Check
         pkg_check_modules(WAYLAND_CLIENT QUIET wayland-client)
         if(WAYLAND_CLIENT_FOUND)
-            set_property(SOURCE ${TARGET_SOURCE_FILE} APPEND PROPERTY
-                COMPILE_DEFINITIONS SUPPORT_WAYLAND_SURFACE=1)
+            set_property(SOURCE ${TARGET_SOURCE_FILE} APPEND PROPERTY COMPILE_DEFINITIONS SUPPORT_WAYLAND_SURFACE=1)
+            target_compile_definitions(wgvk_standalone PUBLIC SUPPORT_WAYLAND_SURFACE=1)
             # Ensure WAYLAND_CLIENT_INCLUDE_DIRS and WAYLAND_CLIENT_LIBRARIES are used later
             # target_include_directories(YourTarget PRIVATE ${WAYLAND_CLIENT_INCLUDE_DIRS})
             # target_link_libraries(YourTarget PRIVATE ${WAYLAND_CLIENT_LIBRARIES})
@@ -243,8 +246,8 @@ if(SUPPORT_VULKAN_BACKEND)
         # X11 Check (Xlib)
         find_package(X11 QUIET)
         if(X11_FOUND)
-            set_property(SOURCE ${TARGET_SOURCE_FILE} APPEND PROPERTY
-                COMPILE_DEFINITIONS SUPPORT_XLIB_SURFACE=1)
+            set_property(SOURCE ${TARGET_SOURCE_FILE} APPEND PROPERTY COMPILE_DEFINITIONS SUPPORT_XLIB_SURFACE=1)
+            target_compile_definitions(wgvk_standalone PUBLIC SUPPORT_XLIB_SURFACE=1)
             # Ensure X11_INCLUDE_DIR and X11_LIBRARIES are used later
             # target_include_directories(YourTarget PRIVATE ${X11_INCLUDE_DIR})
             # target_link_libraries(YourTarget PRIVATE ${X11_LIBRARIES})
@@ -383,7 +386,6 @@ if(EMSCRIPTEN)
     endif()
     #target_include_directories(raygpu PUBLIC "${CMAKE_CURRENT_LIST_DIR}/dawn/include" "${CMAKE_CURRENT_LIST_DIR}/dawn/src")
 else()
-
     if(SUPPORT_GLSL_PARSER)
         target_link_libraries(raygpu PUBLIC glslang)
     endif()
@@ -428,7 +430,9 @@ endif()
 #target_compile_features(example PUBLIC cxx_std_20)
 #target_link_libraries(example PUBLIC raygpu)
 #if(CMAKE_BUILD_TYPE MATCHES Debug)
-#    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+if(RAYGPU_USE_LLD)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fuse-ld=lld")
+endif()
 #endif()
 if(EMSCRIPTEN)
     set(CMAKE_EXECUTABLE_SUFFIX ".html") # This line is used to set your executable to build with the emscripten html template so that you can directly open it.
