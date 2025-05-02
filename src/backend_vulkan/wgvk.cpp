@@ -75,18 +75,63 @@ void wgvkTraceLog(int logType, const char *text, ...);
 #include <wgvk_structs_impl.h>
 
 // End WGVK struct implementations
+struct key_value_pair{
+    void* key;
+    uint64_t value;
+};
+
+typedef struct ptr_hash_map{
+    uint64_t current_size;
+    key_value_pair* table;
+    union{
+        uint64_t current_capacity;
+        uint64_t inline_buffer[6];
+    };
+}ptr_hash_map;
+constexpr size_t sdfsdf = sizeof(ptr_hash_map);
+#define PHMAPI static inline
+
+PHMAPI void phm_init(ptr_hash_map* map){
+    *map = CLITERAL(ptr_hash_map){0};
+}
+PHMAPI void phm_put(ptr_hash_map* map, void* key, uint64_t value){
+    if(map->current_size < 3){
+        key_value_pair* ilb = (key_value_pair*)map->inline_buffer;
+        for(uint32_t i = 0;i < 3;i++){
+            if(ilb[i].key == key){
+                ilb[i].value = value;
+                break;
+            }
+        }
+        ilb[map->current_size++] = CLITERAL(key_value_pair){
+            .key = key,
+            .value = value
+        };
+    }
+    else{
+        
+    }
+}
+
+
+
 
 WGVKSurface wgvkInstanceCreateSurface(WGVKInstance instance, const WGVKSurfaceDescriptor* descriptor){
     rassert(descriptor->nextInChain, "SurfaceDescriptor must have a nextInChain");
     WGVKSurface ret = callocnewpp(WGVKSurfaceImpl);
 
     switch(descriptor->nextInChain->sType){
+        #if SUPPORT_METAL_SURFACE
         case WGVKSType_SurfaceSourceMetalLayer:{
 
         }break;
+        #endif
+        #if SUPPORT_WIN32_SURFACE
         case WGVKSType_SurfaceSourceWindowsHWND:{
 
         }break;
+        #endif
+        #if SUPPORT_XLIB_SURFACE
         case WGVKSType_SurfaceSourceXlibWindow:{
             WGVKSurfaceSourceXlibWindow* xlibSource = (WGVKSurfaceSourceXlibWindow*)descriptor->nextInChain;
             VkXlibSurfaceCreateInfoKHR sci zeroinit;
@@ -100,6 +145,9 @@ WGVKSurface wgvkInstanceCreateSurface(WGVKInstance instance, const WGVKSurfaceDe
             );
             
         }break;
+        #endif
+
+        #if SUPPORT_WAYLAND_SURFACE
         case WGVKSType_SurfaceSourceWaylandSurface:{
             WGVKSurfaceSourceWaylandSurface* waylandSource = (WGVKSurfaceSourceWaylandSurface*)descriptor->nextInChain;
             VkWaylandSurfaceCreateInfoKHR sci zeroinit;
@@ -112,17 +160,20 @@ WGVKSurface wgvkInstanceCreateSurface(WGVKInstance instance, const WGVKSurfaceDe
                 &ret->surface
             );
         }break;
-        case WGVKSType_SurfaceSourceAndroidNativeWindow:{
+        #endif
 
+        #if SUPPORT_ANDROID_SURFACE
+        case WGVKSType_SurfaceSourceAndroidNativeWindow:{
+            
         }break;
+        #endif
+        #if SUPPORT_XCB_SURFACE
         case WGVKSType_SurfaceSourceXCBWindow:{
 
         }break;
-        case WGVKSType_SurfaceColorManagement:{
-
-        }break;
+        #endif
         default:{
-            rassert(false, "Invalid SType for SurfaceDescriptor.nextInChain");
+            rassert(false, "Unsupported SType for SurfaceDescriptor.nextInChain");
         }
     }
     return ret;
@@ -2309,6 +2360,8 @@ extern "C" void wgvkCommandEncoderCopyBufferToBuffer  (WGVKCommandEncoder comman
     copy.dstOffset = destinationOffset;
     copy.size = size;
     vkCmdCopyBuffer(commandEncoder->buffer, source->buffer, destination->buffer, 1, &copy);
+    
+    VkMemoryBarrier memoryBarrier zeroinit;
     VkBufferMemoryBarrier bufferbarr zeroinit;
     bufferbarr.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
     bufferbarr.buffer = destination->buffer;
