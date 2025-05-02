@@ -1,3 +1,44 @@
+#if SUPPORT_XLIB_SURFACE == 1
+    #define VK_KHR_xlib_surface 1 // Define set to 1 for clarity
+    #include <X11/Xlib.h>
+    #define VK_NO_PROTOTYPES
+    #include <vulkan/vulkan.h>
+    #include <vulkan/vulkan_xlib.h>
+#endif
+
+#if SUPPORT_WAYLAND_SURFACE == 1
+    #define VK_KHR_wayland_surface 1 // Define set to 1 for clarity
+    #include <wayland-client.h>
+    #define VK_NO_PROTOTYPES
+    #include <vulkan/vulkan.h>
+    #include <vulkan/vulkan_wayland.h>
+#endif
+
+#if SUPPORT_WIN32_SURFACE == 1
+    #define VK_KHR_win32_surface 1 // Define set to 1 for clarity
+    #include <windows.h>
+    #define VK_NO_PROTOTYPES
+    #include <vulkan/vulkan.h>
+    #include <vulkan/vulkan_win32.h>
+#endif
+
+#if SUPPORT_ANDROID_SURFACE == 1
+    #define VK_KHR_android_surface 1 // Define set to 1 for clarity
+    #include <android/native_window.h>
+    #define VK_NO_PROTOTYPES
+    #include <vulkan/vulkan.h>
+    #include <vulkan/vulkan_android.h>
+#endif
+
+#if SUPPORT_METAL_SURFACE == 1 // For macOS/iOS using MoltenVK
+    #define VK_EXT_metal_surface 1 // Define set to 1 for clarity (Note: EXT, not KHR)
+    // No specific native C header needed here usually, CAMetalLayer is often handled via void*
+    // If Objective-C interop is used elsewhere, #import <Metal/Metal.h> would be needed there.
+    #define VK_NO_PROTOTYPES
+    #include <vulkan/vulkan.h>
+    #include <vulkan/vulkan_metal.h>
+#endif
+
 #define Font rlFont
     #include <raygpu.h>
 #undef Font
@@ -20,6 +61,45 @@ void wgvkTraceLog(int logType, const char *text, ...);
 
 // End WGVK struct implementations
 
+WGVKSurface wgvkInstanceCreateSurface(WGVKInstance instance, const WGVKSurfaceDescriptor* descriptor){
+    rassert(descriptor->nextInChain, "SurfaceDescriptor must have a nextInChain");
+    WGVKSurface ret = callocnewpp(WGVKSurfaceImpl);
+
+    switch(descriptor->nextInChain->sType){
+        case WGVKSType_SurfaceSourceMetalLayer:{
+
+        }break;
+        case WGVKSType_SurfaceSourceWindowsHWND:{
+
+        }break;
+        case WGVKSType_SurfaceSourceXlibWindow:{
+            WGVKSurfaceSourceXlibWindow* xlibSource = (WGVKSurfaceSourceXlibWindow*)descriptor->nextInChain;
+            VkXlibSurfaceCreateInfoKHR sci zeroinit;
+            vkCreateXlibSurfaceKHR(
+                instance->instance,
+                &sci,
+                nullptr,
+                &ret->surface
+            );
+            
+        }break;
+        case WGVKSType_SurfaceSourceWaylandSurface:{
+
+        }break;
+        case WGVKSType_SurfaceSourceAndroidNativeWindow:{
+
+        }break;
+        case WGVKSType_SurfaceSourceXCBWindow:{
+
+        }break;
+        case WGVKSType_SurfaceColorManagement:{
+
+        }break;
+        default:{
+            rassert(false, "Invalid SType for SurfaceDescriptor.nextInChain");
+        }
+    }
+}
 
 
 RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescriptor* rpdesc){

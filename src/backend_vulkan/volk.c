@@ -1,15 +1,46 @@
 /* This file is part of volk library; see volk.h for version/license details */
 /* clang-format off */
 #if SUPPORT_XLIB_SURFACE == 1
-	#define VK_KHR_xlib_surface
-	#include <X11/Xlib.h>
-	#define VK_NO_PROTOTYPES
-	#include <vulkan/vulkan.h>
-	#include <vulkan/vulkan_xlib.h>
+    #define VK_KHR_xlib_surface 1 // Define set to 1 for clarity
+    #include <X11/Xlib.h>
+    #define VK_NO_PROTOTYPES
+    #include <vulkan/vulkan.h>
+    #include <vulkan/vulkan_xlib.h>
 #endif
-#if SUPPORT_XCB_SURFACE == 1
 
+#if SUPPORT_WAYLAND_SURFACE == 1
+    #define VK_KHR_wayland_surface 1 // Define set to 1 for clarity
+    #include <wayland-client.h>
+    #define VK_NO_PROTOTYPES
+    #include <vulkan/vulkan.h>
+    #include <vulkan/vulkan_wayland.h>
 #endif
+
+#if SUPPORT_WIN32_SURFACE == 1
+    #define VK_KHR_win32_surface 1 // Define set to 1 for clarity
+    #include <windows.h>
+    #define VK_NO_PROTOTYPES
+    #include <vulkan/vulkan.h>
+    #include <vulkan/vulkan_win32.h>
+#endif
+
+#if SUPPORT_ANDROID_SURFACE == 1
+    #define VK_KHR_android_surface 1 // Define set to 1 for clarity
+    #include <android/native_window.h>
+    #define VK_NO_PROTOTYPES
+    #include <vulkan/vulkan.h>
+    #include <vulkan/vulkan_android.h>
+#endif
+
+#if SUPPORT_METAL_SURFACE == 1 // For macOS/iOS using MoltenVK
+    #define VK_EXT_metal_surface 1 // Define set to 1 for clarity (Note: EXT, not KHR)
+    // No specific native C header needed here usually, CAMetalLayer is often handled via void*
+    // If Objective-C interop is used elsewhere, #import <Metal/Metal.h> would be needed there.
+    #define VK_NO_PROTOTYPES
+    #include <vulkan/vulkan.h>
+    #include <vulkan/vulkan_metal.h>
+#endif
+
 #include <external/volk.h>
 
 #ifdef _WIN32

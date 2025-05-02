@@ -191,6 +191,7 @@ set(RG_SOURCES
     "include/enum_translation.h"
 )
 if(SUPPORT_VULKAN_BACKEND)
+    
     list(APPEND RG_SOURCES "src/backend_vulkan/vulkan_textures.cpp")
     list(APPEND RG_SOURCES "src/backend_vulkan/vulkan_pipeline.cpp")
     list(APPEND RG_SOURCES "src/backend_vulkan/vulkan_raytracing.cpp")
@@ -198,9 +199,58 @@ if(SUPPORT_VULKAN_BACKEND)
     list(APPEND RG_SOURCES "src/backend_vulkan/vma_impl.cpp")
     list(APPEND RG_SOURCES "src/backend_vulkan/wgvk.cpp")
     list(APPEND RG_SOURCES "src/backend_vulkan/volk.c")
-    set_source_files_properties(src/backend_vulkan/volk.c
-        PROPERTIES COMPILE_DEFINITIONS SUPPORT_XLIB_SURFACE=1
-    )
+    
+    # Find pkg-config quietly (needed for Wayland/X11 checks)
+    find_package(PkgConfig QUIET)
+    
+    # Target source file to potentially add definitions to
+    set(TARGET_SOURCE_FILE src/backend_vulkan/volk.c src/backend_vulkan/wgvk.cpp)
+    
+    # Windows Surface (Win32)
+    if(WIN32)
+        set_property(SOURCE ${TARGET_SOURCE_FILE} APPEND PROPERTY
+            COMPILE_DEFINITIONS SUPPORT_WIN32_SURFACE=1)
+        # Note: No extra find_package needed; headers are part of Windows SDK
+    endif()
+    
+    # Apple Surface (Metal/MoltenVK via CAMetalLayer)
+    if(APPLE)
+        # Metal.framework is usually implicitly available on Apple platforms
+        set_property(SOURCE ${TARGET_SOURCE_FILE} APPEND PROPERTY
+            COMPILE_DEFINITIONS SUPPORT_METAL_SURFACE=1)
+        # You might need: find_library(METAL_LIBRARY Metal) and link it later
+    endif()
+    
+    # Android Surface
+    if(ANDROID)
+        set_property(SOURCE ${TARGET_SOURCE_FILE} APPEND PROPERTY
+            COMPILE_DEFINITIONS SUPPORT_ANDROID_SURFACE=1)
+        # Note: No extra find_package needed; headers are part of Android NDK
+    endif()
+    
+    # Linux/Unix Display Server Surfaces (Wayland and/or X11)
+    if(UNIX AND NOT APPLE AND NOT ANDROID)
+        # Wayland Check
+        pkg_check_modules(WAYLAND_CLIENT QUIET wayland-client)
+        if(WAYLAND_CLIENT_FOUND)
+            set_property(SOURCE ${TARGET_SOURCE_FILE} APPEND PROPERTY
+                COMPILE_DEFINITIONS SUPPORT_WAYLAND_SURFACE=1)
+            # Ensure WAYLAND_CLIENT_INCLUDE_DIRS and WAYLAND_CLIENT_LIBRARIES are used later
+            # target_include_directories(YourTarget PRIVATE ${WAYLAND_CLIENT_INCLUDE_DIRS})
+            # target_link_libraries(YourTarget PRIVATE ${WAYLAND_CLIENT_LIBRARIES})
+        endif()
+    
+        # X11 Check (Xlib)
+        find_package(X11 QUIET)
+        if(X11_FOUND)
+            set_property(SOURCE ${TARGET_SOURCE_FILE} APPEND PROPERTY
+                COMPILE_DEFINITIONS SUPPORT_XLIB_SURFACE=1)
+            # Ensure X11_INCLUDE_DIR and X11_LIBRARIES are used later
+            # target_include_directories(YourTarget PRIVATE ${X11_INCLUDE_DIR})
+            # target_link_libraries(YourTarget PRIVATE ${X11_LIBRARIES})
+        endif()
+    endif()
+    
 endif()
 if(SUPPORT_WGPU_BACKEND)
     list(APPEND RG_SOURCES

@@ -185,6 +185,13 @@ typedef enum WGVKWaitStatus {
 typedef enum WGVKSType {
     WGVKSType_ShaderSourceSPIRV = 0x00000001,
     WGVKSType_ShaderSourceWGSL = 0x00000002,
+    WGVKSType_SurfaceSourceMetalLayer = 0x00000004,
+    WGVKSType_SurfaceSourceWindowsHWND = 0x00000005,
+    WGVKSType_SurfaceSourceXlibWindow = 0x00000006,
+    WGVKSType_SurfaceSourceWaylandSurface = 0x00000007,
+    WGVKSType_SurfaceSourceAndroidNativeWindow = 0x00000008,
+    WGVKSType_SurfaceSourceXCBWindow = 0x00000009,
+    WGVKSType_SurfaceColorManagement = 0x0000000A,
     WGVKSType_InstanceValidationLayerSelection = 0x10000001
 }WGVKSType;
 
@@ -227,6 +234,24 @@ typedef struct WGVKChainedStruct {
     struct WGVKChainedStruct* next;
     WGVKSType sType;
 } WGVKChainedStruct;
+
+typedef struct WGVKSurfaceSourceXlibWindow {
+    WGVKChainedStruct chain;
+    void* display;
+    uint64_t window;
+} WGVKSurfaceSourceXlibWindow;
+
+typedef struct WGVKSurfaceSourceWaylandSurface {
+    WGVKChainedStruct chain;
+    void* display;
+    void* surface;
+} WGVKSurfaceSourceWaylandSurface;
+
+typedef struct WGVKSurfaceDescriptor{
+    WGVKChainedStruct* nextInChain;
+    WGVKStringView label;
+} WGVKSurfaceDescriptor;
+
 
 typedef struct WGVKRequestAdapterOptions {
     WGVKChainedStruct * nextInChain;
@@ -681,6 +706,7 @@ WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccelerationStru
 WGVKInstance wgvkCreateInstance(const WGVKInstanceDescriptor *descriptor);
 WGVKWaitStatus wgvkInstanceWaitAny(WGVKInstance instance, size_t futureCount, WGVKFutureWaitInfo* futures, uint64_t timeoutNS);
 WGVKFuture wgvkInstanceRequestAdapter(WGVKInstance instance, const WGVKRequestAdapterOptions* options, WGVKRequestAdapterCallbackInfo callbackInfo);
+WGVKSurface wgvkInstanceCreateSurface(WGVKInstance instance, const WGVKSurfaceDescriptor* descriptor);
 WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescriptor *descriptor);
 
 void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, WGVKAdapter adapter, WGVKSurfaceCapabilities* capabilities);
