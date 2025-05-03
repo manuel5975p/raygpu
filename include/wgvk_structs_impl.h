@@ -70,6 +70,22 @@ typedef struct ResourceUsage{
     }
 }ResourceUsage;
 
+struct SafelyResettableCommandPool{
+    VkCommandPool pool;
+    VkFence finishingFence;
+    WGVKDevice device;
+    struct commandPoolRecord{
+        VkCommandBuffer commandBuffer;
+        VkSemaphore semaphore;
+    };
+    std::vector<commandPoolRecord> currentlyInUse;
+    std::vector<commandPoolRecord> availableForUse;
+
+    SafelyResettableCommandPool(WGVKDevice p_device); 
+    void finish();
+    void reset();    
+};
+
 struct SyncState{
     std::vector<VkSemaphore> semaphores;
     VkSemaphore acquireImageSemaphore;

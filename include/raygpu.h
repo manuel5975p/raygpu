@@ -1013,6 +1013,7 @@ EXTERN_C_BEGIN
 
         return color;
     }
+    #if !defined(RAYGPU_NO_INLINE_FUNCTIONS) || RAYGPU_NO_INLINE_FUNCTIONS == 0
     static void rlColor4f(float r, float g, float b, float alpha){
         nextcol.x = r;
         nextcol.y = g;
@@ -1051,6 +1052,7 @@ EXTERN_C_BEGIN
             drawCurrentBatch();
         }
     }
+    #endif
     RGAPI void rlSetLineWidth(float lineWidth);
     
     RGAPI void rlBegin(PrimitiveType mode);

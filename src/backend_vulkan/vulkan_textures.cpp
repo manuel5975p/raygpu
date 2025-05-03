@@ -129,7 +129,12 @@ void CopyBufferToImage(WGVKDevice device, VkCommandPool commandPool, VkQueue que
     EndSingleTimeCommandsAndSubmit(device, commandPool, queue, commandBuffer);
 }
 
-
+inline bool is__depth(PixelFormat fmt){
+    return fmt ==  Depth24 || fmt == Depth32;
+}
+inline bool is__depth(VkFormat fmt){
+    return fmt ==  VK_FORMAT_D32_SFLOAT || fmt == VK_FORMAT_D32_SFLOAT_S8_UINT || fmt == VK_FORMAT_D24_UNORM_S8_UINT;
+}
 
 // Generalized LoadTexturePro function
 

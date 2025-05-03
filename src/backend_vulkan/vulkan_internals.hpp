@@ -60,71 +60,8 @@ inline std::pair<std::vector<VkVertexInputAttributeDescription>, std::vector<VkV
     return ret;
 }
 
-struct SafelyResettableCommandPool{
-    VkCommandPool pool;
-    VkFence finishingFence;
-    WGVKDevice device;
-    struct commandPoolRecord{
-        VkCommandBuffer commandBuffer;
-        VkSemaphore semaphore;
-    };
-    std::vector<commandPoolRecord> currentlyInUse;
-    std::vector<commandPoolRecord> availableForUse;
-
-    SafelyResettableCommandPool(WGVKDevice p_device); 
-    void finish();
-    void reset();    
-};
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-inline bool is__depth(PixelFormat fmt){
-    return fmt ==  Depth24 || fmt == Depth32;
-}
-inline bool is__depth(VkFormat fmt){
-    return fmt ==  VK_FORMAT_D32_SFLOAT || fmt == VK_FORMAT_D32_SFLOAT_S8_UINT || fmt == VK_FORMAT_D24_UNORM_S8_UINT;
-}
-
-static inline VkSampleCountFlagBits toVulkanSampleCount(uint32_t samples){
-    if(samples & (samples - 1)){
-        return VK_SAMPLE_COUNT_1_BIT;
-    }
-    else{
-        switch(samples){
-            case 2: return VK_SAMPLE_COUNT_2_BIT;
-            case 4: return VK_SAMPLE_COUNT_4_BIT;
-            case 8: return VK_SAMPLE_COUNT_8_BIT;
-            case 16: return VK_SAMPLE_COUNT_16_BIT;
-            case 32: return VK_SAMPLE_COUNT_32_BIT;
-            case 64: return VK_SAMPLE_COUNT_64_BIT;
-            default: return VK_SAMPLE_COUNT_1_BIT;
-        }
-    }
-}
-
-
-
-
-
-
-
-
-
-//struct WGVKDevice{
-//    VkDevice device;
-//};
 static inline VkSemaphore CreateSemaphore(VkSemaphoreCreateFlags flags = 0);
 
 
@@ -167,17 +104,7 @@ struct VulkanState {
     //std::vector<VkFramebuffer> swapchainImageFramebuffers;
 
 };  extern VulkanState g_vulkanstate; 
-static inline uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties) {
-    VkPhysicalDeviceMemoryProperties memProperties zeroinit;
-    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
-    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-            return i;
-        }
-    }
-    assert(false && "failed to find suitable memory type!");
-    return ~0u;
-}
+
 static inline uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
     const VkPhysicalDeviceMemoryProperties& memProperties = g_vulkanstate.memProperties;
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
@@ -449,17 +376,7 @@ extern "C" void TransitionImageLayout(WGVKDevice device, VkCommandPool commandPo
 extern "C" void EncodeTransitionImageLayout(VkCommandBuffer commandBuffer, VkImageLayout oldLayout, VkImageLayout newLayout, WGVKTexture texture);
 extern "C" VkCommandBuffer BeginSingleTimeCommands(WGVKDevice device, VkCommandPool commandPool);
 extern "C" void EndSingleTimeCommandsAndSubmit(WGVKDevice device, VkCommandPool commandPool, VkQueue queue, VkCommandBuffer commandBuffer);
-static inline VkSemaphore CreateSemaphoreD(VkDevice device, VkSemaphoreCreateFlags flags = 0){
-    VkSemaphoreCreateInfo sci zeroinit;
-    VkSemaphore ret zeroinit;
-    sci.flags = flags;
-    sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    VkResult res = vkCreateSemaphore(device, &sci, nullptr, &ret);
-    if(res != VK_SUCCESS){
-        TRACELOG(LOG_ERROR, "Error creating semaphore");
-    }
-    return ret;
-}
+
 VkBool32 RGFW_getVKPresentationSupport_noinline(VkInstance instance, VkPhysicalDevice, uint32_t i);
 //static inline VkSemaphore CreateSemaphore(VkSemaphoreCreateFlags flags){
 //    return CreateSemaphoreD(g_vulkanstate.device->device, flags);
