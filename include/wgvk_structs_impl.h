@@ -2,13 +2,30 @@
 #define WGVK_STRUCTS_IMPL_H
 #include <wgvk.h>
 #include <raygpu.h>
-#include <unordered_set>
-#include <map>
+#include <unordered_map>
 #include <external/VmaUsage.h>
+#include "../src/backend_vulkan/ptr_hash_map.h"
+
+typedef struct ImageUsageRecord{
+    VkImageLayout initialLayout;
+    VkImageLayout lastLayout;
+    VkPipelineStageFlags lastStage;
+    VkAccessFlags lastAccess;
+}ImageUsageRecord;
+
+typedef struct BufferUsageRecord{
+    VkPipelineStageFlags lastStage;
+    VkAccessFlags lastAccess;
+}BufferUsageRecord;
+
+DEFINE_PTR_HASH_MAP(static inline, BufferUsageRecordMap, BufferUsageRecord)
+DEFINE_PTR_HASH_MAP(static inline, ImageUsageRecordMap, ImageUsageRecord)
+DEFINE_PTR_HASH_MAP(static inline, BindGroupUsageMap, uint32_t)
+DEFINE_PTR_HASH_MAP(static inline, SamplerUsageMap, uint32_t)
+
+
+
 using refcount_type = uint32_t;
-
-
-
 template<typename T>
 using small_vector = std::vector<T>;
 template<typename T>
