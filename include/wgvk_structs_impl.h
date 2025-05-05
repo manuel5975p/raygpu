@@ -26,14 +26,30 @@ typedef struct ImageLayoutPair{
     VkImageLayout initialLayout;
     VkImageLayout finaöLayout;
 }ImageLayoutPair;
+static inline void* shitcalloc(size_t n, size_t s){
+    return calloc(n, s);
+}
+#define CONTAINERAPI static inline
+DEFINE_PTR_HASH_MAP (CONTAINERAPI, BufferUsageRecordMap, BufferUsageRecord)
+DEFINE_PTR_HASH_MAP (CONTAINERAPI, ImageViewUsageRecordMap, ImageUsageRecord)
+DEFINE_PTR_HASH_MAP (CONTAINERAPI, LayoutAssumptions, ImageUsageRecord)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupUsageSet)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupLayoutUsageSet)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, SamplerUsageSet)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, ImageUsageSet)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, WGVKRenderPassEncoderSet)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, WGVKComputePassEncoderSet)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, WGVKRaytracingPassEncoderSet)
 
-DEFINE_PTR_HASH_MAP(static inline, BufferUsageRecordMap, BufferUsageRecord)
-DEFINE_PTR_HASH_MAP(static inline, ImageViewUsageRecordMap, ImageUsageRecord)
-DEFINE_PTR_HASH_MAP(static inline, LayoutAssumptions, ImageUsageRecord)
-DEFINE_PTR_HASH_SET(static inline, BindGroupUsageSet)
-DEFINE_PTR_HASH_SET(static inline, BindGroupLayoutUsageSet)
-DEFINE_PTR_HASH_SET(static inline, SamplerUsageSet)
-DEFINE_PTR_HASH_SET(static inline, ImageUsageSet)
+DEFINE_VECTOR (CONTAINERAPI, VkWriteDescriptorSet, VkWriteDescriptorSetVector)
+DEFINE_VECTOR (CONTAINERAPI, VkCommandBuffer, VkCommandBufferVector)
+DEFINE_VECTOR (CONTAINERAPI, VkSemaphore, VkSemaphoreVector)
+DEFINE_VECTOR (CONTAINERAPI, WGVKCommandBuffer, WGVKCommandBufferVector)
+DEFINE_VECTOR (CONTAINERAPI, VkDescriptorBufferInfo, VkDescriptorBufferInfoVector)
+DEFINE_VECTOR (CONTAINERAPI, VkDescriptorImageInfo, VkDescriptorImageInfoVector)
+DEFINE_VECTOR (CONTAINERAPI, VkWriteDescriptorSetAccelerationStructureKHR, VkWriteDescriptorSetAccelerationStructureKHRVector)
+DEFINE_VECTOR (CONTAINERAPI, VkDescriptorSetLayoutBinding, VkDescriptorSetLayoutBindingVector)
+
 //DEFINE_PTR_HASH_MAP(static inline, BindGroupUsageMap, uint32_t)
 //DEFINE_PTR_HASH_MAP(static inline, SamplerUsageMap, uint32_t)
 
@@ -216,7 +232,7 @@ namespace std{
         }
     };
 }
-#define PTR_HASH_MAP(static inline,intmap, int)
+
 struct PerframeCache{
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
@@ -412,9 +428,9 @@ typedef struct WGVKComputePassEncoderImpl{
 typedef struct WGVKCommandEncoderImpl{
     VkCommandBuffer buffer;
     
-    ref_holder<WGVKRenderPassEncoder    > referencedRPs;
-    ref_holder<WGVKComputePassEncoder   > referencedCPs;
-    ref_holder<WGVKRaytracingPassEncoder> referencedRTs;
+    WGVKRenderPassEncoderSet referencedRPs;
+    WGVKComputePassEncoderSet referencedCPs;
+    WGVKRaytracingPassEncoderSet referencedRTs;
 
     ResourceUsage resourceUsage;
     WGVKDevice device;
@@ -442,9 +458,10 @@ typedef struct WGVKCommandEncoderImpl{
 typedef struct WGVKCommandBufferImpl{
     VkCommandBuffer buffer;
     refcount_type refCount;
-    ref_holder<WGVKRenderPassEncoder> referencedRPs;
-    ref_holder<WGVKComputePassEncoder> referencedCPs;
-    ref_holder<WGVKRaytracingPassEncoder> referencedRTs;
+    WGVKRenderPassEncoderSet referencedRPs;
+    WGVKComputePassEncoderSet referencedCPs;
+    WGVKRaytracingPassEncoderSet referencedRTs;
+    
     ResourceUsage resourceUsage;
     
     WGVKDevice device;
@@ -483,6 +500,7 @@ typedef struct WGVKSurfaceImpl{
     uint32_t presentModeCount;
     PresentMode* presentModeCache;
 }WGVKSurfaceImpl;
+DEFINE_PTR_HASH_MAP(CONTAINERAPI, PendingCommandBufferMap, WGVKCommandBufferVector);
 typedef struct WGVKQueueImpl{
     VkQueue graphicsQueue;
     VkQueue computeQueue;
@@ -493,7 +511,8 @@ typedef struct WGVKQueueImpl{
     WGVKDevice device;
 
     WGVKCommandEncoder presubmitCache;
-    std::unordered_map<VkFence, std::unordered_set<WGVKCommandBuffer>> pendingCommandBuffers[framesInFlight];
+
+    PendingCommandBufferMap pendingCommandBuffers[framesInFlight];
 }WGVKQueueImpl;
 
 #endif

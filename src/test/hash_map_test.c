@@ -20,7 +20,7 @@
 DEFINE_PTR_HASH_MAP(static inline, IntMap, int)
 DEFINE_PTR_HASH_MAP(static inline, FloatMap, float)
 DEFINE_PTR_HASH_SET(static inline, PtrSet) // Define the pointer set type
-
+DEFINE_VECTOR(static inline, uint64_t, IntVector) // Define the pointer set type
 // --- Helpers ---
 static inline bool float_eq(float a, float b) {
     return fabsf(a - b) < 1e-6f;
@@ -192,8 +192,9 @@ void run_intmap_stress_test(int num_elements) {
     printf("Final non-NULL map size (unique keys): %llu\n", (unsigned long long)final_non_null_size);
     printf("Non-NULL Keys successfully found during verification: %d\n", verified_count);
     printf("Non-NULL Keys not found during verification: %d\n", not_found);
+    printf("Has null key: %s\n", stress_map.has_null_key ? "true" : "false");
     printf("NULL key present and verified: %s\n", (stress_map.has_null_key && IntMap_get(&stress_map, NULL) != NULL) ? "Yes" : "NO! Error!");
-
+    //abort();
     assert(not_found == 0); // Core functionality check: if we put it, we should find it.
     assert(verified_count == insertion_attempts); // All attempted keys should be findable.
     assert(stress_map.has_null_key && IntMap_get(&stress_map, NULL) != NULL); // Check NULL persistence
@@ -307,6 +308,9 @@ void run_ptrset_stress_test(int num_elements) {
     printf("Final non-NULL set size (unique elements): %llu\n", (unsigned long long)final_non_null_size);
     printf("Non-NULL Keys successfully found by contains(): %d\n", verified_count);
     printf("Non-NULL Keys not found by contains(): %d\n", not_found);
+    printf("Has null element: %s\n", stress_set.has_null_element ? "true" : "false");
+    PtrSet_add(&stress_set, NULL);
+    printf("Has null element now: %s\n", stress_set.has_null_element ? "true" : "false");
     printf("NULL element present and verified: %s\n", (stress_set.has_null_element && PtrSet_contains(&stress_set, NULL)) ? "Yes" : "NO! Error!");
 
 
