@@ -40,77 +40,55 @@
                                                                                 \
     typedef struct Name {                                                       \
         uint64_t current_size;                                                  \
-        Name##_kv_pair* table;                                                  \
+        Name##_kv_pair* table; /* Points to inline_buffer or heap */            \
         union {                                                                 \
-            /* Only valid when table is heap allocated */                       \
-            uint64_t current_capacity;                                          \
-            /* Storage when inline */                                           \
+            uint64_t current_capacity; /* Only valid when table is heap */      \
             Name##_kv_pair inline_buffer[PHM_INLINE_CAPACITY];                  \
         };                                                                      \
     } Name;                                                                     \
                                                                                 \
-    /* Helper function to hash keys */                                          \
     static inline uint64_t Name##_hash_key(void* key) {                         \
         return (uintptr_t)key * PHM_HASH_MULTIPLIER;                            \
     }                                                                           \
                                                                                 \
-    /* Forward declaration for grow */                                          \
     static void Name##_grow(Name* map);                                         \
                                                                                 \
-    /* Initialize a map */                                                      \
     SCOPE void Name##_init(Name* map) {                                         \
         map->current_size = 0;                                                  \
-        /* Point table to the inline buffer initially */                        \
         map->table = map->inline_buffer;                                        \
-        /* Zero out the inline buffer (clears keys and values) */               \
         memset(map->inline_buffer, 0, sizeof(map->inline_buffer));              \
-        /* Capacity field is not used when inline */                            \
     }                                                                           \
                                                                                 \
-    /* Internal: Insert an entry into a given table (used by grow) */           \
     static void Name##_insert_entry(Name##_kv_pair* table, uint64_t capacity,   \
                                      void* key, ValueType value) {              \
         uint64_t cap_mask = capacity - 1;                                       \
         uint64_t h = Name##_hash_key(key);                                      \
         uint64_t index = h & cap_mask;                                          \
-                                                                                \
         while (1) {                                                             \
             Name##_kv_pair* slot = &table[index];                               \
-            /* Use empty slot */                                                \
             if (slot->key == NULL) {                                            \
                 slot->key = key;                                                \
-                slot->value = value; /* Direct assignment */                    \
+                slot->value = value;                                            \
                 return;                                                         \
             }                                                                   \
-            /* Linear probe to next slot */                                     \
             index = (index + 1) & cap_mask;                                     \
         }                                                                       \
     }                                                                           \
                                                                                 \
-    /* Grow the hash map's capacity */                                          \
     static void Name##_grow(Name* map) {                                        \
         bool is_inline = (map->table == map->inline_buffer);                    \
         uint64_t old_size = map->current_size;                                  \
-        /* Capacity is fixed when inline, stored in union when heap */          \
         uint64_t old_capacity = is_inline ? PHM_INLINE_CAPACITY : map->current_capacity; \
         Name##_kv_pair* old_table_ptr = map->table;                             \
                                                                                 \
-        /* Determine new capacity (must be power of 2) */                       \
         uint64_t new_capacity = (old_capacity < PHM_INITIAL_HEAP_CAPACITY)      \
                                   ? PHM_INITIAL_HEAP_CAPACITY                   \
                                   : old_capacity * 2;                           \
         if (new_capacity == 0) new_capacity = PHM_INITIAL_HEAP_CAPACITY;        \
                                                                                 \
-        /* Allocate and zero the new table */                                   \
         Name##_kv_pair* new_table = (Name##_kv_pair*)calloc(new_capacity, sizeof(Name##_kv_pair)); \
-        if (!new_table) {                                                       \
-            /* Allocation failure - optional handling: maybe panic or return error */ \
-            return;                                                             \
-        }                                                                       \
+        if (!new_table) return;                                                 \
                                                                                 \
-        /* Re-insert old elements into the new table */                         \
-        /* If inline, only iterate up to current_size (packed array assumption)*/\
-        /* If heap, iterate through the entire old capacity */                  \
         uint64_t limit = is_inline ? old_size : old_capacity;                   \
         for (uint64_t i = 0; i < limit; ++i) {                                  \
             Name##_kv_pair* entry = &old_table_ptr[i];                          \
@@ -119,136 +97,275 @@
             }                                                                   \
         }                                                                       \
                                                                                 \
-        /* Free the old table if it was heap-allocated */                       \
-        if (!is_inline) {                                                       \
-            free(old_table_ptr);                                                \
-        }                                                                       \
+        if (!is_inline) free(old_table_ptr);                                    \
                                                                                 \
-        /* Update map state */                                                  \
         map->table = new_table;                                                 \
         map->current_capacity = new_capacity;                                   \
-        /* Size doesn't change during grow, just capacity/layout */             \
         map->current_size = old_size;                                           \
     }                                                                           \
                                                                                 \
-    /* Find a slot for a key (used by put and get) */                           \
-    /* Returns pointer to the slot, or pointer to empty slot where key *should* go */ \
-    /* Returns NULL if map requires growth (only relevant for put) */           \
     static inline Name##_kv_pair* Name##_find_slot(Name* map, void* key) {      \
         uint64_t cap_mask = map->current_capacity - 1;                          \
         uint64_t h = Name##_hash_key(key);                                      \
         uint64_t index = h & cap_mask;                                          \
-                                                                                \
         while (1) {                                                             \
             Name##_kv_pair* slot = &map->table[index];                          \
-            /* Found empty slot or matching key */                              \
             if (slot->key == NULL || slot->key == key) {                        \
                 return slot;                                                    \
             }                                                                   \
-            /* Linear probe */                                                  \
             index = (index + 1) & cap_mask;                                     \
-            /* Note: This assumes we never wrap around to the start without */  \
-            /* finding an empty slot if the table isn't full. Grow logic */     \
-            /* prevents the table from becoming completely full. */             \
         }                                                                       \
     }                                                                           \
                                                                                 \
-    /* Insert or update a key-value pair */                                     \
     SCOPE void Name##_put(Name* map, void* key, ValueType value) {              \
-        if (key == NULL) return; /* NULL key not supported */                    \
+        if (key == NULL) return;                                                \
                                                                                 \
-        /* --- Inline Storage Case --- */                                       \
         if (map->table == map->inline_buffer) {                                 \
-            /* Check if key already exists (linear scan) */                     \
             for (uint64_t i = 0; i < map->current_size; ++i) {                  \
                 if (map->inline_buffer[i].key == key) {                         \
-                    map->inline_buffer[i].value = value; /* Update */           \
-                    return;                                                     \
+                    map->inline_buffer[i].value = value; return;                \
                 }                                                               \
             }                                                                   \
-            /* Key not found, check if there's space */                         \
             if (map->current_size < PHM_INLINE_CAPACITY) {                      \
-                /* Add new entry */                                             \
                 map->inline_buffer[map->current_size].key = key;                \
                 map->inline_buffer[map->current_size].value = value;            \
-                map->current_size++;                                            \
-                return;                                                         \
+                map->current_size++; return;                                    \
             } else {                                                            \
-                /* Inline buffer full, grow to heap */                          \
                 Name##_grow(map);                                               \
-                /* Fall through to heap insertion logic */                      \
+                if(map->table == map->inline_buffer) return;                    \
             }                                                                   \
         }                                                                       \
                                                                                 \
-        /* --- Heap Storage Case --- */                                         \
-        /* Check load factor and grow if needed BEFORE insertion */             \
-        /* Ensure capacity is not zero before checking load factor */           \
-         if (map->current_capacity > 0 &&                                      \
+        if (map->current_capacity > 0 &&                                        \
             map->current_size * PHM_LOAD_FACTOR_DEN >= map->current_capacity * PHM_LOAD_FACTOR_NUM) { \
             Name##_grow(map);                                                   \
+            if (map->current_capacity == 0) return;                             \
         }                                                                       \
-        /* Capacity should be > 0 after potential grow */                       \
-        if (map->current_capacity == 0) {                                       \
-             /* Should not happen if grow worked, but handle defensively */     \
-             /* Or potentially trigger grow here if init state was weird */     \
-             Name##_grow(map);                                                  \
-             if(map->current_capacity == 0) return; /* Grow failed */           \
-        }                                                                       \
+        if (map->current_capacity == 0) { Name##_grow(map); if (map->current_capacity == 0) return; } \
                                                                                 \
-        /* Find the slot for the key */                                         \
         Name##_kv_pair* slot = Name##_find_slot(map, key);                      \
-                                                                                \
-        /* Insert or update */                                                  \
         if (slot->key == NULL) {                                                \
-            /* Insert new key */                                                \
             slot->key = key;                                                    \
             slot->value = value;                                                \
             map->current_size++;                                                \
         } else {                                                                \
-            /* Update existing key */                                           \
             slot->value = value;                                                \
         }                                                                       \
     }                                                                           \
                                                                                 \
-    /* Get a pointer to the value associated with a key */                      \
-    /* Returns NULL if the key is not found */                                  \
     SCOPE ValueType* Name##_get(Name* map, void* key) {                         \
-        if (key == NULL) return NULL; /* NULL key not supported */               \
+        if (key == NULL) return NULL;                                           \
                                                                                 \
-        /* --- Inline Storage Case --- */                                       \
         if (map->table == map->inline_buffer) {                                 \
-            /* Linear scan */                                                   \
             for (uint64_t i = 0; i < map->current_size; ++i) {                  \
                 if (map->inline_buffer[i].key == key) {                         \
-                    return &map->inline_buffer[i].value; /* Return address */   \
+                    return &map->inline_buffer[i].value;                        \
                 }                                                               \
             }                                                                   \
-            return NULL; /* Not found */                                        \
+            return NULL;                                                        \
         }                                                                       \
                                                                                 \
-        /* --- Heap Storage Case --- */                                         \
-        if (map->current_capacity == 0) return NULL; /* Empty heap table */     \
-                                                                                \
-        /* Find the slot where the key should be */                             \
+        if (map->current_capacity == 0) return NULL;                            \
         Name##_kv_pair* slot = Name##_find_slot(map, key);                      \
+        return (slot->key == key) ? &slot->value : NULL;                        \
+    }                                                                           \
                                                                                 \
-        /* If key is found return pointer to value, else NULL */                \
-        if (slot->key == key) { /* Check key matches (not just non-NULL) */     \
-            return &slot->value;                                                \
-        } else {                                                                \
-            return NULL; /* Not found (find_slot returned an empty slot) */     \
+    SCOPE void Name##_for_each(Name* map, void (*callback)(void* key, ValueType* value, void* user_data), void* user_data) { \
+        if (map->table == map->inline_buffer) {                                 \
+            for (uint64_t i = 0; i < map->current_size; ++i) {                  \
+                callback(map->inline_buffer[i].key, &map->inline_buffer[i].value, user_data); \
+            }                                                                   \
+        } else if (map->current_capacity > 0) {                                 \
+            for (uint64_t i = 0; i < map->current_capacity; ++i) {              \
+                if (map->table[i].key != NULL) {                                \
+                    callback(map->table[i].key, &map->table[i].value, user_data); \
+                }                                                               \
+            }                                                                   \
         }                                                                       \
     }                                                                           \
                                                                                 \
-    /* Free the hash map's heap resources (if any) and reset */                 \
     SCOPE void Name##_free(Name* map) {                                         \
-        /* Free heap table if it was allocated */                               \
         if (map->table != map->inline_buffer) {                                 \
             free(map->table);                                                   \
         }                                                                       \
-        /* Reset to initial inline state */                                     \
         Name##_init(map);                                                       \
     }
 
 #endif // PTR_HASH_MAP_GENERIC_H
-#endif
+#endif // PTR_HASH_MAP
+
+
+// =============================================================================
+// Pointer Hash Set Implementation
+// =============================================================================
+
+#ifndef PTR_HASH_SET
+#define PTR_HASH_SET
+#ifndef PTR_HASH_SET_GENERIC_H
+#define PTR_HASH_SET_GENERIC_H
+
+// Re-include headers needed by set (already included above, but good practice)
+#include <stdint.h>
+#include <stdlib.h> // calloc, free
+#include <string.h> // memset
+#include <stdbool.h> // bool type
+#include <stddef.h> // size_t
+
+// Configuration Constants are reused from the map definition above
+
+// Macro to generate the hash set implementation
+#define DEFINE_PTR_HASH_SET(SCOPE, Name)                                        \
+                                                                                \
+    typedef struct Name {                                                       \
+        uint64_t current_size;                                                  \
+        void** table; /* Points to inline_buffer or heap (array of void*) */    \
+        union {                                                                 \
+            uint64_t current_capacity; /* Only valid when table is heap */      \
+            void* inline_buffer[PHM_INLINE_CAPACITY]; /* Stores pointers */     \
+        };                                                                      \
+    } Name;                                                                     \
+                                                                                \
+    static inline uint64_t Name##_hash_key(void* key) {                         \
+        return (uintptr_t)key * PHM_HASH_MULTIPLIER;                            \
+    }                                                                           \
+                                                                                \
+    static void Name##_grow(Name* set);                                         \
+                                                                                \
+    SCOPE void Name##_init(Name* set) {                                         \
+        set->current_size = 0;                                                  \
+        set->table = set->inline_buffer;                                        \
+        memset(set->inline_buffer, 0, sizeof(set->inline_buffer));              \
+    }                                                                           \
+                                                                                \
+    static void Name##_insert_key(void** table, uint64_t capacity, void* key) { \
+        uint64_t cap_mask = capacity - 1;                                       \
+        uint64_t h = Name##_hash_key(key);                                      \
+        uint64_t index = h & cap_mask;                                          \
+        while (1) {                                                             \
+            void** slot_ptr = &table[index];                                    \
+            if (*slot_ptr == NULL) {                                            \
+                *slot_ptr = key;                                                \
+                return;                                                         \
+            }                                                                   \
+            index = (index + 1) & cap_mask;                                     \
+        }                                                                       \
+    }                                                                           \
+                                                                                \
+    static void Name##_grow(Name* set) {                                        \
+        bool is_inline = (set->table == set->inline_buffer);                    \
+        uint64_t old_size = set->current_size;                                  \
+        uint64_t old_capacity = is_inline ? PHM_INLINE_CAPACITY : set->current_capacity; \
+        void** old_table_ptr = set->table;                                      \
+                                                                                \
+        uint64_t new_capacity = (old_capacity < PHM_INITIAL_HEAP_CAPACITY)      \
+                                  ? PHM_INITIAL_HEAP_CAPACITY                   \
+                                  : old_capacity * 2;                           \
+        if (new_capacity == 0) new_capacity = PHM_INITIAL_HEAP_CAPACITY;        \
+                                                                                \
+        void** new_table = (void**)calloc(new_capacity, sizeof(void*));         \
+        if (!new_table) return;                                                 \
+                                                                                \
+        uint64_t limit = is_inline ? old_size : old_capacity;                   \
+        for (uint64_t i = 0; i < limit; ++i) {                                  \
+            void* key = old_table_ptr[i];                                       \
+            if (key != NULL) {                                                  \
+                Name##_insert_key(new_table, new_capacity, key);                \
+            }                                                                   \
+        }                                                                       \
+                                                                                \
+        if (!is_inline) free(old_table_ptr);                                    \
+                                                                                \
+        set->table = new_table;                                                 \
+        set->current_capacity = new_capacity;                                   \
+        set->current_size = old_size;                                           \
+    }                                                                           \
+                                                                                \
+    static inline void** Name##_find_slot(Name* set, void* key) {               \
+        uint64_t cap_mask = set->current_capacity - 1;                          \
+        uint64_t h = Name##_hash_key(key);                                      \
+        uint64_t index = h & cap_mask;                                          \
+        while (1) {                                                             \
+            void** slot_ptr = &set->table[index];                               \
+            if (*slot_ptr == NULL || *slot_ptr == key) {                        \
+                return slot_ptr;                                                \
+            }                                                                   \
+            index = (index + 1) & cap_mask;                                     \
+        }                                                                       \
+    }                                                                           \
+                                                                                \
+    SCOPE bool Name##_add(Name* set, void* key) {                               \
+        if (key == NULL) return false;                                          \
+                                                                                \
+        if (set->table == set->inline_buffer) {                                 \
+            for (uint64_t i = 0; i < set->current_size; ++i) {                  \
+                if (set->inline_buffer[i] == key) {                             \
+                    return false;                                               \
+                }                                                               \
+            }                                                                   \
+            if (set->current_size < PHM_INLINE_CAPACITY) {                      \
+                set->inline_buffer[set->current_size] = key;                    \
+                set->current_size++;                                            \
+                return true;                                                    \
+            } else {                                                            \
+                Name##_grow(set);                                               \
+                if(set->table == set->inline_buffer) return false;              \
+            }                                                                   \
+        }                                                                       \
+                                                                                \
+        if (set->current_capacity > 0 &&                                        \
+            set->current_size * PHM_LOAD_FACTOR_DEN >= set->current_capacity * PHM_LOAD_FACTOR_NUM) { \
+            Name##_grow(set);                                                   \
+            if (set->current_capacity == 0) return false;                       \
+        }                                                                       \
+        if (set->current_capacity == 0) { Name##_grow(set); if (set->current_capacity == 0) return false; } \
+                                                                                \
+        void** slot_ptr = Name##_find_slot(set, key);                           \
+        if (*slot_ptr == NULL) {                                                \
+            *slot_ptr = key;                                                    \
+            set->current_size++;                                                \
+            return true;                                                        \
+        } else {                                                                \
+            return false;                                                       \
+        }                                                                       \
+    }                                                                           \
+                                                                                \
+    SCOPE bool Name##_contains(Name* set, void* key) {                          \
+        if (key == NULL) return false;                                          \
+                                                                                \
+        if (set->table == set->inline_buffer) {                                 \
+            for (uint64_t i = 0; i < set->current_size; ++i) {                  \
+                if (set->inline_buffer[i] == key) {                             \
+                    return true;                                                \
+                }                                                               \
+            }                                                                   \
+            return false;                                                       \
+        }                                                                       \
+                                                                                \
+        if (set->current_capacity == 0) return false;                           \
+        void** slot_ptr = Name##_find_slot(set, key);                           \
+        return (*slot_ptr == key);                                              \
+    }                                                                           \
+                                                                                \
+    SCOPE void Name##_for_each(Name* set, void (*callback)(void* key, void* user_data), void* user_data) { \
+        if (set->table == set->inline_buffer) {                                 \
+            for (uint64_t i = 0; i < set->current_size; ++i) {                  \
+                callback(set->inline_buffer[i], user_data);                     \
+            }                                                                   \
+        } else if (set->current_capacity > 0) {                                 \
+            for (uint64_t i = 0; i < set->current_capacity; ++i) {              \
+                if (set->table[i] != NULL) {                                    \
+                    callback(set->table[i], user_data);                         \
+                }                                                               \
+            }                                                                   \
+        }                                                                       \
+    }                                                                           \
+                                                                                \
+    SCOPE void Name##_free(Name* set) {                                         \
+        if (set->table != set->inline_buffer) {                                 \
+            free(set->table);                                                   \
+        }                                                                       \
+        Name##_init(set);                                                       \
+    }
+
+#endif // PTR_HASH_SET_GENERIC_H
+#endif // PTR_HASH_SET

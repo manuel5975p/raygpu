@@ -77,10 +77,6 @@ void wgvkTraceLog(int logType, const char *text, ...);
 #include <wgvk_structs_impl.h>
 
 // End WGVK struct implementations
-typedef struct BufferUsageRecord{
-    VkPipelineStageFlags stage;
-    VkAccessFlags access;
-}BufferUsageRecord;
 
 // #include "ptr_hash_map.h"
 // DEFINE_PTR_HASH_MAP(static inline, BufferUsageRecordMap, BufferUsageRecord)
