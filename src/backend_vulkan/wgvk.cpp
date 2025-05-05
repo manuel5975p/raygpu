@@ -1318,7 +1318,7 @@ extern "C" void wgvkQueueWriteTexture(WGVKQueue cSelf, const WGVKTexelCopyTextur
     WGVKTexelCopyBufferInfo source;
     source.buffer = stagingBuffer;
     source.layout = *dataLayout;
-    enkoder->initializeOrTransition(destination->texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    initializeOrTransition(enkoder, destination->texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
     //if(destination->texture->layout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL){
     //    wgvkCommandEncoderTransitionTextureLayout(enkoder, destination->texture, destination->texture->layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -1426,13 +1426,13 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
     for(uint32_t i = 0;i < bgdesc->entryCount;i++){
         auto& entry = bgdesc->entries[i];
         if(entry.buffer){
-            newResourceUsage.track((WGVKBuffer)entry.buffer);
+            trackBuffer(&newResourceUsage, (WGVKBuffer)entry.buffer);
             //wgvkBufferAddRef((WGVKBuffer)entry.buffer);
         }
         else if(entry.textureView){
             uniform_type utype = bgdesc->layout->entries[i].type;
             if(utype == storage_texture2d || utype == storage_texture3d || utype == storage_texture2d_array){
-                newResourceUsage.track((WGVKTextureView)entry.textureView, TextureUsage_StorageBinding);
+                trackTextureView(&newResourceUsage, (WGVKTextureView)entry.textureView, TextureUsage_StorageBinding);
             }
             else if(utype == texture2d || utype == texture3d || utype == texture2d_array){
                 newResourceUsage.track((WGVKTextureView)entry.textureView, TextureUsage_TextureBinding);

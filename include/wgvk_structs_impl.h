@@ -24,7 +24,7 @@ typedef struct BufferUsageRecord{
 
 typedef struct ImageLayoutPair{
     VkImageLayout initialLayout;
-    VkImageLayout finaöLayout;
+    VkImageLayout finalLayout;
 }ImageLayoutPair;
 static inline void* shitcalloc(size_t n, size_t s){
     return calloc(n, s);
@@ -32,7 +32,7 @@ static inline void* shitcalloc(size_t n, size_t s){
 #define CONTAINERAPI static inline
 DEFINE_PTR_HASH_MAP (CONTAINERAPI, BufferUsageRecordMap, BufferUsageRecord)
 DEFINE_PTR_HASH_MAP (CONTAINERAPI, ImageViewUsageRecordMap, ImageUsageRecord)
-DEFINE_PTR_HASH_MAP (CONTAINERAPI, LayoutAssumptions, ImageUsageRecord)
+DEFINE_PTR_HASH_MAP (CONTAINERAPI, LayoutAssumptions, ImageLayoutPair)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupUsageSet)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupLayoutUsageSet)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, SamplerUsageSet)
@@ -62,38 +62,36 @@ typedef struct ResourceUsage{
     BindGroupUsageSet referencedBindGroups;
     BindGroupLayoutUsageSet referencedBindGroupLayouts;
     SamplerUsageSet referencedSamplers;
-
-    std::unordered_map<WGVKTexture, std::pair<VkImageLayout, VkImageLayout>> entryAndFinalLayouts;
-
-    bool contains(WGVKBuffer buffer)const noexcept;
-    bool contains(WGVKTexture texture)const noexcept;
-    bool contains(WGVKTextureView view)const noexcept;
-    bool contains(WGVKBindGroup bindGroup)const noexcept;
-    bool contains(WGVKBindGroupLayout bindGroupLayout)const noexcept;
-    bool contains(WGVKSampler bindGroup)const noexcept;
-
-    void track(WGVKBuffer buffer)noexcept;
-    void track(WGVKTexture texture)noexcept;
-    void track(WGVKTextureView view, TextureUsage usage)noexcept;
-    void track(WGVKBindGroup bindGroup)noexcept;
-    void track(WGVKBindGroupLayout bindGroupLayout)noexcept;
-    void track(WGVKSampler sampler)noexcept;
+    LayoutAssumptions entryAndFinalLayouts;
+    //std::unordered_map<WGVKTexture, std::pair<VkImageLayout, VkImageLayout>> entryAndFinalLayouts;
+    //bool contains(WGVKBuffer buffer)const noexcept;
+    //bool contains(WGVKTexture texture)const noexcept;
+    //bool contains(WGVKTextureView view)const noexcept;
+    //bool contains(WGVKBindGroup bindGroup)const noexcept;
+    //bool contains(WGVKBindGroupLayout bindGroupLayout)const noexcept;
+    //bool contains(WGVKSampler bindGroup)const noexcept;
+    //void track(WGVKBuffer buffer)noexcept;
+    //void track(WGVKTexture texture)noexcept;
+    //void track(WGVKTextureView view, TextureUsage usage)noexcept;
+    //void track(WGVKBindGroup bindGroup)noexcept;
+    //void track(WGVKBindGroupLayout bindGroupLayout)noexcept;
+    //void track(WGVKSampler sampler)noexcept;
     
-    void registerTransition(WGVKTexture tex, VkImageLayout from, VkImageLayout to){
-        auto it = entryAndFinalLayouts.find(tex);
-        if(it == entryAndFinalLayouts.end()){
-            entryAndFinalLayouts.emplace(tex, std::make_pair(from, to));
-        }
-        else{
-            rassert(
-                from == it->second.second, 
-                "The previous layout transition encoded into this ResourceUsage did not transition to the layout this transition assumes"
-            );
-            it->second.second = to;
-        }
-    }
-    void releaseAllAndClear()noexcept;
-    ~ResourceUsage(){
+    //void registerTransition(WGVKTexture tex, VkImageLayout from, VkImageLayout to){
+    //    auto it = entryAndFinalLayouts.find(tex);
+    //    if(it == entryAndFinalLayouts.end()){
+    //        entryAndFinalLayouts.emplace(tex, std::make_pair(from, to));
+    //    }
+    //    else{
+    //        rassert(
+    //            from == it->second.second, 
+    //            "The previous layout transition encoded into this ResourceUsage did not transition to the layout this transition assumes"
+    //        );
+    //        it->second.second = to;
+    //    }
+    //}
+    //void releaseAllAndClear()noexcept;
+    //~ResourceUsage(){
         //if(referencedBuffers.size()){
         //    abort();
         //}
@@ -106,8 +104,26 @@ typedef struct ResourceUsage{
         //if(referencedBindGroups.size()){
         //    abort();
         //}
-    }
+    //}
 }ResourceUsage;
+
+
+RGAPI void registerTransition   (const ResourceUsage* resourceUsage, WGVKTexture tex, VkImageLayout from, VkImageLayout to);
+RGAPI void trackBuffer          (const ResourceUsage* resourceUsage, WGVKBuffer buffer);
+RGAPI void trackTexture         (const ResourceUsage* resourceUsage, WGVKTexture texture);
+RGAPI void trackTextureView     (const ResourceUsage* resourceUsage, WGVKTextureView view, TextureUsage usage);
+RGAPI void trackBindGroup       (const ResourceUsage* resourceUsage, WGVKBindGroup bindGroup);
+RGAPI void trackBindGroupLayout (const ResourceUsage* resourceUsage, WGVKBindGroupLayout bindGroupLayout);
+RGAPI void trackSampler         (const ResourceUsage* resourceUsage, WGVKSampler sampler);
+
+RGAPI Bool32 containsBuffer(const ResourceUsage* resourceUsage, WGVKBuffer buffer);
+RGAPI Bool32 containsTexture(const ResourceUsage* resourceUsage, WGVKTexture texture);
+RGAPI Bool32 containsTextureView(const ResourceUsage* resourceUsage, WGVKTextureView view);
+RGAPI Bool32 containsBindGroup(const ResourceUsage* resourceUsage, WGVKBindGroup bindGroup);
+RGAPI Bool32 containsBindGroupLayout(const ResourceUsage* resourceUsage, WGVKBindGroupLayout bindGroupLayout);
+RGAPI Bool32 containsSampler(const ResourceUsage* resourceUsage, WGVKSampler bindGroup);
+
+RGAPI void releaseAllAndClear(ResourceUsage* resourceUsage);
 
 struct SafelyResettableCommandPool{
     VkCommandPool pool;
@@ -436,25 +452,30 @@ typedef struct WGVKCommandEncoderImpl{
     WGVKDevice device;
     uint32_t cacheIndex;
     uint32_t movedFrom;
-    enum struct iotresult{
-        thats_new, already_registered,
-    };
-    iotresult initializeOrTransition(WGVKTexture texture, VkImageLayout layout){
-        auto it = resourceUsage.entryAndFinalLayouts.find(texture);
-        if(it == resourceUsage.entryAndFinalLayouts.end()){
-            resourceUsage.entryAndFinalLayouts.emplace(texture, std::make_pair(layout, layout));
-            return iotresult::thats_new;
-        }
-        else{
-            if(it->second.second != layout){
-                wgvkCommandEncoderTransitionTextureLayout(this, texture, it->second.second, layout);
-                it->second.second = layout;
-            }
-        }
-        return iotresult::already_registered;
-    }
+    
+    
 }WGVKCommandEncoderImpl;
+typedef enum WGVKiotresult{
+    iot_thats_new, iot_already_registered,
+}WGVKiotresult;
 
+static inline WGVKiotresult initializeOrTransition(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout layout){
+    ResourceUsage* ru = &encoder->resourceUsage;
+    ImageLayoutPair* if_layout = LayoutAssumptions_get(&ru->entryAndFinalLayouts, (void*)texture);
+    if(if_layout == NULL){
+        ImageLayoutPair empl = {
+            .initialLayout = layout,
+            .finalLayout = layout
+        };
+        LayoutAssumptions_put(&ru->entryAndFinalLayouts, (void*)texture, empl);
+        return iot_thats_new;
+    }
+    else{
+        wgvkCommandEncoderTransitionTextureLayout(encoder, texture, if_layout->finalLayout, layout);
+        if_layout->finalLayout = layout;
+        return iot_already_registered;
+    }
+}
 typedef struct WGVKCommandBufferImpl{
     VkCommandBuffer buffer;
     refcount_type refCount;
