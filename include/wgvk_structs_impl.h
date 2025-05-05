@@ -22,25 +22,30 @@ typedef struct BufferUsageRecord{
     VkAccessFlags lastAccess;
 }BufferUsageRecord;
 
+typedef struct ImageLayoutPair{
+    VkImageLayout initialLayout;
+    VkImageLayout finaöLayout;
+}ImageLayoutPair;
+
 DEFINE_PTR_HASH_MAP(static inline, BufferUsageRecordMap, BufferUsageRecord)
 DEFINE_PTR_HASH_MAP(static inline, ImageViewUsageRecordMap, ImageUsageRecord)
+DEFINE_PTR_HASH_MAP(static inline, LayoutAssumptions, ImageUsageRecord)
 DEFINE_PTR_HASH_SET(static inline, BindGroupUsageSet)
+DEFINE_PTR_HASH_SET(static inline, BindGroupLayoutUsageSet)
 DEFINE_PTR_HASH_SET(static inline, SamplerUsageSet)
 DEFINE_PTR_HASH_SET(static inline, ImageUsageSet)
 //DEFINE_PTR_HASH_MAP(static inline, BindGroupUsageMap, uint32_t)
 //DEFINE_PTR_HASH_MAP(static inline, SamplerUsageMap, uint32_t)
 
-
-
 typedef uint32_t refcount_type;
 
 typedef struct ResourceUsage{
     BufferUsageRecordMap referencedBuffers;
-    ref_holder<WGVKTexture> referencedTextures;
+    ImageUsageSet referencedTextures;
     ImageViewUsageRecordMap referencedTextureViews;
-    ref_holder<WGVKBindGroup> referencedBindGroups;
-    ref_holder<WGVKBindGroupLayout> referencedBindGroupLayouts;
-    ref_holder<WGVKSampler> referencedSamplers;
+    BindGroupUsageSet referencedBindGroups;
+    BindGroupLayoutUsageSet referencedBindGroupLayouts;
+    SamplerUsageSet referencedSamplers;
 
     std::unordered_map<WGVKTexture, std::pair<VkImageLayout, VkImageLayout>> entryAndFinalLayouts;
 
@@ -211,7 +216,7 @@ namespace std{
         }
     };
 }
-
+#define PTR_HASH_MAP(static inline,intmap, int)
 struct PerframeCache{
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
@@ -222,7 +227,7 @@ struct PerframeCache{
     VkCommandBuffer finalTransitionBuffer;
     VkSemaphore finalTransitionSemaphore;
     VkFence finalTransitionFence;
-    std::map<uint64_t, small_vector<MappableBufferMemory>> stagingBufferCache;
+    //std::map<uint64_t, small_vector<MappableBufferMemory>> stagingBufferCache;
     std::unordered_map<WGVKBindGroupLayout, std::vector<std::pair<VkDescriptorPool, VkDescriptorSet>>> bindGroupCache;
 };
 
