@@ -1415,7 +1415,7 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
         //VkCopyDescriptorSet copy{};
         //copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
 
-        VkDescriptorSetAllocateInfo dsai{};
+        VkDescriptorSetAllocateInfo dsai zeroinit;
         dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         dsai.descriptorPool = wvBindGroup->pool;
         dsai.descriptorSetCount = 1;
@@ -1435,16 +1435,28 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
                 trackTextureView(&newResourceUsage, (WGVKTextureView)entry.textureView, TextureUsage_StorageBinding);
             }
             else if(utype == texture2d || utype == texture3d || utype == texture2d_array){
-                newResourceUsage.track((WGVKTextureView)entry.textureView, TextureUsage_TextureBinding);
+                trackTextureView(&newResourceUsage, (WGVKTextureView)entry.textureView, TextureUsage_TextureBinding);
             }
             //wgvkTextureViewAddRef((WGVKTextureView)entry.textureView);
         }
         else if(entry.sampler){
-            newResourceUsage.track(entry.sampler);
+            trackSampler(&newResourceUsage, entry.sampler);
         }
     }
-    wvBindGroup->resourceUsage.releaseAllAndClear();
-    wvBindGroup->resourceUsage = std::move(newResourceUsage);
+    releaseAllAndClear(&wvBindGroup->resourceUsage);
+
+    //wvBindGroup->resourceUsage.releaseAllAndClear();
+    
+    wvBindGroup->resourceUsage = newResourceUsage;
+
+
+    BufferUsageRecordMap_move(&wvBindGroup->resourceUsage.referencedBuffers, &newResourceUsage.referencedBuffers);
+    ImageUsageSet_move(&wvBindGroup->resourceUsage.referencedTextures, &newResourceUsage.referencedTextures);
+    ImageViewUsageRecordMap_move(&wvBindGroup->resourceUsage.referencedTextureViews, &newResourceUsage.referencedTextureViews);
+    BindGroupUsageSet_move(&wvBindGroup->resourceUsage.referencedBindGroups, &newResourceUsage.referencedBindGroups);
+    BindGroupLayoutUsageSet_move(&wvBindGroup->resourceUsage.referencedBindGroupLayouts, &newResourceUsage.referencedBindGroupLayouts);
+    SamplerUsageSet_move(&wvBindGroup->resourceUsage.referencedSamplers, &newResourceUsage.referencedSamplers);
+    LayoutAssumptions_move(&wvBindGroup->resourceUsage.entryAndFinalLayouts, &newResourceUsage.entryAndFinalLayouts);
 
     uint32_t count = bgdesc->entryCount;
      

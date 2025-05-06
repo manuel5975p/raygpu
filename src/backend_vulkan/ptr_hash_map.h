@@ -233,6 +233,25 @@
             free(map->table);                                                   \
         }                                                                       \
         Name##_init(map);                                                       \
+    } \
+      \
+    SCOPE void Name##_move(Name* dest, Name* source) {\
+        if (dest == source) {\
+            return;\
+        }\
+         \
+        dest->current_size = source->current_size; \
+        dest->has_null_key = source->has_null_key;\
+        dest->null_value = source->null_value;\
+        if (source->table == source->inline_buffer) {\
+            memcpy(dest->inline_buffer, source->inline_buffer, sizeof(source->inline_buffer));\
+            dest->table = dest->inline_buffer;\
+        } else {\
+            dest->table = source->table;\
+            dest->current_capacity = source->current_capacity;\
+        }\
+        \
+        Name##_init(source);\
     }
 
 
@@ -489,6 +508,22 @@
         }                                                                       \
         /* Re-initialize to reset all fields, including NULL element state */   \
         Name##_init(set);                                                       \
+    }\
+    SCOPE void Name##_move(Name* dest, Name* source) {\
+        if (dest == source) {\
+            return;\
+        }\
+        dest->current_size = source->current_size;\
+        dest->has_null_element = source->has_null_element;\
+        if (source->table == source->inline_buffer) {\
+            memcpy(dest->inline_buffer, source->inline_buffer, sizeof(source->inline_buffer));\
+            dest->table = dest->inline_buffer;\
+        } else {\
+            dest->table = source->table; \
+            dest->current_capacity = source->current_capacity; \
+        }\
+        \
+        Name##_init(source);\
     }
 
 #endif // PTR_HASH_SET_GENERIC_H
@@ -577,6 +612,21 @@ SCOPE Type* Name##_get(Name *v, size_t index) { \
 \
 SCOPE size_t Name##_size(const Name *v) { \
     return v->size; \
+}\
+SCOPE void Name##_move(Name* dest, Name* source) {\
+    if (dest == source) {\
+        return;\
+    }\
+    dest->size = source->size;\
+    if (source->data == source->inline_data) { \
+        memcpy(dest->inline_data, source->inline_data, source->size * sizeof(Type)); \
+        dest->data = dest->inline_data; \
+        dest->capacity = sizeof(dest->inline_data) / sizeof(Type); \
+    } else { \
+        dest->data = source->data; \
+        dest->capacity = source->capacity; \
+    }\
+    Name##_init(source);\
 }
 
 
