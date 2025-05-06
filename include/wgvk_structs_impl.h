@@ -15,6 +15,7 @@ typedef struct ImageViewUsageRecord{
     VkImageLayout lastLayout;
     VkPipelineStageFlags lastStage;
     VkAccessFlags lastAccess;
+    TextureUsage usage;
 }ImageUsageRecord;
 
 typedef struct BufferUsageRecord{
@@ -26,9 +27,7 @@ typedef struct ImageLayoutPair{
     VkImageLayout initialLayout;
     VkImageLayout finalLayout;
 }ImageLayoutPair;
-static inline void* shitcalloc(size_t n, size_t s){
-    return calloc(n, s);
-}
+
 #define CONTAINERAPI static inline
 DEFINE_PTR_HASH_MAP (CONTAINERAPI, BufferUsageRecordMap, BufferUsageRecord)
 DEFINE_PTR_HASH_MAP (CONTAINERAPI, ImageViewUsageRecordMap, ImageUsageRecord)

@@ -1,5 +1,5 @@
 BasedOnStyle: LLVM
-ColumnLimit: 250
+ColumnLimit: 130
 IndentWidth: 4
 UseTab: Never
 BreakBeforeBraces: Attach
