@@ -2731,7 +2731,7 @@ extern "C" void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, WGVK
     rpe->lastLayout = renderPipeline->layout->layout; 
 }
 
-void transitionToAppropriateLayoutCallback1(void* texture_, ImageUsageRecord* record, void* rpe_){
+static inline void transitionToAppropriateLayoutCallback1(void* texture_, ImageUsageRecord* record, void* rpe_){
     WGVKRenderPassEncoder rpe = (WGVKRenderPassEncoder)rpe_;
     WGVKTexture texture = (WGVKTexture)texture_;
 
@@ -3088,15 +3088,40 @@ void SafelyResettableCommandPool::reset(){
 //    referencedBindGroups.clear();
 //    referencedSamplers.clear();
 //}
+static inline void bufferReleaseCallback(void* buffer, BufferUsageRecord* bu_record, void*){
+    wgvkBufferRelease((WGVKBuffer)buffer);
+}
+static inline void textureReleaseCallback(void* texture, void*){
+    wgvkReleaseTexture((WGVKTexture)texture);
+}
+static inline void textureViewReleaseCallback(void* textureView, ImageViewUsageRecord*, void*){
+    wgvkReleaseTextureView((WGVKTextureView)textureView);
+}
+static inline void bindGroupReleaseCallback(void* bindGroup, void*){
+    wgvkBindGroupRelease((WGVKBindGroup)bindGroup);
+}
+static inline void bindGroupLayoutReleaseCallback(void* bgl, void*){
+    wgvkBindGroupLayoutRelease((WGVKBindGroupLayout)bgl);
+}
+static inline void samplerReleaseCallback(void* sampler, void*){
+    wgvkSamplerRelease((WGVKSampler)sampler);
+}
+
 
 void releaseAllAndClear(ResourceUsage* resourceUsage){
-    BufferUsageRecordMap_for_each(&resourceUsage->referencedBuffers, callback); 
-    ImageUsageSet_for_each(&resourceUsage->referencedTextures, callback); 
-    ImageViewUsageRecordMap_for_each(&resourceUsage->referencedTextureViews, callback); 
-    BindGroupUsageSet_for_each(&resourceUsage->referencedBindGroups, callback); 
-    BindGroupLayoutUsageSet_for_each(&resourceUsage->referencedBindGroupLayouts, callback); 
-    SamplerUsageSet_for_each(&resourceUsage->referencedSamplers, callback); 
-    LayoutAssumptions_for_each(&resourceUsage->entryAndFinalLayouts, callback); 
+    BufferUsageRecordMap_for_each(&resourceUsage->referencedBuffers, bufferReleaseCallback, NULL); 
+    ImageUsageSet_for_each(&resourceUsage->referencedTextures, textureReleaseCallback, NULL); 
+    ImageViewUsageRecordMap_for_each(&resourceUsage->referencedTextureViews, textureViewReleaseCallback, NULL); 
+    BindGroupUsageSet_for_each(&resourceUsage->referencedBindGroups, bindGroupReleaseCallback, NULL);
+    BindGroupLayoutUsageSet_for_each(&resourceUsage->referencedBindGroupLayouts, bindGroupLayoutReleaseCallback, NULL);
+    SamplerUsageSet_for_each(&resourceUsage->referencedSamplers, samplerReleaseCallback, NULL);
+    
+    BufferUsageRecordMap_free(&resourceUsage->referencedBuffers);
+    ImageUsageSet_free(&resourceUsage->referencedTextures);
+    ImageViewUsageRecordMap_free(&resourceUsage->referencedTextureViews);
+    BindGroupUsageSet_free(&resourceUsage->referencedBindGroups);
+    BindGroupLayoutUsageSet_free(&resourceUsage->referencedBindGroupLayouts);
+    SamplerUsageSet_free(&resourceUsage->referencedSamplers);
 }
 
 

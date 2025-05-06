@@ -70,7 +70,8 @@ void PostPresentSurface(){
     WGVKQueue queue = surfaceDevice->queue;
 
     const uint32_t cacheIndex = surfaceDevice->submittedFrames % framesInFlight;
-
+    PendingCommandBufferMap* pcm = &queue->pendingCommandBuffers[cacheIndex];
+    
     if(queue->pendingCommandBuffers[cacheIndex].size() > 0){
         std::vector<VkFence> fences;
         fences.reserve(queue->pendingCommandBuffers[cacheIndex].size());
@@ -723,7 +724,8 @@ void GenTextureMipmaps(Texture2D* tex){
         i.y = std::max(i.y, 1);
         return i;
     };
-    enc->initializeOrTransition(wgvkTex, VK_IMAGE_LAYOUT_GENERAL);
+
+    initializeOrTransition(enc, wgvkTex, VK_IMAGE_LAYOUT_GENERAL);
     //wgvkCommandEncoderTransitionTextureLayout(enc, wgvkTex, wgvkTex->layout, VK_IMAGE_LAYOUT_GENERAL);
     for(uint32_t i = 0;i < tex->mipmaps - 1;i++){
         VkImageBlit blitRegion zeroinit;
@@ -739,7 +741,7 @@ void GenTextureMipmaps(Texture2D* tex){
         blitRegion.dstSubresource.mipLevel = i + 1;
         vkCmdBlitImage(enc->buffer, wgvkTex->image, VK_IMAGE_LAYOUT_GENERAL, wgvkTex->image, VK_IMAGE_LAYOUT_GENERAL, 1, &blitRegion, VK_FILTER_LINEAR);
     }
-    enc->resourceUsage.track(wgvkTex);
+    trackTexture(&enc->resourceUsage, wgvkTex);
     WGVKCommandBuffer buffer = wgvkCommandEncoderFinish(enc);
     wgvkQueueSubmit(g_vulkanstate.queue, 1, &buffer);
     wgvkReleaseCommandBuffer(buffer);

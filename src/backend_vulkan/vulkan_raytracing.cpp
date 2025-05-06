@@ -17,6 +17,21 @@ RTFunctions
 struct triangle {
     vertex v1, v2, v3;
 };
+static inline uint32_t findMemoryType(WGVKAdapter adapter, uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+    
+
+    [[unlikely]] if (adapter->memProperties.memoryTypeCount == 0){
+        vkGetPhysicalDeviceMemoryProperties(adapter->physicalDevice, &adapter->memProperties);
+    }
+
+    for (uint32_t i = 0; i < adapter->memProperties.memoryTypeCount; i++) {
+        if ((typeFilter & (1 << i)) && (adapter->memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+            return i;
+        }
+    }
+    assert(false && "failed to find suitable memory type!");
+    return ~0u;
+}
 
 /**
  * Creates a Vulkan top level acceleration structure for ray tracing
@@ -54,7 +69,7 @@ extern "C" WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAcceleratio
     VkMemoryAllocateInfo allocateInfo = {};
     allocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocateInfo.allocationSize = memoryRequirements.size;
-    allocateInfo.memoryTypeIndex = findMemoryType(device->adapter->physicalDevice, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    allocateInfo.memoryTypeIndex = findMemoryType(device->adapter, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo = {};
     memoryAllocateFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
@@ -151,7 +166,7 @@ extern "C" WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAcceleratio
     VkMemoryAllocateInfo asAllocateInfo = {};
     asAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     asAllocateInfo.allocationSize = memoryRequirements.size;
-    asAllocateInfo.memoryTypeIndex = findMemoryType(device->adapter->physicalDevice, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    asAllocateInfo.memoryTypeIndex = findMemoryType(device->adapter, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     VkMemoryAllocateFlagsInfoKHR infoKhr zeroinit;
     infoKhr.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO_KHR;
@@ -184,7 +199,7 @@ extern "C" WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAcceleratio
     VkMemoryAllocateInfo scratchBufferAllocateInfo = {};
     scratchBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     scratchBufferAllocateInfo.allocationSize = memoryRequirements.size;
-    scratchBufferAllocateInfo.memoryTypeIndex = findMemoryType(device->adapter->physicalDevice, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    scratchBufferAllocateInfo.memoryTypeIndex = findMemoryType(device->adapter, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     VkMemoryAllocateFlagsInfo scratchMemFlags = {};
     scratchMemFlags.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
@@ -354,7 +369,7 @@ extern "C" WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccel
     VkMemoryAllocateInfo allocateInfo = {};
     allocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocateInfo.allocationSize = memoryRequirements.size;
-    allocateInfo.memoryTypeIndex = findMemoryType(device->adapter->physicalDevice, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    allocateInfo.memoryTypeIndex = findMemoryType(device->adapter, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     VkMemoryAllocateFlagsInfoKHR infoKhr zeroinit;
     infoKhr.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO_KHR;
     infoKhr.flags |= VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
@@ -385,7 +400,7 @@ extern "C" WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccel
     VkMemoryAllocateInfo scratchBufferAllocateInfo = {};
     scratchBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     scratchBufferAllocateInfo.allocationSize = memoryRequirements.size;
-    scratchBufferAllocateInfo.memoryTypeIndex = findMemoryType(device->adapter->physicalDevice, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    scratchBufferAllocateInfo.memoryTypeIndex = findMemoryType(device->adapter, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo = {};
     memoryAllocateFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
@@ -617,7 +632,7 @@ WGVKRaytracingPassEncoder wgvkCommandEncoderBeginRaytracingPass(WGVKCommandEncod
     rtEncoder->device = enc->device;
     rtEncoder->cmdBuffer = enc->buffer;
     rtEncoder->cmdEncoder = enc;
-    enc->referencedRTs.insert(rtEncoder);
+    WGVKRaytracingPassEncoderSet_add(&enc->referencedRTs, rtEncoder);
     return rtEncoder;
 }
 void wgvkRaytracingPassEncoderSetPipeline(WGVKRaytracingPassEncoder rte, WGVKRaytracingPipeline raytracingPipeline) {
@@ -625,15 +640,22 @@ void wgvkRaytracingPassEncoderSetPipeline(WGVKRaytracingPassEncoder rte, WGVKRay
     rte->lastLayout = raytracingPipeline->layout;
     rte->lastPipeline = raytracingPipeline;
 }
+
+static inline void transitionToAppropriateLayoutCallback1(void* texture_, ImageUsageRecord* record, void* rpe_){
+    WGVKRenderPassEncoder rpe = (WGVKRenderPassEncoder)rpe_;
+    WGVKTexture texture = (WGVKTexture)texture_;
+
+    if(record->usage == TextureUsage_TextureBinding)
+        initializeOrTransition(rpe->cmdEncoder, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    else if(record->usage == TextureUsage_StorageBinding){
+        initializeOrTransition(rpe->cmdEncoder, texture, VK_IMAGE_LAYOUT_GENERAL);
+    }
+}
+
 void wgvkRaytracingPassEncoderSetBindGroup(WGVKRaytracingPassEncoder rte, uint32_t groupIndex, WGVKBindGroup bindGroup) {
     vkCmdBindDescriptorSets(rte->cmdBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, rte->lastLayout, 0, 1, &bindGroup->set, 0, nullptr);
-    for (auto viewAndUsage : bindGroup->resourceUsage.referencedTextureViews) {
-        if (viewAndUsage.second == TextureUsage_TextureBinding)
-            rte->cmdEncoder->initializeOrTransition(viewAndUsage.first->texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        else if (viewAndUsage.second == TextureUsage_StorageBinding) {
-            rte->cmdEncoder->initializeOrTransition(viewAndUsage.first->texture, VK_IMAGE_LAYOUT_GENERAL);
-        }
-    }
+    trackBindGroup(&rte->resourceUsage, bindGroup);
+    ImageViewUsageRecordMap_for_each(&bindGroup->resourceUsage.referencedTextureViews, transitionToAppropriateLayoutCallback1, rte);
 }
 void wgvkCommandEncoderEndRaytracingPass(WGVKRaytracingPassEncoder commandEncoder) {}
 void wgvkRaytracingPassEncoderTraceRays(WGVKRaytracingPassEncoder cpe, uint32_t width, uint32_t height, uint32_t depth) {
