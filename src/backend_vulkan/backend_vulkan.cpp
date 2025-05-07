@@ -62,7 +62,27 @@ void DummySubmitOnQueue(){
     VkPipelineStageFlags waitmask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     emptySubmit.pWaitDstStageMask = &waitmask;
     vkQueueSubmit(g_vulkanstate.device->queue->graphicsQueue, 1, &emptySubmit, g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence);
-    g_vulkanstate.queue->pendingCommandBuffers[cacheIndex].emplace(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence, std::unordered_set<WGVKCommandBuffer>{});
+    WGVKCommandBufferVector insert;
+    PendingCommandBufferMap_put(&g_vulkanstate.queue->pendingCommandBuffers[cacheIndex], g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence, insert);
+    WGVKCommandBufferVector* inserted;
+    PendingCommandBufferMap_get(&g_vulkanstate.queue->pendingCommandBuffers[cacheIndex], g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence);
+    WGVKCommandBufferVector_init(inserted);
+    //g_vulkanstate.queue->pendingCommandBuffers[cacheIndex].emplace(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence, std::unordered_set<WGVKCommandBuffer>{});
+}
+
+void resetFenceAndReleaseBuffers(void* fence_, WGVKCommandBufferVector* cBuffers, void* wgvkdevice){
+    WGVKDevice device = (WGVKDevice)wgvkdevice;
+    if(fence_){
+        vkResetFences(device->device, 1, (VkFence*)&fence_);
+    }
+    for(size_t i = 0;i < cBuffers->size;i++){
+        wgvkReleaseCommandBuffer(cBuffers->data[i]);
+    }
+    WGVKCommandBufferVector_free(cBuffers);
+}
+void pcmNonnullFlattenCallback(void* fence_, WGVKCommandBufferVector *, void* stdvector){
+    if(fence_)
+        ((std::vector<VkFence>*)stdvector)->push_back((VkFence)fence_);
 }
 
 void PostPresentSurface(){
@@ -71,15 +91,17 @@ void PostPresentSurface(){
 
     const uint32_t cacheIndex = surfaceDevice->submittedFrames % framesInFlight;
     PendingCommandBufferMap* pcm = &queue->pendingCommandBuffers[cacheIndex];
-    
-    if(queue->pendingCommandBuffers[cacheIndex].size() > 0){
-        std::vector<VkFence> fences;
-        fences.reserve(queue->pendingCommandBuffers[cacheIndex].size());
-        for(const auto& [fence, bufferset] : queue->pendingCommandBuffers[cacheIndex]){
-            if(fence){
-                fences.push_back(fence);
-            }
-        }
+    size_t pcmSize = pcm->current_size;
+
+    std::vector<VkFence> fences;
+    if(pcm->current_size > 0){
+        fences.reserve(pcm->current_size);
+        PendingCommandBufferMap_for_each(pcm, pcmNonnullFlattenCallback, (void*)&fences);
+        //for(const auto& [fence, bufferset] : queue->pendingCommandBuffers[cacheIndex]){
+        //    if(fence){
+        //        fences.push_back(fence);
+        //    }
+        //}
         if(fences.size() > 0){
             VkResult waitResult = vkWaitForFences(surfaceDevice->device, fences.size(), fences.data(), VK_TRUE, ~uint64_t(0));
             if(waitResult != VK_SUCCESS){
@@ -96,19 +118,20 @@ void PostPresentSurface(){
     else{
         TRACELOG(LOG_INFO, "No fences!");
     }
-
-    for(auto [fence, bufferset] : queue->pendingCommandBuffers[cacheIndex]){
-        if(fence){
-            vkResetFences(surfaceDevice->device, 1, &fence);
-        }
-        else{
-            //TRACELOG(LOG_INFO, "Amount of buffers to be cleared from null fence. %llu", (unsigned long long)queue->pendingCommandBuffers[cacheIndex].size());
-        }
-        for(auto buffer : bufferset){
-            rassert(buffer->refCount == 1, "CommandBuffer still in use after submit");
-            wgvkReleaseCommandBuffer(buffer);
-        }
-    }
+    
+    PendingCommandBufferMap_for_each(pcm, resetFenceAndReleaseBuffers, surfaceDevice);
+    //for(auto [fence, bufferset] : queue->pendingCommandBuffers[cacheIndex]){
+    //    if(fence){
+    //        vkResetFences(surfaceDevice->device, 1, &fence);
+    //    }
+    //    else{
+    //        //TRACELOG(LOG_INFO, "Amount of buffers to be cleared from null fence. %llu", (unsigned long long)queue->pendingCommandBuffers[cacheIndex].size());
+    //    }
+    //    for(auto buffer : bufferset){
+    //        rassert(buffer->refCount == 1, "CommandBuffer still in use after submit");
+    //        wgvkReleaseCommandBuffer(buffer);
+    //    }
+    //}
     
 
     auto& usedBuffers = surfaceDevice->frameCaches[cacheIndex].usedBatchBuffers;
@@ -116,8 +139,7 @@ void PostPresentSurface(){
     
     std::copy(usedBuffers.begin(), usedBuffers.end(), std::back_inserter(unusedBuffers));
     usedBuffers.clear();
-
-    queue->pendingCommandBuffers[cacheIndex].clear();
+    PendingCommandBufferMap_clear(&queue->pendingCommandBuffers[cacheIndex]);
     
     WGVKCommandBuffer buffer = wgvkCommandEncoderFinish(queue->presubmitCache);
     wgvkReleaseCommandEncoder(queue->presubmitCache);
@@ -1210,12 +1232,12 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     if(rtex.colorMultisample.view){
         rca[0].view = (WGVKTextureView)rtex.colorMultisample.view;
         rca[0].resolveTarget = (WGVKTextureView)rtex.texture.view;
-        reinterpret_cast<WGVKCommandEncoder>(renderPass->cmdEncoder)->initializeOrTransition(rca[0].view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        reinterpret_cast<WGVKCommandEncoder>(renderPass->cmdEncoder)->initializeOrTransition(rca[0].resolveTarget->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        initializeOrTransition(((WGVKCommandEncoder)renderPass->cmdEncoder), rca[0].view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        initializeOrTransition(((WGVKCommandEncoder)renderPass->cmdEncoder), rca[0].resolveTarget->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     }
     else{
         rca[0].view = (WGVKTextureView)rtex.texture.view;
-        reinterpret_cast<WGVKCommandEncoder>(renderPass->cmdEncoder)->initializeOrTransition(rca[0].view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        initializeOrTransition(((WGVKCommandEncoder)renderPass->cmdEncoder), rca[0].view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     }
     if(renderPass->settings.depthTest){
         rpdesc.depthStencilAttachment = &dsa;
@@ -1228,7 +1250,7 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
             ar.loadOp = renderPass->colorLoadOp;
             ar.storeOp = renderPass->colorStoreOp;
             ar.view = rtex.moreColorAttachments[i].view;
-            reinterpret_cast<WGVKCommandEncoder>(renderPass->cmdEncoder)->initializeOrTransition(ar.view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+            initializeOrTransition(((WGVKCommandEncoder)renderPass->cmdEncoder), ar.view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         }
     }
     rpdesc.colorAttachments = rca;
@@ -1304,8 +1326,8 @@ extern "C" void CopyTextureToTexture(Texture source, Texture dest){
     WGVKTexture sourceTexture = reinterpret_cast<WGVKTexture>(source.id);
     WGVKTexture destTexture = reinterpret_cast<WGVKTexture>(dest.id);
     WGVKCommandEncoder encodingDest = reinterpret_cast<WGVKCommandEncoder>(g_renderstate.computepass.cmdEncoder);
-    encodingDest->initializeOrTransition(sourceTexture, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    encodingDest->initializeOrTransition(destTexture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    initializeOrTransition(encodingDest, sourceTexture, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    initializeOrTransition(encodingDest, destTexture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
     
     vkCmdBlitImage(

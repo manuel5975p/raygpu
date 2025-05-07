@@ -269,7 +269,14 @@
                                                                                                                                  \
         Name##_init(source);                                                                                                     \
     }                                                                                                                            \
-                                                                                                                                 \
+    SCOPE void Name##_clear(Name* map){\
+        map->current_size = 0;\
+        map->has_null_key = 0;\
+        for(size_t i = 0;i < map->current_capacity;i++){\
+            map->table[i].key = PHM_EMPTY_SLOT_KEY;\
+        }\
+    }\
+    \
     SCOPE void Name##_copy(Name *dest, const Name *source) {                                                                     \
         Name##_init(dest);                                                                                                       \
         dest->has_null_key = source->has_null_key;                                                                               \
