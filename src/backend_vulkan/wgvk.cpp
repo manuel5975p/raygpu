@@ -3088,6 +3088,60 @@ void SafelyResettableCommandPool::reset(){
 //    referencedBindGroups.clear();
 //    referencedSamplers.clear();
 //}
+
+
+//ImageViewUsageRecordMap_put(&resourceUsage->referencedTextureViews, buffer);
+//BindGroupUsageSet_put(&resourceUsage->referencedBindGroups, buffer);
+//BindGroupLayoutUsageSet_put(&resourceUsage->referencedBindGroupLayouts, buffer);
+//SamplerUsageSet_put(&resourceUsage->referencedSamplers, buffer);
+//LayoutAssumptions_put(&resourceUsage->entryAndFinalLayouts, buffer);
+RGAPI void registerTransition(ResourceUsage* resourceUsage, WGVKTexture tex, VkImageLayout from, VkImageLayout to){
+    
+    ImageLayoutPair* layoutPair = LayoutAssumptions_get(&resourceUsage->entryAndFinalLayouts, tex);
+    
+    if(layoutPair != NULL){
+        rassert(
+            from == layoutPair->finalLayout, 
+            "The previous layout transition encoded into this ResourceUsage did not transition to the layout this transition assumes"
+        );
+        layoutPair->finalLayout = to;
+    }
+    else{
+        ImageLayoutPair ilp = {
+            .initialLayout = from,
+            .finalLayout = to
+        };
+        LayoutAssumptions_put(&resourceUsage->entryAndFinalLayouts, (void*)tex, ilp);
+    }
+}
+RGAPI void trackBuffer(ResourceUsage* resourceUsage, WGVKBuffer buffer){
+    //TODO: useful buffer usage records for barriers
+    BufferUsageRecord brecord zeroinit;
+    BufferUsageRecordMap_put(&resourceUsage->referencedBuffers, (void*)buffer, brecord);
+
+    //resourceUsage->referencedBuffers;
+}
+
+RGAPI void trackTexture         (ResourceUsage* resourceUsage, WGVKTexture texture){
+    ImageUsageSet_add(resourceUsage->referencedTextures, texture);
+    resourceUsage->referencedBuffers
+}
+
+RGAPI void trackTextureView     (ResourceUsage* resourceUsage, WGVKTextureView view, TextureUsage usage){
+    resourceUsage->referencedBuffers
+}
+
+RGAPI void trackBindGroup       (ResourceUsage* resourceUsage, WGVKBindGroup bindGroup){
+    resourceUsage->referencedBuffers
+}
+
+RGAPI void trackBindGroupLayout (ResourceUsage* resourceUsage, WGVKBindGroupLayout bindGroupLayout){
+    resourceUsage->referencedBuffers
+}
+
+RGAPI void trackSampler         (ResourceUsage* resourceUsage, WGVKSampler sampler){
+    resourceUsage->referencedBuffers
+}
 static inline void bufferReleaseCallback(void* buffer, BufferUsageRecord* bu_record, void*){
     wgvkBufferRelease((WGVKBuffer)buffer);
 }

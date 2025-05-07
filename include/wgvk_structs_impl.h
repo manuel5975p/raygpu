@@ -107,13 +107,13 @@ typedef struct ResourceUsage{
 }ResourceUsage;
 
 
-RGAPI void registerTransition   (const ResourceUsage* resourceUsage, WGVKTexture tex, VkImageLayout from, VkImageLayout to);
-RGAPI void trackBuffer          (const ResourceUsage* resourceUsage, WGVKBuffer buffer);
-RGAPI void trackTexture         (const ResourceUsage* resourceUsage, WGVKTexture texture);
-RGAPI void trackTextureView     (const ResourceUsage* resourceUsage, WGVKTextureView view, TextureUsage usage);
-RGAPI void trackBindGroup       (const ResourceUsage* resourceUsage, WGVKBindGroup bindGroup);
-RGAPI void trackBindGroupLayout (const ResourceUsage* resourceUsage, WGVKBindGroupLayout bindGroupLayout);
-RGAPI void trackSampler         (const ResourceUsage* resourceUsage, WGVKSampler sampler);
+RGAPI void registerTransition   (ResourceUsage* resourceUsage, WGVKTexture tex, VkImageLayout from, VkImageLayout to);
+RGAPI void trackBuffer          (ResourceUsage* resourceUsage, WGVKBuffer buffer);
+RGAPI void trackTexture         (ResourceUsage* resourceUsage, WGVKTexture texture);
+RGAPI void trackTextureView     (ResourceUsage* resourceUsage, WGVKTextureView view, TextureUsage usage);
+RGAPI void trackBindGroup       (ResourceUsage* resourceUsage, WGVKBindGroup bindGroup);
+RGAPI void trackBindGroupLayout (ResourceUsage* resourceUsage, WGVKBindGroupLayout bindGroupLayout);
+RGAPI void trackSampler         (ResourceUsage* resourceUsage, WGVKSampler sampler);
 
 RGAPI Bool32 containsBuffer(const ResourceUsage* resourceUsage, WGVKBuffer buffer);
 RGAPI Bool32 containsTexture(const ResourceUsage* resourceUsage, WGVKTexture texture);
