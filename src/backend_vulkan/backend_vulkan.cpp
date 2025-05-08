@@ -63,9 +63,11 @@ void DummySubmitOnQueue(){
     emptySubmit.pWaitDstStageMask = &waitmask;
     vkQueueSubmit(g_vulkanstate.device->queue->graphicsQueue, 1, &emptySubmit, g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence);
     WGVKCommandBufferVector insert;
-    PendingCommandBufferMap_put(&g_vulkanstate.queue->pendingCommandBuffers[cacheIndex], g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence, insert);
-    WGVKCommandBufferVector* inserted;
-    PendingCommandBufferMap_get(&g_vulkanstate.queue->pendingCommandBuffers[cacheIndex], g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence);
+
+    PendingCommandBufferMap* pcmap = &g_vulkanstate.queue->pendingCommandBuffers[cacheIndex];
+    VkFence ftf = g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence;
+    PendingCommandBufferMap_put(pcmap, ftf, insert);
+    WGVKCommandBufferVector* inserted = PendingCommandBufferMap_get(pcmap, ftf);
     WGVKCommandBufferVector_init(inserted);
     //g_vulkanstate.queue->pendingCommandBuffers[cacheIndex].emplace(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence, std::unordered_set<WGVKCommandBuffer>{});
 }

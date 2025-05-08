@@ -975,6 +975,7 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
 
     for (uint32_t queueFamilyIndex = 0;queueFamilyIndex < queueFamilyCount; queueFamilyIndex++) {
         uint32_t queueFamily = queueFamilies[queueFamilyIndex]; 
+        if(queueFamily == VK_QUEUE_FAMILY_IGNORED)continue; // TODO handle this better
         VkDeviceQueueCreateInfo queueCreateInfo zeroinit;
         queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
         queueCreateInfo.queueFamilyIndex = queueFamily;
@@ -1423,6 +1424,7 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
         vkAllocateDescriptorSets(device->device, &dsai, &wvBindGroup->set);
     }
     ResourceUsage newResourceUsage;
+    ResourceUsage_init(&newResourceUsage);
     for(uint32_t i = 0;i < bgdesc->entryCount;i++){
         auto& entry = bgdesc->entries[i];
         if(entry.buffer){
@@ -1447,7 +1449,7 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
 
     //wvBindGroup->resourceUsage.releaseAllAndClear();
     
-    wvBindGroup->resourceUsage = newResourceUsage;
+    //wvBindGroup->resourceUsage = newResourceUsage;
 
 
     BufferUsageRecordMap_move(&wvBindGroup->resourceUsage.referencedBuffers, &newResourceUsage.referencedBuffers);
@@ -1528,8 +1530,9 @@ extern "C" void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup,
 extern "C" WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVKBindGroupDescriptor* bgdesc){
     rassert(bgdesc->layout != nullptr, "WGVKBindGroupDescriptor::layout is null");
     
-    WGVKBindGroup ret = callocnewpp(WGVKBindGroupImpl);
+    WGVKBindGroup ret = callocnew(WGVKBindGroupImpl);
     ret->refCount = 1;
+    ResourceUsage_init(&ret->resourceUsage);
 
     ret->device = device;
     ret->cacheIndex = device->submittedFrames % framesInFlight;
@@ -2733,12 +2736,12 @@ extern "C" void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, WGVK
 
 static inline void transitionToAppropriateLayoutCallback1(void* texture_, ImageUsageRecord* record, void* rpe_){
     WGVKRenderPassEncoder rpe = (WGVKRenderPassEncoder)rpe_;
-    WGVKTexture texture = (WGVKTexture)texture_;
+    WGVKTextureView texture = (WGVKTextureView)texture_;
 
     if(record->usage == TextureUsage_TextureBinding)
-        initializeOrTransition(rpe->cmdEncoder, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        initializeOrTransition(rpe->cmdEncoder, texture->texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     else if(record->usage == TextureUsage_StorageBinding){
-        initializeOrTransition(rpe->cmdEncoder, texture, VK_IMAGE_LAYOUT_GENERAL);
+        initializeOrTransition(rpe->cmdEncoder, texture->texture, VK_IMAGE_LAYOUT_GENERAL);
     }
 }
 void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group, WGVKBindGroup dset) {
@@ -3095,6 +3098,7 @@ void SafelyResettableCommandPool::reset(){
 //BindGroupLayoutUsageSet_put(&resourceUsage->referencedBindGroupLayouts, buffer);
 //SamplerUsageSet_put(&resourceUsage->referencedSamplers, buffer);
 //LayoutAssumptions_put(&resourceUsage->entryAndFinalLayouts, buffer);
+
 RGAPI void registerTransition(ResourceUsage* resourceUsage, WGVKTexture tex, VkImageLayout from, VkImageLayout to){
     
     ImageLayoutPair* layoutPair = LayoutAssumptions_get(&resourceUsage->entryAndFinalLayouts, tex);

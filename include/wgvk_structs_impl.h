@@ -106,6 +106,15 @@ typedef struct ResourceUsage{
     //}
 }ResourceUsage;
 
+static inline void ResourceUsage_init(ResourceUsage* ru){
+    BufferUsageRecordMap_init(&ru->referencedBuffers);
+    ImageUsageSet_init(&ru->referencedTextures);
+    ImageViewUsageRecordMap_init(&ru->referencedTextureViews);
+    BindGroupUsageSet_init(&ru->referencedBindGroups);
+    BindGroupLayoutUsageSet_init(&ru->referencedBindGroupLayouts);
+    SamplerUsageSet_init(&ru->referencedSamplers);
+    LayoutAssumptions_init(&ru->entryAndFinalLayouts);
+}
 
 RGAPI void registerTransition   (ResourceUsage* resourceUsage, WGVKTexture tex, VkImageLayout from, VkImageLayout to);
 RGAPI void trackBuffer          (ResourceUsage* resourceUsage, WGVKBuffer buffer);
