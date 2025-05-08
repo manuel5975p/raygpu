@@ -62,49 +62,17 @@ typedef struct ResourceUsage{
     BindGroupLayoutUsageSet referencedBindGroupLayouts;
     SamplerUsageSet referencedSamplers;
     LayoutAssumptions entryAndFinalLayouts;
-    //std::unordered_map<WGVKTexture, std::pair<VkImageLayout, VkImageLayout>> entryAndFinalLayouts;
-    //bool contains(WGVKBuffer buffer)const noexcept;
-    //bool contains(WGVKTexture texture)const noexcept;
-    //bool contains(WGVKTextureView view)const noexcept;
-    //bool contains(WGVKBindGroup bindGroup)const noexcept;
-    //bool contains(WGVKBindGroupLayout bindGroupLayout)const noexcept;
-    //bool contains(WGVKSampler bindGroup)const noexcept;
-    //void track(WGVKBuffer buffer)noexcept;
-    //void track(WGVKTexture texture)noexcept;
-    //void track(WGVKTextureView view, TextureUsage usage)noexcept;
-    //void track(WGVKBindGroup bindGroup)noexcept;
-    //void track(WGVKBindGroupLayout bindGroupLayout)noexcept;
-    //void track(WGVKSampler sampler)noexcept;
-    
-    //void registerTransition(WGVKTexture tex, VkImageLayout from, VkImageLayout to){
-    //    auto it = entryAndFinalLayouts.find(tex);
-    //    if(it == entryAndFinalLayouts.end()){
-    //        entryAndFinalLayouts.emplace(tex, std::make_pair(from, to));
-    //    }
-    //    else{
-    //        rassert(
-    //            from == it->second.second, 
-    //            "The previous layout transition encoded into this ResourceUsage did not transition to the layout this transition assumes"
-    //        );
-    //        it->second.second = to;
-    //    }
-    //}
-    //void releaseAllAndClear()noexcept;
-    //~ResourceUsage(){
-        //if(referencedBuffers.size()){
-        //    abort();
-        //}
-        //if(referencedTextures.size()){
-        //    abort();
-        //}
-        //if(referencedTextureViews.size()){
-        //    abort();
-        //}
-        //if(referencedBindGroups.size()){
-        //    abort();
-        //}
-    //}
 }ResourceUsage;
+
+static inline void ResourceUsage_free(ResourceUsage* ru){
+    BufferUsageRecordMap_free(&ru->referencedBuffers);
+    ImageUsageSet_free(&ru->referencedTextures);
+    ImageViewUsageRecordMap_free(&ru->referencedTextureViews);
+    BindGroupUsageSet_free(&ru->referencedBindGroups);
+    BindGroupLayoutUsageSet_free(&ru->referencedBindGroupLayouts);
+    SamplerUsageSet_free(&ru->referencedSamplers);
+    LayoutAssumptions_free(&ru->entryAndFinalLayouts);
+}
 
 static inline void ResourceUsage_init(ResourceUsage* ru){
     BufferUsageRecordMap_init(&ru->referencedBuffers);

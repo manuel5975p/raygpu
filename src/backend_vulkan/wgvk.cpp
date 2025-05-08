@@ -1934,7 +1934,7 @@ extern "C" void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVK
 
     WGVKCommandEncoder pscache = queue->presubmitCache;
     LayoutAssumptions_for_each(&pscache->resourceUsage.entryAndFinalLayouts, welldamn_sdfd, NULL); 
-
+    
     {
         auto& sbuffer = buffers[0];
         LayoutAssumptions_for_each(&sbuffer->resourceUsage.entryAndFinalLayouts, registerTransitionCallback, pscache);
@@ -2260,31 +2260,31 @@ void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
     std::free(commandEncoder);
 }
 
-void releaseRPSetCallback(void* rpEncoder, void*){
+static void releaseRPSetCallback(void* rpEncoder, void*){
     wgvkReleaseRenderPassEncoder((WGVKRenderPassEncoder)rpEncoder);
 }
-
+static void releaseCPSetCallback(void* cpEncoder, void*){
+    wgvkReleaseComputePassEncoder((WGVKComputePassEncoder)cpEncoder);
+}
+static void releaseRTSetCallback(void* rtEncoder, void*){
+    wgvkReleaseRaytracingPassEncoder((WGVKRaytracingPassEncoder)rtEncoder);
+}
 void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
     --commandBuffer->refCount;
     if(commandBuffer->refCount == 0){
-        //TRACELOG(LOG_INFO, "Destroying commandbuffer");
         WGVKRenderPassEncoderSet_for_each(&commandBuffer->referencedRPs, releaseRPSetCallback, NULL);
+        WGVKComputePassEncoderSet_for_each(&commandBuffer->referencedCPs, releaseCPSetCallback, NULL);
+        WGVKRaytracingPassEncoderSet_for_each(&commandBuffer->referencedRTs, releaseRTSetCallback, NULL);
         
-        //for(auto rp : commandBuffer->referencedRPs){
-        //    wgvkReleaseRenderPassEncoder(rp);
-        //}
-        //for(auto rp : commandBuffer->referencedCPs){
-        //    wgvkReleaseComputePassEncoder(rp);
-        //}
-        //for(auto ct : commandBuffer->referencedRTs){
-        //    wgvkReleaseRaytracingPassEncoder(ct);
-        //}
-
         releaseAllAndClear(&commandBuffer->resourceUsage);
+        // The above performs ResourceUsage_free already!
+        
+        
         PerframeCache& frameCache = commandBuffer->device->frameCaches[commandBuffer->cacheIndex];
         frameCache.commandBuffers.push_back(commandBuffer->buffer);
         
-        commandBuffer->~WGVKCommandBufferImpl();
+        //commandBuffer->~WGVKCommandBufferImpl();
+        
         std::free(commandBuffer);
     }
 }
@@ -2296,8 +2296,9 @@ void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc) {
         if(rpenc->frameBuffer)
             vkDestroyFramebuffer(rpenc->device->device, rpenc->frameBuffer, nullptr);
         //vkDestroyRenderPass(rpenc->device->device, rpenc->renderPass, nullptr);
-        rpenc->~WGVKRenderPassEncoderImpl();
-        std::free(rpenc);
+        ResourceUsage_free(&rpenc->resourceUsage);
+        //rpenc->~WGVKRenderPassEncoderImpl();
+        RL_FREE(rpenc);
     }
 }
 void wgvkSamplerRelease(WGVKSampler sampler){
@@ -2325,7 +2326,7 @@ void wgvkBufferRelease(WGVKBuffer buffer) {
             //vkFreeMemory(dshandle->device->device, buffer->memory, nullptr);
         }*/
         buffer->~WGVKBufferImpl();
-        std::free(buffer);
+        RL_FREE(buffer);
     }
 }
 

@@ -189,6 +189,7 @@ extern "C" void BeginComputepassEx(DescribedComputepass* computePass){
 extern "C" void EndComputepassEx(DescribedComputepass* computePass){
     if(computePass->cpEncoder){
         wgvkCommandEncoderEndComputePass((WGVKComputePassEncoder)computePass->cpEncoder);
+        wgvkReleaseComputePassEncoder((WGVKComputePassEncoder)computePass->cpEncoder);
         computePass->cpEncoder = 0;
     }
     
@@ -1358,6 +1359,8 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
     drawCurrentBatch();
     if(rp->rpEncoder){
         wgvkRenderPassEncoderEnd((WGVKRenderPassEncoder)rp->rpEncoder);
+        wgvkReleaseRenderPassEncoder((WGVKRenderPassEncoder)rp->rpEncoder);
+        rp->rpEncoder = nullptr;
     }
     VkImageMemoryBarrier rpAttachmentBarriers[2] zeroinit;
     auto rtex = g_renderstate.renderTargetStack.peek();
