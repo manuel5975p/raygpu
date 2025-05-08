@@ -353,7 +353,7 @@ extern "C" void EncodeTransitionImageLayout(
     // --- 1. Define the Image Memory Barrier ---
     // This structure describes the memory dependency for a specific image subresource range.
     // It tells Vulkan how access to an image needs to be synchronized between operations.
-    VkImageMemoryBarrier barrier{};
+    VkImageMemoryBarrier barrier zeroinit;
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     barrier.oldLayout = oldLayout; // Layout the image is currently in
     barrier.newLayout = newLayout; // Layout the image needs to be transitioned to
@@ -1063,8 +1063,8 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
     #endif
     
     // (Optional) Enable validation layers for device-specific debugging
-    ret.first = callocnew(WGVKDeviceImpl);
-    ret.second = callocnew(WGVKQueueImpl);
+    ret.first = callocnewpp(WGVKDeviceImpl);
+    ret.second = callocnewpp(WGVKQueueImpl);
 
     VkResult dcresult = vkCreateDevice(adapter->physicalDevice, &createInfo, nullptr, &(ret.first->device));
     if (dcresult != VK_SUCCESS) {
@@ -3117,30 +3117,43 @@ RGAPI void registerTransition(ResourceUsage* resourceUsage, WGVKTexture tex, VkI
 RGAPI void trackBuffer(ResourceUsage* resourceUsage, WGVKBuffer buffer){
     //TODO: useful buffer usage records for barriers
     BufferUsageRecord brecord zeroinit;
-    BufferUsageRecordMap_put(&resourceUsage->referencedBuffers, (void*)buffer, brecord);
-
-    //resourceUsage->referencedBuffers;
+    if(BufferUsageRecordMap_put(&resourceUsage->referencedBuffers, (void*)buffer, brecord)){
+        ++buffer->refCount;
+    }
 }
 
 RGAPI void trackTexture         (ResourceUsage* resourceUsage, WGVKTexture texture){
-    ImageUsageSet_add(resourceUsage->referencedTextures, texture);
-    resourceUsage->referencedBuffers
+    if(ImageUsageSet_add(&resourceUsage->referencedTextures, texture)){
+        ++texture->refCount;
+    }
 }
 
 RGAPI void trackTextureView     (ResourceUsage* resourceUsage, WGVKTextureView view, TextureUsage usage){
-    resourceUsage->referencedBuffers
+    //TODO: useful image usage records for barriers
+    ImageUsageRecord record = {
+        .usage = usage,
+    };
+    if(ImageViewUsageRecordMap_put(&resourceUsage->referencedTextureViews, view, record)){
+        ++view->refCount;
+    }
 }
 
-RGAPI void trackBindGroup       (ResourceUsage* resourceUsage, WGVKBindGroup bindGroup){
-    resourceUsage->referencedBuffers
+RGAPI void trackBindGroup(ResourceUsage* resourceUsage, WGVKBindGroup bindGroup){
+    if(BindGroupUsageSet_add(&resourceUsage->referencedBindGroups, (void*)bindGroup)){
+        ++bindGroup->refCount;
+    }
 }
 
 RGAPI void trackBindGroupLayout (ResourceUsage* resourceUsage, WGVKBindGroupLayout bindGroupLayout){
-    resourceUsage->referencedBuffers
+    if(BindGroupLayoutUsageSet_add(&resourceUsage->referencedBindGroupLayouts, bindGroupLayout)){
+        ++bindGroupLayout->refCount;
+    }
 }
 
 RGAPI void trackSampler         (ResourceUsage* resourceUsage, WGVKSampler sampler){
-    resourceUsage->referencedBuffers
+    if(SamplerUsageSet_add(&resourceUsage->referencedSamplers, sampler)){
+        ++sampler->refCount;
+    }
 }
 static inline void bufferReleaseCallback(void* buffer, BufferUsageRecord* bu_record, void*){
     wgvkBufferRelease((WGVKBuffer)buffer);
