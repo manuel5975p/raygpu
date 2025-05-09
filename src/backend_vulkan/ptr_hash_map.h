@@ -604,4 +604,161 @@
         }                                                                                                                        \
     }
 
+#define DEFINE_GENERIC_HASH_MAP(SCOPE, Name, KeyType, ValueType, KeyHashFunc, KeyCmpFunc, KeyEmptyVal) \
+    typedef struct Name##_kv_pair { \
+        KeyType key; \
+        ValueType value; \
+    } Name##_kv_pair; \
+    typedef struct Name { \
+        uint64_t current_size; \
+        uint64_t current_capacity; \
+        KeyType empty_key_sentinel; \
+        Name##_kv_pair *table; \
+    } Name; \
+    static inline uint64_t Name##_hash_key_internal(KeyType key) { \
+        return KeyHashFunc(key); \
+    } \
+    static inline uint64_t Name##_round_up_to_power_of_2(uint64_t v) { \
+        if (v == 0) return 0; \
+        v--; \
+        v |= v >> 1; v |= v >> 2; v |= v >> 4; v |= v >> 8; v |= v >> 16; v |= v >> 32; \
+        v++; \
+        return v; \
+    } \
+    static void Name##_insert_entry(Name##_kv_pair *table, uint64_t capacity, KeyType key, ValueType value, KeyType empty_key_val_param) { \
+        assert(!KeyCmpFunc(key, empty_key_val_param) && capacity > 0 && (capacity & (capacity - 1)) == 0); \
+        uint64_t cap_mask = capacity - 1; \
+        uint64_t index = Name##_hash_key_internal(key) & cap_mask; \
+        while (!KeyCmpFunc(table[index].key, empty_key_val_param)) { \
+            index = (index + 1) & cap_mask; \
+        } \
+        table[index].key = key; \
+        table[index].value = value; \
+    } \
+    static Name##_kv_pair *Name##_find_slot(Name *map, KeyType key) { \
+        assert(map->table != NULL && map->current_capacity > 0); \
+        uint64_t cap_mask = map->current_capacity - 1; \
+        uint64_t index = Name##_hash_key_internal(key) & cap_mask; \
+        while (!KeyCmpFunc(map->table[index].key, map->empty_key_sentinel) && !KeyCmpFunc(map->table[index].key, key)) { \
+            index = (index + 1) & cap_mask; \
+        } \
+        return &map->table[index]; \
+    } \
+    static void Name##_grow(Name *map); \
+    SCOPE void Name##_init(Name *map) { \
+        map->current_size = 0; \
+        map->current_capacity = 0; \
+        map->empty_key_sentinel = (KeyEmptyVal); \
+        map->table = NULL; \
+    } \
+    static void Name##_grow(Name *map) { \
+        uint64_t old_capacity = map->current_capacity; \
+        Name##_kv_pair *old_table = map->table; \
+        uint64_t new_capacity; \
+        if (old_capacity == 0) { \
+            new_capacity = (PHM_INITIAL_HEAP_CAPACITY > 0) ? PHM_INITIAL_HEAP_CAPACITY : 8; \
+        } else { \
+            if (old_capacity >= (UINT64_MAX / 2)) new_capacity = UINT64_MAX; \
+            else new_capacity = old_capacity * 2; \
+        } \
+        new_capacity = Name##_round_up_to_power_of_2(new_capacity); \
+        if (new_capacity == 0 && old_capacity == 0 && ((PHM_INITIAL_HEAP_CAPACITY > 0) ? PHM_INITIAL_HEAP_CAPACITY : 8) > 0) { \
+            new_capacity = (UINT64_C(1) << 63); \
+        } \
+        if (new_capacity == 0 || (new_capacity <= old_capacity && old_capacity > 0)) { \
+            return; \
+        } \
+        Name##_kv_pair *new_table = (Name##_kv_pair *)malloc(new_capacity * sizeof(Name##_kv_pair)); \
+        if (!new_table) return; \
+        for (uint64_t i = 0; i < new_capacity; ++i) { \
+            new_table[i].key = map->empty_key_sentinel; \
+        } \
+        if (old_table && map->current_size > 0) { \
+            uint64_t rehashed_count = 0; \
+            for (uint64_t i = 0; i < old_capacity; ++i) { \
+                if (!KeyCmpFunc(old_table[i].key, map->empty_key_sentinel)) { \
+                    Name##_insert_entry(new_table, new_capacity, old_table[i].key, old_table[i].value, map->empty_key_sentinel); \
+                    rehashed_count++; \
+                    if (rehashed_count == map->current_size) break; \
+                } \
+            } \
+        } \
+        if (old_table) free(old_table); \
+        map->table = new_table; \
+        map->current_capacity = new_capacity; \
+    } \
+\
+    SCOPE int Name##_put(Name *map, KeyType key, ValueType value) { \
+        assert(!KeyCmpFunc(key, map->empty_key_sentinel)); \
+        if (map->current_capacity == 0 || \
+            (map->current_size + 1) * PHM_LOAD_FACTOR_DEN >= map->current_capacity * PHM_LOAD_FACTOR_NUM) { \
+            uint64_t old_cap = map->current_capacity; \
+            Name##_grow(map); \
+            if (map->current_capacity == old_cap && old_cap > 0) { \
+                 if ((map->current_size + 1) * PHM_LOAD_FACTOR_DEN >= map->current_capacity * PHM_LOAD_FACTOR_NUM) return 0; \
+            } else if (map->current_capacity == 0) return 0; \
+            else if ((map->current_size + 1) * PHM_LOAD_FACTOR_DEN >= map->current_capacity * PHM_LOAD_FACTOR_NUM) return 0; \
+        } \
+        assert(map->current_capacity > 0 && map->table != NULL); \
+        Name##_kv_pair *slot = Name##_find_slot(map, key); \
+        if (KeyCmpFunc(slot->key, map->empty_key_sentinel)) { \
+            slot->key = key; slot->value = value; map->current_size++; return 1; \
+        } else { \
+            assert(KeyCmpFunc(slot->key, key)); slot->value = value; return 0; \
+        } \
+    } \
+\
+    SCOPE ValueType *Name##_get(Name *map, KeyType key) { \
+        assert(!KeyCmpFunc(key, map->empty_key_sentinel)); \
+        if (map->current_capacity == 0 || map->table == NULL) return NULL; \
+        Name##_kv_pair *slot = Name##_find_slot(map, key); \
+        return (KeyCmpFunc(slot->key, key)) ? &slot->value : NULL; \
+    } \
+\
+    SCOPE void Name##_for_each(Name *map, void (*callback)(KeyType key, ValueType *value, void *user_data), void *user_data) { \
+        if (map->current_capacity > 0 && map->table != NULL && map->current_size > 0) { \
+            uint64_t count = 0; \
+            for (uint64_t i = 0; i < map->current_capacity; ++i) { \
+                if (!KeyCmpFunc(map->table[i].key, map->empty_key_sentinel)) { \
+                    callback(map->table[i].key, &map->table[i].value, user_data); \
+                    if (++count == map->current_size) break; \
+                } \
+            } \
+        } \
+    } \
+\
+    SCOPE void Name##_free(Name *map) { \
+        if (map->table != NULL) free(map->table); \
+        Name##_init(map); \
+    } \
+\
+    SCOPE void Name##_move(Name *dest, Name *source) { \
+        if (dest == source) return; \
+        if (dest->table != NULL) free(dest->table); \
+        *dest = *source; \
+        Name##_init(source); \
+    } \
+\
+    SCOPE void Name##_clear(Name* map) { \
+        map->current_size = 0; \
+        if (map->table != NULL && map->current_capacity > 0) { \
+            for (uint64_t i = 0; i < map->current_capacity; ++i) { \
+                map->table[i].key = map->empty_key_sentinel; \
+            } \
+        } \
+    } \
+\
+    SCOPE void Name##_copy(Name *dest, const Name *source) { \
+        if (dest == source) return; \
+        if (dest->table != NULL) free(dest->table); \
+        Name##_init(dest); \
+        dest->current_size = source->current_size; \
+        if (source->table != NULL && source->current_capacity > 0) { \
+            dest->table = (Name##_kv_pair *)malloc(source->current_capacity * sizeof(Name##_kv_pair)); \
+            if (!dest->table) { Name##_init(dest); return; } \
+            memcpy(dest->table, source->table, source->current_capacity * sizeof(Name##_kv_pair)); \
+            dest->current_capacity = source->current_capacity; \
+        } \
+    }
+
 #endif // HASHMAP_SET_AND_VECTOR_H

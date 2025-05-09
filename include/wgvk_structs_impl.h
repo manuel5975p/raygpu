@@ -101,21 +101,21 @@ RGAPI Bool32 containsSampler(const ResourceUsage* resourceUsage, WGVKSampler bin
 
 RGAPI void releaseAllAndClear(ResourceUsage* resourceUsage);
 
-struct SafelyResettableCommandPool{
-    VkCommandPool pool;
-    VkFence finishingFence;
-    WGVKDevice device;
-    struct commandPoolRecord{
-        VkCommandBuffer commandBuffer;
-        VkSemaphore semaphore;
-    };
-    std::vector<commandPoolRecord> currentlyInUse;
-    std::vector<commandPoolRecord> availableForUse;
-
-    SafelyResettableCommandPool(WGVKDevice p_device); 
-    void finish();
-    void reset();    
-};
+//struct SafelyResettableCommandPool{
+//    VkCommandPool pool;
+//    VkFence finishingFence;
+//    WGVKDevice device;
+//    struct commandPoolRecord{
+//        VkCommandBuffer commandBuffer;
+//        VkSemaphore semaphore;
+//    };
+//    std::vector<commandPoolRecord> currentlyInUse;
+//    std::vector<commandPoolRecord> availableForUse;
+//
+//    SafelyResettableCommandPool(WGVKDevice p_device); 
+//    void finish();
+//    void reset();    
+//};
 
 struct SyncState{
     std::vector<VkSemaphore> semaphores;
@@ -154,6 +154,12 @@ typedef struct AttachmentDescriptor{
     }
 #endif
 }AttachmentDescriptor;
+static bool attachmentDescriptorCompare(AttachmentDescriptor a, AttachmentDescriptor b){
+    return a.format == b.format
+        && a.sampleCount == b.sampleCount
+        && a.loadop == b.loadop
+        && a.storeop == b.storeop;
+}
 
 
 typedef struct RenderPassLayout{
@@ -179,6 +185,19 @@ typedef struct RenderPassLayout{
     }
 #endif
 }RenderPassLayout;
+static bool renderPassLayoutCompare(RenderPassLayout first, RenderPassLayout other){
+    if(colorAttachmentCount != other.colorAttachmentCount)return false;
+    for(uint32_t i = 0;i < colorAttachmentCount;i++){
+        if(attachmentDescriptorCompare( b)colorAttachments[i] != other.colorAttachments[i]){
+            return false;
+        }
+    }
+    if(depthAttachmentPresent != other.depthAttachmentPresent)return false;
+    if(depthAttachment != other.depthAttachment)return false;
+    //if(colorResolveIndex != other.colorResolveIndex)return false;
+
+    return true;
+}
 typedef struct LayoutedRenderPass{
     RenderPassLayout layout;
     std::vector<VkAttachmentDescription> allAttachments;
@@ -188,8 +207,9 @@ typedef struct LayoutedRenderPass{
 LayoutedRenderPass LoadRenderPassFromLayout(WGVKDevice device, RenderPassLayout layout);
 RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescriptor* rpdesc);
 
-struct wgvkxorshiftstate{
+typedef struct wgvkxorshiftstate{
     uint64_t x64;
+    #ifdef __cplusplus
     constexpr void update(uint64_t x) noexcept{
         x64 ^= x * 0x2545F4914F6CDD1D;
         x64 ^= x64 << 13;
@@ -202,8 +222,15 @@ struct wgvkxorshiftstate{
         x64 ^= x64 >> 7;
         x64 ^= x64 << 17;
     }
-};
+    #endif
+}wgvkxorshiftstate;
+void xs_update_u32(wgvkxorshiftstate* state, uint32_t x, uint32_t y){
+    state->x64 ^= ((uint64_t(x) << 32) | uint64_t(y)) * 0x2545F4914F6CDD1D;
+    state->x64 ^= state->x64 << 13;
+    state->x64 ^= state->x64 >> 7;
+    state->x64 ^= state->x64 << 17;
 
+}
 namespace std{
     template<>
     struct hash<RenderPassLayout>{
@@ -223,6 +250,21 @@ namespace std{
             return ret.x64;
         }
     };
+}
+
+static size_t renderPassLayoutHash(RenderPassLayout layout){
+    wgvkxorshiftstate ret = {.x64 = 0x2545F4918F6CDD1D};
+    xs_update_u32(&ret, layout.depthAttachmentPresent << 6, layout.colorAttachmentCount);
+    for(uint32_t i = 0;i < layout.colorAttachmentCount;i++){
+        xs_update_u32(&ret, layout.colorAttachments[i].format, layout.colorAttachments[i].sampleCount);
+        xs_update_u32(&ret, layout.colorAttachments[i].loadop, layout.colorAttachments[i].storeop);
+    }
+    xs_update_u32(&ret, layout.depthAttachmentPresent << 6, layout.depthAttachmentPresent);
+    if(layout.depthAttachmentPresent){
+        xs_update_u32(&ret, layout.depthAttachment.format, layout.depthAttachment.sampleCount);
+        xs_update_u32(&ret, layout.depthAttachment.loadop, layout.depthAttachment.storeop);
+    }
+    return ret.x64;
 }
 
 struct PerframeCache{
@@ -334,6 +376,7 @@ typedef struct WGVKAdapterImpl{
 
 constexpr uint32_t framesInFlight = 2;
 
+DEFINE_GENERIC_HASH_MAP(CONTAINERAPI, RenderPassCache, RenderPassLayout, LayoutedRenderPass, renderPassLayoutHash, renderPassLayoutCompare, {0});
 typedef struct WGVKDeviceImpl{
     VkDevice device;
     WGVKAdapter adapter;

@@ -164,13 +164,13 @@ WGVKSurface wgvkInstanceCreateSurface(WGVKInstance instance, const WGVKSurfaceDe
 
 
 RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescriptor* rpdesc){
-    RenderPassLayout ret{};
+    RenderPassLayout ret zeroinit;
     //ret.colorResolveIndex = VK_ATTACHMENT_UNUSED;
     
     if(rpdesc->depthStencilAttachment){
         rassert(rpdesc->depthStencilAttachment->view, "Depth stencil attachment passed but null view");
         ret.depthAttachmentPresent = 1U;
-        ret.depthAttachment = AttachmentDescriptor{
+        ret.depthAttachment = {
             .format = rpdesc->depthStencilAttachment->view->format, 
             .sampleCount = rpdesc->depthStencilAttachment->view->sampleCount,
             .loadop = rpdesc->depthStencilAttachment->depthLoadOp,
@@ -182,7 +182,7 @@ RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescriptor* rpdesc){
     ret.colorAttachmentCount = rpdesc->colorAttachmentCount;
     rassert(ret.colorAttachmentCount < max_color_attachments, "Too many color attachments");
     for(uint32_t i = 0;i < rpdesc->colorAttachmentCount;i++){
-        ret.colorAttachments[i] = AttachmentDescriptor{
+        ret.colorAttachments[i] = {
             .format = rpdesc->colorAttachments[i].view->format, 
             .sampleCount = rpdesc->colorAttachments[i].view->sampleCount,
             .loadop = rpdesc->colorAttachments[i].loadOp,
@@ -196,7 +196,7 @@ RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescriptor* rpdesc){
         if(rpdesc->colorAttachments[i].resolveTarget != 0){
             //i++;
             //ret.colorResolveIndex = i;
-            ret.colorResolveAttachments[i] = AttachmentDescriptor{
+            ret.colorResolveAttachments[i] = {
                 .format = rpdesc->colorAttachments[i].resolveTarget->format, 
                 .sampleCount = rpdesc->colorAttachments[i].resolveTarget->sampleCount,
                 .loadop = rpdesc->colorAttachments[i].loadOp,
@@ -2278,14 +2278,18 @@ void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
         
         releaseAllAndClear(&commandBuffer->resourceUsage);
         // The above performs ResourceUsage_free already!
-        
+    
+
+        WGVKRenderPassEncoderSet_free(&commandBuffer->referencedRPs);
+        WGVKComputePassEncoderSet_free(&commandBuffer->referencedCPs);
+        WGVKRaytracingPassEncoderSet_free(&commandBuffer->referencedRTs);
         
         PerframeCache& frameCache = commandBuffer->device->frameCaches[commandBuffer->cacheIndex];
         frameCache.commandBuffers.push_back(commandBuffer->buffer);
         
         //commandBuffer->~WGVKCommandBufferImpl();
         
-        std::free(commandBuffer);
+        RL_FREE(commandBuffer);
     }
 }
 
@@ -2979,6 +2983,8 @@ extern "C" void wgvkPipelineLayoutAddRef(WGVKPipelineLayout pipelineLayout){
 extern "C" void wgvkSamplerAddRef(WGVKSampler sampler){
     ++sampler->refCount;
 }
+
+/*
 SafelyResettableCommandPool::SafelyResettableCommandPool(WGVKDevice p_device) : 
     pool(VK_NULL_HANDLE),
     finishingFence(VK_NULL_HANDLE),
@@ -3008,6 +3014,7 @@ void SafelyResettableCommandPool::reset(){
     std::copy(currentlyInUse.begin(), currentlyInUse.end(), std::back_inserter(availableForUse));
     currentlyInUse.clear();
 }
+*/
 
 
 //bool ResourceUsage::contains(WGVKBuffer buffer)const noexcept{
@@ -3194,6 +3201,7 @@ void releaseAllAndClear(ResourceUsage* resourceUsage){
     BindGroupUsageSet_free(&resourceUsage->referencedBindGroups);
     BindGroupLayoutUsageSet_free(&resourceUsage->referencedBindGroupLayouts);
     SamplerUsageSet_free(&resourceUsage->referencedSamplers);
+    LayoutAssumptions_free(&resourceUsage->entryAndFinalLayouts);
 }
 
 

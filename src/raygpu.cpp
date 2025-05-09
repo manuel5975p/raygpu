@@ -911,7 +911,7 @@ RGAPICXX void EndDrawing(){
     g_renderstate.last_timestamps[g_renderstate.total_frames % 64] = NanoTime();
     uint64_t elapsed = NanoTime() - beginframe_stmp;
     if(elapsed & (1ull << 63))return;
-    std::cout << elapsed << "\n";
+    //std::cout << elapsed << "\n";
     std::this_thread::sleep_for(std::chrono::nanoseconds(nanosecondsPerFrame - elapsed));
     //if(!(g_renderstate.windowFlags & FLAG_VSYNC_HINT) && nanosecondsPerFrame > elapsed && GetTargetFPS() > 0)
     //    NanoWait(nanosecondsPerFrame - elapsed);
