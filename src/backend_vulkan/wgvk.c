@@ -2049,10 +2049,13 @@ void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVKCommandBuff
         si.commandBufferCount = 1;
         uint32_t submits = queue->syncState[cacheIndex].submits;
         
-        std::vector<VkPipelineStageFlags> waitFlags(waitSemaphores.size, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+        VkPipelineStageFlags* waitFlags = calloc(waitSemaphores.size, sizeof(VkPipelineStageFlags));
+        for(uint32_t i = 0;i < waitSemaphores.size;i++){
+            waitFlags[i] = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+        }
         si.waitSemaphoreCount = waitSemaphores.size;
         si.pWaitSemaphores = waitSemaphores.data;
-        si.pWaitDstStageMask = waitFlags.data();
+        si.pWaitDstStageMask = waitFlags;
 
         si.signalSemaphoreCount = 1;
         si.pSignalSemaphores = queue->syncState[cacheIndex].semaphores.data + queue->syncState[cacheIndex].submits + 1;
@@ -2062,6 +2065,7 @@ void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVKCommandBuff
         submitResult |= vkQueueSubmit(queue->graphicsQueue, 1, &si, fence);
 
         VkSemaphoreVector_free(&waitSemaphores);
+        free(waitFlags);
     }
 
     if(submitResult == VK_SUCCESS){
@@ -2122,7 +2126,7 @@ void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVKCommandBuff
 
 void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, WGVKAdapter adapter, WGVKSurfaceCapabilities* capabilities){
     VkSurfaceKHR surface = wgvkSurface->surface;
-    VkSurfaceCapabilitiesKHR scap{};
+    VkSurfaceCapabilitiesKHR scap zeroinit;
     VkPhysicalDevice vk_physicalDevice = adapter->physicalDevice;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vk_physicalDevice, surface, &scap);
     
@@ -2131,21 +2135,23 @@ void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, WGVKAdapter adapter, WG
     uint32_t formatCount;
     vkGetPhysicalDeviceSurfaceFormatsKHR(vk_physicalDevice, surface, &formatCount, NULL);
     if (formatCount != 0) {
-        wgvkSurface->formatCache = (PixelFormat*)std::calloc(formatCount, sizeof(PixelFormat));
-        std::vector<VkSurfaceFormatKHR> surfaceFormats(formatCount);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(vk_physicalDevice, surface, &formatCount, surfaceFormats.data());
+
+        wgvkSurface->formatCache = (PixelFormat*)calloc(formatCount, sizeof(PixelFormat));
+        VkSurfaceFormatKHR* surfaceFormats = (VkSurfaceFormatKHR*)calloc(formatCount, sizeof(VkSurfaceFormatKHR));
+        vkGetPhysicalDeviceSurfaceFormatsKHR(vk_physicalDevice, surface, &formatCount, surfaceFormats);
         for(size_t i = 0;i < formatCount;i++){
             wgvkSurface->formatCache[i] = fromVulkanPixelFormat(surfaceFormats[i].format);
         }
         wgvkSurface->formatCount = formatCount;
+        free(surfaceFormats);
     }
 
     // Present Modes
-    uint32_t presentModeCount;
+    uint32_t presentModeCount = 0;
     vkGetPhysicalDeviceSurfacePresentModesKHR(vk_physicalDevice, surface, &presentModeCount, NULL);
     if (presentModeCount != 0) {
         wgvkSurface->presentModeCache = (PresentMode*)RL_CALLOC(presentModeCount, sizeof(PresentMode));
-        std::vector<VkPresentModeKHR> presentModes(presentModeCount);
+        VkPresentModeKHR presentModes[16] = {0};//(presentModeCount);
         vkGetPhysicalDeviceSurfacePresentModesKHR(vk_physicalDevice, surface, &presentModeCount, presentModes.data());
         for(size_t i = 0;i < presentModeCount;i++){
             wgvkSurface->presentModeCache[i] = fromVulkanPresentMode(presentModes[i]);
@@ -2160,7 +2166,7 @@ void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, WGVKAdapter adapter, WG
 }
 
 void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* config){
-    auto device = WGVKDevice(config->device);
+    WGVKDevice device = config->device;
     surface->device = config->device;
     surface->lastConfig = *config;
     vkDeviceWaitIdle(device->device);
@@ -2175,8 +2181,8 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* c
 
     //std::free(surface->framebuffers);
     
-    std::free(surface->imageViews);
-    std::free(surface->images);
+    free(surface->imageViews);
+    free(surface->images);
     vkDestroySwapchainKHR(device->device, surface->swapchain, NULL);
     
     VkSurfaceCapabilitiesKHR vkCapabilities zeroinit;
@@ -2185,16 +2191,16 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* c
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     createInfo.surface = surface->surface;
     uint32_t correctedWidth, correctedHeight;
-    
+    #define ICLAMP_TEMP(V, MINI, MAXI) ((V) < (MINI)) ? (MINI) : (((V) > (MAXI)) ? (MAXI) : V)
     if(config->width < vkCapabilities.minImageExtent.width || config->width > vkCapabilities.maxImageExtent.width){
-        correctedWidth = std::clamp(config->width, vkCapabilities.minImageExtent.width, vkCapabilities.maxImageExtent.width);
+        correctedWidth = ICLAMP_TEMP(config->width, vkCapabilities.minImageExtent.width, vkCapabilities.maxImageExtent.width);
         TRACELOG(LOG_WARNING, "Invalid SurfaceConfiguration::width %u, adjusting to %u", config->width, correctedWidth);
     }
     else{
         correctedWidth = config->width;
     }
     if(config->height < vkCapabilities.minImageExtent.height || config->height > vkCapabilities.maxImageExtent.height){
-        correctedHeight = std::clamp(config->height, vkCapabilities.minImageExtent.height, vkCapabilities.maxImageExtent.height);
+        correctedHeight = ICLAMP_TEMP(config->height, vkCapabilities.minImageExtent.height, vkCapabilities.maxImageExtent.height);
         TRACELOG(LOG_WARNING, "Invalid SurfaceConfiguration::height %u, adjusting to %u", config->height, correctedHeight);
     }
     else{
@@ -2207,13 +2213,16 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* c
     surface->width  = correctedWidth;
     surface->height = correctedHeight;
     surface->device = config->device;
-    VkExtent2D newExtent{correctedWidth, correctedHeight};
+    VkExtent2D newExtent = CLITERAL(VkExtent2D){correctedWidth, correctedHeight};
     createInfo.imageExtent = newExtent;
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
     // Queue family indices
-    uint32_t queueFamilyIndices[2] = {device->adapter->queueIndices.graphicsIndex, device->adapter->queueIndices.transferIndex};
+    uint32_t queueFamilyIndices[2] = {
+        device->adapter->queueIndices.graphicsIndex, 
+        device->adapter->queueIndices.transferIndex
+    };
 
     if (queueFamilyIndices[0] != queueFamilyIndices[1]) {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
@@ -2239,12 +2248,12 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* c
 
     vkGetSwapchainImagesKHR(device->device, surface->swapchain, &surface->imagecount, NULL);
 
-    std::vector<VkImage> tmpImages(surface->imagecount);
+    VkImage tmpImages[32] = {0};
 
     //surface->imageViews = (VkImageView*)std::calloc(surface->imagecount, sizeof(VkImageView));
     TRACELOG(LOG_INFO, "Imagecount: %d", (int)surface->imagecount);
     vkGetSwapchainImagesKHR(device->device, surface->swapchain, &surface->imagecount, tmpImages.data());
-    surface->images = (WGVKTexture*)std::calloc(surface->imagecount, sizeof(WGVKTexture));
+    surface->images = (WGVKTexture*)calloc(surface->imagecount, sizeof(WGVKTexture));
     for (uint32_t i = 0; i < surface->imagecount; i++) {
         surface->images[i] = callocnew(WGVKTextureImpl);
         surface->images[i]->device = device;
@@ -2255,7 +2264,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* c
         surface->images[i]->sampleCount = 1;
         surface->images[i]->image = tmpImages[i];
     }
-    surface->imageViews = (WGVKTextureView*)std::calloc(surface->imagecount, sizeof(VkImageView));
+    surface->imageViews = (WGVKTextureView*)calloc(surface->imagecount, sizeof(VkImageView));
 
     for (uint32_t i = 0; i < surface->imagecount; i++) {
         WGVKTextureViewDescriptor viewDesc zeroinit;
@@ -2300,14 +2309,14 @@ void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
     //commandEncoder->resourceUsage.releaseAllAndClear();
 
     if(commandEncoder->buffer){
-        auto& buffers = commandEncoder->device->frameCaches[commandEncoder->cacheIndex].commandBuffers;
-        commandEncoder->device->frameCaches[commandEncoder->cacheIndex].commandBuffers.push_back(commandEncoder->buffer);
-        //vkFreeCommandBuffers(commandEncoder->device->device, commandEncoder->device->frameCaches[commandEncoder->cacheIndex].commandPool, 1, &commandEncoder->buffer);
+        VkCommandBufferVector_push_back(
+            &commandEncoder->device->frameCaches[commandEncoder->cacheIndex].commandBuffers,
+            commandEncoder->buffer
+        );
     }
     
-    commandEncoder->~WGVKCommandEncoderImpl();
     
-    std::free(commandEncoder);
+    RL_FREE(commandEncoder);
 }
 
 static void releaseRPSetCallback(void* rpEncoder, void*){
@@ -2334,10 +2343,8 @@ void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
         WGVKComputePassEncoderSet_free(&commandBuffer->referencedCPs);
         WGVKRaytracingPassEncoderSet_free(&commandBuffer->referencedRTs);
         
-        PerframeCache& frameCache = commandBuffer->device->frameCaches[commandBuffer->cacheIndex];
-        frameCache.commandBuffers.push_back(commandBuffer->buffer);
-        
-        //commandBuffer->~WGVKCommandBufferImpl();
+        PerframeCache* frameCache = &commandBuffer->device->frameCaches[commandBuffer->cacheIndex];
+        VkCommandBufferVector_push_back(&frameCache->commandBuffers, commandBuffer->buffer);
         
         RL_FREE(commandBuffer);
     }
@@ -2379,7 +2386,6 @@ void wgvkBufferRelease(WGVKBuffer buffer) {
             //vmaFreeMemory(buffer->device->allocator, buffer->allocation);
             //vkFreeMemory(dshandle->device->device, buffer->memory, NULL);
         }*/
-        buffer->~WGVKBufferImpl();
         RL_FREE(buffer);
     }
 }
@@ -2395,21 +2401,23 @@ void wgvkBindGroupRelease(WGVKBindGroup dshandle) {
         //vkFreeDescriptorSets(dshandle->device->device, dshandle->pool, 1, &dshandle->set);
         //vkDestroyDescriptorPool(dshandle->device->device, dshandle->pool, NULL);
         
-        dshandle->~WGVKBindGroupImpl();
-        std::free(dshandle);
+        free(dshandle);
     }
 }
-RGAPICXX WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WGVKRenderPipelineDescriptor const * descriptor) {
-    WGVKDeviceImpl* deviceImpl = reinterpret_cast<WGVKDeviceImpl*>(device);
-    WGVKPipelineLayoutImpl* layoutImpl = reinterpret_cast<WGVKPipelineLayoutImpl*>(descriptor->layout);
+WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WGVKRenderPipelineDescriptor const * descriptor) {
+    WGVKDeviceImpl* deviceImpl = (WGVKDeviceImpl*)(device);
+    WGVKPipelineLayoutImpl* layoutImpl = (descriptor->layout);
 
-    std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
+    VkPipelineShaderStageCreateInfo shaderStages[16] = {
+        (VkPipelineShaderStageCreateInfo){0}
+    };
+    uint32_t shaderStageInsertPos = 0;
 
     // Vertex Stage
     VkPipelineShaderStageCreateInfo vertShaderStageInfo zeroinit;
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertShaderStageInfo.module = reinterpret_cast<WGVKShaderModule>(descriptor->vertex.module)->vulkanModule;
+    vertShaderStageInfo.module = (descriptor->vertex.module)->vulkanModule;
     vertShaderStageInfo.pName = descriptor->vertex.entryPoint.data; // Assuming null-terminated or careful length handling elsewhere
     // TODO: Handle constants if necessary via specialization constants
     // vertShaderStageInfo.pSpecializationInfo = ...;
