@@ -108,7 +108,7 @@ typedef struct Rectangle {
 
 typedef struct RenderTexture{
     Texture texture;
-    Texture moreColorAttachments[MAX_COLOR_ATTTACHMENTS - 1];
+    Texture moreColorAttachments[MAX_COLOR_ATTACHMENTS - 1];
     Texture colorMultisample;
     Texture depth;
 

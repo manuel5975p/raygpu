@@ -258,7 +258,7 @@ typedef struct VertexStateToPipelineMap{
 }VertexStateToPipelineMap;
 
 struct ColorAttachmentState{
-    PixelFormat attachmentFormats[MAX_COLOR_ATTTACHMENTS];
+    PixelFormat attachmentFormats[MAX_COLOR_ATTACHMENTS];
     uint32_t colorAttachmentCount;
     bool operator==(const ColorAttachmentState& other)const noexcept{
         if(colorAttachmentCount == other.colorAttachmentCount){

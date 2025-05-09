@@ -192,7 +192,7 @@ set(RG_SOURCES
     "include/enum_translation.h"
 )
 if(SUPPORT_VULKAN_BACKEND)
-    add_library(wgvk_standalone STATIC "src/backend_vulkan/wgvk.cpp" "src/backend_vulkan/vma_impl.cpp" "src/backend_vulkan/volk.c")
+    add_library(wgvk_standalone STATIC "src/backend_vulkan/wgvk.c" "src/backend_vulkan/vma_impl.cpp" "src/backend_vulkan/volk.c")
 
     target_include_directories(wgvk_standalone PUBLIC "include" "amalgamation/vulkan_headers/include")
     target_compile_definitions(wgvk_standalone PUBLIC SUPPORT_VULKAN_BACKEND=1)
@@ -201,7 +201,7 @@ if(SUPPORT_VULKAN_BACKEND)
     list(APPEND RG_SOURCES "src/backend_vulkan/vulkan_raytracing.cpp")
     list(APPEND RG_SOURCES "src/backend_vulkan/backend_vulkan.cpp")
     list(APPEND RG_SOURCES "src/backend_vulkan/vma_impl.cpp")
-    list(APPEND RG_SOURCES "src/backend_vulkan/wgvk.cpp")
+    list(APPEND RG_SOURCES "src/backend_vulkan/wgvk.c")
     list(APPEND RG_SOURCES "src/backend_vulkan/volk.c")
     
     # Find pkg-config quietly (needed for Wayland/X11 checks)
@@ -238,7 +238,7 @@ if(SUPPORT_VULKAN_BACKEND)
         pkg_check_modules(WAYLAND_CLIENT QUIET wayland-client)
         if(WAYLAND_CLIENT_FOUND)
             set_property(SOURCE ${TARGET_SOURCE_FILE} APPEND PROPERTY COMPILE_DEFINITIONS SUPPORT_WAYLAND_SURFACE=1)
-            target_compile_definitions(wgvk_standalone PUBLIC SUPPORT_WAYLAND_SURFACE=1)
+            #target_compile_definitions(wgvk_standalone PUBLIC SUPPORT_WAYLAND_SURFACE=1)
             # Ensure WAYLAND_CLIENT_INCLUDE_DIRS and WAYLAND_CLIENT_LIBRARIES are used later
             # target_include_directories(YourTarget PRIVATE ${WAYLAND_CLIENT_INCLUDE_DIRS})
             # target_link_libraries(YourTarget PRIVATE ${WAYLAND_CLIENT_LIBRARIES})

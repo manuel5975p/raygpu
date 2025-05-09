@@ -217,7 +217,7 @@ std::vector<uint32_t> glsl_to_spirv_single(const char* cs, EShLanguage stage){
 
     Resources.limits.generalUniformIndexing = true;
     Resources.limits.generalVariableIndexing = true;
-    Resources.maxDrawBuffers = MAX_COLOR_ATTTACHMENTS;
+    Resources.maxDrawBuffers = MAX_COLOR_ATTACHMENTS;
 
     EShMessages messages = (EShMessages)(EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules);
 

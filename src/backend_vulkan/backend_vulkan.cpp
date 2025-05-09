@@ -58,7 +58,8 @@ void DummySubmitOnQueue(){
     VkSubmitInfo emptySubmit zeroinit;
     emptySubmit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     emptySubmit.waitSemaphoreCount = 1;
-    emptySubmit.pWaitSemaphores = g_vulkanstate.queue->syncState[cacheIndex].semaphores.data() + submits;
+    rassert(g_vulkanstate.queue->syncState[cacheIndex].semaphores.size > submits, "Too many submits (more than semaphores). This is an internal bug");
+    emptySubmit.pWaitSemaphores = g_vulkanstate.queue->syncState[cacheIndex].semaphores.data + submits;
     VkPipelineStageFlags waitmask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     emptySubmit.pWaitDstStageMask = &waitmask;
     vkQueueSubmit(g_vulkanstate.device->queue->graphicsQueue, 1, &emptySubmit, g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence);
@@ -136,11 +137,15 @@ void PostPresentSurface(){
     //}
     
 
-    auto& usedBuffers = surfaceDevice->frameCaches[cacheIndex].usedBatchBuffers;
-    auto& unusedBuffers = surfaceDevice->frameCaches[cacheIndex].unusedBatchBuffers;
-    
-    std::copy(usedBuffers.begin(), usedBuffers.end(), std::back_inserter(unusedBuffers));
-    usedBuffers.clear();
+    WGVKBufferVector* usedBuffers = &surfaceDevice->frameCaches[cacheIndex].usedBatchBuffers;
+    WGVKBufferVector* unusedBuffers = &surfaceDevice->frameCaches[cacheIndex].unusedBatchBuffers;
+    if(unusedBuffers->capacity < unusedBuffers->size + usedBuffers->size){
+        size_t newcap = (unusedBuffers->size + usedBuffers->size);
+        WGVKBufferVector_reserve(unusedBuffers, newcap);
+
+    }
+    memcpy(unusedBuffers->data + unusedBuffers->size, usedBuffers->data, usedBuffers->size * sizeof(WGVKBuffer));
+    WGVKBufferVector_clear(usedBuffers);//(WGVKBufferVector *dest, const WGVKBufferVector *source)
     PendingCommandBufferMap_clear(&queue->pendingCommandBuffers[cacheIndex]);
     
     WGVKCommandBuffer buffer = wgvkCommandEncoderFinish(queue->presubmitCache);
@@ -927,7 +932,7 @@ extern "C" void PrepareFrameGlobals(){
     if(vbo_buf != 0){
         wgvkBufferUnmap(vbo_buf);
     }
-    if(cache.unusedBatchBuffers.empty()){
+    if(cache.unusedBatchBuffers.size == 0){
         WGVKBufferDescriptor bdesc{
             .usage = BufferUsage_CopyDst | BufferUsage_MapWrite | BufferUsage_Vertex,
             .size = (RENDERBATCH_SIZE * sizeof(vertex))
@@ -935,7 +940,7 @@ extern "C" void PrepareFrameGlobals(){
 
         vbo_buf = wgvkDeviceCreateBuffer(g_vulkanstate.device,  &bdesc);
         
-        cache.usedBatchBuffers.push_back(vbo_buf);
+        WGVKBufferVector_push_back(&cache.usedBatchBuffers, vbo_buf);
         wgvkBufferAddRef(vbo_buf);
 
         wgvkBufferMap(vbo_buf, MapMode_Write, 0, bdesc.size, (void**)&vboptr_base);
@@ -943,9 +948,9 @@ extern "C" void PrepareFrameGlobals(){
         
     }
     else{
-        vbo_buf = cache.unusedBatchBuffers.back();
-        cache.unusedBatchBuffers.pop_back();
-        cache.usedBatchBuffers.push_back(vbo_buf);
+        vbo_buf = cache.unusedBatchBuffers.data[cache.unusedBatchBuffers.size - 1];
+        WGVKBufferVector_pop_back(&cache.unusedBatchBuffers);
+        WGVKBufferVector_push_back(&cache.usedBatchBuffers, vbo_buf);
         VmaAllocationInfo allocationInfo zeroinit;
         vmaGetAllocationInfo(g_vulkanstate.device->allocator, vbo_buf->allocation, &allocationInfo);
         wgvkBufferMap(vbo_buf, MapMode_Write, 0, allocationInfo.size, (void**)&vboptr_base);
@@ -963,8 +968,8 @@ extern "C" DescribedBuffer* UpdateVulkanRenderbatch(){
     if(vbo_buf != 0){
         wgvkBufferUnmap(vbo_buf);
     }
-    if(cache.unusedBatchBuffers.empty()){
-        WGVKBufferDescriptor bdesc{
+    if(WGVKBufferVector_empty(&cache.unusedBatchBuffers)){
+        WGVKBufferDescriptor bdesc = {
             .usage = BufferUsage_CopyDst | BufferUsage_MapWrite | BufferUsage_Vertex,
             .size = (RENDERBATCH_SIZE * sizeof(vertex))
         };
@@ -972,13 +977,14 @@ extern "C" DescribedBuffer* UpdateVulkanRenderbatch(){
         vbo_buf = wgvkDeviceCreateBuffer(g_vulkanstate.device,  &bdesc);
         wgvkBufferMap(vbo_buf, MapMode_Write, 0, bdesc.size, (void**)&vboptr_base);
         vboptr = vboptr_base;
-        cache.usedBatchBuffers.push_back(vbo_buf);
+        WGVKBufferVector_push_back(&cache.usedBatchBuffers, vbo_buf);
         wgvkBufferAddRef(vbo_buf);
     }
     else{
-        vbo_buf = cache.unusedBatchBuffers.back();
-        cache.unusedBatchBuffers.pop_back();
-        cache.usedBatchBuffers.push_back(vbo_buf);
+        vbo_buf = cache.unusedBatchBuffers.data[cache.unusedBatchBuffers.size - 1];
+
+        WGVKBufferVector_pop_back(&cache.unusedBatchBuffers);
+        WGVKBufferVector_push_back(&cache.usedBatchBuffers, vbo_buf);
         VmaAllocationInfo allocationInfo zeroinit;
         vmaGetAllocationInfo(g_vulkanstate.device->allocator,vbo_buf->allocation, &allocationInfo);
         wgvkBufferMap(vbo_buf, MapMode_Write, 0, allocationInfo.size, (void**)&vboptr_base);

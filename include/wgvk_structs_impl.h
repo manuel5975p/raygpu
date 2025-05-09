@@ -2,7 +2,6 @@
 #define WGVK_STRUCTS_IMPL_H
 #include <wgvk.h>
 #include <raygpu.h>
-#include <unordered_map>
 #include <external/VmaUsage.h>
 
 //#define CC_NO_SHORT_NAMES
@@ -74,6 +73,16 @@ static inline void ResourceUsage_free(ResourceUsage* ru){
     LayoutAssumptions_free(&ru->entryAndFinalLayouts);
 }
 
+static inline void ResourceUsage_move(ResourceUsage* dest, ResourceUsage* source){
+    BufferUsageRecordMap_move(&dest->referencedBuffers, &source->referencedBuffers);
+    ImageUsageSet_move(&dest->referencedTextures, &source->referencedTextures);
+    ImageViewUsageRecordMap_move(&dest->referencedTextureViews, &source->referencedTextureViews);
+    BindGroupUsageSet_move(&dest->referencedBindGroups, &source->referencedBindGroups);
+    BindGroupLayoutUsageSet_move(&dest->referencedBindGroupLayouts, &source->referencedBindGroupLayouts);
+    SamplerUsageSet_move(&dest->referencedSamplers, &source->referencedSamplers);
+    LayoutAssumptions_move(&dest->entryAndFinalLayouts, &source->entryAndFinalLayouts);
+}
+
 static inline void ResourceUsage_init(ResourceUsage* ru){
     BufferUsageRecordMap_init(&ru->referencedBuffers);
     ImageUsageSet_init(&ru->referencedTextures);
@@ -117,16 +126,13 @@ RGAPI void releaseAllAndClear(ResourceUsage* resourceUsage);
 //    void reset();    
 //};
 
-struct SyncState{
-    std::vector<VkSemaphore> semaphores;
+typedef struct SyncState{
+    VkSemaphoreVector semaphores;
     VkSemaphore acquireImageSemaphore;
     bool acquireImageSemaphoreSignalled;
     uint32_t submits;
-    VkSemaphore& getHangingSemaphore(){
-        return semaphores[submits];
-    }
     //VkFence renderFinishedFence;    
-};
+}SyncState;
 
 typedef struct MappableBufferMemory{
     VkBuffer buffer;
@@ -135,8 +141,11 @@ typedef struct MappableBufferMemory{
     size_t capacity;
 }MappableBufferMemory;
 
-
-constexpr uint32_t max_color_attachments = MAX_COLOR_ATTTACHMENTS;
+#ifdef __cplusplus
+constexpr uint32_t max_color_attachments = MAX_COLOR_ATTACHMENTS;
+#else
+#define max_color_attachments MAX_COLOR_ATTACHMENTS
+#endif
 typedef struct AttachmentDescriptor{
     VkFormat format;
     uint32_t sampleCount;
@@ -155,17 +164,17 @@ typedef struct AttachmentDescriptor{
 #endif
 }AttachmentDescriptor;
 static bool attachmentDescriptorCompare(AttachmentDescriptor a, AttachmentDescriptor b){
-    return a.format == b.format
+    return a.format      == b.format
         && a.sampleCount == b.sampleCount
-        && a.loadop == b.loadop
-        && a.storeop == b.storeop;
+        && a.loadop      == b.loadop
+        && a.storeop     == b.storeop;
 }
 
 
 typedef struct RenderPassLayout{
     uint32_t colorAttachmentCount;
-    AttachmentDescriptor colorAttachments[max_color_attachments];
-    AttachmentDescriptor colorResolveAttachments[max_color_attachments];
+    AttachmentDescriptor colorAttachments [4];
+    AttachmentDescriptor colorResolveAttachments [4];
     uint32_t depthAttachmentPresent;
     AttachmentDescriptor depthAttachment;
     //uint32_t colorResolveIndex;
@@ -185,22 +194,20 @@ typedef struct RenderPassLayout{
     }
 #endif
 }RenderPassLayout;
+
 static bool renderPassLayoutCompare(RenderPassLayout first, RenderPassLayout other){
-    if(colorAttachmentCount != other.colorAttachmentCount)return false;
-    for(uint32_t i = 0;i < colorAttachmentCount;i++){
-        if(attachmentDescriptorCompare( b)colorAttachments[i] != other.colorAttachments[i]){
+    if(first.colorAttachmentCount != other.colorAttachmentCount)return false;
+    for(uint32_t i = 0;i < first.colorAttachmentCount;i++){
+        if(!attachmentDescriptorCompare(first.colorAttachments[i], other.colorAttachments[i])){
             return false;
         }
     }
-    if(depthAttachmentPresent != other.depthAttachmentPresent)return false;
-    if(depthAttachment != other.depthAttachment)return false;
-    //if(colorResolveIndex != other.colorResolveIndex)return false;
-
-    return true;
+    return (first.depthAttachmentPresent == other.depthAttachmentPresent) && attachmentDescriptorCompare(first.depthAttachment, other.depthAttachment);
 }
+DEFINE_VECTOR(static inline, VkAttachmentDescription, VkAttachmentDescriptionVector)
 typedef struct LayoutedRenderPass{
     RenderPassLayout layout;
-    std::vector<VkAttachmentDescription> allAttachments;
+    VkAttachmentDescriptionVector allAttachments;
     VkRenderPass renderPass;
 }LayoutedRenderPass;
 
@@ -224,13 +231,14 @@ typedef struct wgvkxorshiftstate{
     }
     #endif
 }wgvkxorshiftstate;
-void xs_update_u32(wgvkxorshiftstate* state, uint32_t x, uint32_t y){
-    state->x64 ^= ((uint64_t(x) << 32) | uint64_t(y)) * 0x2545F4914F6CDD1D;
+static inline void xs_update_u32(wgvkxorshiftstate* state, uint32_t x, uint32_t y){
+    state->x64 ^= ((((uint64_t)x) << 32) | ((uint64_t)y)) * 0x2545F4914F6CDD1D;
     state->x64 ^= state->x64 << 13;
     state->x64 ^= state->x64 >> 7;
     state->x64 ^= state->x64 << 17;
 
 }
+#ifdef __cplusplus
 namespace std{
     template<>
     struct hash<RenderPassLayout>{
@@ -251,6 +259,7 @@ namespace std{
         }
     };
 }
+#endif
 
 static size_t renderPassLayoutHash(RenderPassLayout layout){
     wgvkxorshiftstate ret = {.x64 = 0x2545F4918F6CDD1D};
@@ -266,28 +275,36 @@ static size_t renderPassLayoutHash(RenderPassLayout layout){
     }
     return ret.x64;
 }
+DEFINE_VECTOR(static inline, WGVKBuffer, WGVKBufferVector)
+typedef struct DescriptorSetAndPool{
+    VkDescriptorPool pool;
+    VkDescriptorSet set;
+}DescriptorSetAndPool;
 
-struct PerframeCache{
+DEFINE_VECTOR(static inline, DescriptorSetAndPool, DescriptorSetAndPoolVector)
+DEFINE_PTR_HASH_MAP(static inline, BindGroupCacheMap, DescriptorSetAndPoolVector)
+
+typedef struct PerframeCache{
     VkCommandPool commandPool;
-    std::vector<VkCommandBuffer> commandBuffers;
+    VkCommandBufferVector commandBuffers;
 
-    std::vector<WGVKBuffer> unusedBatchBuffers;
-    std::vector<WGVKBuffer> usedBatchBuffers;
+    WGVKBufferVector unusedBatchBuffers;
+    WGVKBufferVector usedBatchBuffers;
     
     VkCommandBuffer finalTransitionBuffer;
     VkSemaphore finalTransitionSemaphore;
     VkFence finalTransitionFence;
     //std::map<uint64_t, small_vector<MappableBufferMemory>> stagingBufferCache;
-    std::unordered_map<WGVKBindGroupLayout, std::vector<std::pair<VkDescriptorPool, VkDescriptorSet>>> bindGroupCache;
-};
+    //std::unordered_map<WGVKBindGroupLayout, std::vector<std::pair<VkDescriptorPool, VkDescriptorSet>>> bindGroupCache;
+    BindGroupCacheMap bindGroupCache;
+}PerframeCache;
 
-struct QueueIndices{
+typedef struct QueueIndices{
     uint32_t graphicsIndex;
     uint32_t computeIndex;
     uint32_t transferIndex;
     uint32_t presentIndex;
-};
-
+}QueueIndices;
 
 typedef struct WGVKSamplerImpl{
     VkSampler sampler;
@@ -374,19 +391,19 @@ typedef struct WGVKAdapterImpl{
     QueueIndices queueIndices;
 }WGVKAdapterImpl;
 
-constexpr uint32_t framesInFlight = 2;
+#define framesInFlight 2
 
-DEFINE_GENERIC_HASH_MAP(CONTAINERAPI, RenderPassCache, RenderPassLayout, LayoutedRenderPass, renderPassLayoutHash, renderPassLayoutCompare, {0});
+DEFINE_GENERIC_HASH_MAP(CONTAINERAPI, RenderPassCache, RenderPassLayout, LayoutedRenderPass, renderPassLayoutHash, renderPassLayoutCompare, CLITERAL(RenderPassLayout){0});
 typedef struct WGVKDeviceImpl{
     VkDevice device;
     WGVKAdapter adapter;
     WGVKQueue queue;
-    size_t submittedFrames = 0;
+    size_t submittedFrames;
     VmaAllocator allocator;
     VmaPool aligned_hostVisiblePool;
     PerframeCache frameCaches[framesInFlight];
 
-    std::unordered_map<RenderPassLayout, LayoutedRenderPass> renderPassCache;
+    RenderPassCache renderPassCache;
 }WGVKDeviceImpl;
 
 typedef struct WGVKTextureImpl{
@@ -403,12 +420,13 @@ typedef struct WGVKTextureImpl{
 typedef struct WGVKShaderModuleImpl{
     VkShaderModule vulkanModule;
 }WGVKShaderModuleImpl;
+DEFINE_VECTOR(static inline, VkDynamicState, VkDynamicStateVector)
 typedef struct WGVKRenderPipelineImpl{
     VkPipeline renderPipeline;
     refcount_type refCount;
     WGVKDevice device;
     WGVKPipelineLayout layout;
-    std::vector<VkDynamicState> dynamicStates;
+    VkDynamicStateVector dynamicStates;
 }WGVKRenderPipelineImpl;
 
 
