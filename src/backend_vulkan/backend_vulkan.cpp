@@ -145,6 +145,7 @@ void PostPresentSurface(){
 
     }
     memcpy(unusedBuffers->data + unusedBuffers->size, usedBuffers->data, usedBuffers->size * sizeof(WGVKBuffer));
+    unusedBuffers->size += usedBuffers->size;
     WGVKBufferVector_clear(usedBuffers);//(WGVKBufferVector *dest, const WGVKBufferVector *source)
     PendingCommandBufferMap_clear(&queue->pendingCommandBuffers[cacheIndex]);
     

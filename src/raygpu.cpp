@@ -199,6 +199,46 @@ DescribedBuffer* renderBatchVBO;
 PrimitiveType current_drawmode;
 //DescribedBuffer vbomap;
 
+#if RAYGPU_NO_INLINE_FUNCTIONS == 1
+void rlColor4f(float r, float g, float b, float alpha){
+    nextcol.x = r;
+    nextcol.y = g;
+    nextcol.z = b;
+    nextcol.w = alpha;
+}
+void rlColor4ub(uint8_t r, uint8_t g, uint8_t b, uint8_t a){
+    nextcol.x = ((float)((int)r)) / 255.0f;
+    nextcol.y = ((float)((int)g)) / 255.0f;
+    nextcol.z = ((float)((int)b)) / 255.0f;
+    nextcol.w = ((float)((int)a)) / 255.0f;
+}
+void rlColor3f(float r, float g, float b){
+    rlColor4f(r, g, b, 1.0f);
+}
+
+void rlTexCoord2f(float u, float v){
+    nextuv.x = u;
+    nextuv.y = v;
+}
+
+void rlVertex2f(float x, float y){
+    *(vboptr++) = CLITERAL(vertex){{x, y, 0}, nextuv, nextnormal, nextcol};
+    if(UNLIKELY(vboptr - vboptr_base >= RENDERBATCH_SIZE)){
+        drawCurrentBatch();
+    }
+}
+void rlNormal3f(float x, float y, float z){
+    nextnormal.x = x;
+    nextnormal.y = y;
+    nextnormal.z = z;
+}
+void rlVertex3f(float x, float y, float z){
+    *(vboptr++) = CLITERAL(vertex){{x, y, z}, nextuv, nextnormal, nextcol};
+    if(UNLIKELY(vboptr - vboptr_base >= RENDERBATCH_SIZE)){
+        drawCurrentBatch();
+    }
+}
+#endif
 RGAPICXX VertexArray* LoadVertexArray(){
     VertexArray* ret = callocnew(VertexArray);
     new (ret) VertexArray;

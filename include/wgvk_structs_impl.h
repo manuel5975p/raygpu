@@ -15,7 +15,7 @@ typedef struct ImageViewUsageRecord{
     VkPipelineStageFlags lastStage;
     VkAccessFlags lastAccess;
     TextureUsage usage;
-}ImageUsageRecord;
+}ImageViewUsageRecord;
 
 typedef struct BufferUsageRecord{
     VkPipelineStageFlags lastStage;
@@ -29,7 +29,7 @@ typedef struct ImageLayoutPair{
 
 #define CONTAINERAPI static inline
 DEFINE_PTR_HASH_MAP (CONTAINERAPI, BufferUsageRecordMap, BufferUsageRecord)
-DEFINE_PTR_HASH_MAP (CONTAINERAPI, ImageViewUsageRecordMap, ImageUsageRecord)
+DEFINE_PTR_HASH_MAP (CONTAINERAPI, ImageViewUsageRecordMap, ImageViewUsageRecord)
 DEFINE_PTR_HASH_MAP (CONTAINERAPI, LayoutAssumptions, ImageLayoutPair)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupUsageSet)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupLayoutUsageSet)
@@ -210,10 +210,14 @@ typedef struct LayoutedRenderPass{
     VkAttachmentDescriptionVector allAttachments;
     VkRenderPass renderPass;
 }LayoutedRenderPass;
-
+#ifdef __cplusplus
+extern "C"{
+#endif
 LayoutedRenderPass LoadRenderPassFromLayout(WGVKDevice device, RenderPassLayout layout);
 RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescriptor* rpdesc);
-
+#ifdef __cplusplus
+}
+#endif
 typedef struct wgvkxorshiftstate{
     uint64_t x64;
     #ifdef __cplusplus
@@ -463,7 +467,7 @@ typedef struct WGVKRenderPassEncoderImpl{
     VkPipelineLayout lastLayout;
     VkFramebuffer frameBuffer;
     WGVKCommandEncoder cmdEncoder;
-}RenderPassEncoderHandleImpl;
+}WGVKRenderPassEncoderImpl;
 
 typedef struct WGVKComputePassEncoderImpl{
     VkCommandBuffer cmdBuffer;
@@ -508,8 +512,10 @@ static inline WGVKiotresult initializeOrTransition(WGVKCommandEncoder encoder, W
         return iot_thats_new;
     }
     else{
-        wgvkCommandEncoderTransitionTextureLayout(encoder, texture, if_layout->finalLayout, layout);
-        if_layout->finalLayout = layout;
+        if(if_layout->finalLayout != layout){
+            wgvkCommandEncoderTransitionTextureLayout(encoder, texture, if_layout->finalLayout, layout);
+            if_layout->finalLayout = layout;
+        }
         return iot_already_registered;
     }
 }

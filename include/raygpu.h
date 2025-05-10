@@ -706,7 +706,7 @@ typedef struct DescribedComputePipeline{
     DescribedBindGroupLayout bglayout;
     DescribedBindGroup bindGroup;
     #ifdef __cplusplus
-    RGAPI UniformAccessor operator[](const char* uniformName);
+    UniformAccessor operator[](const char* uniformName);
     #endif
 }DescribedComputePipeline;
 
@@ -1013,6 +1013,7 @@ EXTERN_C_BEGIN
 
         return color;
     }
+
     #if !defined(RAYGPU_NO_INLINE_FUNCTIONS) || RAYGPU_NO_INLINE_FUNCTIONS == 0
     static void rlColor4f(float r, float g, float b, float alpha){
         nextcol.x = r;
@@ -1052,6 +1053,15 @@ EXTERN_C_BEGIN
             drawCurrentBatch();
         }
     }
+    #else
+    void rlColor4ub(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
+    void rlColor4f(float r, float g, float b, float alpha);
+    void rlColor3f(float r, float g, float b);
+
+    void rlVertex3f(float x, float y, float z);
+    void rlNormal3f(float x, float y, float z);
+    void rlVertex2f(float x, float y);
+    void rlTexCoord2f(float u, float v);
     #endif
     RGAPI void rlSetLineWidth(float lineWidth);
     

@@ -203,19 +203,21 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     colorBlending.blendConstants[2] = 1.0f;
     colorBlending.blendConstants[3] = 1.0f;
     // Dynamic State Setup (optional based on RenderSettings)
-    std::vector<VkDynamicState> dynamicStates = {
-        VK_DYNAMIC_STATE_VIEWPORT, 
-        VK_DYNAMIC_STATE_SCISSOR,
-        //VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY, 
-        //VK_DYNAMIC_STATE_VERTEX_INPUT_EXT, 
-    };
+    VkDynamicStateVector dynamicStates;
+    VkDynamicStateVector_init(&dynamicStates);
+    VkDynamicStateVector_reserve(&dynamicStates, 4);
     
+    VkDynamicStateVector_push_back(&dynamicStates, VK_DYNAMIC_STATE_VIEWPORT); 
+    VkDynamicStateVector_push_back(&dynamicStates, VK_DYNAMIC_STATE_SCISSOR);
+    //VkDynamicStateVector_push_back(&dynamicStates, VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY); 
+    //VkDynamicStateVector_push_back(&dynamicStates, VK_DYNAMIC_STATE_VERTEX_INPUT_EXT);,
+        
     VkPipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
     
     // You can make dynamic states configurable via RenderSettings if needed
-    dynamicState.dynamicStateCount = static_cast<uint32_t>(2);
-    dynamicState.pDynamicStates = dynamicStates.data();
+    dynamicState.dynamicStateCount = dynamicStates.size;
+    dynamicState.pDynamicStates = dynamicStates.data;
     
     // Pipeline Layout Setup
     
@@ -284,7 +286,7 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-    ret->dynamicStates = dynamicStates;
+    VkDynamicStateVector_move(&ret->dynamicStates, &dynamicStates);
     ret->layout = pllayout.layout;
     wgvkPipelineLayoutAddRef(pllayout.layout);
     if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&ret->renderPipeline) != VK_SUCCESS) {

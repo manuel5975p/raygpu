@@ -710,7 +710,9 @@ typedef struct WGVKTopLevelAccelerationStructureDescriptor {
     uint32_t *instanceShaderBindingTableRecordOffsets;       // Optional SBT record offsets
     VkGeometryInstanceFlagsKHR *instanceFlags;               // Optional instance flags
 }WGVKTopLevelAccelerationStructureDescriptor;
-
+#ifdef __cplusplus
+extern "C"{
+#endif
 void wgvkQueueTransitionLayout                (WGVKQueue cSelf, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
 void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
 void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout from, VkImageLayout to);
@@ -718,8 +720,14 @@ void wgvkRenderPassEncoderBindIndexBuffer     (WGVKRenderPassEncoder rpe, WGVKBu
 void wgvkRenderPassEncoderBindVertexBuffer    (WGVKRenderPassEncoder rpe, uint32_t binding, WGVKBuffer buffer, VkDeviceSize offset);
 WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAccelerationStructure(WGVKDevice device, const WGVKTopLevelAccelerationStructureDescriptor *descriptor);
 WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccelerationStructure(WGVKDevice device, const WGVKBottomLevelAccelerationStructureDescriptor *descriptor);
+#ifdef __cplusplus
+}
+#endif
 #endif
 
+#ifdef __cplusplus
+extern "C"{
+#endif
 WGVKInstance wgvkCreateInstance(const WGVKInstanceDescriptor *descriptor);
 WGVKWaitStatus wgvkInstanceWaitAny(WGVKInstance instance, size_t futureCount, WGVKFutureWaitInfo* futures, uint64_t timeoutNS);
 WGVKFuture wgvkInstanceRequestAdapter(WGVKInstance instance, const WGVKRequestAdapterOptions* options, WGVKRequestAdapterCallbackInfo callbackInfo);
@@ -798,6 +806,9 @@ void wgvkSamplerRelease                       (WGVKSampler sampler);
 WGVKCommandEncoder wgvkResetCommandBuffer(WGVKCommandBuffer commandEncoder);
 
 void wgvkCommandEncoderTraceRays(WGVKRenderPassEncoder encoder);
+#ifdef __cplusplus
+}
+#endif
 #ifdef __cplusplus
 } //extern "C"
     #if SUPPORT_WGPU_BACKEND == 1

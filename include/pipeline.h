@@ -158,7 +158,7 @@ typedef struct DescribedBuffer DescribedBuffer;
 struct UniformAccessor{
     uint32_t index;
     DescribedBindGroup* bindgroup;
-    RGAPI void operator=(DescribedBuffer* buf);
+    void operator=(DescribedBuffer* buf);
 };
 #endif
 

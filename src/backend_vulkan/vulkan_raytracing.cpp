@@ -641,7 +641,7 @@ void wgvkRaytracingPassEncoderSetPipeline(WGVKRaytracingPassEncoder rte, WGVKRay
     rte->lastPipeline = raytracingPipeline;
 }
 
-static inline void transitionToAppropriateLayoutCallback1(void* texture_, ImageUsageRecord* record, void* rpe_){
+static inline void transitionToAppropriateLayoutCallback1(void* texture_, ImageViewUsageRecord* record, void* rpe_){
     WGVKRenderPassEncoder rpe = (WGVKRenderPassEncoder)rpe_;
     WGVKTexture texture = (WGVKTexture)texture_;
 

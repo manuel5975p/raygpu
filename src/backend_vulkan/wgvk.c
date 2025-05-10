@@ -201,10 +201,10 @@ RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescriptor* rpdesc){
 
     return ret;
 }
-inline bool is__depth(PixelFormat fmt){
+static inline bool is__depth(PixelFormat fmt){
     return fmt ==  Depth24 || fmt == Depth32;
 }
-inline bool is__depthVk(VkFormat fmt){
+static inline bool is__depthVk(VkFormat fmt){
     return fmt ==  VK_FORMAT_D32_SFLOAT || fmt == VK_FORMAT_D32_SFLOAT_S8_UINT || fmt == VK_FORMAT_D24_UNORM_S8_UINT;
 }
 
@@ -585,7 +585,7 @@ void wgvkTraceLog(int logType, const char *text, ...){
     //    va_end(args);
     //    return;
     //}
-    const size_t MAX_TRACELOG_MSG_LENGTH = 16384;
+    #define MAX_TRACELOG_MSG_LENGTH 16384
     char buffer[MAX_TRACELOG_MSG_LENGTH] = {0};
     int needs_reset = 0;
     switch (logType){
@@ -943,10 +943,10 @@ int cmp_uint32_(const void *a, const void *b) {
     if (ua > ub) return 1;
     return 0;
 }
-static inline VkSemaphore CreateSemaphoreD(VkDevice device, VkSemaphoreCreateFlags flags = 0){
+static inline VkSemaphore CreateSemaphoreD(VkDevice device){
     VkSemaphoreCreateInfo sci zeroinit;
     VkSemaphore ret zeroinit;
-    sci.flags = flags;
+    sci.flags = 0;
     sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     VkResult res = vkCreateSemaphore(device, &sci, NULL, &ret);
     if(res != VK_SUCCESS){
@@ -1101,7 +1101,7 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
     QueueIndices indices = adapter->queueIndices;
     vkGetDeviceQueue(retDevice->device, indices.graphicsIndex, 0, &retQueue->graphicsQueue);
     #ifndef FORCE_HEADLESS
-    vkGetDeviceQueue(ret.first->device, indices.presentIndex, 0, &ret.second->presentQueue);
+    vkGetDeviceQueue(retDevice->device, indices.presentIndex, 0, &retQueue->presentQueue);
     #endif
     if (indices.computeIndex != indices.graphicsIndex && indices.computeIndex != indices.presentIndex) {
         vkGetDeviceQueue(retDevice->device, indices.computeIndex, 0, &retQueue->computeQueue);
@@ -1391,7 +1391,7 @@ WGVKTexture wgvkDeviceCreateTexture(WGVKDevice device, const WGVKTextureDescript
     VkMemoryRequirements memReq;
     vkGetImageMemoryRequirements(device->device, image, &memReq);
     
-    VkMemoryAllocateInfo allocInfo{};
+    VkMemoryAllocateInfo allocInfo zeroinit;
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memReq.size;
     allocInfo.memoryTypeIndex = findMemoryType(
@@ -1739,7 +1739,7 @@ void wgvkQueueTransitionLayout(WGVKQueue cSelf, WGVKTexture texture, VkImageLayo
 }
 WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureViewDescriptor *descriptor){
     
-    VkImageViewCreateInfo ivci{};
+    VkImageViewCreateInfo ivci zeroinit;
     ivci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     ivci.image = texture->image;
 
@@ -1760,7 +1760,7 @@ WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureView
         .baseArrayLayer = descriptor->baseArrayLayer,
         .layerCount = descriptor->arrayLayerCount
     };
-    if(!is__depth(ivci.format)){
+    if(!is__depthVk(ivci.format)){
         sr.aspectMask &= VK_IMAGE_ASPECT_COLOR_BIT;
     }
     ivci.subresourceRange = sr;
@@ -1776,9 +1776,16 @@ WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureView
     ret->depthOrArrayLayers = texture->depthOrArrayLayers;
     return ret;
 }
-
+static VkClearValue toVkCV(const DColor c){
+    VkClearValue cv zeroinit;
+    cv.color.float32[0] = (float)c.r;
+    cv.color.float32[1] = (float)c.g;
+    cv.color.float32[2] = (float)c.b;
+    cv.color.float32[3] = (float)c.a;
+    return cv;
+};
 WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, const WGVKRenderPassDescriptor* rpdesc){
-    WGVKRenderPassEncoder ret = callocnew(WGVKRenderPassEncoderImpl);
+    WGVKRenderPassEncoder ret = calloc(1, sizeof(WGVKRenderPassEncoderImpl));
 
     ret->refCount = 2; //One for WGVKRenderPassEncoder the other for the command buffer
     
@@ -1795,19 +1802,19 @@ WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, 
     VkRenderingAttachmentInfo colorAttachments[max_color_attachments] zeroinit;
     for(uint32_t i = 0;i < rpdesc->colorAttachmentCount;i++){
         colorAttachments[i].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-        colorAttachments[i].clearValue.color.float32[0] = rpdesc->colorAttachments[i].clearValue.r;
-        colorAttachments[i].clearValue.color.float32[1] = rpdesc->colorAttachments[i].clearValue.g;
-        colorAttachments[i].clearValue.color.float32[2] = rpdesc->colorAttachments[i].clearValue.b;
-        colorAttachments[i].clearValue.color.float32[3] = rpdesc->colorAttachments[i].clearValue.a;
+        colorAttachments[i].clearValue.color.float32[0] = (float)rpdesc->colorAttachments[i].clearValue.r;
+        colorAttachments[i].clearValue.color.float32[1] = (float)rpdesc->colorAttachments[i].clearValue.g;
+        colorAttachments[i].clearValue.color.float32[2] = (float)rpdesc->colorAttachments[i].clearValue.b;
+        colorAttachments[i].clearValue.color.float32[3] = (float)rpdesc->colorAttachments[i].clearValue.a;
         colorAttachments[i].imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         colorAttachments[i].imageView = rpdesc->colorAttachments[i].view->view;
         if(rpdesc->colorAttachments[i].resolveTarget){
             colorAttachments[i].resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
             colorAttachments[i].resolveImageView = rpdesc->colorAttachments[i].resolveTarget->view;
             colorAttachments[i].resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
-            ret->resourceUsage.track(rpdesc->colorAttachments[i].resolveTarget, TextureUsage_RenderAttachment);
+            trackTextureView(&ret->resourceUsage, rpdesc->colorAttachments[i].resolveTarget, TextureUsage_RenderAttachment);
         }
-        ret->resourceUsage.track(rpdesc->colorAttachments[i].view, TextureUsage_RenderAttachment);
+        trackTextureView(&ret->resourceUsage, rpdesc->colorAttachments[i].view, TextureUsage_RenderAttachment);
         colorAttachments[i].loadOp = toVulkanLoadOperation(rpdesc->colorAttachments[i].loadOp);
         colorAttachments[i].storeOp = toVulkanStoreOperation(rpdesc->colorAttachments[i].storeOp);
     }
@@ -1818,31 +1825,23 @@ WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, 
 
     depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     depthAttachment.imageView = rpdesc->depthStencilAttachment->view->view;
-    ret->resourceUsage.track(rpdesc->depthStencilAttachment->view, TextureUsage_RenderAttachment);
+    trackTextureView(&ret->resourceUsage, rpdesc->depthStencilAttachment->view, TextureUsage_RenderAttachment);
     depthAttachment.loadOp = toVulkanLoadOperation(rpdesc->depthStencilAttachment->depthLoadOp);
     depthAttachment.storeOp = toVulkanStoreOperation(rpdesc->depthStencilAttachment->depthStoreOp);
     info.pDepthAttachment = &depthAttachment;
     info.layerCount = 1;
-    info.renderArea = VkRect2D{
-        .offset = VkOffset2D{0, 0},
-        .extent = VkExtent2D{rpdesc->colorAttachments[0].view->width, rpdesc->colorAttachments[0].view->height}
+    info.renderArea = CLITERAL(VkRect2D){
+        .offset = CLITERAL(VkOffset2D){0, 0},
+        .extent = CLITERAL(VkExtent2D){rpdesc->colorAttachments[0].view->width, rpdesc->colorAttachments[0].view->height}
     };
-    uint64_t v = (uint64_t)reinterpret_cast<PFN_vkCmdBeginRendering>(vkCmdBeginRendering);
     vkCmdBeginRendering(ret->cmdBuffer, &info);
     #else
     RenderPassLayout rplayout = GetRenderPassLayout(rpdesc);
-    VkRenderPassBeginInfo rpbi{};
+    VkRenderPassBeginInfo rpbi zeroinit;
     rpbi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     LayoutedRenderPass frp = LoadRenderPassFromLayout(enc->device, rplayout);
     ret->renderPass = frp.renderPass;
-    auto toVkCV = [](const DColor& c){
-        VkClearValue cv zeroinit;
-        cv.color.float32[0] = static_cast<float>(c.r);
-        cv.color.float32[1] = static_cast<float>(c.g);
-        cv.color.float32[2] = static_cast<float>(c.b);
-        cv.color.float32[3] = static_cast<float>(c.a);
-        return cv;
-    };
+
     VkImageView attachmentViews[2 * max_color_attachments + 2] = {0};// = (VkImageView* )RL_CALLOC(frp.allAttachments.size, sizeof(VkImageView) );
     VkClearValue clearValues   [2 * max_color_attachments + 2] = {0};// = (VkClearValue*)RL_CALLOC(frp.allAttachments.size, sizeof(VkClearValue));
     
@@ -1952,7 +1951,7 @@ WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder commandEncoder){
     commandEncoder->buffer = NULL;
     return ret;
 }
-void welldamn_sdfd(void*, ImageLayoutPair*, void*){
+void welldamn_sdfd(void* unused, ImageLayoutPair* unused2, void* unused3){
     rg_trap();
 }
 void registerTransitionCallback(void* texture_, ImageLayoutPair* layoutpair, void* pscache_){
@@ -1967,7 +1966,7 @@ void registerTransitionCallback(void* texture_, ImageLayoutPair* layoutpair, voi
         wgvkCommandEncoderTransitionTextureLayout(pscache, texture, texture->layout, layoutpair->initialLayout);
     }
 }
-void updateLayoutCallback(void* texture_, ImageLayoutPair* layoutpair, void*){
+void updateLayoutCallback(void* texture_, ImageLayoutPair* layoutpair, void* unused){
     WGVKTexture texture = (WGVKTexture)texture_;
     texture->layout = layoutpair->finalLayout;
 }
@@ -2049,7 +2048,7 @@ void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVKCommandBuff
         si.commandBufferCount = 1;
         uint32_t submits = queue->syncState[cacheIndex].submits;
         
-        VkPipelineStageFlags* waitFlags = calloc(waitSemaphores.size, sizeof(VkPipelineStageFlags));
+        VkPipelineStageFlags* waitFlags = (VkPipelineStageFlags*)calloc(waitSemaphores.size, sizeof(VkPipelineStageFlags));
         for(uint32_t i = 0;i < waitSemaphores.size;i++){
             waitFlags[i] = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
         }
@@ -2096,19 +2095,7 @@ void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVKCommandBuff
         for(size_t i = 0;i < insert.size;i++){
             WGVKCommandBufferVector_push_back(fence_iterator, insert.data[i]);
         }
-        //if(it == queue->pendingCommandBuffers[frameCount % framesInFlight].end()){
-        //    queue->pendingCommandBuffers[frameCount % framesInFlight].emplace(fence, std::move(insert));
-        //}
-        //else{
-        //    for(auto element_from_insert : insert)
-        //        queue->pendingCommandBuffers[frameCount % framesInFlight][fence].insert(element_from_insert);
-        //}
-        
-        //TRACELOG(LOG_INFO, "Count: %d", (int)queue->pendingCommandBuffers.size());
-        /*if(vkWaitForFences(g_vulkanstate.device->device, 1, &g_vulkanstate.queue->syncState.renderFinishedFence, VK_TRUE, 100000000) != VK_SUCCESS){
-            TRACELOG(LOG_FATAL, "Could not wait for fence");
-        }
-        vkResetFences(g_vulkanstate.device->device, 1, &g_vulkanstate.queue->syncState.renderFinishedFence);*/
+        WGVKCommandBufferVector_free(&insert);
     }else{
         TRACELOG(LOG_FATAL, "vkQueueSubmit failed");
     }
@@ -2116,10 +2103,8 @@ void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVKCommandBuff
     wgvkReleaseCommandBuffer(cachebuffer);
     WGVKCommandEncoderDescriptor cedesc zeroinit;
     queue->presubmitCache = wgvkDeviceCreateCommandEncoder(queue->device, &cedesc);
-    //queue->semaphoreThatTheNextBufferWillNeedToWaitFor = VK_NULL_HANDLE;
-    //queue->presubmitCache = wgvkResetCommandBuffer(cachebuffer);
-    //VkPipelineStageFlags bop[1] = {VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT};
-    //si.pWaitDstStageMask = bop;
+    VkCommandBufferVector_free(&submittable);
+    WGVKCommandBufferVector_free(&submittableWGVK);
 }
 
 
@@ -2152,7 +2137,7 @@ void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, WGVKAdapter adapter, WG
     if (presentModeCount != 0) {
         wgvkSurface->presentModeCache = (PresentMode*)RL_CALLOC(presentModeCount, sizeof(PresentMode));
         VkPresentModeKHR presentModes[16] = {0};//(presentModeCount);
-        vkGetPhysicalDeviceSurfacePresentModesKHR(vk_physicalDevice, surface, &presentModeCount, presentModes.data());
+        vkGetPhysicalDeviceSurfacePresentModesKHR(vk_physicalDevice, surface, &presentModeCount, presentModes);
         for(size_t i = 0;i < presentModeCount;i++){
             wgvkSurface->presentModeCache[i] = fromVulkanPresentMode(presentModes[i]);
         }
@@ -2252,7 +2237,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* c
 
     //surface->imageViews = (VkImageView*)std::calloc(surface->imagecount, sizeof(VkImageView));
     TRACELOG(LOG_INFO, "Imagecount: %d", (int)surface->imagecount);
-    vkGetSwapchainImagesKHR(device->device, surface->swapchain, &surface->imagecount, tmpImages.data());
+    vkGetSwapchainImagesKHR(device->device, surface->swapchain, &surface->imagecount, tmpImages);
     surface->images = (WGVKTexture*)calloc(surface->imagecount, sizeof(WGVKTexture));
     for (uint32_t i = 0; i < surface->imagecount; i++) {
         surface->images[i] = callocnew(WGVKTextureImpl);
@@ -2319,13 +2304,13 @@ void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
     RL_FREE(commandEncoder);
 }
 
-static void releaseRPSetCallback(void* rpEncoder, void*){
+static void releaseRPSetCallback(void* rpEncoder, void* unused){
     wgvkReleaseRenderPassEncoder((WGVKRenderPassEncoder)rpEncoder);
 }
-static void releaseCPSetCallback(void* cpEncoder, void*){
+static void releaseCPSetCallback(void* cpEncoder, void* unused){
     wgvkReleaseComputePassEncoder((WGVKComputePassEncoder)cpEncoder);
 }
-static void releaseRTSetCallback(void* rtEncoder, void*){
+static void releaseRTSetCallback(void* rtEncoder, void* unused){
     wgvkReleaseRaytracingPassEncoder((WGVKRaytracingPassEncoder)rtEncoder);
 }
 void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
@@ -2395,7 +2380,25 @@ void wgvkBindGroupRelease(WGVKBindGroup dshandle) {
     if (dshandle->refCount == 0) {
         releaseAllAndClear(&dshandle->resourceUsage);
         wgvkBindGroupLayoutRelease(dshandle->layout);
-        dshandle->device->frameCaches[dshandle->cacheIndex].bindGroupCache[dshandle->layout].emplace_back(dshandle->pool, dshandle->set);
+        BindGroupCacheMap* bgcm = &dshandle->device->frameCaches[dshandle->cacheIndex].bindGroupCache;
+        DescriptorSetAndPool insertValue = {
+            .pool = dshandle->pool,
+            .set = dshandle->set
+        };
+        DescriptorSetAndPoolVector* maybeAlreadyThere = BindGroupCacheMap_get(bgcm, dshandle->layout);
+        if(maybeAlreadyThere == NULL){
+            DescriptorSetAndPoolVector empty zeroinit;
+            BindGroupCacheMap_put(bgcm, dshandle->layout, empty);
+            maybeAlreadyThere = BindGroupCacheMap_get(bgcm, dshandle->layout);
+            rassert(maybeAlreadyThere != NULL, "Still null after insert");
+            DescriptorSetAndPoolVector_init(maybeAlreadyThere);
+        }
+        
+        if(maybeAlreadyThere){
+            DescriptorSetAndPoolVector_push_back(maybeAlreadyThere, insertValue);
+        }
+
+        
         
         //DONT delete them, they are cached
         //vkFreeDescriptorSets(dshandle->device->device, dshandle->pool, 1, &dshandle->set);
@@ -2421,48 +2424,49 @@ WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WGVKRenderP
     vertShaderStageInfo.pName = descriptor->vertex.entryPoint.data; // Assuming null-terminated or careful length handling elsewhere
     // TODO: Handle constants if necessary via specialization constants
     // vertShaderStageInfo.pSpecializationInfo = ...;
-    shaderStages.push_back(vertShaderStageInfo);
+    shaderStages[shaderStageInsertPos++] = vertShaderStageInfo;
 
     // Fragment Stage (Optional)
     VkPipelineShaderStageCreateInfo fragShaderStageInfo zeroinit;
     if (descriptor->fragment) {
         fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-        fragShaderStageInfo.module = reinterpret_cast<WGVKShaderModule>(descriptor->fragment->module)->vulkanModule;
+        fragShaderStageInfo.module = (descriptor->fragment->module)->vulkanModule;
         fragShaderStageInfo.pName = descriptor->fragment->entryPoint.data;
         // TODO: Handle constants
         // fragShaderStageInfo.pSpecializationInfo = ...;
-        shaderStages.push_back(fragShaderStageInfo);
+        shaderStages[shaderStageInsertPos++] = fragShaderStageInfo;
     }
 
     // Vertex Input State
-    std::vector<VkVertexInputBindingDescription> bindingDescriptions(descriptor->vertex.bufferCount);
-    std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
+    VkVertexInputBindingDescription   bindingDescriptions  [32] = {(VkVertexInputBindingDescription)  {0}};
+    VkVertexInputAttributeDescription attributeDescriptions[32] = {(VkVertexInputAttributeDescription){0}};
+    uint32_t attributeDescriptionCount = 0;
     uint32_t currentBinding = 0;
     for (size_t i = 0; i < descriptor->vertex.bufferCount; ++i) {
         const WGVKVertexBufferLayout* layout = &descriptor->vertex.buffers[i];
-        bindingDescriptions[i].binding = currentBinding; // Assuming bindings are contiguous from 0
+        bindingDescriptions[i].binding = currentBinding; // Assuming bindings are contiguous from 0, I think webgpu doesn't allow anything else
         bindingDescriptions[i].stride = (uint32_t)layout->arrayStride;
         bindingDescriptions[i].inputRate = toVulkanVertexStepMode(layout->stepMode);
 
         for (size_t j = 0; j < layout->attributeCount; ++j) {
             const VertexAttribute* attrib = &layout->attributes[j];
-            VkVertexInputAttributeDescription vkAttrib{};
+            VkVertexInputAttributeDescription vkAttrib zeroinit;
             vkAttrib.binding = currentBinding;
             vkAttrib.location = attrib->shaderLocation;
             vkAttrib.format = toVulkanVertexFormat(attrib->format);
             vkAttrib.offset = (uint32_t)attrib->offset;
-            attributeDescriptions.push_back(vkAttrib);
+            attributeDescriptions[attributeDescriptionCount++] = vkAttrib;
         }
         currentBinding++;
     }
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo zeroinit;
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(bindingDescriptions.size());
-    vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions.data();
-    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+    vertexInputInfo.vertexBindingDescriptionCount = descriptor->vertex.bufferCount;
+    vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions;
+    vertexInputInfo.vertexAttributeDescriptionCount = attributeDescriptionCount;
+    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions;
 
     // Input Assembly State
     VkPipelineInputAssemblyStateCreateInfo inputAssembly zeroinit;
@@ -2547,7 +2551,7 @@ WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WGVKRenderP
     }
 
     // Color Blend State (Requires fragment shader)
-    std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments;
+    VkPipelineColorBlendAttachmentState colorBlendAttachments[MAX_COLOR_ATTACHMENTS];
     VkPipelineColorBlendStateCreateInfo colorBlending zeroinit;
     colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     colorBlending.logicOpEnable = VK_FALSE;
@@ -2558,7 +2562,6 @@ WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WGVKRenderP
     colorBlending.blendConstants[3] = 0.0f;
 
     if (descriptor->fragment) {
-        colorBlendAttachments.resize(descriptor->fragment->targetCount);
         for (size_t i = 0; i < descriptor->fragment->targetCount; ++i) {
             const WGVKColorTargetState* target = &descriptor->fragment->targets[i];
             // Defaults for no blending
@@ -2581,8 +2584,8 @@ WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WGVKRenderP
                 colorBlendAttachments[i].alphaBlendOp = toVulkanBlendOperation(target->blend->alpha.operation);
             }
         }
-        colorBlending.attachmentCount = static_cast<uint32_t>(colorBlendAttachments.size());
-        colorBlending.pAttachments = colorBlendAttachments.data();
+        colorBlending.attachmentCount = descriptor->fragment->targetCount;
+        colorBlending.pAttachments = colorBlendAttachments;
     } else {
         // No fragment shader means no color attachments needed? Check spec.
         // Typically, rasterizerDiscardEnable would be true if no fragment shader, but let's allow it.
@@ -2613,7 +2616,7 @@ WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WGVKRenderP
 
     // Pipeline Rendering Info (for dynamic rendering if used, otherwise NULL)
     // Assuming traditional render passes for now based on WGVK structure.
-    VkPipelineRenderingCreateInfo pipelineRenderingCreateInfo{}; // Zero initialize
+    VkPipelineRenderingCreateInfo pipelineRenderingCreateInfo zeroinit; // Zero initialize
     pipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
     // Check if dynamic rendering should be used based on descriptor or device capabilities?
     // For simplicity, assuming we have a VkRenderPass (not provided here, usually comes from RenderPassEncoder Begin).
@@ -2637,8 +2640,8 @@ WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WGVKRenderP
     VkGraphicsPipelineCreateInfo pipelineInfo zeroinit;
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     // pipelineInfo.pNext = &pipelineRenderingCreateInfo; // Only if using dynamic rendering extension (VK_KHR_dynamic_rendering)
-    pipelineInfo.stageCount = static_cast<uint32_t>(shaderStages.size());
-    pipelineInfo.pStages = shaderStages.data();
+    pipelineInfo.stageCount = shaderStageInsertPos;
+    pipelineInfo.pStages = shaderStages;
     pipelineInfo.pVertexInputState = &vertexInputInfo;
     pipelineInfo.pInputAssemblyState = &inputAssembly;
     pipelineInfo.pViewportState = &viewportState;
@@ -2677,15 +2680,14 @@ WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WGVKRenderP
         return NULL;
     }
 
-    return reinterpret_cast<WGVKRenderPipeline>(pipelineImpl);
+    return pipelineImpl;
 }
 void wgvkBindGroupLayoutRelease(WGVKBindGroupLayout bglayout){
     --bglayout->refCount;
     if(bglayout->refCount == 0){
         vkDestroyDescriptorSetLayout(bglayout->device->device, bglayout->layout, NULL);
-        bglayout->~WGVKBindGroupLayoutImpl();
-        std::free(const_cast<ResourceTypeDescriptor*>(bglayout->entries));
-        std::free(bglayout);
+        RL_FREE((ResourceTypeDescriptor*)(bglayout->entries));
+        RL_FREE(bglayout);
     }
 }
 
@@ -2695,8 +2697,7 @@ void wgvkReleaseTexture(WGVKTexture texture){
         vkDestroyImage(texture->device->device, texture->image, NULL);
         vkFreeMemory(texture->device->device, texture->memory, NULL);
 
-        texture->~WGVKTextureImpl();
-        std::free(texture);
+        RL_FREE(texture);
     }
 }
 void wgvkReleaseTextureView(WGVKTextureView view){
@@ -2704,8 +2705,7 @@ void wgvkReleaseTextureView(WGVKTextureView view){
     if(view->refCount == 0){
         vkDestroyImageView(view->texture->device->device, view->view, NULL);
         wgvkReleaseTexture(view->texture);
-        view->~WGVKTextureViewImpl();
-        std::free(view);
+        RL_FREE(view);
     }
 }
 
@@ -2734,24 +2734,24 @@ void wgvkCommandEncoderCopyBufferToBuffer  (WGVKCommandEncoder commandEncoder, W
 void wgvkCommandEncoderCopyBufferToTexture (WGVKCommandEncoder commandEncoder, WGVKTexelCopyBufferInfo const * source, WGVKTexelCopyTextureInfo const * destination, WGVKExtent3D const * copySize){
     
     VkImageCopy copy;
-    VkBufferImageCopy region{};
+    VkBufferImageCopy region zeroinit;
 
     region.bufferOffset = 0;
     region.bufferRowLength = 0;
     region.bufferImageHeight = 0;
 
-    region.imageSubresource.aspectMask = is__depth(destination->texture->format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.aspectMask = is__depthVk(destination->texture->format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
     region.imageSubresource.mipLevel = 0;
     region.imageSubresource.baseArrayLayer = 0;
     region.imageSubresource.layerCount = 1;
 
-    region.imageOffset = VkOffset3D{
+    region.imageOffset = CLITERAL(VkOffset3D){
         (int32_t)destination->origin.x,
         (int32_t)destination->origin.y,
         (int32_t)destination->origin.z,
     };
 
-    region.imageExtent = {
+    region.imageExtent = CLITERAL(VkExtent3D){
         copySize->width,
         copySize->height,
         copySize->depthOrArrayLayers
@@ -2797,7 +2797,7 @@ void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, WGVKRenderPipel
     rpe->lastLayout = renderPipeline->layout->layout; 
 }
 
-static inline void transitionToAppropriateLayoutCallback1(void* texture_, ImageUsageRecord* record, void* rpe_){
+static inline void transitionToAppropriateLayoutCallback1(void* texture_, ImageViewUsageRecord* record, void* rpe_){
     WGVKRenderPassEncoder rpe = (WGVKRenderPassEncoder)rpe_;
     WGVKTextureView texture = (WGVKTextureView)texture_;
 
@@ -2880,8 +2880,7 @@ void wgvkReleaseComputePassEncoder(WGVKComputePassEncoder cpenc){
     --cpenc->refCount;
     if(cpenc->refCount == 0){
         releaseAllAndClear(&cpenc->resourceUsage);
-        cpenc->~WGVKComputePassEncoderImpl();
-        std::free(cpenc);
+        RL_FREE(cpenc);
     }
 }
 
@@ -2889,14 +2888,13 @@ void wgvkReleaseRaytracingPassEncoder(WGVKRaytracingPassEncoder rtenc){
     --rtenc->refCount;
     if(rtenc->refCount == 0){
         releaseAllAndClear(&rtenc->resourceUsage);
-        rtenc->~WGVKRaytracingPassEncoderImpl();
-        std::free(rtenc);
+        RL_FREE(rtenc);
     }
 }
 void wgvkSurfacePresent(WGVKSurface surface){
     uint32_t cacheIndex = surface->device->submittedFrames % framesInFlight;
 
-    VkPresentInfoKHR presentInfo{};
+    VkPresentInfoKHR presentInfo zeroinit;
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     
     presentInfo.waitSemaphoreCount = 1;
@@ -2905,7 +2903,7 @@ void wgvkSurfacePresent(WGVKSurface surface){
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = swapChains;
     presentInfo.pImageIndices = &surface->activeImageIndex;
-    VkImageSubresourceRange isr{};
+    VkImageSubresourceRange isr zeroinit;
     isr.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     isr.layerCount = 1;
     isr.levelCount = 1;
@@ -2966,20 +2964,19 @@ void wgvkSurfacePresent(WGVKSurface surface){
     }
 }
 
-
+static inline VkSamplerAddressMode vkamode(addressMode a){
+    switch(a){
+        case clampToEdge:
+            return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        case mirrorRepeat:
+            return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+        case repeat:
+            return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        default:
+            rg_unreachable();
+    }
+};
 WGVKSampler wgvkDeviceCreateSampler(WGVKDevice device, const WGVKSamplerDescriptor* descriptor){
-    auto vkamode = [](addressMode a){
-        switch(a){
-            case addressMode::clampToEdge:
-                return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-            case addressMode::mirrorRepeat:
-                return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
-            case addressMode::repeat:
-                return VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            default:
-                rg_unreachable();
-        }
-    };
 
     WGVKSampler ret = callocnew(WGVKSamplerImpl);
     ret->refCount = 1;
@@ -3200,7 +3197,7 @@ RGAPI void trackTexture         (ResourceUsage* resourceUsage, WGVKTexture textu
 
 RGAPI void trackTextureView     (ResourceUsage* resourceUsage, WGVKTextureView view, TextureUsage usage){
     //TODO: useful image usage records for barriers
-    ImageUsageRecord record = {
+    ImageViewUsageRecord record = {
         .usage = usage,
     };
     if(ImageViewUsageRecordMap_put(&resourceUsage->referencedTextureViews, view, record)){
@@ -3225,22 +3222,23 @@ RGAPI void trackSampler         (ResourceUsage* resourceUsage, WGVKSampler sampl
         ++sampler->refCount;
     }
 }
-static inline void bufferReleaseCallback(void* buffer, BufferUsageRecord* bu_record, void*){
+static inline void bufferReleaseCallback(void* buffer, BufferUsageRecord* bu_record, void* unused){
     wgvkBufferRelease((WGVKBuffer)buffer);
 }
-static inline void textureReleaseCallback(void* texture, void*){
+static inline void textureReleaseCallback(void* texture, void* unused){
     wgvkReleaseTexture((WGVKTexture)texture);
 }
-static inline void textureViewReleaseCallback(void* textureView, ImageViewUsageRecord*, void*){
+static inline void textureViewReleaseCallback(void* textureView, ImageViewUsageRecord* iur, void* unused){
+    (void)iur;
     wgvkReleaseTextureView((WGVKTextureView)textureView);
 }
-static inline void bindGroupReleaseCallback(void* bindGroup, void*){
+static inline void bindGroupReleaseCallback(void* bindGroup, void* unused){
     wgvkBindGroupRelease((WGVKBindGroup)bindGroup);
 }
-static inline void bindGroupLayoutReleaseCallback(void* bgl, void*){
+static inline void bindGroupLayoutReleaseCallback(void* bgl, void* unused){
     wgvkBindGroupLayoutRelease((WGVKBindGroupLayout)bgl);
 }
-static inline void samplerReleaseCallback(void* sampler, void*){
+static inline void samplerReleaseCallback(void* sampler, void* unused){
     wgvkSamplerRelease((WGVKSampler)sampler);
 }
 

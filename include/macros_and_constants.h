@@ -102,7 +102,11 @@ constexpr float RAD2DEG = 180.0 / M_PI;
 #endif
 
 #if defined(RG_STATIC) && RG_STATIC != 0
+    #ifdef __cplusplus
+    #define RGAPI extern "C"
+    #else
     #define RGAPI
+    #endif
     #define RGAPICXX extern "C"
 #elif defined(_WIN32)
     #if defined(RG_EXPORTS) && RG_EXPORTS != 0
