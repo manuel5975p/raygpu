@@ -654,7 +654,7 @@ static inline void transitionToAppropriateLayoutCallback1(void* texture_, ImageV
 
 void wgvkRaytracingPassEncoderSetBindGroup(WGVKRaytracingPassEncoder rte, uint32_t groupIndex, WGVKBindGroup bindGroup) {
     vkCmdBindDescriptorSets(rte->cmdBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, rte->lastLayout, 0, 1, &bindGroup->set, 0, nullptr);
-    trackBindGroup(&rte->resourceUsage, bindGroup);
+    ru_trackBindGroup(&rte->resourceUsage, bindGroup);
     ImageViewUsageRecordMap_for_each(&bindGroup->resourceUsage.referencedTextureViews, transitionToAppropriateLayoutCallback1, rte);
 }
 void wgvkCommandEncoderEndRaytracingPass(WGVKRaytracingPassEncoder commandEncoder) {}

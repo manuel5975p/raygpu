@@ -772,7 +772,7 @@ void GenTextureMipmaps(Texture2D* tex){
         blitRegion.dstSubresource.mipLevel = i + 1;
         vkCmdBlitImage(enc->buffer, wgvkTex->image, VK_IMAGE_LAYOUT_GENERAL, wgvkTex->image, VK_IMAGE_LAYOUT_GENERAL, 1, &blitRegion, VK_FILTER_LINEAR);
     }
-    trackTexture(&enc->resourceUsage, wgvkTex);
+    ru_trackTexture(&enc->resourceUsage, wgvkTex);
     WGVKCommandBuffer buffer = wgvkCommandEncoderFinish(enc);
     wgvkQueueSubmit(g_vulkanstate.queue, 1, &buffer);
     wgvkReleaseCommandBuffer(buffer);

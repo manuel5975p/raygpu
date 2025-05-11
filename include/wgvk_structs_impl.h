@@ -93,20 +93,20 @@ static inline void ResourceUsage_init(ResourceUsage* ru){
     LayoutAssumptions_init(&ru->entryAndFinalLayouts);
 }
 
-RGAPI void registerTransition   (ResourceUsage* resourceUsage, WGVKTexture tex, VkImageLayout from, VkImageLayout to);
-RGAPI void trackBuffer          (ResourceUsage* resourceUsage, WGVKBuffer buffer);
-RGAPI void trackTexture         (ResourceUsage* resourceUsage, WGVKTexture texture);
-RGAPI void trackTextureView     (ResourceUsage* resourceUsage, WGVKTextureView view, TextureUsage usage);
-RGAPI void trackBindGroup       (ResourceUsage* resourceUsage, WGVKBindGroup bindGroup);
-RGAPI void trackBindGroupLayout (ResourceUsage* resourceUsage, WGVKBindGroupLayout bindGroupLayout);
-RGAPI void trackSampler         (ResourceUsage* resourceUsage, WGVKSampler sampler);
+RGAPI void ru_registerTransition   (ResourceUsage* resourceUsage, WGVKTexture tex, VkImageLayout from, VkImageLayout to);
+RGAPI void ru_trackBuffer          (ResourceUsage* resourceUsage, WGVKBuffer buffer);
+RGAPI void ru_trackTexture         (ResourceUsage* resourceUsage, WGVKTexture texture);
+RGAPI void ru_trackTextureView     (ResourceUsage* resourceUsage, WGVKTextureView view, TextureUsage usage);
+RGAPI void ru_trackBindGroup       (ResourceUsage* resourceUsage, WGVKBindGroup bindGroup);
+RGAPI void ru_trackBindGroupLayout (ResourceUsage* resourceUsage, WGVKBindGroupLayout bindGroupLayout);
+RGAPI void ru_trackSampler         (ResourceUsage* resourceUsage, WGVKSampler sampler);
 
-RGAPI Bool32 containsBuffer(const ResourceUsage* resourceUsage, WGVKBuffer buffer);
-RGAPI Bool32 containsTexture(const ResourceUsage* resourceUsage, WGVKTexture texture);
-RGAPI Bool32 containsTextureView(const ResourceUsage* resourceUsage, WGVKTextureView view);
-RGAPI Bool32 containsBindGroup(const ResourceUsage* resourceUsage, WGVKBindGroup bindGroup);
-RGAPI Bool32 containsBindGroupLayout(const ResourceUsage* resourceUsage, WGVKBindGroupLayout bindGroupLayout);
-RGAPI Bool32 containsSampler(const ResourceUsage* resourceUsage, WGVKSampler bindGroup);
+RGAPI Bool32 ru_containsBuffer         (const ResourceUsage* resourceUsage, WGVKBuffer buffer);
+RGAPI Bool32 ru_containsTexture        (const ResourceUsage* resourceUsage, WGVKTexture texture);
+RGAPI Bool32 ru_containsTextureView    (const ResourceUsage* resourceUsage, WGVKTextureView view);
+RGAPI Bool32 ru_containsBindGroup      (const ResourceUsage* resourceUsage, WGVKBindGroup bindGroup);
+RGAPI Bool32 ru_containsBindGroupLayout(const ResourceUsage* resourceUsage, WGVKBindGroupLayout bindGroupLayout);
+RGAPI Bool32 ru_containsSampler        (const ResourceUsage* resourceUsage, WGVKSampler bindGroup);
 
 RGAPI void releaseAllAndClear(ResourceUsage* resourceUsage);
 
