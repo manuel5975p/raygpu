@@ -3059,9 +3059,11 @@ RGAPI void ru_registerTransition(ResourceUsage* resourceUsage, WGVKTexture tex, 
         LayoutAssumptions_put(&resourceUsage->entryAndFinalLayouts, (void*)tex, ilp);
     }
 }
-RGAPI void ru_trackBuffer(ResourceUsage* resourceUsage, WGVKBuffer buffer){
-    //TODO: useful buffer usage records for barriers
+
+RGAPI void ru_trackBuffer(ResourceUsage* resourceUsage, WGVKBuffer buffer, VkPipelineStageFlags stage, VkAccessFlags access){
     BufferUsageRecord brecord zeroinit;
+    brecord.lastAccess = access;
+    brecord.lastStage = stage;
     if(BufferUsageRecordMap_put(&resourceUsage->referencedBuffers, (void*)buffer, brecord)){
         ++buffer->refCount;
     }
@@ -3100,6 +3102,35 @@ RGAPI void ru_trackSampler         (ResourceUsage* resourceUsage, WGVKSampler sa
         ++sampler->refCount;
     }
 }
+
+static void ce_trackBuffer(WGVKCommandEncoder encoder, WGVKBuffer buffer, VkPipelineStageFlags stage, VkAccessFlags access){
+    BufferUsageRecord* rec = BufferUsageRecordMap_get(&encoder->resourceUsage.referencedBuffers, buffer);
+    if(rec != NULL){
+        VkBufferMemoryBarrier bufferBarrier = {
+            VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+            NULL, 
+            rec->lastAccess,
+            access, 
+            encoder->device->adapter->queueIndices.graphicsIndex,
+            encoder->device->adapter->queueIndices.graphicsIndex,
+            buffer->buffer,
+            0,
+            VK_WHOLE_SIZE
+        };
+        vkCmdPipelineBarrier(encoder->buffer, rec->lastStage, stage, 0, 0, 0, 1, &bufferBarrier, 0, 0);
+    }
+    ru_trackBuffer(&encoder->resourceUsage, buffer, stage, access);
+
+}
+void rpe_trackBindGroup(WGVKRenderPassEncoder rpenc, WGVKBindGroup bindGroup){
+    ru_trackBindGroup(&rpenc->resourceUsage, bindGroup);
+}
+void rpe_trackTextureView(WGVKRenderPassEncoder rpenc, WGVKTextureView view, VkAccessFlags access, VkPipelineStageFlags stage, VkImageLayout layout){
+    ImageViewUsageRecord rec zeroinit;
+    ru_trackTextureView(&rpenc->resourceUsage, view, usage);
+}
+
+
 static inline void bufferReleaseCallback(void* buffer, BufferUsageRecord* bu_record, void* unused){
     wgvkBufferRelease((WGVKBuffer)buffer);
 }
