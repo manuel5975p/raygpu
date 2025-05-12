@@ -14,7 +14,6 @@ typedef struct ImageViewUsageRecord{
     VkImageLayout lastLayout;
     VkPipelineStageFlags lastStage;
     VkAccessFlags lastAccess;
-    TextureUsage usage;
 }ImageViewUsageRecord;
 
 typedef struct BufferUsageRecord{
@@ -96,7 +95,7 @@ static inline void ResourceUsage_init(ResourceUsage* ru){
 RGAPI void ru_registerTransition   (ResourceUsage* resourceUsage, WGVKTexture tex, VkImageLayout from, VkImageLayout to);
 RGAPI void ru_trackBuffer          (ResourceUsage* resourceUsage, WGVKBuffer buffer, VkPipelineStageFlags stage, VkAccessFlags access);
 RGAPI void ru_trackTexture         (ResourceUsage* resourceUsage, WGVKTexture texture);
-RGAPI void ru_trackTextureView     (ResourceUsage* resourceUsage, WGVKTextureView view, TextureUsage usage);
+RGAPI void ru_trackTextureView     (ResourceUsage* resourceUsage, WGVKTextureView view, ImageViewUsageRecord newRecird);
 RGAPI void ru_trackBindGroup       (ResourceUsage* resourceUsage, WGVKBindGroup bindGroup);
 RGAPI void ru_trackBindGroupLayout (ResourceUsage* resourceUsage, WGVKBindGroupLayout bindGroupLayout);
 RGAPI void ru_trackSampler         (ResourceUsage* resourceUsage, WGVKSampler sampler);

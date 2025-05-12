@@ -1458,11 +1458,14 @@ void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup, const WGVK
         //VkCopyDescriptorSet copy{};
         //copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
 
-        VkDescriptorSetAllocateInfo dsai zeroinit;
-        dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        dsai.descriptorPool = wvBindGroup->pool;
-        dsai.descriptorSetCount = 1;
-        dsai.pSetLayouts = (VkDescriptorSetLayout*)&bgdesc->layout->layout;
+        VkDescriptorSetAllocateInfo dsai = {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+            .pNext = NULL,
+            .descriptorPool = wvBindGroup->pool,
+            .descriptorSetCount = 1,
+            .pSetLayouts = (VkDescriptorSetLayout*)&bgdesc->layout->layout
+        };
+
         vkAllocateDescriptorSets(device->device, &dsai, &wvBindGroup->set);
     }
     ResourceUsage newResourceUsage;
@@ -1476,10 +1479,10 @@ void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup, const WGVK
         else if(entry.textureView){
             uniform_type utype = bgdesc->layout->entries[i].type;
             if(utype == storage_texture2d || utype == storage_texture3d || utype == storage_texture2d_array){
-                ru_trackTextureView(&newResourceUsage, (WGVKTextureView)entry.textureView, TextureUsage_StorageBinding);
+                ru_trackTextureView(&newResourceUsage, (WGVKTextureView)entry.textureView, CLITERAL(ImageViewUsageRecord){0});
             }
             else if(utype == texture2d || utype == texture3d || utype == texture2d_array){
-                ru_trackTextureView(&newResourceUsage, (WGVKTextureView)entry.textureView, TextureUsage_TextureBinding);
+                ru_trackTextureView(&newResourceUsage, (WGVKTextureView)entry.textureView, CLITERAL(ImageViewUsageRecord){0});
             }
             //wgvkTextureViewAddRef((WGVKTextureView)entry.textureView);
         }
@@ -3075,12 +3078,10 @@ RGAPI void ru_trackTexture         (ResourceUsage* resourceUsage, WGVKTexture te
     }
 }
 
-RGAPI void ru_trackTextureView     (ResourceUsage* resourceUsage, WGVKTextureView view, TextureUsage usage){
+RGAPI void ru_trackTextureView     (ResourceUsage* resourceUsage, WGVKTextureView view, ImageViewUsageRecord newRecord){
     //TODO: useful image usage records for barriers
-    ImageViewUsageRecord record = {
-        .usage = usage,
-    };
-    if(ImageViewUsageRecordMap_put(&resourceUsage->referencedTextureViews, view, record)){
+    
+    if(ImageViewUsageRecordMap_put(&resourceUsage->referencedTextureViews, view, newRecord)){
         ++view->refCount;
     }
 }
@@ -3126,8 +3127,23 @@ void rpe_trackBindGroup(WGVKRenderPassEncoder rpenc, WGVKBindGroup bindGroup){
     ru_trackBindGroup(&rpenc->resourceUsage, bindGroup);
 }
 void rpe_trackTextureView(WGVKRenderPassEncoder rpenc, WGVKTextureView view, VkAccessFlags access, VkPipelineStageFlags stage, VkImageLayout layout){
-    ImageViewUsageRecord rec zeroinit;
-    ru_trackTextureView(&rpenc->resourceUsage, view, usage);
+    ImageViewUsageRecord* alreadyThere = ImageViewUsageRecordMap_get(&rpenc->resourceUsage.referencedTextureViews, (void*)view);
+    VkImageLayout initialLayout = layout;
+    if(alreadyThere){
+        initialLayout = alreadyThere->initialLayout;
+    }
+    ImageViewUsageRecord newRecord = {
+        .usage = TextureUsage_TextureBinding, // TODO: Uh, this is not necessarily correct
+        .initialLayout = initialLayout,
+        .lastLayout = layout,
+        .lastAccess = access, 
+        .lastStage = stage
+    };
+    if(alreadyThere){
+        
+    }
+    
+    ru_trackTextureView(&rpenc->resourceUsage, view, newRecord);
 }
 
 
