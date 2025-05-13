@@ -1681,6 +1681,7 @@ void wgvkReleasePipelineLayout(WGVKPipelineLayout pllayout){
 }
 WGVKPipelineLayout wgvkDeviceCreatePipelineLayout(WGVKDevice device, const WGVKPipelineLayoutDescriptor* pldesc){
     WGVKPipelineLayout ret = callocnew(WGVKPipelineLayoutImpl);
+    ret->refCount = 1;
     rassert(ret->bindGroupLayoutCount <= 8, "Only supports up to 8 BindGroupLayouts");
     ret->bindGroupLayoutCount = pldesc->bindGroupLayoutCount;
     ret->bindGroupLayouts = (WGVKBindGroupLayout*)RL_CALLOC(pldesc->bindGroupLayoutCount, sizeof(void*));

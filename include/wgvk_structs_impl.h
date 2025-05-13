@@ -25,6 +25,14 @@ typedef struct ImageLayoutPair{
     VkImageLayout initialLayout;
     VkImageLayout finalLayout;
 }ImageLayoutPair;
+typedef struct RenderPassEncoderCommand_Draw{
+    
+}RenderPassEncoderCommand_Draw;
+
+typedef struct RenderPassEncoderCommand{
+
+}RenderPassEncoderCommand;
+
 
 #define CONTAINERAPI static inline
 DEFINE_PTR_HASH_MAP (CONTAINERAPI, BufferUsageRecordMap, BufferUsageRecord)
@@ -46,6 +54,17 @@ DEFINE_VECTOR (CONTAINERAPI, VkDescriptorBufferInfo, VkDescriptorBufferInfoVecto
 DEFINE_VECTOR (CONTAINERAPI, VkDescriptorImageInfo, VkDescriptorImageInfoVector)
 DEFINE_VECTOR (CONTAINERAPI, VkWriteDescriptorSetAccelerationStructureKHR, VkWriteDescriptorSetAccelerationStructureKHRVector)
 DEFINE_VECTOR (CONTAINERAPI, VkDescriptorSetLayoutBinding, VkDescriptorSetLayoutBindingVector)
+
+typedef struct DescriptorSetAndPool{
+    VkDescriptorPool pool;
+    VkDescriptorSet set;
+}DescriptorSetAndPool;
+
+DEFINE_VECTOR(static inline, VkAttachmentDescription, VkAttachmentDescriptionVector)
+DEFINE_VECTOR(static inline, WGVKBuffer, WGVKBufferVector)
+DEFINE_VECTOR(static inline, DescriptorSetAndPool, DescriptorSetAndPoolVector)
+DEFINE_PTR_HASH_MAP(static inline, BindGroupCacheMap, DescriptorSetAndPoolVector)
+
 
 //DEFINE_PTR_HASH_MAP(static inline, BindGroupUsageMap, uint32_t)
 //DEFINE_PTR_HASH_MAP(static inline, SamplerUsageMap, uint32_t)
@@ -203,7 +222,7 @@ static bool renderPassLayoutCompare(RenderPassLayout first, RenderPassLayout oth
     }
     return (first.depthAttachmentPresent == other.depthAttachmentPresent) && attachmentDescriptorCompare(first.depthAttachment, other.depthAttachment);
 }
-DEFINE_VECTOR(static inline, VkAttachmentDescription, VkAttachmentDescriptionVector)
+
 typedef struct LayoutedRenderPass{
     RenderPassLayout layout;
     VkAttachmentDescriptionVector allAttachments;
@@ -278,14 +297,7 @@ static size_t renderPassLayoutHash(RenderPassLayout layout){
     }
     return ret.x64;
 }
-DEFINE_VECTOR(static inline, WGVKBuffer, WGVKBufferVector)
-typedef struct DescriptorSetAndPool{
-    VkDescriptorPool pool;
-    VkDescriptorSet set;
-}DescriptorSetAndPool;
 
-DEFINE_VECTOR(static inline, DescriptorSetAndPool, DescriptorSetAndPoolVector)
-DEFINE_PTR_HASH_MAP(static inline, BindGroupCacheMap, DescriptorSetAndPoolVector)
 
 typedef struct PerframeCache{
     VkCommandPool commandPool;
