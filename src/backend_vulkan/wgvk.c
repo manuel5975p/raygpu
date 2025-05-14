@@ -157,7 +157,45 @@ WGVKSurface wgvkInstanceCreateSurface(WGVKInstance instance, const WGVKSurfaceDe
     }
     return ret;
 }
+static RenderPassLayout GetRenderPassLayout2(const RenderPassCommandBegin* rpdesc){
+    RenderPassLayout ret zeroinit;
 
+    if(rpdesc->depthAttachmentPresent){
+
+        ret.depthAttachmentPresent = 1U;
+        ret.depthAttachment = CLITERAL(AttachmentDescriptor){
+            .format = rpdesc->depthStencilAttachment.view->format, 
+            .sampleCount = rpdesc->depthStencilAttachment.view->sampleCount,
+            .loadop = rpdesc->depthStencilAttachment.depthLoadOp,
+            .storeop = rpdesc->depthStencilAttachment.depthStoreOp
+        };
+    }
+
+    ret.colorAttachmentCount = rpdesc->colorAttachmentCount;
+    rassert(ret.colorAttachmentCount < MAX_COLOR_ATTACHMENTS, "Too many color attachments");
+    for(uint32_t i = 0;i < rpdesc->colorAttachmentCount;i++){
+        ret.colorAttachments[i] = CLITERAL(AttachmentDescriptor){
+            .format = rpdesc->colorAttachments[i].view->format, 
+            .sampleCount = rpdesc->colorAttachments[i].view->sampleCount,
+            .loadop = rpdesc->colorAttachments[i].loadOp,
+            .storeop = rpdesc->colorAttachments[i].storeOp
+        };
+        bool ihasresolve = rpdesc->colorAttachments[i].resolveTarget;
+        if(i > 0){
+            bool iminus1hasresolve = rpdesc->colorAttachments[i - 1].resolveTarget;
+            rassert(ihasresolve == iminus1hasresolve, "Some of the attachments have resolve, others do not, impossible");
+        }
+        if(rpdesc->colorAttachments[i].resolveTarget != 0){
+            ret.colorResolveAttachments[i] = CLITERAL(AttachmentDescriptor){
+                .format = rpdesc->colorAttachments[i].resolveTarget->format, 
+                .sampleCount = rpdesc->colorAttachments[i].resolveTarget->sampleCount,
+                .loadop = rpdesc->colorAttachments[i].loadOp,
+                .storeop = rpdesc->colorAttachments[i].storeOp
+            };
+        }
+    }
+    return ret;
+}
 
 RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescriptor* rpdesc){
     RenderPassLayout ret zeroinit;
@@ -173,6 +211,7 @@ RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescriptor* rpdesc){
             .storeop = rpdesc->depthStencilAttachment->depthStoreOp
         };
     }
+    
 
     
     ret.colorAttachmentCount = rpdesc->colorAttachmentCount;
@@ -1800,31 +1839,6 @@ WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, 
     WGVKRenderPassEncoderSet_add(&enc->referencedRPs, ret);
     //enc->referencedRPs.insert(ret);
     ret->device = enc->device;
-    VkCommandBufferAllocateInfo secondaryAllocateInfo = {
-        VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        NULL,
-        pool,
-        VK_COMMAND_BUFFER_LEVEL_SECONDARY,
-        1
-    };
-
-    VkCommandBufferInheritanceInfo secondaryInheritanceInfo = {
-        VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO,
-        NULL,
-        NULL,
-        0,
-        NULL,
-        VK_FALSE,
-        0,
-        0
-    };
-    
-    VkCommandBufferBeginInfo secondaryBeginInfo = {
-        VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        NULL,
-        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-        &secondaryInheritanceInfo,
-    };
     
     ret->cmdEncoder = enc;
     #if VULKAN_USE_DYNAMIC_RENDERING == 1
@@ -1994,76 +2008,96 @@ void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
     VkCommandBuffer destination = renderPassEncoder->cmdEncoder->buffer;
     const size_t bufferSize = RenderPassCommandGenericVector_size(&renderPassEncoder->bufferedCommands);
 
-    //First, TODO: begin RenderPass
+    const RenderPassCommandBegin* beginInfo = &renderPassEncoder->beginInfo;
+    RenderPassLayout rplayout = GetRenderPassLayout2(beginInfo);
+    VkRenderPassBeginInfo rpbi zeroinit;
+    rpbi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 
-    for(size_t i = 0;i < bufferSize;i++){
-        const RenderPassCommandGeneric* command = RenderPassCommandGenericVector_get(&renderPassEncoder->bufferedCommands, i);
-        switch(command->type){
-            case rp_command_type_draw: {
-                const RenderPassCommandDraw* draw = &command->draw;
-                vkCmdDraw(
-                    destination, 
-                    draw->vertexCount,
-                    draw->instanceCount, 
-                    draw->firstVertex, 
-                    draw->firstInstance
-                );
-            }
-            break;
-            case rp_command_type_draw_indexed: {
-                const RenderPassCommandDrawIndexed* drawIndexed = &command->drawIndexed;
-                vkCmdDrawIndexed(
-                    destination,
-                    drawIndexed->indexCount, 
-                    drawIndexed->instanceCount,
-                    drawIndexed->firstIndex,
-                    drawIndexed->baseVertex, 
-                    drawIndexed->firstInstance
-                );
-            }
-            break;
-            case rp_command_type_set_vertex_buffer: {
-                const RenderPassCommandSetVertexBuffer* setVertexBuffer = &command->setVertexBuffer;
-                vkCmdBindVertexBuffers(
-                    destination, 
-                    setVertexBuffer->slot, 
-                    1, 
-                    &setVertexBuffer->buffer->buffer, 
-                    &setVertexBuffer->offset
-                );
-            }
-            break;
-            case rp_command_type_set_index_buffer: {
-                const RenderPassCommandSetIndexBuffer* setIndexBuffer = &command->setIndexBuffer;
-                vkCmdBindIndexBuffer(
-                    destination,
-                    setIndexBuffer->buffer->buffer,
-                    setIndexBuffer->offset,
-                    setIndexBuffer->size
-                );
-            }
-            break;
-            case rp_command_type_set_bind_group: {
+    LayoutedRenderPass frp = LoadRenderPassFromLayout(renderPassEncoder->device, rplayout);
+    VkRenderPass vkrenderPass = frp.renderPass;
 
-            }
-            break;
-            case rp_command_type_set_render_pipeline: {
-
-            }
-            break;
-            case cp_command_type_set_compute_pipeline: {
-                rassert(false, "Compute command in RenderPass Encoder");
-            }
-            break;
-            case cp_command_type_dispatch_workgroups: {
-                rassert(false, "Compute command in RenderPass Encoder");
-            }
-            break;
-            
-            default:
-            case rp_command_type_invalid: rassert(false, "Invalid command type"); rg_unreachable();
+    VkImageView attachmentViews[2 * max_color_attachments + 2] = {0};// = (VkImageView* )RL_CALLOC(frp.allAttachments.size, sizeof(VkImageView) );
+    VkClearValue clearValues   [2 * max_color_attachments + 2] = {0};// = (VkClearValue*)RL_CALLOC(frp.allAttachments.size, sizeof(VkClearValue));
+    
+    for(uint32_t i = 0;i < rplayout.colorAttachmentCount;i++){
+        attachmentViews[i] =        renderPassEncoder->beginInfo.colorAttachments[i].view->view;
+        clearValues[i]     = toVkCV(renderPassEncoder->beginInfo.colorAttachments[i].clearValue);
+    }
+    uint32_t insertIndex = rplayout.colorAttachmentCount;
+    
+    if(beginInfo->depthAttachmentPresent){
+        clearValues[insertIndex].depthStencil.depth   = beginInfo->depthStencilAttachment.depthClearValue;
+        clearValues[insertIndex].depthStencil.stencil = beginInfo->depthStencilAttachment.stencilClearValue;
+        attachmentViews[insertIndex++]                = beginInfo->depthStencilAttachment.view->view;
+    }
+    
+    if(beginInfo->colorAttachments[0].resolveTarget){
+        for(uint32_t i = 0;i < rplayout.colorAttachmentCount;i++){
+            rassert(beginInfo->colorAttachments[i].resolveTarget, "All must have resolve or none");
+            clearValues[insertIndex] = toVkCV(beginInfo->colorAttachments[i].clearValue);
+            attachmentViews[insertIndex++] =  beginInfo->colorAttachments[i].resolveTarget->view;
         }
     }
+
+    VkFramebufferCreateInfo fbci = {
+        VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+        NULL,
+        0,
+        vkrenderPass,
+        frp.allAttachments.size,
+        attachmentViews,
+        beginInfo->colorAttachments[0].view->width,
+        beginInfo->colorAttachments[0].view->height,
+        1
+    };
+    
+    fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    fbci.pAttachments = attachmentViews;
+    fbci.attachmentCount = frp.allAttachments.size;
+    
+    ImageViewUsageRecord iur_color = {
+        .initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .lastLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .lastAccess = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        .lastStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+    };
+
+    ImageViewUsageRecord iur_resolve = {
+        .initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .lastLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .lastAccess = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        .lastStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+    };
+    
+    ImageViewUsageRecord iur_depth = {
+        .initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        .lastLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        .lastAccess = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+        .lastStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT //huh
+    };
+    
+    for(uint32_t i = 0;i < beginInfo->colorAttachmentCount;i++){
+        if(beginInfo->colorAttachments[i].view){
+            ru_trackTextureView(  &ret->resourceUsage, rpdesc->colorAttachments[i].view, iur_color);
+            initializeOrTransition(ret->cmdEncoder, rpdesc->colorAttachments->view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        }
+    }
+    for(uint32_t i = 0;i < rpdesc->colorAttachmentCount;i++){
+        if(rpdesc->colorAttachments[i].resolveTarget){
+            ru_trackTextureView(&ret->resourceUsage, rpdesc->colorAttachments[i].resolveTarget, iur_resolve);
+            initializeOrTransition(ret->cmdEncoder, rpdesc->colorAttachments->resolveTarget->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        }
+    }
+    if(rpdesc->depthStencilAttachment){
+        ru_trackTextureView(&ret->resourceUsage, rpdesc->depthStencilAttachment->view, iur_depth);
+        initializeOrTransition(ret->cmdEncoder, rpdesc->depthStencilAttachment->view->texture, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    }
+
+
+
+
+    recordVkCommands(destination, &renderPassEncoder->bufferedCommands);
+    
 
     #if VULKAN_USE_DYNAMIC_RENDERING == 1
     //vkCmdResolveImage(VkCommandBuffer commandBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageResolve *pRegions)
@@ -2102,6 +2136,115 @@ WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder commandEncoder){
     ret->device = commandEncoder->device;
     commandEncoder->buffer = NULL;
     return ret;
+}
+void recordVkCommand(CommandBufferAndLayout* destination_, const RenderPassCommandGeneric* command){
+    VkCommandBuffer destination = destination_->buffer;
+
+    switch(command->type){
+        case rp_command_type_draw: {
+            const RenderPassCommandDraw* draw = &command->draw;
+            vkCmdDraw(
+                destination, 
+                draw->vertexCount,
+                draw->instanceCount, 
+                draw->firstVertex, 
+                draw->firstInstance
+            );
+        }
+        break;
+        case rp_command_type_draw_indexed: {
+            const RenderPassCommandDrawIndexed* drawIndexed = &command->drawIndexed;
+            vkCmdDrawIndexed(
+                destination,
+                drawIndexed->indexCount, 
+                drawIndexed->instanceCount,
+                drawIndexed->firstIndex,
+                drawIndexed->baseVertex, 
+                drawIndexed->firstInstance
+            );
+        }
+        break;
+        case rp_command_type_set_vertex_buffer: {
+            const RenderPassCommandSetVertexBuffer* setVertexBuffer = &command->setVertexBuffer;
+            vkCmdBindVertexBuffers(
+                destination, 
+                setVertexBuffer->slot, 
+                1, 
+                &setVertexBuffer->buffer->buffer, 
+                &setVertexBuffer->offset
+            );
+        }
+        break;
+        case rp_command_type_set_index_buffer: {
+            const RenderPassCommandSetIndexBuffer* setIndexBuffer = &command->setIndexBuffer;
+            vkCmdBindIndexBuffer(
+                destination,
+                setIndexBuffer->buffer->buffer,
+                setIndexBuffer->offset,
+                setIndexBuffer->size
+            );
+        }
+        break;
+        case rp_command_type_set_bind_group: {
+            const RenderPassCommandSetBindGroup* setBindGroup = &command->setBindGroup;
+            vkCmdBindDescriptorSets(
+                destination,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                destination_->lastLayout, //todo
+                setBindGroup->groupIndex,
+                1,
+                &setBindGroup->group->set,
+                setBindGroup->dynamicOffsetCount,
+                setBindGroup->dynamicOffsets
+            );
+        }
+        break;
+        case rp_command_type_set_render_pipeline: {
+            const RenderPassCommandSetPipeline* setRenderPipeline = &command->setRenderPipeline;
+            vkCmdBindPipeline(
+                destination, 
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                setRenderPipeline->pipeline->renderPipeline
+            );
+            destination_->lastLayout = setRenderPipeline->pipeline->layout->layout;
+        }
+        break;
+        case cp_command_type_set_compute_pipeline: {
+            const ComputePassCommandSetPipeline* setComputePipeline = &command->setComputePipeline;
+            
+            vkCmdBindPipeline(
+                destination,
+                VK_PIPELINE_BIND_POINT_COMPUTE,
+                setComputePipeline->pipeline->computePipeline
+            );
+
+            destination_->lastLayout = setComputePipeline->pipeline->layout->layout;
+        }
+        break;
+        case cp_command_type_dispatch_workgroups: {
+            const ComputePassCommandDispatchWorkgroups* dispatch = &command->dispatchWorkgroups;
+            vkCmdDispatch(
+                destination, 
+                dispatch->x, 
+                dispatch->y, 
+                dispatch->z
+            );
+        }
+        break;
+        
+        default:
+        case rp_command_type_invalid: rassert(false, "Invalid command type"); rg_unreachable();
+    }
+}
+void recordVkCommands(VkCommandBuffer destination, const RenderPassCommandGenericVector* commands){
+    CommandBufferAndLayout cal = {
+        .buffer = destination,
+        .lastLayout = VK_NULL_HANDLE
+    };
+
+    for(size_t i = 0;i < commands->size;i++){
+        recordVkCommand(&cal, commands->data + i);
+    }
 }
 void welldamn_sdfd(void* unused, ImageLayoutPair* unused2, void* unused3){
     rg_trap();

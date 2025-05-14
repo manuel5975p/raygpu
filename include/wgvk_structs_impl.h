@@ -546,6 +546,13 @@ typedef struct WGVKTextureViewImpl{
     uint32_t sampleCount;
 }WGVKTextureViewImpl;
 
+typedef struct CommandBufferAndLayout{
+    VkCommandBuffer buffer;
+    VkPipelineLayout lastLayout;
+}CommandBufferAndLayout;
+void recordVkCommand(CommandBufferAndLayout* destination, const RenderPassCommandGeneric* command);
+void recordVkCommands(VkCommandBuffer destination, const RenderPassCommandGenericVector* commands);
+
 typedef struct WGVKRenderPassEncoderImpl{
     VkRenderPass renderPass; //ONLY if !dynamicRendering
 
