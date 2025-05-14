@@ -25,13 +25,7 @@ typedef struct ImageLayoutPair{
     VkImageLayout initialLayout;
     VkImageLayout finalLayout;
 }ImageLayoutPair;
-typedef struct RenderPassEncoderCommand_Draw{
-    
-}RenderPassEncoderCommand_Draw;
 
-typedef struct RenderPassEncoderCommand{
-
-}RenderPassEncoderCommand;
 
 
 #define CONTAINERAPI static inline
@@ -463,12 +457,13 @@ typedef struct WGVKTextureViewImpl{
     VkFormat format;
     refcount_type refCount;
     WGVKTexture texture;
+    VkImageSubresourceRange subresourceRange;
     uint32_t width, height, depthOrArrayLayers;
     uint32_t sampleCount;
 }WGVKTextureViewImpl;
 
 typedef struct WGVKRenderPassEncoderImpl{
-    VkCommandBuffer cmdBuffer;
+    VkCommandBuffer secondaryCmdBuffer;
     VkRenderPass renderPass;
     
     WGVKDevice device;

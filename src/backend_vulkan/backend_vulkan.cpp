@@ -1290,8 +1290,8 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     scissor.extent.width =  rtex.texture.width;
     scissor.extent.height = rtex.texture.height;
     for(uint32_t i = 0;i < rpdesc.colorAttachmentCount;i++){
-        vkCmdSetViewport(((WGVKRenderPassEncoder)renderPass->rpEncoder)->cmdBuffer, i, 1, &viewport);
-        vkCmdSetScissor (((WGVKRenderPassEncoder)renderPass->rpEncoder)->cmdBuffer, i, 1, &scissor);
+        vkCmdSetViewport(((WGVKRenderPassEncoder)renderPass->rpEncoder)->secondaryCmdBuffer, i, 1, &viewport);
+        vkCmdSetScissor (((WGVKRenderPassEncoder)renderPass->rpEncoder)->secondaryCmdBuffer, i, 1, &scissor);
     }
     //wgvkRenderPassEncoderBindPipeline((WGVKRenderPassEncoder)renderPass->rpEncoder, g_renderstate.defaultPipeline);
     g_renderstate.activeRenderpass = renderPass;

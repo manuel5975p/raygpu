@@ -1782,7 +1782,7 @@ WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureView
     ret->depthOrArrayLayers = texture->depthOrArrayLayers;
     return ret;
 }
-static VkClearValue toVkCV(const DColor c){
+static inline VkClearValue toVkCV(const DColor c){
     VkClearValue cv zeroinit;
     cv.color.float32[0] = (float)c.r;
     cv.color.float32[1] = (float)c.g;
@@ -1792,13 +1792,22 @@ static VkClearValue toVkCV(const DColor c){
 };
 WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, const WGVKRenderPassDescriptor* rpdesc){
     WGVKRenderPassEncoder ret = calloc(1, sizeof(WGVKRenderPassEncoderImpl));
+    VkCommandPool pool = enc->device->frameCaches[enc->cacheIndex].commandPool;
+
 
     ret->refCount = 2; //One for WGVKRenderPassEncoder the other for the command buffer
     
     WGVKRenderPassEncoderSet_add(&enc->referencedRPs, ret);
     //enc->referencedRPs.insert(ret);
     ret->device = enc->device;
-    ret->cmdBuffer = enc->buffer;
+    VkCommandBufferAllocateInfo secondaryAllocateInfo = {
+        VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        NULL,
+        pool,
+        VK_COMMAND_BUFFER_LEVEL_SECONDARY,
+        1
+    };
+    vkAllocateCommandBuffers(enc->device->device, &secondaryAllocateInfo, &ret->secondaryCmdBuffer);
     ret->cmdEncoder = enc;
     #if VULKAN_USE_DYNAMIC_RENDERING == 1
     VkRenderingInfo info zeroinit;
@@ -1945,8 +1954,7 @@ WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, 
     rpbi.clearValueCount = frp.allAttachments.size;
     rpbi.pClearValues = clearValues;
 
-    vkCmdBeginRenderPass(enc->buffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
-    ret->cmdBuffer = enc->buffer;
+    vkCmdBeginRenderPass(ret->secondaryCmdBuffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
     ret->cmdEncoder = enc;
     #endif
     return ret;
@@ -1955,9 +1963,9 @@ WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, 
 void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
     #if VULKAN_USE_DYNAMIC_RENDERING == 1
     //vkCmdResolveImage(VkCommandBuffer commandBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageResolve *pRegions)
-    vkCmdEndRendering(renderPassEncoder->cmdBuffer);
+    vkCmdEndRendering(renderPassEncoder->secondaryCmdBuffer);
     #else
-    vkCmdEndRenderPass(renderPassEncoder->cmdBuffer);
+    vkCmdEndRenderPass(renderPassEncoder->secondaryCmdBuffer);
     #endif
 }
 /**
@@ -2796,7 +2804,9 @@ void wgvkCommandEncoderCopyBufferToTexture (WGVKCommandEncoder commandEncoder, W
         copySize->height,
         copySize->depthOrArrayLayers
     };
-    ru_trackBuffer(&commandEncoder->resourceUsage,source->buffer);
+    
+    ru_trackBuffer(&commandEncoder->resourceUsage, source->buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+    
     WGVKiotresult result = initializeOrTransition(commandEncoder, destination->texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     //commandEncoder->resourceUsage.track(destination->texture);
     
@@ -2821,7 +2831,7 @@ void wgvkRenderpassEncoderDraw(WGVKRenderPassEncoder rpe, uint32_t vertices, uin
     assert(rpe != NULL && "RenderPassEncoderHandle is null");
 
     // Record the draw command into the command buffer
-    vkCmdDraw(rpe->cmdBuffer, vertices, instances, firstvertex, firstinstance);
+    vkCmdDraw(rpe->secondaryCmdBuffer, vertices, instances, firstvertex, firstinstance);
 }
 
 // Implementation of RenderpassEncoderDrawIndexed
@@ -2829,11 +2839,11 @@ void wgvkRenderpassEncoderDrawIndexed(WGVKRenderPassEncoder rpe, uint32_t indice
     assert(rpe != NULL && "RenderPassEncoderHandle is null");
 
     // Record the indexed draw command into the command buffer
-    vkCmdDrawIndexed(rpe->cmdBuffer, indices, instances, firstindex, (int32_t)(baseVertex & 0x7fffffff), firstinstance);
+    vkCmdDrawIndexed(rpe->secondaryCmdBuffer, indices, instances, firstindex, (int32_t)(baseVertex & 0x7fffffff), firstinstance);
 }
 
 void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, WGVKRenderPipeline renderPipeline) { 
-    vkCmdBindPipeline(rpe->cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, renderPipeline->renderPipeline);
+    vkCmdBindPipeline(rpe->secondaryCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, renderPipeline->renderPipeline);
     rpe->lastLayout = renderPipeline->layout->layout; 
 }
 
@@ -2853,7 +2863,7 @@ void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group
     assert(rpe->lastLayout != VK_NULL_HANDLE && "Pipeline layout is not set");
     
     // Bind the descriptor set to the command buffer
-    vkCmdBindDescriptorSets(rpe->cmdBuffer,                  // Command buffer
+    vkCmdBindDescriptorSets(rpe->secondaryCmdBuffer,                  // Command buffer
                             VK_PIPELINE_BIND_POINT_GRAPHICS, // Pipeline bind point
                             rpe->lastLayout,                 // Pipeline layout
                             group,                           // First set
@@ -3044,7 +3054,7 @@ void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t b
     rassert(buffer != NULL, "BufferHandle is null");
     
     // Bind the vertex buffer to the command buffer at the specified binding point
-    vkCmdBindVertexBuffers(rpe->cmdBuffer, binding, 1, &(buffer->buffer), &offset);
+    vkCmdBindVertexBuffers(rpe->secondaryCmdBuffer, binding, 1, &(buffer->buffer), &offset);
 
     ru_trackBuffer(&rpe->resourceUsage, buffer, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT);
 }
@@ -3053,7 +3063,7 @@ void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer 
     rassert(buffer != NULL, "BufferHandle is null");
 
     // Bind the index buffer to the command buffer
-    vkCmdBindIndexBuffer(rpe->cmdBuffer, buffer->buffer, offset, toVulkanIndexFormat(indexType));
+    vkCmdBindIndexBuffer(rpe->secondaryCmdBuffer, buffer->buffer, offset, toVulkanIndexFormat(indexType));
 
     ru_trackBuffer(&rpe->resourceUsage, buffer, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_ACCESS_INDEX_READ_BIT);
 }

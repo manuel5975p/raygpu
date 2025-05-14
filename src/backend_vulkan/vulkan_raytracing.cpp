@@ -645,9 +645,9 @@ static inline void transitionToAppropriateLayoutCallback1(void* texture_, ImageV
     WGVKRenderPassEncoder rpe = (WGVKRenderPassEncoder)rpe_;
     WGVKTexture texture = (WGVKTexture)texture_;
 
-    if(record->usage == TextureUsage_TextureBinding)
+    if(record->lastLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
         initializeOrTransition(rpe->cmdEncoder, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    else if(record->usage == TextureUsage_StorageBinding){
+    else if(record->lastLayout == VK_IMAGE_LAYOUT_GENERAL){
         initializeOrTransition(rpe->cmdEncoder, texture, VK_IMAGE_LAYOUT_GENERAL);
     }
 }
