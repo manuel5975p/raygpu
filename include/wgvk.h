@@ -457,17 +457,15 @@ typedef struct WGVKRenderPassDepthStencilAttachment{
     uint32_t stencilReadOnly;
 }WGVKRenderPassDepthStencilAttachment;
 
-typedef struct WGVKRenderPassDescriptor{
-    WGVKChainedStruct* nextInChain;
+typedef struct WGVKRenderPassDescriptor {
+    WGVKChainedStruct * nextInChain;
     WGVKStringView label;
     size_t colorAttachmentCount;
-    WGVKRenderPassColorAttachment const* colorAttachments;
-    WGVKRenderPassDepthStencilAttachment const * depthStencilAttachment;
-    
-    //Ignore those members
-    void* occlusionQuerySet;
-    void const *timestampWrites;
-}WGVKRenderPassDescriptor;
+    const WGVKRenderPassColorAttachment* colorAttachments;
+    /*WGPU_NULLABLE*/ const WGVKRenderPassDepthStencilAttachment* depthStencilAttachment;
+    /*WGPU_NULLABLE*/ void* occlusionQuerySet;
+    /*WGPU_NULLABLE*/ void* timestampWrites;
+} WGVKRenderPassDescriptor;
 
 typedef struct WGVKCommandEncoderDescriptor{
     WGVKChainedStruct* nextInChain;
@@ -762,10 +760,10 @@ void wgvkCommandEncoderCopyTextureToBuffer    (WGVKCommandEncoder commandEncoder
 void wgvkCommandEncoderCopyTextureToTexture   (WGVKCommandEncoder commandEncoder, const WGVKTexelCopyTextureInfo* source, const WGVKTexelCopyTextureInfo* destination, const WGVKExtent3D* copySize);
 void wgvkRenderpassEncoderDraw                (WGVKRenderPassEncoder rpe, uint32_t vertices, uint32_t instances, uint32_t firstvertex, uint32_t firstinstance);
 void wgvkRenderpassEncoderDrawIndexed         (WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, int32_t basevertex, uint32_t firstinstance);
-void wgvkRenderPassEncoderSetBindGroup        (WGVKRenderPassEncoder rpe, uint32_t group, WGVKBindGroup dset);
+void wgvkRenderPassEncoderSetBindGroup        (WGVKRenderPassEncoder rpe, uint32_t groupIndex, WGVKBindGroup group, size_t dynamicOffsetCount, uint32_t const * dynamicOffsets);
 void wgvkRenderPassEncoderSetPipeline         (WGVKRenderPassEncoder rpe, WGVKRenderPipeline renderPipeline);
 void wgvkComputePassEncoderSetPipeline        (WGVKComputePassEncoder cpe, WGVKComputePipeline computePipeline);
-void wgvkComputePassEncoderSetBindGroup       (WGVKComputePassEncoder cpe, uint32_t groupIndex, WGVKBindGroup bindGroup);
+void wgvkComputePassEncoderSetBindGroup       (WGVKComputePassEncoder cpe, uint32_t groupIndex, WGVKBindGroup group, size_t dynamicOffsetCount, uint32_t const* dynamicOffsets);
 void wgvkRaytracingPassEncoderSetPipeline     (WGVKRaytracingPassEncoder cpe, WGVKRaytracingPipeline raytracingPipeline);
 void wgvkRaytracingPassEncoderSetBindGroup    (WGVKRaytracingPassEncoder cpe, uint32_t groupIndex, WGVKBindGroup bindGroup);
 void wgvkRaytracingPassEncoderTraceRays       (WGVKRaytracingPassEncoder cpe, uint32_t width, uint32_t height, uint32_t depth);

@@ -26,7 +26,86 @@ typedef struct ImageLayoutPair{
     VkImageLayout finalLayout;
 }ImageLayoutPair;
 
+typedef enum RCPassCommandType{
+    rp_command_type_invalid = 0,
+    rp_command_type_draw,
+    rp_command_type_draw_indexed,
+    rp_command_type_set_vertex_buffer,
+    rp_command_type_set_index_buffer,
+    rp_command_type_set_bind_group,
+    rp_command_type_set_render_pipeline,
+    cp_command_type_set_compute_pipeline,
+    cp_command_type_dispatch_workgroups,
+    rp_command_type_set_force32 = 0x7fffffff
+}RCPassCommandType;
 
+typedef struct RenderPassCommandDraw{
+    uint32_t vertexCount;
+    uint32_t instanceCount;
+    uint32_t firstVertex;
+    uint32_t firstInstance;
+}RenderPassCommandDraw;
+
+typedef struct RenderPassCommandDrawIndexed{
+    uint32_t indexCount;
+    uint32_t instanceCount;
+    uint32_t firstIndex;
+    int32_t baseVertex;
+    uint32_t firstInstance;
+}RenderPassCommandDrawIndexed;
+
+typedef struct RenderPassCommandSetBindGroup{
+    uint32_t groupIndex;
+    WGVKBindGroup group;
+    size_t dynamicOffsetCount;
+    const uint32_t* dynamicOffsets;
+}RenderPassCommandSetBindGroup;
+typedef struct RenderPassCommandSetVertexBuffer {
+    uint32_t slot;
+    WGVKBuffer buffer;
+    uint64_t offset;
+} RenderPassCommandSetVertexBuffer;
+
+typedef struct RenderPassCommandSetIndexBuffer {
+    WGVKBuffer buffer;
+    IndexFormat format;
+    uint64_t offset;
+    uint64_t size;
+} RenderPassCommandSetIndexBuffer;
+
+typedef struct RenderPassCommandSetPipeline {
+    WGVKRenderPipeline pipeline;
+} RenderPassCommandSetPipeline;
+
+typedef struct ComputePassCommandSetPipeline {
+    WGVKComputePipeline pipeline;
+} ComputePassCommandSetPipeline;
+
+typedef struct ComputePassCommandDispatchWorkgroups {
+    uint32_t x, y, z;
+} ComputePassCommandDispatchWorkgroups;
+
+typedef struct RenderPassCommandBegin{
+    WGVKStringView label;
+    size_t colorAttachmentCount;
+    WGVKRenderPassColorAttachment colorAttachments[MAX_COLOR_ATTACHMENTS];
+    Bool32 depthAttachmentPresent;
+    WGVKRenderPassDepthStencilAttachment depthStencilAttachment;
+}RenderPassCommandBegin;
+
+typedef struct RenderPassCommandGeneric {
+    RCPassCommandType type;
+    union {
+        RenderPassCommandDraw draw;
+        RenderPassCommandDrawIndexed drawIndexed;
+        RenderPassCommandSetVertexBuffer setVertexBuffer;
+        RenderPassCommandSetIndexBuffer setIndexBuffer;
+        RenderPassCommandSetBindGroup setBindGroup;
+        RenderPassCommandSetPipeline setRenderPipeline;
+        ComputePassCommandSetPipeline setComputePipeline;
+        ComputePassCommandDispatchWorkgroups dispatchWorkgroups;
+    };
+}RenderPassCommandGeneric;
 
 #define CONTAINERAPI static inline
 DEFINE_PTR_HASH_MAP (CONTAINERAPI, BufferUsageRecordMap, BufferUsageRecord)
@@ -37,11 +116,14 @@ DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupLayoutUsageSet)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, SamplerUsageSet)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, ImageUsageSet)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, WGVKRenderPassEncoderSet)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, RenderPipelineUsageSet)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, ComputePipelineUsageSet)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, WGVKComputePassEncoderSet)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, WGVKRaytracingPassEncoderSet)
 
 DEFINE_VECTOR (CONTAINERAPI, VkWriteDescriptorSet, VkWriteDescriptorSetVector)
 DEFINE_VECTOR (CONTAINERAPI, VkCommandBuffer, VkCommandBufferVector)
+DEFINE_VECTOR (CONTAINERAPI, RenderPassCommandGeneric, RenderPassCommandGenericVector)
 DEFINE_VECTOR (CONTAINERAPI, VkSemaphore, VkSemaphoreVector)
 DEFINE_VECTOR (CONTAINERAPI, WGVKCommandBuffer, WGVKCommandBufferVector)
 DEFINE_VECTOR (CONTAINERAPI, VkDescriptorBufferInfo, VkDescriptorBufferInfoVector)
@@ -72,6 +154,8 @@ typedef struct ResourceUsage{
     BindGroupUsageSet referencedBindGroups;
     BindGroupLayoutUsageSet referencedBindGroupLayouts;
     SamplerUsageSet referencedSamplers;
+    RenderPipelineUsageSet referencedRenderPipelines;
+    ComputePipelineUsageSet referencedComputePipelines;
     LayoutAssumptions entryAndFinalLayouts;
 }ResourceUsage;
 
@@ -432,16 +516,16 @@ typedef struct WGVKShaderModuleImpl{
 DEFINE_VECTOR(static inline, VkDynamicState, VkDynamicStateVector)
 typedef struct WGVKRenderPipelineImpl{
     VkPipeline renderPipeline;
+    WGVKPipelineLayout layout;
     refcount_type refCount;
     WGVKDevice device;
-    WGVKPipelineLayout layout;
     VkDynamicStateVector dynamicStates;
 }WGVKRenderPipelineImpl;
-
 
 typedef struct WGVKComputePipelineImpl{
     VkPipeline computePipeline;
     WGVKPipelineLayout layout;
+    refcount_type refCount;
 }WGVKComputePipelineImpl;
 
 typedef struct WGVKRaytracingPipelineImpl{
@@ -463,8 +547,10 @@ typedef struct WGVKTextureViewImpl{
 }WGVKTextureViewImpl;
 
 typedef struct WGVKRenderPassEncoderImpl{
-    VkCommandBuffer secondaryCmdBuffer;
-    VkRenderPass renderPass;
+    VkRenderPass renderPass; //ONLY if !dynamicRendering
+
+    RenderPassCommandBegin beginInfo;
+    RenderPassCommandGenericVector bufferedCommands;
     
     WGVKDevice device;
     ResourceUsage resourceUsage;
@@ -476,8 +562,7 @@ typedef struct WGVKRenderPassEncoderImpl{
 }WGVKRenderPassEncoderImpl;
 
 typedef struct WGVKComputePassEncoderImpl{
-    VkCommandBuffer cmdBuffer;
-    
+    RenderPassCommandGenericVector bufferedCommands;
     WGVKDevice device;
     ResourceUsage resourceUsage;
     refcount_type refCount;

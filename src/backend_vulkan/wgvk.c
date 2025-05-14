@@ -1807,7 +1807,25 @@ WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, 
         VK_COMMAND_BUFFER_LEVEL_SECONDARY,
         1
     };
-    vkAllocateCommandBuffers(enc->device->device, &secondaryAllocateInfo, &ret->secondaryCmdBuffer);
+
+    VkCommandBufferInheritanceInfo secondaryInheritanceInfo = {
+        VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO,
+        NULL,
+        NULL,
+        0,
+        NULL,
+        VK_FALSE,
+        0,
+        0
+    };
+    
+    VkCommandBufferBeginInfo secondaryBeginInfo = {
+        VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        NULL,
+        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        &secondaryInheritanceInfo,
+    };
+    
     ret->cmdEncoder = enc;
     #if VULKAN_USE_DYNAMIC_RENDERING == 1
     VkRenderingInfo info zeroinit;
@@ -1953,19 +1971,105 @@ WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, 
     
     rpbi.clearValueCount = frp.allAttachments.size;
     rpbi.pClearValues = clearValues;
-
-    vkCmdBeginRenderPass(ret->secondaryCmdBuffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
+    
     ret->cmdEncoder = enc;
+    ret->beginInfo = CLITERAL(RenderPassCommandBegin){
+        .colorAttachmentCount = rpdesc->colorAttachmentCount,
+        .depthAttachmentPresent = rpdesc->depthStencilAttachment != NULL
+    };
+    rassert(rpdesc->colorAttachmentCount <= max_color_attachments, "Too many colorattachments. supported=%d, provided=%d", ((int)MAX_COLOR_ATTACHMENTS), (int)rpdesc->colorAttachmentCount);
+    memcpy(ret->beginInfo.colorAttachments, rpdesc->colorAttachments,rpdesc->colorAttachmentCount * sizeof(WGVKRenderPassColorAttachment));
+    if(rpdesc->depthStencilAttachment){
+        ret->beginInfo.depthStencilAttachment = *rpdesc->depthStencilAttachment;
+    }
+    RenderPassCommandGenericVector_init(&ret->bufferedCommands);
+    //vkCmdBeginRenderPass(ret->secondaryCmdBuffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
     #endif
     return ret;
 }
 
 void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
+    //big fat TODO
+    
+    VkCommandBuffer destination = renderPassEncoder->cmdEncoder->buffer;
+    const size_t bufferSize = RenderPassCommandGenericVector_size(&renderPassEncoder->bufferedCommands);
+
+    //First, TODO: begin RenderPass
+
+    for(size_t i = 0;i < bufferSize;i++){
+        const RenderPassCommandGeneric* command = RenderPassCommandGenericVector_get(&renderPassEncoder->bufferedCommands, i);
+        switch(command->type){
+            case rp_command_type_draw: {
+                const RenderPassCommandDraw* draw = &command->draw;
+                vkCmdDraw(
+                    destination, 
+                    draw->vertexCount,
+                    draw->instanceCount, 
+                    draw->firstVertex, 
+                    draw->firstInstance
+                );
+            }
+            break;
+            case rp_command_type_draw_indexed: {
+                const RenderPassCommandDrawIndexed* drawIndexed = &command->drawIndexed;
+                vkCmdDrawIndexed(
+                    destination,
+                    drawIndexed->indexCount, 
+                    drawIndexed->instanceCount,
+                    drawIndexed->firstIndex,
+                    drawIndexed->baseVertex, 
+                    drawIndexed->firstInstance
+                );
+            }
+            break;
+            case rp_command_type_set_vertex_buffer: {
+                const RenderPassCommandSetVertexBuffer* setVertexBuffer = &command->setVertexBuffer;
+                vkCmdBindVertexBuffers(
+                    destination, 
+                    setVertexBuffer->slot, 
+                    1, 
+                    &setVertexBuffer->buffer->buffer, 
+                    &setVertexBuffer->offset
+                );
+            }
+            break;
+            case rp_command_type_set_index_buffer: {
+                const RenderPassCommandSetIndexBuffer* setIndexBuffer = &command->setIndexBuffer;
+                vkCmdBindIndexBuffer(
+                    destination,
+                    setIndexBuffer->buffer->buffer,
+                    setIndexBuffer->offset,
+                    setIndexBuffer->size
+                );
+            }
+            break;
+            case rp_command_type_set_bind_group: {
+
+            }
+            break;
+            case rp_command_type_set_render_pipeline: {
+
+            }
+            break;
+            case cp_command_type_set_compute_pipeline: {
+                rassert(false, "Compute command in RenderPass Encoder");
+            }
+            break;
+            case cp_command_type_dispatch_workgroups: {
+                rassert(false, "Compute command in RenderPass Encoder");
+            }
+            break;
+            
+            default:
+            case rp_command_type_invalid: rassert(false, "Invalid command type"); rg_unreachable();
+        }
+    }
+
     #if VULKAN_USE_DYNAMIC_RENDERING == 1
     //vkCmdResolveImage(VkCommandBuffer commandBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageResolve *pRegions)
-    vkCmdEndRendering(renderPassEncoder->secondaryCmdBuffer);
+    //vkCmdEndRendering(renderPassEncoder->secondaryCmdBuffer);
     #else
-    vkCmdEndRenderPass(renderPassEncoder->secondaryCmdBuffer);
+    //vkCmdEndRenderPass(renderPassEncoder->secondaryCmdBuffer);
     #endif
 }
 /**
@@ -2163,7 +2267,8 @@ void wgvkSurfaceGetCapabilities(WGVKSurface wgvkSurface, WGVKAdapter adapter, WG
     VkPhysicalDevice vk_physicalDevice = adapter->physicalDevice;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vk_physicalDevice, surface, &scap);
     
-    TRACELOG(LOG_INFO, "scalphaflags: %d", scap.supportedCompositeAlpha);
+    // TRACELOG(LOG_INFO, "scalphaflags: %d", scap.supportedCompositeAlpha);
+    
     // Formats
     uint32_t formatCount;
     vkGetPhysicalDeviceSurfaceFormatsKHR(vk_physicalDevice, surface, &formatCount, NULL);
@@ -2263,8 +2368,8 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* c
         createInfo.pQueueFamilyIndices = queueFamilyIndices;
     } else {
         createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        createInfo.queueFamilyIndexCount = 0;     // Optional
-        createInfo.pQueueFamilyIndices = NULL; // Optional
+        createInfo.queueFamilyIndexCount = 0;
+        createInfo.pQueueFamilyIndices = NULL;
     }
 
     createInfo.preTransform = vkCapabilities.currentTransform;
@@ -2325,21 +2430,21 @@ void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKT
     impl_transition(encoder->buffer, texture, oldLayout, newLayout);
     //ru_registerTransition(&encoder->resourceUsage,texture, oldLayout, newLayout);
 }
+
 void wgvkComputePassEncoderDispatchWorkgroups(WGVKComputePassEncoder cpe, uint32_t x, uint32_t y, uint32_t z){
-    vkCmdDispatch(cpe->cmdBuffer, x, y, z);
+    RenderPassCommandGeneric insert = {
+        .type = cp_command_type_dispatch_workgroups,
+        .dispatchWorkgroups = {x, y, z}
+    };
+
+    RenderPassCommandGenericVector_push_back(&cpe->bufferedCommands, insert);
+    // vkCmdDispatch(cpe->cmdBuffer, x, y, z);
 }
 
 
 void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
-    rassert(commandEncoder->movedFrom, "Commandencoder still valid");
 
-    //for(auto rp : commandEncoder->referencedRPs){
-    //    wgvkReleaseRenderPassEncoder(rp);
-    //}
-    //for(auto rp : commandEncoder->referencedCPs){
-    //    wgvkReleaseComputePassEncoder(rp);
-    //}
-    //commandEncoder->resourceUsage.releaseAllAndClear();
+    rassert(commandEncoder->movedFrom, "Commandencoder still valid");
 
     if(commandEncoder->buffer){
         VkCommandBufferVector_push_back(
@@ -2362,8 +2467,7 @@ static void releaseRTSetCallback(void* rtEncoder, void* unused){
     wgvkReleaseRaytracingPassEncoder((WGVKRaytracingPassEncoder)rtEncoder);
 }
 void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
-    --commandBuffer->refCount;
-    if(commandBuffer->refCount == 0){
+    if(--commandBuffer->refCount == 0){
         WGVKRenderPassEncoderSet_for_each(&commandBuffer->referencedRPs, releaseRPSetCallback, NULL);
         WGVKComputePassEncoderSet_for_each(&commandBuffer->referencedCPs, releaseCPSetCallback, NULL);
         WGVKRaytracingPassEncoderSet_for_each(&commandBuffer->referencedRTs, releaseRTSetCallback, NULL);
@@ -2384,14 +2488,13 @@ void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
 }
 
 void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc) {
-    --rpenc->refCount;
-    if (rpenc->refCount == 0) {
+    if (--rpenc->refCount == 0) {
         releaseAllAndClear(&rpenc->resourceUsage);
-        if(rpenc->frameBuffer)
+        if(rpenc->frameBuffer){
             vkDestroyFramebuffer(rpenc->device->device, rpenc->frameBuffer, NULL);
-        //vkDestroyRenderPass(rpenc->device->device, rpenc->renderPass, NULL);
+        }
         ResourceUsage_free(&rpenc->resourceUsage);
-        //rpenc->~WGVKRenderPassEncoderImpl();
+        RenderPassCommandGenericVector_free(&rpenc->bufferedCommands);
         RL_FREE(rpenc);
     }
 }
@@ -2828,23 +2931,52 @@ void wgvkCommandEncoderCopyTextureToTexture(WGVKCommandEncoder commandEncoder, W
 
 // Implementation of RenderpassEncoderDraw
 void wgvkRenderpassEncoderDraw(WGVKRenderPassEncoder rpe, uint32_t vertices, uint32_t instances, uint32_t firstvertex, uint32_t firstinstance) {
-    assert(rpe != NULL && "RenderPassEncoderHandle is null");
+    rassert(rpe != NULL, "RenderPassEncoderHandle is null");
+    RenderPassCommandGeneric insert = {
+        .type = rp_command_type_draw,
+        .draw = {
+            vertices,
+            instances,
+            firstvertex,
+            firstinstance
+        }
+    };
 
-    // Record the draw command into the command buffer
-    vkCmdDraw(rpe->secondaryCmdBuffer, vertices, instances, firstvertex, firstinstance);
+    RenderPassCommandGenericVector_push_back(&rpe->bufferedCommands, insert);
 }
 
 // Implementation of RenderpassEncoderDrawIndexed
 void wgvkRenderpassEncoderDrawIndexed(WGVKRenderPassEncoder rpe, uint32_t indices, uint32_t instances, uint32_t firstindex, int32_t baseVertex, uint32_t firstinstance) {
-    assert(rpe != NULL && "RenderPassEncoderHandle is null");
+    rassert(rpe != NULL, "RenderPassEncoderHandle is null");
 
-    // Record the indexed draw command into the command buffer
-    vkCmdDrawIndexed(rpe->secondaryCmdBuffer, indices, instances, firstindex, (int32_t)(baseVertex & 0x7fffffff), firstinstance);
+    RenderPassCommandGeneric insert = {
+        .type = rp_command_type_draw_indexed,
+        .drawIndexed = {
+            indices,
+            instances,
+            firstindex,
+            baseVertex,
+            firstinstance
+        }
+    };
+
+    // Buffer the indexed draw command into the command buffer
+    RenderPassCommandGenericVector_push_back(&rpe->bufferedCommands, insert);
+    
+    //vkCmdDrawIndexed(rpe->secondaryCmdBuffer, indices, instances, firstindex, (int32_t)(baseVertex & 0x7fffffff), firstinstance);
 }
 
-void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, WGVKRenderPipeline renderPipeline) { 
-    vkCmdBindPipeline(rpe->secondaryCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, renderPipeline->renderPipeline);
-    rpe->lastLayout = renderPipeline->layout->layout; 
+void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, WGVKRenderPipeline renderPipeline) {
+    RenderPassCommandGeneric insert = {
+        .type = rp_command_type_set_render_pipeline,
+        .setRenderPipeline = {
+            renderPipeline
+        }
+    };
+    RenderPassCommandGenericVector_push_back(&rpe->bufferedCommands, insert);
+    
+    // vkCmdBindPipeline(rpe->secondaryCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, renderPipeline->renderPipeline);
+    // rpe->lastLayout = renderPipeline->layout->layout; 
 }
 
 static inline void transitionToAppropriateLayoutCallback1(void* texture_, ImageViewUsageRecord* record, void* rpe_){
@@ -2857,25 +2989,37 @@ static inline void transitionToAppropriateLayoutCallback1(void* texture_, ImageV
         initializeOrTransition(rpe->cmdEncoder, texture->texture, VK_IMAGE_LAYOUT_GENERAL);
     }
 }
-void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group, WGVKBindGroup dset) {
-    assert(rpe != NULL && "RenderPassEncoderHandle is null");
-    assert(dset != NULL && "DescriptorSetHandle is null");
-    assert(rpe->lastLayout != VK_NULL_HANDLE && "Pipeline layout is not set");
+void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t groupIndex, WGVKBindGroup group, size_t dynamicOffsetCount, const uint32_t* dynamicOffsets) {
+    rassert(rpe != NULL, "RenderPassEncoderHandle is null");
+    rassert(group != NULL, "DescriptorSetHandle is null");
+    rassert(rpe->lastLayout != VK_NULL_HANDLE, "Pipeline layout is not set");
     
     // Bind the descriptor set to the command buffer
-    vkCmdBindDescriptorSets(rpe->secondaryCmdBuffer,                  // Command buffer
-                            VK_PIPELINE_BIND_POINT_GRAPHICS, // Pipeline bind point
-                            rpe->lastLayout,                 // Pipeline layout
-                            group,                           // First set
-                            1,                               // Descriptor set count
-                            &(dset->set),                    // Pointer to descriptor set
-                            0,                               // Dynamic offset count
-                            NULL                          // Pointer to dynamic offsets
-    );
+    // vkCmdBindDescriptorSets(rpe->secondaryCmdBuffer,        // Command buffer
+    //                        VK_PIPELINE_BIND_POINT_GRAPHICS, // Pipeline bind point
+    //                        rpe->lastLayout,                 // Pipeline layout
+    //                        group,                           // First set
+    //                        1,                               // Descriptor set count
+    //                        &(dset->set),                    // Pointer to descriptor set
+    //                        0,                               // Dynamic offset count
+    //                        NULL                             // Pointer to dynamic offsets
+    //);
 
+    RenderPassCommandGeneric insert = {
+        .type = rp_command_type_set_bind_group,
+        .setBindGroup = {
+            groupIndex,
+            group,
+            dynamicOffsetCount,
+            dynamicOffsets
+        }
+    };
+    
+    RenderPassCommandGenericVector_push_back(&rpe->bufferedCommands, insert);
 
-    ru_trackBindGroup(&rpe->resourceUsage, dset);
-    ImageViewUsageRecordMap_for_each(&dset->resourceUsage.referencedTextureViews, transitionToAppropriateLayoutCallback1, rpe);
+    ru_trackBindGroup(&rpe->resourceUsage, group);
+    
+    // ImageViewUsageRecordMap_for_each(&dset->resourceUsage.referencedTextureViews, transitionToAppropriateLayoutCallback1, rpe);
 
     //for(auto viewAndUsage : dset->resourceUsage.referencedTextureViews){
     //    if(viewAndUsage.second == TextureUsage_TextureBinding)
@@ -2885,24 +3029,45 @@ void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group
     //    }
     //}
 }
-void wgvkComputePassEncoderSetPipeline (WGVKComputePassEncoder cpe, WGVKComputePipeline computePipeline){
-    vkCmdBindPipeline(cpe->cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, computePipeline->computePipeline);
-    cpe->lastLayout = computePipeline->layout->layout;
-}
-void wgvkComputePassEncoderSetBindGroup(WGVKComputePassEncoder cpe, uint32_t groupIndex, WGVKBindGroup bindGroup){
-    rassert(cpe->lastLayout != NULL, "Must bind at least one pipeline with wgvkComputePassEncoderSetPipeline before wgvkComputePassEncoderSetBindGroup");
-    
-    vkCmdBindDescriptorSets(cpe->cmdBuffer,                // Command buffer
-                            VK_PIPELINE_BIND_POINT_COMPUTE,// Pipeline bind point
-                            cpe->lastLayout,               // Pipeline layout
-                            groupIndex,                    // First set
-                            1,                             // Descriptor set count
-                            &(bindGroup->set),             // Pointer to descriptor set
-                            0,                             // Dynamic offset count
-                            NULL                        // Pointer to dynamic offsets
-    );
 
-    ImageViewUsageRecordMap_for_each(&bindGroup->resourceUsage.referencedTextureViews, transitionToAppropriateLayoutCallback1, cpe);
+void wgvkComputePassEncoderSetPipeline (WGVKComputePassEncoder cpe, WGVKComputePipeline computePipeline){
+    // vkCmdBindPipeline(cpe->cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, computePipeline->computePipeline);
+    
+    RenderPassCommandGeneric insert = {
+        .type = cp_command_type_set_compute_pipeline,
+        .setComputePipeline = {
+            computePipeline
+        }
+    };
+    RenderPassCommandGenericVector_push_back(&cpe->bufferedCommands, insert);
+
+    // cpe->lastLayout = computePipeline->layout->layout;
+}
+void wgvkComputePassEncoderSetBindGroup(WGVKComputePassEncoder cpe, uint32_t groupIndex, WGVKBindGroup group, size_t dynamicOffsetCount, uint32_t const * dynamicOffsets){
+    //rassert(cpe->lastLayout != NULL, "Must bind at least one pipeline with wgvkComputePassEncoderSetPipeline before wgvkComputePassEncoderSetBindGroup");
+    
+    RenderPassCommandGeneric insert = {
+        .type = rp_command_type_set_bind_group,
+        .setBindGroup = {
+            groupIndex,
+            group,
+            dynamicOffsetCount,
+            dynamicOffsets
+        }
+    };
+
+    RenderPassCommandGenericVector_push_back(&cpe->bufferedCommands, insert);
+    // vkCmdBindDescriptorSets(cpe->cmdBuffer,                // Command buffer
+    //                         VK_PIPELINE_BIND_POINT_COMPUTE,// Pipeline bind point
+    //                         cpe->lastLayout,               // Pipeline layout
+    //                         groupIndex,                    // First set
+    //                         1,                             // Descriptor set count
+    //                         &(bindGroup->set),             // Pointer to descriptor set
+    //                         0,                             // Dynamic offset count
+    //                         NULL                        // Pointer to dynamic offsets
+    // );
+
+    // ImageViewUsageRecordMap_for_each(&group->resourceUsage.referencedTextureViews, transitionToAppropriateLayoutCallback1, cpe);
 
     //cpe->resourceUsage.track(bindGroup);
     //for(auto viewAndUsage : bindGroup->resourceUsage.referencedTextureViews){
@@ -2918,18 +3083,20 @@ WGVKComputePassEncoder wgvkCommandEncoderBeginComputePass(WGVKCommandEncoder com
     ret->refCount = 2;
     WGVKComputePassEncoderSet_add(&commandEncoder->referencedCPs, ret);
 
+    RenderPassCommandGenericVector_init(&ret->bufferedCommands);
+
     ret->cmdEncoder = commandEncoder;
-    ret->cmdBuffer = commandEncoder->buffer;
     ret->device = commandEncoder->device;
     return ret;
 }
 void wgvkCommandEncoderEndComputePass(WGVKComputePassEncoder commandEncoder){
-    
+    // big fat TODO
 }
 void wgvkReleaseComputePassEncoder(WGVKComputePassEncoder cpenc){
     --cpenc->refCount;
     if(cpenc->refCount == 0){
         releaseAllAndClear(&cpenc->resourceUsage);
+        RenderPassCommandGenericVector_free(&cpenc->bufferedCommands);
         RL_FREE(cpenc);
     }
 }
@@ -3052,9 +3219,18 @@ WGVKSampler wgvkDeviceCreateSampler(WGVKDevice device, const WGVKSamplerDescript
 void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t binding, WGVKBuffer buffer, VkDeviceSize offset) {
     rassert(rpe != NULL, "RenderPassEncoderHandle is null");
     rassert(buffer != NULL, "BufferHandle is null");
-    
+    RenderPassCommandGeneric insert = {
+        .type = rp_command_type_set_vertex_buffer,
+        .setVertexBuffer = {
+            binding,
+            buffer,
+            offset
+        }
+    };
+
+    RenderPassCommandGenericVector_push_back(&rpe->bufferedCommands, insert);
     // Bind the vertex buffer to the command buffer at the specified binding point
-    vkCmdBindVertexBuffers(rpe->secondaryCmdBuffer, binding, 1, &(buffer->buffer), &offset);
+    // vkCmdBindVertexBuffers(rpe->secondaryCmdBuffer, binding, 1, &(buffer->buffer), &offset);
 
     ru_trackBuffer(&rpe->resourceUsage, buffer, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT);
 }
@@ -3062,8 +3238,17 @@ void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer 
     rassert(rpe != NULL, "RenderPassEncoderHandle is null");
     rassert(buffer != NULL, "BufferHandle is null");
 
-    // Bind the index buffer to the command buffer
-    vkCmdBindIndexBuffer(rpe->secondaryCmdBuffer, buffer->buffer, offset, toVulkanIndexFormat(indexType));
+    RenderPassCommandGeneric insert = {
+        .type = rp_command_type_set_index_buffer,
+        .setIndexBuffer = {
+            buffer,
+            offset,
+            indexType,
+        }
+    };
+
+    RenderPassCommandGenericVector_push_back(&rpe->bufferedCommands, insert);
+    // vkCmdBindIndexBuffer(rpe->secondaryCmdBuffer, buffer->buffer, offset, toVulkanIndexFormat(indexType));
 
     ru_trackBuffer(&rpe->resourceUsage, buffer, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_ACCESS_INDEX_READ_BIT);
 }
@@ -3087,6 +3272,12 @@ void wgvkPipelineLayoutAddRef(WGVKPipelineLayout pipelineLayout){
 }
 void wgvkSamplerAddRef(WGVKSampler sampler){
     ++sampler->refCount;
+}
+void wgvkRenderPipelineAddRef(WGVKRenderPipeline rpl){
+    ++rpl->refCount;
+}
+void wgvkComputePipelineAddRef(WGVKComputePipeline cpl){
+    ++cpl->refCount;
 }
 
 
@@ -3127,12 +3318,20 @@ RGAPI void ru_trackTexture         (ResourceUsage* resourceUsage, WGVKTexture te
 
 RGAPI void ru_trackTextureView     (ResourceUsage* resourceUsage, WGVKTextureView view, ImageViewUsageRecord newRecord){
     //TODO: useful image usage records for barriers
-    
     if(ImageViewUsageRecordMap_put(&resourceUsage->referencedTextureViews, view, newRecord)){
         ++view->refCount;
     }
 }
-
+RGAPI void ru_trackRenderPipeline(ResourceUsage* resourceUsage, WGVKRenderPipeline renderPipeline){
+    if(RenderPipelineUsageSet_add(&resourceUsage->referencedRenderPipelines, renderPipeline)){
+        ++renderPipeline->refCount;
+    }
+}
+RGAPI void ru_trackComputePipeline(ResourceUsage* resourceUsage, WGVKComputePipeline computePipeline){
+    if(ComputePipelineUsageSet_add(&resourceUsage->referencedComputePipelines, computePipeline)){
+        ++computePipeline->refCount;
+    }
+}
 RGAPI void ru_trackBindGroup(ResourceUsage* resourceUsage, WGVKBindGroup bindGroup){
     if(BindGroupUsageSet_add(&resourceUsage->referencedBindGroups, (void*)bindGroup)){
         ++bindGroup->refCount;
