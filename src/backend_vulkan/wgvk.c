@@ -1819,6 +1819,7 @@ WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureView
     ret->height = texture->height;
     ret->sampleCount = texture->sampleCount;
     ret->depthOrArrayLayers = texture->depthOrArrayLayers;
+    ret->subresourceRange = sr;
     return ret;
 }
 static inline VkClearValue toVkCV(const DColor c){
@@ -2075,23 +2076,24 @@ void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
         .lastAccess = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
         .lastStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT //huh
     };
+    //ce_track();
     
-    for(uint32_t i = 0;i < beginInfo->colorAttachmentCount;i++){
-        if(beginInfo->colorAttachments[i].view){
-            ru_trackTextureView(  &ret->resourceUsage, rpdesc->colorAttachments[i].view, iur_color);
-            initializeOrTransition(ret->cmdEncoder, rpdesc->colorAttachments->view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        }
-    }
-    for(uint32_t i = 0;i < rpdesc->colorAttachmentCount;i++){
-        if(rpdesc->colorAttachments[i].resolveTarget){
-            ru_trackTextureView(&ret->resourceUsage, rpdesc->colorAttachments[i].resolveTarget, iur_resolve);
-            initializeOrTransition(ret->cmdEncoder, rpdesc->colorAttachments->resolveTarget->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        }
-    }
-    if(rpdesc->depthStencilAttachment){
-        ru_trackTextureView(&ret->resourceUsage, rpdesc->depthStencilAttachment->view, iur_depth);
-        initializeOrTransition(ret->cmdEncoder, rpdesc->depthStencilAttachment->view->texture, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-    }
+    //for(uint32_t i = 0;i < beginInfo->colorAttachmentCount;i++){
+    //    if(beginInfo->colorAttachments[i].view){
+    //        ru_trackTextureView(  &ret->resourceUsage, rpdesc->colorAttachments[i].view, iur_color);
+    //        initializeOrTransition(ret->cmdEncoder, rpdesc->colorAttachments->view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    //    }
+    //}
+    //for(uint32_t i = 0;i < rpdesc->colorAttachmentCount;i++){
+    //    if(rpdesc->colorAttachments[i].resolveTarget){
+    //        ru_trackTextureView(&ret->resourceUsage, rpdesc->colorAttachments[i].resolveTarget, iur_resolve);
+    //        initializeOrTransition(ret->cmdEncoder, rpdesc->colorAttachments->resolveTarget->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    //    }
+    //}
+    //if(rpdesc->depthStencilAttachment){
+    //    ru_trackTextureView(&ret->resourceUsage, rpdesc->depthStencilAttachment->view, iur_depth);
+    //    initializeOrTransition(ret->cmdEncoder, rpdesc->depthStencilAttachment->view->texture, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    //}
 
 
 
@@ -3492,8 +3494,36 @@ RGAPI void ru_trackSampler         (ResourceUsage* resourceUsage, WGVKSampler sa
         ++sampler->refCount;
     }
 }
-
-static void ce_trackBuffer(WGVKCommandEncoder encoder, WGVKBuffer buffer, VkPipelineStageFlags stage, VkAccessFlags access){
+RGAPI void ce_trackTextureView(WGVKCommandEncoder enc, WGVKTextureView view, VkPipelineStageFlags stage, VkAccessFlags access, VkImageLayout layout){
+    ImageViewUsageRecord* alreadyThere = ImageViewUsageRecordMap_get(&enc->resourceUsage.referencedTextureViews, view);
+    if(alreadyThere != NULL){
+        VkImageMemoryBarrier imageBarrier = {
+            VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+            NULL,
+            alreadyThere->lastAccess,
+            access,
+            alreadyThere->lastLayout,
+            layout, 
+            enc->device->adapter->queueIndices.graphicsIndex,
+            enc->device->adapter->queueIndices.graphicsIndex,
+            view->texture->image,
+            view->subresourceRange
+        };
+        vkCmdPipelineBarrier(enc->buffer, alreadyThere->lastStage, stage, 0, 0, NULL, 0, NULL, 0, &imageBarrier);
+        alreadyThere->lastStage = stage;
+        alreadyThere->lastAccess = access;
+        alreadyThere->lastLayout = layout;
+    }
+    else{
+        ImageViewUsageRecordMap_put(&enc->resourceUsage.referencedTextureViews, view, CLITERAL(ImageViewUsageRecord){
+            layout,
+            layout,
+            stage,
+            access
+        });
+    }
+}
+RGAPI void ce_trackBuffer(WGVKCommandEncoder encoder, WGVKBuffer buffer, VkPipelineStageFlags stage, VkAccessFlags access){
     BufferUsageRecord* rec = BufferUsageRecordMap_get(&encoder->resourceUsage.referencedBuffers, buffer);
     if(rec != NULL){
         VkBufferMemoryBarrier bufferBarrier = {
