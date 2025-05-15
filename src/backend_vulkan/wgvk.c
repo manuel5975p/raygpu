@@ -11,8 +11,6 @@
     #define VK_EXT_metal_surface 1 // Define set to 1 for clarity (Note: EXT, not KHR)
 #endif
 
-
-
 #if SUPPORT_XLIB_SURFACE == 1
     #include <X11/Xlib.h>
     #define VK_NO_PROTOTYPES
@@ -683,7 +681,6 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     else if(messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT){
         wgvkTraceLog(LOG_INFO, pCallbackData->pMessage);
     }
-    
 
     return VK_FALSE;
 }
@@ -2040,7 +2037,7 @@ void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
         }
     }
 
-    VkFramebufferCreateInfo fbci = {
+    const VkFramebufferCreateInfo fbci = {
         VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
         NULL,
         0,
@@ -2051,10 +2048,35 @@ void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
         beginInfo->colorAttachments[0].view->height,
         1
     };
+
     
-    fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    fbci.pAttachments = attachmentViews;
-    fbci.attachmentCount = frp.allAttachments.size;
+    const uint32_t vpWidth = beginInfo->colorAttachments[0].view->width;
+    const uint32_t vpHeight = beginInfo->colorAttachments[0].view->height;
+    
+    const VkViewport viewport = {
+        .x        =  ((float)0),
+        .y        =  ((float)vpHeight),
+        .width    =  ((float)vpWidth),
+        .height   = -((float)vpHeight),
+        .minDepth =  ((float)0),
+        .maxDepth =  ((float)1),
+    };
+
+    const VkRect2D scissor = {
+        .offset = {
+            .x = 0,
+            .y = 0,
+        },
+        .extent = {
+            .width = vpWidth,
+            .height = vpHeight,
+        }
+    };
+
+    for(uint32_t i = 0;i < beginInfo->colorAttachmentCount;i++){
+        vkCmdSetViewport(destination, i, 1, &viewport);
+        vkCmdSetScissor (destination, i, 1, &scissor);
+    }
     
     ImageViewUsageRecord iur_color = {
         .initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,

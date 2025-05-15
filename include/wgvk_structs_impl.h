@@ -199,6 +199,9 @@ RGAPI void ru_trackSampler         (ResourceUsage* resourceUsage, WGVKSampler sa
 RGAPI void ru_trackRenderPipeline  (ResourceUsage* resourceUsage, WGVKRenderPipeline rpl);
 RGAPI void ru_trackComputePipeline (ResourceUsage* resourceUsage, WGVKComputePipeline computePipeline);
 
+RGAPI void ce_trackBuffer(WGVKCommandEncoder encoder, WGVKBuffer buffer, VkPipelineStageFlags stage, VkAccessFlags access);
+RGAPI void ce_trackTextureView(WGVKCommandEncoder encoder, WGVKTextureView buffer, VkPipelineStageFlags stage, VkAccessFlags access, VkImageLayout layout);
+
 RGAPI Bool32 ru_containsBuffer         (const ResourceUsage* resourceUsage, WGVKBuffer buffer);
 RGAPI Bool32 ru_containsTexture        (const ResourceUsage* resourceUsage, WGVKTexture texture);
 RGAPI Bool32 ru_containsTextureView    (const ResourceUsage* resourceUsage, WGVKTextureView view);

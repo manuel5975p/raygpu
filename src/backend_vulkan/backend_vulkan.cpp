@@ -734,7 +734,7 @@ fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
 }
 )";
 extern "C" void ComputePassSetBindGroup(DescribedComputepass* drp, uint32_t group, DescribedBindGroup* bindgroup){
-    wgvkComputePassEncoderSetBindGroup((WGVKComputePassEncoder)drp->cpEncoder, group, (WGVKBindGroup)UpdateAndGetNativeBindGroup(bindgroup));
+    wgvkComputePassEncoderSetBindGroup((WGVKComputePassEncoder)drp->cpEncoder, group, (WGVKBindGroup)UpdateAndGetNativeBindGroup(bindgroup), 0, NULL);
 }
 void GenTextureMipmaps(Texture2D* tex){
     WGVKCommandEncoderDescriptor cdesc zeroinit;
@@ -916,7 +916,7 @@ extern "C" void RenderPassSetVertexBuffer(DescribedRenderpass* drp, uint32_t slo
     //wgpuRenderPassEncoderSetVertexBuffer((WGPURenderPassEncoder)drp->rpEncoder, slot, (WGPUBuffer)buffer->buffer, offset, buffer->size);
 }
 extern "C" void RenderPassSetBindGroup(DescribedRenderpass* drp, uint32_t group, DescribedBindGroup* bindgroup){
-    wgvkRenderPassEncoderSetBindGroup((WGVKRenderPassEncoder)drp->rpEncoder, group, (WGVKBindGroup)bindgroup->bindGroup);
+    wgvkRenderPassEncoderSetBindGroup((WGVKRenderPassEncoder)drp->rpEncoder, group, (WGVKBindGroup)bindgroup->bindGroup, 0, NULL);
     //wgpuRenderPassEncoderSetBindGroup((WGPURenderPassEncoder)drp->rpEncoder, group, (WGPUBindGroup)UpdateAndGetNativeBindGroup(bindgroup), 0, nullptr);
 }
 extern "C" void RenderPassDraw        (DescribedRenderpass* drp, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance){
@@ -1007,7 +1007,7 @@ void PushUsedBuffer(void* nativeBuffer){
 extern "C" void BindComputePipeline(DescribedComputePipeline* pipeline){
     WGVKBindGroup bindGroup = (WGVKBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup);
     wgvkComputePassEncoderSetPipeline ((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder, (WGVKComputePipeline)pipeline->pipeline);
-    wgvkComputePassEncoderSetBindGroup((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder, 0, bindGroup);
+    wgvkComputePassEncoderSetBindGroup((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder, 0, bindGroup, 0, NULL);
 }
 
 void printVkPhysicalDeviceMemoryProperties(const VkPhysicalDeviceMemoryProperties* properties) {
@@ -1276,23 +1276,31 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     //rpbi.framebuffer = rahmePuffer;
     //renderPass->rpEncoder = BeginRenderPass_Vk((VkCommandBuffer)renderPass->cmdEncoder, renderPass, rahmePuffer, rtex.texture.width, rtex.texture.height);
     renderPass->rpEncoder = wgvkCommandEncoderBeginRenderPass((WGVKCommandEncoder)renderPass->cmdEncoder, &rpdesc);
-    VkViewport viewport zeroinit;
-    viewport.minDepth = 0;
-    viewport.maxDepth = 1;
-    viewport.x = 0;
-    viewport.y = rtex.texture.height;
-    viewport.width  = rtex.texture.width;
-    viewport.height = -((float)rtex.texture.height);
+    
+    VkViewport viewport{
+        .x        =  static_cast<float>(0),
+        .y        =  static_cast<float>(rtex.texture.height),
+        .width    =  static_cast<float>(rtex.texture.width),
+        .height   = -static_cast<float>(rtex.texture.height),
+        .minDepth =  static_cast<float>(0),
+        .maxDepth =  static_cast<float>(1),
+    };
 
-    VkRect2D scissor zeroinit;
-    scissor.offset.x = 0;
-    scissor.offset.y = 0;
-    scissor.extent.width =  rtex.texture.width;
-    scissor.extent.height = rtex.texture.height;
-    for(uint32_t i = 0;i < rpdesc.colorAttachmentCount;i++){
-        vkCmdSetViewport(((WGVKRenderPassEncoder)renderPass->rpEncoder)->secondaryCmdBuffer, i, 1, &viewport);
-        vkCmdSetScissor (((WGVKRenderPassEncoder)renderPass->rpEncoder)->secondaryCmdBuffer, i, 1, &scissor);
-    }
+    VkRect2D scissor{
+        .offset = VkOffset2D{
+            .x = 0,
+            .y = 0,
+        },
+        .extent = VkExtent2D{
+            .width = rtex.texture.width,
+            .height = rtex.texture.height,
+        }
+    };
+    //TODO delet all this
+    //for(uint32_t i = 0;i < rpdesc.colorAttachmentCount;i++){
+    //    vkCmdSetViewport(((WGVKRenderPassEncoder)renderPass->rpEncoder)->secondaryCmdBuffer, i, 1, &viewport);
+    //    vkCmdSetScissor (((WGVKRenderPassEncoder)renderPass->rpEncoder)->secondaryCmdBuffer, i, 1, &scissor);
+    //}
     //wgvkRenderPassEncoderBindPipeline((WGVKRenderPassEncoder)renderPass->rpEncoder, g_renderstate.defaultPipeline);
     g_renderstate.activeRenderpass = renderPass;
     //UpdateBindGroup_Vk(&g_renderstate.defaultPipeline->bindGroup);
@@ -1303,13 +1311,15 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     //drawCurrentBatch();
     //BindPipeline(g_renderstate.defaultPipeline, WGPUPrimitiveTopology_TriangleList);
 }
+
 extern "C" void BindPipelineWithSettings(DescribedPipeline* pipeline, PrimitiveType drawMode, RenderSettings settings){
     pipeline->state.primitiveType = drawMode;
     pipeline->state.settings = settings;
     pipeline->activePipeline = pipeline->pipelineCache.getOrCreate(pipeline->state, pipeline->shaderModule, pipeline->bglayout, pipeline->layout);
-    wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, (WGVKRenderPipeline)pipeline->activePipeline);
-    wgvkRenderPassEncoderSetBindGroup((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, (WGVKBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup));
+    wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, pipeline->activePipeline);
+    wgvkRenderPassEncoderSetBindGroup((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, UpdateAndGetNativeBindGroup(&pipeline->bindGroup), 0, NULL);
 }
+
 extern "C" void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode){
     BindPipelineWithSettings(pipeline, drawMode, g_renderstate.currentSettings);
     
