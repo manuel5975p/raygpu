@@ -375,14 +375,15 @@ LayoutedRenderPass LoadRenderPassFromLayout(WGVKDevice device, RenderPassLayout 
     
 
     // Create render pass create info.
-    VkRenderPassCreateInfo rpci = {0};
-    rpci.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    rpci.attachmentCount = allAttachments.size;
-    rpci.pAttachments    = allAttachments.data;
-    VkFramebufferCreateInfo fbci;
-
-    rpci.subpassCount    = 1;
-    rpci.pSubpasses      = &subpass;
+    VkRenderPassCreateInfo rpci = {
+        VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+        NULL,
+        0,
+        allAttachments.size, allAttachments.data,
+        1, &subpass,
+        0, NULL
+    };
+    
     // (Optional: add subpass dependencies if needed.)
     LayoutedRenderPass ret zeroinit;
     VkAttachmentDescriptionVector_move(&ret.allAttachments, &allAttachments);
@@ -2008,8 +2009,9 @@ void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
 
     const RenderPassCommandBegin* beginInfo = &renderPassEncoder->beginInfo;
     RenderPassLayout rplayout = GetRenderPassLayout2(beginInfo);
-    VkRenderPassBeginInfo rpbi zeroinit;
-    rpbi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+
+    
+
 
     LayoutedRenderPass frp = LoadRenderPassFromLayout(renderPassEncoder->device, rplayout);
     VkRenderPass vkrenderPass = frp.renderPass;
@@ -2049,6 +2051,26 @@ void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
         1
     };
 
+    vkCreateFramebuffer(renderPassEncoder->device->device, &fbci, NULL, &renderPassEncoder->frameBuffer);
+    
+    VkRect2D renderPassRect = {
+        .offset = {0, 0},
+        .extent = {
+            beginInfo->colorAttachments[0].view->width, 
+            beginInfo->colorAttachments[0].view->height
+        }
+    };
+
+    const VkRenderPassBeginInfo rpbi = {
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+        .pNext = NULL,
+        .renderPass = frp.renderPass,
+        .framebuffer = renderPassEncoder->frameBuffer,
+        .renderArea = renderPassRect,
+        .clearValueCount = frp.allAttachments.size,
+        .pClearValues = clearValues,
+    };
+
     
     const uint32_t vpWidth = beginInfo->colorAttachments[0].view->width;
     const uint32_t vpHeight = beginInfo->colorAttachments[0].view->height;
@@ -2072,11 +2094,8 @@ void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
             .height = vpHeight,
         }
     };
-
-    for(uint32_t i = 0;i < beginInfo->colorAttachmentCount;i++){
-        vkCmdSetViewport(destination, i, 1, &viewport);
-        vkCmdSetScissor (destination, i, 1, &scissor);
-    }
+    
+    
     
     ImageViewUsageRecord iur_color = {
         .initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -2098,6 +2117,14 @@ void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
         .lastAccess = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
         .lastStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT //huh
     };
+    for(uint32_t i = 0;i < beginInfo->colorAttachmentCount;i++){
+        ce_trackTextureView(renderPassEncoder->cmdEncoder, beginInfo->colorAttachments[i].view, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        if(beginInfo->colorAttachments[i].resolveTarget)
+            ce_trackTextureView(renderPassEncoder->cmdEncoder, beginInfo->colorAttachments[i].resolveTarget, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    }
+    if(beginInfo->depthAttachmentPresent){
+        ce_trackTextureView(renderPassEncoder->cmdEncoder, beginInfo->depthStencilAttachment.view, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    }
     //ce_track();
     
     //for(uint32_t i = 0;i < beginInfo->colorAttachmentCount;i++){
@@ -2118,7 +2145,11 @@ void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
     //}
 
 
-
+    vkCmdBeginRenderPass(destination, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
+    for(uint32_t i = 0;i < beginInfo->colorAttachmentCount;i++){
+        vkCmdSetViewport(destination, i, 1, &viewport);
+        vkCmdSetScissor (destination, i, 1, &scissor);
+    }
 
     recordVkCommands(destination, &renderPassEncoder->bufferedCommands);
     
@@ -2127,7 +2158,7 @@ void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
     //vkCmdResolveImage(VkCommandBuffer commandBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageResolve *pRegions)
     //vkCmdEndRendering(renderPassEncoder->secondaryCmdBuffer);
     #else
-    //vkCmdEndRenderPass(renderPassEncoder->secondaryCmdBuffer);
+    vkCmdEndRenderPass(destination);
     #endif
 }
 /**
