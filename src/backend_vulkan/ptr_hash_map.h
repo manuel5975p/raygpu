@@ -259,38 +259,35 @@
         /* If source had no table, dest remains in its _init state (table=NULL, capacity=0) */                                   \
     }
 
-#define DEFINE_PTR_HASH_SET(SCOPE, Name)                                                                                         \
+#define DEFINE_PTR_HASH_SET(SCOPE, Name, Type)                                                                                   \
                                                                                                                                  \
     typedef struct Name {                                                                                                        \
         uint64_t current_size;                                                                                                   \
         bool has_null_element;                                                                                                   \
-        void **table;                                                                                                            \
-        union {                                                                                                                  \
-            uint64_t current_capacity;                                                                                           \
-            void *inline_buffer[PHM_INLINE_CAPACITY];                                                                            \
-        };                                                                                                                       \
+        Type *table;                                                                                                             \
+        uint64_t current_capacity;                                                                                               \
     } Name;                                                                                                                      \
                                                                                                                                  \
-    static inline uint64_t Name##_hash_key(void *key) { return (uintptr_t)key * PHM_HASH_MULTIPLIER; }                           \
+    static inline uint64_t Name##_hash_key(Type key) { return (uint64_t)key * PHM_HASH_MULTIPLIER; }                             \
                                                                                                                                  \
     static void Name##_grow(Name *set);                                                                                          \
                                                                                                                                  \
     SCOPE void Name##_init(Name *set) {                                                                                          \
         set->current_size = 0;                                                                                                   \
         set->has_null_element = false;                                                                                           \
-        set->table = set->inline_buffer;                                                                                         \
-        memset(set->inline_buffer, 0, sizeof(set->inline_buffer));                                                               \
+        set->table = NULL;                                                                                                       \
+        set->current_capacity = 0;                                                                                               \
     }                                                                                                                            \
                                                                                                                                  \
-    static void Name##_insert_key(void **table, uint64_t capacity, void *key) {                                                  \
-        assert(key != PHM_EMPTY_SLOT_KEY);                                                                                       \
+    static void Name##_insert_key(Type *table, uint64_t capacity, Type key) {                                                    \
+        assert(key != (Type)PHM_EMPTY_SLOT_KEY);                                                                                 \
         assert(capacity > 0 && (capacity & (capacity - 1)) == 0);                                                                \
         uint64_t cap_mask = capacity - 1;                                                                                        \
         uint64_t h = Name##_hash_key(key);                                                                                       \
         uint64_t index = h & cap_mask;                                                                                           \
         while (1) {                                                                                                              \
-            void **slot_ptr = &table[index];                                                                                     \
-            if (*slot_ptr == PHM_EMPTY_SLOT_KEY) {                                                                               \
+            Type *slot_ptr = &table[index];                                                                                      \
+            if (*slot_ptr == (Type)PHM_EMPTY_SLOT_KEY) {                                                                         \
                 *slot_ptr = key;                                                                                                 \
                 return;                                                                                                          \
             }                                                                                                                    \
@@ -299,10 +296,9 @@
     }                                                                                                                            \
                                                                                                                                  \
     static void Name##_grow(Name *set) {                                                                                         \
-        bool is_inline = (set->table == set->inline_buffer);                                                                     \
         uint64_t old_non_null_size = set->current_size;                                                                          \
-        uint64_t old_capacity = is_inline ? PHM_INLINE_CAPACITY : set->current_capacity;                                         \
-        void **old_table_ptr = set->table;                                                                                       \
+        uint64_t old_capacity = set->current_capacity;                                                                           \
+        Type *old_table_ptr = set->table;                                                                                        \
                                                                                                                                  \
         uint64_t new_capacity = (old_capacity < PHM_INITIAL_HEAP_CAPACITY) ? PHM_INITIAL_HEAP_CAPACITY : old_capacity * 2;       \
         if (new_capacity < PHM_INITIAL_HEAP_CAPACITY) {                                                                          \
@@ -317,15 +313,14 @@
         if (new_capacity == 0)                                                                                                   \
             return;                                                                                                              \
                                                                                                                                  \
-        void **new_table = (void **)calloc(new_capacity, sizeof(void *));                                                        \
+        Type *new_table = (Type *)calloc(new_capacity, sizeof(Type));                                                            \
         if (!new_table)                                                                                                          \
             return;                                                                                                              \
                                                                                                                                  \
         uint64_t count = 0;                                                                                                      \
-        uint64_t iterate_limit = is_inline ? PHM_INLINE_CAPACITY : old_capacity;                                                 \
-        for (uint64_t i = 0; i < iterate_limit; ++i) {                                                                           \
-            void *key = old_table_ptr[i];                                                                                        \
-            if (key != PHM_EMPTY_SLOT_KEY) {                                                                                     \
+        for (uint64_t i = 0; i < old_capacity; ++i) {                                                                            \
+            Type key = old_table_ptr[i];                                                                                         \
+            if (key != (Type)PHM_EMPTY_SLOT_KEY) {                                                                               \
                 Name##_insert_key(new_table, new_capacity, key);                                                                 \
                 count++;                                                                                                         \
                 if (count == old_non_null_size)                                                                                  \
@@ -333,7 +328,7 @@
             }                                                                                                                    \
         }                                                                                                                        \
                                                                                                                                  \
-        if (!is_inline && old_table_ptr != NULL)                                                                                 \
+        if (old_table_ptr != NULL)                                                                                               \
             free(old_table_ptr);                                                                                                 \
                                                                                                                                  \
         set->table = new_table;                                                                                                  \
@@ -341,49 +336,27 @@
         set->current_size = old_non_null_size;                                                                                   \
     }                                                                                                                            \
                                                                                                                                  \
-    static inline void **Name##_find_slot(Name *set, void *key) {                                                                \
-        assert(key != NULL && set->table != set->inline_buffer && set->current_capacity > 0);                                    \
+    static inline Type *Name##_find_slot(Name *set, Type key) {                                                                  \
+        assert(key != (Type)PHM_EMPTY_SLOT_KEY && set->table != NULL && set->current_capacity > 0);                              \
         uint64_t cap_mask = set->current_capacity - 1;                                                                           \
         uint64_t h = Name##_hash_key(key);                                                                                       \
         uint64_t index = h & cap_mask;                                                                                           \
         while (1) {                                                                                                              \
-            void **slot_ptr = &set->table[index];                                                                                \
-            if (*slot_ptr == PHM_EMPTY_SLOT_KEY || *slot_ptr == key) {                                                           \
+            Type *slot_ptr = &set->table[index];                                                                                 \
+            if (*slot_ptr == (Type)PHM_EMPTY_SLOT_KEY || *slot_ptr == key) {                                                     \
                 return slot_ptr;                                                                                                 \
             }                                                                                                                    \
             index = (index + 1) & cap_mask;                                                                                      \
         }                                                                                                                        \
     }                                                                                                                            \
                                                                                                                                  \
-    SCOPE bool Name##_add(Name *set, void *key) {                                                                                \
-        if (key == NULL) {                                                                                                       \
+    SCOPE bool Name##_add(Name *set, Type key) {                                                                                 \
+        if (key == (Type)0) {                                                                                                    \
             if (set->has_null_element) {                                                                                         \
                 return false;                                                                                                    \
             } else {                                                                                                             \
                 set->has_null_element = true;                                                                                    \
                 return true;                                                                                                     \
-            }                                                                                                                    \
-        }                                                                                                                        \
-                                                                                                                                 \
-        if (set->table == set->inline_buffer) {                                                                                  \
-            uint64_t first_empty_slot = PHM_INLINE_CAPACITY;                                                                     \
-            for (uint64_t i = 0; i < PHM_INLINE_CAPACITY; ++i) {                                                                 \
-                if (set->inline_buffer[i] == key) {                                                                              \
-                    return false;                                                                                                \
-                }                                                                                                                \
-                if (set->inline_buffer[i] == PHM_EMPTY_SLOT_KEY && first_empty_slot == PHM_INLINE_CAPACITY) {                    \
-                    first_empty_slot = i;                                                                                        \
-                }                                                                                                                \
-            }                                                                                                                    \
-            if (first_empty_slot < PHM_INLINE_CAPACITY) {                                                                        \
-                set->inline_buffer[first_empty_slot] = key;                                                                      \
-                set->current_size++;                                                                                             \
-                return true;                                                                                                     \
-            } else {                                                                                                             \
-                Name##_grow(set);                                                                                                \
-                if (set->table == set->inline_buffer || set->current_capacity == 0) {                                            \
-                    return false;                                                                                                \
-                }                                                                                                                \
             }                                                                                                                    \
         }                                                                                                                        \
                                                                                                                                  \
@@ -397,9 +370,9 @@
                 return false;                                                                                                    \
         }                                                                                                                        \
                                                                                                                                  \
-        void **slot_ptr = Name##_find_slot(set, key);                                                                            \
+        Type *slot_ptr = Name##_find_slot(set, key);                                                                             \
                                                                                                                                  \
-        if (*slot_ptr == PHM_EMPTY_SLOT_KEY) {                                                                                   \
+        if (*slot_ptr == (Type)PHM_EMPTY_SLOT_KEY) {                                                                             \
             *slot_ptr = key;                                                                                                     \
             set->current_size++;                                                                                                 \
             return true;                                                                                                         \
@@ -408,46 +381,27 @@
         }                                                                                                                        \
     }                                                                                                                            \
                                                                                                                                  \
-    SCOPE bool Name##_contains(Name *set, void *key) {                                                                           \
-        if (key == NULL) {                                                                                                       \
+    SCOPE bool Name##_contains(Name *set, Type key) {                                                                            \
+        if (key == (Type)0) {                                                                                                    \
             return set->has_null_element;                                                                                        \
-        }                                                                                                                        \
-                                                                                                                                 \
-        if (set->table == set->inline_buffer) {                                                                                  \
-            for (uint64_t i = 0; i < PHM_INLINE_CAPACITY; ++i) {                                                                 \
-                if (set->inline_buffer[i] == key) {                                                                              \
-                    return true;                                                                                                 \
-                }                                                                                                                \
-            }                                                                                                                    \
-            return false;                                                                                                        \
         }                                                                                                                        \
                                                                                                                                  \
         if (set->current_capacity == 0)                                                                                          \
             return false;                                                                                                        \
                                                                                                                                  \
-        void **slot_ptr = Name##_find_slot(set, key);                                                                            \
+        Type *slot_ptr = Name##_find_slot(set, key);                                                                             \
         return (*slot_ptr == key);                                                                                               \
     }                                                                                                                            \
                                                                                                                                  \
-    SCOPE void Name##_for_each(Name *set, void (*callback)(void *key, void *user_data), void *user_data) {                       \
+    SCOPE void Name##_for_each(Name *set, void (*callback)(Type key, void *user_data), void *user_data) {                        \
         if (set->has_null_element) {                                                                                             \
-            callback(NULL, user_data);                                                                                           \
+            callback((Type)0, user_data);                                                                                        \
         }                                                                                                                        \
                                                                                                                                  \
-        if (set->table == set->inline_buffer) {                                                                                  \
-            uint64_t count = 0;                                                                                                  \
-            for (uint64_t i = 0; i < PHM_INLINE_CAPACITY; ++i) {                                                                 \
-                if (set->inline_buffer[i] != PHM_EMPTY_SLOT_KEY) {                                                               \
-                    callback(set->inline_buffer[i], user_data);                                                                  \
-                    count++;                                                                                                     \
-                    if (count == set->current_size)                                                                              \
-                        break;                                                                                                   \
-                }                                                                                                                \
-            }                                                                                                                    \
-        } else if (set->current_capacity > 0) {                                                                                  \
+        if (set->table != NULL && set->current_capacity > 0) {                                                                   \
             uint64_t count = 0;                                                                                                  \
             for (uint64_t i = 0; i < set->current_capacity; ++i) {                                                               \
-                if (set->table[i] != PHM_EMPTY_SLOT_KEY) {                                                                       \
+                if (set->table[i] != (Type)PHM_EMPTY_SLOT_KEY) {                                                                 \
                     callback(set->table[i], user_data);                                                                          \
                     count++;                                                                                                     \
                     if (count == set->current_size)                                                                              \
@@ -458,7 +412,7 @@
     }                                                                                                                            \
                                                                                                                                  \
     SCOPE void Name##_free(Name *set) {                                                                                          \
-        if (set->table != set->inline_buffer && set->table != NULL) {                                                            \
+        if (set->table != NULL) {                                                                                                \
             free(set->table);                                                                                                    \
         }                                                                                                                        \
         Name##_init(set);                                                                                                        \
@@ -470,13 +424,8 @@
         }                                                                                                                        \
         dest->current_size = source->current_size;                                                                               \
         dest->has_null_element = source->has_null_element;                                                                       \
-        if (source->table == source->inline_buffer) {                                                                            \
-            memcpy(dest->inline_buffer, source->inline_buffer, sizeof(source->inline_buffer));                                   \
-            dest->table = dest->inline_buffer;                                                                                   \
-        } else {                                                                                                                 \
-            dest->table = source->table;                                                                                         \
-            dest->current_capacity = source->current_capacity;                                                                   \
-        }                                                                                                                        \
+        dest->table = source->table;                                                                                             \
+        dest->current_capacity = source->current_capacity;                                                                       \
         Name##_init(source);                                                                                                     \
     }                                                                                                                            \
                                                                                                                                  \
@@ -485,28 +434,21 @@
         dest->has_null_element = source->has_null_element;                                                                       \
         dest->current_size = source->current_size;                                                                               \
                                                                                                                                  \
-        if (source->table == source->inline_buffer) {                                                                            \
-            memcpy(dest->inline_buffer, source->inline_buffer, sizeof(source->inline_buffer));                                   \
-            dest->table = dest->inline_buffer;                                                                                   \
-        } else {                                                                                                                 \
-            if (source->current_capacity > 0) {                                                                                  \
-                dest->table = (void **)calloc(source->current_capacity, sizeof(void *));                                         \
-                if (!dest->table) {                                                                                              \
-                    Name##_init(dest);                                                                                           \
-                    return;                                                                                                      \
-                }                                                                                                                \
-                memcpy(dest->table, source->table, source->current_capacity * sizeof(void *));                                   \
-                dest->current_capacity = source->current_capacity;                                                               \
-            } else {                                                                                                             \
-                dest->table = dest->inline_buffer;                                                                               \
+        if (source->table != NULL && source->current_capacity > 0) {                                                             \
+            dest->table = (Type *)calloc(source->current_capacity, sizeof(Type));                                                \
+            if (!dest->table) {                                                                                                  \
+                Name##_init(dest);                                                                                               \
+                return;                                                                                                          \
             }                                                                                                                    \
+            memcpy(dest->table, source->table, source->current_capacity * sizeof(Type));                                         \
+            dest->current_capacity = source->current_capacity;                                                                   \
         }                                                                                                                        \
     }
 
 #define DEFINE_VECTOR(SCOPE, Type, Name)                                                                                         \
                                                                                                                                  \
     typedef struct {                                                                                                             \
-        Type* data;                                                                                                              \
+        Type *data;                                                                                                              \
         size_t size;                                                                                                             \
         size_t capacity;                                                                                                         \
     } Name;                                                                                                                      \
@@ -517,9 +459,7 @@
         v->capacity = 0;                                                                                                         \
     }                                                                                                                            \
                                                                                                                                  \
-    SCOPE bool Name##_empty(Name *v) {                                                                                           \
-        return v->size == 0;                                                                                                     \
-    }                                                                                                                            \
+    SCOPE bool Name##_empty(Name *v) { return v->size == 0; }                                                                    \
                                                                                                                                  \
     SCOPE void Name##_initWithSize(Name *v, size_t initialSize) {                                                                \
         if (initialSize == 0) {                                                                                                  \
@@ -541,9 +481,7 @@
         }                                                                                                                        \
         Name##_init(v);                                                                                                          \
     }                                                                                                                            \
-    SCOPE void Name##_clear(Name *v) {                                                                                           \
-        v->size = 0;                                                                                                             \
-    }                                                                                                                            \
+    SCOPE void Name##_clear(Name *v) { v->size = 0; }                                                                            \
     SCOPE int Name##_reserve(Name *v, size_t new_capacity) {                                                                     \
         if (new_capacity <= v->capacity) {                                                                                       \
             return 0;                                                                                                            \
@@ -575,9 +513,7 @@
         v->data[v->size++] = value;                                                                                              \
         return 0;                                                                                                                \
     }                                                                                                                            \
-    SCOPE void Name##_pop_back(Name *v) {                                                                                        \
-        --v->size;                                                                                                               \
-    }                                                                                                                            \
+    SCOPE void Name##_pop_back(Name *v) { --v->size; }                                                                           \
     SCOPE Type *Name##_get(Name *v, size_t index) {                                                                              \
         if (index >= v->size) {                                                                                                  \
             return NULL;                                                                                                         \

@@ -2563,18 +2563,6 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* c
     }
 
 }
-void impl_transition(VkCommandBuffer buffer, WGVKTexture texture, VkImageLayout oldLayout, VkImageLayout newLayout){
-    EncodeTransitionImageLayout(buffer, oldLayout, newLayout, texture);
-}
-
-//void wgvkRenderPassEncoderTransitionTextureLayout(WGVKRenderPassEncoder encoder, WGVKTexture texture, VkImageLayout oldLayout, VkImageLayout newLayout){
-//    impl_transition(encoder->cmdBuffer, texture, oldLayout, newLayout);
-//    ru_registerTransition(&encoder->resourceUsage, texture, oldLayout, newLayout);
-//}
-void wgvkCommandEncoderTransitionTextureLayout(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout oldLayout, VkImageLayout newLayout){
-    impl_transition(encoder->buffer, texture, oldLayout, newLayout);
-    //ru_registerTransition(&encoder->resourceUsage,texture, oldLayout, newLayout);
-}
 
 void wgvkComputePassEncoderDispatchWorkgroups(WGVKComputePassEncoder cpe, uint32_t x, uint32_t y, uint32_t z){
     RenderPassCommandGeneric insert = {
@@ -2602,14 +2590,16 @@ void wgvkReleaseCommandEncoder(WGVKCommandEncoder commandEncoder) {
     RL_FREE(commandEncoder);
 }
 
-static void releaseRPSetCallback(void* rpEncoder, void* unused){
-    wgvkReleaseRenderPassEncoder((WGVKRenderPassEncoder)rpEncoder);
+static void releaseRPSetCallback(WGVKRenderPassEncoder rpEncoder, void* unused){
+    wgvkReleaseRenderPassEncoder(rpEncoder);
 }
-static void releaseCPSetCallback(void* cpEncoder, void* unused){
-    wgvkReleaseComputePassEncoder((WGVKComputePassEncoder)cpEncoder);
+
+static void releaseCPSetCallback(WGVKComputePassEncoder cpEncoder, void* unused){
+    wgvkReleaseComputePassEncoder(cpEncoder);
 }
-static void releaseRTSetCallback(void* rtEncoder, void* unused){
-    wgvkReleaseRaytracingPassEncoder((WGVKRaytracingPassEncoder)rtEncoder);
+
+static void releaseRTSetCallback(WGVKRaytracingPassEncoder rtEncoder, void* unused){
+    wgvkReleaseRaytracingPassEncoder(rtEncoder);
 }
 void wgvkReleaseCommandBuffer(WGVKCommandBuffer commandBuffer) {
     if(--commandBuffer->refCount == 0){
@@ -3119,9 +3109,7 @@ void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, WGVKRenderPipel
         }
     };
     RenderPassCommandGenericVector_push_back(&rpe->bufferedCommands, insert);
-    
-    // vkCmdBindPipeline(rpe->secondaryCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, renderPipeline->renderPipeline);
-    // rpe->lastLayout = renderPipeline->layout->layout; 
+    ru_trackRenderPipeline(&rpe->resourceUsage, renderPipeline);
 }
 
 static inline void transitionToAppropriateLayoutCallback1(void* texture_, ImageViewUsageRecord* record, void* rpe_){
@@ -3462,7 +3450,6 @@ RGAPI void ru_trackTexture         (ResourceUsage* resourceUsage, WGVKTexture te
 }
 
 RGAPI void ru_trackTextureView     (ResourceUsage* resourceUsage, WGVKTextureView view, ImageViewUsageRecord newRecord){
-    //TODO: useful image usage records for barriers
     if(ImageViewUsageRecordMap_put(&resourceUsage->referencedTextureViews, view, newRecord)){
         ++view->refCount;
     }
@@ -3509,18 +3496,28 @@ RGAPI void ce_trackTextureView(WGVKCommandEncoder enc, WGVKTextureView view, VkP
             view->texture->image,
             view->subresourceRange
         };
-        vkCmdPipelineBarrier(enc->buffer, alreadyThere->lastStage, stage, 0, 0, NULL, 0, NULL, 0, &imageBarrier);
+        vkCmdPipelineBarrier(
+            enc->buffer, 
+            alreadyThere->lastStage, 
+            stage,
+            0, 
+            0, NULL, 
+            0, NULL, 
+            1, &imageBarrier
+        );
         alreadyThere->lastStage = stage;
         alreadyThere->lastAccess = access;
         alreadyThere->lastLayout = layout;
     }
     else{
-        ImageViewUsageRecordMap_put(&enc->resourceUsage.referencedTextureViews, view, CLITERAL(ImageViewUsageRecord){
+        int newEntry = ImageViewUsageRecordMap_put(&enc->resourceUsage.referencedTextureViews, view, CLITERAL(ImageViewUsageRecord){
             layout,
             layout,
             stage,
             access
         });
+        if(newEntry)
+            ++view->refCount;
     }
 }
 RGAPI void ce_trackBuffer(WGVKCommandEncoder encoder, WGVKBuffer buffer, VkPipelineStageFlags stage, VkAccessFlags access){
@@ -3539,7 +3536,9 @@ RGAPI void ce_trackBuffer(WGVKCommandEncoder encoder, WGVKBuffer buffer, VkPipel
         };
         vkCmdPipelineBarrier(encoder->buffer, rec->lastStage, stage, 0, 0, 0, 1, &bufferBarrier, 0, 0);
     }
-    ru_trackBuffer(&encoder->resourceUsage, buffer, stage, access);
+    else{
+        ru_trackBuffer(&encoder->resourceUsage, buffer, stage, access);
+    }
 
 }
 void rpe_trackBindGroup(WGVKRenderPassEncoder rpenc, WGVKBindGroup bindGroup){
@@ -3571,23 +3570,25 @@ void rpe_trackTextureView(WGVKRenderPassEncoder rpenc, WGVKTextureView view, VkA
 
 
 static inline void bufferReleaseCallback(void* buffer, BufferUsageRecord* bu_record, void* unused){
-    wgvkBufferRelease((WGVKBuffer)buffer);
+    wgvkBufferRelease(buffer);
 }
-static inline void textureReleaseCallback(void* texture, void* unused){
-    wgvkReleaseTexture((WGVKTexture)texture);
+static inline void textureReleaseCallback(WGVKTexture texture, void* unused){
+    (void)unused;
+    wgvkReleaseTexture(texture);
 }
 static inline void textureViewReleaseCallback(void* textureView, ImageViewUsageRecord* iur, void* unused){
     (void)iur;
-    wgvkReleaseTextureView((WGVKTextureView)textureView);
+    (void)unused;
+    wgvkReleaseTextureView(textureView);
 }
-static inline void bindGroupReleaseCallback(void* bindGroup, void* unused){
-    wgvkBindGroupRelease((WGVKBindGroup)bindGroup);
+static inline void bindGroupReleaseCallback(WGVKBindGroup bindGroup, void* unused){
+    wgvkBindGroupRelease(bindGroup);
 }
-static inline void bindGroupLayoutReleaseCallback(void* bgl, void* unused){
-    wgvkBindGroupLayoutRelease((WGVKBindGroupLayout)bgl);
+static inline void bindGroupLayoutReleaseCallback(WGVKBindGroupLayout bgl, void* unused){
+    wgvkBindGroupLayoutRelease(bgl);
 }
-static inline void samplerReleaseCallback(void* sampler, void* unused){
-    wgvkSamplerRelease((WGVKSampler)sampler);
+static inline void samplerReleaseCallback(WGVKSampler sampler, void* unused){
+    wgvkSamplerRelease(sampler);
 }
 
 

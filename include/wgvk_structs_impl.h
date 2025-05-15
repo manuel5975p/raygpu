@@ -111,15 +111,15 @@ typedef struct RenderPassCommandGeneric {
 DEFINE_PTR_HASH_MAP (CONTAINERAPI, BufferUsageRecordMap, BufferUsageRecord)
 DEFINE_PTR_HASH_MAP (CONTAINERAPI, ImageViewUsageRecordMap, ImageViewUsageRecord)
 DEFINE_PTR_HASH_MAP (CONTAINERAPI, LayoutAssumptions, ImageLayoutPair)
-DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupUsageSet)
-DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupLayoutUsageSet)
-DEFINE_PTR_HASH_SET (CONTAINERAPI, SamplerUsageSet)
-DEFINE_PTR_HASH_SET (CONTAINERAPI, ImageUsageSet)
-DEFINE_PTR_HASH_SET (CONTAINERAPI, WGVKRenderPassEncoderSet)
-DEFINE_PTR_HASH_SET (CONTAINERAPI, RenderPipelineUsageSet)
-DEFINE_PTR_HASH_SET (CONTAINERAPI, ComputePipelineUsageSet)
-DEFINE_PTR_HASH_SET (CONTAINERAPI, WGVKComputePassEncoderSet)
-DEFINE_PTR_HASH_SET (CONTAINERAPI, WGVKRaytracingPassEncoderSet)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupUsageSet, WGVKBindGroup)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupLayoutUsageSet, WGVKBindGroupLayout)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, SamplerUsageSet, WGVKSampler)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, ImageUsageSet, WGVKTexture)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, WGVKRenderPassEncoderSet, WGVKRenderPassEncoder)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, RenderPipelineUsageSet, WGVKRenderPipeline)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, ComputePipelineUsageSet, WGVKComputePipeline)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, WGVKComputePassEncoderSet, WGVKComputePassEncoder)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, WGVKRaytracingPassEncoderSet, WGVKRaytracingPassEncoder)
 
 DEFINE_VECTOR (CONTAINERAPI, VkWriteDescriptorSet, VkWriteDescriptorSetVector)
 DEFINE_VECTOR (CONTAINERAPI, VkCommandBuffer, VkCommandBufferVector)
@@ -196,6 +196,8 @@ RGAPI void ru_trackTextureView     (ResourceUsage* resourceUsage, WGVKTextureVie
 RGAPI void ru_trackBindGroup       (ResourceUsage* resourceUsage, WGVKBindGroup bindGroup);
 RGAPI void ru_trackBindGroupLayout (ResourceUsage* resourceUsage, WGVKBindGroupLayout bindGroupLayout);
 RGAPI void ru_trackSampler         (ResourceUsage* resourceUsage, WGVKSampler sampler);
+RGAPI void ru_trackRenderPipeline  (ResourceUsage* resourceUsage, WGVKRenderPipeline rpl);
+RGAPI void ru_trackComputePipeline (ResourceUsage* resourceUsage, WGVKComputePipeline computePipeline);
 
 RGAPI Bool32 ru_containsBuffer         (const ResourceUsage* resourceUsage, WGVKBuffer buffer);
 RGAPI Bool32 ru_containsTexture        (const ResourceUsage* resourceUsage, WGVKTexture texture);
