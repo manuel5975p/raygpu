@@ -1330,33 +1330,31 @@ extern "C" void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode
 WGVKBuffer tttIntermediate zeroinit;
 extern "C" void CopyTextureToTexture(Texture source, Texture dest){
     
-    VkImageBlit region zeroinit;
-    region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.srcSubresource.baseArrayLayer = 0;
-    region.srcSubresource.mipLevel = 0;
-    region.srcSubresource.layerCount = 1;
 
-    region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.dstSubresource.baseArrayLayer = 0;
-    region.dstSubresource.mipLevel = 0;
-    region.dstSubresource.layerCount = 1;
-
-    region.srcOffsets[1] = VkOffset3D{(int32_t)source.width, (int32_t)source.height, 1};
-    region.dstOffsets[1] = VkOffset3D{(int32_t)source.width, (int32_t)source.height, 1};
     WGVKTexture sourceTexture = reinterpret_cast<WGVKTexture>(source.id);
     WGVKTexture destTexture = reinterpret_cast<WGVKTexture>(dest.id);
     WGVKCommandEncoder encodingDest = reinterpret_cast<WGVKCommandEncoder>(g_renderstate.computepass.cmdEncoder);
-    initializeOrTransition(encodingDest, sourceTexture, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    initializeOrTransition(encodingDest, destTexture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    
+    //wgvkCommandEncoderCopyTextureToTexture;
+    
+    //wgvkCommandEncoderCopyTextureToTexture(
+    //    encodingDest,
+    //    const WGVKTexelCopyTextureInfo *source,
+    //    const WGVKTexelCopyTextureInfo *destination, 
+    //    const WGVKExtent3D *copySize
+    //);
+    // These should be taken care of by  
+    // initializeOrTransition(encodingDest, sourceTexture, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    // initializeOrTransition(encodingDest, destTexture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
     
-    vkCmdBlitImage(
-        encodingDest->buffer, 
-        sourceTexture->image,
-        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        destTexture->image, 
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, VK_FILTER_NEAREST
-    );
+    //vkCmdBlitImage(
+    //    encodingDest->buffer, 
+    //    sourceTexture->image,
+    //    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+    //    destTexture->image, 
+    //    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, VK_FILTER_NEAREST
+    //);
     
     //wgvkCommandEncoderTransitionTextureLayout(encodingDest, destTexture, destTexture->layout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     //if(!tttIntermediate){

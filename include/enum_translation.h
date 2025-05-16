@@ -48,7 +48,7 @@ using std::uint64_t;
 #endif
 // ------------------------- Enum Definitions -------------------------
 
-typedef enum uniform_type { uniform_type_undefined, uniform_buffer, storage_buffer, texture2d, texture2d_array, storage_texture2d, texture_sampler, texture3d, storage_texture3d, storage_texture2d_array, acceleration_structure, combined_image_sampler, uniform_type_enumcount} uniform_type;
+typedef enum uniform_type { uniform_type_undefined, uniform_buffer, storage_buffer, texture2d, texture2d_array, storage_texture2d, texture_sampler, texture3d, storage_texture3d, storage_texture2d_array, acceleration_structure, combined_image_sampler, uniform_type_enumcount, uniform_type_force32 = 0x7fffffff} uniform_type;
 
 typedef enum access_type { readonly, readwrite, writeonly } access_type;
 
@@ -587,39 +587,33 @@ static inline TextureUsage fromVulkanTextureUsage(VkImageUsageFlags vkUsage) {
  */
 static inline VkDescriptorType toVulkanResourceType(uniform_type type) {
     switch (type) {
-        case storage_texture2d: {
+        case storage_texture2d:       [[fallthrough]];
+        case storage_texture2d_array: [[fallthrough]];
+        case storage_texture3d: 
             return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        }
-        case storage_texture2d_array: {
-            return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        }
-        case storage_texture3d: {
-            return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        }
-        case storage_buffer: {
+        
+        case storage_buffer:
             return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        }
-        case uniform_buffer: {
+        case uniform_buffer:
             return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        }
-        case texture2d: {
+
+        
+        case texture2d:       [[fallthrough]];
+        case texture2d_array: [[fallthrough]];
+        case texture3d:
             return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        }
-        case texture2d_array: {
-            return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        }
-        case texture3d: {
-            return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        }
-        case texture_sampler: {
+
+
+        case texture_sampler:
             return VK_DESCRIPTOR_TYPE_SAMPLER;
-        }
-        case acceleration_structure: {
+        case acceleration_structure:
             return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
-        }
         case combined_image_sampler:
             return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        case uniform_type_undefined: 
+        case uniform_type_undefined: [[fallthrough]];
+        case uniform_type_force32:   [[fallthrough]];
+        case uniform_type_enumcount: [[fallthrough]];
+        default:
             rg_unreachable();
     }
     rg_unreachable();
@@ -882,6 +876,54 @@ static inline VkShaderStageFlagBits toVulkanShaderStage(ShaderStage stage) {
         default: rg_unreachable();
     }
 }
+
+static inline VkPipelineStageFlags toVulkanPipelineStage(ShaderStageMask stage) {
+    VkPipelineStageFlags ret = 0;
+    if(stage & ShaderStageMask_Vertex){
+        ret |= VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+    }
+    if(stage & ShaderStageMask_TessControl){
+        ret |= VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT;
+    }
+    if(stage & ShaderStageMask_TessEvaluation){
+        ret |= VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
+    }
+    if(stage & ShaderStageMask_Geometry){
+        ret |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
+    }
+    if(stage & ShaderStageMask_Fragment){
+        ret |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    if(stage & ShaderStageMask_Compute){
+        ret |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    }
+    if(stage & ShaderStageMask_RayGen){
+        ret |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+    }
+    if(stage & ShaderStageMask_Miss){
+        ret |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+    }
+    if(stage & ShaderStageMask_ClosestHit){
+        ret |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+    }
+    if(stage & ShaderStageMask_AnyHit){
+        ret |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+    }
+    if(stage & ShaderStageMask_Intersect){
+        ret |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+    }
+    if(stage & ShaderStageMask_Callable){
+        ret |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+    }
+    if(stage & ShaderStageMask_Task){
+        ret |= VK_PIPELINE_STAGE_TASK_SHADER_BIT_EXT;
+    }
+    if(stage & ShaderStageMask_Mesh){
+        ret |= VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT;
+    }
+    return ret;
+}
+
 static inline VkShaderStageFlagBits toVulkanShaderStageBits(ShaderStageMask stage) {
     unsigned ret = 0;
     for(unsigned iter = stage;iter;iter &= (iter - 1)){

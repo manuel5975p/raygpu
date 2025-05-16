@@ -685,6 +685,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 
     return VK_FALSE;
 }
+
 static inline int endswith_(const char* str, const char* suffix) {
     if (!str || !suffix)
         return 0;
@@ -1388,7 +1389,23 @@ void wgvkQueueWriteTexture(WGVKQueue cSelf, const WGVKTexelCopyTextureInfo* dest
     WGVKTexelCopyBufferInfo source;
     source.buffer = stagingBuffer;
     source.layout = *dataLayout;
-    initializeOrTransition(enkoder, destination->texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+
+    ImageUsageSnap destinationUsageSnap = {
+        .layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        .stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+        .access = VK_ACCESS_TRANSFER_WRITE_BIT,
+        .subresource = {
+            .aspectMask = destination->aspect,
+            .baseMipLevel = destination->mipLevel,
+            .levelCount = 1,
+            .baseArrayLayer = destination->origin.z, //TODO subresource layers? z? idk
+            .layerCount = 1
+        }
+    };
+
+    ce_trackBuffer(enkoder, stagingBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+    ce_trackTexture(enkoder, destination->texture, destinationUsageSnap);
 
     //if(destination->texture->layout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL){
     //    wgvkCommandEncoderTransitionTextureLayout(enkoder, destination->texture, destination->texture->layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -1514,13 +1531,15 @@ void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup, const WGVK
             //wgvkBufferAddRef((WGVKBuffer)entry.buffer);
         }
         else if(entry.textureView){
-            uniform_type utype = bgdesc->layout->entries[i].type;
-            if(utype == storage_texture2d || utype == storage_texture3d || utype == storage_texture2d_array){
-                ru_trackTextureView(&newResourceUsage, (WGVKTextureView)entry.textureView, CLITERAL(ImageViewUsageRecord){0});
-            }
-            else if(utype == texture2d || utype == texture3d || utype == texture2d_array){
-                ru_trackTextureView(&newResourceUsage, (WGVKTextureView)entry.textureView, CLITERAL(ImageViewUsageRecord){0});
-            }
+            ru_trackTextureView(&newResourceUsage, (WGVKTextureView)entry.textureView);
+            
+            //uniform_type utype = bgdesc->layout->entries[i].type;
+            //if(utype == storage_texture2d || utype == storage_texture3d || utype == storage_texture2d_array){
+            //    ru_trackTextureView(&newResourceUsage, (WGVKTextureView)entry.textureView, CLITERAL(ImageViewUsageRecord){0});
+            //}
+            //else if(utype == texture2d || utype == texture3d || utype == texture2d_array){
+            //    ru_trackTextureView(&newResourceUsage, (WGVKTextureView)entry.textureView, CLITERAL(ImageViewUsageRecord){0});
+            //}
         }
         else if(entry.sampler){
             ru_trackSampler(&newResourceUsage, entry.sampler);
@@ -1534,8 +1553,8 @@ void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup, const WGVK
 
 
     BufferUsageRecordMap_move(&wvBindGroup->resourceUsage.referencedBuffers, &newResourceUsage.referencedBuffers);
-    ImageUsageSet_move(&wvBindGroup->resourceUsage.referencedTextures, &newResourceUsage.referencedTextures);
-    ImageViewUsageRecordMap_move(&wvBindGroup->resourceUsage.referencedTextureViews, &newResourceUsage.referencedTextureViews);
+    ImageUsageRecordMap_move(&wvBindGroup->resourceUsage.referencedTextures, &newResourceUsage.referencedTextures);
+    ImageViewUsageSet_move(&wvBindGroup->resourceUsage.referencedTextureViews, &newResourceUsage.referencedTextureViews);
     BindGroupUsageSet_move(&wvBindGroup->resourceUsage.referencedBindGroups, &newResourceUsage.referencedBindGroups);
     BindGroupLayoutUsageSet_move(&wvBindGroup->resourceUsage.referencedBindGroupLayouts, &newResourceUsage.referencedBindGroupLayouts);
     SamplerUsageSet_move(&wvBindGroup->resourceUsage.referencedSamplers, &newResourceUsage.referencedSamplers);
@@ -1543,10 +1562,10 @@ void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup, const WGVK
 
     uint32_t count = bgdesc->entryCount;
      
-    VkWriteDescriptorSetVector writes;
-    VkDescriptorBufferInfoVector bufferInfos;
-    VkDescriptorImageInfoVector imageInfos;
-    VkWriteDescriptorSetAccelerationStructureKHRVector accelStructInfos;
+    VkWriteDescriptorSetVector writes zeroinit;
+    VkDescriptorBufferInfoVector bufferInfos zeroinit;
+    VkDescriptorImageInfoVector imageInfos zeroinit;
+    VkWriteDescriptorSetAccelerationStructureKHRVector accelStructInfos zeroinit;
 
 
     VkWriteDescriptorSetVector_initWithSize(&writes, count);
@@ -1573,13 +1592,13 @@ void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup, const WGVK
         }
 
         if(entryi->type == texture2d || entryi->type == texture3d){
-            ru_trackTextureView(&wvBindGroup->resourceUsage, (WGVKTextureView)bgdesc->entries[i].textureView, (ImageViewUsageRecord){0});
+            ru_trackTextureView(&wvBindGroup->resourceUsage, (WGVKTextureView)bgdesc->entries[i].textureView);
             imageInfos.data[i].imageView = ((WGVKTextureView)bgdesc->entries[i].textureView)->view;
             imageInfos.data[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             writes    .data[i].pImageInfo = imageInfos.data + i;
         }
         if(entryi->type == storage_texture2d || entryi->type == storage_texture3d){
-            ru_trackTextureView(&wvBindGroup->resourceUsage, (WGVKTextureView)bgdesc->entries[i].textureView, (ImageViewUsageRecord){0});
+            ru_trackTextureView(&wvBindGroup->resourceUsage, (WGVKTextureView)bgdesc->entries[i].textureView);
             imageInfos.data[i].imageView = ((WGVKTextureView)bgdesc->entries[i].textureView)->view;
             imageInfos.data[i].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
             writes    .data[i].pImageInfo = imageInfos.data + i;
@@ -1781,10 +1800,7 @@ WGVKCommandEncoder wgvkDeviceCreateCommandEncoder(WGVKDevice device, const WGVKC
     
     return ret;
 }
-void wgvkQueueTransitionLayout(WGVKQueue cSelf, WGVKTexture texture, VkImageLayout from, VkImageLayout to){
-    EncodeTransitionImageLayout(cSelf->presubmitCache->buffer, from, to, texture);
-    ru_trackTexture(&cSelf->presubmitCache->resourceUsage, texture);
-}
+
 WGVKTextureView wgvkTextureCreateView(WGVKTexture texture, const WGVKTextureViewDescriptor *descriptor){
     
     VkImageViewCreateInfo ivci zeroinit;
@@ -1931,42 +1947,49 @@ WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, 
     fbci.pAttachments = attachmentViews;
     fbci.attachmentCount = frp.allAttachments.size;
     
-    ImageViewUsageRecord iur_color = {
-        .initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .lastLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .lastAccess = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-        .lastStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-    };
-
-    ImageViewUsageRecord iur_resolve = {
-        .initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .lastLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .lastAccess = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-        .lastStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-    };
-    
-    ImageViewUsageRecord iur_depth = {
-        .initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-        .lastLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-        .lastAccess = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-        .lastStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT //huh
-    };
-
-    for(uint32_t i = 0;i < rpdesc->colorAttachmentCount;i++){
-        if(rpdesc->colorAttachments[i].view){
-            ru_trackTextureView(&ret->resourceUsage, rpdesc->colorAttachments[i].view, iur_color);
-            initializeOrTransition(ret->cmdEncoder, rpdesc->colorAttachments->view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    const ImageUsageSnap iur_color = {
+        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .access = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        .stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .subresource = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1
         }
+    };
+
+    const ImageUsageSnap iur_resolve = iur_color;
+    
+    const ImageUsageSnap iur_depth = {
+        .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        .access = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+        .stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .subresource = {
+            .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1
+        }
+    };
+
+    
+    for(uint32_t i = 0;i < rpdesc->colorAttachmentCount;i++){
+        rassert(rpdesc->colorAttachments[i].view, "colorAttachments[%d].view is null", (int)i);
+        ce_trackTextureView(enc, rpdesc->colorAttachments[i].view, iur_color);
     }
+
     for(uint32_t i = 0;i < rpdesc->colorAttachmentCount;i++){
         if(rpdesc->colorAttachments[i].resolveTarget){
-            ru_trackTextureView(&ret->resourceUsage, rpdesc->colorAttachments[i].resolveTarget, iur_resolve);
-            initializeOrTransition(ret->cmdEncoder, rpdesc->colorAttachments->resolveTarget->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+            ce_trackTextureView(enc, rpdesc->colorAttachments[i].view, iur_resolve);
         }
     }
+
     if(rpdesc->depthStencilAttachment){
-        ru_trackTextureView(&ret->resourceUsage, rpdesc->depthStencilAttachment->view, iur_depth);
-        initializeOrTransition(ret->cmdEncoder, rpdesc->depthStencilAttachment->view->texture, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+        rassert(rpdesc->depthStencilAttachment->view, "depthStencilAttachment.view is null");
+        ce_trackTextureView(enc, rpdesc->depthStencilAttachment->view, iur_depth);
     }
 
     fbci.width = rpdesc->colorAttachments[0].view->width;
@@ -2100,91 +2123,63 @@ void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
         }
     };
     
-    ImageViewUsageSnap usage_snapshot_color = {
-        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .access = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-        .stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+    struct stageless_snap{
+        VkImageLayout layout;
+        VkAccessFlags access;
+    } snaps[uniform_type_enumcount] = {
+        [texture2d] = {
+            .layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .access = VK_ACCESS_SHADER_READ_BIT
+        },
+        [texture3d] = {
+            .layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .access = VK_ACCESS_SHADER_READ_BIT
+        },
+        [texture2d_array] = {
+            .layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .access = VK_ACCESS_SHADER_READ_BIT
+        },
+        [storage_texture2d] = {
+            .layout = VK_IMAGE_LAYOUT_GENERAL,
+            .access = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT
+        },
+        [storage_texture3d] = {
+            .layout = VK_IMAGE_LAYOUT_GENERAL,
+            .access = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT
+        },
+        [storage_texture2d_array] = {
+            .layout = VK_IMAGE_LAYOUT_GENERAL,
+            .access = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT
+        },
     };
 
-    ImageViewUsageSnap usage_snapshot_resolve = {
-        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .access = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-        .stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-    };
-    
-    ImageViewUsageSnap usage_snapshot_depth = {
-        .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-        .access = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-        .stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-    };
-
-    for(uint32_t i = 0;i < beginInfo->colorAttachmentCount;i++){
-        ce_trackTextureView(
-            renderPassEncoder->cmdEncoder, 
-            beginInfo->colorAttachments[i].view,
-            usage_snapshot_color
-        );
-
-        if(beginInfo->colorAttachments[i].resolveTarget){
-            ce_trackTextureView(
-                renderPassEncoder->cmdEncoder,
-                beginInfo->colorAttachments[i].resolveTarget,
-                usage_snapshot_resolve
-            );
-        }
-    }
-    if(beginInfo->depthAttachmentPresent){
-        ce_trackTextureView(
-            renderPassEncoder->cmdEncoder,
-            beginInfo->depthStencilAttachment.view,
-            usage_snapshot_depth
-        );
-    }
-    ImageViewUsageSnap snaps[uniform_type_enumcount] = {
-        [0] = (ImageViewUsageSnap){0}
-    };
     for(size_t i = 0;i < renderPassEncoder->bufferedCommands.size;i++){
         const RenderPassCommandGeneric* cmd = &renderPassEncoder->bufferedCommands.data[i];
         if(cmd->type == rp_command_type_set_bind_group){
             const RenderPassCommandSetBindGroup* cmdSetBindGroup = &cmd->setBindGroup;
-            WGVKBindGroup group = cmdSetBindGroup->group;
-            WGVKBindGroupLayout layout = group->layout;
+            const WGVKBindGroup group = cmdSetBindGroup->group;
+            const WGVKBindGroupLayout layout = group->layout;
             
 
             for(uint32_t bindingIndex = 0;bindingIndex < layout->entryCount;i++){
                 rassert(group->entries[bindingIndex].binding == layout->entries[bindingIndex].location, "Mismatch between layout and group, this will cause bugs.");
-                if(layout->entries[bindingIndex].type == texture2d || layout->entries[bindingIndex].type == texture3d){
+                
+                uniform_type eType = layout->entries[bindingIndex].type;
+
+                if(snaps[eType].layout != VK_IMAGE_LAYOUT_UNDEFINED){
                     ce_trackTextureView(
                         renderPassEncoder->cmdEncoder,
                         group->entries[bindingIndex].textureView,
-                        (ImageViewUsageSnap){
-                            .layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                            .stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                            .access = VK_ACCESS_SHADER_READ_BIT
+                        (ImageUsageSnap){
+                            .layout = snaps[eType].layout,
+                            .access = snaps[eType].access,
+                            .stage = toVulkanPipelineStage(layout->entries[bindingIndex].visibility)
                         }
                     );
                 }
             }
         }
     }
-    //ce_track();
-    
-    //for(uint32_t i = 0;i < beginInfo->colorAttachmentCount;i++){
-    //    if(beginInfo->colorAttachments[i].view){
-    //        ru_trackTextureView(  &ret->resourceUsage, rpdesc->colorAttachments[i].view, iur_color);
-    //        initializeOrTransition(ret->cmdEncoder, rpdesc->colorAttachments->view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    //    }
-    //}
-    //for(uint32_t i = 0;i < rpdesc->colorAttachmentCount;i++){
-    //    if(rpdesc->colorAttachments[i].resolveTarget){
-    //        ru_trackTextureView(&ret->resourceUsage, rpdesc->colorAttachments[i].resolveTarget, iur_resolve);
-    //        initializeOrTransition(ret->cmdEncoder, rpdesc->colorAttachments->resolveTarget->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    //    }
-    //}
-    //if(rpdesc->depthStencilAttachment){
-    //    ru_trackTextureView(&ret->resourceUsage, rpdesc->depthStencilAttachment->view, iur_depth);
-    //    initializeOrTransition(ret->cmdEncoder, rpdesc->depthStencilAttachment->view->texture, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-    //}
 
 
     vkCmdBeginRenderPass(destination, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
@@ -2197,6 +2192,7 @@ void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
     
 
     #if VULKAN_USE_DYNAMIC_RENDERING == 1
+    #error VULKAN_USE_DYNAMIC_RENDERING is not implemented
     //vkCmdResolveImage(VkCommandBuffer commandBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageResolve *pRegions)
     //vkCmdEndRendering(renderPassEncoder->secondaryCmdBuffer);
     #else
@@ -3151,9 +3147,41 @@ void wgvkCommandEncoderCopyTextureToBuffer (WGVKCommandEncoder commandEncoder, W
     TRACELOG(LOG_FATAL, "Not implemented");
     rg_unreachable();
 }
-void wgvkCommandEncoderCopyTextureToTexture(WGVKCommandEncoder commandEncoder, WGVKTexelCopyTextureInfo const * source, WGVKTexelCopyTextureInfo const * destination, WGVKExtent3D const * copySize){
-    TRACELOG(LOG_FATAL, "Not implemented");
-    rg_unreachable();
+void wgvkCommandEncoderCopyTextureToTexture(WGVKCommandEncoder commandEncoder, const WGVKTexelCopyTextureInfo* source, const WGVKTexelCopyTextureInfo* destination, const WGVKExtent3D* copySize){
+    
+    ce_trackTexture(commandEncoder, source->texture, (ImageUsageSnap){
+        .layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        .stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+        .access = VK_ACCESS_TRANSFER_READ_BIT,
+        .subresource = {
+            .aspectMask = source->aspect,
+            .baseArrayLayer = source->origin.z
+        }
+    });
+
+    VkImageBlit region = {
+        .srcSubresource = {
+            .aspectMask = source->aspect,
+            .mipLevel = source->mipLevel,
+            .baseArrayLayer = 0, // ?
+            .layerCount = 1,
+        },
+        .srcOffsets = {
+            {source->origin.x, source->origin.y, source->origin.z},
+            {source->origin.x + copySize->width, source->origin.y + copySize->height, source->origin.z + copySize->depthOrArrayLayers}
+        },
+        .dstSubresource = {
+            .aspectMask = destination->aspect,
+            .mipLevel = destination->mipLevel,
+            .baseArrayLayer = 0, // ?
+            .layerCount = 1,
+        },
+        .dstOffsets[0] = {destination->origin.x,                   destination->origin.y,                    destination->origin.z},
+        .dstOffsets[1] = {destination->origin.x + copySize->width, destination->origin.y + copySize->height, destination->origin.z + copySize->depthOrArrayLayers}
+    };
+    
+    //region.srcOffsets[1] = VkOffset3D{(int32_t)source.width, (int32_t)source.height, 1};
+    //region.dstOffsets[1] = VkOffset3D{(int32_t)source.width, (int32_t)source.height, 1};
 }
 
 
@@ -3543,8 +3571,8 @@ RGAPI void ru_trackTexture         (ResourceUsage* resourceUsage, WGVKTexture te
     }
 }
 
-RGAPI void ru_trackTextureView     (ResourceUsage* resourceUsage, WGVKTextureView view, ImageViewUsageRecord newRecord){
-    if(ImageViewUsageRecordMap_put(&resourceUsage->referencedTextureViews, view, newRecord)){
+RGAPI void ru_trackTextureView     (ResourceUsage* resourceUsage, WGVKTextureView view, ImageUsageSnap newRecord){
+    if(ImageViewUsageSet_put(&resourceUsage->referencedTextureViews, view, newRecord)){
         ++view->refCount;
     }
 }
@@ -3575,6 +3603,11 @@ RGAPI void ru_trackSampler         (ResourceUsage* resourceUsage, WGVKSampler sa
         ++sampler->refCount;
     }
 }
+
+RGAPI void ce_trackTexture(WGVKCommandEncoder encoder, WGVKTexture texture, ImageUsageSnap usage){
+
+}
+
 RGAPI void ce_trackTextureView(WGVKCommandEncoder enc, WGVKTextureView view, ImageViewUsageSnap usage){
     ImageViewUsageRecord* alreadyThere = ImageViewUsageRecordMap_get(&enc->resourceUsage.referencedTextureViews, view);
     if(alreadyThere != NULL){

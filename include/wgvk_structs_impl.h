@@ -4,23 +4,38 @@
 #include <raygpu.h>
 #include <external/VmaUsage.h>
 
-//#define CC_NO_SHORT_NAMES
-//#include <external/cc.h>
-
 #include "../src/backend_vulkan/ptr_hash_map.h"
 
-typedef struct ImageViewUsageRecord{
+typedef struct ImageUsageRecord{
     VkImageLayout initialLayout;
     VkImageLayout lastLayout;
     VkPipelineStageFlags lastStage;
     VkAccessFlags lastAccess;
-}ImageViewUsageRecord;
+    VkImageSubresourceRange lastAccessedSubresource;
+}ImageUsageRecord;
 
-typedef struct ImageViewUsageSnap{
+typedef struct ImageUsageSnap{
     VkImageLayout layout;
     VkPipelineStageFlags stage;
     VkAccessFlags access;
-}ImageViewUsageSnap;
+    VkImageSubresourceRange subresource;
+}ImageUsageSnap;
+
+
+//typedef struct ImageViewUsageRecord{
+//    VkImageLayout initialLayout;
+//    VkImageLayout lastLayout;
+//    VkPipelineStageFlags lastStage;
+//    VkAccessFlags lastAccess;
+//}ImageViewUsageRecord;
+//
+//typedef struct ImageViewUsageSnap{
+//    VkImageLayout layout;
+//    VkPipelineStageFlags stage;
+//    VkAccessFlags access;
+//}ImageViewUsageSnap;
+
+
 
 typedef struct BufferUsageRecord{
     VkPipelineStageFlags lastStage;
@@ -115,12 +130,13 @@ typedef struct RenderPassCommandGeneric {
 
 #define CONTAINERAPI static inline
 DEFINE_PTR_HASH_MAP (CONTAINERAPI, BufferUsageRecordMap, BufferUsageRecord)
-DEFINE_PTR_HASH_MAP (CONTAINERAPI, ImageViewUsageRecordMap, ImageViewUsageRecord)
+//DEFINE_PTR_HASH_MAP (CONTAINERAPI, ImageViewUsageRecordMap, ImageViewUsageRecord)
 DEFINE_PTR_HASH_MAP (CONTAINERAPI, LayoutAssumptions, ImageLayoutPair)
+DEFINE_PTR_HASH_MAP (CONTAINERAPI, ImageUsageRecordMap, ImageUsageRecord)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupUsageSet, WGVKBindGroup)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupLayoutUsageSet, WGVKBindGroupLayout)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, SamplerUsageSet, WGVKSampler)
-DEFINE_PTR_HASH_SET (CONTAINERAPI, ImageUsageSet, WGVKTexture)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, ImageViewUsageSet, WGVKTextureView)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, WGVKRenderPassEncoderSet, WGVKRenderPassEncoder)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, RenderPipelineUsageSet, WGVKRenderPipeline)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, ComputePipelineUsageSet, WGVKComputePipeline)
@@ -155,8 +171,8 @@ typedef uint32_t refcount_type;
 
 typedef struct ResourceUsage{
     BufferUsageRecordMap referencedBuffers;
-    ImageUsageSet referencedTextures;
-    ImageViewUsageRecordMap referencedTextureViews;
+    ImageUsageRecordMap referencedTextures;
+    ImageViewUsageSet referencedTextureViews;
     BindGroupUsageSet referencedBindGroups;
     BindGroupLayoutUsageSet referencedBindGroupLayouts;
     SamplerUsageSet referencedSamplers;
@@ -167,8 +183,8 @@ typedef struct ResourceUsage{
 
 static inline void ResourceUsage_free(ResourceUsage* ru){
     BufferUsageRecordMap_free(&ru->referencedBuffers);
-    ImageUsageSet_free(&ru->referencedTextures);
-    ImageViewUsageRecordMap_free(&ru->referencedTextureViews);
+    ImageUsageRecordMap_free(&ru->referencedTextures);
+    ImageViewUsageSet_free(&ru->referencedTextureViews);
     BindGroupUsageSet_free(&ru->referencedBindGroups);
     BindGroupLayoutUsageSet_free(&ru->referencedBindGroupLayouts);
     SamplerUsageSet_free(&ru->referencedSamplers);
@@ -177,8 +193,8 @@ static inline void ResourceUsage_free(ResourceUsage* ru){
 
 static inline void ResourceUsage_move(ResourceUsage* dest, ResourceUsage* source){
     BufferUsageRecordMap_move(&dest->referencedBuffers, &source->referencedBuffers);
-    ImageUsageSet_move(&dest->referencedTextures, &source->referencedTextures);
-    ImageViewUsageRecordMap_move(&dest->referencedTextureViews, &source->referencedTextureViews);
+    ImageUsageRecordMap_move(&dest->referencedTextures, &source->referencedTextures);
+    ImageViewUsageSet_move(&dest->referencedTextureViews, &source->referencedTextureViews);
     BindGroupUsageSet_move(&dest->referencedBindGroups, &source->referencedBindGroups);
     BindGroupLayoutUsageSet_move(&dest->referencedBindGroupLayouts, &source->referencedBindGroupLayouts);
     SamplerUsageSet_move(&dest->referencedSamplers, &source->referencedSamplers);
@@ -187,8 +203,8 @@ static inline void ResourceUsage_move(ResourceUsage* dest, ResourceUsage* source
 
 static inline void ResourceUsage_init(ResourceUsage* ru){
     BufferUsageRecordMap_init(&ru->referencedBuffers);
-    ImageUsageSet_init(&ru->referencedTextures);
-    ImageViewUsageRecordMap_init(&ru->referencedTextureViews);
+    ImageUsageRecordMap_init(&ru->referencedTextures);
+    ImageViewUsageSet_init(&ru->referencedTextureViews);
     BindGroupUsageSet_init(&ru->referencedBindGroups);
     BindGroupLayoutUsageSet_init(&ru->referencedBindGroupLayouts);
     SamplerUsageSet_init(&ru->referencedSamplers);
@@ -197,8 +213,8 @@ static inline void ResourceUsage_init(ResourceUsage* ru){
 
 RGAPI void ru_registerTransition   (ResourceUsage* resourceUsage, WGVKTexture tex, VkImageLayout from, VkImageLayout to);
 RGAPI void ru_trackBuffer          (ResourceUsage* resourceUsage, WGVKBuffer buffer, VkPipelineStageFlags stage, VkAccessFlags access);
-RGAPI void ru_trackTexture         (ResourceUsage* resourceUsage, WGVKTexture texture);
-RGAPI void ru_trackTextureView     (ResourceUsage* resourceUsage, WGVKTextureView view, ImageViewUsageRecord newRecird);
+RGAPI void ru_trackTexture         (ResourceUsage* resourceUsage, WGVKTexture texture, ImageUsageRecord newRecord);
+RGAPI void ru_trackTextureView     (ResourceUsage* resourceUsage, WGVKTextureView view);
 RGAPI void ru_trackBindGroup       (ResourceUsage* resourceUsage, WGVKBindGroup bindGroup);
 RGAPI void ru_trackBindGroupLayout (ResourceUsage* resourceUsage, WGVKBindGroupLayout bindGroupLayout);
 RGAPI void ru_trackSampler         (ResourceUsage* resourceUsage, WGVKSampler sampler);
@@ -206,7 +222,8 @@ RGAPI void ru_trackRenderPipeline  (ResourceUsage* resourceUsage, WGVKRenderPipe
 RGAPI void ru_trackComputePipeline (ResourceUsage* resourceUsage, WGVKComputePipeline computePipeline);
 
 RGAPI void ce_trackBuffer(WGVKCommandEncoder encoder, WGVKBuffer buffer, VkPipelineStageFlags stage, VkAccessFlags access);
-RGAPI void ce_trackTextureView(WGVKCommandEncoder encoder, WGVKTextureView buffer, ImageViewUsageSnap usage);
+RGAPI void ce_trackTexture(WGVKCommandEncoder encoder, WGVKTexture texture, ImageUsageSnap usage);
+RGAPI void ce_trackTextureView(WGVKCommandEncoder encoder, WGVKTextureView view, ImageUsageSnap usage);
 
 RGAPI Bool32 ru_containsBuffer         (const ResourceUsage* resourceUsage, WGVKBuffer buffer);
 RGAPI Bool32 ru_containsTexture        (const ResourceUsage* resourceUsage, WGVKTexture texture);
@@ -611,25 +628,25 @@ typedef enum WGVKiotresult{
     iot_thats_new, iot_already_registered,
 }WGVKiotresult;
 
-static inline WGVKiotresult initializeOrTransition(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout layout){
-    ResourceUsage* ru = &encoder->resourceUsage;
-    ImageLayoutPair* if_layout = LayoutAssumptions_get(&ru->entryAndFinalLayouts, (void*)texture);
-    if(if_layout == NULL){
-        ImageLayoutPair empl = {
-            .initialLayout = layout,
-            .finalLayout = layout
-        };
-        LayoutAssumptions_put(&ru->entryAndFinalLayouts, (void*)texture, empl);
-        return iot_thats_new;
-    }
-    else{
-        if(if_layout->finalLayout != layout){
-            wgvkCommandEncoderTransitionTextureLayout(encoder, texture, if_layout->finalLayout, layout);
-            if_layout->finalLayout = layout;
-        }
-        return iot_already_registered;
-    }
-}
+//static inline WGVKiotresult initializeOrTransition(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout layout){
+//    ResourceUsage* ru = &encoder->resourceUsage;
+//    ImageLayoutPair* if_layout = LayoutAssumptions_get(&ru->entryAndFinalLayouts, (void*)texture);
+//    if(if_layout == NULL){
+//        ImageLayoutPair empl = {
+//            .initialLayout = layout,
+//            .finalLayout = layout
+//        };
+//        LayoutAssumptions_put(&ru->entryAndFinalLayouts, (void*)texture, empl);
+//        return iot_thats_new;
+//    }
+//    else{
+//        if(if_layout->finalLayout != layout){
+//            wgvkCommandEncoderTransitionTextureLayout(encoder, texture, if_layout->finalLayout, layout);
+//            if_layout->finalLayout = layout;
+//        }
+//        return iot_already_registered;
+//    }
+//}
 typedef struct WGVKCommandBufferImpl{
     VkCommandBuffer buffer;
     refcount_type refCount;
