@@ -3133,14 +3133,20 @@ void wgvkCommandEncoderCopyBufferToTexture (WGVKCommandEncoder commandEncoder, W
         copySize->depthOrArrayLayers
     };
     
-    ru_trackBuffer(&commandEncoder->resourceUsage, source->buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_READ_BIT);
-    
-    WGVKiotresult result = initializeOrTransition(commandEncoder, destination->texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    //commandEncoder->resourceUsage.track(destination->texture);
-    
-    //if(destination->texture->layout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL){
-    //    wgvkCommandEncoderTransitionTextureLayout(commandEncoder, destination->texture, destination->texture->layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    //}
+    ce_trackBuffer(commandEncoder, source->buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+    ce_trackTexture(commandEncoder, destination->texture, (ImageUsageSnap){
+        .layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        .stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+        .access = VK_ACCESS_TRANSFER_WRITE_BIT,
+        .subresource = {
+            .aspectMask = destination->aspect,
+            .baseMipLevel = destination->mipLevel,
+            .levelCount = 1,
+            .baseArrayLayer = destination->origin.z,
+            .layerCount = 1
+        }
+    });
+
     vkCmdCopyBufferToImage(commandEncoder->buffer, source->buffer->buffer, destination->texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
 void wgvkCommandEncoderCopyTextureToBuffer (WGVKCommandEncoder commandEncoder, WGVKTexelCopyTextureInfo const * source, WGVKTexelCopyBufferInfo const * destination, WGVKExtent3D const * copySize){
@@ -3149,21 +3155,42 @@ void wgvkCommandEncoderCopyTextureToBuffer (WGVKCommandEncoder commandEncoder, W
 }
 void wgvkCommandEncoderCopyTextureToTexture(WGVKCommandEncoder commandEncoder, const WGVKTexelCopyTextureInfo* source, const WGVKTexelCopyTextureInfo* destination, const WGVKExtent3D* copySize){
     
-    ce_trackTexture(commandEncoder, source->texture, (ImageUsageSnap){
-        .layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        .stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-        .access = VK_ACCESS_TRANSFER_READ_BIT,
-        .subresource = {
-            .aspectMask = source->aspect,
-            .baseArrayLayer = source->origin.z
-        }
+    ce_trackTexture(
+        commandEncoder,
+        source->texture,
+        (ImageUsageSnap){
+            .layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            .stage  = VK_PIPELINE_STAGE_TRANSFER_BIT,
+            .access = VK_ACCESS_TRANSFER_READ_BIT,
+            .subresource = {
+                .aspectMask     = source->aspect,
+                .baseMipLevel   = source->mipLevel,
+                .baseArrayLayer = source->origin.z, // ?
+                .layerCount     = 1,
+                .levelCount     = 1,
+            }
+    });
+    ce_trackTexture(
+        commandEncoder,
+        destination->texture,
+        (ImageUsageSnap){
+            .layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            .stage  = VK_PIPELINE_STAGE_TRANSFER_BIT,
+            .access = VK_ACCESS_TRANSFER_WRITE_BIT,
+            .subresource = {
+                .aspectMask     = destination->aspect,
+                .baseMipLevel   = destination->mipLevel,
+                .baseArrayLayer = destination->origin.z, // ?
+                .layerCount     = 1,
+                .levelCount     = 1,
+            }
     });
 
     VkImageBlit region = {
         .srcSubresource = {
             .aspectMask = source->aspect,
             .mipLevel = source->mipLevel,
-            .baseArrayLayer = 0, // ?
+            .baseArrayLayer = destination->origin.z, // ?
             .layerCount = 1,
         },
         .srcOffsets = {
@@ -3173,15 +3200,21 @@ void wgvkCommandEncoderCopyTextureToTexture(WGVKCommandEncoder commandEncoder, c
         .dstSubresource = {
             .aspectMask = destination->aspect,
             .mipLevel = destination->mipLevel,
-            .baseArrayLayer = 0, // ?
+            .baseArrayLayer = destination->origin.z, // ?
             .layerCount = 1,
         },
         .dstOffsets[0] = {destination->origin.x,                   destination->origin.y,                    destination->origin.z},
         .dstOffsets[1] = {destination->origin.x + copySize->width, destination->origin.y + copySize->height, destination->origin.z + copySize->depthOrArrayLayers}
     };
-    
-    //region.srcOffsets[1] = VkOffset3D{(int32_t)source.width, (int32_t)source.height, 1};
-    //region.dstOffsets[1] = VkOffset3D{(int32_t)source.width, (int32_t)source.height, 1};
+    vkCmdBlitImage(
+        commandEncoder->buffer,
+        source->texture->image,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        destination->texture->image,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        1, &region,
+        VK_FILTER_NEAREST
+    );
 }
 
 
@@ -3234,16 +3267,16 @@ void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, WGVKRenderPipel
     ru_trackRenderPipeline(&rpe->resourceUsage, renderPipeline);
 }
 
-static inline void transitionToAppropriateLayoutCallback1(void* texture_, ImageViewUsageRecord* record, void* rpe_){
-    WGVKRenderPassEncoder rpe = (WGVKRenderPassEncoder)rpe_;
-    WGVKTextureView texture = (WGVKTextureView)texture_;
-
-    if(record->lastLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-        initializeOrTransition(rpe->cmdEncoder, texture->texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    else if(record->lastLayout == VK_IMAGE_LAYOUT_GENERAL){
-        initializeOrTransition(rpe->cmdEncoder, texture->texture, VK_IMAGE_LAYOUT_GENERAL);
-    }
-}
+//static inline void transitionToAppropriateLayoutCallback1(void* texture_, ImageViewUsageRecord* record, void* rpe_){
+//    WGVKRenderPassEncoder rpe = (WGVKRenderPassEncoder)rpe_;
+//    WGVKTextureView texture = (WGVKTextureView)texture_;
+//
+//    if(record->lastLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+//        initializeOrTransition(rpe->cmdEncoder, texture->texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+//    else if(record->lastLayout == VK_IMAGE_LAYOUT_GENERAL){
+//        initializeOrTransition(rpe->cmdEncoder, texture->texture, VK_IMAGE_LAYOUT_GENERAL);
+//    }
+//}
 void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t groupIndex, WGVKBindGroup group, size_t dynamicOffsetCount, const uint32_t* dynamicOffsets) {
     rassert(rpe != NULL, "RenderPassEncoderHandle is null");
     rassert(group != NULL, "DescriptorSetHandle is null");
@@ -3565,14 +3598,14 @@ RGAPI void ru_trackBuffer(ResourceUsage* resourceUsage, WGVKBuffer buffer, VkPip
     }
 }
 
-RGAPI void ru_trackTexture         (ResourceUsage* resourceUsage, WGVKTexture texture){
-    if(ImageUsageSet_add(&resourceUsage->referencedTextures, texture)){
+RGAPI void ru_trackTexture(ResourceUsage* resourceUsage, WGVKTexture texture, ImageUsageRecord record){
+    if(ImageUsageRecordMap_put(&resourceUsage->referencedTextures, texture, record)){
         ++texture->refCount;
     }
 }
 
-RGAPI void ru_trackTextureView     (ResourceUsage* resourceUsage, WGVKTextureView view, ImageUsageSnap newRecord){
-    if(ImageViewUsageSet_put(&resourceUsage->referencedTextureViews, view, newRecord)){
+RGAPI void ru_trackTextureView     (ResourceUsage* resourceUsage, WGVKTextureView view){
+    if(ImageViewUsageSet_add(&resourceUsage->referencedTextureViews, view)){
         ++view->refCount;
     }
 }
@@ -3605,11 +3638,52 @@ RGAPI void ru_trackSampler         (ResourceUsage* resourceUsage, WGVKSampler sa
 }
 
 RGAPI void ce_trackTexture(WGVKCommandEncoder encoder, WGVKTexture texture, ImageUsageSnap usage){
-
+    ImageUsageRecord* alreadyThere = ImageUsageRecordMap_get(&encoder->resourceUsage.referencedTextures, texture);
+    if(alreadyThere){
+        VkImageMemoryBarrier imageBarrier = {
+            VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+            NULL,
+            alreadyThere->lastAccess,
+            usage.access,
+            alreadyThere->lastLayout,
+            usage.layout,
+            encoder->device->adapter->queueIndices.graphicsIndex,
+            encoder->device->adapter->queueIndices.graphicsIndex,
+            texture->image,
+            usage.subresource
+        };
+        vkCmdPipelineBarrier(
+            encoder->buffer, 
+            alreadyThere->lastStage, 
+            usage.stage,
+            0, 
+            0, NULL, 
+            0, NULL, 
+            1, &imageBarrier
+        );
+        alreadyThere->lastStage  = usage.stage;
+        alreadyThere->lastAccess = usage.access;
+        alreadyThere->lastLayout = usage.layout;
+    }
+    else{
+        int newEntry = ImageUsageRecordMap_put(&encoder->resourceUsage.referencedTextures, texture, CLITERAL(ImageUsageRecord){
+            usage.layout,
+            usage.layout,
+            usage.stage,
+            usage.access,
+            usage.subresource
+        });
+        rassert(newEntry != 0, "_get failed, but _put did not return 1");
+        if(newEntry)
+            ++texture->refCount;
+    }
 }
 
-RGAPI void ce_trackTextureView(WGVKCommandEncoder enc, WGVKTextureView view, ImageViewUsageSnap usage){
-    ImageViewUsageRecord* alreadyThere = ImageViewUsageRecordMap_get(&enc->resourceUsage.referencedTextureViews, view);
+RGAPI void ce_trackTextureView(WGVKCommandEncoder enc, WGVKTextureView view, ImageUsageSnap usage){
+    
+    ru_trackTextureView(&enc->resourceUsage, view);
+    
+    ImageUsageRecord* alreadyThere = ImageUsageRecordMap_get(&enc->resourceUsage.referencedTextures, view->texture);
     if(alreadyThere != NULL){
         VkImageMemoryBarrier imageBarrier = {
             VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -3637,12 +3711,14 @@ RGAPI void ce_trackTextureView(WGVKCommandEncoder enc, WGVKTextureView view, Ima
         alreadyThere->lastLayout = usage.layout;
     }
     else{
-        int newEntry = ImageViewUsageRecordMap_put(&enc->resourceUsage.referencedTextureViews, view, CLITERAL(ImageViewUsageRecord){
+        int newEntry = ImageUsageRecordMap_put(&enc->resourceUsage.referencedTextures, view, CLITERAL(ImageUsageRecord){
             usage.layout,
             usage.layout,
             usage.stage,
-            usage.access
+            usage.access,
+            view->subresourceRange
         });
+        rassert(newEntry != 0, "_get failed, but _put did not return 1");
         if(newEntry)
             ++view->refCount;
     }
