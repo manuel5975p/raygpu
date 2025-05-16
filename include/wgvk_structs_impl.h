@@ -16,6 +16,12 @@ typedef struct ImageViewUsageRecord{
     VkAccessFlags lastAccess;
 }ImageViewUsageRecord;
 
+typedef struct ImageViewUsageSnap{
+    VkImageLayout layout;
+    VkPipelineStageFlags stage;
+    VkAccessFlags access;
+}ImageViewUsageSnap;
+
 typedef struct BufferUsageRecord{
     VkPipelineStageFlags lastStage;
     VkAccessFlags lastAccess;
@@ -200,7 +206,7 @@ RGAPI void ru_trackRenderPipeline  (ResourceUsage* resourceUsage, WGVKRenderPipe
 RGAPI void ru_trackComputePipeline (ResourceUsage* resourceUsage, WGVKComputePipeline computePipeline);
 
 RGAPI void ce_trackBuffer(WGVKCommandEncoder encoder, WGVKBuffer buffer, VkPipelineStageFlags stage, VkAccessFlags access);
-RGAPI void ce_trackTextureView(WGVKCommandEncoder encoder, WGVKTextureView buffer, VkPipelineStageFlags stage, VkAccessFlags access, VkImageLayout layout);
+RGAPI void ce_trackTextureView(WGVKCommandEncoder encoder, WGVKTextureView buffer, ImageViewUsageSnap usage);
 
 RGAPI Bool32 ru_containsBuffer         (const ResourceUsage* resourceUsage, WGVKBuffer buffer);
 RGAPI Bool32 ru_containsTexture        (const ResourceUsage* resourceUsage, WGVKTexture texture);
@@ -418,6 +424,8 @@ typedef struct WGVKBindGroupImpl{
     ResourceUsage resourceUsage;
     WGVKDevice device;
     uint32_t cacheIndex;
+    ResourceDescriptor* entries;
+    uint32_t entryCount;
 }WGVKBindGroupImpl;
 
 typedef struct WGVKBindGroupLayoutImpl{

@@ -1663,6 +1663,11 @@ WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVKBindGroupDe
         ret->set  = dsap->data[dsap->size - 1].set;
         --dsap->size;
     }
+    ret->entryCount = bgdesc->entryCount;
+        
+    ret->entries = RL_CALLOC(bgdesc->entryCount, sizeof(ResourceDescriptor));
+    memcpy(ret->entries, bgdesc->entries, bgdesc->entryCount * sizeof(ResourceDescriptor));
+
     wgvkWriteBindGroup(device, ret, bgdesc);
     ret->layout = bgdesc->layout;
     ++ret->layout->refCount;
@@ -2095,35 +2100,72 @@ void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
         }
     };
     
-    
-    
-    ImageViewUsageRecord iur_color = {
-        .initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .lastLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .lastAccess = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-        .lastStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+    ImageViewUsageSnap usage_snapshot_color = {
+        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .access = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        .stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
     };
 
-    ImageViewUsageRecord iur_resolve = {
-        .initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .lastLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .lastAccess = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-        .lastStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+    ImageViewUsageSnap usage_snapshot_resolve = {
+        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .access = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        .stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
     };
     
-    ImageViewUsageRecord iur_depth = {
-        .initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-        .lastLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-        .lastAccess = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-        .lastStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT //huh
+    ImageViewUsageSnap usage_snapshot_depth = {
+        .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        .access = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+        .stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
     };
+
     for(uint32_t i = 0;i < beginInfo->colorAttachmentCount;i++){
-        ce_trackTextureView(renderPassEncoder->cmdEncoder, beginInfo->colorAttachments[i].view, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        if(beginInfo->colorAttachments[i].resolveTarget)
-            ce_trackTextureView(renderPassEncoder->cmdEncoder, beginInfo->colorAttachments[i].resolveTarget, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        ce_trackTextureView(
+            renderPassEncoder->cmdEncoder, 
+            beginInfo->colorAttachments[i].view,
+            usage_snapshot_color
+        );
+
+        if(beginInfo->colorAttachments[i].resolveTarget){
+            ce_trackTextureView(
+                renderPassEncoder->cmdEncoder,
+                beginInfo->colorAttachments[i].resolveTarget,
+                usage_snapshot_resolve
+            );
+        }
     }
     if(beginInfo->depthAttachmentPresent){
-        ce_trackTextureView(renderPassEncoder->cmdEncoder, beginInfo->depthStencilAttachment.view, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+        ce_trackTextureView(
+            renderPassEncoder->cmdEncoder,
+            beginInfo->depthStencilAttachment.view,
+            usage_snapshot_depth
+        );
+    }
+    ImageViewUsageSnap snaps[uniform_type_enumcount] = {
+        [0] = (ImageViewUsageSnap){0}
+    };
+    for(size_t i = 0;i < renderPassEncoder->bufferedCommands.size;i++){
+        const RenderPassCommandGeneric* cmd = &renderPassEncoder->bufferedCommands.data[i];
+        if(cmd->type == rp_command_type_set_bind_group){
+            const RenderPassCommandSetBindGroup* cmdSetBindGroup = &cmd->setBindGroup;
+            WGVKBindGroup group = cmdSetBindGroup->group;
+            WGVKBindGroupLayout layout = group->layout;
+            
+
+            for(uint32_t bindingIndex = 0;bindingIndex < layout->entryCount;i++){
+                rassert(group->entries[bindingIndex].binding == layout->entries[bindingIndex].location, "Mismatch between layout and group, this will cause bugs.");
+                if(layout->entries[bindingIndex].type == texture2d || layout->entries[bindingIndex].type == texture3d){
+                    ce_trackTextureView(
+                        renderPassEncoder->cmdEncoder,
+                        group->entries[bindingIndex].textureView,
+                        (ImageViewUsageSnap){
+                            .layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                            .stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                            .access = VK_ACCESS_SHADER_READ_BIT
+                        }
+                    );
+                }
+            }
+        }
     }
     //ce_track();
     
@@ -2600,7 +2642,7 @@ void wgvkSurfaceConfigure(WGVKSurface surface, const WGVKSurfaceConfiguration* c
         surface->images[i]->sampleCount = 1;
         surface->images[i]->image = tmpImages[i];
     }
-    surface->imageViews = (WGVKTextureView*)calloc(surface->imagecount, sizeof(VkImageView));
+    surface->imageViews = (WGVKTextureView*)RL_CALLOC(surface->imagecount, sizeof(VkImageView));
 
     for (uint32_t i = 0; i < surface->imagecount; i++) {
         WGVKTextureViewDescriptor viewDesc zeroinit;
@@ -2736,9 +2778,8 @@ void wgvkBindGroupRelease(WGVKBindGroup dshandle) {
         if(maybeAlreadyThere){
             DescriptorSetAndPoolVector_push_back(maybeAlreadyThere, insertValue);
         }
+        RL_FREE(dshandle->entries);
 
-        
-        
         //DONT delete them, they are cached
         //vkFreeDescriptorSets(dshandle->device->device, dshandle->pool, 1, &dshandle->set);
         //vkDestroyDescriptorPool(dshandle->device->device, dshandle->pool, NULL);
@@ -3534,16 +3575,16 @@ RGAPI void ru_trackSampler         (ResourceUsage* resourceUsage, WGVKSampler sa
         ++sampler->refCount;
     }
 }
-RGAPI void ce_trackTextureView(WGVKCommandEncoder enc, WGVKTextureView view, VkPipelineStageFlags stage, VkAccessFlags access, VkImageLayout layout){
+RGAPI void ce_trackTextureView(WGVKCommandEncoder enc, WGVKTextureView view, ImageViewUsageSnap usage){
     ImageViewUsageRecord* alreadyThere = ImageViewUsageRecordMap_get(&enc->resourceUsage.referencedTextureViews, view);
     if(alreadyThere != NULL){
         VkImageMemoryBarrier imageBarrier = {
             VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
             NULL,
             alreadyThere->lastAccess,
-            access,
+            usage.access,
             alreadyThere->lastLayout,
-            layout, 
+            usage.layout, 
             enc->device->adapter->queueIndices.graphicsIndex,
             enc->device->adapter->queueIndices.graphicsIndex,
             view->texture->image,
@@ -3552,22 +3593,22 @@ RGAPI void ce_trackTextureView(WGVKCommandEncoder enc, WGVKTextureView view, VkP
         vkCmdPipelineBarrier(
             enc->buffer, 
             alreadyThere->lastStage, 
-            stage,
+            usage.stage,
             0, 
             0, NULL, 
             0, NULL, 
             1, &imageBarrier
         );
-        alreadyThere->lastStage = stage;
-        alreadyThere->lastAccess = access;
-        alreadyThere->lastLayout = layout;
+        alreadyThere->lastStage  = usage.stage;
+        alreadyThere->lastAccess = usage.access;
+        alreadyThere->lastLayout = usage.layout;
     }
     else{
         int newEntry = ImageViewUsageRecordMap_put(&enc->resourceUsage.referencedTextureViews, view, CLITERAL(ImageViewUsageRecord){
-            layout,
-            layout,
-            stage,
-            access
+            usage.layout,
+            usage.layout,
+            usage.stage,
+            usage.access
         });
         if(newEntry)
             ++view->refCount;
