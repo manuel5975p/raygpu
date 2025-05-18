@@ -142,9 +142,10 @@ void PostPresentSurface(){
     if(unusedBuffers->capacity < unusedBuffers->size + usedBuffers->size){
         size_t newcap = (unusedBuffers->size + usedBuffers->size);
         WGVKBufferVector_reserve(unusedBuffers, newcap);
-
     }
-    memcpy(unusedBuffers->data + unusedBuffers->size, usedBuffers->data, usedBuffers->size * sizeof(WGVKBuffer));
+    if(usedBuffers->size > 0){
+        memcpy(unusedBuffers->data + unusedBuffers->size, usedBuffers->data, usedBuffers->size * sizeof(WGVKBuffer));
+    }
     unusedBuffers->size += usedBuffers->size;
     WGVKBufferVector_clear(usedBuffers);//(WGVKBufferVector *dest, const WGVKBufferVector *source)
     PendingCommandBufferMap_clear(&queue->pendingCommandBuffers[cacheIndex]);
@@ -755,8 +756,19 @@ void GenTextureMipmaps(Texture2D* tex){
         i.y = std::max(i.y, 1);
         return i;
     };
-
-    initializeOrTransition(enc, wgvkTex, VK_IMAGE_LAYOUT_GENERAL);
+    ImageUsageSnap usage_general = {
+        .layout = VK_IMAGE_LAYOUT_GENERAL,
+        .stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+        .access = VK_ACCESS_TRANSFER_WRITE_BIT,
+        .subresource = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = tex->mipmaps,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        }
+    };
+    ce_trackTexture(enc, wgvkTex, usage_general);
     //wgvkCommandEncoderTransitionTextureLayout(enc, wgvkTex, wgvkTex->layout, VK_IMAGE_LAYOUT_GENERAL);
     for(uint32_t i = 0;i < tex->mipmaps - 1;i++){
         VkImageBlit blitRegion zeroinit;
@@ -772,7 +784,8 @@ void GenTextureMipmaps(Texture2D* tex){
         blitRegion.dstSubresource.mipLevel = i + 1;
         vkCmdBlitImage(enc->buffer, wgvkTex->image, VK_IMAGE_LAYOUT_GENERAL, wgvkTex->image, VK_IMAGE_LAYOUT_GENERAL, 1, &blitRegion, VK_FILTER_LINEAR);
     }
-    ru_trackTexture(&enc->resourceUsage, wgvkTex);
+    
+    //ru_trackTexture(&enc->resourceUsage, wgvkTex);
     WGVKCommandBuffer buffer = wgvkCommandEncoderFinish(enc);
     wgvkQueueSubmit(g_vulkanstate.queue, 1, &buffer);
     wgvkReleaseCommandBuffer(buffer);
@@ -1179,10 +1192,10 @@ RenderTexture LoadRenderTexture(uint32_t width, uint32_t height){
         ret.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_renderstate.frameBufferFormat, TextureUsage_RenderAttachment | TextureUsage_CopySrc, 4, 1);
     }
     WGVKTextureView colorTargetView = (WGVKTextureView)ret.texture.view;
-    wgvkQueueTransitionLayout(g_vulkanstate.queue, colorTargetView->texture, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    if(ret.colorMultisample.id)
-        wgvkQueueTransitionLayout(g_vulkanstate.queue, ((WGVKTexture)ret.colorMultisample.id), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    wgvkQueueTransitionLayout(g_vulkanstate.queue, ((WGVKTexture)ret.depth.id), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    //wgvkQueueTransitionLayout(g_vulkanstate.queue, colorTargetView->texture, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    //if(ret.colorMultisample.id)
+    //    wgvkQueueTransitionLayout(g_vulkanstate.queue, ((WGVKTexture)ret.colorMultisample.id), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    //wgvkQueueTransitionLayout(g_vulkanstate.queue, ((WGVKTexture)ret.depth.id), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
     ret.colorAttachmentCount = 1;
     return ret;
 }
@@ -1242,27 +1255,27 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     if(rtex.colorMultisample.view){
         rca[0].view = (WGVKTextureView)rtex.colorMultisample.view;
         rca[0].resolveTarget = (WGVKTextureView)rtex.texture.view;
-        initializeOrTransition(((WGVKCommandEncoder)renderPass->cmdEncoder), rca[0].view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        initializeOrTransition(((WGVKCommandEncoder)renderPass->cmdEncoder), rca[0].resolveTarget->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        //initializeOrTransition(((WGVKCommandEncoder)renderPass->cmdEncoder), rca[0].view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        //initializeOrTransition(((WGVKCommandEncoder)renderPass->cmdEncoder), rca[0].resolveTarget->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     }
     else{
         rca[0].view = (WGVKTextureView)rtex.texture.view;
-        initializeOrTransition(((WGVKCommandEncoder)renderPass->cmdEncoder), rca[0].view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        //initializeOrTransition(((WGVKCommandEncoder)renderPass->cmdEncoder), rca[0].view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     }
     if(renderPass->settings.depthTest){
         rpdesc.depthStencilAttachment = &dsa;
     }
-    if(rpdesc.colorAttachmentCount > 1){
-        for(uint32_t i = 0;i < rpdesc.colorAttachmentCount - 1;i++){
-            WGVKRenderPassColorAttachment& ar = rca[i + 1];
-            ar.depthSlice = 0;
-            ar.clearValue = renderPass->colorClear;
-            ar.loadOp = renderPass->colorLoadOp;
-            ar.storeOp = renderPass->colorStoreOp;
-            ar.view = rtex.moreColorAttachments[i].view;
-            initializeOrTransition(((WGVKCommandEncoder)renderPass->cmdEncoder), ar.view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        }
-    }
+    //if(rpdesc.colorAttachmentCount > 1){
+    //    for(uint32_t i = 0;i < rpdesc.colorAttachmentCount - 1;i++){
+    //        WGVKRenderPassColorAttachment& ar = rca[i + 1];
+    //        ar.depthSlice = 0;
+    //        ar.clearValue = renderPass->colorClear;
+    //        ar.loadOp = renderPass->colorLoadOp;
+    //        ar.storeOp = renderPass->colorStoreOp;
+    //        ar.view = rtex.moreColorAttachments[i].view;
+    //        initializeOrTransition(((WGVKCommandEncoder)renderPass->cmdEncoder), ar.view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    //    }
+    //}
     rpdesc.colorAttachments = rca;
     
     //fbci.pAttachments = fbAttac   hments;

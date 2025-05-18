@@ -641,22 +641,22 @@ void wgvkRaytracingPassEncoderSetPipeline(WGVKRaytracingPassEncoder rte, WGVKRay
     rte->lastPipeline = raytracingPipeline;
 }
 
-static inline void transitionToAppropriateLayoutCallback1(void* texture_, ImageViewUsageRecord* record, void* rpe_){
-    WGVKRenderPassEncoder rpe = (WGVKRenderPassEncoder)rpe_;
-    WGVKTexture texture = (WGVKTexture)texture_;
-
-    if(record->lastLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-        initializeOrTransition(rpe->cmdEncoder, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    else if(record->lastLayout == VK_IMAGE_LAYOUT_GENERAL){
-        initializeOrTransition(rpe->cmdEncoder, texture, VK_IMAGE_LAYOUT_GENERAL);
-    }
-}
-
-void wgvkRaytracingPassEncoderSetBindGroup(WGVKRaytracingPassEncoder rte, uint32_t groupIndex, WGVKBindGroup bindGroup) {
-    vkCmdBindDescriptorSets(rte->cmdBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, rte->lastLayout, 0, 1, &bindGroup->set, 0, nullptr);
-    ru_trackBindGroup(&rte->resourceUsage, bindGroup);
-    ImageViewUsageRecordMap_for_each(&bindGroup->resourceUsage.referencedTextureViews, transitionToAppropriateLayoutCallback1, rte);
-}
+//static inline void transitionToAppropriateLayoutCallback1(void* texture_, ImageViewUsageRecord* record, void* rpe_){
+//    WGVKRenderPassEncoder rpe = (WGVKRenderPassEncoder)rpe_;
+//    WGVKTexture texture = (WGVKTexture)texture_;
+//
+//    if(record->lastLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+//        initializeOrTransition(rpe->cmdEncoder, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+//    else if(record->lastLayout == VK_IMAGE_LAYOUT_GENERAL){
+//        initializeOrTransition(rpe->cmdEncoder, texture, VK_IMAGE_LAYOUT_GENERAL);
+//    }
+//}
+//
+//void wgvkRaytracingPassEncoderSetBindGroup(WGVKRaytracingPassEncoder rte, uint32_t groupIndex, WGVKBindGroup bindGroup) {
+//    vkCmdBindDescriptorSets(rte->cmdBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, rte->lastLayout, 0, 1, &bindGroup->set, 0, nullptr);
+//    ru_trackBindGroup(&rte->resourceUsage, bindGroup);
+//    ImageViewUsageRecordMap_for_each(&bindGroup->resourceUsage.referencedTextureViews, transitionToAppropriateLayoutCallback1, rte);
+//}
 void wgvkCommandEncoderEndRaytracingPass(WGVKRaytracingPassEncoder commandEncoder) {}
 void wgvkRaytracingPassEncoderTraceRays(WGVKRaytracingPassEncoder cpe, uint32_t width, uint32_t height, uint32_t depth) {
     VkStridedDeviceAddressRegionKHR rgR zeroinit;

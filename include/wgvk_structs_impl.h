@@ -22,6 +22,7 @@ typedef struct ImageUsageSnap{
 }ImageUsageSnap;
 
 
+
 //typedef struct ImageViewUsageRecord{
 //    VkImageLayout initialLayout;
 //    VkImageLayout lastLayout;
@@ -42,10 +43,12 @@ typedef struct BufferUsageRecord{
     VkAccessFlags lastAccess;
 }BufferUsageRecord;
 
-typedef struct ImageLayoutPair{
-    VkImageLayout initialLayout;
-    VkImageLayout finalLayout;
-}ImageLayoutPair;
+typedef BufferUsageRecord BufferUsageSnap;
+
+//typedef struct ImageLayoutPair{
+//    VkImageLayout initialLayout;
+//    VkImageLayout finalLayout;
+//}ImageLayoutPair;
 
 typedef enum RCPassCommandType{
     rp_command_type_invalid = 0,
@@ -57,6 +60,7 @@ typedef enum RCPassCommandType{
     rp_command_type_set_render_pipeline,
     cp_command_type_set_compute_pipeline,
     cp_command_type_dispatch_workgroups,
+    rp_command_type_enum_count,
     rp_command_type_set_force32 = 0x7fffffff
 }RCPassCommandType;
 
@@ -131,7 +135,7 @@ typedef struct RenderPassCommandGeneric {
 #define CONTAINERAPI static inline
 DEFINE_PTR_HASH_MAP (CONTAINERAPI, BufferUsageRecordMap, BufferUsageRecord)
 //DEFINE_PTR_HASH_MAP (CONTAINERAPI, ImageViewUsageRecordMap, ImageViewUsageRecord)
-DEFINE_PTR_HASH_MAP (CONTAINERAPI, LayoutAssumptions, ImageLayoutPair)
+//DEFINE_PTR_HASH_MAP (CONTAINERAPI, LayoutAssumptions, ImageLayoutPair)
 DEFINE_PTR_HASH_MAP (CONTAINERAPI, ImageUsageRecordMap, ImageUsageRecord)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupUsageSet, WGVKBindGroup)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupLayoutUsageSet, WGVKBindGroupLayout)
@@ -178,7 +182,7 @@ typedef struct ResourceUsage{
     SamplerUsageSet referencedSamplers;
     RenderPipelineUsageSet referencedRenderPipelines;
     ComputePipelineUsageSet referencedComputePipelines;
-    LayoutAssumptions entryAndFinalLayouts;
+    //LayoutAssumptions entryAndFinalLayouts;
 }ResourceUsage;
 
 static inline void ResourceUsage_free(ResourceUsage* ru){
@@ -188,7 +192,7 @@ static inline void ResourceUsage_free(ResourceUsage* ru){
     BindGroupUsageSet_free(&ru->referencedBindGroups);
     BindGroupLayoutUsageSet_free(&ru->referencedBindGroupLayouts);
     SamplerUsageSet_free(&ru->referencedSamplers);
-    LayoutAssumptions_free(&ru->entryAndFinalLayouts);
+    //LayoutAssumptions_free(&ru->entryAndFinalLayouts);
 }
 
 static inline void ResourceUsage_move(ResourceUsage* dest, ResourceUsage* source){
@@ -198,7 +202,7 @@ static inline void ResourceUsage_move(ResourceUsage* dest, ResourceUsage* source
     BindGroupUsageSet_move(&dest->referencedBindGroups, &source->referencedBindGroups);
     BindGroupLayoutUsageSet_move(&dest->referencedBindGroupLayouts, &source->referencedBindGroupLayouts);
     SamplerUsageSet_move(&dest->referencedSamplers, &source->referencedSamplers);
-    LayoutAssumptions_move(&dest->entryAndFinalLayouts, &source->entryAndFinalLayouts);
+    //LayoutAssumptions_move(&dest->entryAndFinalLayouts, &source->entryAndFinalLayouts);
 }
 
 static inline void ResourceUsage_init(ResourceUsage* ru){
@@ -208,11 +212,11 @@ static inline void ResourceUsage_init(ResourceUsage* ru){
     BindGroupUsageSet_init(&ru->referencedBindGroups);
     BindGroupLayoutUsageSet_init(&ru->referencedBindGroupLayouts);
     SamplerUsageSet_init(&ru->referencedSamplers);
-    LayoutAssumptions_init(&ru->entryAndFinalLayouts);
+    //LayoutAssumptions_init(&ru->entryAndFinalLayouts);
 }
 
 RGAPI void ru_registerTransition   (ResourceUsage* resourceUsage, WGVKTexture tex, VkImageLayout from, VkImageLayout to);
-RGAPI void ru_trackBuffer          (ResourceUsage* resourceUsage, WGVKBuffer buffer, VkPipelineStageFlags stage, VkAccessFlags access);
+RGAPI void ru_trackBuffer          (ResourceUsage* resourceUsage, WGVKBuffer buffer, BufferUsageRecord brecord);
 RGAPI void ru_trackTexture         (ResourceUsage* resourceUsage, WGVKTexture texture, ImageUsageRecord newRecord);
 RGAPI void ru_trackTextureView     (ResourceUsage* resourceUsage, WGVKTextureView view);
 RGAPI void ru_trackBindGroup       (ResourceUsage* resourceUsage, WGVKBindGroup bindGroup);
@@ -221,7 +225,7 @@ RGAPI void ru_trackSampler         (ResourceUsage* resourceUsage, WGVKSampler sa
 RGAPI void ru_trackRenderPipeline  (ResourceUsage* resourceUsage, WGVKRenderPipeline rpl);
 RGAPI void ru_trackComputePipeline (ResourceUsage* resourceUsage, WGVKComputePipeline computePipeline);
 
-RGAPI void ce_trackBuffer(WGVKCommandEncoder encoder, WGVKBuffer buffer, VkPipelineStageFlags stage, VkAccessFlags access);
+RGAPI void ce_trackBuffer(WGVKCommandEncoder encoder, WGVKBuffer buffer, BufferUsageSnap usage);
 RGAPI void ce_trackTexture(WGVKCommandEncoder encoder, WGVKTexture texture, ImageUsageSnap usage);
 RGAPI void ce_trackTextureView(WGVKCommandEncoder encoder, WGVKTextureView view, ImageUsageSnap usage);
 
