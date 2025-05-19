@@ -1320,21 +1320,7 @@ WGVKBuffer wgvkDeviceCreateBuffer(WGVKDevice device, const WGVKBufferDescriptor*
 }
 
 void wgvkBufferMap(WGVKBuffer buffer, MapMode mapmode, size_t offset, size_t size, void** data){
-    
     vmaMapMemory(buffer->device->allocator, buffer->allocation, data);
-    //VmaAllocationInfo allocationInfo zeroinit;
-    //vmaGetAllocationInfo(buffer->device->allocator, buffer->allocation, &allocationInfo);
-    //uint64_t baseOffset = allocationInfo.offset;
-    //
-    //VkDeviceMemory bufferMemory = allocationInfo.deviceMemory;
-    //rassert(mappedMemories.find(bufferMemory) == mappedMemories.end(), "The VkDeviceMemory of this buffer is already mapped");
-    //VkResult result = vkMapMemory(buffer->device->device, bufferMemory, baseOffset + offset, size, 0, data);
-    //if(result != VK_SUCCESS){
-    //    *data = NULL;
-    //}
-    //else{
-    //    mappedMemories.insert(bufferMemory);
-    //}
 }
 
 void wgvkBufferUnmap(WGVKBuffer buffer){
@@ -1390,27 +1376,6 @@ void wgvkQueueWriteTexture(WGVKQueue cSelf, const WGVKTexelCopyTextureInfo* dest
     WGVKTexelCopyBufferInfo source;
     source.buffer = stagingBuffer;
     source.layout = *dataLayout;
-
-    //BufferUsageSnap sourceUsageSnap = {
-    //    VK_PIPELINE_STAGE_TRANSFER_BIT,
-    //    VK_ACCESS_TRANSFER_WRITE_BIT
-    //};
-    //ImageUsageSnap destinationUsageSnap = {
-    //    .layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-    //    .stage  = VK_PIPELINE_STAGE_TRANSFER_BIT,
-    //    .access = VK_ACCESS_TRANSFER_WRITE_BIT,
-    //    .subresource = {
-    //        .aspectMask     = destination->aspect,
-    //        .baseMipLevel   = destination->mipLevel,
-    //        .levelCount     = 1,
-    //        .baseArrayLayer = destination->origin.z, //TODO subresource layers? z? idk
-    //        .layerCount     = writeSize->depthOrArrayLayers
-    //    }
-    //};
-    
-
-    //ce_trackBuffer (enkoder, stagingBuffer       , sourceUsageSnap     );
-    //ce_trackTexture(enkoder, destination->texture, destinationUsageSnap);
 
     wgvkCommandEncoderCopyBufferToTexture(enkoder, &source, destination, writeSize);
     WGVKCommandBuffer puffer = wgvkCommandEncoderFinish(enkoder);
@@ -1520,7 +1485,7 @@ void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup, const WGVK
             .pNext = NULL,
             .descriptorPool = wvBindGroup->pool,
             .descriptorSetCount = 1,
-            .pSetLayouts = (VkDescriptorSetLayout*)&bgdesc->layout->layout
+            .pSetLayouts = &bgdesc->layout->layout
         };
 
         vkAllocateDescriptorSets(device->device, &dsai, &wvBindGroup->set);
@@ -1531,38 +1496,18 @@ void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup wvBindGroup, const WGVK
         ResourceDescriptor entry = bgdesc->entries[i];
         if(entry.buffer){
             ru_trackBuffer(&newResourceUsage, (WGVKBuffer)entry.buffer, (BufferUsageSnap){0});
-            //wgvkBufferAddRef((WGVKBuffer)entry.buffer);
         }
         else if(entry.textureView){
             ru_trackTextureView(&newResourceUsage, (WGVKTextureView)entry.textureView);
-            
-            //uniform_type utype = bgdesc->layout->entries[i].type;
-            //if(utype == storage_texture2d || utype == storage_texture3d || utype == storage_texture2d_array){
-            //    ru_trackTextureView(&newResourceUsage, (WGVKTextureView)entry.textureView, CLITERAL(ImageViewUsageRecord){0});
-            //}
-            //else if(utype == texture2d || utype == texture3d || utype == texture2d_array){
-            //    ru_trackTextureView(&newResourceUsage, (WGVKTextureView)entry.textureView, CLITERAL(ImageViewUsageRecord){0});
-            //}
         }
         else if(entry.sampler){
             ru_trackSampler(&newResourceUsage, entry.sampler);
         }
     }
     releaseAllAndClear(&wvBindGroup->resourceUsage);
+    ResourceUsage_move(&wvBindGroup->resourceUsage, &newResourceUsage);
 
-    //wvBindGroup->resourceUsage.releaseAllAndClear();
     
-    //wvBindGroup->resourceUsage = newResourceUsage;
-
-
-    BufferUsageRecordMap_move(&wvBindGroup->resourceUsage.referencedBuffers, &newResourceUsage.referencedBuffers);
-    ImageUsageRecordMap_move(&wvBindGroup->resourceUsage.referencedTextures, &newResourceUsage.referencedTextures);
-    ImageViewUsageSet_move(&wvBindGroup->resourceUsage.referencedTextureViews, &newResourceUsage.referencedTextureViews);
-    BindGroupUsageSet_move(&wvBindGroup->resourceUsage.referencedBindGroups, &newResourceUsage.referencedBindGroups);
-    BindGroupLayoutUsageSet_move(&wvBindGroup->resourceUsage.referencedBindGroupLayouts, &newResourceUsage.referencedBindGroupLayouts);
-    SamplerUsageSet_move(&wvBindGroup->resourceUsage.referencedSamplers, &newResourceUsage.referencedSamplers);
-    //LayoutAssumptions_move(&wvBindGroup->resourceUsage.entryAndFinalLayouts, &newResourceUsage.entryAndFinalLayouts);
-
     uint32_t count = bgdesc->entryCount;
      
     VkWriteDescriptorSetVector writes zeroinit;
@@ -2765,20 +2710,6 @@ void wgvkBufferRelease(WGVKBuffer buffer) {
     --buffer->refCount;
     if (buffer->refCount == 0) {
         vmaDestroyBuffer(buffer->device->allocator, buffer->buffer, buffer->allocation);
-        /*if(buffer->usage == BufferUsage_MapWrite){
-            buffer->device->frameCaches[buffer->cacheIndex].stagingBufferCache[buffer->capacity].push_back(MappableBufferMemory{
-                .buffer = buffer->buffer,
-                .allocation = buffer->allocation,
-                .propertyFlags = buffer->memoryProperties,
-                .capacity = buffer->capacity
-            });
-        }
-        else{
-            vmaDestroyBuffer(buffer->device->allocator, buffer->buffer, buffer->allocation);
-            //vkDestroyBuffer(buffer->device->device, buffer->buffer, NULL);
-            //vmaFreeMemory(buffer->device->allocator, buffer->allocation);
-            //vkFreeMemory(dshandle->device->device, buffer->memory, NULL);
-        }*/
         RL_FREE(buffer);
     }
 }
@@ -3312,31 +3243,9 @@ void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, WGVKRenderPipel
     ru_trackRenderPipeline(&rpe->resourceUsage, renderPipeline);
 }
 
-//static inline void transitionToAppropriateLayoutCallback1(void* texture_, ImageViewUsageRecord* record, void* rpe_){
-//    WGVKRenderPassEncoder rpe = (WGVKRenderPassEncoder)rpe_;
-//    WGVKTextureView texture = (WGVKTextureView)texture_;
-//
-//    if(record->lastLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-//        initializeOrTransition(rpe->cmdEncoder, texture->texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-//    else if(record->lastLayout == VK_IMAGE_LAYOUT_GENERAL){
-//        initializeOrTransition(rpe->cmdEncoder, texture->texture, VK_IMAGE_LAYOUT_GENERAL);
-//    }
-//}
 void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t groupIndex, WGVKBindGroup group, size_t dynamicOffsetCount, const uint32_t* dynamicOffsets) {
     rassert(rpe != NULL, "RenderPassEncoderHandle is null");
     rassert(group != NULL, "DescriptorSetHandle is null");
-    // rassert(rpe->lastLayout != VK_NULL_HANDLE, "Pipeline layout is not set");
-    
-    // Bind the descriptor set to the command buffer
-    // vkCmdBindDescriptorSets(rpe->secondaryCmdBuffer,        // Command buffer
-    //                        VK_PIPELINE_BIND_POINT_GRAPHICS, // Pipeline bind point
-    //                        rpe->lastLayout,                 // Pipeline layout
-    //                        group,                           // First set
-    //                        1,                               // Descriptor set count
-    //                        &(dset->set),                    // Pointer to descriptor set
-    //                        0,                               // Dynamic offset count
-    //                        NULL                             // Pointer to dynamic offsets
-    //);
 
     RenderPassCommandGeneric insert = {
         .type = rp_command_type_set_bind_group,
@@ -3352,15 +3261,6 @@ void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group
 
     ru_trackBindGroup(&rpe->resourceUsage, group);
     
-    // ImageViewUsageRecordMap_for_each(&dset->resourceUsage.referencedTextureViews, transitionToAppropriateLayoutCallback1, rpe);
-
-    //for(auto viewAndUsage : dset->resourceUsage.referencedTextureViews){
-    //    if(viewAndUsage.second == TextureUsage_TextureBinding)
-    //        rpe->cmdEncoder->initializeOrTransition(viewAndUsage.first->texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    //    else if(viewAndUsage.second == TextureUsage_StorageBinding){
-    //        rpe->cmdEncoder->initializeOrTransition(viewAndUsage.first->texture, VK_IMAGE_LAYOUT_GENERAL);
-    //    }
-    //}
 }
 
 void wgvkComputePassEncoderSetPipeline (WGVKComputePassEncoder cpe, WGVKComputePipeline computePipeline){
@@ -3390,26 +3290,6 @@ void wgvkComputePassEncoderSetBindGroup(WGVKComputePassEncoder cpe, uint32_t gro
     };
 
     RenderPassCommandGenericVector_push_back(&cpe->bufferedCommands, insert);
-    // vkCmdBindDescriptorSets(cpe->cmdBuffer,                // Command buffer
-    //                         VK_PIPELINE_BIND_POINT_COMPUTE,// Pipeline bind point
-    //                         cpe->lastLayout,               // Pipeline layout
-    //                         groupIndex,                    // First set
-    //                         1,                             // Descriptor set count
-    //                         &(bindGroup->set),             // Pointer to descriptor set
-    //                         0,                             // Dynamic offset count
-    //                         NULL                        // Pointer to dynamic offsets
-    // );
-
-    // ImageViewUsageRecordMap_for_each(&group->resourceUsage.referencedTextureViews, transitionToAppropriateLayoutCallback1, cpe);
-
-    //cpe->resourceUsage.track(bindGroup);
-    //for(auto viewAndUsage : bindGroup->resourceUsage.referencedTextureViews){
-    //    if(viewAndUsage.second == TextureUsage_TextureBinding)
-    //        cpe->cmdEncoder->initializeOrTransition(viewAndUsage.first->texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    //    else if(viewAndUsage.second == TextureUsage_StorageBinding){
-    //        cpe->cmdEncoder->initializeOrTransition(viewAndUsage.first->texture, VK_IMAGE_LAYOUT_GENERAL);
-    //    }
-    //}
 }
 WGVKComputePassEncoder wgvkCommandEncoderBeginComputePass(WGVKCommandEncoder commandEncoder){
     WGVKComputePassEncoder ret = callocnew(WGVKComputePassEncoderImpl);
