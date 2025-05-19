@@ -407,6 +407,15 @@ typedef struct WGVKQueueDescriptor {
     WGVKStringView label;
 }WGVKQueueDescriptor;
 
+typedef enum WGVKErrorType {
+    WGVKErrorType_NoError = 0x00000001,
+    WGVKErrorType_Validation = 0x00000002,
+    WGVKErrorType_OutOfMemory = 0x00000003,
+    WGVKErrorType_Internal = 0x00000004,
+    WGVKErrorType_Unknown = 0x00000005,
+    WGVKErrorType_Force32 = 0x7FFFFFFF
+} WGVKErrorType;
+
 typedef void (*WGVKDeviceLostCallback)(const WGVKDevice*, WGVKDeviceLostReason, struct WGVKStringView, void*, void*);
 typedef void (*WGVKUncapturedErrorCallback)(const WGVKDevice*, WGVKErrorType, struct WGVKStringView, void*, void*);
 
@@ -423,6 +432,7 @@ typedef struct WGVKUncapturedErrorCallbackInfo {
     void* userdata1;
     void* userdata2;
 } WGVKUncapturedErrorCallbackInfo;
+
 typedef struct WGVKDeviceDescriptor {
     WGVKChainedStruct * nextInChain;
     WGVKStringView label;

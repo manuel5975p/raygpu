@@ -425,6 +425,7 @@ typedef struct WGVKBindGroupLayoutImpl{
 
 typedef struct WGVKPipelineLayoutImpl{
     VkPipelineLayout layout;
+    WGVKDevice device;
     WGVKBindGroupLayout* bindGroupLayouts;
     uint32_t bindGroupLayoutCount;
     refcount_type refCount;
@@ -496,6 +497,7 @@ typedef struct WGVKDeviceImpl{
     PerframeCache frameCaches[framesInFlight];
 
     RenderPassCache renderPassCache;
+    WGVKUncapturedErrorCallbackInfo uncapturedErrorCallbackInfo;
     struct VolkDeviceTable functions;
 }WGVKDeviceImpl;
 

@@ -327,7 +327,6 @@ typedef enum WGVKStencilOperation {
 } WGVKStencilOperation;
 
 typedef int WGVKDeviceLostReason;
-typedef int WGVKErrorType;
 #else 
 typedef WGPUDeviceLostReason WGVKDeviceLostReason;
 typedef WGPUErrorType WGVKErrorType;

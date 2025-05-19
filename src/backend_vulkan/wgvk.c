@@ -890,6 +890,7 @@ WGVKDevice wgvkAdapterCreateDevice(WGVKAdapter adapter, const WGVKDeviceDescript
         //TRACELOG(LOG_INFO, "Successfully created logical device");
         volkLoadDeviceTable(&retDevice->functions, retDevice->device);
     }
+    retDevice->uncapturedErrorCallbackInfo = descriptor->uncapturedErrorCallbackInfo;
 
     // Retrieve and assign queues
     
@@ -1512,6 +1513,7 @@ WGVKPipelineLayout wgvkDeviceCreatePipelineLayout(WGVKDevice device, const WGVKP
     WGVKPipelineLayout ret = callocnew(WGVKPipelineLayoutImpl);
     ret->refCount = 1;
     rassert(ret->bindGroupLayoutCount <= 8, "Only supports up to 8 BindGroupLayouts");
+    ret->device = device;
     ret->bindGroupLayoutCount = pldesc->bindGroupLayoutCount;
     ret->bindGroupLayouts = (WGVKBindGroupLayout*)RL_CALLOC(pldesc->bindGroupLayoutCount, sizeof(void*));
     memcpy((void*)ret->bindGroupLayouts, (void*)pldesc->bindGroupLayouts, pldesc->bindGroupLayoutCount * sizeof(void*));
@@ -1996,10 +1998,33 @@ WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder commandEncoder){
     commandEncoder->buffer = NULL;
     return ret;
 }
-typedef void (*commandHandler)(CommandBufferAndSomeState* destination_, const RenderPassCommandGeneric* command);
-commandHandler handlers[rp_command_type_enum_count] = {
-    [rp_command_type_draw] = NULL,
-};
+
+#define VALIDATE_EQ(dev, A, B, message)                          \
+    if((A) != (B)){                                              \
+        inserted->device->uncapturedErrorCallbackInfo.callback(  \
+        &inserted->device,                                       \
+        WGVKErrorType_Validation,                                \
+        (WGVKStringView){message, sizeof(message) - 1},          \
+        inserted->device->uncapturedErrorCallbackInfo.userdata1, \
+        inserted->device->uncapturedErrorCallbackInfo.userdata2  \
+    );                                                           \
+}
+
+void validatePipelineLayouts(WGVKPipelineLayout inserted, WGVKPipelineLayout base){
+    
+    inserted->device->uncapturedErrorCallbackInfo.callback(
+        &inserted->device, 
+        WGVKErrorType_Validation, 
+        (WGVKStringView){0, 0},
+        inserted->device->uncapturedErrorCallbackInfo.userdata1,
+        inserted->device->uncapturedErrorCallbackInfo.userdata2
+    );
+    //VALIDATE_EQ(inserted->device, inserted->bindGroupLayoutCount, base->bindGroupLayoutCount)
+    for(uint32_t i = 0;i < base->bindGroupLayoutCount;i++){
+
+    }
+}
+
 void recordVkCommand(CommandBufferAndSomeState* destination_, const RenderPassCommandGeneric* command){
     VkCommandBuffer destination = destination_->buffer;
     WGVKDevice device = destination_->device;
@@ -2080,7 +2105,7 @@ void recordVkCommand(CommandBufferAndSomeState* destination_, const RenderPassCo
         break;
         case cp_command_type_set_compute_pipeline: {
             const ComputePassCommandSetPipeline* setComputePipeline = &command->setComputePipeline;
-            memset(destination_->computeBindGroups, 0, sizeof(destination_->computeBindGroups));
+            memset((void*)destination_->computeBindGroups, 0, sizeof(destination_->computeBindGroups));
             device->functions.vkCmdBindPipeline(
                 destination,
                 VK_PIPELINE_BIND_POINT_COMPUTE,
