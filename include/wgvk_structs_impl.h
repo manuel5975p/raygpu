@@ -21,34 +21,12 @@ typedef struct ImageUsageSnap{
     VkImageSubresourceRange subresource;
 }ImageUsageSnap;
 
-
-
-//typedef struct ImageViewUsageRecord{
-//    VkImageLayout initialLayout;
-//    VkImageLayout lastLayout;
-//    VkPipelineStageFlags lastStage;
-//    VkAccessFlags lastAccess;
-//}ImageViewUsageRecord;
-//
-//typedef struct ImageViewUsageSnap{
-//    VkImageLayout layout;
-//    VkPipelineStageFlags stage;
-//    VkAccessFlags access;
-//}ImageViewUsageSnap;
-
-
-
 typedef struct BufferUsageRecord{
     VkPipelineStageFlags lastStage;
     VkAccessFlags lastAccess;
 }BufferUsageRecord;
 
 typedef BufferUsageRecord BufferUsageSnap;
-
-//typedef struct ImageLayoutPair{
-//    VkImageLayout initialLayout;
-//    VkImageLayout finalLayout;
-//}ImageLayoutPair;
 
 typedef enum RCPassCommandType{
     rp_command_type_invalid = 0,
@@ -158,6 +136,8 @@ DEFINE_VECTOR (CONTAINERAPI, VkDescriptorImageInfo, VkDescriptorImageInfoVector)
 DEFINE_VECTOR (CONTAINERAPI, VkWriteDescriptorSetAccelerationStructureKHR, VkWriteDescriptorSetAccelerationStructureKHRVector)
 DEFINE_VECTOR (CONTAINERAPI, VkDescriptorSetLayoutBinding, VkDescriptorSetLayoutBindingVector)
 
+DEFINE_PTR_HASH_MAP(CONTAINERAPI, PendingCommandBufferMap, WGVKCommandBufferVector);
+
 typedef struct DescriptorSetAndPool{
     VkDescriptorPool pool;
     VkDescriptorSet set;
@@ -238,22 +218,6 @@ RGAPI Bool32 ru_containsBindGroupLayout(const ResourceUsage* resourceUsage, WGVK
 RGAPI Bool32 ru_containsSampler        (const ResourceUsage* resourceUsage, WGVKSampler bindGroup);
 
 RGAPI void releaseAllAndClear(ResourceUsage* resourceUsage);
-
-//struct SafelyResettableCommandPool{
-//    VkCommandPool pool;
-//    VkFence finishingFence;
-//    WGVKDevice device;
-//    struct commandPoolRecord{
-//        VkCommandBuffer commandBuffer;
-//        VkSemaphore semaphore;
-//    };
-//    std::vector<commandPoolRecord> currentlyInUse;
-//    std::vector<commandPoolRecord> availableForUse;
-//
-//    SafelyResettableCommandPool(WGVKDevice p_device); 
-//    void finish();
-//    void reset();    
-//};
 
 typedef struct SyncState{
     VkSemaphoreVector semaphores;
@@ -532,6 +496,7 @@ typedef struct WGVKDeviceImpl{
     PerframeCache frameCaches[framesInFlight];
 
     RenderPassCache renderPassCache;
+    struct VolkDeviceTable functions;
 }WGVKDeviceImpl;
 
 typedef struct WGVKTextureImpl{
@@ -584,13 +549,14 @@ typedef struct WGVKTextureViewImpl{
 typedef struct CommandBufferAndSomeState{
     VkCommandBuffer buffer;
     VkPipelineLayout lastLayout;
+    WGVKDevice device;
     WGVKBuffer vertexBuffers[8];
     WGVKBuffer indexBuffer;
     WGVKBindGroup graphicsBindGroups[8];
     WGVKBindGroup computeBindGroups[8];
 }CommandBufferAndSomeState;
 void recordVkCommand(CommandBufferAndSomeState* destination, const RenderPassCommandGeneric* command);
-void recordVkCommands(VkCommandBuffer destination, const RenderPassCommandGenericVector* commands);
+void recordVkCommands(VkCommandBuffer destination, WGVKDevice device, const RenderPassCommandGenericVector* commands);
 
 typedef struct WGVKRenderPassEncoderImpl{
     VkRenderPass renderPass; //ONLY if !dynamicRendering
@@ -633,29 +599,6 @@ typedef struct WGVKCommandEncoderImpl{
     
     
 }WGVKCommandEncoderImpl;
-typedef enum WGVKiotresult{
-    iot_thats_new, iot_already_registered,
-}WGVKiotresult;
-
-//static inline WGVKiotresult initializeOrTransition(WGVKCommandEncoder encoder, WGVKTexture texture, VkImageLayout layout){
-//    ResourceUsage* ru = &encoder->resourceUsage;
-//    ImageLayoutPair* if_layout = LayoutAssumptions_get(&ru->entryAndFinalLayouts, (void*)texture);
-//    if(if_layout == NULL){
-//        ImageLayoutPair empl = {
-//            .initialLayout = layout,
-//            .finalLayout = layout
-//        };
-//        LayoutAssumptions_put(&ru->entryAndFinalLayouts, (void*)texture, empl);
-//        return iot_thats_new;
-//    }
-//    else{
-//        if(if_layout->finalLayout != layout){
-//            wgvkCommandEncoderTransitionTextureLayout(encoder, texture, if_layout->finalLayout, layout);
-//            if_layout->finalLayout = layout;
-//        }
-//        return iot_already_registered;
-//    }
-//}
 typedef struct WGVKCommandBufferImpl{
     VkCommandBuffer buffer;
     refcount_type refCount;
@@ -701,7 +644,7 @@ typedef struct WGVKSurfaceImpl{
     uint32_t presentModeCount;
     PresentMode* presentModeCache;
 }WGVKSurfaceImpl;
-DEFINE_PTR_HASH_MAP(CONTAINERAPI, PendingCommandBufferMap, WGVKCommandBufferVector);
+
 typedef struct WGVKQueueImpl{
     VkQueue graphicsQueue;
     VkQueue computeQueue;

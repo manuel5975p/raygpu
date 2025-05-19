@@ -42,7 +42,7 @@
         uint64_t current_capacity; /* Capacity of the heap-allocated table */                                                    \
         bool has_null_key;                                                                                                       \
         ValueType null_value;                                                                                                    \
-        Name##_kv_pair *table; /* Pointer to the hash table data (heap-allocated) */                                             \
+        Name##_kv_pair* table; /* Pointer to the hash table data (heap-allocated) */                                             \
     } Name;                                                                                                                      \
                                                                                                                                  \
     static inline uint64_t Name##_hash_key(void *key) {                                                                          \
