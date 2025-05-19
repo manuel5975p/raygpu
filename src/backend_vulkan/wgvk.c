@@ -1999,29 +1999,20 @@ WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder commandEncoder){
     return ret;
 }
 
-#define VALIDATE_EQ(dev, A, B, message)                          \
-    if((A) != (B)){                                              \
-        inserted->device->uncapturedErrorCallbackInfo.callback(  \
-        &inserted->device,                                       \
-        WGVKErrorType_Validation,                                \
-        (WGVKStringView){message, sizeof(message) - 1},          \
-        inserted->device->uncapturedErrorCallbackInfo.userdata1, \
-        inserted->device->uncapturedErrorCallbackInfo.userdata2  \
-    );                                                           \
-}
-
 void validatePipelineLayouts(WGVKPipelineLayout inserted, WGVKPipelineLayout base){
-    
-    inserted->device->uncapturedErrorCallbackInfo.callback(
-        &inserted->device, 
-        WGVKErrorType_Validation, 
-        (WGVKStringView){0, 0},
-        inserted->device->uncapturedErrorCallbackInfo.userdata1,
-        inserted->device->uncapturedErrorCallbackInfo.userdata2
-    );
+    WGVK_VALIDATE_EQ_PTR(inserted->device, inserted->device, base->device, "failed when verifying objects belong to the same device");
+   
+    WGVK_VALIDATE_EQ_UINT(inserted->device, inserted->bindGroupLayoutCount, base->bindGroupLayoutCount, "failed when validating bindGroupLayoutCounts");
     //VALIDATE_EQ(inserted->device, inserted->bindGroupLayoutCount, base->bindGroupLayoutCount)
     for(uint32_t i = 0;i < base->bindGroupLayoutCount;i++){
-
+        for(uint32_t j = 0;j < base->bindGroupLayouts[i]->entryCount;j++){
+            WGVK_VALIDATE_EQ_UINT(
+                inserted->device,
+                inserted->bindGroupLayouts[i]->entries[j].type,
+                base->bindGroupLayouts[i]->entries[j].type,
+                "failed when comparing BindGroupLayoutTypes"
+            );
+        }
     }
 }
 

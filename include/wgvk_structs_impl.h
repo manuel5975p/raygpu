@@ -661,4 +661,213 @@ typedef struct WGVKQueueImpl{
     PendingCommandBufferMap pendingCommandBuffers[framesInFlight];
 }WGVKQueueImpl;
 
+
+#ifndef WGVK_VALIDATION_ENABLED
+#define WGVK_VALIDATION_ENABLED 1
+#endif
+
+
+
+
+#if WGVK_VALIDATION_ENABLED
+#include <stdio.h> // For snprintf
+#include <string.h> // For strlen, strcmp
+
+// WGVK_VALIDATE_IMPL remains the same
+#define WGVK_VALIDATE_IMPL(device_ptr, condition, error_type, message_str, log_level_on_fail) \
+    do { \
+        if (!(condition)) { \
+            const char* resolved_message = (message_str); \
+            size_t message_len = strlen(resolved_message); \
+            if ((device_ptr) && (device_ptr)->uncapturedErrorCallbackInfo.callback) { \
+                (device_ptr)->uncapturedErrorCallbackInfo.callback( \
+                    (const WGVKDevice*)(device_ptr), \
+                    (error_type), \
+                    (WGVKStringView){resolved_message, message_len}, \
+                    (device_ptr)->uncapturedErrorCallbackInfo.userdata1, \
+                    (device_ptr)->uncapturedErrorCallbackInfo.userdata2 \
+                ); \
+            } \
+            TRACELOG(log_level_on_fail, "Validation Failed: %s", resolved_message); \
+            rassert(condition, resolved_message); \
+        } \
+    } while (0)
+
+#define WGVK_VALIDATE(device_ptr, condition, message_str) WGVK_VALIDATE_IMPL(device_ptr, condition, WGVKErrorType_Validation, message_str, LOG_ERROR)
+#define WGVK_VALIDATE_PTR(device_ptr, ptr, ptr_name_str) WGVK_VALIDATE_IMPL(device_ptr, (ptr) != NULL, WGVKErrorType_Validation, ptr_name_str " must not be NULL.", LOG_ERROR)
+#define WGVK_VALIDATE_HANDLE(device_ptr, handle, handle_name_str) WGVK_VALIDATE_IMPL(device_ptr, (handle) != VK_NULL_HANDLE, WGVKErrorType_Validation, handle_name_str " is VK_NULL_HANDLE.", LOG_ERROR)
+
+// Specific validation for descriptor structs
+#define WGVK_VALIDATE_DESC_PTR(parent_device_ptr, desc_ptr, desc_name_str) \
+    do { \
+        if (!(desc_ptr)) { \
+            const char* msg = desc_name_str " descriptor must not be NULL."; \
+            WGVK_VALIDATE_IMPL(parent_device_ptr, false, WGVKErrorType_Validation, msg, LOG_ERROR); \
+        } \
+    } while (0)
+
+
+// --- NEW MACROS FOR EQUALITY/INEQUALITY ---
+
+/**
+ * @brief Validates that two expressions `a` and `b` are equal.
+ * Generates a detailed message on failure, including the stringified expressions and their runtime values.
+ * @param device_ptr Pointer to the WGVKDevice (can be NULL).
+ * @param a The first expression.
+ * @param b The second expression.
+ * @param fmt_a The printf-style format specifier for the type of 'a'.
+ * @param fmt_b The printf-style format specifier for the type of 'b'.
+ * @param context_msg A string providing context for the check (e.g., "sCreateInfo->sType").
+ */
+#define WGVK_VALIDATE_EQ_FORMAT(device_ptr, a, b, fmt_a, fmt_b, context_msg) \
+    do { \
+        /* Evaluate a and b once to avoid side effects if they are complex expressions */ \
+        /* Note: This requires C99 or for the types of a_val and b_val to be known, */ \
+        /* or rely on type inference if using C++ or newer C standards with typeof. */ \
+        /* For maximum C89/C90 compatibility, one might pass a and b directly, accepting multiple evaluations. */ \
+        /* Given the context of Vulkan, C99+ is a safe assumption. */ \
+        /* We will use __auto_type if available (GCC/Clang extension), otherwise user must be careful. */ \
+        /* Or, simply evaluate (a) and (b) directly in the if and snprintf. */ \
+        if (!((a) == (b))) { \
+            char __wgvk_msg_buffer[512]; \
+            snprintf(__wgvk_msg_buffer, sizeof(__wgvk_msg_buffer), \
+                     "%s %s: Equality check '%s == %s' failed. LHS (" #a " = " fmt_a ") != RHS (" #b " = " fmt_b ").", \
+                     __func__, (context_msg), #a, #b, (a), (b)); \
+            WGVK_VALIDATE_IMPL(device_ptr, false, WGVKErrorType_Validation, __wgvk_msg_buffer, LOG_ERROR); \
+        } \
+    } while (0); \
+    return
+
+/**
+ * @brief Validates that two integer expressions `a` and `b` are equal.
+ * Provides a default format specifier for integers.
+ * @param device_ptr Pointer to the WGVKDevice (can be NULL).
+ * @param a The first integer expression.
+ * @param b The second integer expression.
+ * @param context_msg A string providing context for the check.
+ */
+#define WGVK_VALIDATE_EQ_INT(device_ptr, a, b, context_msg) \
+    WGVK_VALIDATE_EQ_FORMAT(device_ptr, a, b, "%d", "%d", context_msg)
+
+/**
+ * @brief Validates that two unsigned integer expressions `a` and `b` are equal.
+ * @param device_ptr Pointer to the WGVKDevice (can be NULL).
+ * @param a The first unsigned integer expression.
+ * @param b The second unsigned integer expression.
+ * @param context_msg A string providing context for the check.
+ */
+#define WGVK_VALIDATE_EQ_UINT(device_ptr, a, b, context_msg) \
+    WGVK_VALIDATE_EQ_FORMAT(device_ptr, a, b, "%u", "%u", context_msg)
+
+/**
+ * @brief Validates that two pointer expressions `a` and `b` are equal.
+ * @param device_ptr Pointer to the WGVKDevice (can be NULL).
+ * @param a The first pointer expression.
+ * @param b The second pointer expression.
+ * @param context_msg A string providing context for the check.
+ */
+#define WGVK_VALIDATE_EQ_PTR(device_ptr, a, b, context_msg) \
+    WGVK_VALIDATE_EQ_FORMAT(device_ptr, a, b, "%p", "%p", context_msg)
+
+/**
+ * @brief Validates that two VkBool32 expressions `a` and `b` are equal.
+ * @param device_ptr Pointer to the WGVKDevice (can be NULL).
+ * @param a The first VkBool32 expression.
+ * @param b The second VkBool32 expression.
+ * @param context_msg A string providing context for the check.
+ */
+#define WGVK_VALIDATE_EQ_BOOL32(device_ptr, a, b, context_msg) \
+    WGVK_VALIDATE_EQ_FORMAT(device_ptr, a, b, "%u (VK_BOOL32)", "%u (VK_BOOL32)", context_msg)
+
+
+/**
+ * @brief Validates that two expressions `a` and `b` are NOT equal.
+ * Generates a detailed message on failure.
+ * @param device_ptr Pointer to the WGVKDevice (can be NULL).
+ * @param a The first expression.
+ * @param b The second expression.
+ * @param fmt_a The printf-style format specifier for the type of 'a'.
+ * @param fmt_b The printf-style format specifier for the type of 'b'.
+ * @param context_msg A string providing context for the check.
+ */
+#define WGVK_VALIDATE_NE_FORMAT(device_ptr, a, b, fmt_a, fmt_b, context_msg) \
+    do { \
+        if (!((a) != (b))) { \
+            char __wgvk_msg_buffer[512]; \
+            snprintf(__wgvk_msg_buffer, sizeof(__wgvk_msg_buffer), \
+                     "%s: Inequality check '%s != %s' failed. LHS (" #a " = " fmt_a ") == RHS (" #b " = " fmt_b ").", \
+                     (context_msg), #a, #b, (a), (b)); \
+            WGVK_VALIDATE_IMPL(device_ptr, false, WGVKErrorType_Validation, __wgvk_msg_buffer, LOG_ERROR); \
+        } \
+    } while (0)
+
+/**
+ * @brief Validates that two C-style strings `a` and `b` are equal using strcmp.
+ * Assumes `a` and `b` are non-NULL (use WGVK_VALIDATE_PTR first if needed).
+ * @param device_ptr Pointer to the WGVKDevice (can be NULL).
+ * @param a The first C-string.
+ * @param b The second C-string.
+ * @param context_msg A string providing context for the check.
+ */
+#define WGVK_VALIDATE_STREQ(device_ptr, a, b, context_msg) \
+    do { \
+        /* Ensure strings are not NULL before strcmp, or ensure this is handled by caller */ \
+        /* WGVK_VALIDATE_PTR(device_ptr, (a), #a " for STREQ"); */ \
+        /* WGVK_VALIDATE_PTR(device_ptr, (b), #b " for STREQ"); */ \
+        if (strcmp((a), (b)) != 0) { \
+            char __wgvk_msg_buffer[1024]; /* Potentially longer for strings */ \
+            snprintf(__wgvk_msg_buffer, sizeof(__wgvk_msg_buffer), \
+                     "%s: String equality check 'strcmp(%s, %s) == 0' failed. LHS (\"%s\") != RHS (\"%s\").", \
+                     (context_msg), #a, #b, (a), (b)); \
+            WGVK_VALIDATE_IMPL(device_ptr, false, WGVKErrorType_Validation, __wgvk_msg_buffer, LOG_ERROR); \
+        } \
+    } while (0)
+
+/**
+ * @brief Validates that two C-style strings `a` and `b` are NOT equal using strcmp.
+ * Assumes `a` and `b` are non-NULL.
+ * @param device_ptr Pointer to the WGVKDevice (can be NULL).
+ * @param a The first C-string.
+ * @param b The second C-string.
+ * @param context_msg A string providing context for the check.
+ */
+#define WGVK_VALIDATE_STRNEQ(device_ptr, a, b, context_msg) \
+    do { \
+        if (strcmp((a), (b)) == 0) { \
+            char __wgvk_msg_buffer[1024]; \
+            snprintf(__wgvk_msg_buffer, sizeof(__wgvk_msg_buffer), \
+                     "%s: String inequality check 'strcmp(%s, %s) != 0' failed. LHS (\"%s\") == RHS (\"%s\").", \
+                     (context_msg), #a, #b, (a), (b)); \
+            WGVK_VALIDATE_IMPL(device_ptr, false, WGVKErrorType_Validation, __wgvk_msg_buffer, LOG_ERROR); \
+        } \
+    } while (0)
+
+
+#else // WGVK_VALIDATION_ENABLED not defined
+// WGVK_VALIDATE_IMPL needs a dummy definition for the other macros to compile to ((void)0)
+#define WGVK_VALIDATE_IMPL(device_ptr, condition, error_type, message_str, log_level_on_fail) ((void)0)
+
+#define WGVK_VALIDATE(device_ptr, condition, message_str) ((void)0)
+#define WGVK_VALIDATE_PTR(device_ptr, ptr, ptr_name_str) ((void)0)
+#define WGVK_VALIDATE_HANDLE(device_ptr, handle, handle_name_str) ((void)0)
+#define WGVK_VALIDATE_DESC_PTR(parent_device_ptr, desc_ptr, desc_name_str) ((void)0)
+
+#define WGVK_VALIDATE_EQ_FORMAT(device_ptr, a, b, fmt_a, fmt_b, context_msg) ((void)0)
+#define WGVK_VALIDATE_EQ_INT(device_ptr, a, b, context_msg) ((void)0)
+#define WGVK_VALIDATE_EQ_UINT(device_ptr, a, b, context_msg) ((void)0)
+#define WGVK_VALIDATE_EQ_BOOL32(device_ptr, a, b, context_msg) ((void)0)
+#define WGVK_VALIDATE_NE_FORMAT(device_ptr, a, b, fmt_a, fmt_b, context_msg) ((void)0)
+#define WGVK_VALIDATE_STREQ(device_ptr, a, b, context_msg) ((void)0)
+#define WGVK_VALIDATE_STRNEQ(device_ptr, a, b, context_msg) ((void)0)
+
+#endif // WGVK_VALIDATION_ENABLED
+
+
+
+
+
+
+
+
+
 #endif
