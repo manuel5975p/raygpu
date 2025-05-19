@@ -82,6 +82,7 @@ typedef struct RenderPassCommandDrawIndexed{
 typedef struct RenderPassCommandSetBindGroup{
     uint32_t groupIndex;
     WGVKBindGroup group;
+    VkPipelineBindPoint bindPoint;
     size_t dynamicOffsetCount;
     const uint32_t* dynamicOffsets;
 }RenderPassCommandSetBindGroup;
@@ -580,11 +581,15 @@ typedef struct WGVKTextureViewImpl{
     uint32_t sampleCount;
 }WGVKTextureViewImpl;
 
-typedef struct CommandBufferAndLayout{
+typedef struct CommandBufferAndSomeState{
     VkCommandBuffer buffer;
     VkPipelineLayout lastLayout;
-}CommandBufferAndLayout;
-void recordVkCommand(CommandBufferAndLayout* destination, const RenderPassCommandGeneric* command);
+    WGVKBuffer vertexBuffers[8];
+    WGVKBuffer indexBuffer;
+    WGVKBindGroup graphicsBindGroups[8];
+    WGVKBindGroup computeBindGroups[8];
+}CommandBufferAndSomeState;
+void recordVkCommand(CommandBufferAndSomeState* destination, const RenderPassCommandGeneric* command);
 void recordVkCommands(VkCommandBuffer destination, const RenderPassCommandGenericVector* commands);
 
 typedef struct WGVKRenderPassEncoderImpl{

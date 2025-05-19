@@ -401,216 +401,6 @@ LayoutedRenderPass LoadRenderPassFromLayout(WGVKDevice device, RenderPassLayout 
     rg_trap();
     return ret;
 }
-void EncodeTransitionImageLayout(
-    VkCommandBuffer commandBuffer,
-    VkImageLayout oldLayout,
-    VkImageLayout newLayout,
-    WGVKTexture texture
-) {
-    VkImage image = texture->image;
-    // --- 1. Define the Image Memory Barrier ---
-    // This structure describes the memory dependency for a specific image subresource range.
-    // It tells Vulkan how access to an image needs to be synchronized between operations.
-    VkImageMemoryBarrier barrier zeroinit;
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.oldLayout = oldLayout; // Layout the image is currently in
-    barrier.newLayout = newLayout; // Layout the image needs to be transitioned to
-
-    // --- Queue Family Ownership ---
-    // If the image ownership is being transferred between different queue families (e.g., graphics to compute),
-    // you would specify the src and dst queue family indices here.
-    // VK_QUEUE_FAMILY_IGNORED means we are not transferring ownership, or the transition happens
-    // within the same queue family.
-    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-
-    // --- Image and Subresource Range ---
-    barrier.image = image; // The specific image resource to transition
-
-    // Define which part(s) of the image are affected by this barrier.
-    // aspectMask: Specifies which aspects (color, depth, stencil) are affected.
-    // TODO: A more robust implementation would check the actual VkFormat of the image.
-    if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL ||
-        newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL ||
-        oldLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL || // Check old layout too
-        oldLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL )
-    {
-         // Check format here if available to see if stencil exists
-         // bool hasStencil = (format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT);
-         // barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | (hasStencil ? VK_IMAGE_ASPECT_STENCIL_BIT : 0);
-         barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT; // Simple default for now
-         // If format has stencil, add: | VK_IMAGE_ASPECT_STENCIL_BIT;
-    } else {
-        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    }
-
-    barrier.subresourceRange.baseMipLevel = 0;   // First mip level to transition
-    barrier.subresourceRange.levelCount = 1;     // Number of mip levels to transition
-    barrier.subresourceRange.baseArrayLayer = 0; // First array layer to transition
-    barrier.subresourceRange.layerCount = 1;     // Number of array layers to transition
-
-    // --- 2. Define Pipeline Stages and Access Masks ---
-    // This is the crucial part for performance and correctness. We need to specify:
-    // - sourceStageMask: Which pipeline stage(s) must complete *before* the barrier executes.
-    //                    This relates to operations using the `oldLayout`.
-    // - destinationStageMask: Which pipeline stage(s) must wait *for* the barrier to complete
-    //                         before they can start. This relates to operations using the `newLayout`.
-    // - srcAccessMask: What kind of memory access (read/write) was performed in the source stages
-    //                  that needs to be made available/visible *before* the transition.
-    // - dstAccessMask: What kind of memory access (read/write) will be performed in the destination stages
-    //                  that needs to wait *for* the transition to complete.
-
-    VkPipelineStageFlags sourceStage;
-    VkPipelineStageFlags destinationStage;
-
-    // --- Determine Source Stage & Access Mask based on oldLayout ---
-    switch (oldLayout) {
-        case VK_IMAGE_LAYOUT_UNDEFINED:
-            // No need to wait for any stage, as the image content is undefined or discarded.
-            // No prior access needs to be synchronized.
-            barrier.srcAccessMask = 0;
-            sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // Represents the very start, no actual stage dependency.
-            break;
-
-        case VK_IMAGE_LAYOUT_PREINITIALIZED:
-             // Image data was prepared by the host.
-            barrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
-            sourceStage = VK_PIPELINE_STAGE_HOST_BIT; // Wait for host writes to be visible.
-            break;
-
-        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-            // Image was last used for reading in a transfer operation.
-            barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-            sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            break;
-
-        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-            // Image was last used for writing in a transfer operation (e.g., vkCmdCopyBufferToImage).
-            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_TRANSFER_READ_BIT;
-            sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT; // Wait for transfer writes to complete.
-            break;
-
-        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-            // Image was last used as a color attachment (written to by fragment shader output).
-            barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            sourceStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT; // Wait for color writes to complete.
-            break;
-
-        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-            // Image was last used as a depth/stencil attachment (read/written by depth/stencil tests).
-            barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-            sourceStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT; // Wait for depth/stencil ops.
-            break;
-
-        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-            // Image was last read by a shader.
-            barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-            // Which shader stage? Could be vertex, fragment, compute, etc.
-            // To be safe, we might sync against all relevant shader stages,
-            // or ideally, track the actual usage. Let's use a common one.
-            // VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT is common, but compute might also read.
-            sourceStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT; // Or VERTEX, COMPUTE, etc.
-             // A more robust barrier could use VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT or add VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
-            break;
-
-        case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-             // Image was just presented. Generally, you transition *to* this layout at the end
-             // of a frame and the swapchain handles the transition *from* it implicitly when
-             // acquiring the next image. If you manually transition *from* it (e.g. for reuse),
-             // usually no specific GPU access needs synchronizing from the presentation itself.
-             barrier.srcAccessMask = 0; // Or maybe MEMORY_READ if WSI requires it? Safest is 0.
-             sourceStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT; // Presentation is implicitly after all commands.
-             break;
-
-        case VK_IMAGE_LAYOUT_GENERAL:
-             // General layout could have been used for *anything*. This often implies less optimal access.
-             // We need a conservative barrier. Assume it could have been written or read from anywhere.
-             // This is often a sign that layout tracking could be improved.
-             barrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT; // Any potential access
-             sourceStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT; // Wait for any possible command
-             break;
-
-        default:
-            // If we encounter an unhandled layout, assert or log an error.
-            // Using a very broad barrier as a fallback is dangerous and inefficient.
-            rassert(false, "Unsupported oldLayout for transition!");
-            barrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT; // Fallback guess
-            sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // Fallback guess
-            break;
-    }
-
-    // --- Determine Destination Stage & Access Mask based on newLayout ---
-    switch (newLayout) {
-        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-            // Image will be used for reading in a transfer operation.
-            barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-            destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT; // Transfer stage needs to wait.
-            break;
-
-        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-            // Image will be used for writing in a transfer operation.
-            barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT; // Transfer stage needs to wait.
-            break;
-
-        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-            // Image will be used as a color attachment (written by fragment shader).
-            barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT; // Might be read for blending too
-            destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT; // Color output stage needs to wait.
-            break;
-
-        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-            // Image will be used as a depth/stencil attachment (read/written by tests).
-            barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-            destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT; // Depth/stencil stages need to wait.
-            break;
-
-        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-            // Image will be read by a shader.
-            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-            // Which shader stage will read it? Fragment is common for textures.
-            // Compute is common for imageLoad/Store or sampled images.
-            // Vertex shaders can also read textures (vertex texture fetch).
-            // Let's assume fragment for now, but be aware it could be others.
-            destinationStage = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT; 
-            break;
-
-        case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-            // Image will be presented to the screen.
-            // The presentation engine reads the image implicitly after all commands complete.
-            barrier.dstAccessMask = 0; // No specific GPU access needs to be made available *for* presentation itself via this barrier. Some WSI layers might implicitly need MEMORY_READ. 0 is usually fine.
-            destinationStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT; // Ensure all commands finish before presentation can potentially start.
-            break;
-
-        case VK_IMAGE_LAYOUT_GENERAL:
-             // General layout can be used for *anything* next. This might indicate suboptimal planning.
-             // Subsequent operations need to wait. Assume any kind of access might happen.
-             barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT; // Make memory available for any access
-             destinationStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT; // Any subsequent command might use it.
-             break;
-
-        default:
-            // If we encounter an unhandled layout, assert or log an error.
-            rassert(false, "Unsupported newLayout for transition!");
-            barrier.dstAccessMask = 0; // Fallback guess
-            destinationStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT; // Fallback guess
-            break;
-    }
-
-    // --- 3. Record the Pipeline Barrier Command ---
-    // This command injects the dependency into the command buffer.
-    vkCmdPipelineBarrier(
-        commandBuffer,
-        sourceStage,        // Pipeline stage(s) before the barrier
-        destinationStage,   // Pipeline stage(s) after the barrier
-        0,                  // Dependency flags (usually 0, VK_DEPENDENCY_BY_REGION_BIT is an optimization)
-        0, NULL,         // Global memory barriers (not needed here)
-        0, NULL,         // Buffer memory barriers (not needed here)
-        1, &barrier         // Image memory barriers (we have one)
-    );
-}
-
-
 
 void wgvkTraceLog(int logType, const char *text, ...){
     // Message has level below current threshold, don't emit
@@ -2182,11 +1972,11 @@ WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder commandEncoder){
     commandEncoder->buffer = NULL;
     return ret;
 }
-typedef void (*commandHandler)(CommandBufferAndLayout* destination_, const RenderPassCommandGeneric* command);
+typedef void (*commandHandler)(CommandBufferAndSomeState* destination_, const RenderPassCommandGeneric* command);
 commandHandler handlers[rp_command_type_enum_count] = {
     [rp_command_type_draw] = NULL,
 };
-void recordVkCommand(CommandBufferAndLayout* destination_, const RenderPassCommandGeneric* command){
+void recordVkCommand(CommandBufferAndSomeState* destination_, const RenderPassCommandGeneric* command){
     VkCommandBuffer destination = destination_->buffer;
 
     switch(command->type){
@@ -2230,7 +2020,7 @@ void recordVkCommand(CommandBufferAndLayout* destination_, const RenderPassComma
                 destination,
                 setIndexBuffer->buffer->buffer,
                 setIndexBuffer->offset,
-                setIndexBuffer->size
+                toVulkanIndexFormat(setIndexBuffer->format)
             );
         }
         break;
@@ -2238,7 +2028,7 @@ void recordVkCommand(CommandBufferAndLayout* destination_, const RenderPassComma
             const RenderPassCommandSetBindGroup* setBindGroup = &command->setBindGroup;
             vkCmdBindDescriptorSets(
                 destination,
-                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                setBindGroup->bindPoint,
                 destination_->lastLayout,
                 setBindGroup->groupIndex,
                 1,
@@ -2281,12 +2071,13 @@ void recordVkCommand(CommandBufferAndLayout* destination_, const RenderPassComma
         }
         break;
         
-        default:
+        case rp_command_type_set_force32: [[fallthrough]];
+        case rp_command_type_enum_count: [[fallthrough]];
         case rp_command_type_invalid: rassert(false, "Invalid command type"); rg_unreachable();
     }
 }
 void recordVkCommands(VkCommandBuffer destination, const RenderPassCommandGenericVector* commands){
-    CommandBufferAndLayout cal = {
+    CommandBufferAndSomeState cal = {
         .buffer = destination,
         .lastLayout = VK_NULL_HANDLE
     };
@@ -2301,18 +2092,6 @@ void recordVkCommands(VkCommandBuffer destination, const RenderPassCommandGeneri
 void registerTransitionCallback(void* texture_, ImageUsageRecord* record, void* pscache_){
     WGVKTexture texture = (WGVKTexture)texture_;
     WGVKCommandEncoder pscache = (WGVKCommandEncoder)pscache_;
-    ImageUsageSnap artificial = {
-        .layout = record->initialLayout,
-        .stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-        .access = VK_ACCESS_MEMORY_WRITE_BIT,
-        .subresource = {
-            is__depthVk(texture->format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT,
-            0,
-            VK_REMAINING_MIP_LEVELS,
-            0,
-            VK_REMAINING_ARRAY_LAYERS
-        }
-    };
     VkImageMemoryBarrier barrier = {
         VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
         NULL,
@@ -2435,10 +2214,7 @@ void wgvkQueueSubmit(WGVKQueue queue, size_t commandCount, const WGVKCommandBuff
         WGVKCommandBufferVector insert;
         WGVKCommandBufferVector_init(&insert);
         
-        //std::unordered_set<WGVKCommandBuffer> insert;
-        //insert.reserve(3);
         WGVKCommandBufferVector_push_back(&insert, cachebuffer);
-        //insert.insert(cachebuffer);
         ++cachebuffer->refCount;
         
         for(size_t i = 0;i < commandCount;i++){
@@ -3252,6 +3028,7 @@ void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group
         .setBindGroup = {
             groupIndex,
             group,
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
             dynamicOffsetCount,
             dynamicOffsets
         }
@@ -3284,11 +3061,12 @@ void wgvkComputePassEncoderSetBindGroup(WGVKComputePassEncoder cpe, uint32_t gro
         .setBindGroup = {
             groupIndex,
             group,
+            VK_PIPELINE_BIND_POINT_COMPUTE,
             dynamicOffsetCount,
             dynamicOffsets
         }
     };
-
+    
     RenderPassCommandGenericVector_push_back(&cpe->bufferedCommands, insert);
 }
 WGVKComputePassEncoder wgvkCommandEncoderBeginComputePass(WGVKCommandEncoder commandEncoder){
@@ -3303,6 +3081,8 @@ WGVKComputePassEncoder wgvkCommandEncoderBeginComputePass(WGVKCommandEncoder com
     return ret;
 }
 void wgvkCommandEncoderEndComputePass(WGVKComputePassEncoder commandEncoder){
+    //CommandBufferAndLayout destination_ = {commandEncoder->cmdEncoder->buffer, VK_NULL_HANDLE};
+    recordVkCommands(commandEncoder->cmdEncoder->buffer, &commandEncoder->bufferedCommands);
     // big fat TODO
 }
 void wgvkReleaseComputePassEncoder(WGVKComputePassEncoder cpenc){
@@ -3345,7 +3125,34 @@ void wgvkSurfacePresent(WGVKSurface surface){
     beginInfo.sType =  VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags =  VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     vkBeginCommandBuffer(transitionBuffer, &beginInfo);
-    EncodeTransitionImageLayout(transitionBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, surface->images[surface->activeImageIndex]);
+
+    VkImageMemoryBarrier finalBarrier = {
+        VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        NULL,
+        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        VK_ACCESS_MEMORY_READ_BIT,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        surface->device->adapter->queueIndices.graphicsIndex,
+        surface->device->adapter->queueIndices.graphicsIndex,
+        surface->images[surface->activeImageIndex]->image,
+        {
+            VK_IMAGE_ASPECT_COLOR_BIT,
+            0, VK_REMAINING_MIP_LEVELS,
+            0, VK_REMAINING_ARRAY_LAYERS
+        }
+    };
+    vkCmdPipelineBarrier(
+        transitionBuffer,
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        0,
+        0, NULL,
+        0, NULL,
+        1, &finalBarrier  
+    );
+    surface->images[surface->activeImageIndex]->layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    //EncodeTransitionImageLayout(transitionBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, surface->images[surface->activeImageIndex]);
     //EncodeTransitionImageLayout(transitionBuffer, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, (WGVKTexture)surface->renderTarget.depth.id);
     vkEndCommandBuffer(transitionBuffer);
     VkSubmitInfo cbsinfo zeroinit;
@@ -3454,9 +3261,10 @@ void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer 
     RenderPassCommandGeneric insert = {
         .type = rp_command_type_set_index_buffer,
         .setIndexBuffer = {
-            buffer,
-            offset,
-            indexType,
+            .buffer = buffer,
+            .format = indexType,
+            .offset = offset,
+            .size = buffer->capacity
         }
     };
 
@@ -3492,27 +3300,6 @@ void wgvkRenderPipelineAddRef(WGVKRenderPipeline rpl){
 void wgvkComputePipelineAddRef(WGVKComputePipeline cpl){
     ++cpl->refCount;
 }
-
-
-//RGAPI void ru_registerTransition(ResourceUsage* resourceUsage, WGVKTexture tex, VkImageLayout from, VkImageLayout to){
-//    
-//    ImageLayoutPair* layoutPair = LayoutAssumptions_get(&resourceUsage->entryAndFinalLayouts, tex);
-//    
-//    if(layoutPair != NULL){
-//        rassert(
-//            from == layoutPair->finalLayout, 
-//            "The previous layout transition encoded into this ResourceUsage did not transition to the layout this transition assumes"
-//        );
-//        layoutPair->finalLayout = to;
-//    }
-//    else{
-//        ImageLayoutPair ilp = {
-//            .initialLayout = from,
-//            .finalLayout = to
-//        };
-//        LayoutAssumptions_put(&resourceUsage->entryAndFinalLayouts, (void*)tex, ilp);
-//    }
-//}
 
 RGAPI void ru_trackBuffer(ResourceUsage* resourceUsage, WGVKBuffer buffer, BufferUsageRecord brecord){
     if(BufferUsageRecordMap_put(&resourceUsage->referencedBuffers, (void*)buffer, brecord)){

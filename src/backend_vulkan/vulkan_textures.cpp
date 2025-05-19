@@ -92,13 +92,13 @@ VkImageAspectFlags GetAspectMask(VkImageLayout layout, VkFormat format /* Add fo
 
 
 // Function to transition image layout
-extern "C" void TransitionImageLayout(WGVKDevice device, VkCommandPool commandPool, VkQueue queue, WGVKTexture texture, 
-                           VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
-    VkCommandBuffer commandBuffer = BeginSingleTimeCommands(device, commandPool);
-    EncodeTransitionImageLayout(commandBuffer, oldLayout, newLayout, texture);
-    
-    EndSingleTimeCommandsAndSubmit(device, commandPool, queue, commandBuffer);
-}
+//extern "C" void TransitionImageLayout(WGVKDevice device, VkCommandPool commandPool, VkQueue queue, WGVKTexture texture, 
+//                           VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
+//    VkCommandBuffer commandBuffer = BeginSingleTimeCommands(device, commandPool);
+//    EncodeTransitionImageLayout(commandBuffer, oldLayout, newLayout, texture);
+//    
+//    EndSingleTimeCommandsAndSubmit(device, commandPool, queue, commandBuffer);
+//}
 
 // Function to copy buffer to image
 void CopyBufferToImage(WGVKDevice device, VkCommandPool commandPool, VkQueue queue, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
@@ -300,8 +300,8 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
     WGVKBuffer stagingBuffer = wgvkDeviceCreateBuffer(g_vulkanstate.device, &bdesc);
     VkCommandBuffer commandBuffer = BeginSingleTimeCommands(g_vulkanstate.device, transientPool);
     VkImageLayout oldLayout = tex->layout;
-    if(oldLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
-        EncodeTransitionImageLayout(commandBuffer, tex->layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, tex);
+    //if(oldLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+    //    EncodeTransitionImageLayout(commandBuffer, tex->layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, tex);
     
     vkCmdCopyImageToBuffer(
         commandBuffer,
@@ -311,8 +311,8 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
         1,
         &region
     );
-    if(oldLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
-        EncodeTransitionImageLayout(commandBuffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, oldLayout, tex);
+    //if(oldLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+    //    EncodeTransitionImageLayout(commandBuffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, oldLayout, tex);
 
     EndSingleTimeCommands(g_vulkanstate.device, transientPool, commandBuffer);
     VkSubmitInfo sinfo zeroinit;
