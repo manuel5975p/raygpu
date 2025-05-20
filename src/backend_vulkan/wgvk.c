@@ -2846,7 +2846,7 @@ WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WGVKRenderP
 void wgvkBindGroupLayoutRelease(WGVKBindGroupLayout bglayout){
     --bglayout->refCount;
     if(bglayout->refCount == 0){
-        vkDestroyDescriptorSetLayout(bglayout->device->device, bglayout->layout, NULL);
+        bglayout->device->functions.vkDestroyDescriptorSetLayout(bglayout->device->device, bglayout->layout, NULL);
         RL_FREE((ResourceTypeDescriptor*)(bglayout->entries));
         RL_FREE(bglayout);
     }
@@ -2855,8 +2855,8 @@ void wgvkBindGroupLayoutRelease(WGVKBindGroupLayout bglayout){
 void wgvkReleaseTexture(WGVKTexture texture){
     --texture->refCount;
     if(texture->refCount == 0){
-        vkDestroyImage(texture->device->device, texture->image, NULL);
-        vkFreeMemory(texture->device->device, texture->memory, NULL);
+        texture->device->functions.vkDestroyImage(texture->device->device, texture->image, NULL);
+        texture->device->functions.vkFreeMemory(texture->device->device, texture->memory, NULL);
 
         RL_FREE(texture);
     }
@@ -2864,7 +2864,7 @@ void wgvkReleaseTexture(WGVKTexture texture){
 void wgvkReleaseTextureView(WGVKTextureView view){
     --view->refCount;
     if(view->refCount == 0){
-        vkDestroyImageView(view->texture->device->device, view->view, NULL);
+        view->texture->device->functions.vkDestroyImageView(view->texture->device->device, view->view, NULL);
         wgvkReleaseTexture(view->texture);
         RL_FREE(view);
     }
@@ -3005,7 +3005,7 @@ void wgvkCommandEncoderCopyTextureToTexture(WGVKCommandEncoder commandEncoder, c
         .dstOffsets[0] = {destination->origin.x,                   destination->origin.y,                    destination->origin.z},
         .dstOffsets[1] = {destination->origin.x + copySize->width, destination->origin.y + copySize->height, destination->origin.z + copySize->depthOrArrayLayers}
     };
-    vkCmdBlitImage(
+    commandEncoder->device->functions.vkCmdBlitImage(
         commandEncoder->buffer,
         source->texture->image,
         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -3014,6 +3014,18 @@ void wgvkCommandEncoderCopyTextureToTexture(WGVKCommandEncoder commandEncoder, c
         1, &region,
         VK_FILTER_NEAREST
     );
+}
+void RenderPassEncoder_PushCommand(WGVKRenderPassEncoder encoder, const RenderPassCommandGeneric* cmd){
+    if(cmd->type == rp_command_type_set_render_pipeline){
+        encoder->lastLayout = cmd->setRenderPipeline.pipeline->layout;
+    }
+    RenderPassCommandGenericVector_push_back(&encoder->bufferedCommands, *cmd);
+}
+void ComputePassEncoder_PushCommand(WGVKComputePassEncoder encoder, const RenderPassCommandGeneric* cmd){
+    if(cmd->type == cp_command_type_set_compute_pipeline){
+        encoder->lastLayout = cmd->setComputePipeline.pipeline->layout;
+    }
+    RenderPassCommandGenericVector_push_back(&encoder->bufferedCommands, *cmd);
 }
 
 
@@ -3031,7 +3043,7 @@ void wgvkRenderpassEncoderDraw(WGVKRenderPassEncoder rpe, uint32_t vertices, uin
         }
     };
 
-    RenderPassCommandGenericVector_push_back(&rpe->bufferedCommands, insert);
+    RenderPassEncoder_PushCommand(rpe, &insert);
 }
 
 // Implementation of RenderpassEncoderDrawIndexed
@@ -3050,7 +3062,7 @@ void wgvkRenderpassEncoderDrawIndexed(WGVKRenderPassEncoder rpe, uint32_t indice
     };
 
     // Buffer the indexed draw command into the command buffer
-    RenderPassCommandGenericVector_push_back(&rpe->bufferedCommands, insert);
+    RenderPassEncoder_PushCommand(rpe, &insert);
     
     //vkCmdDrawIndexed(rpe->secondaryCmdBuffer, indices, instances, firstindex, (int32_t)(baseVertex & 0x7fffffff), firstinstance);
 }
@@ -3062,7 +3074,7 @@ void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, WGVKRenderPipel
             renderPipeline
         }
     };
-    RenderPassCommandGenericVector_push_back(&rpe->bufferedCommands, insert);
+    RenderPassEncoder_PushCommand(rpe, &insert);
     ru_trackRenderPipeline(&rpe->resourceUsage, renderPipeline);
 }
 
@@ -3080,9 +3092,28 @@ void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group
             dynamicOffsets
         }
     };
+    RenderPassEncoder_PushCommand(rpe, &insert);
     
-    RenderPassCommandGenericVector_push_back(&rpe->bufferedCommands, insert);
+    VkBufferMemoryBarrier bufferbarriers[64] = {0};
+    uint32_t bbInsertPos = 0;
+    VkImageMemoryBarrier imageBarriers  [64] = {0};
+    uint32_t ibInsertPos = 0;
+    const VkAccessFlags access_to_vk[10] = {
+        [readonly] = VK_ACCESS_SHADER_READ_BIT,
+        [writeonly] = VK_ACCESS_SHADER_WRITE_BIT,
+        [readwrite] = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
+    };
 
+    for(uint32_t i = 0;i < group->entryCount;i++){
+        if(group->entries[i].buffer){
+            VkAccessFlags accessFlags = 0;
+            accessFlags = access_to_vk[group->layout->entries[i].access];
+            
+            ce_trackBuffer(rpe->cmdEncoder, group->entries[i].buffer, (BufferUsageSnap){
+                
+            })
+        }
+    }
     ru_trackBindGroup(&rpe->resourceUsage, group);
     
 }
@@ -3095,7 +3126,8 @@ void wgvkComputePassEncoderSetPipeline (WGVKComputePassEncoder cpe, WGVKComputeP
             computePipeline
         }
     };
-    RenderPassCommandGenericVector_push_back(&cpe->bufferedCommands, insert);
+
+    ComputePassEncoder_PushCommand(cpe, &insert);
 }
 void wgvkComputePassEncoderSetBindGroup(WGVKComputePassEncoder cpe, uint32_t groupIndex, WGVKBindGroup group, size_t dynamicOffsetCount, const uint32_t* dynamicOffsets){
     
@@ -3109,8 +3141,7 @@ void wgvkComputePassEncoderSetBindGroup(WGVKComputePassEncoder cpe, uint32_t gro
             dynamicOffsets
         }
     };
-    
-    RenderPassCommandGenericVector_push_back(&cpe->bufferedCommands, insert);
+    ComputePassEncoder_PushCommand(cpe, &insert);
 }
 
 WGVKComputePassEncoder wgvkCommandEncoderBeginComputePass(WGVKCommandEncoder commandEncoder){
@@ -3167,7 +3198,7 @@ void wgvkSurfacePresent(WGVKSurface surface){
     VkCommandBufferBeginInfo beginInfo zeroinit;
     beginInfo.sType =  VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags =  VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    vkBeginCommandBuffer(transitionBuffer, &beginInfo);
+    device->functions.vkBeginCommandBuffer(transitionBuffer, &beginInfo);
 
     VkImageMemoryBarrier finalBarrier = {
         VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -3197,7 +3228,7 @@ void wgvkSurfacePresent(WGVKSurface surface){
     surface->images[surface->activeImageIndex]->layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     //EncodeTransitionImageLayout(transitionBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, surface->images[surface->activeImageIndex]);
     //EncodeTransitionImageLayout(transitionBuffer, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, (WGVKTexture)surface->renderTarget.depth.id);
-    vkEndCommandBuffer(transitionBuffer);
+    device->functions.vkEndCommandBuffer(transitionBuffer);
     VkSubmitInfo cbsinfo zeroinit;
     cbsinfo.commandBufferCount = 1;
     cbsinfo.pCommandBuffers = &transitionBuffer;
@@ -3225,7 +3256,7 @@ void wgvkSurfacePresent(WGVKSurface surface){
         WGVKCommandBufferVector_init(cmdBuffers);
     }
 
-    VkResult presentRes = vkQueuePresentKHR(surface->device->queue->presentQueue, &presentInfo);
+    VkResult presentRes = device->functions.vkQueuePresentKHR(surface->device->queue->presentQueue, &presentInfo);
 
     ++surface->device->submittedFrames;
     vmaSetCurrentFrameIndex(surface->device->allocator, surface->device->submittedFrames % framesInFlight);
@@ -3291,10 +3322,8 @@ void wgvkRenderPassEncoderBindVertexBuffer(WGVKRenderPassEncoder rpe, uint32_t b
         }
     };
 
-    RenderPassCommandGenericVector_push_back(&rpe->bufferedCommands, insert);
-    // Bind the vertex buffer to the command buffer at the specified binding point
-    // vkCmdBindVertexBuffers(rpe->secondaryCmdBuffer, binding, 1, &(buffer->buffer), &offset);
-
+    RenderPassEncoder_PushCommand(rpe, &insert);
+    
     ru_trackBuffer(&rpe->resourceUsage, buffer, (BufferUsageSnap){VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT});
 }
 void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer buffer, VkDeviceSize offset, IndexFormat indexType){
@@ -3311,7 +3340,7 @@ void wgvkRenderPassEncoderBindIndexBuffer(WGVKRenderPassEncoder rpe, WGVKBuffer 
         }
     };
 
-    RenderPassCommandGenericVector_push_back(&rpe->bufferedCommands, insert);
+    RenderPassEncoder_PushCommand(rpe, &insert);
     
     ru_trackBuffer(&rpe->resourceUsage, buffer, (BufferUsageSnap){VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_ACCESS_INDEX_READ_BIT});
 }
@@ -3389,6 +3418,7 @@ RGAPI void ru_trackSampler         (ResourceUsage* resourceUsage, WGVKSampler sa
 }
 
 RGAPI void ce_trackTexture(WGVKCommandEncoder encoder, WGVKTexture texture, ImageUsageSnap usage){
+    WGVK_VALIDATE_EQ_PTR(encoder->device, texture->device, encoder->device, "failed when validating devices");
     ImageUsageRecord* alreadyThere = ImageUsageRecordMap_get(&encoder->resourceUsage.referencedTextures, texture);
     if(alreadyThere){
         VkImageMemoryBarrier imageBarrier = {
@@ -3403,7 +3433,7 @@ RGAPI void ce_trackTexture(WGVKCommandEncoder encoder, WGVKTexture texture, Imag
             texture->image,
             usage.subresource
         };
-        vkCmdPipelineBarrier(
+        encoder->device->functions.vkCmdPipelineBarrier(
             encoder->buffer, 
             alreadyThere->lastStage, 
             usage.stage,
@@ -3449,7 +3479,7 @@ RGAPI void ce_trackTextureView(WGVKCommandEncoder enc, WGVKTextureView view, Ima
             view->texture->image,
             view->subresourceRange
         };
-        vkCmdPipelineBarrier(
+        enc->device->functions.vkCmdPipelineBarrier(
             enc->buffer,
             alreadyThere->lastStage, 
             usage.stage,
@@ -3489,7 +3519,7 @@ RGAPI void ce_trackBuffer(WGVKCommandEncoder encoder, WGVKBuffer buffer, BufferU
             0,
             VK_WHOLE_SIZE
         };
-        vkCmdPipelineBarrier(encoder->buffer, rec->lastStage, usage.lastStage, 0, 0, 0, 1, &bufferBarrier, 0, 0);
+        encoder->device->functions.vkCmdPipelineBarrier(encoder->buffer, rec->lastStage, usage.lastStage, 0, 0, 0, 1, &bufferBarrier, 0, 0);
     }
     else{
         ru_trackBuffer(&encoder->resourceUsage, buffer, usage);

@@ -570,7 +570,7 @@ typedef struct WGVKRenderPassEncoderImpl{
     ResourceUsage resourceUsage;
     refcount_type refCount;
 
-    VkPipelineLayout lastLayout;
+    WGVKPipelineLayout lastLayout;
     VkFramebuffer frameBuffer;
     WGVKCommandEncoder cmdEncoder;
 }WGVKRenderPassEncoderImpl;
@@ -581,11 +581,12 @@ typedef struct WGVKComputePassEncoderImpl{
     ResourceUsage resourceUsage;
     refcount_type refCount;
 
-    VkPipelineLayout lastLayout;
+    WGVKPipelineLayout lastLayout;
     WGVKCommandEncoder cmdEncoder;
 }WGVKComputePassEncoderImpl;
 
-
+void RenderPassEncoder_PushCommand(WGVKRenderPassEncoder, const RenderPassCommandGeneric* cmd);
+void ComputePassEncoder_PushCommand(WGVKComputePassEncoder, const RenderPassCommandGeneric* cmd);
 
 typedef struct WGVKCommandEncoderImpl{
     VkCommandBuffer buffer;
@@ -735,8 +736,7 @@ typedef struct WGVKQueueImpl{
                      __func__, (context_msg), #a, #b, (a), (b)); \
             WGVK_VALIDATE_IMPL(device_ptr, false, WGVKErrorType_Validation, __wgvk_msg_buffer, LOG_ERROR); \
         } \
-    } while (0); \
-    return
+    } while (0)
 
 /**
  * @brief Validates that two integer expressions `a` and `b` are equal.
