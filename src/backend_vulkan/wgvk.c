@@ -1767,10 +1767,11 @@ WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, 
     fbci.layers = 1;
     
     fbci.renderPass = ret->renderPass;
-    VkResult fbresult = vkCreateFramebuffer(enc->device->device, &fbci, NULL, &ret->frameBuffer);
-    if(fbresult != VK_SUCCESS){
-        TRACELOG(LOG_FATAL, "Error creating framebuffer: %d", (int)fbresult);
-    }
+    //VkResult fbresult = vkCreateFramebuffer(enc->device->device, &fbci, NULL, &ret->frameBuffer);
+    //if(fbresult != VK_SUCCESS){
+    //    TRACELOG(LOG_FATAL, "Error creating framebuffer: %d", (int)fbresult);
+    //}
+    
     rpbi.renderPass = ret->renderPass;
     rpbi.renderArea = CLITERAL(VkRect2D){
         .offset = CLITERAL(VkOffset2D){0, 0},
@@ -2527,6 +2528,26 @@ void wgvkSamplerRelease(WGVKSampler sampler){
     if(!--sampler->refCount){
         sampler->device->functions.vkDestroySampler(sampler->device->device, sampler->sampler, NULL);
         RL_FREE(sampler);
+    }
+}
+void wgvkPipelineLayoutRelease(WGVKPipelineLayout layout){
+    if(!--layout->refCount){
+        for(uint32_t i = 0;i < layout->bindGroupLayoutCount;i++){
+            wgvkBindGroupLayoutRelease(layout->bindGroupLayouts[i]);
+        }
+        RL_FREE(layout);
+    }
+}
+void wgvkRenderPipelineRelease(WGVKRenderPipeline pipeline){
+    if(!--pipeline->refCount){
+        wgvkPipelineLayoutRelease(pipeline->layout);
+        RL_FREE(pipeline);
+    }
+}
+void wgvkComputePipelineRelease(WGVKComputePipeline pipeline){
+    if(!--pipeline->refCount){
+        wgvkPipelineLayoutRelease(pipeline->layout);
+        RL_FREE(pipeline);
     }
 }
 void wgvkBufferRelease(WGVKBuffer buffer) {
@@ -3578,6 +3599,12 @@ static inline void bindGroupLayoutReleaseCallback(WGVKBindGroupLayout bgl, void*
 static inline void samplerReleaseCallback(WGVKSampler sampler, void* unused){
     wgvkSamplerRelease(sampler);
 }
+static inline void computePipelineReleaseCallback(WGVKComputePipeline computePipeline, void* unused){
+    wgvkComputePipelineRelease(computePipeline);
+}
+static inline void renderPipelineReleaseCallback(WGVKRenderPipeline renderPipeline, void* unused){
+    wgvkRenderPipelineRelease(renderPipeline);
+}
 
 
 void releaseAllAndClear(ResourceUsage* resourceUsage){
@@ -3587,13 +3614,17 @@ void releaseAllAndClear(ResourceUsage* resourceUsage){
     BindGroupUsageSet_for_each(&resourceUsage->referencedBindGroups, bindGroupReleaseCallback, NULL);
     BindGroupLayoutUsageSet_for_each(&resourceUsage->referencedBindGroupLayouts, bindGroupLayoutReleaseCallback, NULL);
     SamplerUsageSet_for_each(&resourceUsage->referencedSamplers, samplerReleaseCallback, NULL);
-    
+    ComputePipelineUsageSet_for_each(&resourceUsage->referencedComputePipelines, computePipelineReleaseCallback, NULL);
+    RenderPipelineUsageSet_for_each(&resourceUsage->referencedRenderPipelines, renderPipelineReleaseCallback, NULL);
+
     BufferUsageRecordMap_free(&resourceUsage->referencedBuffers);
     ImageUsageRecordMap_free(&resourceUsage->referencedTextures);
     ImageViewUsageSet_free(&resourceUsage->referencedTextureViews);
     BindGroupUsageSet_free(&resourceUsage->referencedBindGroups);
     BindGroupLayoutUsageSet_free(&resourceUsage->referencedBindGroupLayouts);
     SamplerUsageSet_free(&resourceUsage->referencedSamplers);
+    ComputePipelineUsageSet_free(&resourceUsage->referencedComputePipelines);
+    RenderPipelineUsageSet_free(&resourceUsage->referencedRenderPipelines);
 }
 
 

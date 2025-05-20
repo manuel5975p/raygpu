@@ -777,7 +777,7 @@ typedef struct WGVKQueueImpl{
  * @param context_msg A string providing context for the check.
  */
 #define WGVK_VALIDATE_EQ_BOOL32(device_ptr, a, b, context_msg) \
-    WGVK_VALIDATE_EQ_FORMAT(device_ptr, a, b, "%u (VK_BOOL32)", "%u (VK_BOOL32)", context_msg)
+    WGVK_VALIDATE_EQ_FORMAT(device_ptr, a, b, "%u (BOOL32)", "%u (BOOL32)", context_msg)
 
 
 /**

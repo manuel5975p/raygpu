@@ -11,7 +11,6 @@ const char title[] = "WebGPU Window";
 #endif
 SubWindow sdlwin;
 void mainloop(void){
-
     BeginDrawing();
     //ClearBackground((Color){230, 230, 230, 0});
     ClearBackground(BLANK);
@@ -36,7 +35,7 @@ void mainloop(void){
     
 }
 int main(void){
-    
+    //RequestAdapterType(SOFTWARE_RENDERER);
     InitWindow(800, 600, title);
 
     #ifndef __EMSCRIPTEN__

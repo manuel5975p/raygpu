@@ -51,6 +51,8 @@ void mainloop(){
 }
 int main(){
     //SetConfigFlags(FLAG_STDOUT_TO_FFMPEG | FLAG_HEADLESS);
+    
+
     InitWindow(1024, 800, "glTF Model Loading");
     
     const char* ptr = FindDirectory("resources", 3);
@@ -59,8 +61,9 @@ int main(){
     //SetTargetFPS(60);
     
     //return 0;
+    
     carmodel = LoadModel((resourceDirectoryPath + "/old_car_new.glb").c_str());
-
+    checker = LoadTextureFromImage(GenImageChecker(WHITE, BLACK, 100, 100, 10));
     cam = CLITERAL(Camera3D){
         .position = CLITERAL(Vector3){20,30,45},
         .target = CLITERAL(Vector3){0,0,0},
@@ -70,7 +73,7 @@ int main(){
     UploadMesh(&carmodel.meshes[0], false);
     UploadMesh(&carmodel.meshes[1], false);
     carmesh    = carmodel.meshes[0];
-    checker = LoadTextureFromImage(GenImageChecker(WHITE, BLACK, 100, 100, 10));
+    
     card    = LoadTextureFromImage(LoadImage((resourceDirectoryPath + "/old_car_d.png").c_str()));
     carMaterial = LoadMaterialDefault();
     carMaterial.maps[MATERIAL_MAP_DIFFUSE].texture = card;
