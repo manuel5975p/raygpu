@@ -635,8 +635,8 @@ WGVKRaytracingPassEncoder wgvkCommandEncoderBeginRaytracingPass(WGVKCommandEncod
     WGVKRaytracingPassEncoderSet_add(&enc->referencedRTs, rtEncoder);
     return rtEncoder;
 }
-void wgvkRaytracingPassEncoderSetPipeline(WGVKRaytracingPassEncoder rte, WGVKRaytracingPipeline raytracingPipeline) {
-    vkCmdBindPipeline(rte->cmdBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, raytracingPipeline->raytracingPipeline);
+RGAPI void wgvkRaytracingPassEncoderSetPipeline(WGVKRaytracingPassEncoder rte, WGVKRaytracingPipeline raytracingPipeline) {
+    rte->device->functions.vkCmdBindPipeline(rte->cmdBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, raytracingPipeline->raytracingPipeline);
     rte->lastLayout = raytracingPipeline->layout;
     rte->lastPipeline = raytracingPipeline;
 }
@@ -652,7 +652,9 @@ void wgvkRaytracingPassEncoderSetPipeline(WGVKRaytracingPassEncoder rte, WGVKRay
 //    }
 //}
 //
-//void wgvkRaytracingPassEncoderSetBindGroup(WGVKRaytracingPassEncoder rte, uint32_t groupIndex, WGVKBindGroup bindGroup) {
+RGAPI void wgvkRaytracingPassEncoderSetBindGroup(WGVKRaytracingPassEncoder rte, uint32_t groupIndex, WGVKBindGroup bindGroup) {
+
+}
 //    vkCmdBindDescriptorSets(rte->cmdBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, rte->lastLayout, 0, 1, &bindGroup->set, 0, nullptr);
 //    ru_trackBindGroup(&rte->resourceUsage, bindGroup);
 //    ImageViewUsageRecordMap_for_each(&bindGroup->resourceUsage.referencedTextureViews, transitionToAppropriateLayoutCallback1, rte);
