@@ -1116,6 +1116,7 @@ void InitBackend(){
     wgpu::Limits slimits;
     
     sample->device.GetLimits(&slimits);
+    
     TraceLog(LOG_INFO, "Device supports %u bindings per bindgroup", (unsigned)slimits.maxBindingsPerBindGroup);
     TraceLog(LOG_INFO, "Device supports %u bindgroups", (unsigned)slimits.maxBindGroups);
     TraceLog(LOG_INFO, "Device supports buffers up to %llu megabytes", (unsigned long long)slimits.maxBufferSize / (1000000ull));
@@ -1762,7 +1763,6 @@ const std::unordered_map<WGPUFeatureName, std::string> featureSpellingTable = []
     ret[WGPUFeatureName_DawnNative] = "WGPUFeatureName_DawnNative";
     ret[WGPUFeatureName_ChromiumExperimentalTimestampQueryInsidePasses] = "WGPUFeatureName_ChromiumExperimentalTimestampQueryInsidePasses";
     ret[WGPUFeatureName_ImplicitDeviceSynchronization] = "WGPUFeatureName_ImplicitDeviceSynchronization";
-    ret[WGPUFeatureName_ChromiumExperimentalImmediateData] = "WGPUFeatureName_ChromiumExperimentalImmediateData";
     ret[WGPUFeatureName_TransientAttachments] = "WGPUFeatureName_TransientAttachments";
     ret[WGPUFeatureName_MSAARenderToSingleSampled] = "WGPUFeatureName_MSAARenderToSingleSampled";
     ret[WGPUFeatureName_D3D11MultithreadProtected] = "WGPUFeatureName_D3D11MultithreadProtected";

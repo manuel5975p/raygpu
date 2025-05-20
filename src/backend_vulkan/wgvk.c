@@ -1477,7 +1477,7 @@ WGVKBindGroupLayout wgvkDeviceCreateBindGroupLayout(WGVKDevice device, const Res
         bindings.data[i].descriptorCount = 1;
         bindings.data[i].binding = entries[i].location;
         bindings.data[i].descriptorType = toVulkanResourceType(entries[i].type);
-        if(entries[i].visibility == 0){    
+        if(entries[i].visibility == 0){
             TRACELOG(LOG_WARNING, "Empty visibility detected, falling back to Vertex | Fragment | Compute mask");
             bindings.data[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
         }
@@ -3078,6 +3078,16 @@ void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, WGVKRenderPipel
     ru_trackRenderPipeline(&rpe->resourceUsage, renderPipeline);
 }
 
+const static VkAccessFlags access_to_vk[8] = {
+    [readonly] = VK_ACCESS_SHADER_READ_BIT,
+    [writeonly] = VK_ACCESS_SHADER_WRITE_BIT,
+    [readwrite] = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
+};
+const static int is_storage_texture[uniform_type_enumcount] = {
+    [storage_texture2d_array] = 1,
+    [storage_texture3d] = 1,
+    [storage_texture2d] = 1,
+};
 void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t groupIndex, WGVKBindGroup group, size_t dynamicOffsetCount, const uint32_t* dynamicOffsets) {
     rassert(rpe != NULL, "RenderPassEncoderHandle is null");
     rassert(group != NULL, "DescriptorSetHandle is null");
@@ -3094,24 +3104,35 @@ void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group
     };
     RenderPassEncoder_PushCommand(rpe, &insert);
     
-    VkBufferMemoryBarrier bufferbarriers[64] = {0};
-    uint32_t bbInsertPos = 0;
-    VkImageMemoryBarrier imageBarriers  [64] = {0};
-    uint32_t ibInsertPos = 0;
-    const VkAccessFlags access_to_vk[10] = {
-        [readonly] = VK_ACCESS_SHADER_READ_BIT,
-        [writeonly] = VK_ACCESS_SHADER_WRITE_BIT,
-        [readwrite] = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
-    };
+    //VkBufferMemoryBarrier bufferbarriers[64] = {0};
+    //uint32_t bbInsertPos = 0;
+    //VkImageMemoryBarrier imageBarriers  [64] = {0};
+    //uint32_t ibInsertPos = 0;
+    
+    
 
     for(uint32_t i = 0;i < group->entryCount;i++){
         if(group->entries[i].buffer){
-            VkAccessFlags accessFlags = 0;
-            accessFlags = access_to_vk[group->layout->entries[i].access];
-            
+            const VkAccessFlags accessFlags = access_to_vk[group->layout->entries[i].access];
+            const VkPipelineStageFlags stage = toVulkanPipelineStage(group->layout->entries[i].visibility);
             ce_trackBuffer(rpe->cmdEncoder, group->entries[i].buffer, (BufferUsageSnap){
-                
-            })
+                .lastStage = stage,
+                .lastAccess = accessFlags
+            });
+        }
+        if(group->entries[i].textureView){
+            
+            const VkAccessFlags accessFlags = access_to_vk[group->layout->entries[i].access];
+            const VkPipelineStageFlags stage = toVulkanPipelineStage(group->layout->entries[i].visibility) | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            ImageUsageSnap usageSnap zeroinit;
+            VkImageLayout layout = is_storage_texture[group->layout->entries[i].type] ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+            ce_trackTextureView(rpe->cmdEncoder, group->entries[i].textureView, (ImageUsageSnap){
+                .layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                .access = accessFlags,
+                .stage = stage,
+                .subresource = group->entries[i].textureView->subresourceRange
+            });
         }
     }
     ru_trackBindGroup(&rpe->resourceUsage, group);
@@ -3510,7 +3531,7 @@ RGAPI void ce_trackBuffer(WGVKCommandEncoder encoder, WGVKBuffer buffer, BufferU
     if(rec != NULL){
         VkBufferMemoryBarrier bufferBarrier = {
             VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-            NULL, 
+            NULL,
             rec->lastAccess,
             usage.lastAccess, 
             encoder->device->adapter->queueIndices.graphicsIndex,
@@ -3519,7 +3540,16 @@ RGAPI void ce_trackBuffer(WGVKCommandEncoder encoder, WGVKBuffer buffer, BufferU
             0,
             VK_WHOLE_SIZE
         };
-        encoder->device->functions.vkCmdPipelineBarrier(encoder->buffer, rec->lastStage, usage.lastStage, 0, 0, 0, 1, &bufferBarrier, 0, 0);
+
+        encoder->device->functions.vkCmdPipelineBarrier(
+            encoder->buffer,
+            rec->lastStage,
+            usage.lastStage,
+            0,
+            0, 0,
+            1, &bufferBarrier,
+            0, 0
+        );
     }
     else{
         ru_trackBuffer(&encoder->resourceUsage, buffer, usage);

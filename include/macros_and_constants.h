@@ -117,7 +117,11 @@ constexpr float RAD2DEG = 180.0 / M_PI;
         #define RGAPICXX extern "C" __declspec(dllimport)
     #endif
 #else
-    #define RGAPI __attribute__((visibility("default")))
+    #ifdef __cplusplus
+        #define RGAPI extern "C" __attribute__((visibility("default")))
+    #else
+        #define RGAPI __attribute__((visibility("default")))
+    #endif
     #define RGAPICXX extern "C" __attribute__((visibility("default")))
 #endif
 

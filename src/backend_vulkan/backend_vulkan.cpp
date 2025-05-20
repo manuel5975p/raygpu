@@ -562,7 +562,7 @@ VkPhysicalDeviceType preferredPhysicalDeviceTypes[3] = {
 };
 int getPhysicalDeviceTypeRank(VkPhysicalDeviceType x){
     for(uint32_t i = 0;i < sizeof(preferredPhysicalDeviceTypes) / sizeof(preferredPhysicalDeviceTypes[0]);i++){
-        if(preferredPhysicalDeviceTypes[i] == x)return i;
+        if(preferredPhysicalDeviceTypes[i] == x)return (int)i;
     }
     return sizeof(preferredPhysicalDeviceTypes) / sizeof(preferredPhysicalDeviceTypes[0]);
 }

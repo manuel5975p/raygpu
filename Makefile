@@ -7,8 +7,8 @@ AR ?= ar
 CXX ?= clang++
 
 # Compiler/Linker flags
-CFLAGS        = -fPIC -O3 -DSUPPORT_VULKAN_BACKEND=1 -DSUPPORT_GLSL_PARSER=1 -DENABLE_SPIRV
-CXXFLAGS      = -fPIC -std=c++20 -fno-rtti -fno-exceptions -O3 -DSUPPORT_VULKAN_BACKEND=1 -DSUPPORT_GLSL_PARSER=1 -DENABLE_SPIRV
+CFLAGS        = -fPIC -O3 -DSUPPORT_VULKAN_BACKEND=1 -DRG_STATIC=1 -DSUPPORT_GLSL_PARSER=1 -DENABLE_SPIRV
+CXXFLAGS      = -fPIC -std=c++20 -fno-rtti -fno-exceptions -DRG_STATIC=1 -O3 -DSUPPORT_VULKAN_BACKEND=1 -DSUPPORT_GLSL_PARSER=1 -DENABLE_SPIRV
 ifeq ($(SUPPORT_GLFW), 1)
 CFLAGS += -DSUPPORT_GLFW=1
 CXXFLAGS += -DSUPPORT_GLFW=1
@@ -81,7 +81,7 @@ SRC_CPP = src/InitWindow.cpp \
           src/raygpu.cpp \
           src/backend_vulkan/backend_vulkan.cpp \
           src/backend_vulkan/vulkan_textures.cpp \
-          src/backend_vulkan/wgvk.cpp \
+          src/backend_vulkan/vma_impl.cpp \
           src/backend_vulkan/vulkan_pipeline.cpp \
           src/rshapes.cpp \
           src/shader_parse.cpp
@@ -174,6 +174,8 @@ SRC_C = src/sinfl_impl.c \
         src/cgltf_impl.c \
         src/windows_stuff.c \
         src/rtext.c \
+        src/backend_vulkan/wgvk.c \
+        src/backend_vulkan/volk.c \
         src/stb_impl.c \
         amalgamation/SPIRV-Reflect/spirv_reflect.c
 
