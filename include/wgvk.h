@@ -857,7 +857,7 @@ typedef enum WGVkReflectionInfoRequestStatus {
 }WGVKReflectionInfoRequestStatus;
 typedef struct WGVKReflectionInfo {
     WGVKChainedStruct* nextInChain;
-    size_t globalCount;
+    uint32_t globalCount;
     const WGVKGlobalReflectionInfo* globals;
     const WGVKAttributeReflectionInfo* inputAttributes;
     const WGVKAttributeReflectionInfo* outputAttributes;

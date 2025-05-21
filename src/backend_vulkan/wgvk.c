@@ -3719,6 +3719,131 @@ static inline void renderPipelineReleaseCallback(WGVKRenderPipeline renderPipeli
     wgvkRenderPipelineRelease(renderPipeline);
 }
 
+static WGVKTextureViewDimension spvDimToWGVKViewDimension(SpvDim dim, bool arrayed) {
+    switch (dim) {
+        case SpvDim1D: return WGVKTextureViewDimension_1D; // WebGPU doesn't have 1D array textures
+        case SpvDim2D: return arrayed ? WGVKTextureViewDimension_2DArray : WGVKTextureViewDimension_2D;
+        case SpvDim3D: return WGVKTextureViewDimension_3D; // 3D textures cannot be arrayed
+        case SpvDimCube: return arrayed ? WGVKTextureViewDimension_CubeArray : WGVKTextureViewDimension_Cube;
+        default: return WGVKTextureViewDimension_Undefined;
+    }
+}
+
+static WGVKTextureSampleType spvImageTypeToWGVKSampleType(const SpvReflectTypeDescription* type_desc, bool is_depth_image) {
+    if (is_depth_image) {
+        return WGVKTextureSampleType_Depth;
+    }
+    if (type_desc->type_flags & SPV_REFLECT_TYPE_FLAG_FLOAT) {
+        // SPIRV-Reflect doesn't directly distinguish filterable vs unfilterable for float.
+        // This often depends on the format and usage. Assume filterable for simplicity here.
+        // You might need more sophisticated logic based on SpvImageFormat.
+        return WGVKTextureSampleType_Float;
+    }
+    if (type_desc->type_flags & SPV_REFLECT_TYPE_FLAG_INT) {
+        if (type_desc->traits.numeric.scalar.signedness) {
+            return WGVKTextureSampleType_Sint;
+        } else {
+            return WGVKTextureSampleType_Uint;
+        }
+    }
+    return WGVKTextureSampleType_Undefined;
+}
+
+// This is a very simplified mapping. A real one would be huge.
+static WGVKTextureFormat spvImageFormatToWGVKFormat(SpvImageFormat spv_format) {
+    switch (spv_format) {
+        case SpvImageFormatRgba32f:         return WGVKTextureFormat_RGBA32Float;
+        case SpvImageFormatRgba8:      return WGVKTextureFormat_RGBA8Unorm;
+        case SpvImageFormatR8:              // Assuming R8Unorm
+        case SpvImageFormatR8unorm:         return WGVKTextureFormat_R8Unorm;
+        case SpvImageFormatD32f:            return WGVKTextureFormat_Depth32Float;
+        // ... add many more mappings based on your WGVKTextureFormat enum
+        case SpvImageFormatUnknown:
+        default:
+            return WGVKTextureFormat_Undefined;
+    }
+}
+
+static WGVKStorageTextureAccess getStorageTextureAccess(const SpvReflectDescriptorBinding* entry) {
+    bool non_readable = (entry->decoration_flags & SPV_REFLECT_DECORATION_NON_READABLE_BIT);
+    bool non_writable = (entry->decoration_flags & SPV_REFLECT_DECORATION_NON_WRITABLE_BIT);
+
+    if (non_readable && !non_writable) {
+        return WGVKStorageTextureAccess_WriteOnly; // Typical for compute output
+    } else if (!non_readable && non_writable) {
+        return WGVKStorageTextureAccess_ReadOnly;
+    } else if (!non_readable && !non_writable) {
+        // Default for storage images if no decoration is present is read_write in SPIR-V
+        // but WebGPU requires explicit write_only for storage textures in bind group layouts.
+        // However, from a reflection PoV, it means both are possible.
+        // For WebGPU compatibility, if it's a storage texture, it's often implicitly write_only
+        // unless it's also used as a sampled texture elsewhere or has NonWritable.
+        // Let's assume if no flags, it's write-only as per common WebGPU usage expectation for storage.
+        // Or, if you want to be more SPIR-V accurate: return WGVKStorageTextureAccess_ReadWrite;
+        return WGVKStorageTextureAccess_WriteOnly; // Common default for WebGPU pipeline creation.
+    } else { // non_readable && non_writable
+        rassert(false, "Storage image cannot be both non-readable and non-writable");
+        return WGVKStorageTextureAccess_Undefined;
+    }
+}
+
+
+
+WGVKGlobalReflectionInfo* getGlobalRI(SpvReflectShaderModule mod, uint32_t* count){
+    rassert(count != NULL, "count may not be NULL here");
+    WGVKGlobalReflectionInfo globalInfo zeroinit;
+    
+    uint32_t descriptorSetCount = 0;
+    spvReflectEnumerateDescriptorSets(&mod, &descriptorSetCount, NULL);
+
+    SpvReflectDescriptorSet* descriptorSets = (SpvReflectDescriptorSet*)RL_CALLOC(descriptorSetCount, sizeof(uintptr_t));
+    spvReflectEnumerateDescriptorSets(&mod, &descriptorSetCount, &descriptorSets);
+    WGVKReflectionInfo reflectionInfo;
+    for(uint32_t bindGroupIndex = 0;bindGroupIndex < descriptorSetCount;bindGroupIndex++){
+        reflectionInfo.globalCount += descriptorSets[bindGroupIndex].binding_count;
+    }
+    reflectionInfo.globals = RL_CALLOC(reflectionInfo.globalCount, sizeof(WGVKGlobalReflectionInfo));
+    *count = reflectionInfo.globalCount;
+
+    uint32_t globalInsertIndex = 0;
+
+    for(uint32_t bindGroupIndex = 0;bindGroupIndex < descriptorSetCount;bindGroupIndex++){
+        for(uint32_t entryIndex = 0;entryIndex < descriptorSets[bindGroupIndex].binding_count;entryIndex++){
+            const SpvReflectDescriptorBinding* entry = descriptorSets[bindGroupIndex].bindings[entryIndex];
+            WGVKGlobalReflectionInfo insert = {
+                .bindGroup = bindGroupIndex,
+                .binding = entry->binding,
+                .name.data = entry->block.name,
+                .name.length = strlen(entry->block.name)
+            };
+            switch(entry->descriptor_type){    
+                case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+                    insert.buffer.type = WGVKBufferBindingType_Storage;
+                    insert.buffer.minBindingSize = entry->block.size;
+                break;
+                case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+                    insert.buffer.type = WGVKBufferBindingType_Uniform;
+
+                break;
+                case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER:
+                    //insert.sampler.type = ??
+                break;
+
+                case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+                    //insert.texture.sampleType = WGVKTextureSampleType_Float;
+                    //insert.texture.viewDimension = ??
+                break;
+                case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+                    insert.storageTexture.access = ??
+                    insert.storageTexture.format = ??
+                    insert.storageTexture.viewDimension = ??
+                case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+                default:
+                rassert(false, "Illegal value"); // Combined image samplers not allowed for now
+            }
+        }
+    }
+}
 
 struct wgvkShaderModuleGetReflectionInfo_sync_userdata{
     WGVKShaderModule module;
@@ -3741,46 +3866,9 @@ static void wgvkShaderModuleGetReflectionInfo_sync(void* userdata_){
             SpvReflectResult result = spvReflectCreateShaderModule(spirvSource->codeSize, spirvSource->code, &mod);
             if(result == SPV_REFLECT_RESULT_SUCCESS){
                 SpvReflectDescriptorSet* descriptorSets = NULL;
-                uint32_t descriptorSetCount = 0;
-                spvReflectEnumerateDescriptorSets(&mod, &descriptorSetCount, NULL);
-                descriptorSets = RL_CALLOC(descriptorSetCount, sizeof(uintptr_t));
-                spvReflectEnumerateDescriptorSets(&mod, &descriptorSetCount, &descriptorSets);
-                WGVKReflectionInfo reflectionInfo;
-                WGVKGlobalReflectionInfo globalInfo zeroinit;
-                for(uint32_t bindGroupIndex = 0;bindGroupIndex < descriptorSetCount;bindGroupIndex++){
-                    reflectionInfo.globalCount += descriptorSets[bindGroupIndex].binding_count;
-                }
-                reflectionInfo.globals = RL_CALLOC(reflectionInfo.globalCount, sizeof(WGVKGlobalReflectionInfo));
-
-
-                uint32_t globalInsertIndex = 0;
-
-                for(uint32_t bindGroupIndex = 0;bindGroupIndex < descriptorSetCount;bindGroupIndex++){
-                    for(uint32_t entryIndex = 0;entryIndex < descriptorSets[bindGroupIndex].binding_count;entryIndex++){
-                        const SpvReflectDescriptorBinding* entry = descriptorSets[bindGroupIndex].bindings[entryIndex];
-                        WGVKGlobalReflectionInfo insert = {
-                            .bindGroup = bindGroupIndex,
-                            .binding = entry->binding,
-                            .name.data = entry->name,
-                            .name.length = strlen(entry->name)
-                        };
-
-                        switch(entry->descriptor_type){    
-                            case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-                                insert.buffer.type = WGVKBufferBindingType_Storage;
-                                insert.buffer.minBindingSize = entry->block.size;
-                            case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-                                insert.buffer.type = WGVKBufferBindingType_Storage;
-                            case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER:
-                            case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-                            case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-                            case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-                            default:
-                            goto cleanup;
-                        }
-                    }
-                }
-
+                
+                WGVKReflectionInfo reflectionInfo zeroinit;
+                reflectionInfo.globals = getGlobalRI(mod, &reflectionInfo.globalCount);
                 userdata->callbackInfo.callback(
                     WGVKReflectionInfoRequestStatus_Success,
                     &reflectionInfo,

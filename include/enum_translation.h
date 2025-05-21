@@ -117,6 +117,17 @@ typedef enum TextureViewDimension{
     TextureViewDimension_Force32 = 0x7FFFFFFF
 }TextureViewDimension;
 
+typedef enum WGVKTextureViewDimension{
+    WGVKTextureViewDimension_Undefined = 0x00000000,
+    WGVKTextureViewDimension_1D = 0x00000001,
+    WGVKTextureViewDimension_2D = 0x00000002,
+    WGVKTextureViewDimension_2DArray = 0x00000003,
+    WGVKTextureViewDimension_Cube = 0x00000004,
+    WGVKTextureViewDimension_CubeArray = 0x00000005,
+    WGVKTextureViewDimension_3D = 0x00000006,
+    WGVKTextureViewDimension_Force32 = 0x7FFFFFFF
+}WGVKTextureViewDimension;
+
 typedef enum ShaderStage{
     ShaderStage_Vertex,
     ShaderStage_TessControl,
