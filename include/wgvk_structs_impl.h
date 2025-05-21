@@ -417,7 +417,7 @@ typedef struct WGVKBindGroupImpl{
 typedef struct WGVKBindGroupLayoutImpl{
     VkDescriptorSetLayout layout;
     WGVKDevice device;
-    const ResourceTypeDescriptor* entries;
+    ResourceTypeDescriptor* entries;
     uint32_t entryCount;
 
     refcount_type refCount;
@@ -738,6 +738,24 @@ typedef struct WGVKQueueImpl{
         } \
     } while (0)
 
+
+#define WGVK_VALIDATE_NEQ_FORMAT(device_ptr, a, b, fmt_a, fmt_b, context_msg) \
+    do { \
+        /* Evaluate a and b once to avoid side effects if they are complex expressions */ \
+        /* Note: This requires C99 or for the types of a_val and b_val to be known, */ \
+        /* or rely on type inference if using C++ or newer C standards with typeof. */ \
+        /* For maximum C89/C90 compatibility, one might pass a and b directly, accepting multiple evaluations. */ \
+        /* Given the context of Vulkan, C99+ is a safe assumption. */ \
+        /* We will use __auto_type if available (GCC/Clang extension), otherwise user must be careful. */ \
+        /* Or, simply evaluate (a) and (b) directly in the if and snprintf. */ \
+        if (!((a) != (b))) { \
+            char __wgvk_msg_buffer[512]; \
+            snprintf(__wgvk_msg_buffer, sizeof(__wgvk_msg_buffer), \
+                     "%s %s: Non equality check '%s != %s' failed. LHS (" #a " = " fmt_a ") != RHS (" #b " = " fmt_b ").", \
+                     __func__, (context_msg), #a, #b, (a), (b)); \
+            WGVK_VALIDATE_IMPL(device_ptr, false, WGVKErrorType_Validation, __wgvk_msg_buffer, LOG_ERROR); \
+        } \
+    } while (0)
 /**
  * @brief Validates that two integer expressions `a` and `b` are equal.
  * Provides a default format specifier for integers.
@@ -769,6 +787,9 @@ typedef struct WGVKQueueImpl{
 #define WGVK_VALIDATE_EQ_PTR(device_ptr, a, b, context_msg) \
     WGVK_VALIDATE_EQ_FORMAT(device_ptr, a, b, "%p", "%p", context_msg)
 
+
+#define WGVK_VALIDATE_NEQ_PTR(device_ptr, a, b, context_msg) \
+    WGVK_VALIDATE_NEQ_FORMAT(device_ptr, a, b, "%p", "%p", context_msg)
 /**
  * @brief Validates that two VkBool32 expressions `a` and `b` are equal.
  * @param device_ptr Pointer to the WGVKDevice (can be NULL).
@@ -823,6 +844,15 @@ typedef struct WGVKQueueImpl{
         } \
     } while (0)
 
+
+#define WGVK_VALIDATION_ERROR_MESSAGE(message ...) \
+    do {  \
+        char vmessageBuffer[8192] = {0}; \
+        snprintf(vmessageBuffer, 8192, message); \
+        TRACELOG(LOG_ERROR, "Validation error: %s"); \
+    } while (0)
+
+
 /**
  * @brief Validates that two C-style strings `a` and `b` are NOT equal using strcmp.
  * Assumes `a` and `b` are non-NULL.
@@ -841,6 +871,8 @@ typedef struct WGVKQueueImpl{
             WGVK_VALIDATE_IMPL(device_ptr, false, WGVKErrorType_Validation, __wgvk_msg_buffer, LOG_ERROR); \
         } \
     } while (0)
+
+    
 
 
 #else // WGVK_VALIDATION_ENABLED not defined

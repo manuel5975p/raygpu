@@ -101,6 +101,8 @@ constexpr float RAD2DEG = 180.0 / M_PI;
     #define rg_trap(...) __builtin_trap();
 #endif
 
+#define rg_countof(X) (sizeof(X) / sizeof((X)[0]))
+
 #if defined(RG_STATIC) && RG_STATIC != 0
     #ifdef __cplusplus
     #define RGAPI extern "C"

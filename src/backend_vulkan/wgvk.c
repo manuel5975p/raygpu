@@ -2000,7 +2000,7 @@ WGVKCommandBuffer wgvkCommandEncoderFinish(WGVKCommandEncoder commandEncoder){
     return ret;
 }
 
-void validatePipelineLayouts(WGVKPipelineLayout inserted, WGVKPipelineLayout base){
+static void validatePipelineLayouts(WGVKPipelineLayout inserted, WGVKPipelineLayout base){
     WGVK_VALIDATE_EQ_PTR(inserted->device, inserted->device, base->device, "failed when verifying objects belong to the same device");
    
     WGVK_VALIDATE_EQ_UINT(inserted->device, inserted->bindGroupLayoutCount, base->bindGroupLayoutCount, "failed when validating bindGroupLayoutCounts");
@@ -2013,6 +2013,29 @@ void validatePipelineLayouts(WGVKPipelineLayout inserted, WGVKPipelineLayout bas
                 base->bindGroupLayouts[i]->entries[j].type,
                 "failed when comparing BindGroupLayoutTypes"
             );
+        }
+    }
+}
+static void validateBindGroup_BindGroupLayout(WGVKBindGroup group, WGVKBindGroupLayout layout){
+    ResourceDescriptor* reverse_ep[64] = {0};
+    ResourceTypeDescriptor* reverse_lep[64] = {0};
+
+
+    for(uint32_t i = 0;i < group->entryCount;i++){
+        if(reverse_ep[group->entries[i].binding]){
+            WGVK_VALIDATION_ERROR_MESSAGE("Duplicate binding %u in bindgroup", group->entries[i].binding);
+        }
+        rassert(group->entries[i].binding, "Binding larger than 64, should be fixed...");
+        rassert(layout->entries[i].location, "Binding larger than 64, should be fixed...");
+        reverse_ep[group->entries[i].binding] = group->entries + i;
+        reverse_lep[layout->entries[i].location] = layout->entries + i;
+    }
+
+    for(uint32_t i = 0;i < rg_countof(reverse_ep);i++){
+        if(reverse_lep[i]){
+            if(reverse_lep[i]->type == uniform_buffer || reverse_lep[i]->type == storage_buffer){
+                WGVK_VALIDATE_NEQ_PTR(group->device, reverse_ep[i]->buffer, NULL, "failed when sanitizing entries");
+            }
         }
     }
 }
@@ -3123,6 +3146,21 @@ void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group
             dynamicOffsets
         }
     };
+    validateBindGroup_BindGroupLayout(group, rpe->lastLayout->bindGroupLayouts[groupIndex]);
+    
+    for(uint32_t i = 0;i < group->entryCount;i++){
+        const ResourceDescriptor* cur = group->entries + i;
+        const ResourceTypeDescriptor* cur_le = NULL;
+        for(uint32_t j = 0;j < group->layout->entryCount;j++){
+            if(group->layout->entries[j].location == cur->binding){
+                cur_le = group->layout->entries + j;
+                goto found;
+            }
+        }
+        found:
+        if(is_storage_texture)
+    }
+    
     RenderPassEncoder_PushCommand(rpe, &insert);
     
     //VkBufferMemoryBarrier bufferbarriers[64] = {0};
