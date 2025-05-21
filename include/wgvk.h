@@ -811,7 +811,7 @@ typedef struct WGVKSamplerBindingInfo {
 typedef struct WGVKTextureBindingInfo {
     WGVKChainedStruct * nextInChain;
     WGVKTextureSampleType sampleType;
-    TextureViewDimension viewDimension;
+    WGVKTextureViewDimension viewDimension;
     // no ‘multisampled’
 }WGVKTextureBindingInfo;
 typedef struct WGVKStorageTextureBindingInfo {
@@ -819,7 +819,7 @@ typedef struct WGVKStorageTextureBindingInfo {
     WGVKChainedStruct* nextInChain;
     WGVKStorageTextureAccess access;
     WGVKTextureFormat format;
-    TextureViewDimension viewDimension;
+    WGVKTextureViewDimension viewDimension;
 }WGVKStorageTextureBindingInfo;
 typedef struct WGVKGlobalReflectionInfo {
     WGVKStringView name;
