@@ -138,7 +138,7 @@ void UpdateTexture(Texture tex, void* data){
     writeSize.depthOrArrayLayers = 1;
     writeSize.width = tex.width;
     writeSize.height = tex.height;
-    wgpuQueueWriteTexture(GetQueue(), &destination, data, tex.width * tex.height * GetPixelSizeInBytes(tex.format), &source, &writeSize);
+    wgpuQueueWriteTexture(GetQueue(), &destination, data, (uint64_t)tex.width * (uint64_t)tex.height * (uint64_t)GetPixelSizeInBytes(tex.format), &source, &writeSize);
 }
 extern "C" Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format, WGPUTextureUsage usage, uint32_t sampleCount){
     Texture3D ret zeroinit;
@@ -790,6 +790,7 @@ extern "C" void GetNewTexture(FullSurface* fsurface){
     }
     else{
         WGPUSurfaceTexture surfaceTexture;
+        
         wgpuSurfaceGetCurrentTexture((WGPUSurface)fsurface->surface, &surfaceTexture);
 
         // TODO: some better surface recovery handling, doesn't seem to be an issue for now however
@@ -798,9 +799,15 @@ extern "C" void GetNewTexture(FullSurface* fsurface){
         //     wgpuSurfaceGetCurrentTexture((WGPUSurface)fsurface->surface, &surfaceTexture);
         // }
         // rassert(surfaceTexture.status == WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal, "WGPUSurface did not return optimal, instead: %d", surfaceTexture.status);
+        if(fsurface->renderTarget.texture.id){
+            wgpuTextureRelease(fsurface->renderTarget.texture.id);
+        }
         fsurface->renderTarget.texture.id = surfaceTexture.texture;
         fsurface->renderTarget.texture.width = wgpuTextureGetWidth(surfaceTexture.texture);
         fsurface->renderTarget.texture.height = wgpuTextureGetHeight(surfaceTexture.texture);
+        if(fsurface->renderTarget.texture.view){
+            wgpuTextureViewRelease(fsurface->renderTarget.texture.view);
+        }
         fsurface->renderTarget.texture.view = wgpuTextureCreateView(surfaceTexture.texture, nullptr);
     }
 }
@@ -1114,7 +1121,7 @@ void InitBackend(){
         TRACELOG(LOG_FATAL, "Device is null");
     }
     wgpu::Limits slimits;
-    
+
     sample->device.GetLimits(&slimits);
     
     TraceLog(LOG_INFO, "Device supports %u bindings per bindgroup", (unsigned)slimits.maxBindingsPerBindGroup);

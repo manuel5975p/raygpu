@@ -51,21 +51,23 @@
 #include <external/volk.h>
 
 #define Font rlFont
+#define Matrix rlMatrix
     #include <wgvk_structs_impl.h>
     #include <enum_translation.h>
     //#include "vulkan_internals.hpp"
     //#include <raygpu.h>
 #undef Font
+#undef Matrix
 #ifdef TRACELOG
     #undef TRACELOG
 #endif
 #define TRACELOG(level, ...) wgvkTraceLog(level, __VA_ARGS__)
 void wgvkTraceLog(int logType, const char *text, ...);
+#include "../amalgamation/SPIRV-Reflect/spirv_reflect.c"
 #include <macros_and_constants.h>
 #include <wgvk.h>
 #include <external/VmaUsage.h>
 #include <stdarg.h>
-
 
 // WGVK struct implementations
 
@@ -153,9 +155,7 @@ WGVKSurface wgvkInstanceCreateSurface(WGVKInstance instance, const WGVKSurfaceDe
 }
 static RenderPassLayout GetRenderPassLayout2(const RenderPassCommandBegin* rpdesc){
     RenderPassLayout ret zeroinit;
-
     if(rpdesc->depthAttachmentPresent){
-
         ret.depthAttachmentPresent = 1U;
         ret.depthAttachment = CLITERAL(AttachmentDescriptor){
             .format = rpdesc->depthStencilAttachment.view->format, 
@@ -231,14 +231,13 @@ RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescriptor* rpdesc){
             };
         }
     }
-
     return ret;
 }
 static inline bool is__depth(PixelFormat fmt){
-    return fmt ==  Depth24 || fmt == Depth32;
+    return fmt == Depth24 || fmt == Depth32;
 }
 static inline bool is__depthVk(VkFormat fmt){
-    return fmt ==  VK_FORMAT_D32_SFLOAT || fmt == VK_FORMAT_D32_SFLOAT_S8_UINT || fmt == VK_FORMAT_D24_UNORM_S8_UINT;
+    return fmt == VK_FORMAT_D32_SFLOAT || fmt == VK_FORMAT_D32_SFLOAT_S8_UINT || fmt == VK_FORMAT_D24_UNORM_S8_UINT;
 }
 
 static inline VkSampleCountFlagBits toVulkanSampleCount(uint32_t samples){
@@ -257,6 +256,7 @@ static inline VkSampleCountFlagBits toVulkanSampleCount(uint32_t samples){
         }
     }
 }
+
 static VkAttachmentDescription atttransformFunction(AttachmentDescriptor att){
     VkAttachmentDescription ret zeroinit;
     ret.samples    = toVulkanSampleCount(att.sampleCount);
@@ -273,6 +273,7 @@ static VkAttachmentDescription atttransformFunction(AttachmentDescriptor att){
     }
     return ret;
 };
+
 LayoutedRenderPass LoadRenderPassFromLayout(WGVKDevice device, RenderPassLayout layout){
     LayoutedRenderPass* lrp = RenderPassCache_get(&device->renderPassCache, layout);
     if(lrp)
@@ -1509,6 +1510,35 @@ void wgvkReleasePipelineLayout(WGVKPipelineLayout pllayout){
         RL_FREE(pllayout);
     }
 }
+WGVKShaderModule wgpuDeviceCreateShaderModule(WGVKDevice device, const WGVKShaderModuleDescriptor* descriptor){
+    rassert(descriptor->nextInChain->sType == WGVKSType_ShaderSourceSPIRV, "Only spirv supported for now");
+    //if(descriptor->nextInChain->sType == WGVKSType_ShaderSourceSPIRV)
+    
+    {
+        WGVKShaderModule ret = RL_CALLOC(1, sizeof(WGVKShaderModuleImpl));
+
+        const WGVKShaderSourceSPIRV* source = (WGVKShaderSourceSPIRV*)descriptor->nextInChain;
+        VkShaderModuleCreateInfo sCreateInfo = {
+            VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            NULL,
+            0,
+            source->codeSize,
+            source->code
+        };
+        vkCreateShaderModule(device->device, &sCreateInfo, NULL, &ret->vulkanModule);
+        ret->source = RL_CALLOC(1, sizeof(WGVKShaderSourceSPIRV));
+        WGVKShaderSourceSPIRV* copySource = (WGVKShaderSourceSPIRV*)ret->source;
+        copySource->chain.sType = WGVKSType_ShaderSourceSPIRV;
+        copySource->code = RL_CALLOC(source->codeSize, 1);
+        copySource->codeSize = source->codeSize;
+        
+        memcpy((void*)copySource->code, source->code, source->codeSize);
+
+        return ret;
+    }
+}
+
+
 WGVKPipelineLayout wgvkDeviceCreatePipelineLayout(WGVKDevice device, const WGVKPipelineLayoutDescriptor* pldesc){
     WGVKPipelineLayout ret = callocnew(WGVKPipelineLayoutImpl);
     ret->refCount = 1;
@@ -1800,6 +1830,12 @@ WGVKRenderPassEncoder wgvkCommandEncoderBeginRenderPass(WGVKCommandEncoder enc, 
     return ret;
 }
 
+const static VkAccessFlags access_to_vk[8] = {
+    [readonly] = VK_ACCESS_SHADER_READ_BIT,
+    [writeonly] = VK_ACCESS_SHADER_WRITE_BIT,
+    [readwrite] = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
+};
+
 void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
     
     WGVKDevice device = renderPassEncoder->device;
@@ -1928,17 +1964,32 @@ void wgvkRenderPassEncoderEnd(WGVKRenderPassEncoder renderPassEncoder){
         const RenderPassCommandGeneric* cmd = &renderPassEncoder->bufferedCommands.data[i];
         if(cmd->type == rp_command_type_set_bind_group){
             const RenderPassCommandSetBindGroup* cmdSetBindGroup = &cmd->setBindGroup;
-            const WGVKBindGroup group = cmdSetBindGroup->group;
+            const WGVKBindGroup       group  = cmdSetBindGroup->group;
             const WGVKBindGroupLayout layout = group->layout;
-            
-
             for(uint32_t bindingIndex = 0;bindingIndex < layout->entryCount;bindingIndex++){
+
                 rassert(group->entries[bindingIndex].binding == layout->entries[bindingIndex].location, "Mismatch between layout and group, this will cause bugs.");
                 
-                uniform_type eType = layout->entries[bindingIndex].type;
+                ResourceDescriptor*     groupEntry  = &group ->entries[bindingIndex];
+                ResourceTypeDescriptor* layoutEntry = &layout->entries[bindingIndex];
 
-                if(snaps[eType].layout != VK_IMAGE_LAYOUT_UNDEFINED){
+                uniform_type eType = layout->entries[bindingIndex].type;
+                if(eType == uniform_buffer || eType == storage_buffer){
+                    rassert(group->entries[bindingIndex].buffer, "Layout indicates buffer but no buffer passed");
                     ShaderStageMask visibility = layout->entries[bindingIndex].visibility;
+                    rassert(visibility, "Empty visibility goddamnit");
+                    ce_trackBuffer(
+                        renderPassEncoder->cmdEncoder,
+                        group->entries[bindingIndex].buffer,
+                        (BufferUsageSnap){
+                            .lastAccess = access_to_vk[layout->entries[bindingIndex].access],
+                            .lastStage = toVulkanPipelineStage(visibility)
+                        }
+                    );
+                }
+                else if(snaps[eType].layout){
+                    ShaderStageMask visibility = layout->entries[bindingIndex].visibility;
+                    rassert(visibility, "Empty visibility goddamnit");
                     if(visibility == 0){ //TODO: Get rid of this hack
                         visibility = (ShaderStageMask_Vertex | ShaderStageMask_Fragment | ShaderStageMask_Compute);
                     }
@@ -2025,8 +2076,8 @@ static void validateBindGroup_BindGroupLayout(WGVKBindGroup group, WGVKBindGroup
         if(reverse_ep[group->entries[i].binding]){
             WGVK_VALIDATION_ERROR_MESSAGE("Duplicate binding %u in bindgroup", group->entries[i].binding);
         }
-        rassert(group->entries[i].binding, "Binding larger than 64, should be fixed...");
-        rassert(layout->entries[i].location, "Binding larger than 64, should be fixed...");
+        rassert(group->entries[i].binding < 64, "Binding larger than 64, should be fixed...");
+        rassert(layout->entries[i].location < 64, "Binding larger than 64, should be fixed...");
         reverse_ep[group->entries[i].binding] = group->entries + i;
         reverse_lep[layout->entries[i].location] = layout->entries + i;
     }
@@ -2547,6 +2598,15 @@ void wgvkReleaseRenderPassEncoder(WGVKRenderPassEncoder rpenc) {
         RL_FREE(rpenc);
     }
 }
+void wgvkShaderModuleRelease(WGVKShaderModule module){
+    if(--module->refCount){
+        if(module->source->sType == WGVKSType_ShaderSourceSPIRV){
+            RL_FREE(((WGVKShaderSourceSPIRV*)module->source)->code);
+        }
+        RL_FREE(module->source);
+        RL_FREE(module);
+    }
+}
 void wgvkSamplerRelease(WGVKSampler sampler){
     if(!--sampler->refCount){
         sampler->device->functions.vkDestroySampler(sampler->device->device, sampler->sampler, NULL);
@@ -2561,18 +2621,21 @@ void wgvkPipelineLayoutRelease(WGVKPipelineLayout layout){
         RL_FREE(layout);
     }
 }
+
 void wgvkRenderPipelineRelease(WGVKRenderPipeline pipeline){
     if(!--pipeline->refCount){
         wgvkPipelineLayoutRelease(pipeline->layout);
         RL_FREE(pipeline);
     }
 }
+
 void wgvkComputePipelineRelease(WGVKComputePipeline pipeline){
     if(!--pipeline->refCount){
         wgvkPipelineLayoutRelease(pipeline->layout);
         RL_FREE(pipeline);
     }
 }
+
 void wgvkBufferRelease(WGVKBuffer buffer) {
     --buffer->refCount;
     if (buffer->refCount == 0) {
@@ -2605,14 +2668,15 @@ void wgvkBindGroupRelease(WGVKBindGroup dshandle) {
         }
         RL_FREE(dshandle->entries);
 
-        //DONT delete them, they are cached
-        //vkFreeDescriptorSets(dshandle->device->device, dshandle->pool, 1, &dshandle->set);
-        //vkDestroyDescriptorPool(dshandle->device->device, dshandle->pool, NULL);
+        // DONT delete them, they are cached
+        // vkFreeDescriptorSets(dshandle->device->device, dshandle->pool, 1, &dshandle->set);
+        // vkDestroyDescriptorPool(dshandle->device->device, dshandle->pool, NULL);
         
-        free(dshandle);
+        RL_FREE(dshandle);
     }
 }
-WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WGVKRenderPipelineDescriptor const * descriptor) {
+
+WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, const WGVKRenderPipelineDescriptor* descriptor) {
     WGVKDeviceImpl* deviceImpl = (WGVKDeviceImpl*)(device);
     WGVKPipelineLayout pl_layout = descriptor->layout;
 
@@ -3122,15 +3186,19 @@ void wgvkRenderPassEncoderSetPipeline(WGVKRenderPassEncoder rpe, WGVKRenderPipel
     ru_trackRenderPipeline(&rpe->resourceUsage, renderPipeline);
 }
 
-const static VkAccessFlags access_to_vk[8] = {
-    [readonly] = VK_ACCESS_SHADER_READ_BIT,
-    [writeonly] = VK_ACCESS_SHADER_WRITE_BIT,
-    [readwrite] = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
-};
+
 const static int is_storage_texture[uniform_type_enumcount] = {
     [storage_texture2d_array] = 1,
     [storage_texture3d] = 1,
     [storage_texture2d] = 1,
+};
+const static int is_texture[uniform_type_enumcount] = {
+    [storage_texture2d_array] = 1,
+    [storage_texture3d] = 1,
+    [storage_texture2d] = 1,
+    [texture2d_array] = 1,
+    [texture2d] = 1,
+    [texture3d] = 1,
 };
 void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t groupIndex, WGVKBindGroup group, size_t dynamicOffsetCount, const uint32_t* dynamicOffsets) {
     rassert(rpe != NULL, "RenderPassEncoderHandle is null");
@@ -3148,18 +3216,20 @@ void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group
     };
     validateBindGroup_BindGroupLayout(group, rpe->lastLayout->bindGroupLayouts[groupIndex]);
     
-    for(uint32_t i = 0;i < group->entryCount;i++){
-        const ResourceDescriptor* cur = group->entries + i;
-        const ResourceTypeDescriptor* cur_le = NULL;
-        for(uint32_t j = 0;j < group->layout->entryCount;j++){
-            if(group->layout->entries[j].location == cur->binding){
-                cur_le = group->layout->entries + j;
-                goto found;
-            }
-        }
-        found:
-        if(is_storage_texture)
-    }
+    //for(uint32_t i = 0;i < group->entryCount;i++){
+    //    const ResourceDescriptor* cur = group->entries + i;
+    //    const ResourceTypeDescriptor* cur_le = NULL;
+    //    for(uint32_t j = 0;j < group->layout->entryCount;j++){
+    //        if(group->layout->entries[j].location == cur->binding){
+    //            cur_le = group->layout->entries + j;
+    //            goto found;
+    //        }
+    //    }
+    //    goto error;
+    //    found:
+    //    if(is_storage_texture[]){
+    //    }
+    //}
     
     RenderPassEncoder_PushCommand(rpe, &insert);
     
@@ -3180,7 +3250,6 @@ void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group
             });
         }
         if(group->entries[i].textureView){
-            
             const VkAccessFlags accessFlags = access_to_vk[group->layout->entries[i].access];
             const VkPipelineStageFlags stage = toVulkanPipelineStage(group->layout->entries[i].visibility) | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
             ImageUsageSnap usageSnap zeroinit;
@@ -3195,6 +3264,9 @@ void wgvkRenderPassEncoderSetBindGroup(WGVKRenderPassEncoder rpe, uint32_t group
         }
     }
     ru_trackBindGroup(&rpe->resourceUsage, group);
+    return;
+    error:
+    abort();
     
 }
 
@@ -3451,6 +3523,9 @@ void wgvkRenderPipelineAddRef(WGVKRenderPipeline rpl){
 void wgvkComputePipelineAddRef(WGVKComputePipeline cpl){
     ++cpl->refCount;
 }
+void wgvkShaderModuleAddRef(WGVKShaderModule module){
+    ++module->refCount;
+}
 
 RGAPI void ru_trackBuffer(ResourceUsage* resourceUsage, WGVKBuffer buffer, BufferUsageRecord brecord){
     if(BufferUsageRecordMap_put(&resourceUsage->referencedBuffers, (void*)buffer, brecord)){
@@ -3643,6 +3718,107 @@ static inline void computePipelineReleaseCallback(WGVKComputePipeline computePip
 static inline void renderPipelineReleaseCallback(WGVKRenderPipeline renderPipeline, void* unused){
     wgvkRenderPipelineRelease(renderPipeline);
 }
+
+
+struct wgvkShaderModuleGetReflectionInfo_sync_userdata{
+    WGVKShaderModule module;
+    WGVKReflectionInfoCallbackInfo callbackInfo;
+};
+
+static void wgvkShaderModuleGetReflectionInfo_sync(void* userdata_){
+    struct wgvkShaderModuleGetReflectionInfo_sync_userdata* userdata = (struct wgvkShaderModuleGetReflectionInfo_sync_userdata*)userdata_;
+    WGVKShaderModule module = userdata->module;
+    
+    rassert(module,               "shaderModule is NULL");
+    rassert(module->source,       "shaderModule->source is NULL");
+    rassert(module->source->next, "shaderModule->source->next is NULL");
+
+    switch(module->source->next->sType){
+        case WGVKSType_ShaderSourceSPIRV:{
+            WGVKShaderSourceSPIRV* spirvSource = (WGVKShaderSourceSPIRV*)module->source->next;
+
+            SpvReflectShaderModule mod zeroinit;
+            SpvReflectResult result = spvReflectCreateShaderModule(spirvSource->codeSize, spirvSource->code, &mod);
+            if(result == SPV_REFLECT_RESULT_SUCCESS){
+                SpvReflectDescriptorSet* descriptorSets = NULL;
+                uint32_t descriptorSetCount = 0;
+                spvReflectEnumerateDescriptorSets(&mod, &descriptorSetCount, NULL);
+                descriptorSets = RL_CALLOC(descriptorSetCount, sizeof(uintptr_t));
+                spvReflectEnumerateDescriptorSets(&mod, &descriptorSetCount, &descriptorSets);
+                WGVKReflectionInfo reflectionInfo;
+                WGVKGlobalReflectionInfo globalInfo zeroinit;
+                for(uint32_t bindGroupIndex = 0;bindGroupIndex < descriptorSetCount;bindGroupIndex++){
+                    reflectionInfo.globalCount += descriptorSets[bindGroupIndex].binding_count;
+                }
+                reflectionInfo.globals = RL_CALLOC(reflectionInfo.globalCount, sizeof(WGVKGlobalReflectionInfo));
+
+
+                uint32_t globalInsertIndex = 0;
+
+                for(uint32_t bindGroupIndex = 0;bindGroupIndex < descriptorSetCount;bindGroupIndex++){
+                    for(uint32_t entryIndex = 0;entryIndex < descriptorSets[bindGroupIndex].binding_count;entryIndex++){
+                        const SpvReflectDescriptorBinding* entry = descriptorSets[bindGroupIndex].bindings[entryIndex];
+                        WGVKGlobalReflectionInfo insert = {
+                            .bindGroup = bindGroupIndex,
+                            .binding = entry->binding,
+                            .name.data = entry->name,
+                            .name.length = strlen(entry->name)
+                        };
+
+                        switch(entry->descriptor_type){    
+                            case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+                                insert.buffer.type = WGVKBufferBindingType_Storage;
+                                insert.buffer.minBindingSize = entry->block.size;
+                            case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+                                insert.buffer.type = WGVKBufferBindingType_Storage;
+                            case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER:
+                            case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+                            case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+                            case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+                            default:
+                            goto cleanup;
+                        }
+                    }
+                }
+
+                userdata->callbackInfo.callback(
+                    WGVKReflectionInfoRequestStatus_Success,
+                    &reflectionInfo,
+                    userdata->callbackInfo.userdata1,
+                    userdata->callbackInfo.userdata2
+                );
+
+                cleanup:
+                RL_FREE(descriptorSets);
+            }
+        }
+        case WGVKSType_ShaderSourceWGSL:
+        default:
+        rassert(false, "Invalid sType for source");
+        rg_unreachable();
+    }
+    
+
+    
+}
+
+
+
+WGVKFuture wgvkShaderModuleGetReflectionInfo(WGVKShaderModule shaderModule, WGVKReflectionInfoCallbackInfo callbackInfo){
+    WGVKFuture ret = RL_CALLOC(1, sizeof(WGVKFutureImpl));
+    ret->functionCalledOnWaitAny = wgvkShaderModuleGetReflectionInfo_sync;
+    struct wgvkShaderModuleGetReflectionInfo_sync_userdata* udff = RL_CALLOC(1, sizeof(struct wgvkShaderModuleGetReflectionInfo_sync_userdata));
+    udff->module = shaderModule;
+    udff->callbackInfo = callbackInfo;
+    ret->userdataForFunction = udff;
+    return ret;
+}
+
+
+
+
+
+
 
 
 void releaseAllAndClear(ResourceUsage* resourceUsage){

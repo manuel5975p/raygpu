@@ -513,7 +513,10 @@ typedef struct WGVKTextureImpl{
     uint32_t sampleCount;
 }WGVKTextureImpl;
 typedef struct WGVKShaderModuleImpl{
+    uint32_t refCount;
     VkShaderModule vulkanModule;
+    
+    WGVKChainedStruct* source;
 }WGVKShaderModuleImpl;
 DEFINE_VECTOR(static inline, VkDynamicState, VkDynamicStateVector)
 typedef struct WGVKRenderPipelineImpl{

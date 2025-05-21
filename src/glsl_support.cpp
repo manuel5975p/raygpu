@@ -522,6 +522,7 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
                 if(set->bindings[i]->descriptor_type != SpvReflectDescriptorType::SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER && set->bindings[i]->descriptor_type != SpvReflectDescriptorType::SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER){
                     ResourceTypeDescriptor insert zeroinit;
                     auto& binding = set->bindings[i];
+                    
                     insert.fstype = traverser.sampleTypes[set->bindings[i]->name];
                     insert.type = spvdsToResourceType(set->bindings[i]->descriptor_type);
                     insert.location = set->bindings[i]->binding;

@@ -14,7 +14,7 @@ extern "C"{
 #include <stdint.h>
 #endif
 
-
+#define WGVK_NULLABLE
 #define VMA_MIN_ALIGNMENT 32
 
 #if SUPPORT_WGPU_BACKEND == 1
@@ -199,6 +199,13 @@ typedef enum WGVKSType {
     WGVKSType_InstanceValidationLayerSelection = 0x10000001
 }WGVKSType;
 
+typedef enum WGVKCallbackMode {
+    WGVKCallbackMode_WaitAnyOnly = 0x00000001,
+    WGVKCallbackMode_AllowProcessEvents = 0x00000002,
+    WGVKCallbackMode_AllowSpontaneous = 0x00000003,
+    WGVKCallbackMode_Force32 = 0x7FFFFFFF
+} WGVKCallbackMode;
+
 typedef struct WGVKStringView{
     const char* data;
     size_t length;
@@ -209,6 +216,144 @@ typedef struct WGVKTexelCopyBufferLayout {
     uint32_t bytesPerRow;
     uint32_t rowsPerImage;
 } WGVKTexelCopyBufferLayout;
+
+typedef enum WGVKBufferBindingType {
+    WGVKBufferBindingType_BindingNotUsed = 0x00000000,
+    WGVKBufferBindingType_Undefined = 0x00000001,
+    WGVKBufferBindingType_Uniform = 0x00000002,
+    WGVKBufferBindingType_Storage = 0x00000003,
+    WGVKBufferBindingType_ReadOnlyStorage = 0x00000004,
+    WGVKBufferBindingType_Force32 = 0x7FFFFFFF
+} WGVKBufferBindingType;
+
+typedef enum WGVKSamplerBindingType {
+    WGVKSamplerBindingType_BindingNotUsed = 0x00000000,
+    WGVKSamplerBindingType_Undefined = 0x00000001,
+    WGVKSamplerBindingType_Filtering = 0x00000002,
+    WGVKSamplerBindingType_NonFiltering = 0x00000003,
+    WGVKSamplerBindingType_Comparison = 0x00000004,
+    WGVKSamplerBindingType_Force32 = 0x7FFFFFFF
+} WGVKSamplerBindingType;
+
+typedef enum WGVKStorageTextureAccess {
+    WGVKStorageTextureAccess_BindingNotUsed = 0x00000000,
+    WGVKStorageTextureAccess_Undefined = 0x00000001,
+    WGVKStorageTextureAccess_WriteOnly = 0x00000002,
+    WGVKStorageTextureAccess_ReadOnly = 0x00000003,
+    WGVKStorageTextureAccess_ReadWrite = 0x00000004,
+    WGVKStorageTextureAccess_Force32 = 0x7FFFFFFF
+} WGVKStorageTextureAccess;
+
+typedef enum WGVKTextureFormat {
+    WGVKTextureFormat_Undefined = 0x00000000,
+    WGVKTextureFormat_R8Unorm = 0x00000001,
+    WGVKTextureFormat_R8Snorm = 0x00000002,
+    WGVKTextureFormat_R8Uint = 0x00000003,
+    WGVKTextureFormat_R8Sint = 0x00000004,
+    WGVKTextureFormat_R16Uint = 0x00000005,
+    WGVKTextureFormat_R16Sint = 0x00000006,
+    WGVKTextureFormat_R16Float = 0x00000007,
+    WGVKTextureFormat_RG8Unorm = 0x00000008,
+    WGVKTextureFormat_RG8Snorm = 0x00000009,
+    WGVKTextureFormat_RG8Uint = 0x0000000A,
+    WGVKTextureFormat_RG8Sint = 0x0000000B,
+    WGVKTextureFormat_R32Float = 0x0000000C,
+    WGVKTextureFormat_R32Uint = 0x0000000D,
+    WGVKTextureFormat_R32Sint = 0x0000000E,
+    WGVKTextureFormat_RG16Uint = 0x0000000F,
+    WGVKTextureFormat_RG16Sint = 0x00000010,
+    WGVKTextureFormat_RG16Float = 0x00000011,
+    WGVKTextureFormat_RGBA8Unorm = 0x00000012,
+    WGVKTextureFormat_RGBA8UnormSrgb = 0x00000013,
+    WGVKTextureFormat_RGBA8Snorm = 0x00000014,
+    WGVKTextureFormat_RGBA8Uint = 0x00000015,
+    WGVKTextureFormat_RGBA8Sint = 0x00000016,
+    WGVKTextureFormat_BGRA8Unorm = 0x00000017,
+    WGVKTextureFormat_BGRA8UnormSrgb = 0x00000018,
+    WGVKTextureFormat_RGB10A2Uint = 0x00000019,
+    WGVKTextureFormat_RGB10A2Unorm = 0x0000001A,
+    WGVKTextureFormat_RG11B10Ufloat = 0x0000001B,
+    WGVKTextureFormat_RGB9E5Ufloat = 0x0000001C,
+    WGVKTextureFormat_RG32Float = 0x0000001D,
+    WGVKTextureFormat_RG32Uint = 0x0000001E,
+    WGVKTextureFormat_RG32Sint = 0x0000001F,
+    WGVKTextureFormat_RGBA16Uint = 0x00000020,
+    WGVKTextureFormat_RGBA16Sint = 0x00000021,
+    WGVKTextureFormat_RGBA16Float = 0x00000022,
+    WGVKTextureFormat_RGBA32Float = 0x00000023,
+    WGVKTextureFormat_RGBA32Uint = 0x00000024,
+    WGVKTextureFormat_RGBA32Sint = 0x00000025,
+    WGVKTextureFormat_Stencil8 = 0x00000026,
+    WGVKTextureFormat_Depth16Unorm = 0x00000027,
+    WGVKTextureFormat_Depth24Plus = 0x00000028,
+    WGVKTextureFormat_Depth24PlusStencil8 = 0x00000029,
+    WGVKTextureFormat_Depth32Float = 0x0000002A,
+    WGVKTextureFormat_Depth32FloatStencil8 = 0x0000002B,
+    WGVKTextureFormat_BC1RGBAUnorm = 0x0000002C,
+    WGVKTextureFormat_BC1RGBAUnormSrgb = 0x0000002D,
+    WGVKTextureFormat_BC2RGBAUnorm = 0x0000002E,
+    WGVKTextureFormat_BC2RGBAUnormSrgb = 0x0000002F,
+    WGVKTextureFormat_BC3RGBAUnorm = 0x00000030,
+    WGVKTextureFormat_BC3RGBAUnormSrgb = 0x00000031,
+    WGVKTextureFormat_BC4RUnorm = 0x00000032,
+    WGVKTextureFormat_BC4RSnorm = 0x00000033,
+    WGVKTextureFormat_BC5RGUnorm = 0x00000034,
+    WGVKTextureFormat_BC5RGSnorm = 0x00000035,
+    WGVKTextureFormat_BC6HRGBUfloat = 0x00000036,
+    WGVKTextureFormat_BC6HRGBFloat = 0x00000037,
+    WGVKTextureFormat_BC7RGBAUnorm = 0x00000038,
+    WGVKTextureFormat_BC7RGBAUnormSrgb = 0x00000039,
+    WGVKTextureFormat_ETC2RGB8Unorm = 0x0000003A,
+    WGVKTextureFormat_ETC2RGB8UnormSrgb = 0x0000003B,
+    WGVKTextureFormat_ETC2RGB8A1Unorm = 0x0000003C,
+    WGVKTextureFormat_ETC2RGB8A1UnormSrgb = 0x0000003D,
+    WGVKTextureFormat_ETC2RGBA8Unorm = 0x0000003E,
+    WGVKTextureFormat_ETC2RGBA8UnormSrgb = 0x0000003F,
+    WGVKTextureFormat_EACR11Unorm = 0x00000040,
+    WGVKTextureFormat_EACR11Snorm = 0x00000041,
+    WGVKTextureFormat_EACRG11Unorm = 0x00000042,
+    WGVKTextureFormat_EACRG11Snorm = 0x00000043,
+    WGVKTextureFormat_ASTC4x4Unorm = 0x00000044,
+    WGVKTextureFormat_ASTC4x4UnormSrgb = 0x00000045,
+    WGVKTextureFormat_ASTC5x4Unorm = 0x00000046,
+    WGVKTextureFormat_ASTC5x4UnormSrgb = 0x00000047,
+    WGVKTextureFormat_ASTC5x5Unorm = 0x00000048,
+    WGVKTextureFormat_ASTC5x5UnormSrgb = 0x00000049,
+    WGVKTextureFormat_ASTC6x5Unorm = 0x0000004A,
+    WGVKTextureFormat_ASTC6x5UnormSrgb = 0x0000004B,
+    WGVKTextureFormat_ASTC6x6Unorm = 0x0000004C,
+    WGVKTextureFormat_ASTC6x6UnormSrgb = 0x0000004D,
+    WGVKTextureFormat_ASTC8x5Unorm = 0x0000004E,
+    WGVKTextureFormat_ASTC8x5UnormSrgb = 0x0000004F,
+    WGVKTextureFormat_ASTC8x6Unorm = 0x00000050,
+    WGVKTextureFormat_ASTC8x6UnormSrgb = 0x00000051,
+    WGVKTextureFormat_ASTC8x8Unorm = 0x00000052,
+    WGVKTextureFormat_ASTC8x8UnormSrgb = 0x00000053,
+    WGVKTextureFormat_ASTC10x5Unorm = 0x00000054,
+    WGVKTextureFormat_ASTC10x5UnormSrgb = 0x00000055,
+    WGVKTextureFormat_ASTC10x6Unorm = 0x00000056,
+    WGVKTextureFormat_ASTC10x6UnormSrgb = 0x00000057,
+    WGVKTextureFormat_ASTC10x8Unorm = 0x00000058,
+    WGVKTextureFormat_ASTC10x8UnormSrgb = 0x00000059,
+    WGVKTextureFormat_ASTC10x10Unorm = 0x0000005A,
+    WGVKTextureFormat_ASTC10x10UnormSrgb = 0x0000005B,
+    WGVKTextureFormat_ASTC12x10Unorm = 0x0000005C,
+    WGVKTextureFormat_ASTC12x10UnormSrgb = 0x0000005D,
+    WGVKTextureFormat_ASTC12x12Unorm = 0x0000005E,
+    WGVKTextureFormat_ASTC12x12UnormSrgb = 0x0000005F,
+    WGVKTextureFormat_Force32 = 0x7FFFFFFF
+}WGVKTextureFormat;
+
+typedef enum WGVKTextureSampleType {
+    WGVKTextureSampleType_BindingNotUsed = 0x00000000,
+    WGVKTextureSampleType_Undefined = 0x00000001,
+    WGVKTextureSampleType_Float = 0x00000002,
+    WGVKTextureSampleType_UnfilterableFloat = 0x00000003,
+    WGVKTextureSampleType_Depth = 0x00000004,
+    WGVKTextureSampleType_Sint = 0x00000005,
+    WGVKTextureSampleType_Uint = 0x00000006,
+    WGVKTextureSampleType_Force32 = 0x7FFFFFFF
+} WGVKTextureSampleType;
 
 typedef struct WGVKTexelCopyBufferInfo {
     WGVKTexelCopyBufferLayout layout;
@@ -546,6 +691,7 @@ typedef struct WGVKConstantEntry {
     WGVKStringView key;
     double value;
 } WGVKConstantEntry;
+
 typedef struct VertexAttribute {
     WGVKChainedStruct* nextInChain;
     VertexFormat format;
@@ -593,10 +739,11 @@ typedef struct WGVKBlendState {
 
 
 
+
 typedef struct WGVKShaderSourceSPIRV {
     WGVKChainedStruct chain;
     uint32_t codeSize;
-    const uint32_t* code;
+    uint32_t* code;
 } WGVKShaderSourceSPIRV;
 
 typedef struct WGVKShaderModuleDescriptor {
@@ -651,6 +798,80 @@ typedef struct WGVkDepthStencilState {
     float depthBiasSlopeScale;
     float depthBiasClamp;
 } WGVKDepthStencilState;
+typedef struct WGVKBufferBindingInfo {
+    WGVKChainedStruct * nextInChain;
+    WGVKBufferBindingType type;
+    uint64_t minBindingSize;
+}WGVKBufferBindingInfo;
+typedef struct WGVKSamplerBindingInfo {
+    // same as WGVKSamplerBindingLayout
+    WGVKChainedStruct * nextInChain;
+    WGVKSamplerBindingType type;
+}WGVKSamplerBindingInfo;
+typedef struct WGVKTextureBindingInfo {
+    WGVKChainedStruct * nextInChain;
+    WGVKTextureSampleType sampleType;
+    TextureViewDimension viewDimension;
+    // no ‘multisampled’
+}WGVKTextureBindingInfo;
+typedef struct WGVKStorageTextureBindingInfo {
+    // same as WGVKStorageTextureBindingLayout
+    WGVKChainedStruct* nextInChain;
+    WGVKStorageTextureAccess access;
+    WGVKTextureFormat format;
+    TextureViewDimension viewDimension;
+}WGVKStorageTextureBindingInfo;
+typedef struct WGVKGlobalReflectionInfo {
+    WGVKStringView name;
+    uint32_t bindGroup;
+    uint32_t binding;
+    WGVKBufferBindingInfo buffer;
+    WGVKSamplerBindingInfo sampler;
+    WGVKTextureBindingInfo texture;
+    WGVKStorageTextureBindingInfo storageTexture;
+}WGVKGlobalReflectionInfo;
+
+
+typedef enum WGVKReflectionVectorEntryType{
+    WGVKReflectionVectorEntryType_Sint32,
+    WGVKReflectionVectorEntryType_Uint32,
+    WGVKReflectionVectorEntryType_Float32
+}WGVKReflectionVectorEntryType;
+
+typedef struct WGVKReflectionAttribute{
+    uint32_t location;
+    WGVKReflectionVectorEntryType entryType;
+    uint32_t components;
+}WGVKReflectionAttribute;
+
+typedef struct WGVKAttributeReflectionInfo{
+    uint32_t attributeCount;
+    WGVKReflectionAttribute attributes;
+}WGVKAttributeReflectionInfo;
+
+typedef enum WGVkReflectionInfoRequestStatus {
+    WGVKReflectionInfoRequestStatus_Unused            = 0x00000000,
+    WGVKReflectionInfoRequestStatus_Success           = 0x00000001,
+    WGVKReflectionInfoRequestStatus_CallbackCancelled = 0x00000002,
+    WGVKReflectionInfoRequestStatus_Force32           = 0x7FFFFFFF
+}WGVKReflectionInfoRequestStatus;
+typedef struct WGVKReflectionInfo {
+    WGVKChainedStruct* nextInChain;
+    size_t globalCount;
+    const WGVKGlobalReflectionInfo* globals;
+    const WGVKAttributeReflectionInfo* inputAttributes;
+    const WGVKAttributeReflectionInfo* outputAttributes;
+}WGVKReflectionInfo;
+
+typedef void (*WGVKReflectionInfoCallback)(WGVKReflectionInfoRequestStatus status, WGVKReflectionInfo const* reflectionInfo, void* userdata1, void* userdata2);
+
+typedef struct WGVKReflectionInfoCallbackInfo {
+    WGVKChainedStruct* nextInChain;
+    WGVKCallbackMode mode;
+    WGVKReflectionInfoCallback callback;
+    WGVK_NULLABLE void* userdata1;
+    WGVK_NULLABLE void* userdata2;
+}WGVKReflectionInfoCallbackInfo;
 
 typedef struct WGVKMultisampleState {
     WGVKChainedStruct* nextInChain;
@@ -752,10 +973,14 @@ void wgvkBufferMap(WGVKBuffer buffer, MapMode mapmode, size_t offset, size_t siz
 void wgvkBufferUnmap(WGVKBuffer buffer);
 size_t wgvkBufferGetSize(WGVKBuffer buffer);
 void wgvkQueueWriteTexture(WGVKQueue queue, WGVKTexelCopyTextureInfo const * destination, void const * data, size_t dataSize, WGVKTexelCopyBufferLayout const * dataLayout, WGVKExtent3D const * writeSize);
+
 WGVKBindGroupLayout wgvkDeviceCreateBindGroupLayout(WGVKDevice device, const ResourceTypeDescriptor* entries, uint32_t entryCount);
-WGVKPipelineLayout wgvkDeviceCreatePipelineLayout(WGVKDevice device, const WGVKPipelineLayoutDescriptor* pldesc);
-WGVKRenderPipeline wgvkDeviceCreateRenderPipeline(WGVKDevice device, WGVKRenderPipelineDescriptor const * descriptor);
-WGVKRenderPipeline wgvkDeviceCreateComputePipeline(WGVKDevice device, WGVKComputePipelineDescriptor const * descriptor);
+WGVKShaderModule    wgvkDeviceCreateShaderModule   (WGVKDevice device, WGVKShaderModuleDescriptor const * descriptor);
+WGVKPipelineLayout  wgvkDeviceCreatePipelineLayout (WGVKDevice device, const WGVKPipelineLayoutDescriptor* pldesc);
+WGVKRenderPipeline  wgvkDeviceCreateRenderPipeline (WGVKDevice device, WGVKRenderPipelineDescriptor const * descriptor);
+WGVKRenderPipeline  wgvkDeviceCreateComputePipeline(WGVKDevice device, WGVKComputePipelineDescriptor const * descriptor);
+
+WGVKFuture wgvkShaderModuleGetReflectionInfo(WGVKShaderModule shaderModule, WGVKReflectionInfoCallbackInfo callbackInfo);
 
 WGVKBindGroup wgvkDeviceCreateBindGroup(WGVKDevice device, const WGVKBindGroupDescriptor* bgdesc);
 void wgvkWriteBindGroup(WGVKDevice device, WGVKBindGroup, const WGVKBindGroupDescriptor* bgdesc);
@@ -795,6 +1020,7 @@ void wgvkTextureViewAddRef                    (WGVKTextureView textureView);
 void wgvkSamplerAddRef                        (WGVKSampler texture);
 void wgvkBufferAddRef                         (WGVKBuffer buffer);
 void wgvkBindGroupAddRef                      (WGVKBindGroup bindGroup);
+void wgvkShaderModuleAddRef                   (WGVKShaderModule module);
 void wgvkBindGroupLayoutAddRef                (WGVKBindGroupLayout bindGroupLayout);
 void wgvkPipelineLayoutAddRef                 (WGVKPipelineLayout pipelineLayout);
 void wgvkReleaseCommandEncoder                (WGVKCommandEncoder commandBuffer);
@@ -808,7 +1034,7 @@ void wgvkReleaseBindGroupLayout               (WGVKBindGroupLayout bglayout);
 void wgvkReleaseTexture                       (WGVKTexture texture);
 void wgvkReleaseTextureView                   (WGVKTextureView view);
 void wgvkSamplerRelease                       (WGVKSampler sampler);
-
+void wgvkShaderModuleRelease                  (WGVKShaderModule module);
 
 WGVKCommandEncoder wgvkResetCommandBuffer(WGVKCommandBuffer commandEncoder);
 
