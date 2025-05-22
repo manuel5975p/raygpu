@@ -96,8 +96,7 @@ void main() {
 }
 )";
 
-extern "C" const char fragmentSourceGLSL[] = R"(
-#version 450
+extern "C" const char fragmentSourceGLSL[] = R"(#version 450
 #extension GL_ARB_separate_shader_objects : enable  // Enable separate sampler objects if needed
 
 // Inputs from vertex shader.
