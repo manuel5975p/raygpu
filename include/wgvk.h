@@ -855,6 +855,7 @@ typedef enum WGVkReflectionInfoRequestStatus {
     WGVKReflectionInfoRequestStatus_CallbackCancelled = 0x00000002,
     WGVKReflectionInfoRequestStatus_Force32           = 0x7FFFFFFF
 }WGVKReflectionInfoRequestStatus;
+
 typedef struct WGVKReflectionInfo {
     WGVKChainedStruct* nextInChain;
     uint32_t globalCount;

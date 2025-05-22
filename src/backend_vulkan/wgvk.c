@@ -1510,7 +1510,7 @@ void wgvkReleasePipelineLayout(WGVKPipelineLayout pllayout){
         RL_FREE(pllayout);
     }
 }
-WGVKShaderModule wgpuDeviceCreateShaderModule(WGVKDevice device, const WGVKShaderModuleDescriptor* descriptor){
+WGVKShaderModule wgvkDeviceCreateShaderModule(WGVKDevice device, const WGVKShaderModuleDescriptor* descriptor){
     rassert(descriptor->nextInChain->sType == WGVKSType_ShaderSourceSPIRV, "Only spirv supported for now");
     //if(descriptor->nextInChain->sType == WGVKSType_ShaderSourceSPIRV)
     
@@ -1533,7 +1533,7 @@ WGVKShaderModule wgpuDeviceCreateShaderModule(WGVKDevice device, const WGVKShade
         copySource->codeSize = source->codeSize;
         
         memcpy((void*)copySource->code, source->code, source->codeSize);
-
+        ret->source = (WGVKChainedStruct*)copySource;
         return ret;
     }
 }
@@ -3924,9 +3924,8 @@ static void wgvkShaderModuleGetReflectionInfo_sync(void* userdata_){
     
     rassert(module,               "shaderModule is NULL");
     rassert(module->source,       "shaderModule->source is NULL");
-    rassert(module->source->next, "shaderModule->source->next is NULL");
 
-    switch(module->source->next->sType){
+    switch(module->source->sType){
         case WGVKSType_ShaderSourceSPIRV:{
             WGVKShaderSourceSPIRV* spirvSource = (WGVKShaderSourceSPIRV*)module->source->next;
 
