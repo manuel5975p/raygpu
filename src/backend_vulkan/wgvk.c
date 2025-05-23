@@ -636,13 +636,13 @@ WGVKInstance wgvkCreateInstance(const WGVKInstanceDescriptor* descriptor) {
 
         result = CreateDebugUtilsMessengerEXT(ret->instance, &dbgCreateInfo, NULL, &ret->debugMessenger);
         if (result != VK_SUCCESS) {
-            fprintf(stderr, "Warning: Failed to create debug messenger (Error: %d).\n", (int)result);
+            //fprintf(stderr, "Warning: Failed to create debug messenger (Error: %d).\n", (int)result);
             ret->debugMessenger = VK_NULL_HANDLE;
         } else {
-            fprintf(stdout, "Vulkan Debug Messenger created successfully.\n");
+            //fprintf(stdout, "Vulkan Debug Messenger created successfully.\n");
         }
     } else if (requestedLayerCount > 0) {
-         fprintf(stdout, "Debug messenger creation skipped because VK_EXT_debug_utils extension was not available/enabled or layers were disabled.\n");
+        //fprintf(stdout, "Debug messenger creation skipped because VK_EXT_debug_utils extension was not available/enabled or layers were disabled.\n");
     }
 
 
@@ -3731,24 +3731,24 @@ static WGVKTextureViewDimension spvDimToWGVKViewDimension(SpvDim dim, bool array
     }
 }
 
-static WGVKTextureSampleType spvImageTypeToWGVKSampleType(const SpvReflectTypeDescription* type_desc, bool is_depth_image) {
+static WGVKTextureSampleType spvImageTypeToWGVKSampleType(const SpvImageFormat type_desc, bool is_depth_image) {
     if (is_depth_image) {
         return WGVKTextureSampleType_Depth;
     }
-    if (type_desc->type_flags & SPV_REFLECT_TYPE_FLAG_FLOAT) {
-        // SPIRV-Reflect doesn't directly distinguish filterable vs unfilterable for float.
-        // This often depends on the format and usage. Assume filterable for simplicity here.
-        // You might need more sophisticated logic based on SpvImageFormat.
-        return WGVKTextureSampleType_Float;
-    }
-    if (type_desc->type_flags & SPV_REFLECT_TYPE_FLAG_INT) {
-        if (type_desc->traits.numeric.scalar.signedness) {
-            return WGVKTextureSampleType_Sint;
-        } else {
-            return WGVKTextureSampleType_Uint;
-        }
-    }
-    return WGVKTextureSampleType_Undefined;
+    //if (type_desc->type_flags & SPV_REFLECT_TYPE_FLAG_FLOAT) {
+    //    // SPIRV-Reflect doesn't directly distinguish filterable vs unfilterable for float.
+    //    // This often depends on the format and usage. Assume filterable for simplicity here.
+    //    // You might need more sophisticated logic based on SpvImageFormat.
+    //    return WGVKTextureSampleType_Float;
+    //}
+    //if (type_desc->type_flags & SPV_REFLECT_TYPE_FLAG_INT) {
+    //    if (type_desc->traits.numeric.scalar.signedness) {
+    //        return WGVKTextureSampleType_Sint;
+    //    } else {
+    //        return WGVKTextureSampleType_Uint;
+    //    }
+    //}
+    return WGVKTextureSampleType_Float;
 }
 
 static WGVKTextureFormat spvImageFormatToWGVKFormat(SpvImageFormat spv_format) {
@@ -3864,7 +3864,7 @@ WGVKGlobalReflectionInfo* getGlobalRI(SpvReflectShaderModule mod, uint32_t* coun
             insert.bindGroup = set->set; // Use the actual set number from reflection
             insert.binding = entry->binding;
             
-            const char* entry_name_ptr = entry->name ? entry->name : "";
+            const char* entry_name_ptr = entry->type_description->type_name ? entry->type_description->type_name : (entry->name ? entry->name : "");
             insert.name.data = entry_name_ptr;
             insert.name.length = strlen(entry_name_ptr);
             // insert.stageFlags = entry->shader_stage_flags; // If WGVKGlobalReflectionInfo has stage flags
@@ -3886,7 +3886,8 @@ WGVKGlobalReflectionInfo* getGlobalRI(SpvReflectShaderModule mod, uint32_t* coun
                     break;
                 case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
                     // insert.resourceType = WGVKBindingResourceType_Texture;
-                    //insert.texture.sampleType = spvImageTypeToWGVKSampleType(entry->image.image_format, (entry->image.depth == 1));
+                    __builtin_dump_struct(entry, printf);
+                    insert.texture.sampleType = spvImageTypeToWGVKSampleType(entry->image.image_format, (entry->image.depth == 1));
                     insert.texture.viewDimension = spvDimToWGVKViewDimension(entry->image.dim, entry->image.arrayed);
                     break;
                 case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE:
@@ -3927,7 +3928,7 @@ static void wgvkShaderModuleGetReflectionInfo_sync(void* userdata_){
 
     switch(module->source->sType){
         case WGVKSType_ShaderSourceSPIRV:{
-            WGVKShaderSourceSPIRV* spirvSource = (WGVKShaderSourceSPIRV*)module->source->next;
+            WGVKShaderSourceSPIRV* spirvSource = (WGVKShaderSourceSPIRV*)module->source;
 
             SpvReflectShaderModule mod zeroinit;
             SpvReflectResult result = spvReflectCreateShaderModule(spirvSource->codeSize, spirvSource->code, &mod);
@@ -3947,6 +3948,7 @@ static void wgvkShaderModuleGetReflectionInfo_sync(void* userdata_){
                 RL_FREE(descriptorSets);
             }
         }
+        break;
         case WGVKSType_ShaderSourceWGSL:
         default:
         rassert(false, "Invalid sType for source");

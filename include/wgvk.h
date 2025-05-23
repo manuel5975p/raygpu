@@ -849,7 +849,7 @@ typedef struct WGVKAttributeReflectionInfo{
     WGVKReflectionAttribute attributes;
 }WGVKAttributeReflectionInfo;
 
-typedef enum WGVkReflectionInfoRequestStatus {
+typedef enum WGVKReflectionInfoRequestStatus {
     WGVKReflectionInfoRequestStatus_Unused            = 0x00000000,
     WGVKReflectionInfoRequestStatus_Success           = 0x00000001,
     WGVKReflectionInfoRequestStatus_CallbackCancelled = 0x00000002,

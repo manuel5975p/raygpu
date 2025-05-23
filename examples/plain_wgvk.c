@@ -14,19 +14,31 @@ void adapterCallbackFunction(
     *((WGVKAdapter*)userdata1) = adapter;
 }
 
-void reflectionCallback(enum WGVkReflectionInfoRequestStatus status, const struct WGVKReflectionInfo* reflectionInfo, void* userdata1, void* userdata2){
-    printf("called backed\n");
+void reflectionCallback(WGVKReflectionInfoRequestStatus status, const WGVKReflectionInfo* reflectionInfo, void* userdata1, void* userdata2){
+    for(uint32_t i = 0;i < reflectionInfo->globalCount;i++){
+
+        const char* typedesc = NULL;
+
+        if(reflectionInfo->globals[i].buffer.type != WGVKBufferBindingType_BindingNotUsed){
+            typedesc = "buffer";
+        }
+        if(reflectionInfo->globals[i].texture.sampleType != WGVKTextureSampleType_BindingNotUsed){
+            assert(typedesc == NULL && "Two entries set");
+            typedesc = "texture";
+        }
+        if(reflectionInfo->globals[i].sampler.type != WGVKSamplerBindingType_BindingNotUsed){
+            assert(typedesc == NULL && "Two entries set");
+            typedesc = "sampler";
+        }
+
+        char namebuffer[1024] = {0};
+        memcpy(namebuffer, reflectionInfo->globals[i].name.data, reflectionInfo->globals[i].name.length);
+        printf("Name: %s, location: %u, type: %s\n", reflectionInfo->globals[i].name.data, reflectionInfo->globals[i].binding, typedesc);
+    }
 }
 
 int main(){
-    volkInitialize();
     
-    uint32_t propertyCount;
-    
-    vkEnumerateInstanceLayerProperties(&propertyCount, NULL);
-    VkLayerProperties* props = calloc(propertyCount, sizeof(VkLayerProperties)); 
-    vkEnumerateInstanceLayerProperties(&propertyCount, props);
-
     WGVKInstanceLayerSelection lsel = {
         .chain = {
             .next = NULL,
@@ -93,10 +105,32 @@ int main(){
 
     WGVKShaderModuleDescriptor vertexModuleDesc = {
         .nextInChain = &vertexSource.chain,
-        .label = "Vertex Modul"
+        .label = {
+            .data   = "Vertex Modul",
+            .length = sizeof("Vertex Modul"),
+        }
     };
 
+    WGVKShaderSourceSPIRV fragmentSource = {
+        .chain = {
+            .next = NULL,
+            .sType = WGVKSType_ShaderSourceSPIRV
+        },
+        .codeSize = gdefault_fragSize,
+        .code = (uint32_t*)gdefault_fragData
+    };
+    WGVKShaderModuleDescriptor fragmentModuleDesc = {
+        .nextInChain = &fragmentSource.chain,
+        .label = {
+            .data   = "Fragment Modul",
+            .length = sizeof("Fragment Modul"),
+        }
+    };
+
+
     WGVKShaderModule vertexModule = wgvkDeviceCreateShaderModule(device, &vertexModuleDesc);
+    WGVKShaderModule fragmentModule = wgvkDeviceCreateShaderModule(device, &fragmentModuleDesc);
+    
     WGVKReflectionInfoCallbackInfo reflectionCallbackInfo = {
         .callback = reflectionCallback,
         .mode = WGVKCallbackMode_WaitAnyOnly,
@@ -105,11 +139,18 @@ int main(){
         .userdata2 = NULL
     };
 
-    WGVKFuture reflectionFuture = wgvkShaderModuleGetReflectionInfo(vertexModule, reflectionCallbackInfo);
+    WGVKFuture vertReflectionFuture = wgvkShaderModuleGetReflectionInfo(vertexModule, reflectionCallbackInfo);
+    WGVKFuture fragReflectionFuture = wgvkShaderModuleGetReflectionInfo(fragmentModule, reflectionCallbackInfo);
 
-    WGVKFutureWaitInfo reflectionWaitInfo = {
-        .future = reflectionFuture,
-        .completed = 0
+    WGVKFutureWaitInfo reflectionWaitInfo[2] = {
+        {
+            .future = vertReflectionFuture,
+            .completed = 0
+        },
+        {
+            .future =   fragReflectionFuture,
+            .completed = 0
+        },
     };
-    wgvkInstanceWaitAny(instance, 1, &reflectionWaitInfo, 1 << 30);
+    wgvkInstanceWaitAny(instance, 2, reflectionWaitInfo, 1 << 30);
 }
