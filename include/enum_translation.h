@@ -117,16 +117,16 @@ typedef enum TextureViewDimension{
     TextureViewDimension_Force32 = 0x7FFFFFFF
 }TextureViewDimension;
 
-typedef enum WGVKTextureViewDimension{
-    WGVKTextureViewDimension_Undefined = 0x00000000,
-    WGVKTextureViewDimension_1D = 0x00000001,
-    WGVKTextureViewDimension_2D = 0x00000002,
-    WGVKTextureViewDimension_2DArray = 0x00000003,
-    WGVKTextureViewDimension_Cube = 0x00000004,
-    WGVKTextureViewDimension_CubeArray = 0x00000005,
-    WGVKTextureViewDimension_3D = 0x00000006,
-    WGVKTextureViewDimension_Force32 = 0x7FFFFFFF
-}WGVKTextureViewDimension;
+typedef enum WGPUTextureViewDimension{
+    WGPUTextureViewDimension_Undefined = 0x00000000,
+    WGPUTextureViewDimension_1D = 0x00000001,
+    WGPUTextureViewDimension_2D = 0x00000002,
+    WGPUTextureViewDimension_2DArray = 0x00000003,
+    WGPUTextureViewDimension_Cube = 0x00000004,
+    WGPUTextureViewDimension_CubeArray = 0x00000005,
+    WGPUTextureViewDimension_3D = 0x00000006,
+    WGPUTextureViewDimension_Force32 = 0x7FFFFFFF
+}WGPUTextureViewDimension;
 
 typedef enum ShaderStage{
     ShaderStage_Vertex,
@@ -209,13 +209,13 @@ typedef enum FrontFace { FrontFace_Undefined = 0x00000000, FrontFace_CCW = 0x000
 
 typedef enum IndexFormat { IndexFormat_Undefined = 0x00000000, IndexFormat_Uint16 = 0x00000001, IndexFormat_Uint32 = 0x00000002, IndexFormat_Force32 = 0x7FFFFFFF } IndexFormat;
 
-typedef enum WGVKCullMode{
-    WGVKCullMode_Undefined = 0x00000000,
-    WGVKCullMode_None = 0x00000001,
-    WGVKCullMode_Front = 0x00000002,
-    WGVKCullMode_Back = 0x00000003,
-    WGVKCullMode_Force32 = 0x7FFFFFFF
-}WGVKCullMode;
+typedef enum WGPUCullMode{
+    WGPUCullMode_Undefined = 0x00000000,
+    WGPUCullMode_None = 0x00000001,
+    WGPUCullMode_Front = 0x00000002,
+    WGPUCullMode_Back = 0x00000003,
+    WGPUCullMode_Force32 = 0x7FFFFFFF
+}WGPUCullMode;
 
 typedef enum LoadOp {
     LoadOp_Undefined = 0x00000000,
@@ -232,22 +232,22 @@ typedef enum StoreOp {
     StoreOp_Force32 = 0x7FFFFFFF
 } StoreOp;
 #if SUPPORT_VULKAN_BACKEND == 1
-typedef enum WGVKCompositeAlphaMode {
-    WGVKCompositeAlphaMode_Auto = 0x00000000,
-    WGVKCompositeAlphaMode_Opaque = 0x00000001,
-    WGVKCompositeAlphaMode_Premultiplied = 0x00000002,
-    WGVKCompositeAlphaMode_Unpremultiplied = 0x00000003,
-    WGVKCompositeAlphaMode_Inherit = 0x00000004,
-    WGVKCompositeAlphaMode_Force32 = 0x7FFFFFFF
-} WGVKCompositeAlphaMode;
+typedef enum WGPUCompositeAlphaMode {
+    WGPUCompositeAlphaMode_Auto = 0x00000000,
+    WGPUCompositeAlphaMode_Opaque = 0x00000001,
+    WGPUCompositeAlphaMode_Premultiplied = 0x00000002,
+    WGPUCompositeAlphaMode_Unpremultiplied = 0x00000003,
+    WGPUCompositeAlphaMode_Inherit = 0x00000004,
+    WGPUCompositeAlphaMode_Force32 = 0x7FFFFFFF
+} WGPUCompositeAlphaMode;
 
-typedef enum WGVKRequestAdapterStatus {
-    WGVKRequestAdapterStatus_Success = 0x00000001,
-    WGVKRequestAdapterStatus_InstanceDropped = 0x00000002,
-    WGVKRequestAdapterStatus_Unavailable = 0x00000003,
-    WGVKRequestAdapterStatus_Error = 0x00000004,
-    WGVKRequestAdapterStatus_Force32 = 0x7FFFFFFF
-} WGVKRequestAdapterStatus;
+typedef enum WGPURequestAdapterStatus {
+    WGPURequestAdapterStatus_Success = 0x00000001,
+    WGPURequestAdapterStatus_InstanceDropped = 0x00000002,
+    WGPURequestAdapterStatus_Unavailable = 0x00000003,
+    WGPURequestAdapterStatus_Error = 0x00000004,
+    WGPURequestAdapterStatus_Force32 = 0x7FFFFFFF
+} WGPURequestAdapterStatus;
 
 typedef enum VertexFormat {
     VertexFormat_Uint8 = 0x00000001,
@@ -324,23 +324,23 @@ typedef enum BlendOperation {
     //BlendOperation_Force32 = 0x7FFFFFFF
 } BlendOperation;
 
-typedef enum WGVKStencilOperation {
-    WGVKStencilOperation_Undefined = 0x00000000,
-    WGVKStencilOperation_Keep = 0x00000001,
-    WGVKStencilOperation_Zero = 0x00000002,
-    WGVKStencilOperation_Replace = 0x00000003,
-    WGVKStencilOperation_Invert = 0x00000004,
-    WGVKStencilOperation_IncrementClamp = 0x00000005,
-    WGVKStencilOperation_DecrementClamp = 0x00000006,
-    WGVKStencilOperation_IncrementWrap = 0x00000007,
-    WGVKStencilOperation_DecrementWrap = 0x00000008,
-    WGVKStencilOperation_Force32 = 0x7FFFFFFF
-} WGVKStencilOperation;
+typedef enum WGPUStencilOperation {
+    WGPUStencilOperation_Undefined = 0x00000000,
+    WGPUStencilOperation_Keep = 0x00000001,
+    WGPUStencilOperation_Zero = 0x00000002,
+    WGPUStencilOperation_Replace = 0x00000003,
+    WGPUStencilOperation_Invert = 0x00000004,
+    WGPUStencilOperation_IncrementClamp = 0x00000005,
+    WGPUStencilOperation_DecrementClamp = 0x00000006,
+    WGPUStencilOperation_IncrementWrap = 0x00000007,
+    WGPUStencilOperation_DecrementWrap = 0x00000008,
+    WGPUStencilOperation_Force32 = 0x7FFFFFFF
+} WGPUStencilOperation;
 
-typedef int WGVKDeviceLostReason;
+typedef int WGPUDeviceLostReason;
 #else 
-typedef WGPUDeviceLostReason WGVKDeviceLostReason;
-typedef WGPUErrorType WGVKErrorType;
+typedef WGPUDeviceLostReason WGPUDeviceLostReason;
+typedef WGPUErrorType WGPUErrorType;
 typedef WGPUVertexFormat VertexFormat;
 #define VertexFormat_Uint8 WGPUVertexFormat_Uint8
 #define VertexFormat_Uint8x2 WGPUVertexFormat_Uint8x2
@@ -384,13 +384,13 @@ typedef WGPUVertexFormat VertexFormat;
 #define VertexFormat_Unorm10_10_10_2 WGPUVertexFormat_Unorm10_10_10_2
 #define VertexFormat_Unorm8x4BGRA WGPUVertexFormat_Unorm8x4BGRA
 #define VertexFormat_Force32 WGPUVertexFormat_Force32
-typedef WGPURequestAdapterStatus WGVKRequestAdapterStatus;
+typedef WGPURequestAdapterStatus WGPURequestAdapterStatus;
 
-#define WGVKRequestAdapterStatus_Success WGVKRequestAdapterStatus_Success
-#define WGVKRequestAdapterStatus_InstanceDropped WGVKRequestAdapterStatus_InstanceDropped
-#define WGVKRequestAdapterStatus_Unavailable WGVKRequestAdapterStatus_Unavailable
-#define WGVKRequestAdapterStatus_Error WGVKRequestAdapterStatus_Error
-#define WGVKRequestAdapterStatus_Force32 WGVKRequestAdapterStatus_Force32
+#define WGPURequestAdapterStatus_Success WGPURequestAdapterStatus_Success
+#define WGPURequestAdapterStatus_InstanceDropped WGPURequestAdapterStatus_InstanceDropped
+#define WGPURequestAdapterStatus_Unavailable WGPURequestAdapterStatus_Unavailable
+#define WGPURequestAdapterStatus_Error WGPURequestAdapterStatus_Error
+#define WGPURequestAdapterStatus_Force32 WGPURequestAdapterStatus_Force32
 
 
 typedef WGPUBlendFactor BlendFactor;
@@ -421,13 +421,13 @@ typedef WGPUBlendOperation BlendOperation;
 #define BlendOperation_Min WGPUBlendOperation_Min
 #define BlendOperation_Max WGPUBlendOperation_Max
 
-typedef WGPUCompositeAlphaMode WGVKCompositeAlphaMode;
-#define WGVKCompositeAlphaMode_Auto WGPUCompositeAlphaMode_Auto
-#define WGVKCompositeAlphaMode_Opaque WGPUCompositeAlphaMode_Opaque
-#define WGVKCompositeAlphaMode_Premultiplied WGPUCompositeAlphaMode_Premultiplied
-#define WGVKCompositeAlphaMode_Unpremultiplied WGPUCompositeAlphaMode_Unpremultiplied
-#define WGVKCompositeAlphaMode_Inherit WGPUCompositeAlphaMode_Inherit
-#define WGVKCompositeAlphaMode_Force32 WGPUCompositeAlphaMode_Force32
+typedef WGPUCompositeAlphaMode WGPUCompositeAlphaMode;
+#define WGPUCompositeAlphaMode_Auto WGPUCompositeAlphaMode_Auto
+#define WGPUCompositeAlphaMode_Opaque WGPUCompositeAlphaMode_Opaque
+#define WGPUCompositeAlphaMode_Premultiplied WGPUCompositeAlphaMode_Premultiplied
+#define WGPUCompositeAlphaMode_Unpremultiplied WGPUCompositeAlphaMode_Unpremultiplied
+#define WGPUCompositeAlphaMode_Inherit WGPUCompositeAlphaMode_Inherit
+#define WGPUCompositeAlphaMode_Force32 WGPUCompositeAlphaMode_Force32
 
 #endif
 
@@ -1075,24 +1075,24 @@ static inline VkAttachmentLoadOp toVulkanLoadOperation(LoadOp lop) {
         return VK_ATTACHMENT_LOAD_OP_LOAD; // Default fallback
     }
 }
-static inline VkStencilOp toVulkanStencilOperation(WGVKStencilOperation op){
+static inline VkStencilOp toVulkanStencilOperation(WGPUStencilOperation op){
     switch(op){
-        case WGVKStencilOperation_Keep: return VK_STENCIL_OP_KEEP;
-        case WGVKStencilOperation_Zero: return VK_STENCIL_OP_ZERO;
-        case WGVKStencilOperation_Replace: return VK_STENCIL_OP_REPLACE;
-        case WGVKStencilOperation_Invert: return VK_STENCIL_OP_INVERT;
-        case WGVKStencilOperation_IncrementClamp: return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
-        case WGVKStencilOperation_DecrementClamp: return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
-        case WGVKStencilOperation_IncrementWrap: return VK_STENCIL_OP_INCREMENT_AND_WRAP;
-        case WGVKStencilOperation_DecrementWrap: return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+        case WGPUStencilOperation_Keep: return VK_STENCIL_OP_KEEP;
+        case WGPUStencilOperation_Zero: return VK_STENCIL_OP_ZERO;
+        case WGPUStencilOperation_Replace: return VK_STENCIL_OP_REPLACE;
+        case WGPUStencilOperation_Invert: return VK_STENCIL_OP_INVERT;
+        case WGPUStencilOperation_IncrementClamp: return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+        case WGPUStencilOperation_DecrementClamp: return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
+        case WGPUStencilOperation_IncrementWrap: return VK_STENCIL_OP_INCREMENT_AND_WRAP;
+        case WGPUStencilOperation_DecrementWrap: return VK_STENCIL_OP_DECREMENT_AND_WRAP;
         default: rg_unreachable();
     }
 }
-static inline VkCullModeFlags toVulkanCullMode(WGVKCullMode cm){
+static inline VkCullModeFlags toVulkanCullMode(WGPUCullMode cm){
     switch(cm){
-        case WGVKCullMode_Back: return VK_CULL_MODE_BACK_BIT;
-        case WGVKCullMode_Front: return VK_CULL_MODE_FRONT_BIT;
-        case WGVKCullMode_None: return 0;
+        case WGPUCullMode_Back: return VK_CULL_MODE_BACK_BIT;
+        case WGPUCullMode_Front: return VK_CULL_MODE_FRONT_BIT;
+        case WGPUCullMode_None: return 0;
         default: rg_unreachable();
     }
 }

@@ -2,31 +2,33 @@
 #include <external/volk.h>
 #include <stdio.h>
 #include <external/incbin.h>
+#include <tint_c_api.h>
+
 INCBIN(default_vert, "../resources/default.vert.spv");
 INCBIN(default_frag, "../resources/default.frag.spv");
 void adapterCallbackFunction(
-        enum WGVKRequestAdapterStatus status,
-        WGVKAdapter adapter,
-        struct WGVKStringView label,
+        enum WGPURequestAdapterStatus status,
+        WGPUAdapter adapter,
+        struct WGPUStringView label,
         void* userdata1,
         void* userdata2
     ){
-    *((WGVKAdapter*)userdata1) = adapter;
+    *((WGPUAdapter*)userdata1) = adapter;
 }
 
-void reflectionCallback(WGVKReflectionInfoRequestStatus status, const WGVKReflectionInfo* reflectionInfo, void* userdata1, void* userdata2){
+void reflectionCallback(WGPUReflectionInfoRequestStatus status, const WGPUReflectionInfo* reflectionInfo, void* userdata1, void* userdata2){
     for(uint32_t i = 0;i < reflectionInfo->globalCount;i++){
 
         const char* typedesc = NULL;
 
-        if(reflectionInfo->globals[i].buffer.type != WGVKBufferBindingType_BindingNotUsed){
+        if(reflectionInfo->globals[i].buffer.type != WGPUBufferBindingType_BindingNotUsed){
             typedesc = "buffer";
         }
-        if(reflectionInfo->globals[i].texture.sampleType != WGVKTextureSampleType_BindingNotUsed){
+        if(reflectionInfo->globals[i].texture.sampleType != WGPUTextureSampleType_BindingNotUsed){
             assert(typedesc == NULL && "Two entries set");
             typedesc = "texture";
         }
-        if(reflectionInfo->globals[i].sampler.type != WGVKSamplerBindingType_BindingNotUsed){
+        if(reflectionInfo->globals[i].sampler.type != WGPUSamplerBindingType_BindingNotUsed){
             assert(typedesc == NULL && "Two entries set");
             typedesc = "sampler";
         }
@@ -38,11 +40,11 @@ void reflectionCallback(WGVKReflectionInfoRequestStatus status, const WGVKReflec
 }
 
 int main(){
-    
-    WGVKInstanceLayerSelection lsel = {
+    WGPUReflectionInfo refl = reflectionInfo_wgsl_sync((WGPUStringView){0, 0});
+    WGPUInstanceLayerSelection lsel = {
         .chain = {
             .next = NULL,
-            .sType = WGVKSType_InstanceValidationLayerSelection
+            .sType = WGPUSType_InstanceValidationLayerSelection
         }
     };
     const char* layernames[] = {"VK_LAYER_KHRONOS_validation"};
@@ -56,54 +58,54 @@ int main(){
     //}
     //__builtin_dump_struct(&lsel, printf);
     
-    WGVKInstanceDescriptor instanceDescriptor = {
-        .capabilities = {0},
-        .nextInChain = &lsel.chain
+    WGPUInstanceDescriptor instanceDescriptor = {
+        .nextInChain = &lsel.chain,
+        .capabilities = {0}
     };
 
-    WGVKInstance instance = wgvkCreateInstance(&instanceDescriptor);
+    WGPUInstance instance = wgpuCreateInstance(&instanceDescriptor);
 
-    WGVKRequestAdapterOptions adapterOptions = {0};
-    adapterOptions.featureLevel = WGVKFeatureLevel_Core;
+    WGPURequestAdapterOptions adapterOptions = {0};
+    adapterOptions.featureLevel = WGPUFeatureLevel_Core;
 
-    WGVKRequestAdapterCallbackInfo adapterCallback = {0};
+    WGPURequestAdapterCallbackInfo adapterCallback = {0};
     adapterCallback.callback = adapterCallbackFunction;
-    WGVKAdapter requestedAdapter;
-    adapterCallback.userdata1 = &requestedAdapter;
+    WGPUAdapter requestedAdapter;
+    adapterCallback.userdata1 = (void*)&requestedAdapter;
     
 
-    WGVKFuture aFuture = wgvkInstanceRequestAdapter(instance, &adapterOptions, adapterCallback);
-    WGVKFutureWaitInfo winfo = {
+    WGPUFuture aFuture = wgpuInstanceRequestAdapter(instance, &adapterOptions, adapterCallback);
+    WGPUFutureWaitInfo winfo = {
         .future = aFuture,
         .completed = 0
     };
-    wgvkInstanceWaitAny(instance, 1, &winfo, ~0ull);
-    WGVKStringView deviceLabel = {"WGVK Device", sizeof("WGVK Device") - 1};
+    wgpuInstanceWaitAny(instance, 1, &winfo, ~0ull);
+    WGPUStringView deviceLabel = {"WGPU Device", sizeof("WGPU Device") - 1};
 
-    WGVKDeviceDescriptor ddesc = {
+    WGPUDeviceDescriptor ddesc = {
         .nextInChain = 0,
         .label = deviceLabel,
         .requiredFeatureCount = 0,
         .requiredFeatures = NULL,
         .requiredLimits = NULL,
-        .defaultQueue = 0,
-        .deviceLostCallbackInfo = 0,
-        .uncapturedErrorCallbackInfo = 0,
+        .defaultQueue = {0},
+        .deviceLostCallbackInfo = {0},
+        .uncapturedErrorCallbackInfo = {0},
     };
     
-    WGVKDevice device = wgvkAdapterCreateDevice(requestedAdapter, &ddesc);
+    WGPUDevice device = wgpuAdapterCreateDevice(requestedAdapter, &ddesc);
 
 
-    WGVKShaderSourceSPIRV vertexSource = {
+    WGPUShaderSourceSPIRV vertexSource = {
         .chain = {
             .next = NULL,
-            .sType = WGVKSType_ShaderSourceSPIRV
+            .sType = WGPUSType_ShaderSourceSPIRV
         },
         .codeSize = gdefault_vertSize,
         .code = (uint32_t*)gdefault_vertData
     };
 
-    WGVKShaderModuleDescriptor vertexModuleDesc = {
+    WGPUShaderModuleDescriptor vertexModuleDesc = {
         .nextInChain = &vertexSource.chain,
         .label = {
             .data   = "Vertex Modul",
@@ -111,15 +113,15 @@ int main(){
         }
     };
 
-    WGVKShaderSourceSPIRV fragmentSource = {
+    WGPUShaderSourceSPIRV fragmentSource = {
         .chain = {
             .next = NULL,
-            .sType = WGVKSType_ShaderSourceSPIRV
+            .sType = WGPUSType_ShaderSourceSPIRV
         },
         .codeSize = gdefault_fragSize,
         .code = (uint32_t*)gdefault_fragData
     };
-    WGVKShaderModuleDescriptor fragmentModuleDesc = {
+    WGPUShaderModuleDescriptor fragmentModuleDesc = {
         .nextInChain = &fragmentSource.chain,
         .label = {
             .data   = "Fragment Modul",
@@ -128,21 +130,21 @@ int main(){
     };
 
 
-    WGVKShaderModule vertexModule = wgvkDeviceCreateShaderModule(device, &vertexModuleDesc);
-    WGVKShaderModule fragmentModule = wgvkDeviceCreateShaderModule(device, &fragmentModuleDesc);
+    WGPUShaderModule vertexModule = wgpuDeviceCreateShaderModule(device, &vertexModuleDesc);
+    WGPUShaderModule fragmentModule = wgpuDeviceCreateShaderModule(device, &fragmentModuleDesc);
     
-    WGVKReflectionInfoCallbackInfo reflectionCallbackInfo = {
-        .callback = reflectionCallback,
-        .mode = WGVKCallbackMode_WaitAnyOnly,
+    WGPUReflectionInfoCallbackInfo reflectionCallbackInfo = {
         .nextInChain = NULL,
+        .mode = WGPUCallbackMode_WaitAnyOnly,
+        .callback = reflectionCallback,
         .userdata1 = NULL,
         .userdata2 = NULL
     };
 
-    WGVKFuture vertReflectionFuture = wgvkShaderModuleGetReflectionInfo(vertexModule, reflectionCallbackInfo);
-    WGVKFuture fragReflectionFuture = wgvkShaderModuleGetReflectionInfo(fragmentModule, reflectionCallbackInfo);
+    WGPUFuture vertReflectionFuture = wgpuShaderModuleGetReflectionInfo(vertexModule, reflectionCallbackInfo);
+    WGPUFuture fragReflectionFuture = wgpuShaderModuleGetReflectionInfo(fragmentModule, reflectionCallbackInfo);
 
-    WGVKFutureWaitInfo reflectionWaitInfo[2] = {
+    WGPUFutureWaitInfo reflectionWaitInfo[2] = {
         {
             .future = vertReflectionFuture,
             .completed = 0
@@ -152,5 +154,5 @@ int main(){
             .completed = 0
         },
     };
-    wgvkInstanceWaitAny(instance, 2, reflectionWaitInfo, 1 << 30);
+    wgpuInstanceWaitAny(instance, 1, reflectionWaitInfo + 1, 1 << 30);
 }

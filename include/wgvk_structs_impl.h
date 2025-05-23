@@ -1,5 +1,5 @@
-#ifndef WGVK_STRUCTS_IMPL_H
-#define WGVK_STRUCTS_IMPL_H
+#ifndef WGPU_STRUCTS_IMPL_H
+#define WGPU_STRUCTS_IMPL_H
 #include <wgvk.h>
 #include <raygpu.h>
 #include <external/VmaUsage.h>
@@ -59,30 +59,30 @@ typedef struct RenderPassCommandDrawIndexed{
 
 typedef struct RenderPassCommandSetBindGroup{
     uint32_t groupIndex;
-    WGVKBindGroup group;
+    WGPUBindGroup group;
     VkPipelineBindPoint bindPoint;
     size_t dynamicOffsetCount;
     const uint32_t* dynamicOffsets;
 }RenderPassCommandSetBindGroup;
 typedef struct RenderPassCommandSetVertexBuffer {
     uint32_t slot;
-    WGVKBuffer buffer;
+    WGPUBuffer buffer;
     uint64_t offset;
 } RenderPassCommandSetVertexBuffer;
 
 typedef struct RenderPassCommandSetIndexBuffer {
-    WGVKBuffer buffer;
+    WGPUBuffer buffer;
     IndexFormat format;
     uint64_t offset;
     uint64_t size;
 } RenderPassCommandSetIndexBuffer;
 
 typedef struct RenderPassCommandSetPipeline {
-    WGVKRenderPipeline pipeline;
+    WGPURenderPipeline pipeline;
 } RenderPassCommandSetPipeline;
 
 typedef struct ComputePassCommandSetPipeline {
-    WGVKComputePipeline pipeline;
+    WGPUComputePipeline pipeline;
 } ComputePassCommandSetPipeline;
 
 typedef struct ComputePassCommandDispatchWorkgroups {
@@ -90,11 +90,11 @@ typedef struct ComputePassCommandDispatchWorkgroups {
 } ComputePassCommandDispatchWorkgroups;
 
 typedef struct RenderPassCommandBegin{
-    WGVKStringView label;
+    WGPUStringView label;
     size_t colorAttachmentCount;
-    WGVKRenderPassColorAttachment colorAttachments[MAX_COLOR_ATTACHMENTS];
+    WGPURenderPassColorAttachment colorAttachments[MAX_COLOR_ATTACHMENTS];
     Bool32 depthAttachmentPresent;
-    WGVKRenderPassDepthStencilAttachment depthStencilAttachment;
+    WGPURenderPassDepthStencilAttachment depthStencilAttachment;
 }RenderPassCommandBegin;
 
 typedef struct RenderPassCommandGeneric {
@@ -116,27 +116,27 @@ DEFINE_PTR_HASH_MAP (CONTAINERAPI, BufferUsageRecordMap, BufferUsageRecord)
 //DEFINE_PTR_HASH_MAP (CONTAINERAPI, ImageViewUsageRecordMap, ImageViewUsageRecord)
 //DEFINE_PTR_HASH_MAP (CONTAINERAPI, LayoutAssumptions, ImageLayoutPair)
 DEFINE_PTR_HASH_MAP (CONTAINERAPI, ImageUsageRecordMap, ImageUsageRecord)
-DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupUsageSet, WGVKBindGroup)
-DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupLayoutUsageSet, WGVKBindGroupLayout)
-DEFINE_PTR_HASH_SET (CONTAINERAPI, SamplerUsageSet, WGVKSampler)
-DEFINE_PTR_HASH_SET (CONTAINERAPI, ImageViewUsageSet, WGVKTextureView)
-DEFINE_PTR_HASH_SET (CONTAINERAPI, WGVKRenderPassEncoderSet, WGVKRenderPassEncoder)
-DEFINE_PTR_HASH_SET (CONTAINERAPI, RenderPipelineUsageSet, WGVKRenderPipeline)
-DEFINE_PTR_HASH_SET (CONTAINERAPI, ComputePipelineUsageSet, WGVKComputePipeline)
-DEFINE_PTR_HASH_SET (CONTAINERAPI, WGVKComputePassEncoderSet, WGVKComputePassEncoder)
-DEFINE_PTR_HASH_SET (CONTAINERAPI, WGVKRaytracingPassEncoderSet, WGVKRaytracingPassEncoder)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupUsageSet, WGPUBindGroup)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupLayoutUsageSet, WGPUBindGroupLayout)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, SamplerUsageSet, WGPUSampler)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, ImageViewUsageSet, WGPUTextureView)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, WGPURenderPassEncoderSet, WGPURenderPassEncoder)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, RenderPipelineUsageSet, WGPURenderPipeline)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, ComputePipelineUsageSet, WGPUComputePipeline)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, WGPUComputePassEncoderSet, WGPUComputePassEncoder)
+DEFINE_PTR_HASH_SET (CONTAINERAPI, WGPURaytracingPassEncoderSet, WGPURaytracingPassEncoder)
 
 DEFINE_VECTOR (CONTAINERAPI, VkWriteDescriptorSet, VkWriteDescriptorSetVector)
 DEFINE_VECTOR (CONTAINERAPI, VkCommandBuffer, VkCommandBufferVector)
 DEFINE_VECTOR (CONTAINERAPI, RenderPassCommandGeneric, RenderPassCommandGenericVector)
 DEFINE_VECTOR (CONTAINERAPI, VkSemaphore, VkSemaphoreVector)
-DEFINE_VECTOR (CONTAINERAPI, WGVKCommandBuffer, WGVKCommandBufferVector)
+DEFINE_VECTOR (CONTAINERAPI, WGPUCommandBuffer, WGPUCommandBufferVector)
 DEFINE_VECTOR (CONTAINERAPI, VkDescriptorBufferInfo, VkDescriptorBufferInfoVector)
 DEFINE_VECTOR (CONTAINERAPI, VkDescriptorImageInfo, VkDescriptorImageInfoVector)
 DEFINE_VECTOR (CONTAINERAPI, VkWriteDescriptorSetAccelerationStructureKHR, VkWriteDescriptorSetAccelerationStructureKHRVector)
 DEFINE_VECTOR (CONTAINERAPI, VkDescriptorSetLayoutBinding, VkDescriptorSetLayoutBindingVector)
 
-DEFINE_PTR_HASH_MAP(CONTAINERAPI, PendingCommandBufferMap, WGVKCommandBufferVector);
+DEFINE_PTR_HASH_MAP(CONTAINERAPI, PendingCommandBufferMap, WGPUCommandBufferVector);
 
 typedef struct DescriptorSetAndPool{
     VkDescriptorPool pool;
@@ -144,7 +144,7 @@ typedef struct DescriptorSetAndPool{
 }DescriptorSetAndPool;
 
 DEFINE_VECTOR(static inline, VkAttachmentDescription, VkAttachmentDescriptionVector)
-DEFINE_VECTOR(static inline, WGVKBuffer, WGVKBufferVector)
+DEFINE_VECTOR(static inline, WGPUBuffer, WGPUBufferVector)
 DEFINE_VECTOR(static inline, DescriptorSetAndPool, DescriptorSetAndPoolVector)
 DEFINE_PTR_HASH_MAP(static inline, BindGroupCacheMap, DescriptorSetAndPoolVector)
 
@@ -196,26 +196,26 @@ static inline void ResourceUsage_init(ResourceUsage* ru){
     //LayoutAssumptions_init(&ru->entryAndFinalLayouts);
 }
 
-RGAPI void ru_registerTransition   (ResourceUsage* resourceUsage, WGVKTexture tex, VkImageLayout from, VkImageLayout to);
-RGAPI void ru_trackBuffer          (ResourceUsage* resourceUsage, WGVKBuffer buffer, BufferUsageRecord brecord);
-RGAPI void ru_trackTexture         (ResourceUsage* resourceUsage, WGVKTexture texture, ImageUsageRecord newRecord);
-RGAPI void ru_trackTextureView     (ResourceUsage* resourceUsage, WGVKTextureView view);
-RGAPI void ru_trackBindGroup       (ResourceUsage* resourceUsage, WGVKBindGroup bindGroup);
-RGAPI void ru_trackBindGroupLayout (ResourceUsage* resourceUsage, WGVKBindGroupLayout bindGroupLayout);
-RGAPI void ru_trackSampler         (ResourceUsage* resourceUsage, WGVKSampler sampler);
-RGAPI void ru_trackRenderPipeline  (ResourceUsage* resourceUsage, WGVKRenderPipeline rpl);
-RGAPI void ru_trackComputePipeline (ResourceUsage* resourceUsage, WGVKComputePipeline computePipeline);
+RGAPI void ru_registerTransition   (ResourceUsage* resourceUsage, WGPUTexture tex, VkImageLayout from, VkImageLayout to);
+RGAPI void ru_trackBuffer          (ResourceUsage* resourceUsage, WGPUBuffer buffer, BufferUsageRecord brecord);
+RGAPI void ru_trackTexture         (ResourceUsage* resourceUsage, WGPUTexture texture, ImageUsageRecord newRecord);
+RGAPI void ru_trackTextureView     (ResourceUsage* resourceUsage, WGPUTextureView view);
+RGAPI void ru_trackBindGroup       (ResourceUsage* resourceUsage, WGPUBindGroup bindGroup);
+RGAPI void ru_trackBindGroupLayout (ResourceUsage* resourceUsage, WGPUBindGroupLayout bindGroupLayout);
+RGAPI void ru_trackSampler         (ResourceUsage* resourceUsage, WGPUSampler sampler);
+RGAPI void ru_trackRenderPipeline  (ResourceUsage* resourceUsage, WGPURenderPipeline rpl);
+RGAPI void ru_trackComputePipeline (ResourceUsage* resourceUsage, WGPUComputePipeline computePipeline);
 
-RGAPI void ce_trackBuffer(WGVKCommandEncoder encoder, WGVKBuffer buffer, BufferUsageSnap usage);
-RGAPI void ce_trackTexture(WGVKCommandEncoder encoder, WGVKTexture texture, ImageUsageSnap usage);
-RGAPI void ce_trackTextureView(WGVKCommandEncoder encoder, WGVKTextureView view, ImageUsageSnap usage);
+RGAPI void ce_trackBuffer(WGPUCommandEncoder encoder, WGPUBuffer buffer, BufferUsageSnap usage);
+RGAPI void ce_trackTexture(WGPUCommandEncoder encoder, WGPUTexture texture, ImageUsageSnap usage);
+RGAPI void ce_trackTextureView(WGPUCommandEncoder encoder, WGPUTextureView view, ImageUsageSnap usage);
 
-RGAPI Bool32 ru_containsBuffer         (const ResourceUsage* resourceUsage, WGVKBuffer buffer);
-RGAPI Bool32 ru_containsTexture        (const ResourceUsage* resourceUsage, WGVKTexture texture);
-RGAPI Bool32 ru_containsTextureView    (const ResourceUsage* resourceUsage, WGVKTextureView view);
-RGAPI Bool32 ru_containsBindGroup      (const ResourceUsage* resourceUsage, WGVKBindGroup bindGroup);
-RGAPI Bool32 ru_containsBindGroupLayout(const ResourceUsage* resourceUsage, WGVKBindGroupLayout bindGroupLayout);
-RGAPI Bool32 ru_containsSampler        (const ResourceUsage* resourceUsage, WGVKSampler bindGroup);
+RGAPI Bool32 ru_containsBuffer         (const ResourceUsage* resourceUsage, WGPUBuffer buffer);
+RGAPI Bool32 ru_containsTexture        (const ResourceUsage* resourceUsage, WGPUTexture texture);
+RGAPI Bool32 ru_containsTextureView    (const ResourceUsage* resourceUsage, WGPUTextureView view);
+RGAPI Bool32 ru_containsBindGroup      (const ResourceUsage* resourceUsage, WGPUBindGroup bindGroup);
+RGAPI Bool32 ru_containsBindGroupLayout(const ResourceUsage* resourceUsage, WGPUBindGroupLayout bindGroupLayout);
+RGAPI Bool32 ru_containsSampler        (const ResourceUsage* resourceUsage, WGPUSampler bindGroup);
 
 RGAPI void releaseAllAndClear(ResourceUsage* resourceUsage);
 
@@ -306,12 +306,12 @@ typedef struct LayoutedRenderPass{
 #ifdef __cplusplus
 extern "C"{
 #endif
-LayoutedRenderPass LoadRenderPassFromLayout(WGVKDevice device, RenderPassLayout layout);
-RenderPassLayout GetRenderPassLayout(const WGVKRenderPassDescriptor* rpdesc);
+LayoutedRenderPass LoadRenderPassFromLayout(WGPUDevice device, RenderPassLayout layout);
+RenderPassLayout GetRenderPassLayout(const WGPURenderPassDescriptor* rpdesc);
 #ifdef __cplusplus
 }
 #endif
-typedef struct wgvkxorshiftstate{
+typedef struct wgpuxorshiftstate{
     uint64_t x64;
     #ifdef __cplusplus
     constexpr void update(uint64_t x) noexcept{
@@ -327,8 +327,8 @@ typedef struct wgvkxorshiftstate{
         x64 ^= x64 << 17;
     }
     #endif
-}wgvkxorshiftstate;
-static inline void xs_update_u32(wgvkxorshiftstate* state, uint32_t x, uint32_t y){
+}wgpuxorshiftstate;
+static inline void xs_update_u32(wgpuxorshiftstate* state, uint32_t x, uint32_t y){
     state->x64 ^= ((((uint64_t)x) << 32) | ((uint64_t)y)) * 0x2545F4914F6CDD1D;
     state->x64 ^= state->x64 << 13;
     state->x64 ^= state->x64 >> 7;
@@ -341,7 +341,7 @@ namespace std{
     struct hash<RenderPassLayout>{
         constexpr size_t operator()(const RenderPassLayout& layout)const noexcept{
 
-            wgvkxorshiftstate ret{0x2545F4918F6CDD1D};
+            wgpuxorshiftstate ret{0x2545F4918F6CDD1D};
             ret.update(layout.depthAttachmentPresent << 6, layout.colorAttachmentCount);
             for(uint32_t i = 0;i < layout.colorAttachmentCount;i++){
                 ret.update(layout.colorAttachments[i].format, layout.colorAttachments[i].sampleCount);
@@ -359,7 +359,7 @@ namespace std{
 #endif
 
 static size_t renderPassLayoutHash(RenderPassLayout layout){
-    wgvkxorshiftstate ret = {.x64 = 0x2545F4918F6CDD1D};
+    wgpuxorshiftstate ret = {.x64 = 0x2545F4918F6CDD1D};
     xs_update_u32(&ret, layout.depthAttachmentPresent << 6, layout.colorAttachmentCount);
     for(uint32_t i = 0;i < layout.colorAttachmentCount;i++){
         xs_update_u32(&ret, layout.colorAttachments[i].format, layout.colorAttachments[i].sampleCount);
@@ -378,14 +378,14 @@ typedef struct PerframeCache{
     VkCommandPool commandPool;
     VkCommandBufferVector commandBuffers;
 
-    WGVKBufferVector unusedBatchBuffers;
-    WGVKBufferVector usedBatchBuffers;
+    WGPUBufferVector unusedBatchBuffers;
+    WGPUBufferVector usedBatchBuffers;
     
     VkCommandBuffer finalTransitionBuffer;
     VkSemaphore finalTransitionSemaphore;
     VkFence finalTransitionFence;
     //std::map<uint64_t, small_vector<MappableBufferMemory>> stagingBufferCache;
-    //std::unordered_map<WGVKBindGroupLayout, std::vector<std::pair<VkDescriptorPool, VkDescriptorSet>>> bindGroupCache;
+    //std::unordered_map<WGPUBindGroupLayout, std::vector<std::pair<VkDescriptorPool, VkDescriptorSet>>> bindGroupCache;
     BindGroupCacheMap bindGroupCache;
 }PerframeCache;
 
@@ -396,44 +396,44 @@ typedef struct QueueIndices{
     uint32_t presentIndex;
 }QueueIndices;
 
-typedef struct WGVKSamplerImpl{
+typedef struct WGPUSamplerImpl{
     VkSampler sampler;
     refcount_type refCount;
-    WGVKDevice device;
-}WGVKSamplerImpl;
+    WGPUDevice device;
+}WGPUSamplerImpl;
 
-typedef struct WGVKBindGroupImpl{
+typedef struct WGPUBindGroupImpl{
     VkDescriptorSet set;
     VkDescriptorPool pool;
-    WGVKBindGroupLayout layout;
+    WGPUBindGroupLayout layout;
     refcount_type refCount;
     ResourceUsage resourceUsage;
-    WGVKDevice device;
+    WGPUDevice device;
     uint32_t cacheIndex;
     ResourceDescriptor* entries;
     uint32_t entryCount;
-}WGVKBindGroupImpl;
+}WGPUBindGroupImpl;
 
-typedef struct WGVKBindGroupLayoutImpl{
+typedef struct WGPUBindGroupLayoutImpl{
     VkDescriptorSetLayout layout;
-    WGVKDevice device;
+    WGPUDevice device;
     ResourceTypeDescriptor* entries;
     uint32_t entryCount;
 
     refcount_type refCount;
-}WGVKBindGroupLayoutImpl;
+}WGPUBindGroupLayoutImpl;
 
-typedef struct WGVKPipelineLayoutImpl{
+typedef struct WGPUPipelineLayoutImpl{
     VkPipelineLayout layout;
-    WGVKDevice device;
-    WGVKBindGroupLayout* bindGroupLayouts;
+    WGPUDevice device;
+    WGPUBindGroupLayout* bindGroupLayouts;
     uint32_t bindGroupLayoutCount;
     refcount_type refCount;
-}WGVKPipelineLayoutImpl;
+}WGPUPipelineLayoutImpl;
 
-typedef struct WGVKBufferImpl{
+typedef struct WGPUBufferImpl{
     VkBuffer buffer;
-    WGVKDevice device;
+    WGPUDevice device;
     uint32_t cacheIndex;
     BufferUsage usage;
     size_t capacity;
@@ -441,8 +441,8 @@ typedef struct WGVKBufferImpl{
     VkMemoryPropertyFlags memoryProperties;
     VkDeviceAddress address; //uint64_t, if applicable (BufferUsage_ShaderDeviceAddress)
     refcount_type refCount;
-}WGVKBufferImpl;
-typedef struct WGVKBottomLevelAccelerationStructureImpl {
+}WGPUBufferImpl;
+typedef struct WGPUBottomLevelAccelerationStructureImpl {
     VkDevice device;
     VkAccelerationStructureKHR accelerationStructure;
     VkDeviceMemory accelerationStructureMemory;
@@ -450,10 +450,10 @@ typedef struct WGVKBottomLevelAccelerationStructureImpl {
     VkDeviceMemory scratchBufferMemory;
     VkBuffer accelerationStructureBuffer;
     VkDeviceMemory accelerationStructureBufferMemory;
-} WGVKBottomLevelAccelerationStructureImpl;
-typedef WGVKBottomLevelAccelerationStructureImpl *WGVKBottomLevelAccelerationStructure;
+} WGPUBottomLevelAccelerationStructureImpl;
+typedef WGPUBottomLevelAccelerationStructureImpl *WGPUBottomLevelAccelerationStructure;
 
-typedef struct WGVKTopLevelAccelerationStructureImpl {
+typedef struct WGPUTopLevelAccelerationStructureImpl {
     VkDevice device;
     VkAccelerationStructureKHR accelerationStructure;
     VkDeviceMemory accelerationStructureMemory;
@@ -463,231 +463,231 @@ typedef struct WGVKTopLevelAccelerationStructureImpl {
     VkDeviceMemory accelerationStructureBufferMemory;
     VkBuffer instancesBuffer;
     VkDeviceMemory instancesBufferMemory;
-} WGVKTopLevelAccelerationStructureImpl;
+} WGPUTopLevelAccelerationStructureImpl;
 
 
-typedef struct WGVKInstanceImpl{
+typedef struct WGPUInstanceImpl{
     VkInstance instance;
     VkDebugUtilsMessengerEXT debugMessenger;
-}WGVKInstanceImpl;
+}WGPUInstanceImpl;
 
-typedef struct WGVKFutureImpl{
+typedef struct WGPUFutureImpl{
     void* userdataForFunction;
     void (*functionCalledOnWaitAny)(void*);
-}WGVKFutureImpl;
+}WGPUFutureImpl;
 
-typedef struct WGVKAdapterImpl{
+typedef struct WGPUAdapterImpl{
     VkPhysicalDevice physicalDevice;
-    WGVKInstance instance;
+    WGPUInstance instance;
     VkPhysicalDeviceRayTracingPipelinePropertiesKHR rayTracingPipelineProperties;
     VkPhysicalDeviceMemoryProperties memProperties;
     QueueIndices queueIndices;
-}WGVKAdapterImpl;
+}WGPUAdapterImpl;
 
 #define framesInFlight 2
 
 DEFINE_GENERIC_HASH_MAP(CONTAINERAPI, RenderPassCache, RenderPassLayout, LayoutedRenderPass, renderPassLayoutHash, renderPassLayoutCompare, CLITERAL(RenderPassLayout){0});
-typedef struct WGVKDeviceImpl{
+typedef struct WGPUDeviceImpl{
     VkDevice device;
-    WGVKAdapter adapter;
-    WGVKQueue queue;
+    WGPUAdapter adapter;
+    WGPUQueue queue;
     size_t submittedFrames;
     VmaAllocator allocator;
     VmaPool aligned_hostVisiblePool;
     PerframeCache frameCaches[framesInFlight];
 
     RenderPassCache renderPassCache;
-    WGVKUncapturedErrorCallbackInfo uncapturedErrorCallbackInfo;
+    WGPUUncapturedErrorCallbackInfo uncapturedErrorCallbackInfo;
     struct VolkDeviceTable functions;
-}WGVKDeviceImpl;
+}WGPUDeviceImpl;
 
-typedef struct WGVKTextureImpl{
+typedef struct WGPUTextureImpl{
     VkImage image;
     VkFormat format;
     VkImageLayout layout;
     VkDeviceMemory memory;
-    WGVKDevice device;
+    WGPUDevice device;
     refcount_type refCount;
     uint32_t width, height, depthOrArrayLayers;
     uint32_t mipLevels;
     uint32_t sampleCount;
-}WGVKTextureImpl;
-typedef struct WGVKShaderModuleImpl{
+}WGPUTextureImpl;
+typedef struct WGPUShaderModuleImpl{
     uint32_t refCount;
     VkShaderModule vulkanModule;
     
-    WGVKChainedStruct* source;
-}WGVKShaderModuleImpl;
+    WGPUChainedStruct* source;
+}WGPUShaderModuleImpl;
 DEFINE_VECTOR(static inline, VkDynamicState, VkDynamicStateVector)
-typedef struct WGVKRenderPipelineImpl{
+typedef struct WGPURenderPipelineImpl{
     VkPipeline renderPipeline;
-    WGVKPipelineLayout layout;
+    WGPUPipelineLayout layout;
     refcount_type refCount;
-    WGVKDevice device;
+    WGPUDevice device;
     VkDynamicStateVector dynamicStates;
-}WGVKRenderPipelineImpl;
+}WGPURenderPipelineImpl;
 
-typedef struct WGVKComputePipelineImpl{
+typedef struct WGPUComputePipelineImpl{
     VkPipeline computePipeline;
-    WGVKPipelineLayout layout;
+    WGPUPipelineLayout layout;
     refcount_type refCount;
-}WGVKComputePipelineImpl;
+}WGPUComputePipelineImpl;
 
-typedef struct WGVKRaytracingPipelineImpl{
+typedef struct WGPURaytracingPipelineImpl{
     VkPipeline raytracingPipeline;
     VkPipelineLayout layout;
-    WGVKBuffer raygenBindingTable;
-    WGVKBuffer missBindingTable;
-    WGVKBuffer hitBindingTable;
-}WGVKRaytracingPipelineImpl;
+    WGPUBuffer raygenBindingTable;
+    WGPUBuffer missBindingTable;
+    WGPUBuffer hitBindingTable;
+}WGPURaytracingPipelineImpl;
 
-typedef struct WGVKTextureViewImpl{
+typedef struct WGPUTextureViewImpl{
     VkImageView view;
     VkFormat format;
     refcount_type refCount;
-    WGVKTexture texture;
+    WGPUTexture texture;
     VkImageSubresourceRange subresourceRange;
     uint32_t width, height, depthOrArrayLayers;
     uint32_t sampleCount;
-}WGVKTextureViewImpl;
+}WGPUTextureViewImpl;
 
 typedef struct CommandBufferAndSomeState{
     VkCommandBuffer buffer;
     VkPipelineLayout lastLayout;
-    WGVKDevice device;
-    WGVKBuffer vertexBuffers[8];
-    WGVKBuffer indexBuffer;
-    WGVKBindGroup graphicsBindGroups[8];
-    WGVKBindGroup computeBindGroups[8];
+    WGPUDevice device;
+    WGPUBuffer vertexBuffers[8];
+    WGPUBuffer indexBuffer;
+    WGPUBindGroup graphicsBindGroups[8];
+    WGPUBindGroup computeBindGroups[8];
 }CommandBufferAndSomeState;
 void recordVkCommand(CommandBufferAndSomeState* destination, const RenderPassCommandGeneric* command);
-void recordVkCommands(VkCommandBuffer destination, WGVKDevice device, const RenderPassCommandGenericVector* commands);
+void recordVkCommands(VkCommandBuffer destination, WGPUDevice device, const RenderPassCommandGenericVector* commands);
 
-typedef struct WGVKRenderPassEncoderImpl{
+typedef struct WGPURenderPassEncoderImpl{
     VkRenderPass renderPass; //ONLY if !dynamicRendering
 
     RenderPassCommandBegin beginInfo;
     RenderPassCommandGenericVector bufferedCommands;
     
-    WGVKDevice device;
+    WGPUDevice device;
     ResourceUsage resourceUsage;
     refcount_type refCount;
 
-    WGVKPipelineLayout lastLayout;
+    WGPUPipelineLayout lastLayout;
     VkFramebuffer frameBuffer;
-    WGVKCommandEncoder cmdEncoder;
-}WGVKRenderPassEncoderImpl;
+    WGPUCommandEncoder cmdEncoder;
+}WGPURenderPassEncoderImpl;
 
-typedef struct WGVKComputePassEncoderImpl{
+typedef struct WGPUComputePassEncoderImpl{
     RenderPassCommandGenericVector bufferedCommands;
-    WGVKDevice device;
+    WGPUDevice device;
     ResourceUsage resourceUsage;
     refcount_type refCount;
 
-    WGVKPipelineLayout lastLayout;
-    WGVKCommandEncoder cmdEncoder;
-}WGVKComputePassEncoderImpl;
+    WGPUPipelineLayout lastLayout;
+    WGPUCommandEncoder cmdEncoder;
+}WGPUComputePassEncoderImpl;
 
-void RenderPassEncoder_PushCommand(WGVKRenderPassEncoder, const RenderPassCommandGeneric* cmd);
-void ComputePassEncoder_PushCommand(WGVKComputePassEncoder, const RenderPassCommandGeneric* cmd);
+void RenderPassEncoder_PushCommand(WGPURenderPassEncoder, const RenderPassCommandGeneric* cmd);
+void ComputePassEncoder_PushCommand(WGPUComputePassEncoder, const RenderPassCommandGeneric* cmd);
 
-typedef struct WGVKCommandEncoderImpl{
+typedef struct WGPUCommandEncoderImpl{
     VkCommandBuffer buffer;
     
-    WGVKRenderPassEncoderSet referencedRPs;
-    WGVKComputePassEncoderSet referencedCPs;
-    WGVKRaytracingPassEncoderSet referencedRTs;
+    WGPURenderPassEncoderSet referencedRPs;
+    WGPUComputePassEncoderSet referencedCPs;
+    WGPURaytracingPassEncoderSet referencedRTs;
 
     ResourceUsage resourceUsage;
-    WGVKDevice device;
+    WGPUDevice device;
     uint32_t cacheIndex;
     uint32_t movedFrom;
     
     
-}WGVKCommandEncoderImpl;
-typedef struct WGVKCommandBufferImpl{
+}WGPUCommandEncoderImpl;
+typedef struct WGPUCommandBufferImpl{
     VkCommandBuffer buffer;
     refcount_type refCount;
-    WGVKRenderPassEncoderSet referencedRPs;
-    WGVKComputePassEncoderSet referencedCPs;
-    WGVKRaytracingPassEncoderSet referencedRTs;
+    WGPURenderPassEncoderSet referencedRPs;
+    WGPUComputePassEncoderSet referencedCPs;
+    WGPURaytracingPassEncoderSet referencedRTs;
     
     ResourceUsage resourceUsage;
     
-    WGVKDevice device;
+    WGPUDevice device;
     uint32_t cacheIndex;
-}WGVKCommandBufferImpl;
+}WGPUCommandBufferImpl;
 
 
-typedef struct WGVKRaytracingPassEncoderImpl{
+typedef struct WGPURaytracingPassEncoderImpl{
     VkCommandBuffer cmdBuffer;
-    WGVKDevice device;
-    WGVKRaytracingPipeline lastPipeline;
+    WGPUDevice device;
+    WGPURaytracingPipeline lastPipeline;
 
     ResourceUsage resourceUsage;
     refcount_type refCount;
     VkPipelineLayout lastLayout;
-    WGVKCommandEncoder cmdEncoder;
-}WGVKRaytracingPassEncoderImpl;
+    WGPUCommandEncoder cmdEncoder;
+}WGPURaytracingPassEncoderImpl;
 
-typedef struct WGVKSurfaceImpl{
+typedef struct WGPUSurfaceImpl{
     VkSurfaceKHR surface;
     VkSwapchainKHR swapchain;
-    WGVKDevice device;
-    WGVKSurfaceConfiguration lastConfig;
+    WGPUDevice device;
+    WGPUSurfaceConfiguration lastConfig;
     uint32_t imagecount;
 
     uint32_t activeImageIndex;
     uint32_t width, height;
     VkFormat swapchainImageFormat;
     VkColorSpaceKHR swapchainColorSpace;
-    WGVKTexture* images;
-    WGVKTextureView* imageViews;
+    WGPUTexture* images;
+    WGPUTextureView* imageViews;
     //VkFramebuffer* framebuffers;
 
     uint32_t formatCount;
     PixelFormat* formatCache;
     uint32_t presentModeCount;
     PresentMode* presentModeCache;
-}WGVKSurfaceImpl;
+}WGPUSurfaceImpl;
 
-typedef struct WGVKQueueImpl{
+typedef struct WGPUQueueImpl{
     VkQueue graphicsQueue;
     VkQueue computeQueue;
     VkQueue transferQueue;
     VkQueue presentQueue;
 
     SyncState syncState[framesInFlight];
-    WGVKDevice device;
+    WGPUDevice device;
 
-    WGVKCommandEncoder presubmitCache;
+    WGPUCommandEncoder presubmitCache;
 
     PendingCommandBufferMap pendingCommandBuffers[framesInFlight];
-}WGVKQueueImpl;
+}WGPUQueueImpl;
 
 
-#ifndef WGVK_VALIDATION_ENABLED
-#define WGVK_VALIDATION_ENABLED 1
+#ifndef WGPU_VALIDATION_ENABLED
+#define WGPU_VALIDATION_ENABLED 1
 #endif
 
 
 
 
-#if WGVK_VALIDATION_ENABLED
+#if WGPU_VALIDATION_ENABLED
 #include <stdio.h> // For snprintf
 #include <string.h> // For strlen, strcmp
 
-// WGVK_VALIDATE_IMPL remains the same
-#define WGVK_VALIDATE_IMPL(device_ptr, condition, error_type, message_str, log_level_on_fail) \
+// WGPU_VALIDATE_IMPL remains the same
+#define WGPU_VALIDATE_IMPL(device_ptr, condition, error_type, message_str, log_level_on_fail) \
     do { \
         if (!(condition)) { \
             const char* resolved_message = (message_str); \
             size_t message_len = strlen(resolved_message); \
             if ((device_ptr) && (device_ptr)->uncapturedErrorCallbackInfo.callback) { \
                 (device_ptr)->uncapturedErrorCallbackInfo.callback( \
-                    (const WGVKDevice*)(device_ptr), \
+                    (const WGPUDevice*)(device_ptr), \
                     (error_type), \
-                    (WGVKStringView){resolved_message, message_len}, \
+                    (WGPUStringView){resolved_message, message_len}, \
                     (device_ptr)->uncapturedErrorCallbackInfo.userdata1, \
                     (device_ptr)->uncapturedErrorCallbackInfo.userdata2 \
                 ); \
@@ -697,16 +697,16 @@ typedef struct WGVKQueueImpl{
         } \
     } while (0)
 
-#define WGVK_VALIDATE(device_ptr, condition, message_str) WGVK_VALIDATE_IMPL(device_ptr, condition, WGVKErrorType_Validation, message_str, LOG_ERROR)
-#define WGVK_VALIDATE_PTR(device_ptr, ptr, ptr_name_str) WGVK_VALIDATE_IMPL(device_ptr, (ptr) != NULL, WGVKErrorType_Validation, ptr_name_str " must not be NULL.", LOG_ERROR)
-#define WGVK_VALIDATE_HANDLE(device_ptr, handle, handle_name_str) WGVK_VALIDATE_IMPL(device_ptr, (handle) != VK_NULL_HANDLE, WGVKErrorType_Validation, handle_name_str " is VK_NULL_HANDLE.", LOG_ERROR)
+#define WGPU_VALIDATE(device_ptr, condition, message_str) WGPU_VALIDATE_IMPL(device_ptr, condition, WGPUErrorType_Validation, message_str, LOG_ERROR)
+#define WGPU_VALIDATE_PTR(device_ptr, ptr, ptr_name_str) WGPU_VALIDATE_IMPL(device_ptr, (ptr) != NULL, WGPUErrorType_Validation, ptr_name_str " must not be NULL.", LOG_ERROR)
+#define WGPU_VALIDATE_HANDLE(device_ptr, handle, handle_name_str) WGPU_VALIDATE_IMPL(device_ptr, (handle) != VK_NULL_HANDLE, WGPUErrorType_Validation, handle_name_str " is VK_NULL_HANDLE.", LOG_ERROR)
 
 // Specific validation for descriptor structs
-#define WGVK_VALIDATE_DESC_PTR(parent_device_ptr, desc_ptr, desc_name_str) \
+#define WGPU_VALIDATE_DESC_PTR(parent_device_ptr, desc_ptr, desc_name_str) \
     do { \
         if (!(desc_ptr)) { \
             const char* msg = desc_name_str " descriptor must not be NULL."; \
-            WGVK_VALIDATE_IMPL(parent_device_ptr, false, WGVKErrorType_Validation, msg, LOG_ERROR); \
+            WGPU_VALIDATE_IMPL(parent_device_ptr, false, WGPUErrorType_Validation, msg, LOG_ERROR); \
         } \
     } while (0)
 
@@ -716,14 +716,14 @@ typedef struct WGVKQueueImpl{
 /**
  * @brief Validates that two expressions `a` and `b` are equal.
  * Generates a detailed message on failure, including the stringified expressions and their runtime values.
- * @param device_ptr Pointer to the WGVKDevice (can be NULL).
+ * @param device_ptr Pointer to the WGPUDevice (can be NULL).
  * @param a The first expression.
  * @param b The second expression.
  * @param fmt_a The printf-style format specifier for the type of 'a'.
  * @param fmt_b The printf-style format specifier for the type of 'b'.
  * @param context_msg A string providing context for the check (e.g., "sCreateInfo->sType").
  */
-#define WGVK_VALIDATE_EQ_FORMAT(device_ptr, a, b, fmt_a, fmt_b, context_msg) \
+#define WGPU_VALIDATE_EQ_FORMAT(device_ptr, a, b, fmt_a, fmt_b, context_msg) \
     do { \
         /* Evaluate a and b once to avoid side effects if they are complex expressions */ \
         /* Note: This requires C99 or for the types of a_val and b_val to be known, */ \
@@ -733,16 +733,16 @@ typedef struct WGVKQueueImpl{
         /* We will use __auto_type if available (GCC/Clang extension), otherwise user must be careful. */ \
         /* Or, simply evaluate (a) and (b) directly in the if and snprintf. */ \
         if (!((a) == (b))) { \
-            char __wgvk_msg_buffer[512]; \
-            snprintf(__wgvk_msg_buffer, sizeof(__wgvk_msg_buffer), \
+            char __wgpu_msg_buffer[512]; \
+            snprintf(__wgpu_msg_buffer, sizeof(__wgpu_msg_buffer), \
                      "%s %s: Equality check '%s == %s' failed. LHS (" #a " = " fmt_a ") != RHS (" #b " = " fmt_b ").", \
                      __func__, (context_msg), #a, #b, (a), (b)); \
-            WGVK_VALIDATE_IMPL(device_ptr, false, WGVKErrorType_Validation, __wgvk_msg_buffer, LOG_ERROR); \
+            WGPU_VALIDATE_IMPL(device_ptr, false, WGPUErrorType_Validation, __wgpu_msg_buffer, LOG_ERROR); \
         } \
     } while (0)
 
 
-#define WGVK_VALIDATE_NEQ_FORMAT(device_ptr, a, b, fmt_a, fmt_b, context_msg) \
+#define WGPU_VALIDATE_NEQ_FORMAT(device_ptr, a, b, fmt_a, fmt_b, context_msg) \
     do { \
         /* Evaluate a and b once to avoid side effects if they are complex expressions */ \
         /* Note: This requires C99 or for the types of a_val and b_val to be known, */ \
@@ -752,103 +752,103 @@ typedef struct WGVKQueueImpl{
         /* We will use __auto_type if available (GCC/Clang extension), otherwise user must be careful. */ \
         /* Or, simply evaluate (a) and (b) directly in the if and snprintf. */ \
         if (!((a) != (b))) { \
-            char __wgvk_msg_buffer[512]; \
-            snprintf(__wgvk_msg_buffer, sizeof(__wgvk_msg_buffer), \
+            char __wgpu_msg_buffer[512]; \
+            snprintf(__wgpu_msg_buffer, sizeof(__wgpu_msg_buffer), \
                      "%s %s: Non equality check '%s != %s' failed. LHS (" #a " = " fmt_a ") != RHS (" #b " = " fmt_b ").", \
                      __func__, (context_msg), #a, #b, (a), (b)); \
-            WGVK_VALIDATE_IMPL(device_ptr, false, WGVKErrorType_Validation, __wgvk_msg_buffer, LOG_ERROR); \
+            WGPU_VALIDATE_IMPL(device_ptr, false, WGPUErrorType_Validation, __wgpu_msg_buffer, LOG_ERROR); \
         } \
     } while (0)
 /**
  * @brief Validates that two integer expressions `a` and `b` are equal.
  * Provides a default format specifier for integers.
- * @param device_ptr Pointer to the WGVKDevice (can be NULL).
+ * @param device_ptr Pointer to the WGPUDevice (can be NULL).
  * @param a The first integer expression.
  * @param b The second integer expression.
  * @param context_msg A string providing context for the check.
  */
-#define WGVK_VALIDATE_EQ_INT(device_ptr, a, b, context_msg) \
-    WGVK_VALIDATE_EQ_FORMAT(device_ptr, a, b, "%d", "%d", context_msg)
+#define WGPU_VALIDATE_EQ_INT(device_ptr, a, b, context_msg) \
+    WGPU_VALIDATE_EQ_FORMAT(device_ptr, a, b, "%d", "%d", context_msg)
 
 /**
  * @brief Validates that two unsigned integer expressions `a` and `b` are equal.
- * @param device_ptr Pointer to the WGVKDevice (can be NULL).
+ * @param device_ptr Pointer to the WGPUDevice (can be NULL).
  * @param a The first unsigned integer expression.
  * @param b The second unsigned integer expression.
  * @param context_msg A string providing context for the check.
  */
-#define WGVK_VALIDATE_EQ_UINT(device_ptr, a, b, context_msg) \
-    WGVK_VALIDATE_EQ_FORMAT(device_ptr, a, b, "%u", "%u", context_msg)
+#define WGPU_VALIDATE_EQ_UINT(device_ptr, a, b, context_msg) \
+    WGPU_VALIDATE_EQ_FORMAT(device_ptr, a, b, "%u", "%u", context_msg)
 
 /**
  * @brief Validates that two pointer expressions `a` and `b` are equal.
- * @param device_ptr Pointer to the WGVKDevice (can be NULL).
+ * @param device_ptr Pointer to the WGPUDevice (can be NULL).
  * @param a The first pointer expression.
  * @param b The second pointer expression.
  * @param context_msg A string providing context for the check.
  */
-#define WGVK_VALIDATE_EQ_PTR(device_ptr, a, b, context_msg) \
-    WGVK_VALIDATE_EQ_FORMAT(device_ptr, a, b, "%p", "%p", context_msg)
+#define WGPU_VALIDATE_EQ_PTR(device_ptr, a, b, context_msg) \
+    WGPU_VALIDATE_EQ_FORMAT(device_ptr, a, b, "%p", "%p", context_msg)
 
 
-#define WGVK_VALIDATE_NEQ_PTR(device_ptr, a, b, context_msg) \
-    WGVK_VALIDATE_NEQ_FORMAT(device_ptr, a, b, "%p", "%p", context_msg)
+#define WGPU_VALIDATE_NEQ_PTR(device_ptr, a, b, context_msg) \
+    WGPU_VALIDATE_NEQ_FORMAT(device_ptr, a, b, "%p", "%p", context_msg)
 /**
  * @brief Validates that two VkBool32 expressions `a` and `b` are equal.
- * @param device_ptr Pointer to the WGVKDevice (can be NULL).
+ * @param device_ptr Pointer to the WGPUDevice (can be NULL).
  * @param a The first VkBool32 expression.
  * @param b The second VkBool32 expression.
  * @param context_msg A string providing context for the check.
  */
-#define WGVK_VALIDATE_EQ_BOOL32(device_ptr, a, b, context_msg) \
-    WGVK_VALIDATE_EQ_FORMAT(device_ptr, a, b, "%u (BOOL32)", "%u (BOOL32)", context_msg)
+#define WGPU_VALIDATE_EQ_BOOL32(device_ptr, a, b, context_msg) \
+    WGPU_VALIDATE_EQ_FORMAT(device_ptr, a, b, "%u (BOOL32)", "%u (BOOL32)", context_msg)
 
 
 /**
  * @brief Validates that two expressions `a` and `b` are NOT equal.
  * Generates a detailed message on failure.
- * @param device_ptr Pointer to the WGVKDevice (can be NULL).
+ * @param device_ptr Pointer to the WGPUDevice (can be NULL).
  * @param a The first expression.
  * @param b The second expression.
  * @param fmt_a The printf-style format specifier for the type of 'a'.
  * @param fmt_b The printf-style format specifier for the type of 'b'.
  * @param context_msg A string providing context for the check.
  */
-#define WGVK_VALIDATE_NE_FORMAT(device_ptr, a, b, fmt_a, fmt_b, context_msg) \
+#define WGPU_VALIDATE_NE_FORMAT(device_ptr, a, b, fmt_a, fmt_b, context_msg) \
     do { \
         if (!((a) != (b))) { \
-            char __wgvk_msg_buffer[512]; \
-            snprintf(__wgvk_msg_buffer, sizeof(__wgvk_msg_buffer), \
+            char __wgpu_msg_buffer[512]; \
+            snprintf(__wgpu_msg_buffer, sizeof(__wgpu_msg_buffer), \
                      "%s: Inequality check '%s != %s' failed. LHS (" #a " = " fmt_a ") == RHS (" #b " = " fmt_b ").", \
                      (context_msg), #a, #b, (a), (b)); \
-            WGVK_VALIDATE_IMPL(device_ptr, false, WGVKErrorType_Validation, __wgvk_msg_buffer, LOG_ERROR); \
+            WGPU_VALIDATE_IMPL(device_ptr, false, WGPUErrorType_Validation, __wgpu_msg_buffer, LOG_ERROR); \
         } \
     } while (0)
 
 /**
  * @brief Validates that two C-style strings `a` and `b` are equal using strcmp.
- * Assumes `a` and `b` are non-NULL (use WGVK_VALIDATE_PTR first if needed).
- * @param device_ptr Pointer to the WGVKDevice (can be NULL).
+ * Assumes `a` and `b` are non-NULL (use WGPU_VALIDATE_PTR first if needed).
+ * @param device_ptr Pointer to the WGPUDevice (can be NULL).
  * @param a The first C-string.
  * @param b The second C-string.
  * @param context_msg A string providing context for the check.
  */
-#define WGVK_VALIDATE_STREQ(device_ptr, a, b, context_msg) \
+#define WGPU_VALIDATE_STREQ(device_ptr, a, b, context_msg) \
     do { \
         /* Ensure strings are not NULL before strcmp, or ensure this is handled by caller */ \
-        /* WGVK_VALIDATE_PTR(device_ptr, (a), #a " for STREQ"); */ \
-        /* WGVK_VALIDATE_PTR(device_ptr, (b), #b " for STREQ"); */ \
+        /* WGPU_VALIDATE_PTR(device_ptr, (a), #a " for STREQ"); */ \
+        /* WGPU_VALIDATE_PTR(device_ptr, (b), #b " for STREQ"); */ \
         if (strcmp((a), (b)) != 0) { \
-            char __wgvk_msg_buffer[1024]; /* Potentially longer for strings */ \
-            snprintf(__wgvk_msg_buffer, sizeof(__wgvk_msg_buffer), \
+            char __wgpu_msg_buffer[1024]; /* Potentially longer for strings */ \
+            snprintf(__wgpu_msg_buffer, sizeof(__wgpu_msg_buffer), \
                      "%s: String equality check 'strcmp(%s, %s) == 0' failed. LHS (\"%s\") != RHS (\"%s\").", \
                      (context_msg), #a, #b, (a), (b)); \
-            WGVK_VALIDATE_IMPL(device_ptr, false, WGVKErrorType_Validation, __wgvk_msg_buffer, LOG_ERROR); \
+            WGPU_VALIDATE_IMPL(device_ptr, false, WGPUErrorType_Validation, __wgpu_msg_buffer, LOG_ERROR); \
         } \
     } while (0)
 
 
-#define WGVK_VALIDATION_ERROR_MESSAGE(message ...) \
+#define WGPU_VALIDATION_ERROR_MESSAGE(message ...) \
     do {  \
         char vmessageBuffer[8192] = {0}; \
         snprintf(vmessageBuffer, 8192, message); \
@@ -859,43 +859,43 @@ typedef struct WGVKQueueImpl{
 /**
  * @brief Validates that two C-style strings `a` and `b` are NOT equal using strcmp.
  * Assumes `a` and `b` are non-NULL.
- * @param device_ptr Pointer to the WGVKDevice (can be NULL).
+ * @param device_ptr Pointer to the WGPUDevice (can be NULL).
  * @param a The first C-string.
  * @param b The second C-string.
  * @param context_msg A string providing context for the check.
  */
-#define WGVK_VALIDATE_STRNEQ(device_ptr, a, b, context_msg) \
+#define WGPU_VALIDATE_STRNEQ(device_ptr, a, b, context_msg) \
     do { \
         if (strcmp((a), (b)) == 0) { \
-            char __wgvk_msg_buffer[1024]; \
-            snprintf(__wgvk_msg_buffer, sizeof(__wgvk_msg_buffer), \
+            char __wgpu_msg_buffer[1024]; \
+            snprintf(__wgpu_msg_buffer, sizeof(__wgpu_msg_buffer), \
                      "%s: String inequality check 'strcmp(%s, %s) != 0' failed. LHS (\"%s\") == RHS (\"%s\").", \
                      (context_msg), #a, #b, (a), (b)); \
-            WGVK_VALIDATE_IMPL(device_ptr, false, WGVKErrorType_Validation, __wgvk_msg_buffer, LOG_ERROR); \
+            WGPU_VALIDATE_IMPL(device_ptr, false, WGPUErrorType_Validation, __wgpu_msg_buffer, LOG_ERROR); \
         } \
     } while (0)
 
     
 
 
-#else // WGVK_VALIDATION_ENABLED not defined
-// WGVK_VALIDATE_IMPL needs a dummy definition for the other macros to compile to ((void)0)
-#define WGVK_VALIDATE_IMPL(device_ptr, condition, error_type, message_str, log_level_on_fail) ((void)0)
+#else // WGPU_VALIDATION_ENABLED not defined
+// WGPU_VALIDATE_IMPL needs a dummy definition for the other macros to compile to ((void)0)
+#define WGPU_VALIDATE_IMPL(device_ptr, condition, error_type, message_str, log_level_on_fail) ((void)0)
 
-#define WGVK_VALIDATE(device_ptr, condition, message_str) ((void)0)
-#define WGVK_VALIDATE_PTR(device_ptr, ptr, ptr_name_str) ((void)0)
-#define WGVK_VALIDATE_HANDLE(device_ptr, handle, handle_name_str) ((void)0)
-#define WGVK_VALIDATE_DESC_PTR(parent_device_ptr, desc_ptr, desc_name_str) ((void)0)
+#define WGPU_VALIDATE(device_ptr, condition, message_str) ((void)0)
+#define WGPU_VALIDATE_PTR(device_ptr, ptr, ptr_name_str) ((void)0)
+#define WGPU_VALIDATE_HANDLE(device_ptr, handle, handle_name_str) ((void)0)
+#define WGPU_VALIDATE_DESC_PTR(parent_device_ptr, desc_ptr, desc_name_str) ((void)0)
 
-#define WGVK_VALIDATE_EQ_FORMAT(device_ptr, a, b, fmt_a, fmt_b, context_msg) ((void)0)
-#define WGVK_VALIDATE_EQ_INT(device_ptr, a, b, context_msg) ((void)0)
-#define WGVK_VALIDATE_EQ_UINT(device_ptr, a, b, context_msg) ((void)0)
-#define WGVK_VALIDATE_EQ_BOOL32(device_ptr, a, b, context_msg) ((void)0)
-#define WGVK_VALIDATE_NE_FORMAT(device_ptr, a, b, fmt_a, fmt_b, context_msg) ((void)0)
-#define WGVK_VALIDATE_STREQ(device_ptr, a, b, context_msg) ((void)0)
-#define WGVK_VALIDATE_STRNEQ(device_ptr, a, b, context_msg) ((void)0)
+#define WGPU_VALIDATE_EQ_FORMAT(device_ptr, a, b, fmt_a, fmt_b, context_msg) ((void)0)
+#define WGPU_VALIDATE_EQ_INT(device_ptr, a, b, context_msg) ((void)0)
+#define WGPU_VALIDATE_EQ_UINT(device_ptr, a, b, context_msg) ((void)0)
+#define WGPU_VALIDATE_EQ_BOOL32(device_ptr, a, b, context_msg) ((void)0)
+#define WGPU_VALIDATE_NE_FORMAT(device_ptr, a, b, fmt_a, fmt_b, context_msg) ((void)0)
+#define WGPU_VALIDATE_STREQ(device_ptr, a, b, context_msg) ((void)0)
+#define WGPU_VALIDATE_STRNEQ(device_ptr, a, b, context_msg) ((void)0)
 
-#endif // WGVK_VALIDATION_ENABLED
+#endif // WGPU_VALIDATION_ENABLED
 
 
 

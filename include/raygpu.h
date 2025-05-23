@@ -74,9 +74,9 @@ typedef struct Image{
 #endif
 
 typedef struct Texture2D{
-    WGVKTexture id;
-    WGVKTextureView view;
-    WGVKTextureView mipViews[MAX_MIP_LEVELS];
+    WGPUTexture id;
+    WGPUTextureView view;
+    WGPUTextureView mipViews[MAX_MIP_LEVELS];
     
     uint32_t width, height;
     PixelFormat format;
@@ -86,8 +86,8 @@ typedef struct Texture2D{
 typedef Texture2D Texture;
 
 typedef struct Texture3D{
-    WGVKTexture id;
-    WGVKTextureView view;
+    WGPUTexture id;
+    WGPUTextureView view;
     uint32_t width, height, depth;
     PixelFormat format;
     uint32_t sampleCount;
@@ -150,7 +150,7 @@ typedef struct DescribedBuffer{
 }DescribedBuffer;
 
 typedef struct DescribedSampler{
-    WGVKSampler sampler;
+    WGPUSampler sampler;
     addressMode addressModeU;
     addressMode addressModeV;
     addressMode addressModeW;
@@ -283,7 +283,7 @@ externcvar vertex* vboptr;
 externcvar vertex* vboptr_base;
 
 #if SUPPORT_VULKAN_BACKEND == 1
-externcvar WGVKBuffer vbo_buf;
+externcvar WGPUBuffer vbo_buf;
 #endif
 
 externcvar VertexArray* renderBatchVAO;
@@ -713,7 +713,7 @@ typedef struct DescribedComputePipeline{
 #if SUPPORT_VULKAN_BACKEND == 1
 typedef struct DescribedRaytracingPipeline{
     
-    WGVKRaytracingPipeline pipeline;
+    WGPURaytracingPipeline pipeline;
 
     NativePipelineLayoutHandle layout;
     
@@ -729,7 +729,7 @@ typedef struct DescribedRaytracingPipeline{
 typedef struct FullSurface{
     void* surface; //This is a VkSurfaceKHR or WGPUSurface handle, and NULL if headless==true
     Bool32 headless;
-    WGVKSurfaceConfiguration surfaceConfig;
+    WGPUSurfaceConfiguration surfaceConfig;
     RenderTexture renderTarget;
 }FullSurface;
 
@@ -943,7 +943,7 @@ EXTERN_C_BEGIN
     RGAPI Texture LoadTextureFromImage(Image img);
     RGAPI void ImageFormat(Image* img, PixelFormat newFormat);
     RGAPI Image LoadImageFromTexture(Texture tex);
-    RGAPI Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel);
+    RGAPI Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t mipLevel);
     RGAPI void TakeScreenshot(const char* filename);
     RGAPI Image LoadImage(const char* filename);
     RGAPI Image ImageFromImage(Image img, Rectangle rec);
@@ -1093,7 +1093,7 @@ EXTERN_C_BEGIN
     RGAPI DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, bool compute);
     RGAPI DescribedBindGroupLayout LoadBindGroupLayoutMod(const DescribedShaderModule* shaderModule);
 
-    RGAPI WGVKRaytracingPipeline LoadRTPipeline(const DescribedShaderModule* module);
+    RGAPI WGPURaytracingPipeline LoadRTPipeline(const DescribedShaderModule* module);
     RGAPI DescribedPipeline* ClonePipeline(const DescribedPipeline* pl);
     RGAPI DescribedPipeline* ClonePipelineWithSettings(const DescribedPipeline* pl, RenderSettings settings);
     RGAPI DescribedPipeline* LoadPipeline(const char* shaderSource);
@@ -1185,13 +1185,13 @@ EXTERN_C_BEGIN
     RGAPI void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size);
     RGAPI void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size);
     RGAPI void SetBindgroupTexture3D         (DescribedBindGroup* bg, uint32_t index, Texture3D tex);
-    RGAPI void SetBindgroupTextureView       (DescribedBindGroup* bg, uint32_t index, WGVKTextureView texView);
+    RGAPI void SetBindgroupTextureView       (DescribedBindGroup* bg, uint32_t index, WGPUTextureView texView);
     RGAPI void SetBindgroupTexture           (DescribedBindGroup* bg, uint32_t index, Texture tex);
     RGAPI void SetBindgroupSampler           (DescribedBindGroup* bg, uint32_t index, DescribedSampler sampler);
 
 
 
-    void init_full_renderstate (full_renderstate* state, const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniform_count, WGVKTextureView c, WGVKTextureView d);
+    void init_full_renderstate (full_renderstate* state, const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniform_count, WGPUTextureView c, WGPUTextureView d);
     void updatePipeline        (full_renderstate* state, enum PrimitiveType drawmode);
     //void setTargetTextures     (full_renderstate* state, WGPUTextureView c, WGPUTextureView colorMultisample, WGPUTextureView d);
 
@@ -1310,9 +1310,9 @@ EXTERN_C_BEGIN
     RGAPI void DrawSplineSegmentBezierCubic(Vector2 p1, Vector2 c2, Vector2 c3, Vector2 p4, float thick, Color color);
 
     RGAPI void*       GetInstance(cwoid);
-    RGAPI WGVKAdapter GetAdapter (cwoid);
-    RGAPI WGVKDevice  GetDevice  (cwoid);
-    RGAPI WGVKQueue   GetQueue   (cwoid);
+    RGAPI WGPUAdapter GetAdapter (cwoid);
+    RGAPI WGPUDevice  GetDevice  (cwoid);
+    RGAPI WGPUQueue   GetQueue   (cwoid);
     RGAPI void*       GetSurface (cwoid);
     
     static inline uint32_t attributeSize(const VertexFormat fmt){

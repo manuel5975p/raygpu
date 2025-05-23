@@ -31,6 +31,53 @@ if(NOT MSVC AND NOT EMSCRIPTEN)
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -DNDEBUG -fno-exceptions -g")
 endif()
 
+
+function(cst_bundle_libraries output_target)
+  function(get_dependencies input_target)
+    get_target_property(alias ${input_target} ALIASED_TARGET)
+    if(TARGET ${alias})
+      set(input_target ${alias})
+    endif()
+    if(${input_target} IN_LIST all_dependencies)
+      return()
+    endif()
+    list(APPEND all_dependencies ${input_target})
+
+    get_target_property(link_libraries ${input_target} LINK_LIBRARIES)
+    foreach(dependency IN LISTS link_libraries)
+      if(TARGET ${dependency})
+        get_dependencies(${dependency})
+      endif()
+    endforeach()
+
+    get_target_property(link_libraries ${input_target} INTERFACE_LINK_LIBRARIES)
+    foreach(dependency IN LISTS link_libraries)
+      if(TARGET ${dependency})
+        get_dependencies(${dependency})
+      endif()
+    endforeach()
+
+    set(all_dependencies ${all_dependencies} PARENT_SCOPE)
+  endfunction()
+
+  foreach(input_target IN LISTS ARGN)
+    get_dependencies(${input_target})
+  endforeach()
+
+  foreach(dependency IN LISTS all_dependencies)
+    get_target_property(type ${dependency} TYPE)
+    if(${type} STREQUAL "STATIC_LIBRARY")
+      list(APPEND all_objects $<TARGET_OBJECTS:${dependency}>)
+    elseif(${type} STREQUAL "OBJECT_LIBRARY")
+      list(APPEND all_objects $<TARGET_OBJECTS:${dependency}>)
+    endif()
+  endforeach()
+
+  add_library(${output_target} STATIC ${all_objects})
+
+  add_dependencies(${output_target} ${ARGN})
+
+endfunction()
 if(MSVC)
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /GR-")
 else()
@@ -193,7 +240,12 @@ set(RG_SOURCES
 )
 if(SUPPORT_VULKAN_BACKEND)
     add_library(wgvk_standalone STATIC "src/backend_vulkan/wgvk.c" "src/backend_vulkan/vma_impl.cpp" "src/backend_vulkan/volk.c")
-
+    add_library(tint_c_api STATIC "src/backend_vulkan/tint_c_api.cpp")
+    target_include_directories(tint_c_api PRIVATE "include" "amalgamation/vulkan_headers/include")
+    target_compile_features(tint_c_api PRIVATE cxx_std_23)
+    target_link_libraries(tint_c_api STATIC tint_lang_wgsl_reader)
+    cst_bundle_libraries(wgvk_full wgvk_standalone tint_lang_wgsl_reader tint_c_api)
+    target_link_libraries(wgvk_full PUBLIC wgvk_standalone)
     target_include_directories(wgvk_standalone PUBLIC "include" "amalgamation/vulkan_headers/include")
     target_compile_definitions(wgvk_standalone PUBLIC SUPPORT_VULKAN_BACKEND=1)
     list(APPEND RG_SOURCES "src/backend_vulkan/vulkan_textures.cpp")
@@ -204,8 +256,8 @@ if(SUPPORT_VULKAN_BACKEND)
     list(APPEND RG_SOURCES "src/backend_vulkan/wgvk.c")
     list(APPEND RG_SOURCES "src/backend_vulkan/volk.c")
     
-    # Find pkg-config quietly (needed for Wayland/X11 checks)
-    find_package(PkgConfig QUIET)
+    
+    
     
     # Target source file to potentially add definitions to
     set(TARGET_SOURCE_FILE src/backend_vulkan/volk.c src/backend_vulkan/wgvk.cpp)
@@ -234,6 +286,9 @@ if(SUPPORT_VULKAN_BACKEND)
     
     # Linux/Unix Display Server Surfaces (Wayland and/or X11)
     if(UNIX AND NOT APPLE AND NOT ANDROID)
+        # Find pkg-config quietly (needed for Wayland/X11 checks)
+        find_package(PkgConfig QUIET)
+        
         # Wayland Check
         pkg_check_modules(WAYLAND_CLIENT QUIET wayland-client)
         if(WAYLAND_CLIENT_FOUND)

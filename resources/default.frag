@@ -16,6 +16,4 @@ void main() {
     // Sample the texture using the combined sampler.
     vec4 texColor = texture(sampler2D(texture0, texSampler), frag_uv);
     outColor = texColor * frag_color;
-    //outColor = vec4(frag_color.xyz,1);
-    //outColor = vec4(1,0,1,1);
 }

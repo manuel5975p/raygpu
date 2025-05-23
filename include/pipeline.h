@@ -62,7 +62,7 @@ typedef struct RenderSettings{
     Bool32 faceCull;
     uint32_t sampleCount;
     uint32_t lineWidth;
-    WGVKBlendState blendState;    
+    WGPUBlendState blendState;    
     FrontFace frontFace;
     CompareFunction depthCompare;
     #ifdef __cplusplus
@@ -84,14 +84,14 @@ typedef struct RenderSettings{
 
 
 typedef struct DescribedBindGroupLayout{
-    WGVKBindGroupLayout layout;
+    WGPUBindGroupLayout layout;
     uint32_t entryCount;
     ResourceTypeDescriptor* entries;
 }DescribedBindGroupLayout;
 
 typedef struct DescribedBindGroup{
     //Cached handles
-    WGVKBindGroup bindGroup;
+    WGPUBindGroup bindGroup;
     const DescribedBindGroupLayout* layout;
     int needsUpdate; //Cached handles valid?
 
@@ -114,17 +114,17 @@ typedef struct AttributeAndResidence{
 
 
 typedef struct DescribedPipelineLayout{
-    WGVKPipelineLayout layout;
+    WGPUPipelineLayout layout;
 
     uint32_t bindgroupCount;
     DescribedBindGroupLayout bindgroupLayouts[4]; //4 is a reasonable max
 }DescribedPipelineLayout;
 
 typedef struct RenderPipelineQuartet{
-    WGVKRenderPipeline pipeline_TriangleList;
-    WGVKRenderPipeline pipeline_TriangleStrip;
-    WGVKRenderPipeline pipeline_LineList;
-    WGVKRenderPipeline pipeline_PointList;
+    WGPURenderPipeline pipeline_TriangleList;
+    WGPURenderPipeline pipeline_TriangleStrip;
+    WGPURenderPipeline pipeline_LineList;
+    WGPURenderPipeline pipeline_PointList;
 }RenderPipelineQuartet;
 
 /**
@@ -176,7 +176,7 @@ EXTERN_C_BEGIN
     
 
     DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const ResourceDescriptor* entries, size_t entryCount);
-    WGVKBindGroup UpdateAndGetNativeBindGroup(DescribedBindGroup* bg);
+    WGPUBindGroup UpdateAndGetNativeBindGroup(DescribedBindGroup* bg);
     
     void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry);
     void UpdateBindGroup(DescribedBindGroup* bg);
