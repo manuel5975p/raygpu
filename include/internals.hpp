@@ -301,17 +301,17 @@ namespace std{
         }
     };
 }
-extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineState& mst, const DescribedShaderModule& shaderModule, const DescribedBindGroupLayout& bglayout, const DescribedPipelineLayout& pllayout);
+extern "C" WGPURenderPipeline createSingleRenderPipe(const ModifiablePipelineState& mst, const DescribedShaderModule& shaderModule, const DescribedBindGroupLayout& bglayout, const DescribedPipelineLayout& pllayout);
 typedef struct HighLevelPipelineCache{
-    std::unordered_map<ModifiablePipelineState, WGVKRenderPipeline> cacheMap; 
-    WGVKRenderPipeline getOrCreate(const ModifiablePipelineState& mst, const DescribedShaderModule& shaderModule, const DescribedBindGroupLayout& bglayout, const DescribedPipelineLayout& pllayout){
+    std::unordered_map<ModifiablePipelineState, WGPURenderPipeline> cacheMap; 
+    WGPURenderPipeline getOrCreate(const ModifiablePipelineState& mst, const DescribedShaderModule& shaderModule, const DescribedBindGroupLayout& bglayout, const DescribedPipelineLayout& pllayout){
         auto it = cacheMap.find(mst);
         if(it != cacheMap.end()){
             return it->second;
         }
         else{
             //TRACELOG(LOG_WARNING, "Cache NOT hit: %f", mst.settings.lineWidth);
-            WGVKRenderPipeline toEmplace = createSingleRenderPipe(mst, shaderModule, bglayout, pllayout);
+            WGPURenderPipeline toEmplace = createSingleRenderPipe(mst, shaderModule, bglayout, pllayout);
             cacheMap.emplace(mst, toEmplace);
             return toEmplace;
         }
@@ -319,7 +319,7 @@ typedef struct HighLevelPipelineCache{
 }HighLevelPipelineCache;
 
 typedef struct DescribedPipeline{
-    WGVKRenderPipeline activePipeline;
+    WGPURenderPipeline activePipeline;
 
     ModifiablePipelineState state;
     

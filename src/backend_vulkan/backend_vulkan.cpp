@@ -15,7 +15,7 @@ VulkanState g_vulkanstate{};
 
 void BufferData(DescribedBuffer* buffer, void* data, size_t size){
     if(buffer->size >= size){
-        WGVKBuffer handle = (WGVKBuffer)buffer->buffer;
+        WGPUBuffer handle = (WGPUBuffer)buffer->buffer;
         void* udata = 0;
         VmaAllocationInfo info zeroinit;
 
@@ -38,8 +38,8 @@ void BufferData(DescribedBuffer* buffer, void* data, size_t size){
 }
 
 void PresentSurface(FullSurface* surface){
-    wgvkSurfacePresent((WGVKSurface)surface->surface);
-    WGVKSurface wgvksurf = (WGVKSurface)surface->surface;
+    wgpuSurfacePresent((WGPUSurface)surface->surface);
+    WGPUSurface wgpusurf = (WGPUSurface)surface->surface;
     
     PostPresentSurface();
 
@@ -63,34 +63,34 @@ void DummySubmitOnQueue(){
     VkPipelineStageFlags waitmask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     emptySubmit.pWaitDstStageMask = &waitmask;
     vkQueueSubmit(g_vulkanstate.device->queue->graphicsQueue, 1, &emptySubmit, g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence);
-    WGVKCommandBufferVector insert;
+    WGPUCommandBufferVector insert;
 
     PendingCommandBufferMap* pcmap = &g_vulkanstate.queue->pendingCommandBuffers[cacheIndex];
     VkFence ftf = g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence;
     PendingCommandBufferMap_put(pcmap, ftf, insert);
-    WGVKCommandBufferVector* inserted = PendingCommandBufferMap_get(pcmap, ftf);
-    WGVKCommandBufferVector_init(inserted);
-    //g_vulkanstate.queue->pendingCommandBuffers[cacheIndex].emplace(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence, std::unordered_set<WGVKCommandBuffer>{});
+    WGPUCommandBufferVector* inserted = PendingCommandBufferMap_get(pcmap, ftf);
+    WGPUCommandBufferVector_init(inserted);
+    //g_vulkanstate.queue->pendingCommandBuffers[cacheIndex].emplace(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence, std::unordered_set<WGPUCommandBuffer>{});
 }
 
-void resetFenceAndReleaseBuffers(void* fence_, WGVKCommandBufferVector* cBuffers, void* wgvkdevice){
-    WGVKDevice device = (WGVKDevice)wgvkdevice;
+void resetFenceAndReleaseBuffers(void* fence_, WGPUCommandBufferVector* cBuffers, void* wgpudevice){
+    WGPUDevice device = (WGPUDevice)wgpudevice;
     if(fence_){
         vkResetFences(device->device, 1, (VkFence*)&fence_);
     }
     for(size_t i = 0;i < cBuffers->size;i++){
-        wgvkReleaseCommandBuffer(cBuffers->data[i]);
+        wgpuReleaseCommandBuffer(cBuffers->data[i]);
     }
-    WGVKCommandBufferVector_free(cBuffers);
+    WGPUCommandBufferVector_free(cBuffers);
 }
-void pcmNonnullFlattenCallback(void* fence_, WGVKCommandBufferVector *, void* stdvector){
+void pcmNonnullFlattenCallback(void* fence_, WGPUCommandBufferVector *, void* stdvector){
     if(fence_)
         ((std::vector<VkFence>*)stdvector)->push_back((VkFence)fence_);
 }
 
 void PostPresentSurface(){
-    WGVKDevice surfaceDevice = g_vulkanstate.device;
-    WGVKQueue queue = surfaceDevice->queue;
+    WGPUDevice surfaceDevice = g_vulkanstate.device;
+    WGPUQueue queue = surfaceDevice->queue;
 
     const uint32_t cacheIndex = surfaceDevice->submittedFrames % framesInFlight;
     PendingCommandBufferMap* pcm = &queue->pendingCommandBuffers[cacheIndex];
@@ -132,55 +132,55 @@ void PostPresentSurface(){
     //    }
     //    for(auto buffer : bufferset){
     //        rassert(buffer->refCount == 1, "CommandBuffer still in use after submit");
-    //        wgvkReleaseCommandBuffer(buffer);
+    //        wgpuReleaseCommandBuffer(buffer);
     //    }
     //}
     
 
-    WGVKBufferVector* usedBuffers = &surfaceDevice->frameCaches[cacheIndex].usedBatchBuffers;
-    WGVKBufferVector* unusedBuffers = &surfaceDevice->frameCaches[cacheIndex].unusedBatchBuffers;
+    WGPUBufferVector* usedBuffers = &surfaceDevice->frameCaches[cacheIndex].usedBatchBuffers;
+    WGPUBufferVector* unusedBuffers = &surfaceDevice->frameCaches[cacheIndex].unusedBatchBuffers;
     if(unusedBuffers->capacity < unusedBuffers->size + usedBuffers->size){
         size_t newcap = (unusedBuffers->size + usedBuffers->size);
-        WGVKBufferVector_reserve(unusedBuffers, newcap);
+        WGPUBufferVector_reserve(unusedBuffers, newcap);
     }
     if(usedBuffers->size > 0){
-        memcpy(unusedBuffers->data + unusedBuffers->size, usedBuffers->data, usedBuffers->size * sizeof(WGVKBuffer));
+        memcpy(unusedBuffers->data + unusedBuffers->size, usedBuffers->data, usedBuffers->size * sizeof(WGPUBuffer));
     }
     unusedBuffers->size += usedBuffers->size;
-    WGVKBufferVector_clear(usedBuffers);//(WGVKBufferVector *dest, const WGVKBufferVector *source)
+    WGPUBufferVector_clear(usedBuffers);//(WGPUBufferVector *dest, const WGPUBufferVector *source)
     PendingCommandBufferMap_clear(&queue->pendingCommandBuffers[cacheIndex]);
     
-    WGVKCommandBuffer buffer = wgvkCommandEncoderFinish(queue->presubmitCache);
-    wgvkReleaseCommandEncoder(queue->presubmitCache);
-    wgvkReleaseCommandBuffer(buffer);
+    WGPUCommandBuffer buffer = wgpuCommandEncoderFinish(queue->presubmitCache);
+    wgpuReleaseCommandEncoder(queue->presubmitCache);
+    wgpuReleaseCommandBuffer(buffer);
     vkResetCommandPool(surfaceDevice->device, surfaceDevice->frameCaches[cacheIndex].commandPool, 0);
-    WGVKCommandEncoderDescriptor cedesc zeroinit;
+    WGPUCommandEncoderDescriptor cedesc zeroinit;
 
     queue->syncState[cacheIndex].submits = 0;
-    queue->presubmitCache = wgvkDeviceCreateCommandEncoder(surfaceDevice, &cedesc);
+    queue->presubmitCache = wgpuDeviceCreateCommandEncoder(surfaceDevice, &cedesc);
 }
 extern "C" DescribedBuffer* GenBufferEx(const void* data, size_t size, BufferUsage usage){
     DescribedBuffer* ret = callocnew(DescribedBuffer);
-    WGVKBufferDescriptor descriptor{};
+    WGPUBufferDescriptor descriptor{};
     descriptor.size = size;
     descriptor.usage = usage;
-    ret->buffer = wgvkDeviceCreateBuffer((WGVKDevice)GetDevice(), &descriptor);
+    ret->buffer = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &descriptor);
     ret->size = size;
     ret->usage = usage;
     if(data != nullptr){
-        wgvkQueueWriteBuffer(g_vulkanstate.queue, (WGVKBuffer)ret->buffer, 0, data, size);
+        wgpuQueueWriteBuffer(g_vulkanstate.queue, (WGPUBuffer)ret->buffer, 0, data, size);
     }
     return ret;
 }
 
 extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t width, uint32_t height){
-    vkQueueWaitIdle(reinterpret_cast<WGVKSurface>(fsurface->surface)->device->queue->graphicsQueue);
-    vkQueueWaitIdle(reinterpret_cast<WGVKSurface>(fsurface->surface)->device->queue->presentQueue);
+    vkQueueWaitIdle(reinterpret_cast<WGPUSurface>(fsurface->surface)->device->queue->graphicsQueue);
+    vkQueueWaitIdle(reinterpret_cast<WGPUSurface>(fsurface->surface)->device->queue->presentQueue);
     VkSemaphoreWaitInfo info;
     fsurface->surfaceConfig.width = width;
     fsurface->surfaceConfig.height = height;
 
-    wgvkSurfaceConfigure((WGVKSurface)fsurface->surface, &fsurface->surfaceConfig);
+    wgpuSurfaceConfigure((WGPUSurface)fsurface->surface, &fsurface->surfaceConfig);
     UnloadTexture(fsurface->renderTarget.depth);
     fsurface->renderTarget.depth = LoadTexturePro(width, height, Depth32, TextureUsage_RenderAttachment, GetDefaultSettings().sampleCount, 1);
     if(fsurface->renderTarget.depth.sampleCount > 1){
@@ -189,24 +189,24 @@ extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t width, uint32_t he
 }
 
 extern "C" void BeginComputepassEx(DescribedComputepass* computePass){
-    computePass->cmdEncoder = wgvkDeviceCreateCommandEncoder((WGVKDevice)GetDevice(), nullptr);
-    computePass->cpEncoder = wgvkCommandEncoderBeginComputePass((WGVKCommandEncoder)computePass->cmdEncoder);
+    computePass->cmdEncoder = wgpuDeviceCreateCommandEncoder((WGPUDevice)GetDevice(), nullptr);
+    computePass->cpEncoder = wgpuCommandEncoderBeginComputePass((WGPUCommandEncoder)computePass->cmdEncoder);
 }
 
 extern "C" void EndComputepassEx(DescribedComputepass* computePass){
     if(computePass->cpEncoder){
-        wgvkCommandEncoderEndComputePass((WGVKComputePassEncoder)computePass->cpEncoder);
-        wgvkReleaseComputePassEncoder((WGVKComputePassEncoder)computePass->cpEncoder);
+        wgpuCommandEncoderEndComputePass((WGPUComputePassEncoder)computePass->cpEncoder);
+        wgpuReleaseComputePassEncoder((WGPUComputePassEncoder)computePass->cpEncoder);
         computePass->cpEncoder = 0;
     }
     
     //TODO
     g_renderstate.activeComputepass = nullptr;
 
-    WGVKCommandBuffer command = wgvkCommandEncoderFinish((WGVKCommandEncoder)computePass->cmdEncoder);
-    wgvkQueueSubmit(g_vulkanstate.queue, 1, &command);
-    wgvkReleaseCommandBuffer(command);
-    wgvkReleaseCommandEncoder((WGVKCommandEncoder)computePass->cmdEncoder);
+    WGPUCommandBuffer command = wgpuCommandEncoderFinish((WGPUCommandEncoder)computePass->cmdEncoder);
+    wgpuQueueSubmit(g_vulkanstate.queue, 1, &command);
+    wgpuReleaseCommandBuffer(command);
+    wgpuReleaseCommandEncoder((WGPUCommandEncoder)computePass->cmdEncoder);
 }
 
 extern "C" DescribedRenderpass LoadRenderpassEx(RenderSettings settings, bool colorClear, DColor colorClearValue, bool depthClear, float depthClearValue){
@@ -282,7 +282,7 @@ DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode m
         }
     };
     DescribedSampler ret zeroinit;// = callocnew(DescribedSampler);
-    WGVKSamplerDescriptor sdesc zeroinit;
+    WGPUSamplerDescriptor sdesc zeroinit;
     
     sdesc.compare = CompareFunction_Less;
     sdesc.addressModeU = amode;
@@ -303,7 +303,7 @@ DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode m
     ret.addressModeW = amode;
     ret.maxAnisotropy = maxAnisotropy;
     ret.compare = CompareFunction_Less;//huh??
-    ret.sampler = wgvkDeviceCreateSampler(g_vulkanstate.device, &sdesc);
+    ret.sampler = wgpuDeviceCreateSampler(g_vulkanstate.device, &sdesc);
     return ret;
 }
 
@@ -324,13 +324,13 @@ extern "C" void GetNewTexture(FullSurface* fsurface){
         vkQueueSubmit(g_vulkanstate.queue->graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
     }
     else{
-        WGVKSurface wgvksurf = ((WGVKSurface)fsurface->surface);
+        WGPUSurface wgpusurf = ((WGPUSurface)fsurface->surface);
         
         //g_vulkanstate.queue->syncState[cacheIndex].submits = 0;
 
         VkResult acquireResult = vkAcquireNextImageKHR(
             g_vulkanstate.device->device, 
-            wgvksurf->swapchain, 
+            wgpusurf->swapchain, 
             UINT64_MAX, 
             g_vulkanstate.queue->syncState[cacheIndex].acquireImageSemaphore, 
             VK_NULL_HANDLE, 
@@ -340,21 +340,21 @@ extern "C" void GetNewTexture(FullSurface* fsurface){
         if(acquireResult != VK_SUCCESS){
             TRACELOG(LOG_WARNING, "vkAcquireNextImageKHR returned %s", vkErrorString(acquireResult));
         }
-        WGVKDevice surfaceDevice = ((WGVKSurface)fsurface->surface)->device;
-        VkCommandBuffer buf = ((WGVKSurface)fsurface->surface)->device->queue->presubmitCache->buffer;
-        //EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, wgvksurf->images[imageIndex]);
-        //EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, (WGVKTexture)fsurface->renderTarget.depth.id);
+        WGPUDevice surfaceDevice = ((WGPUSurface)fsurface->surface)->device;
+        VkCommandBuffer buf = ((WGPUSurface)fsurface->surface)->device->queue->presubmitCache->buffer;
+        //EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, wgpusurf->images[imageIndex]);
+        //EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, (WGPUTexture)fsurface->renderTarget.depth.id);
         
-        fsurface->renderTarget.texture.id = wgvksurf->images[imageIndex];
-        fsurface->renderTarget.texture.view = wgvksurf->imageViews[imageIndex];
-        fsurface->renderTarget.texture.width = wgvksurf->width;
-        fsurface->renderTarget.texture.height = wgvksurf->height;
+        fsurface->renderTarget.texture.id = wgpusurf->images[imageIndex];
+        fsurface->renderTarget.texture.view = wgpusurf->imageViews[imageIndex];
+        fsurface->renderTarget.texture.width = wgpusurf->width;
+        fsurface->renderTarget.texture.height = wgpusurf->height;
 
-        wgvksurf->activeImageIndex = imageIndex;
+        wgpusurf->activeImageIndex = imageIndex;
     }
 }
-void negotiateSurfaceFormatAndPresentMode(WGVKAdapter adapter, const void* SurfaceHandle){
-    WGVKSurface surface = (WGVKSurface)SurfaceHandle;
+void negotiateSurfaceFormatAndPresentMode(WGPUAdapter adapter, const void* SurfaceHandle){
+    WGPUSurface surface = (WGPUSurface)SurfaceHandle;
     uint32_t presentModeCount = 0;
 
     vkGetPhysicalDeviceSurfacePresentModesKHR(adapter->physicalDevice, surface->surface, &presentModeCount, nullptr);
@@ -391,13 +391,13 @@ void negotiateSurfaceFormatAndPresentMode(WGVKAdapter adapter, const void* Surfa
 void* GetInstance(){
     return g_vulkanstate.instance;
 }
-WGVKDevice GetDevice(){
+WGPUDevice GetDevice(){
     return g_vulkanstate.device;
 }
-WGVKQueue GetQueue  (cwoid){
+WGPUQueue GetQueue  (cwoid){
     return g_vulkanstate.queue;
 }
-WGVKAdapter GetAdapter(){
+WGPUAdapter GetAdapter(){
     return g_vulkanstate.physicalDevice;
 }
 // Function to create Vulkan instance
@@ -583,7 +583,7 @@ extern "C" void RequestAdapterType(AdapterType type){
     *std::begin(preferredPhysicalDeviceTypes) = ittype;
 }
 
-QueueIndices findQueueFamilies(WGVKAdapter adapter) {
+QueueIndices findQueueFamilies(WGPUAdapter adapter) {
     uint32_t queueFamilyCount = 0;
     QueueIndices ret{
         UINT32_MAX,
@@ -648,7 +648,7 @@ QueueIndices findQueueFamilies(WGVKAdapter adapter) {
 extern "C" DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* descs, uint32_t uniformCount, bool){
     DescribedBindGroupLayout retv{};
     DescribedBindGroupLayout* ret = &retv;
-    WGVKBindGroupLayout retlayout = wgvkDeviceCreateBindGroupLayout(g_vulkanstate.device, descs, uniformCount);
+    WGPUBindGroupLayout retlayout = wgpuDeviceCreateBindGroupLayout(g_vulkanstate.device, descs, uniformCount);
     ret->layout = retlayout;
     ret->entries = (ResourceTypeDescriptor*)std::calloc(uniformCount, sizeof(ResourceTypeDescriptor));
     if(uniformCount > 0)
@@ -659,7 +659,7 @@ extern "C" DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescri
 }
 
 // Function to pick a suitable physical device (GPU)
-WGVKAdapter pickPhysicalDevice(WGVKInstance instance) {
+WGPUAdapter pickPhysicalDevice(WGPUInstance instance) {
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(instance->instance, &deviceCount, nullptr);
 
@@ -707,7 +707,7 @@ WGVKAdapter pickPhysicalDevice(WGVKInstance instance) {
     int minor = VK_API_VERSION_MINOR(pProperties.apiVersion);
     int patch = VK_API_VERSION_PATCH(pProperties.apiVersion);
     TRACELOG(LOG_INFO, "Running on Vulkan %d.%d.%d", major, minor, patch);
-    WGVKAdapter reta = callocnewpp(WGVKAdapterImpl);
+    WGPUAdapter reta = callocnewpp(WGPUAdapterImpl);
     reta->physicalDevice = ret;
     reta->instance = instance;
     vkGetPhysicalDeviceMemoryProperties(ret, &reta->memProperties);
@@ -735,17 +735,17 @@ fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
 }
 )";
 extern "C" void ComputePassSetBindGroup(DescribedComputepass* drp, uint32_t group, DescribedBindGroup* bindgroup){
-    wgvkComputePassEncoderSetBindGroup((WGVKComputePassEncoder)drp->cpEncoder, group, (WGVKBindGroup)UpdateAndGetNativeBindGroup(bindgroup), 0, NULL);
+    wgpuComputePassEncoderSetBindGroup((WGPUComputePassEncoder)drp->cpEncoder, group, (WGPUBindGroup)UpdateAndGetNativeBindGroup(bindgroup), 0, NULL);
 }
 void GenTextureMipmaps(Texture2D* tex){
-    WGVKCommandEncoderDescriptor cdesc zeroinit;
-    WGVKCommandEncoder enc = wgvkDeviceCreateCommandEncoder(g_vulkanstate.device, &cdesc);
+    WGPUCommandEncoderDescriptor cdesc zeroinit;
+    WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder(g_vulkanstate.device, &cdesc);
     
     rassert(tex->mipmaps >= 1, "Mipmaps must always be at least 1, 0 probably means that's an invalid texture");
     rassert(tex->width < (uint32_t(1) << 31), "Texture too humongous");
     rassert(tex->height < (uint32_t(1) << 31), "Texture too humongous");
     
-    WGVKTexture wgvkTex = reinterpret_cast<WGVKTexture>(tex->id);
+    WGPUTexture wgpuTex = reinterpret_cast<WGPUTexture>(tex->id);
 
     VkOffset3D initial = VkOffset3D{(int32_t)tex->width, (int32_t)tex->height, 1};
     auto mipExtent = [initial](const uint32_t mipLevel){
@@ -768,8 +768,8 @@ void GenTextureMipmaps(Texture2D* tex){
             .layerCount = 1,
         }
     };
-    ce_trackTexture(enc, wgvkTex, usage_general);
-    //wgvkCommandEncoderTransitionTextureLayout(enc, wgvkTex, wgvkTex->layout, VK_IMAGE_LAYOUT_GENERAL);
+    ce_trackTexture(enc, wgpuTex, usage_general);
+    //wgpuCommandEncoderTransitionTextureLayout(enc, wgpuTex, wgpuTex->layout, VK_IMAGE_LAYOUT_GENERAL);
     for(uint32_t i = 0;i < tex->mipmaps - 1;i++){
         VkImageBlit blitRegion zeroinit;
         blitRegion.srcOffsets[1] = mipExtent(0    );
@@ -782,22 +782,22 @@ void GenTextureMipmaps(Texture2D* tex){
         blitRegion.dstSubresource.layerCount = 1;
         blitRegion.srcSubresource.mipLevel = 0;
         blitRegion.dstSubresource.mipLevel = i + 1;
-        vkCmdBlitImage(enc->buffer, wgvkTex->image, VK_IMAGE_LAYOUT_GENERAL, wgvkTex->image, VK_IMAGE_LAYOUT_GENERAL, 1, &blitRegion, VK_FILTER_LINEAR);
+        vkCmdBlitImage(enc->buffer, wgpuTex->image, VK_IMAGE_LAYOUT_GENERAL, wgpuTex->image, VK_IMAGE_LAYOUT_GENERAL, 1, &blitRegion, VK_FILTER_LINEAR);
     }
     
-    //ru_trackTexture(&enc->resourceUsage, wgvkTex);
-    WGVKCommandBuffer buffer = wgvkCommandEncoderFinish(enc);
-    wgvkQueueSubmit(g_vulkanstate.queue, 1, &buffer);
-    wgvkReleaseCommandBuffer(buffer);
-    wgvkReleaseCommandEncoder(enc);
+    //ru_trackTexture(&enc->resourceUsage, wgpuTex);
+    WGPUCommandBuffer buffer = wgpuCommandEncoderFinish(enc);
+    wgpuQueueSubmit(g_vulkanstate.queue, 1, &buffer);
+    wgpuReleaseCommandBuffer(buffer);
+    wgpuReleaseCommandEncoder(enc);
 
     /* Compute based implementation
         static DescribedComputePipeline* cpl = LoadComputePipeline(mipmapComputerSource2);
         VkImageBlit blit;
         BeginComputepass();
         for(uint32_t i = 0;i < tex->mipmaps - 1;i++){
-            SetBindgroupTextureView(&cpl->bindGroup, 0, (WGVKTextureView)tex->mipViews[i    ]);
-            SetBindgroupTextureView(&cpl->bindGroup, 1, (WGVKTextureView)tex->mipViews[i + 1]);
+            SetBindgroupTextureView(&cpl->bindGroup, 0, (WGPUTextureView)tex->mipViews[i    ]);
+            SetBindgroupTextureView(&cpl->bindGroup, 1, (WGPUTextureView)tex->mipViews[i + 1]);
             if(i == 0){
                 BindComputePipeline(cpl);
             }
@@ -811,54 +811,54 @@ void GenTextureMipmaps(Texture2D* tex){
 
 void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size){
     ResourceDescriptor entry{};
-    WGVKBufferDescriptor bufferDesc{};
+    WGPUBufferDescriptor bufferDesc{};
     bufferDesc.size = size;
     bufferDesc.usage = BufferUsage_CopyDst | BufferUsage_Uniform;
-    WGVKBuffer wgvkBuffer = wgvkDeviceCreateBuffer(g_vulkanstate.device, &bufferDesc);
-    //wgvkBuffer->refCount++;
-    wgvkQueueWriteBuffer(g_vulkanstate.queue, wgvkBuffer, 0, data, size);
+    WGPUBuffer wgpuBuffer = wgpuDeviceCreateBuffer(g_vulkanstate.device, &bufferDesc);
+    //wgpuBuffer->refCount++;
+    wgpuQueueWriteBuffer(g_vulkanstate.queue, wgpuBuffer, 0, data, size);
     entry.binding = index;
-    entry.buffer = wgvkBuffer;
+    entry.buffer = wgpuBuffer;
     entry.size = size;
     UpdateBindGroupEntry(bg, index, entry);
-    wgvkBufferRelease(wgvkBuffer);
+    wgpuBufferRelease(wgpuBuffer);
 }
 
 void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size){
     ResourceDescriptor entry{};
-    WGVKBufferDescriptor bufferDesc{};
+    WGPUBufferDescriptor bufferDesc{};
     bufferDesc.size = size;
     bufferDesc.usage = BufferUsage_CopyDst | BufferUsage_Storage;
-    WGVKBuffer wgvkBuffer = wgvkDeviceCreateBuffer(g_vulkanstate.device, &bufferDesc);
-    wgvkQueueWriteBuffer(g_vulkanstate.queue, wgvkBuffer, 0, data, size);
+    WGPUBuffer wgpuBuffer = wgpuDeviceCreateBuffer(g_vulkanstate.device, &bufferDesc);
+    wgpuQueueWriteBuffer(g_vulkanstate.queue, wgpuBuffer, 0, data, size);
     entry.binding = index;
-    entry.buffer = wgvkBuffer;
+    entry.buffer = wgpuBuffer;
     entry.size = size;
     UpdateBindGroupEntry(bg, index, entry);
-    wgvkBufferRelease(wgvkBuffer);
+    wgpuBufferRelease(wgpuBuffer);
 }
 
 extern "C" void BufferData(DescribedBuffer* buffer, const void* data, size_t size){
     if(buffer->buffer != nullptr && buffer->size >= size){
-        wgvkQueueWriteBuffer(g_vulkanstate.queue, (WGVKBuffer)buffer->buffer, 0, data, size);
+        wgpuQueueWriteBuffer(g_vulkanstate.queue, (WGPUBuffer)buffer->buffer, 0, data, size);
     }
     else{
         if(buffer->buffer)
-            wgvkBufferRelease((WGVKBuffer)buffer->buffer);
-        WGVKBufferDescriptor nbdesc zeroinit;
+            wgpuBufferRelease((WGPUBuffer)buffer->buffer);
+        WGPUBufferDescriptor nbdesc zeroinit;
         nbdesc.size = size;
         nbdesc.usage = buffer->usage;
 
-        buffer->buffer = wgvkDeviceCreateBuffer((WGVKDevice)GetDevice(), &nbdesc);
+        buffer->buffer = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &nbdesc);
         buffer->size = size;
-        wgvkQueueWriteBuffer(g_vulkanstate.queue, (WGVKBuffer)buffer->buffer, 0, data, size);
+        wgpuQueueWriteBuffer(g_vulkanstate.queue, (WGPUBuffer)buffer->buffer, 0, data, size);
     }
 }
 
 
 extern "C" void UnloadBuffer(DescribedBuffer* buf){
-    WGVKBuffer handle = (WGVKBuffer)buf->buffer;
-    wgvkBufferRelease(handle);
+    WGPUBuffer handle = (WGPUBuffer)buf->buffer;
+    wgpuBufferRelease(handle);
     std::free(buf);
 }
 
@@ -921,55 +921,55 @@ void createRenderPass() {
     }
 }
 extern "C" void RenderPassSetIndexBuffer(DescribedRenderpass* drp, DescribedBuffer* buffer, IndexFormat format, uint64_t offset){
-    wgvkRenderPassEncoderBindIndexBuffer((WGVKRenderPassEncoder)drp->rpEncoder, (WGVKBuffer)buffer->buffer, 0, format);
+    wgpuRenderPassEncoderBindIndexBuffer((WGPURenderPassEncoder)drp->rpEncoder, (WGPUBuffer)buffer->buffer, 0, format);
     //wgpuRenderPassEncoderSetIndexBuffer((WGPURenderPassEncoder)drp->rpEncoder, (WGPUBuffer)buffer->buffer, format, offset, buffer->size);
 }
 extern "C" void RenderPassSetVertexBuffer(DescribedRenderpass* drp, uint32_t slot, DescribedBuffer* buffer, uint64_t offset){
-    wgvkRenderPassEncoderBindVertexBuffer((WGVKRenderPassEncoder)drp->rpEncoder, slot, (WGVKBuffer)buffer->buffer, offset);
+    wgpuRenderPassEncoderBindVertexBuffer((WGPURenderPassEncoder)drp->rpEncoder, slot, (WGPUBuffer)buffer->buffer, offset);
     //wgpuRenderPassEncoderSetVertexBuffer((WGPURenderPassEncoder)drp->rpEncoder, slot, (WGPUBuffer)buffer->buffer, offset, buffer->size);
 }
 extern "C" void RenderPassSetBindGroup(DescribedRenderpass* drp, uint32_t group, DescribedBindGroup* bindgroup){
-    wgvkRenderPassEncoderSetBindGroup((WGVKRenderPassEncoder)drp->rpEncoder, group, (WGVKBindGroup)bindgroup->bindGroup, 0, NULL);
+    wgpuRenderPassEncoderSetBindGroup((WGPURenderPassEncoder)drp->rpEncoder, group, (WGPUBindGroup)bindgroup->bindGroup, 0, NULL);
     //wgpuRenderPassEncoderSetBindGroup((WGPURenderPassEncoder)drp->rpEncoder, group, (WGPUBindGroup)UpdateAndGetNativeBindGroup(bindgroup), 0, nullptr);
 }
 extern "C" void RenderPassDraw        (DescribedRenderpass* drp, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance){
-    wgvkRenderpassEncoderDraw((WGVKRenderPassEncoder)drp->rpEncoder, vertexCount, instanceCount, firstVertex, firstInstance);
+    wgpuRenderpassEncoderDraw((WGPURenderPassEncoder)drp->rpEncoder, vertexCount, instanceCount, firstVertex, firstInstance);
     //wgpuRenderPassEncoderDraw((WGPURenderPassEncoder)drp->rpEncoder, vertexCount, instanceCount, firstVertex, firstInstance);
 }
 extern "C" void RenderPassDrawIndexed (DescribedRenderpass* drp, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t baseVertex, uint32_t firstInstance){
-    wgvkRenderpassEncoderDrawIndexed((WGVKRenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
+    wgpuRenderpassEncoderDrawIndexed((WGPURenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
     //wgpuRenderPassEncoderDrawIndexed((WGPURenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
 }
 extern "C" void PrepareFrameGlobals(){
     uint32_t cacheIndex = g_vulkanstate.device->submittedFrames % framesInFlight;
     auto& cache = g_vulkanstate.device->frameCaches[cacheIndex];
     if(vbo_buf != 0){
-        wgvkBufferUnmap(vbo_buf);
+        wgpuBufferUnmap(vbo_buf);
     }
     if(cache.unusedBatchBuffers.size == 0){
-        WGVKBufferDescriptor bdesc{
+        WGPUBufferDescriptor bdesc{
             .usage = BufferUsage_CopyDst | BufferUsage_MapWrite | BufferUsage_Vertex,
             .size = (RENDERBATCH_SIZE * sizeof(vertex))
         };
 
-        vbo_buf = wgvkDeviceCreateBuffer(g_vulkanstate.device,  &bdesc);
+        vbo_buf = wgpuDeviceCreateBuffer(g_vulkanstate.device,  &bdesc);
         
-        WGVKBufferVector_push_back(&cache.usedBatchBuffers, vbo_buf);
-        wgvkBufferAddRef(vbo_buf);
+        WGPUBufferVector_push_back(&cache.usedBatchBuffers, vbo_buf);
+        wgpuBufferAddRef(vbo_buf);
 
-        wgvkBufferMap(vbo_buf, MapMode_Write, 0, bdesc.size, (void**)&vboptr_base);
+        wgpuBufferMap(vbo_buf, MapMode_Write, 0, bdesc.size, (void**)&vboptr_base);
         vboptr = vboptr_base;
         
     }
     else{
         vbo_buf = cache.unusedBatchBuffers.data[cache.unusedBatchBuffers.size - 1];
-        WGVKBufferVector_pop_back(&cache.unusedBatchBuffers);
-        WGVKBufferVector_push_back(&cache.usedBatchBuffers, vbo_buf);
+        WGPUBufferVector_pop_back(&cache.unusedBatchBuffers);
+        WGPUBufferVector_push_back(&cache.usedBatchBuffers, vbo_buf);
         VmaAllocationInfo allocationInfo zeroinit;
         vmaGetAllocationInfo(g_vulkanstate.device->allocator, vbo_buf->allocation, &allocationInfo);
-        wgvkBufferMap(vbo_buf, MapMode_Write, 0, allocationInfo.size, (void**)&vboptr_base);
+        wgpuBufferMap(vbo_buf, MapMode_Write, 0, allocationInfo.size, (void**)&vboptr_base);
         vboptr = vboptr_base;
-        wgvkBufferAddRef(vbo_buf);
+        wgpuBufferAddRef(vbo_buf);
     }
 }
 extern "C" DescribedBuffer* UpdateVulkanRenderbatch(){
@@ -977,33 +977,33 @@ extern "C" DescribedBuffer* UpdateVulkanRenderbatch(){
     auto& cache = g_vulkanstate.device->frameCaches[cacheIndex];
     DescribedBuffer* db = callocnewpp(DescribedBuffer); 
     db->usage = vbo_buf->usage;
-    db->size = wgvkBufferGetSize(vbo_buf);
+    db->size = wgpuBufferGetSize(vbo_buf);
     db->buffer = vbo_buf;
     if(vbo_buf != 0){
-        wgvkBufferUnmap(vbo_buf);
+        wgpuBufferUnmap(vbo_buf);
     }
-    if(WGVKBufferVector_empty(&cache.unusedBatchBuffers)){
-        WGVKBufferDescriptor bdesc = {
+    if(WGPUBufferVector_empty(&cache.unusedBatchBuffers)){
+        WGPUBufferDescriptor bdesc = {
             .usage = BufferUsage_CopyDst | BufferUsage_MapWrite | BufferUsage_Vertex,
             .size = (RENDERBATCH_SIZE * sizeof(vertex))
         };
 
-        vbo_buf = wgvkDeviceCreateBuffer(g_vulkanstate.device,  &bdesc);
-        wgvkBufferMap(vbo_buf, MapMode_Write, 0, bdesc.size, (void**)&vboptr_base);
+        vbo_buf = wgpuDeviceCreateBuffer(g_vulkanstate.device,  &bdesc);
+        wgpuBufferMap(vbo_buf, MapMode_Write, 0, bdesc.size, (void**)&vboptr_base);
         vboptr = vboptr_base;
-        WGVKBufferVector_push_back(&cache.usedBatchBuffers, vbo_buf);
-        wgvkBufferAddRef(vbo_buf);
+        WGPUBufferVector_push_back(&cache.usedBatchBuffers, vbo_buf);
+        wgpuBufferAddRef(vbo_buf);
     }
     else{
         vbo_buf = cache.unusedBatchBuffers.data[cache.unusedBatchBuffers.size - 1];
 
-        WGVKBufferVector_pop_back(&cache.unusedBatchBuffers);
-        WGVKBufferVector_push_back(&cache.usedBatchBuffers, vbo_buf);
+        WGPUBufferVector_pop_back(&cache.unusedBatchBuffers);
+        WGPUBufferVector_push_back(&cache.usedBatchBuffers, vbo_buf);
         VmaAllocationInfo allocationInfo zeroinit;
         vmaGetAllocationInfo(g_vulkanstate.device->allocator,vbo_buf->allocation, &allocationInfo);
-        wgvkBufferMap(vbo_buf, MapMode_Write, 0, allocationInfo.size, (void**)&vboptr_base);
+        wgpuBufferMap(vbo_buf, MapMode_Write, 0, allocationInfo.size, (void**)&vboptr_base);
         vboptr = vboptr_base;
-        wgvkBufferAddRef(vbo_buf);
+        wgpuBufferAddRef(vbo_buf);
     }
 
     return db;
@@ -1012,15 +1012,15 @@ void PushUsedBuffer(void* nativeBuffer){
     return;
     uint32_t cacheIndex = g_vulkanstate.device->submittedFrames % framesInFlight;
     auto& cache = g_vulkanstate.device->frameCaches[cacheIndex];
-    WGVKBuffer buffer = (WGVKBuffer)nativeBuffer;
+    WGPUBuffer buffer = (WGPUBuffer)nativeBuffer;
     
 }
 
 
 extern "C" void BindComputePipeline(DescribedComputePipeline* pipeline){
-    WGVKBindGroup bindGroup = (WGVKBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup);
-    wgvkComputePassEncoderSetPipeline ((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder, (WGVKComputePipeline)pipeline->pipeline);
-    wgvkComputePassEncoderSetBindGroup((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder, 0, bindGroup, 0, NULL);
+    WGPUBindGroup bindGroup = (WGPUBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup);
+    wgpuComputePassEncoderSetPipeline ((WGPUComputePassEncoder)g_renderstate.computepass.cpEncoder, (WGPUComputePipeline)pipeline->pipeline);
+    wgpuComputePassEncoderSetBindGroup((WGPUComputePassEncoder)g_renderstate.computepass.cpEncoder, 0, bindGroup, 0, NULL);
 }
 
 void printVkPhysicalDeviceMemoryProperties(const VkPhysicalDeviceMemoryProperties* properties) {
@@ -1109,22 +1109,22 @@ void InitBackend(){
         }
     }
 
-    WGVKInstanceLayerSelection instanceLayers zeroinit;
-    instanceLayers.chain.sType = WGVKSType_InstanceValidationLayerSelection;
+    WGPUInstanceLayerSelection instanceLayers zeroinit;
+    instanceLayers.chain.sType = WGPUSType_InstanceValidationLayerSelection;
     
     instanceLayers.instanceLayers = validationLayers.data();
     instanceLayers.instanceLayerCount = validationLayers.size();
     
-    WGVKInstanceDescriptor idesc zeroinit;
+    WGPUInstanceDescriptor idesc zeroinit;
     idesc.nextInChain = &instanceLayers.chain;
-    g_vulkanstate.instance = wgvkCreateInstance(&idesc);
+    g_vulkanstate.instance = wgpuCreateInstance(&idesc);
     volkLoadInstance(g_vulkanstate.instance->instance);
     g_vulkanstate.physicalDevice = pickPhysicalDevice(g_vulkanstate.instance);
 
     vkGetPhysicalDeviceMemoryProperties(g_vulkanstate.physicalDevice->physicalDevice, &g_vulkanstate.memProperties);
 
-    WGVKDeviceDescriptor ddescriptor zeroinit;
-    WGVKDevice device = wgvkAdapterCreateDevice(g_vulkanstate.physicalDevice, &ddescriptor);
+    WGPUDeviceDescriptor ddescriptor zeroinit;
+    WGPUDevice device = wgpuAdapterCreateDevice(g_vulkanstate.physicalDevice, &ddescriptor);
     g_vulkanstate.device = device;
     g_vulkanstate.queue = device->queue;
     //auto device_and_queues = createLogicalDevice(g_vulkanstate.physicalDevice, queues);
@@ -1143,13 +1143,13 @@ void InitBackend(){
 
 extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t height){
     FullSurface ret{};
-    ret.surface = (WGVKSurface)nsurface;
-    WGVKAdapter adapter = g_vulkanstate.physicalDevice;
+    ret.surface = (WGPUSurface)nsurface;
+    WGPUAdapter adapter = g_vulkanstate.physicalDevice;
     negotiateSurfaceFormatAndPresentMode(adapter, nsurface);
-    WGVKSurfaceCapabilities capa{};
+    WGPUSurfaceCapabilities capa{};
 
-    wgvkSurfaceGetCapabilities((WGVKSurface)ret.surface, adapter, &capa);
-    WGVKSurfaceConfiguration config{};
+    wgpuSurfaceGetCapabilities((WGPUSurface)ret.surface, adapter, &capa);
+    WGPUSurfaceConfiguration config{};
 
     PresentMode thm = g_renderstate.throttled_PresentMode;
     PresentMode um  = g_renderstate.unthrottled_PresentMode;
@@ -1176,8 +1176,8 @@ extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t he
     ret.surfaceConfig.height = config.width;
     ret.surfaceConfig.format = (PixelFormat)config.format;
     
-    wgvkSurfaceConfigure((WGVKSurface)ret.surface, &config);
-    WGVKSurface wvS = (WGVKSurface)ret.surface;
+    wgpuSurfaceConfigure((WGPUSurface)ret.surface, &config);
+    WGPUSurface wvS = (WGPUSurface)ret.surface;
     ret.renderTarget = LoadRenderTexture(wvS->width, wvS->height);
     return ret;
 }
@@ -1191,26 +1191,26 @@ RenderTexture LoadRenderTexture(uint32_t width, uint32_t height){
     if(g_renderstate.windowFlags & FLAG_MSAA_4X_HINT){
         ret.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_renderstate.frameBufferFormat, TextureUsage_RenderAttachment | TextureUsage_CopySrc, 4, 1);
     }
-    WGVKTextureView colorTargetView = (WGVKTextureView)ret.texture.view;
-    //wgvkQueueTransitionLayout(g_vulkanstate.queue, colorTargetView->texture, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    WGPUTextureView colorTargetView = (WGPUTextureView)ret.texture.view;
+    //wgpuQueueTransitionLayout(g_vulkanstate.queue, colorTargetView->texture, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     //if(ret.colorMultisample.id)
-    //    wgvkQueueTransitionLayout(g_vulkanstate.queue, ((WGVKTexture)ret.colorMultisample.id), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    //wgvkQueueTransitionLayout(g_vulkanstate.queue, ((WGVKTexture)ret.depth.id), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    //    wgpuQueueTransitionLayout(g_vulkanstate.queue, ((WGPUTexture)ret.colorMultisample.id), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    //wgpuQueueTransitionLayout(g_vulkanstate.queue, ((WGPUTexture)ret.depth.id), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
     ret.colorAttachmentCount = 1;
     return ret;
 }
 extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
 
-    //WGVKRenderPassEncoder ret = callocnewpp(WGVKRenderPassEncoderImpl);
+    //WGPURenderPassEncoder ret = callocnewpp(WGPURenderPassEncoderImpl);
 
     renderPass->settings = g_renderstate.currentSettings;
 
     VkCommandBufferBeginInfo bbi{};
     bbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     VkRenderPassBeginInfo rpbi{};
-    WGVKCommandEncoderDescriptor cedesc zeroinit;
-    WGVKCommandEncoder encoder = (WGVKCommandEncoder)renderPass->cmdEncoder;
-    renderPass->cmdEncoder = wgvkDeviceCreateCommandEncoder(g_vulkanstate.device, &cedesc);
+    WGPUCommandEncoderDescriptor cedesc zeroinit;
+    WGPUCommandEncoder encoder = (WGPUCommandEncoder)renderPass->cmdEncoder;
+    renderPass->cmdEncoder = wgpuDeviceCreateCommandEncoder(g_vulkanstate.device, &cedesc);
     
     //if(renderPass->cmdEncoder == nullptr){
     //    VkCommandPool oof{};
@@ -1233,47 +1233,47 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     //VkFramebufferCreateInfo fbci{};
     //fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     //VkImageView fbAttachments[2] = {
-    //    ((WGVKTextureView)rtex.texture.view)->view,
-    //    ((WGVKTextureView)rtex.depth.view)->view,
+    //    ((WGPUTextureView)rtex.texture.view)->view,
+    //    ((WGPUTextureView)rtex.depth.view)->view,
     //};
 
-    WGVKRenderPassDescriptor rpdesc zeroinit;
-    WGVKRenderPassDepthStencilAttachment dsa zeroinit;
+    WGPURenderPassDescriptor rpdesc zeroinit;
+    WGPURenderPassDepthStencilAttachment dsa zeroinit;
     dsa.depthClearValue = renderPass->depthClear;
     dsa.stencilClearValue = 0;
     dsa.stencilLoadOp = LoadOp_Undefined;
     dsa.stencilStoreOp = StoreOp_Discard;
     dsa.depthLoadOp = renderPass->depthLoadOp;
     dsa.depthStoreOp = renderPass->depthStoreOp;
-    dsa.view = (WGVKTextureView)rtex.depth.view;
-    WGVKRenderPassColorAttachment rca[max_color_attachments] zeroinit;
+    dsa.view = (WGPUTextureView)rtex.depth.view;
+    WGPURenderPassColorAttachment rca[max_color_attachments] zeroinit;
     rpdesc.colorAttachmentCount = rtex.colorAttachmentCount;
     rca[0].depthSlice = 0;
     rca[0].clearValue = renderPass->colorClear;
     rca[0].loadOp = renderPass->colorLoadOp;
     rca[0].storeOp = renderPass->colorStoreOp;
     if(rtex.colorMultisample.view){
-        rca[0].view = (WGVKTextureView)rtex.colorMultisample.view;
-        rca[0].resolveTarget = (WGVKTextureView)rtex.texture.view;
-        //initializeOrTransition(((WGVKCommandEncoder)renderPass->cmdEncoder), rca[0].view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        //initializeOrTransition(((WGVKCommandEncoder)renderPass->cmdEncoder), rca[0].resolveTarget->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        rca[0].view = (WGPUTextureView)rtex.colorMultisample.view;
+        rca[0].resolveTarget = (WGPUTextureView)rtex.texture.view;
+        //initializeOrTransition(((WGPUCommandEncoder)renderPass->cmdEncoder), rca[0].view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        //initializeOrTransition(((WGPUCommandEncoder)renderPass->cmdEncoder), rca[0].resolveTarget->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     }
     else{
-        rca[0].view = (WGVKTextureView)rtex.texture.view;
-        //initializeOrTransition(((WGVKCommandEncoder)renderPass->cmdEncoder), rca[0].view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        rca[0].view = (WGPUTextureView)rtex.texture.view;
+        //initializeOrTransition(((WGPUCommandEncoder)renderPass->cmdEncoder), rca[0].view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     }
     if(renderPass->settings.depthTest){
         rpdesc.depthStencilAttachment = &dsa;
     }
     //if(rpdesc.colorAttachmentCount > 1){
     //    for(uint32_t i = 0;i < rpdesc.colorAttachmentCount - 1;i++){
-    //        WGVKRenderPassColorAttachment& ar = rca[i + 1];
+    //        WGPURenderPassColorAttachment& ar = rca[i + 1];
     //        ar.depthSlice = 0;
     //        ar.clearValue = renderPass->colorClear;
     //        ar.loadOp = renderPass->colorLoadOp;
     //        ar.storeOp = renderPass->colorStoreOp;
     //        ar.view = rtex.moreColorAttachments[i].view;
-    //        initializeOrTransition(((WGVKCommandEncoder)renderPass->cmdEncoder), ar.view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    //        initializeOrTransition(((WGPUCommandEncoder)renderPass->cmdEncoder), ar.view->texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     //    }
     //}
     rpdesc.colorAttachments = rca;
@@ -1288,7 +1288,7 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     //vkCreateFramebuffer(g_vulkanstate.device, &fbci, nullptr, &rahmePuffer);
     //rpbi.framebuffer = rahmePuffer;
     //renderPass->rpEncoder = BeginRenderPass_Vk((VkCommandBuffer)renderPass->cmdEncoder, renderPass, rahmePuffer, rtex.texture.width, rtex.texture.height);
-    renderPass->rpEncoder = wgvkCommandEncoderBeginRenderPass((WGVKCommandEncoder)renderPass->cmdEncoder, &rpdesc);
+    renderPass->rpEncoder = wgpuCommandEncoderBeginRenderPass((WGPUCommandEncoder)renderPass->cmdEncoder, &rpdesc);
     
     VkViewport viewport{
         .x        =  static_cast<float>(0),
@@ -1311,13 +1311,13 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     };
     //TODO delet all this
     //for(uint32_t i = 0;i < rpdesc.colorAttachmentCount;i++){
-    //    vkCmdSetViewport(((WGVKRenderPassEncoder)renderPass->rpEncoder)->secondaryCmdBuffer, i, 1, &viewport);
-    //    vkCmdSetScissor (((WGVKRenderPassEncoder)renderPass->rpEncoder)->secondaryCmdBuffer, i, 1, &scissor);
+    //    vkCmdSetViewport(((WGPURenderPassEncoder)renderPass->rpEncoder)->secondaryCmdBuffer, i, 1, &viewport);
+    //    vkCmdSetScissor (((WGPURenderPassEncoder)renderPass->rpEncoder)->secondaryCmdBuffer, i, 1, &scissor);
     //}
-    //wgvkRenderPassEncoderBindPipeline((WGVKRenderPassEncoder)renderPass->rpEncoder, g_renderstate.defaultPipeline);
+    //wgpuRenderPassEncoderBindPipeline((WGPURenderPassEncoder)renderPass->rpEncoder, g_renderstate.defaultPipeline);
     g_renderstate.activeRenderpass = renderPass;
     //UpdateBindGroup_Vk(&g_renderstate.defaultPipeline->bindGroup);
-    //wgvkRenderPassEncoderBindDescriptorSet((WGVKRenderPassEncoder)renderPass->rpEncoder, 0, (DescriptorSetHandle)g_renderstate.defaultPipeline->bindGroup.bindGroup);
+    //wgpuRenderPassEncoderBindDescriptorSet((WGPURenderPassEncoder)renderPass->rpEncoder, 0, (DescriptorSetHandle)g_renderstate.defaultPipeline->bindGroup.bindGroup);
     //rlVertex2f(0, 0);
     //rlVertex2f(1, 0);
     //rlVertex2f(0, 1);
@@ -1329,32 +1329,32 @@ extern "C" void BindPipelineWithSettings(DescribedPipeline* pipeline, PrimitiveT
     pipeline->state.primitiveType = drawMode;
     pipeline->state.settings = settings;
     pipeline->activePipeline = pipeline->pipelineCache.getOrCreate(pipeline->state, pipeline->shaderModule, pipeline->bglayout, pipeline->layout);
-    wgvkRenderPassEncoderSetPipeline((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, pipeline->activePipeline);
-    wgvkRenderPassEncoderSetBindGroup((WGVKRenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, UpdateAndGetNativeBindGroup(&pipeline->bindGroup), 0, NULL);
+    wgpuRenderPassEncoderSetPipeline((WGPURenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, pipeline->activePipeline);
+    wgpuRenderPassEncoderSetBindGroup((WGPURenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, UpdateAndGetNativeBindGroup(&pipeline->bindGroup), 0, NULL);
 }
 
 extern "C" void BindPipeline(DescribedPipeline* pipeline, PrimitiveType drawMode){
     BindPipelineWithSettings(pipeline, drawMode, g_renderstate.currentSettings);
     
     //pipeline->lastUsedAs = drawMode;
-    //wgvkRenderPassEncoderSetBindGroup ((WGPURenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
+    //wgpuRenderPassEncoderSetBindGroup ((WGPURenderPassEncoder)g_renderstate.activeRenderpass->rpEncoder, 0, (WGPUBindGroup)GetWGPUBindGroup(&pipeline->bindGroup), 0, 0);
 
 }
-WGVKBuffer tttIntermediate zeroinit;
+WGPUBuffer tttIntermediate zeroinit;
 extern "C" void CopyTextureToTexture(Texture source, Texture dest){
     
 
-    WGVKTexture sourceTexture = reinterpret_cast<WGVKTexture>(source.id);
-    WGVKTexture destTexture = reinterpret_cast<WGVKTexture>(dest.id);
-    WGVKCommandEncoder encodingDest = reinterpret_cast<WGVKCommandEncoder>(g_renderstate.computepass.cmdEncoder);
+    WGPUTexture sourceTexture = reinterpret_cast<WGPUTexture>(source.id);
+    WGPUTexture destTexture = reinterpret_cast<WGPUTexture>(dest.id);
+    WGPUCommandEncoder encodingDest = reinterpret_cast<WGPUCommandEncoder>(g_renderstate.computepass.cmdEncoder);
     
-    //wgvkCommandEncoderCopyTextureToTexture;
+    //wgpuCommandEncoderCopyTextureToTexture;
     
-    //wgvkCommandEncoderCopyTextureToTexture(
+    //wgpuCommandEncoderCopyTextureToTexture(
     //    encodingDest,
-    //    const WGVKTexelCopyTextureInfo *source,
-    //    const WGVKTexelCopyTextureInfo *destination, 
-    //    const WGVKExtent3D *copySize
+    //    const WGPUTexelCopyTextureInfo *source,
+    //    const WGPUTexelCopyTextureInfo *destination, 
+    //    const WGPUExtent3D *copySize
     //);
     // These should be taken care of by  
     // initializeOrTransition(encodingDest, sourceTexture, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
@@ -1369,30 +1369,30 @@ extern "C" void CopyTextureToTexture(Texture source, Texture dest){
     //    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, VK_FILTER_NEAREST
     //);
     
-    //wgvkCommandEncoderTransitionTextureLayout(encodingDest, destTexture, destTexture->layout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    //wgpuCommandEncoderTransitionTextureLayout(encodingDest, destTexture, destTexture->layout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     //if(!tttIntermediate){
     //    BufferDescriptor desc zeroinit;
     //    desc.size = source.width * source.height * GetPixelSizeInBytes(source.format);
     //    desc.usage = BufferUsage_CopyDst | BufferUsage_CopySrc;
-    //    tttIntermediate = wgvkDeviceCreateBuffer(g_vulkanstate.device, &desc);
+    //    tttIntermediate = wgpuDeviceCreateBuffer(g_vulkanstate.device, &desc);
     //}
     //TRACELOG(LOG_FATAL, "Unimplemented function: %s", __FUNCTION__);
 }
 void ComputepassEndOnlyComputing(cwoid){
-    WGVKComputePassEncoder computePassEncoder = (WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder;
-    wgvkCommandEncoderEndComputePass(computePassEncoder);
+    WGPUComputePassEncoder computePassEncoder = (WGPUComputePassEncoder)g_renderstate.computepass.cpEncoder;
+    wgpuCommandEncoderEndComputePass(computePassEncoder);
 }
 
 extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
     drawCurrentBatch();
     if(rp->rpEncoder){
-        wgvkRenderPassEncoderEnd((WGVKRenderPassEncoder)rp->rpEncoder);
-        wgvkReleaseRenderPassEncoder((WGVKRenderPassEncoder)rp->rpEncoder);
+        wgpuRenderPassEncoderEnd((WGPURenderPassEncoder)rp->rpEncoder);
+        wgpuReleaseRenderPassEncoder((WGPURenderPassEncoder)rp->rpEncoder);
         rp->rpEncoder = nullptr;
     }
     VkImageMemoryBarrier rpAttachmentBarriers[2] zeroinit;
     auto rtex = g_renderstate.renderTargetStack.peek();
-    rpAttachmentBarriers[0].image = reinterpret_cast<WGVKTexture>(rtex.texture.id)->image;
+    rpAttachmentBarriers[0].image = reinterpret_cast<WGPUTexture>(rtex.texture.id)->image;
     rpAttachmentBarriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     rpAttachmentBarriers[0].oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     rpAttachmentBarriers[0].newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -1406,11 +1406,11 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
     rpAttachmentBarriers[0].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     rpAttachmentBarriers[0].dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
     rpAttachmentBarriers[0].subresourceRange.layerCount = 1;
-    vkCmdPipelineBarrier(((WGVKCommandEncoder)rp->cmdEncoder)->buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, 0, 0, 0, 1, rpAttachmentBarriers);
+    vkCmdPipelineBarrier(((WGPUCommandEncoder)rp->cmdEncoder)->buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, 0, 0, 0, 1, rpAttachmentBarriers);
     
 
 
-    WGVKCommandBuffer cbuffer = wgvkCommandEncoderFinish((WGVKCommandEncoder)rp->cmdEncoder);
+    WGPUCommandBuffer cbuffer = wgpuCommandEncoderFinish((WGPUCommandEncoder)rp->cmdEncoder);
     
     g_renderstate.activeRenderpass = nullptr;
     VkSubmitInfo sinfo{};
@@ -1419,17 +1419,17 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
     sinfo.pCommandBuffers = &cbuffer->buffer;
 
 
-    wgvkQueueSubmit(g_vulkanstate.queue, 1, &cbuffer);
+    wgpuQueueSubmit(g_vulkanstate.queue, 1, &cbuffer);
 
 
-    WGVKRenderPassEncoder rpe = (WGVKRenderPassEncoder)rp->rpEncoder;
+    WGPURenderPassEncoder rpe = (WGPURenderPassEncoder)rp->rpEncoder;
     if(rpe){
-        wgvkReleaseRenderPassEncoder(rpe);
+        wgpuReleaseRenderPassEncoder(rpe);
     }
-    WGVKCommandEncoder cmdEncoder = (WGVKCommandEncoder)rp->cmdEncoder;
+    WGPUCommandEncoder cmdEncoder = (WGPUCommandEncoder)rp->cmdEncoder;
     rp->cmdEncoder = nullptr;
-    wgvkReleaseCommandEncoder(cmdEncoder);
-    wgvkReleaseCommandBuffer(cbuffer);
+    wgpuReleaseCommandEncoder(cmdEncoder);
+    wgpuReleaseCommandBuffer(cbuffer);
     //vkResetFences(g_vulkanstate.device, 1, &g_vulkanstate.queue.syncState.renderFinishedFence);
     //g_vulkanstate.queue.syncState.submitsInThisFrame = 0;
     //vkDestroyFence(g_vulkanstate.device, fence, nullptr);
@@ -1437,35 +1437,35 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
 }
 
 void UpdateTexture(Texture tex, void* data){
-    WGVKTexelCopyTextureInfo destination{};
-    destination.texture = (WGVKTexture)tex.id;
+    WGPUTexelCopyTextureInfo destination{};
+    destination.texture = (WGPUTexture)tex.id;
     destination.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
     destination.mipLevel = 0;
-    destination.origin = WGVKOrigin3D{0,0,0};
+    destination.origin = WGPUOrigin3D{0,0,0};
 
-    WGVKTexelCopyBufferLayout source{};
+    WGPUTexelCopyBufferLayout source{};
     source.offset = 0;
     source.bytesPerRow = GetPixelSizeInBytes(tex.format) * tex.width;
     source.rowsPerImage = tex.height;
-    WGVKExtent3D writeSize{};
+    WGPUExtent3D writeSize{};
     writeSize.depthOrArrayLayers = 1;
     writeSize.width = tex.width;
     writeSize.height = tex.height;
-    wgvkQueueWriteTexture(g_vulkanstate.queue, &destination, data, tex.width * tex.height * GetPixelSizeInBytes(tex.format), &source, &writeSize);
+    wgpuQueueWriteTexture(g_vulkanstate.queue, &destination, data, tex.width * tex.height * GetPixelSizeInBytes(tex.format), &source, &writeSize);
 }
 
 
 
 extern "C" void EndRenderpassPro(DescribedRenderpass* rp, bool renderTexture){
     //if(renderTexture){
-    //    wgvkRenderPassEncoderEnd((WGVKRenderPassEncoder)rp->rpEncoder);
-    //    wgvkReleaseRenderPassEncoder((WGVKRenderPassEncoder)rp->rpEncoder);
-    //    WGVKTexture ctarget = (WGVKTexture)GetActiveColorTarget();
-    //    wgvkCommandEncoderTransitionTextureLayout((WGVKCommandEncoder)rp->cmdEncoder, ctarget, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    //    wgpuRenderPassEncoderEnd((WGPURenderPassEncoder)rp->rpEncoder);
+    //    wgpuReleaseRenderPassEncoder((WGPURenderPassEncoder)rp->rpEncoder);
+    //    WGPUTexture ctarget = (WGPUTexture)GetActiveColorTarget();
+    //    wgpuCommandEncoderTransitionTextureLayout((WGPUCommandEncoder)rp->cmdEncoder, ctarget, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     //    rp->rpEncoder = nullptr;
     //}
     EndRenderpassEx(rp);
 }
 void DispatchCompute(uint32_t x, uint32_t y, uint32_t z){
-    wgvkComputePassEncoderDispatchWorkgroups((WGVKComputePassEncoder)g_renderstate.computepass.cpEncoder, x, y, z);
+    wgpuComputePassEncoderDispatchWorkgroups((WGPUComputePassEncoder)g_renderstate.computepass.cpEncoder, x, y, z);
 }

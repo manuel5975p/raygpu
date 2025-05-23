@@ -71,12 +71,12 @@ struct memory_types{
 };
 
 struct VulkanState {
-    WGVKInstance instance = VK_NULL_HANDLE;
-    WGVKAdapter physicalDevice = nullptr;
+    WGPUInstance instance = VK_NULL_HANDLE;
+    WGPUAdapter physicalDevice = nullptr;
     VkPhysicalDeviceMemoryProperties memProperties;
 
-    WGVKDevice device = nullptr;
-    WGVKQueue queue;
+    WGPUDevice device = nullptr;
+    WGPUQueue queue;
 
     // Separate queues for clarity
     //VkQueue graphicsQueue = VK_NULL_HANDLE;
@@ -188,7 +188,7 @@ inline VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities,
 }
 /*inline FullSurface LoadSurface(GLFWwindow* window, SurfaceConfiguration config){
     FullSurface retf{};
-    WGVKSurface retp = callocnew(WGVKSurfaceImpl);
+    WGPUSurface retp = callocnew(WGPUSurfaceImpl);
     auto& ret = *retp;
     #if SUPPORT_GLFW == 1
     if(glfwCreateWindowSurface(g_vulkanstate.instance, window, nullptr, &ret.surface) != VK_SUCCESS){
@@ -362,10 +362,10 @@ struct FullVkRenderPass{
     //vkCreateSemaphore(g_vulkanstate.device, &si, nullptr, &ret.signalSemaphore);
     return ret;
 }*/
-extern "C" void TransitionImageLayout(WGVKDevice device, VkCommandPool commandPool, VkQueue queue, WGVKTexture texture, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
-extern "C" void EncodeTransitionImageLayout(VkCommandBuffer commandBuffer, VkImageLayout oldLayout, VkImageLayout newLayout, WGVKTexture texture);
-extern "C" VkCommandBuffer BeginSingleTimeCommands(WGVKDevice device, VkCommandPool commandPool);
-extern "C" void EndSingleTimeCommandsAndSubmit(WGVKDevice device, VkCommandPool commandPool, VkQueue queue, VkCommandBuffer commandBuffer);
+extern "C" void TransitionImageLayout(WGPUDevice device, VkCommandPool commandPool, VkQueue queue, WGPUTexture texture, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+extern "C" void EncodeTransitionImageLayout(VkCommandBuffer commandBuffer, VkImageLayout oldLayout, VkImageLayout newLayout, WGPUTexture texture);
+extern "C" VkCommandBuffer BeginSingleTimeCommands(WGPUDevice device, VkCommandPool commandPool);
+extern "C" void EndSingleTimeCommandsAndSubmit(WGPUDevice device, VkCommandPool commandPool, VkQueue queue, VkCommandBuffer commandBuffer);
 
 VkBool32 RGFW_getVKPresentationSupport_noinline(VkInstance instance, VkPhysicalDevice, uint32_t i);
 //static inline VkSemaphore CreateSemaphore(VkSemaphoreCreateFlags flags){
@@ -396,7 +396,7 @@ extern "C" void UpdateBindGroup(DescribedBindGroup* bg);
 extern "C" DescribedBuffer* GenBufferEx(const void *data, size_t size, BufferUsage usage);
 extern "C" void UnloadBuffer(DescribedBuffer* buf);
 
-//wgvk I guess
+//wgpu I guess
 
 extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry);
 extern "C" void GetNewTexture(FullSurface *fsurface);
@@ -414,13 +414,13 @@ static inline void SetBindgroupSampler_Vk(DescribedBindGroup* bg, uint32_t index
 static inline void SetBindgroupTexture_Vk(DescribedBindGroup* bg, uint32_t index, Texture tex){
     ResourceDescriptor entry{};
     entry.binding = index;
-    entry.textureView = (WGVKTextureView)tex.view;
+    entry.textureView = (WGPUTextureView)tex.view;
     
     UpdateBindGroupEntry(bg, index, entry);
 }
-static inline void BindVertexArray_Vk(WGVKRenderPassEncoder rpenc, VertexArray* vao){
+static inline void BindVertexArray_Vk(WGPURenderPassEncoder rpenc, VertexArray* vao){
     for(uint32_t i = 0;i < vao->buffers.size();i++){
-        wgvkRenderPassEncoderBindVertexBuffer(rpenc, i, (WGVKBuffer)vao->buffers[i].first->buffer, 0);
+        wgpuRenderPassEncoderBindVertexBuffer(rpenc, i, (WGPUBuffer)vao->buffers[i].first->buffer, 0);
     }
 }
 

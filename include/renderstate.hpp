@@ -104,7 +104,7 @@ struct renderstate{
     Texture whitePixel;
 
     
-    array_stack<std::pair<Matrix, WGVKBuffer>, 16> matrixStack;
+    array_stack<std::pair<Matrix, WGPUBuffer>, 16> matrixStack;
 
     array_stack<RenderTexture, 8> renderTargetStack;
 

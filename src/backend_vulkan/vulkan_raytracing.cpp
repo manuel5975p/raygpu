@@ -17,7 +17,7 @@ RTFunctions
 struct triangle {
     vertex v1, v2, v3;
 };
-static inline uint32_t findMemoryType(WGVKAdapter adapter, uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+static inline uint32_t findMemoryType(WGPUAdapter adapter, uint32_t typeFilter, VkMemoryPropertyFlags properties) {
     
 
     [[unlikely]] if (adapter->memProperties.memoryTypeCount == 0){
@@ -38,8 +38,8 @@ static inline uint32_t findMemoryType(WGVKAdapter adapter, uint32_t typeFilter, 
  *
  * Encapsulates instance data and references to BLASes to enable scene traversal
  */
-extern "C" WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAccelerationStructure(WGVKDevice device, const WGVKTopLevelAccelerationStructureDescriptor *descriptor) {
-    WGVKTopLevelAccelerationStructureImpl *impl = callocnewpp(WGVKTopLevelAccelerationStructureImpl);
+extern "C" WGPUTopLevelAccelerationStructure wgpuDeviceCreateTopLevelAccelerationStructure(WGPUDevice device, const WGPUTopLevelAccelerationStructureDescriptor *descriptor) {
+    WGPUTopLevelAccelerationStructureImpl *impl = callocnewpp(WGPUTopLevelAccelerationStructureImpl);
     impl->device = device->device;
 
     const size_t cacheIndex = device->submittedFrames % framesInFlight;
@@ -255,7 +255,7 @@ extern "C" WGVKTopLevelAccelerationStructure wgvkDeviceCreateTopLevelAcceleratio
  *
  * Releases all memory and destroys Vulkan objects associated with the TLAS
  */
-void wgvkDestroyTopLevelAccelerationStructure(WGVKTopLevelAccelerationStructureImpl *impl) {
+void wgpuDestroyTopLevelAccelerationStructure(WGPUTopLevelAccelerationStructureImpl *impl) {
     if (!impl)
         return;
 
@@ -275,7 +275,7 @@ void wgvkDestroyTopLevelAccelerationStructure(WGVKTopLevelAccelerationStructureI
  *
  * Required for shader table binding to reference the acceleration structure
  */
-uint64_t wgvkGetAccelerationStructureDeviceAddress(VkDevice device, VkAccelerationStructureKHR accelerationStructure) {
+uint64_t wgpuGetAccelerationStructureDeviceAddress(VkDevice device, VkAccelerationStructureKHR accelerationStructure) {
     VkAccelerationStructureDeviceAddressInfoKHR addressInfo = {};
     addressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
     addressInfo.accelerationStructure = accelerationStructure;
@@ -289,8 +289,8 @@ uint64_t wgvkGetAccelerationStructureDeviceAddress(VkDevice device, VkAccelerati
  * Manages memory allocation and buffer creation needed for BLAS creation
  */
 
-extern "C" WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccelerationStructure(WGVKDevice device, const WGVKBottomLevelAccelerationStructureDescriptor *descriptor) {
-    WGVKBottomLevelAccelerationStructureImpl *impl = callocnewpp(WGVKBottomLevelAccelerationStructureImpl);
+extern "C" WGPUBottomLevelAccelerationStructure wgpuDeviceCreateBottomLevelAccelerationStructure(WGPUDevice device, const WGPUBottomLevelAccelerationStructureDescriptor *descriptor) {
+    WGPUBottomLevelAccelerationStructureImpl *impl = callocnewpp(WGPUBottomLevelAccelerationStructureImpl);
     impl->device = device->device;
 
     const size_t cacheIndex = device->submittedFrames % framesInFlight;
@@ -450,7 +450,7 @@ extern "C" WGVKBottomLevelAccelerationStructure wgvkDeviceCreateBottomLevelAccel
 /**
  * Destroys and cleans up acceleration structure resources
  */
-void wgvkDestroyAccelerationStructure(WGVKBottomLevelAccelerationStructure impl) {
+void wgpuDestroyAccelerationStructure(WGPUBottomLevelAccelerationStructure impl) {
     if (!impl)
         return;
 
@@ -466,7 +466,7 @@ void wgvkDestroyAccelerationStructure(WGVKBottomLevelAccelerationStructure impl)
  * Creates a pipeline layout from uniform reflection data.
  */
 
-std::pair<DescribedBindGroupLayout, VkPipelineLayout> CreateRTPipelineLayout(WGVKDevice device, const DescribedShaderModule *module) {
+std::pair<DescribedBindGroupLayout, VkPipelineLayout> CreateRTPipelineLayout(WGPUDevice device, const DescribedShaderModule *module) {
     VkPipelineLayout layout = VK_NULL_HANDLE;
 
     // Create descriptor set layouts from uniform map
@@ -474,7 +474,7 @@ std::pair<DescribedBindGroupLayout, VkPipelineLayout> CreateRTPipelineLayout(WGV
     std::vector<ResourceTypeDescriptor> flat;
     DescribedBindGroupLayout dbgl = LoadBindGroupLayoutMod(module);
 
-    descriptorSetLayouts.push_back(reinterpret_cast<WGVKBindGroupLayout>(dbgl.layout)->layout);
+    descriptorSetLayouts.push_back(reinterpret_cast<WGPUBindGroupLayout>(dbgl.layout)->layout);
 
     // Parse uniform map to create descriptor sets
     // Would need to iterate through uniforms and create appropriate bindings
@@ -504,9 +504,9 @@ std::pair<DescribedBindGroupLayout, VkPipelineLayout> CreateRTPipelineLayout(WGV
  * Creates a VkRayTracingPipelineKHR with appropriate stage and group info
  * derived from reflection data in the module.
  */
-WGVKRaytracingPipeline LoadRTPipeline(const DescribedShaderModule *module) {
-    WGVKRaytracingPipeline pipeline = callocnewpp(WGVKRaytracingPipelineImpl);
-    const WGVKDevice device = g_vulkanstate.device;
+WGPURaytracingPipeline LoadRTPipeline(const DescribedShaderModule *module) {
+    WGPURaytracingPipeline pipeline = callocnewpp(WGPURaytracingPipelineImpl);
+    const WGPUDevice device = g_vulkanstate.device;
     // Create shader stages from modules
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
     for (uint32_t i = 0; i < 16; i++) {
@@ -604,15 +604,15 @@ WGVKRaytracingPipeline LoadRTPipeline(const DescribedShaderModule *module) {
 
     std::vector<char> shaderGroupHandles_Buffer(shaderGroups.size() * sgHandleSize);
     fulkGetRayTracingShaderGroupHandlesKHR(device->device, pipeline->raytracingPipeline, 0, shaderGroups.size(), shaderGroups.size() * sgHandleSize, shaderGroupHandles_Buffer.data());
-    WGVKBufferDescriptor bdesc zeroinit;
+    WGPUBufferDescriptor bdesc zeroinit;
     bdesc.usage = BufferUsage_MapWrite | BufferUsage_ShaderDeviceAddress | BufferUsage_ShaderBindingTable;
     bdesc.size = sgHandleSize;
-    pipeline->raygenBindingTable = wgvkDeviceCreateBuffer(device, &bdesc);
-    pipeline->missBindingTable = wgvkDeviceCreateBuffer(device, &bdesc);
-    pipeline->hitBindingTable = wgvkDeviceCreateBuffer(device, &bdesc);
-    wgvkQueueWriteBuffer(device->queue, pipeline->raygenBindingTable, 0, shaderGroupHandles_Buffer.data() + sgHandleSize * 0, sgHandleSize);
-    wgvkQueueWriteBuffer(device->queue, pipeline->missBindingTable, 0, shaderGroupHandles_Buffer.data() + sgHandleSize * 1, sgHandleSize);
-    wgvkQueueWriteBuffer(device->queue, pipeline->hitBindingTable, 0, shaderGroupHandles_Buffer.data() + sgHandleSize * 2, sgHandleSize);
+    pipeline->raygenBindingTable = wgpuDeviceCreateBuffer(device, &bdesc);
+    pipeline->missBindingTable = wgpuDeviceCreateBuffer(device, &bdesc);
+    pipeline->hitBindingTable = wgpuDeviceCreateBuffer(device, &bdesc);
+    wgpuQueueWriteBuffer(device->queue, pipeline->raygenBindingTable, 0, shaderGroupHandles_Buffer.data() + sgHandleSize * 0, sgHandleSize);
+    wgpuQueueWriteBuffer(device->queue, pipeline->missBindingTable, 0, shaderGroupHandles_Buffer.data() + sgHandleSize * 1, sgHandleSize);
+    wgpuQueueWriteBuffer(device->queue, pipeline->hitBindingTable, 0, shaderGroupHandles_Buffer.data() + sgHandleSize * 2, sgHandleSize);
 
     return pipeline;
 }
@@ -626,24 +626,24 @@ DescribedRaytracingPipeline *LoadRaytracingPipeline(const DescribedShaderModule 
     return ret;
 }
 
-WGVKRaytracingPassEncoder wgvkCommandEncoderBeginRaytracingPass(WGVKCommandEncoder enc) {
-    WGVKRaytracingPassEncoder rtEncoder = callocnewpp(WGVKRaytracingPassEncoderImpl);
+WGPURaytracingPassEncoder wgpuCommandEncoderBeginRaytracingPass(WGPUCommandEncoder enc) {
+    WGPURaytracingPassEncoder rtEncoder = callocnewpp(WGPURaytracingPassEncoderImpl);
     rtEncoder->refCount = 2;
     rtEncoder->device = enc->device;
     rtEncoder->cmdBuffer = enc->buffer;
     rtEncoder->cmdEncoder = enc;
-    WGVKRaytracingPassEncoderSet_add(&enc->referencedRTs, rtEncoder);
+    WGPURaytracingPassEncoderSet_add(&enc->referencedRTs, rtEncoder);
     return rtEncoder;
 }
-RGAPI void wgvkRaytracingPassEncoderSetPipeline(WGVKRaytracingPassEncoder rte, WGVKRaytracingPipeline raytracingPipeline) {
+RGAPI void wgpuRaytracingPassEncoderSetPipeline(WGPURaytracingPassEncoder rte, WGPURaytracingPipeline raytracingPipeline) {
     rte->device->functions.vkCmdBindPipeline(rte->cmdBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, raytracingPipeline->raytracingPipeline);
     rte->lastLayout = raytracingPipeline->layout;
     rte->lastPipeline = raytracingPipeline;
 }
 
 //static inline void transitionToAppropriateLayoutCallback1(void* texture_, ImageViewUsageRecord* record, void* rpe_){
-//    WGVKRenderPassEncoder rpe = (WGVKRenderPassEncoder)rpe_;
-//    WGVKTexture texture = (WGVKTexture)texture_;
+//    WGPURenderPassEncoder rpe = (WGPURenderPassEncoder)rpe_;
+//    WGPUTexture texture = (WGPUTexture)texture_;
 //
 //    if(record->lastLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
 //        initializeOrTransition(rpe->cmdEncoder, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -652,15 +652,15 @@ RGAPI void wgvkRaytracingPassEncoderSetPipeline(WGVKRaytracingPassEncoder rte, W
 //    }
 //}
 //
-RGAPI void wgvkRaytracingPassEncoderSetBindGroup(WGVKRaytracingPassEncoder rte, uint32_t groupIndex, WGVKBindGroup bindGroup) {
+RGAPI void wgpuRaytracingPassEncoderSetBindGroup(WGPURaytracingPassEncoder rte, uint32_t groupIndex, WGPUBindGroup bindGroup) {
 
 }
 //    vkCmdBindDescriptorSets(rte->cmdBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, rte->lastLayout, 0, 1, &bindGroup->set, 0, nullptr);
 //    ru_trackBindGroup(&rte->resourceUsage, bindGroup);
 //    ImageViewUsageRecordMap_for_each(&bindGroup->resourceUsage.referencedTextureViews, transitionToAppropriateLayoutCallback1, rte);
 //}
-void wgvkCommandEncoderEndRaytracingPass(WGVKRaytracingPassEncoder commandEncoder) {}
-void wgvkRaytracingPassEncoderTraceRays(WGVKRaytracingPassEncoder cpe, uint32_t width, uint32_t height, uint32_t depth) {
+void wgpuCommandEncoderEndRaytracingPass(WGPURaytracingPassEncoder commandEncoder) {}
+void wgpuRaytracingPassEncoderTraceRays(WGPURaytracingPassEncoder cpe, uint32_t width, uint32_t height, uint32_t depth) {
     VkStridedDeviceAddressRegionKHR rgR zeroinit;
     rgR.deviceAddress = cpe->lastPipeline->raygenBindingTable->address;
     rgR.stride = 32;

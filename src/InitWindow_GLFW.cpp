@@ -369,9 +369,9 @@ void ToggleFullscreen_GLFW(){
 }
 extern "C" void* CreateSurfaceForWindow_GLFW(void* windowHandle){
     #if SUPPORT_VULKAN_BACKEND == 1
-    WGVKSurface retp = callocnew(WGVKSurfaceImpl);
+    WGPUSurface retp = callocnew(WGPUSurfaceImpl);
     
-    glfwCreateWindowSurface(((WGVKInstance)GetInstance())->instance, (GLFWwindow*)windowHandle, nullptr, &retp->surface);
+    glfwCreateWindowSurface(((WGPUInstance)GetInstance())->instance, (GLFWwindow*)windowHandle, nullptr, &retp->surface);
     return retp;
     #else
     wgpu::Surface rs = wgpu::glfw::CreateSurfaceForWindow((WGPUInstance)GetInstance(), (GLFWwindow*)windowHandle);
@@ -427,7 +427,7 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
         WGPUSurface wsurfaceHandle = rs.MoveToCHandle();
         //ret.surface = CreateSurface(wsurfaceHandle, width, height);
         #elif SUPPORT_VULKAN_BACKEND == 1
-        WGVKSurfaceConfiguration config{};
+        WGPUSurfaceConfiguration config{};
         config.format = BGRA8;
         config.presentMode = PresentMode_Fifo;
         config.width = width;

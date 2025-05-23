@@ -146,9 +146,9 @@ int main(){
     RequestAdapterType(SOFTWARE_RENDERER);
     InitWindow(800, 800, "HWRT");
     
-    WGVKBottomLevelAccelerationStructureDescriptor blasdesc zeroinit;
+    WGPUBottomLevelAccelerationStructureDescriptor blasdesc zeroinit;
 
-    WGVKBufferDescriptor bdesc1 zeroinit;
+    WGPUBufferDescriptor bdesc1 zeroinit;
     
     Camera3D cam{
         .position = Vector3{0,0,-4},
@@ -168,17 +168,17 @@ int main(){
          1, 1, 1};
     bdesc1.size = sizeof(vertexData);
     bdesc1.usage = BufferUsage_MapWrite | BufferUsage_CopyDst | BufferUsage_ShaderDeviceAddress | BufferUsage_AccelerationStructureInput;
-    WGVKBuffer vertexBuffer = wgvkDeviceCreateBuffer((WGVKDevice)GetDevice(), &bdesc1);
+    WGPUBuffer vertexBuffer = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &bdesc1);
     
-    wgvkQueueWriteBuffer((WGVKQueue)g_vulkanstate.queue, vertexBuffer, 0, vertexData, sizeof(vertexData));
+    wgpuQueueWriteBuffer((WGPUQueue)g_vulkanstate.queue, vertexBuffer, 0, vertexData, sizeof(vertexData));
 
     blasdesc.vertexBuffer = vertexBuffer;
     blasdesc.vertexCount = 3;
     blasdesc.vertexStride = 12;
-    WGVKBottomLevelAccelerationStructure blas = wgvkDeviceCreateBottomLevelAccelerationStructure((WGVKDevice)GetDevice(), &blasdesc);
+    WGPUBottomLevelAccelerationStructure blas = wgpuDeviceCreateBottomLevelAccelerationStructure((WGPUDevice)GetDevice(), &blasdesc);
     
-    WGVKTopLevelAccelerationStructureDescriptor tlasdesc zeroinit;
-    WGVKBottomLevelAccelerationStructure blases[3] = {blas, blas, blas};
+    WGPUTopLevelAccelerationStructureDescriptor tlasdesc zeroinit;
+    WGPUBottomLevelAccelerationStructure blases[3] = {blas, blas, blas};
     tlasdesc.bottomLevelAS = blases;
     tlasdesc.blasCount = 3;
     VkTransformMatrixKHR matrix[3] zeroinit;
@@ -191,7 +191,7 @@ int main(){
     
     tlasdesc.transformMatrices = matrix;
     
-    WGVKTopLevelAccelerationStructure tlas = wgvkDeviceCreateTopLevelAccelerationStructure((WGVKDevice)GetDevice(), &tlasdesc);
+    WGPUTopLevelAccelerationStructure tlas = wgpuDeviceCreateTopLevelAccelerationStructure((WGPUDevice)GetDevice(), &tlasdesc);
     Texture2D storageTex = LoadTexturePro(50, 50, RGBA8, TextureUsage_StorageBinding | TextureUsage_CopySrc | TextureUsage_TextureBinding, 1, 1);
     
     Matrix camPadded = padCamera(cam);
@@ -218,25 +218,25 @@ int main(){
     ResourceDescriptor bgentries[3] zeroinit;
     bgentries[0].accelerationStructure = tlas;
     bgentries[0].binding = 0;
-    bgentries[1].textureView = (WGVKTextureView)storageTex.view;
+    bgentries[1].textureView = (WGPUTextureView)storageTex.view;
     bgentries[1].binding = 1;
-    bgentries[2].buffer = (WGVKBuffer)uniformBuffer->buffer;
+    bgentries[2].buffer = (WGPUBuffer)uniformBuffer->buffer;
     bgentries[2].binding = 2;
     bgentries[2].size = uniformBuffer->size;
     DescribedBindGroup rtbg = LoadBindGroup(&drtpl->bglayout, bgentries, 3);
     UpdateBindGroup(&rtbg);
-    WGVKRaytracingPipeline rtpl = drtpl->pipeline;
-    WGVKCommandEncoderDescriptor cedecs zeroinit;
-    WGVKCommandEncoder cmdEncoder = wgvkDeviceCreateCommandEncoder((WGVKDevice)GetDevice(), &cedecs);
+    WGPURaytracingPipeline rtpl = drtpl->pipeline;
+    WGPUCommandEncoderDescriptor cedecs zeroinit;
+    WGPUCommandEncoder cmdEncoder = wgpuDeviceCreateCommandEncoder((WGPUDevice)GetDevice(), &cedecs);
     
-    WGVKRaytracingPassEncoder rtEncoder = wgvkCommandEncoderBeginRaytracingPass(cmdEncoder);
-    wgvkRaytracingPassEncoderSetPipeline(rtEncoder, rtpl);
-    wgvkRaytracingPassEncoderSetBindGroup(rtEncoder, 0, (WGVKBindGroup)rtbg.bindGroup);
-    wgvkRaytracingPassEncoderTraceRays(rtEncoder, 50, 50, 1);
-    WGVKCommandBuffer cmdBuffer = wgvkCommandEncoderFinish(cmdEncoder);
+    WGPURaytracingPassEncoder rtEncoder = wgpuCommandEncoderBeginRaytracingPass(cmdEncoder);
+    wgpuRaytracingPassEncoderSetPipeline(rtEncoder, rtpl);
+    wgpuRaytracingPassEncoderSetBindGroup(rtEncoder, 0, (WGPUBindGroup)rtbg.bindGroup);
+    wgpuRaytracingPassEncoderTraceRays(rtEncoder, 50, 50, 1);
+    WGPUCommandBuffer cmdBuffer = wgpuCommandEncoderFinish(cmdEncoder);
     
     //vkCmdBindPipeline(cmdEncoder->buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, rtpl->raytracingPipeline);
-    //vkCmdBindDescriptorSets(cmdEncoder->buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, (VkPipelineLayout)drtpl->layout, 0, 1, &reinterpret_cast<WGVKBindGroup>(rtbg.bindGroup)->set, 0, nullptr);
+    //vkCmdBindDescriptorSets(cmdEncoder->buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, (VkPipelineLayout)drtpl->layout, 0, 1, &reinterpret_cast<WGPUBindGroup>(rtbg.bindGroup)->set, 0, nullptr);
     
     
 
@@ -244,9 +244,9 @@ int main(){
     while(!WindowShouldClose()){
         BeginDrawing();
         if(GetFrameCount() == 0){
-            wgvkQueueSubmit(g_vulkanstate.queue, 1, &cmdBuffer);
-            wgvkReleaseCommandEncoder(cmdEncoder);
-            wgvkReleaseCommandBuffer(cmdBuffer);
+            wgpuQueueSubmit(g_vulkanstate.queue, 1, &cmdBuffer);
+            wgpuReleaseCommandEncoder(cmdEncoder);
+            wgpuReleaseCommandBuffer(cmdBuffer);
         }
         ClearBackground(DARKGRAY);
         DrawFPS(5, 5);

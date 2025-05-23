@@ -60,9 +60,9 @@ extern "C" DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sources){
     return ret;
 }
 
-extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineState& mst, const DescribedShaderModule& shaderModule, const DescribedBindGroupLayout& bglayout, const DescribedPipelineLayout& pllayout){
+extern "C" WGPURenderPipeline createSingleRenderPipe(const ModifiablePipelineState& mst, const DescribedShaderModule& shaderModule, const DescribedBindGroupLayout& bglayout, const DescribedPipelineLayout& pllayout){
     TRACELOG(LOG_INFO, "Generating new single pipeline");
-    WGVKRenderPipeline ret = callocnewpp(WGVKRenderPipelineImpl);
+    WGPURenderPipeline ret = callocnewpp(WGPURenderPipelineImpl);
     auto& settings = mst;
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -288,7 +288,7 @@ extern "C" WGVKRenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
 
     VkDynamicStateVector_move(&ret->dynamicStates, &dynamicStates);
     ret->layout = pllayout.layout;
-    wgvkPipelineLayoutAddRef(pllayout.layout);
+    wgpuPipelineLayoutAddRef(pllayout.layout);
     if (vkCreateGraphicsPipelines(g_vulkanstate.device->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, (VkPipeline*)&ret->renderPipeline) != VK_SUCCESS) {
         TRACELOG(LOG_FATAL, "Trianglelist pipiline creation failed");
     }
@@ -515,10 +515,10 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayoutSet(DescribedPipeline* ret
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
     RenderPipelineQuartet quartet{
-        .pipeline_TriangleList = callocnew(WGVKRenderPipelineImpl),
-        .pipeline_TriangleStrip = callocnew(WGVKRenderPipelineImpl),
-        .pipeline_LineList = callocnew(WGVKRenderPipelineImpl),
-        .pipeline_PointList = callocnew(WGVKRenderPipelineImpl)
+        .pipeline_TriangleList = callocnew(WGPURenderPipelineImpl),
+        .pipeline_TriangleStrip = callocnew(WGPURenderPipelineImpl),
+        .pipeline_LineList = callocnew(WGPURenderPipelineImpl),
+        .pipeline_PointList = callocnew(WGPURenderPipelineImpl)
     };
     quartet.pipeline_TriangleList->layout = pipelineInfo.layout;
     quartet.pipeline_TriangleStrip->layout = pipelineInfo.layout;
@@ -636,12 +636,12 @@ extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const A
     //auto [spirV, spirF] = glsl_to_spirv(vsSource, fsSource);
     //ret->sh = LoadShaderModuleFromSPIRV_Vk(spirV.data(), spirV.size() * 4, spirF.data(), spirF.size() * 4);
     
-    WGVKPipelineLayoutDescriptor pldesc zeroinit;
+    WGPUPipelineLayoutDescriptor pldesc zeroinit;
     pldesc.bindGroupLayoutCount = 1;
-    WGVKBindGroupLayout bgls[1] = {ret->bglayout.layout};
+    WGPUBindGroupLayout bgls[1] = {ret->bglayout.layout};
     pldesc.bindGroupLayouts = bgls;
 
-    ret->layout.layout = wgvkDeviceCreatePipelineLayout(g_vulkanstate.device, &pldesc);
+    ret->layout.layout = wgpuDeviceCreatePipelineLayout(g_vulkanstate.device, &pldesc);
     std::vector<ResourceDescriptor> bge(uniformCount);
 
     for(uint32_t i = 0;i < bge.size();i++){
@@ -691,7 +691,7 @@ extern "C" DescribedPipeline* LoadPipelineForVAOEx(ShaderSources sources, Vertex
 
 extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t location, ResourceDescriptor entry){
 
-    WGVKBindGroup bgImpl = (WGVKBindGroup)bg->bindGroup;
+    WGPUBindGroup bgImpl = (WGPUBindGroup)bg->bindGroup;
     uint32_t index = ~0u;
     for(uint32_t i = 0;i < bg->entryCount;i++){
         if(bg->entries[i].binding == location){
@@ -707,24 +707,24 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t location, Re
     }
     uint64_t oldHash = bg->descriptorHash;
     if(bg->entries[index].buffer){
-        WGVKBuffer wBuffer = (WGVKBuffer)bg->entries[index].buffer;
-        wgvkBufferRelease(wBuffer);
+        WGPUBuffer wBuffer = (WGPUBuffer)bg->entries[index].buffer;
+        wgpuBufferRelease(wBuffer);
     }
     else if(bg->entries[index].textureView){
         //TODO: currently not the case anyway, but this is nadinöf
-        wgvkReleaseTextureView((WGVKTextureView)bg->entries[index].textureView);
+        wgpuReleaseTextureView((WGPUTextureView)bg->entries[index].textureView);
     }
     else if(bg->entries[index].sampler){
         // TODO
     }
     if(entry.buffer){
-        wgvkBufferAddRef(entry.buffer);
+        wgpuBufferAddRef(entry.buffer);
     }
     else if(entry.textureView){
-        wgvkTextureViewAddRef(entry.textureView);
+        wgpuTextureViewAddRef(entry.textureView);
     }
     else if(entry.sampler){
-        wgvkSamplerAddRef(entry.sampler);
+        wgpuSamplerAddRef(entry.sampler);
     }
     else{
         TRACELOG(LOG_FATAL, "Invalid ResourceDescriptor");
@@ -732,11 +732,15 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t location, Re
 
     bg->entries[index] = entry;
     //bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
-    WGVKBindGroup wB = (WGVKBindGroup)bg->bindGroup;
+    WGPUBindGroup wB = (WGPUBindGroup)bg->bindGroup;
+    
+
     if(bg->bindGroup && wB->refCount > 1){
-        wgvkBindGroupRelease(wB);
+        wgpuBindGroupRelease(wB);
         bg->bindGroup = nullptr;
     }
+
+
     //else if(!bg->needsUpdate && bg->bindGroup){
     //    g_wgpustate.bindGroupPool[oldHash] = bg->bindGroup;
     //    bg->bindGroup = nullptr;
@@ -750,26 +754,26 @@ void UpdateBindGroup(DescribedBindGroup* bg){
     const auto* layout = bg->layout;
     const auto* layoutlayout = layout->layout;
     rassert(layout != nullptr, "DescribedBindGroupLayout is nullptr");
-    rassert(layoutlayout != nullptr, "WGVKBindGroupLayout is nullptr");
+    rassert(layoutlayout != nullptr, "WGPUBindGroupLayout is nullptr");
     if(bg->needsUpdate == false)return;
-    WGVKBindGroupDescriptor bgdesc zeroinit;
+    WGPUBindGroupDescriptor bgdesc zeroinit;
 
     bgdesc.entryCount = bg->entryCount;
     bgdesc.entries = bg->entries;
-    WGVKBindGroupLayout wvl = (WGVKBindGroupLayout)bg->layout->layout;
+    WGPUBindGroupLayout wvl = (WGPUBindGroupLayout)bg->layout->layout;
     bgdesc.layout = wvl;
     std::vector<ResourceTypeDescriptor> ldtypes(wvl->entries, wvl->entries + wvl->entryCount);
     //bgdesc.entries 
-    if(bg->bindGroup && ((WGVKBindGroup)bg->bindGroup)->refCount == 1){  
-        WGVKBindGroup writeTo = (WGVKBindGroup)bg->bindGroup;      
-        wgvkWriteBindGroup(g_vulkanstate.device, writeTo, &bgdesc);
+    if(bg->bindGroup && ((WGPUBindGroup)bg->bindGroup)->refCount == 1){  
+        WGPUBindGroup writeTo = (WGPUBindGroup)bg->bindGroup;      
+        wgpuWriteBindGroup(g_vulkanstate.device, writeTo, &bgdesc);
     }
     else{
         if(bg->bindGroup){
             TRACELOG(LOG_WARNING, "Weird. This shouldn't be the case");
-            wgvkBindGroupRelease((WGVKBindGroup)bg->bindGroup);
+            wgpuBindGroupRelease((WGPUBindGroup)bg->bindGroup);
         }
-        bg->bindGroup = wgvkDeviceCreateBindGroup(g_vulkanstate.device, &bgdesc);
+        bg->bindGroup = wgpuDeviceCreateBindGroup(g_vulkanstate.device, &bgdesc);
     }
     bg->needsUpdate = false;
 }
@@ -778,9 +782,9 @@ void UpdateBindGroup(DescribedBindGroup* bg){
 //TODO: actually, one would need to iterate entries to find out where .binding == binding
 void SetBindGroupTexture_Vk(DescribedBindGroup* bg, uint32_t binding, Texture tex){
 
-    bg->entries[binding].textureView = (WGVKTextureView)tex.view;
+    bg->entries[binding].textureView = (WGPUTextureView)tex.view;
     if(bg->bindGroup){
-        wgvkBindGroupRelease((WGVKBindGroup)bg->bindGroup);
+        wgpuBindGroupRelease((WGPUBindGroup)bg->bindGroup);
         bg->bindGroup = nullptr;
     }
     bg->needsUpdate = true;
@@ -788,9 +792,9 @@ void SetBindGroupTexture_Vk(DescribedBindGroup* bg, uint32_t binding, Texture te
 void SetBindGroupBuffer_Vk(DescribedBindGroup* bg, uint32_t binding, DescribedBuffer* buf){
     
     //TODO: actually, one would need to iterate entries to find out where .binding == binding
-    bg->entries[binding].buffer = (WGVKBuffer)buf->buffer;
+    bg->entries[binding].buffer = (WGPUBuffer)buf->buffer;
     if(bg->bindGroup){
-        wgvkBindGroupRelease((WGVKBindGroup)bg->bindGroup);
+        wgpuBindGroupRelease((WGPUBindGroup)bg->bindGroup);
         bg->bindGroup = nullptr;
     }
     bg->needsUpdate = true;
@@ -801,7 +805,7 @@ void SetBindGroupSampler_Vk(DescribedBindGroup* bg, uint32_t binding, DescribedS
     bg->entries[binding].sampler = buf.sampler;
 
     if(bg->bindGroup){
-        wgvkBindGroupRelease((WGVKBindGroup)bg->bindGroup);
+        wgpuBindGroupRelease((WGPUBindGroup)bg->bindGroup);
         bg->bindGroup = nullptr;
     }
     bg->needsUpdate = true;
@@ -818,7 +822,7 @@ extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCod
     VkPipelineLayoutCreateInfo lci zeroinit;
     lci.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     lci.setLayoutCount = 1;
-    lci.pSetLayouts = &(reinterpret_cast<WGVKBindGroupLayout>(bgl.layout)->layout);
+    lci.pSetLayouts = &(reinterpret_cast<WGPUBindGroupLayout>(bgl.layout)->layout);
     VkPipelineLayout layout zeroinit;
     VkResult pipelineCreationResult = vkCreatePipelineLayout(g_vulkanstate.device->device, &lci, nullptr, &layout);
     VkPipelineShaderStageCreateInfo computeStage zeroinit;
@@ -833,9 +837,9 @@ extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCod
     cpci.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     cpci.layout = layout;
     cpci.stage = computeStage;
-    WGVKComputePipeline retpipeline = callocnewpp(WGVKComputePipelineImpl);
+    WGPUComputePipeline retpipeline = callocnewpp(WGPUComputePipelineImpl);
     ret->pipeline = retpipeline;
-    WGVKPipelineLayout retlayout = callocnewpp(WGVKPipelineLayoutImpl);
+    WGPUPipelineLayout retlayout = callocnewpp(WGPUPipelineLayoutImpl);
     retlayout->refCount = 2;
     retlayout->layout = layout;
     vkCreateComputePipelines(g_vulkanstate.device->device, nullptr, 1, &cpci, nullptr, &retpipeline->computePipeline);

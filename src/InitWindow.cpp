@@ -242,9 +242,9 @@ RGAPICXX void* InitWindow(uint32_t width, uint32_t height, const char* title){
         SubWindow createdWindow = InitWindow_SDL2(width, height, title);
         #endif
         
-        void* wgpu_or_wgvk_surface = CreateSurfaceForWindow(createdWindow);
+        void* wgpu_or_wgpu_surface = CreateSurfaceForWindow(createdWindow);
         
-        WGVKSurface wSurface = (WGVKSurface)wgpu_or_wgvk_surface;
+        WGPUSurface wSurface = (WGPUSurface)wgpu_or_wgpu_surface;
         createdWindow.surface = CreateSurface(wSurface, width, height);
         
         g_renderstate.createdSubwindows[createdWindow.handle] = createdWindow;
@@ -371,7 +371,7 @@ RGAPICXX void* InitWindow(uint32_t width, uint32_t height, const char* title){
     //g_renderstate.renderpass.cmdEncoder = wgpuDeviceCreateCommandEncoder(g_wgpustate.device.Get(), &cedesc);
     Matrix m = ScreenMatrix(width, height);
     static_assert(sizeof(Matrix) == 64, "non 4 byte floats? or what");
-    g_renderstate.matrixStack.push(std::pair<Matrix, WGVKBuffer>{});
+    g_renderstate.matrixStack.push(std::pair<Matrix, WGPUBuffer>{});
     //g_wgpustate.defaultScreenMatrix = GenUniformBuffer(&m, sizeof(Matrix));
     //SetUniformBuffer(0, g_wgpustate.defaultScreenMatrix);
     SetTexture(1, g_renderstate.whitePixel);
@@ -401,7 +401,7 @@ RGAPICXX void* InitWindow(uint32_t width, uint32_t height, const char* title){
     #endif
 }
 /**
-  @return WGPUSurface or WGVKSurface (void*)
+  @return WGPUSurface or WGPUSurface (void*)
 
  */
 extern "C" void* CreateSurfaceForWindow(SubWindow window){
@@ -451,19 +451,19 @@ extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* 
     createdWindow = OpenSubWindow_SDL3(width, height, title);
     rassert(createdWindow.handle != nullptr, "Returned window can't have null handle");
     #endif
-    void* wgpu_or_wgvk_surface = CreateSurfaceForWindow(createdWindow);
+    void* wgpu_or_wgpu_surface = CreateSurfaceForWindow(createdWindow);
     #if SUPPORT_WGPU_BACKEND == 1
-    WGPUSurface wSurface = (WGPUSurface)wgpu_or_wgvk_surface;
+    WGPUSurface wSurface = (WGPUSurface)wgpu_or_wgpu_surface;
     g_renderstate.createdSubwindows[createdWindow.handle].surface = CreateSurface(wSurface, width, height);
     #else
-    WGVKSurface vSurface = (WGVKSurface)wgpu_or_wgvk_surface;
-    WGVKSurfaceConfiguration config{};
+    WGPUSurface vSurface = (WGPUSurface)wgpu_or_wgpu_surface;
+    WGPUSurfaceConfiguration config{};
     config.device = g_vulkanstate.device;
     config.width = width;
     config.height = height;
     config.format = BGRA8;
     config.presentMode = PresentMode_Immediate;
-    wgvkSurfaceConfigure(vSurface, &config);
+    wgpuSurfaceConfigure(vSurface, &config);
     FullSurface fsurface zeroinit;
     fsurface.surfaceConfig = config;
     fsurface.surface = vSurface;

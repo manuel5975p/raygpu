@@ -79,6 +79,7 @@ int main(){
         .future = aFuture,
         .completed = 0
     };
+
     wgpuInstanceWaitAny(instance, 1, &winfo, ~0ull);
     WGPUStringView deviceLabel = {"WGPU Device", sizeof("WGPU Device") - 1};
 
@@ -94,7 +95,8 @@ int main(){
     };
     
     WGPUDevice device = wgpuAdapterCreateDevice(requestedAdapter, &ddesc);
-
+    
+    WGPUDevice_DebugPrint(device, printf);
 
     WGPUShaderSourceSPIRV vertexSource = {
         .chain = {

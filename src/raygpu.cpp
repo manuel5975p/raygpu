@@ -112,7 +112,7 @@ void startRecording(GIFRecordState* grst, uint64_t delayInCentiseconds){
     grst->recording = true;
 }
 
-void addScreenshot(GIFRecordState* grst, WGVKTexture tex){
+void addScreenshot(GIFRecordState* grst, WGPUTexture tex){
     //#ifdef __EMSCRIPTEN__
     //if(grst->numberOfFrames > 0)
     //    msf_gif_frame(&grst->msf_state, (uint8_t*)fbLoad.data, grst->delayInCentiseconds, 8, fbLoad.rowStrideInBytes);
@@ -192,7 +192,7 @@ Vector4 nextcol;
 vertex* vboptr = 0;
 vertex* vboptr_base = 0;
 #if SUPPORT_VULKAN_BACKEND == 1
-WGVKBuffer vbo_buf = 0;
+WGPUBuffer vbo_buf = 0;
 #endif
 VertexArray* renderBatchVAO;
 DescribedBuffer* renderBatchVBO;
@@ -455,7 +455,7 @@ void LoadIdentity(cwoid){
     g_renderstate.matrixStack.peek().first = MatrixIdentity();
 }
 void PushMatrix(){
-    g_renderstate.matrixStack.push(std::pair<Matrix, WGVKBuffer>{});
+    g_renderstate.matrixStack.push(std::pair<Matrix, WGPUBuffer>{});
 }
 void PopMatrix(){
     g_renderstate.matrixStack.pop();
@@ -853,7 +853,7 @@ RGAPICXX void EndDrawing(){
         EndRenderpassEx(g_renderstate.activeRenderpass);
     }
     if(g_renderstate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
-        Image img = LoadImageFromTextureEx((WGVKTexture)GetActiveColorTarget(), 0);
+        Image img = LoadImageFromTextureEx((WGPUTexture)GetActiveColorTarget(), 0);
         if (img.format != BGRA8 && img.format != RGBA8) {
             // Handle unsupported formats or convert as necessary
             fprintf(stderr, "Unsupported pixel format for FFmpeg export.\n");
@@ -897,7 +897,7 @@ RGAPICXX void EndDrawing(){
             int recordingTextX = GetScreenWidth() - MeasureText("Recording", 30);
             DrawText("Recording", recordingTextX, 5, 30, Color{255,40,40,255});
             EndRenderpass();
-            addScreenshot(g_renderstate.grst, (WGVKTexture)fbCopy.id);
+            addScreenshot(g_renderstate.grst, (WGPUTexture)fbCopy.id);
             UnloadTexture(fbCopy);
             g_renderstate.grst->lastFrameTimestamp = stmp;
         }
@@ -1075,14 +1075,14 @@ RGAPICXX void UnloadImageColors(Color* cols){
 RGAPICXX Image LoadImageFromTexture(Texture tex){
     //#ifndef __EMSCRIPTEN__
     //auto& device = g_renderstate.device;
-    return LoadImageFromTextureEx((WGVKTexture)tex.id, 0);
+    return LoadImageFromTextureEx((WGPUTexture)tex.id, 0);
     //#else
     //std::cerr << "LoadImageFromTexture not supported on web\n";
     //return Image{};
     //#endif
 }
 RGAPICXX void TakeScreenshot(const char* filename){
-    Image img = LoadImageFromTextureEx((WGVKTexture)g_renderstate.mainWindowRenderTarget.texture.id, 0);
+    Image img = LoadImageFromTextureEx((WGPUTexture)g_renderstate.mainWindowRenderTarget.texture.id, 0);
     SaveImage(img, filename);
     UnloadImage(img);
 }
@@ -1295,7 +1295,7 @@ extern "C" Texture3D LoadTexture3DEx(uint32_t width, uint32_t height, uint32_t d
 }
 
 
-WGVKBindGroup UpdateAndGetNativeBindGroup(DescribedBindGroup* bg){
+WGPUBindGroup UpdateAndGetNativeBindGroup(DescribedBindGroup* bg){
     if(bg->needsUpdate){
         UpdateBindGroup(bg);
         //bg->bindGroup = wgpuDeviceCreateBindGroup((WGPUDevice)GetDevice(), &(bg->desc));
@@ -1419,14 +1419,14 @@ void SetStorageBufferData         (uint32_t index, const void* data, size_t size
 void SetBindgroupUniformBuffer (DescribedBindGroup* bg, uint32_t index, DescribedBuffer* buffer){
     ResourceDescriptor entry{};
     entry.binding = index;
-    entry.buffer = (WGVKBuffer)buffer->buffer;
+    entry.buffer = (WGPUBuffer)buffer->buffer;
     entry.size = buffer->size;
     UpdateBindGroupEntry(bg, index, entry);
 }
 void SetBindgroupStorageBuffer (DescribedBindGroup* bg, uint32_t index, DescribedBuffer* buffer){
     ResourceDescriptor entry{};
     entry.binding = index;
-    entry.buffer = (WGVKBuffer)buffer->buffer;
+    entry.buffer = (WGPUBuffer)buffer->buffer;
     entry.size = buffer->size;
     UpdateBindGroupEntry(bg, index, entry);
 }
@@ -1434,11 +1434,11 @@ void SetBindgroupStorageBuffer (DescribedBindGroup* bg, uint32_t index, Describe
 extern "C" void SetBindgroupTexture3D(DescribedBindGroup* bg, uint32_t index, Texture3D tex){
     ResourceDescriptor entry{};
     entry.binding = index;
-    entry.textureView = (WGVKTextureView)tex.view;
+    entry.textureView = (WGPUTextureView)tex.view;
     
     UpdateBindGroupEntry(bg, index, entry);
 }
-extern "C" void SetBindgroupTextureView(DescribedBindGroup* bg, uint32_t index, WGVKTextureView texView){
+extern "C" void SetBindgroupTextureView(DescribedBindGroup* bg, uint32_t index, WGPUTextureView texView){
     ResourceDescriptor entry{};
     entry.binding = index;
     entry.textureView = texView;
@@ -1448,7 +1448,7 @@ extern "C" void SetBindgroupTextureView(DescribedBindGroup* bg, uint32_t index, 
 extern "C" void SetBindgroupTexture(DescribedBindGroup* bg, uint32_t index, Texture tex){
     ResourceDescriptor entry{};
     entry.binding = index;
-    entry.textureView = (WGVKTextureView)tex.view;
+    entry.textureView = (WGPUTextureView)tex.view;
     
     UpdateBindGroupEntry(bg, index, entry);
 }

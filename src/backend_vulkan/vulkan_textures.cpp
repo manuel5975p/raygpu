@@ -31,7 +31,7 @@ uint32_t FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, Vk
 
 // Function to begin a single-use command buffer
 VkCommandBuffer transientCommandBuffer{};
-VkCommandBuffer BeginSingleTimeCommands(WGVKDevice device, VkCommandPool commandPool) {
+VkCommandBuffer BeginSingleTimeCommands(WGPUDevice device, VkCommandPool commandPool) {
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -56,10 +56,10 @@ VkCommandBuffer BeginSingleTimeCommands(WGVKDevice device, VkCommandPool command
 }
 
 // Function to end and submit a single-use command buffer
-void EndSingleTimeCommands(WGVKDevice device, VkCommandPool commandPool, VkCommandBuffer commandBuffer){
+void EndSingleTimeCommands(WGPUDevice device, VkCommandPool commandPool, VkCommandBuffer commandBuffer){
     vkEndCommandBuffer(commandBuffer);
 }
-void EndSingleTimeCommandsAndSubmit(WGVKDevice device, VkCommandPool commandPool, VkQueue queue, VkCommandBuffer commandBuffer) {
+void EndSingleTimeCommandsAndSubmit(WGPUDevice device, VkCommandPool commandPool, VkQueue queue, VkCommandBuffer commandBuffer) {
     EndSingleTimeCommands(device, commandPool, commandBuffer);
     
     VkSubmitInfo submitInfo{};
@@ -92,7 +92,7 @@ VkImageAspectFlags GetAspectMask(VkImageLayout layout, VkFormat format /* Add fo
 
 
 // Function to transition image layout
-//extern "C" void TransitionImageLayout(WGVKDevice device, VkCommandPool commandPool, VkQueue queue, WGVKTexture texture, 
+//extern "C" void TransitionImageLayout(WGPUDevice device, VkCommandPool commandPool, VkQueue queue, WGPUTexture texture, 
 //                           VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
 //    VkCommandBuffer commandBuffer = BeginSingleTimeCommands(device, commandPool);
 //    EncodeTransitionImageLayout(commandBuffer, oldLayout, newLayout, texture);
@@ -101,7 +101,7 @@ VkImageAspectFlags GetAspectMask(VkImageLayout layout, VkFormat format /* Add fo
 //}
 
 // Function to copy buffer to image
-void CopyBufferToImage(WGVKDevice device, VkCommandPool commandPool, VkQueue queue, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
+void CopyBufferToImage(WGPUDevice device, VkCommandPool commandPool, VkQueue queue, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
     VkCommandBuffer commandBuffer = BeginSingleTimeCommands(device, commandPool);
     
     VkBufferImageCopy region{};
@@ -147,7 +147,7 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     
     bool hasData = data != nullptr;
     
-    WGVKTextureDescriptor tdesc zeroinit;
+    WGPUTextureDescriptor tdesc zeroinit;
     tdesc.dimension = TextureDimension_2D;
     tdesc.size = Extent3D{width, height, 1};
     tdesc.format = format;
@@ -155,20 +155,20 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     tdesc.usage = usage;
     tdesc.sampleCount = sampleCount;
     tdesc.mipLevelCount = mipmaps;
-    WGVKTexture image = wgvkDeviceCreateTexture(g_vulkanstate.device, &tdesc);
+    WGPUTexture image = wgpuDeviceCreateTexture(g_vulkanstate.device, &tdesc);
     if(hasData){
-        WGVKTexelCopyTextureInfo destination zeroinit;
+        WGPUTexelCopyTextureInfo destination zeroinit;
         destination.texture = image;
         destination.aspect = is__depth(format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
         destination.mipLevel = 0;
-        destination.origin = WGVKOrigin3D{0, 0, 0};
+        destination.origin = WGPUOrigin3D{0, 0, 0};
 
-        WGVKTexelCopyBufferLayout bufferLayout zeroinit;
+        WGPUTexelCopyBufferLayout bufferLayout zeroinit;
         bufferLayout.bytesPerRow = width * GetPixelSizeInBytes(format);
         bufferLayout.offset = 0;
         bufferLayout.rowsPerImage = height;
-        WGVKExtent3D writeExtent{width, height, 1u};
-        wgvkQueueWriteTexture(g_vulkanstate.queue, &destination, data, static_cast<size_t>(width) * static_cast<size_t>(height) * GetPixelSizeInBytes(format), &bufferLayout, &writeExtent);
+        WGPUExtent3D writeExtent{width, height, 1u};
+        wgpuQueueWriteTexture(g_vulkanstate.queue, &destination, data, static_cast<size_t>(width) * static_cast<size_t>(height) * GetPixelSizeInBytes(format), &bufferLayout, &writeExtent);
     }
     ret.width = width;
     ret.height = height;
@@ -181,7 +181,7 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     if (format == Depth24 || format == Depth32) {
         aspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
     }
-    WGVKTextureViewDescriptor descriptor zeroinit;
+    WGPUTextureViewDescriptor descriptor zeroinit;
     descriptor.format = format;
     descriptor.arrayLayerCount = 1;
     descriptor.baseArrayLayer = 0;
@@ -190,7 +190,7 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     descriptor.aspect = (format == Depth24 || format == Depth32) ? TextureAspect_DepthOnly : TextureAspect_All;
     descriptor.dimension = TextureViewDimension_2D;
     descriptor.usage = usage;
-    WGVKTextureView view = wgvkTextureCreateView(image, &descriptor);
+    WGPUTextureView view = wgpuTextureCreateView(image, &descriptor);
     view->width = width;
     view->height = height;
     view->sampleCount = sampleCount;
@@ -201,7 +201,7 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
 
     if(mipmaps > 1){
         for(uint32_t i = 0;i < mipmaps;i++){
-            WGVKTextureViewDescriptor singleMipDescriptor zeroinit;
+            WGPUTextureViewDescriptor singleMipDescriptor zeroinit;
             singleMipDescriptor.format = format;
             singleMipDescriptor.arrayLayerCount = 1;
             singleMipDescriptor.baseArrayLayer = 0;
@@ -210,11 +210,11 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
             singleMipDescriptor.aspect = (format == Depth24 || format == Depth32) ? TextureAspect_DepthOnly : TextureAspect_All;
             singleMipDescriptor.dimension = TextureViewDimension_2D;
             singleMipDescriptor.usage = usage;
-            ret.mipViews[i] = wgvkTextureCreateView(image, &singleMipDescriptor);
+            ret.mipViews[i] = wgpuTextureCreateView(image, &singleMipDescriptor);
         }
     }
 
-    //TRACELOG(LOG_INFO, "Loaded WGVKTexture and view [%u y %u]", (unsigned)width, (unsigned)height);    
+    //TRACELOG(LOG_INFO, "Loaded WGPUTexture and view [%u y %u]", (unsigned)width, (unsigned)height);    
     
     return ret;
 }
@@ -223,17 +223,17 @@ extern "C" Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat f
 }
 
 void UnloadTexture(Texture tex){
-    WGVKTextureView view = (WGVKTextureView)tex.view;
-    WGVKTexture texture = (WGVKTexture)tex.id;
+    WGPUTextureView view = (WGPUTextureView)tex.view;
+    WGPUTexture texture = (WGPUTexture)tex.id;
     if(view != nullptr)
-        wgvkReleaseTextureView(view);
+        wgpuReleaseTextureView(view);
     if(texture != nullptr)
-        wgvkReleaseTexture(texture);   
+        wgpuReleaseTexture(texture);   
 }
 extern "C" Texture2DArray LoadTextureArray(uint32_t width, uint32_t height, uint32_t layerCount, PixelFormat format){
     Texture2DArray ret zeroinit;
     ret.sampleCount = 1;
-    WGVKTextureDescriptor tDesc zeroinit;
+    WGPUTextureDescriptor tDesc zeroinit;
     tDesc.format = (format);
     tDesc.size = Extent3D{width, height, layerCount};
     tDesc.dimension = TextureDimension_2D;
@@ -242,8 +242,8 @@ extern "C" Texture2DArray LoadTextureArray(uint32_t width, uint32_t height, uint
     tDesc.usage = TextureUsage_StorageBinding | TextureUsage_CopySrc | TextureUsage_CopyDst;
     tDesc.viewFormatCount = 1;
     //tDesc.viewFormats = &tDesc.format;
-    ret.id = wgvkDeviceCreateTexture((WGVKDevice)g_vulkanstate.device, &tDesc);
-    WGVKTextureViewDescriptor vDesc zeroinit;
+    ret.id = wgpuDeviceCreateTexture((WGPUDevice)g_vulkanstate.device, &tDesc);
+    WGPUTextureViewDescriptor vDesc zeroinit;
     vDesc.aspect = TextureAspect_All;
     vDesc.arrayLayerCount = layerCount;
     vDesc.baseArrayLayer = 0;
@@ -252,14 +252,14 @@ extern "C" Texture2DArray LoadTextureArray(uint32_t width, uint32_t height, uint
     vDesc.dimension = TextureViewDimension_2DArray;
     vDesc.format = tDesc.format;
     vDesc.usage = tDesc.usage;
-    ret.view = wgvkTextureCreateView((WGVKTexture)ret.id, &vDesc);
+    ret.view = wgpuTextureCreateView((WGPUTexture)ret.id, &vDesc);
     ret.width = width;
     ret.height = height;
     ret.layerCount = layerCount;
     ret.format = format;
     return ret;
 }
-extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
+extern "C" Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t mipLevel){
     static VkCommandPool transientPool = [](){
         VkCommandPool ret = nullptr;
         VkCommandPoolCreateInfo pci zeroinit;
@@ -293,11 +293,11 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
     region.imageExtent = VkExtent3D{tex->width, tex->height, 1u};
     VkDeviceMemory bufferMemory{};
     size_t bufferSize = size * tex->width * tex->height;
-    WGVKBufferDescriptor bdesc = {
+    WGPUBufferDescriptor bdesc = {
         .usage = BufferUsage_CopyDst | BufferUsage_CopySrc | BufferUsage_MapWrite,
         .size = bufferSize 
     };
-    WGVKBuffer stagingBuffer = wgvkDeviceCreateBuffer(g_vulkanstate.device, &bdesc);
+    WGPUBuffer stagingBuffer = wgpuDeviceCreateBuffer(g_vulkanstate.device, &bdesc);
     VkCommandBuffer commandBuffer = BeginSingleTimeCommands(g_vulkanstate.device, transientPool);
     VkImageLayout oldLayout = tex->layout;
     //if(oldLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
@@ -348,7 +348,7 @@ extern "C" Image LoadImageFromTextureEx(WGVKTexture tex, uint32_t mipLevel){
     }
     vkUnmapMemory(g_vulkanstate.device->device, bufferMemory);
     vkFreeMemory(g_vulkanstate.device->device, bufferMemory, nullptr);
-    wgvkBufferRelease(stagingBuffer);
+    wgpuBufferRelease(stagingBuffer);
     return ret;
 } 
 // Updated LoadTextureFromImage_Vk function using LoadTexturePro
@@ -384,7 +384,7 @@ Texture LoadTextureFromImage(Image img) {
 }
 Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format, TextureUsage usage, uint32_t sampleCount){
     Texture3D ret zeroinit;
-    WGVKTextureDescriptor tDesc{};
+    WGPUTextureDescriptor tDesc{};
     tDesc.dimension = TextureDimension_3D;
     tDesc.size = Extent3D{width, height, depth};
     tDesc.mipLevelCount = 1;
@@ -394,9 +394,9 @@ Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, Pixe
     ret.width = width;
     ret.height = height;
     ret.depth = depth;
-    ret.id = wgvkDeviceCreateTexture(g_vulkanstate.device, &tDesc);
+    ret.id = wgpuDeviceCreateTexture(g_vulkanstate.device, &tDesc);
     
-    WGVKTextureViewDescriptor vDesc zeroinit;
+    WGPUTextureViewDescriptor vDesc zeroinit;
     vDesc.arrayLayerCount = 1;
     vDesc.baseArrayLayer = 0;
     vDesc.mipLevelCount = 1;
@@ -405,7 +405,7 @@ Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, Pixe
     vDesc.dimension = TextureViewDimension_3D;
     vDesc.usage = TextureUsage_StorageBinding | TextureUsage_TextureBinding | TextureUsage_CopySrc | TextureUsage_CopyDst;
     
-    ret.view = wgvkTextureCreateView((WGVKTexture)ret.id, &vDesc);
+    ret.view = wgpuTextureCreateView((WGPUTexture)ret.id, &vDesc);
     ret.sampleCount = sampleCount;
     return ret;
 }
