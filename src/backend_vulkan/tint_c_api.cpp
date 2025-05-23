@@ -29,8 +29,23 @@ RGAPI WGPUReflectionInfo reflectionInfo_wgsl_sync(WGPUStringView wgslSource){
     }
     return ret;
 }
-void kakfunc(){
-    
-    
 
+RGAPI tc_SpirvBlob wgslToSpirv(const WGPUShaderSourceWGSL* source){
+    
+    size_t length = (source->code.length == WGPU_STRLEN) ? std::strlen(source->code.data) : source->code.length;
+    tint::Source::File file("<not a file>", std::string_view(source->code.data, source->code.data + length));
+    tint::Program prog = tint::wgsl::reader::Parse(&file);
+    tint::Result<tint::core::ir::Module> maybeModule = tint::wgsl::reader::ProgramToLoweredIR(prog);
+    tint::core::ir::Module module(std::move(maybeModule.Get()));
+    tint::spirv::writer::Options options zeroinit;
+    tint::Result<tint::spirv::writer::Output> spirvMaybe = tint::spirv::writer::Generate(module, options);
+    tint::spirv::writer::Output output(spirvMaybe.Get());
+    tc_SpirvBlob ret{
+        (output.spirv.size() * sizeof(uint32_t)),
+        (uint32_t*)RL_CALLOC(output.spirv.size(), sizeof(uint32_t))
+    };
+    std::copy(output.spirv.begin(), output.spirv.end(), ret.code);
+
+    return ret;
 }
+

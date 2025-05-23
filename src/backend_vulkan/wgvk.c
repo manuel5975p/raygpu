@@ -56,10 +56,14 @@
 #define Matrix rlMatrix
     #include <wgvk_structs_impl.h>
     #include <enum_translation.h>
+    #include "tint_c_api.h"
     //#include "vulkan_internals.hpp"
     //#include <raygpu.h>
 #undef Font
 #undef Matrix
+
+
+
 #ifdef TRACELOG
     #undef TRACELOG
 #endif
@@ -1514,30 +1518,61 @@ void wgpuReleasePipelineLayout(WGPUPipelineLayout pllayout){
 }
 WGPUShaderModule wgpuDeviceCreateShaderModule(WGPUDevice device, const WGPUShaderModuleDescriptor* descriptor){
     rassert(descriptor->nextInChain->sType == WGPUSType_ShaderSourceSPIRV, "Only spirv supported for now");
-    //if(descriptor->nextInChain->sType == WGPUSType_ShaderSourceSPIRV)
-    
-    {
-        WGPUShaderModule ret = RL_CALLOC(1, sizeof(WGPUShaderModuleImpl));
+    WGPUShaderModule ret = RL_CALLOC(1, sizeof(WGPUShaderModuleImpl));
+    ret->refCount = 1;
+    switch(descriptor->nextInChain->sType){
+        case WGPUSType_ShaderSourceSPIRV:{
+            const WGPUShaderSourceSPIRV* source = (WGPUShaderSourceSPIRV*)descriptor->nextInChain;
+            VkShaderModuleCreateInfo sCreateInfo = {
+                VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+                NULL,
+                0,
+                source->codeSize,
+                source->code
+            };
+            vkCreateShaderModule(device->device, &sCreateInfo, NULL, &ret->vulkanModule);
+            ret->source = RL_CALLOC(1, sizeof(WGPUShaderSourceSPIRV));
+            WGPUShaderSourceSPIRV* copySource = (WGPUShaderSourceSPIRV*)ret->source;
+            copySource->chain.sType = WGPUSType_ShaderSourceSPIRV;
+            copySource->code = RL_CALLOC(source->codeSize, 1);
+            copySource->codeSize = source->codeSize;
 
-        const WGPUShaderSourceSPIRV* source = (WGPUShaderSourceSPIRV*)descriptor->nextInChain;
-        VkShaderModuleCreateInfo sCreateInfo = {
-            VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-            NULL,
-            0,
-            source->codeSize,
-            source->code
-        };
-        vkCreateShaderModule(device->device, &sCreateInfo, NULL, &ret->vulkanModule);
-        ret->source = RL_CALLOC(1, sizeof(WGPUShaderSourceSPIRV));
-        WGPUShaderSourceSPIRV* copySource = (WGPUShaderSourceSPIRV*)ret->source;
-        copySource->chain.sType = WGPUSType_ShaderSourceSPIRV;
-        copySource->code = RL_CALLOC(source->codeSize, 1);
-        copySource->codeSize = source->codeSize;
-        
-        memcpy((void*)copySource->code, source->code, source->codeSize);
-        ret->source = (WGPUChainedStruct*)copySource;
-        return ret;
+            memcpy((void*)copySource->code, source->code, source->codeSize);
+            ret->source = (WGPUChainedStruct*)copySource;
+            return ret;
+        }
+        case WGPUSType_ShaderSourceWGSL: {
+            const WGPUShaderSourceWGSL* source = (WGPUShaderSourceWGSL*)descriptor->nextInChain;
+            size_t length = (source->code.length == WGPU_STRLEN) ? strlen(source->code.data) : source->code.length;
+            
+            tc_SpirvBlob blob = wgslToSpirv(source);
+            VkShaderModuleCreateInfo sCreateInfo = {
+                VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+                NULL,
+                0,
+                blob.codeSize,
+                blob.code
+            };
+
+            vkCreateShaderModule(device->device, &sCreateInfo, NULL, &ret->vulkanModule);
+            WGPUShaderSourceWGSL* depot = RL_CALLOC(1, sizeof(WGPUShaderSourceWGSL));
+            depot->chain.sType = WGPUSType_ShaderSourceWGSL;
+            depot->code = CLITERAL(WGPUStringView){
+                RL_CALLOC(length, 1),
+                length
+            };
+
+            memcpy((void*)depot->code.data, source->code.data, length);
+            RL_FREE(blob.code);
+            ret->source = (WGPUChainedStruct*)depot;
+
+        }
+        default: {
+            RL_FREE(ret);
+            rg_trap();
+        }
     }
+
 }
 
 
@@ -4100,7 +4135,9 @@ static void wgpuShaderModuleGetReflectionInfo_sync(void* userdata_){
             }
         }
         break;
-        case WGPUSType_ShaderSourceWGSL:
+        case WGPUSType_ShaderSourceWGSL:{
+
+        }
         default:
         rassert(false, "Invalid sType for source");
         rg_unreachable();
@@ -4333,7 +4370,20 @@ void WGPUUncapturedErrorCallbackInfo_DebugPrint(const WGPUUncapturedErrorCallbac
 void VolkDeviceTable_DebugPrint(const struct VolkDeviceTable* table, PrintfFunc_t PFN_printf, int indent) {
     PFN_Print_Indent(indent, PFN_printf);
     if (!table) { PFN_printf("VolkDeviceTable: (NULL)\n"); return; }
-    PFN_printf("VolkDeviceTable: (function pointer table, details omitted)\n");
+    int allnull = 1;
+    uintptr_t* begin = (uintptr_t*)table;
+    for(uint32_t i = 0;i < sizeof(struct VolkDeviceTable) / sizeof(uintptr_t);i++){
+        if(begin[i]){
+            allnull = 0;
+            break;
+        }
+    }
+    if(allnull)
+        PFN_printf("VolkDeviceTable: (function pointer table, all entries NULL)\n");
+    else{
+        PFN_printf("VolkDeviceTable: (function pointer table, some entries non-NULL)\n");
+        PFN_Print_Indent(indent + 1, "vkCmdDraw: %p", table->vkCmdDraw);
+    }
 }
 
 // --- Actual Struct Debug Print Implementations ---

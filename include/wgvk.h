@@ -758,6 +758,11 @@ typedef struct WGPUShaderSourceSPIRV {
     uint32_t* code;
 } WGPUShaderSourceSPIRV;
 
+typedef struct WGPUShaderSourceWGSL {
+    WGPUChainedStruct chain;
+    WGPUStringView code;
+} WGPUShaderSourceWGSL;
+
 typedef struct WGPUShaderModuleDescriptor {
     WGPUChainedStruct* nextInChain;
     WGPUStringView label;
