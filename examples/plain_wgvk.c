@@ -6,6 +6,7 @@
 
 INCBIN(default_vert, "../resources/default.vert.spv");
 INCBIN(default_frag, "../resources/default.frag.spv");
+INCBIN(compute_wgsl, "../resources/simple_compute.wgsl");
 void adapterCallbackFunction(
         enum WGPURequestAdapterStatus status,
         WGPUAdapter adapter,
@@ -40,7 +41,6 @@ void reflectionCallback(WGPUReflectionInfoRequestStatus status, const WGPUReflec
 }
 
 int main(){
-    WGPUReflectionInfo refl = reflectionInfo_wgsl_sync((WGPUStringView){0, 0});
     WGPUInstanceLayerSelection lsel = {
         .chain = {
             .next = NULL,
@@ -96,8 +96,7 @@ int main(){
     
     WGPUDevice device = wgpuAdapterCreateDevice(requestedAdapter, &ddesc);
     
-    WGPUDevice_DebugPrint(device, printf);
-
+    
     WGPUShaderSourceSPIRV vertexSource = {
         .chain = {
             .next = NULL,
@@ -131,9 +130,28 @@ int main(){
         }
     };
 
+    WGPUShaderSourceWGSL computeSource = {
+        .chain = {
+            .next = NULL,
+            .sType = WGPUSType_ShaderSourceWGSL
+        },
+        .code = {
+            .data = (char*)gcompute_wgslData,
+            .length = gcompute_wgslSize,
+        }
+    };
+    WGPUShaderModuleDescriptor computeModuleDesc = {
+        .nextInChain = &computeSource.chain,
+        .label = {
+            .data   = "Compute Modul",
+            .length = sizeof("Compute Modul"),
+        }
+    };
+
 
     WGPUShaderModule vertexModule = wgpuDeviceCreateShaderModule(device, &vertexModuleDesc);
     WGPUShaderModule fragmentModule = wgpuDeviceCreateShaderModule(device, &fragmentModuleDesc);
+    WGPUShaderModule computeModule = wgpuDeviceCreateShaderModule(device, &computeModuleDesc);
     
     WGPUReflectionInfoCallbackInfo reflectionCallbackInfo = {
         .nextInChain = NULL,
@@ -145,8 +163,9 @@ int main(){
 
     WGPUFuture vertReflectionFuture = wgpuShaderModuleGetReflectionInfo(vertexModule, reflectionCallbackInfo);
     WGPUFuture fragReflectionFuture = wgpuShaderModuleGetReflectionInfo(fragmentModule, reflectionCallbackInfo);
+    WGPUFuture computeReflectionFuture = wgpuShaderModuleGetReflectionInfo(computeModule, reflectionCallbackInfo);
 
-    WGPUFutureWaitInfo reflectionWaitInfo[2] = {
+    WGPUFutureWaitInfo reflectionWaitInfo[3] = {
         {
             .future = vertReflectionFuture,
             .completed = 0
@@ -155,6 +174,10 @@ int main(){
             .future =   fragReflectionFuture,
             .completed = 0
         },
+        {
+            .future =   computeReflectionFuture,
+            .completed = 0
+        },
     };
-    wgpuInstanceWaitAny(instance, 1, reflectionWaitInfo + 1, 1 << 30);
+    wgpuInstanceWaitAny(instance, 1, reflectionWaitInfo + 2, 1 << 30);
 }

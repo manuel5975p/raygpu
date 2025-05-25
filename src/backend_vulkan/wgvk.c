@@ -118,7 +118,9 @@ WGPUSurface wgpuInstanceCreateSurface(WGPUInstance instance, const WGPUSurfaceDe
             VkXlibSurfaceCreateInfoKHR sci zeroinit;
             sci.window = (uint64_t)xlibSource->window;
             sci.dpy = (Display*)xlibSource->display;
-            vkCreateXlibSurfaceKHR(
+            //((PFN_vkCreateXlibSurfaceKHR)vkGetInstanceProcAddr(instance->instance, "vkCreateXlibSurfaceKHR"))
+            vkCreateXlibSurfaceKHR
+            (
                 instance->instance,
                 &sci,
                 NULL,
@@ -1517,7 +1519,6 @@ void wgpuReleasePipelineLayout(WGPUPipelineLayout pllayout){
     }
 }
 WGPUShaderModule wgpuDeviceCreateShaderModule(WGPUDevice device, const WGPUShaderModuleDescriptor* descriptor){
-    rassert(descriptor->nextInChain->sType == WGPUSType_ShaderSourceSPIRV, "Only spirv supported for now");
     WGPUShaderModule ret = RL_CALLOC(1, sizeof(WGPUShaderModuleImpl));
     ret->refCount = 1;
     switch(descriptor->nextInChain->sType){
@@ -1565,7 +1566,7 @@ WGPUShaderModule wgpuDeviceCreateShaderModule(WGPUDevice device, const WGPUShade
             memcpy((void*)depot->code.data, source->code.data, length);
             RL_FREE(blob.code);
             ret->source = (WGPUChainedStruct*)depot;
-
+            return ret;
         }
         default: {
             RL_FREE(ret);
@@ -3229,6 +3230,7 @@ const static int is_storage_texture[uniform_type_enumcount] = {
     [storage_texture3d] = 1,
     [storage_texture2d] = 1,
 };
+
 const static int is_texture[uniform_type_enumcount] = {
     [storage_texture2d_array] = 1,
     [storage_texture3d] = 1,
@@ -3237,6 +3239,7 @@ const static int is_texture[uniform_type_enumcount] = {
     [texture2d] = 1,
     [texture3d] = 1,
 };
+
 void wgpuRenderPassEncoderSetBindGroup(WGPURenderPassEncoder rpe, uint32_t groupIndex, WGPUBindGroup group, size_t dynamicOffsetCount, const uint32_t* dynamicOffsets) {
     rassert(rpe != NULL, "RenderPassEncoderHandle is null");
     rassert(group != NULL, "DescriptorSetHandle is null");
@@ -4136,8 +4139,15 @@ static void wgpuShaderModuleGetReflectionInfo_sync(void* userdata_){
         }
         break;
         case WGPUSType_ShaderSourceWGSL:{
-
-        }
+            WGPUShaderSourceWGSL* wgslSource = (WGPUShaderSourceWGSL*)module->source;
+            WGPUReflectionInfo reflectionInfo = reflectionInfo_wgsl_sync(wgslSource->code);
+            userdata->callbackInfo.callback(
+                WGPUReflectionInfoRequestStatus_Success,
+                &reflectionInfo,
+                userdata->callbackInfo.userdata1,
+                userdata->callbackInfo.userdata2
+            );
+        }break;
         default:
         rassert(false, "Invalid sType for source");
         rg_unreachable();
@@ -4382,7 +4392,8 @@ void VolkDeviceTable_DebugPrint(const struct VolkDeviceTable* table, PrintfFunc_
         PFN_printf("VolkDeviceTable: (function pointer table, all entries NULL)\n");
     else{
         PFN_printf("VolkDeviceTable: (function pointer table, some entries non-NULL)\n");
-        PFN_Print_Indent(indent + 1, "vkCmdDraw: %p", table->vkCmdDraw);
+        PFN_Print_Indent(indent + 1, PFN_printf);
+        PFN_printf("vkCmdDraw: %p\n", (void*)table->vkCmdDraw);
     }
 }
 
