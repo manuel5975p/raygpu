@@ -1,75 +1,169 @@
+#include "src/tint/lang/wgsl/ast/identifier_expression.h"
+#include "src/tint/lang/wgsl/ast/templated_identifier.h"
+#include "src/tint/lang/wgsl/ast/var.h"
 #include <iostream>
 
-#include <tint_c_api.h>
-#include <tint/tint.h>
-#include <src/tint/lang/wgsl/reader/reader.h>
-#include <src/tint/lang/wgsl/program/program.h>
 #include <src/tint/lang/wgsl/ast/identifier.h>
 #include <src/tint/lang/wgsl/ast/module.h>
+#include <src/tint/lang/wgsl/program/program.h>
+#include <src/tint/lang/wgsl/reader/reader.h>
 #include <src/tint/lang/wgsl/sem/function.h>
-static inline ShaderStageMask toShaderStageMask(tint::ast::PipelineStage pstage){
-    switch(pstage){
-        case tint::ast::PipelineStage::kVertex:
+#include <tint/tint.h>
+#include <tint_c_api.h>
+static inline ShaderStageMask toShaderStageMask(tint::ast::PipelineStage pstage) {
+    switch (pstage) {
+    case tint::ast::PipelineStage::kVertex:
         return ShaderStageMask_Vertex;
-        case tint::ast::PipelineStage::kFragment:
+    case tint::ast::PipelineStage::kFragment:
         return ShaderStageMask_Fragment;
-        case tint::ast::PipelineStage::kCompute:
+    case tint::ast::PipelineStage::kCompute:
         return ShaderStageMask_Compute;
-        case tint::ast::PipelineStage::kNone:
+    case tint::ast::PipelineStage::kNone:
         return ShaderStageMask(0);
     }
 }
 struct VarVisibility {
-    const tint::ast::Variable* var;
-    ShaderStageMask vibibilty;
-} ;
+    const tint::ast::Variable *var;
+    ShaderStageMask visibilty;
+};
 
-RGAPI WGPUReflectionInfo reflectionInfo_wgsl_sync(WGPUStringView wgslSource){
-    
+
+format_or_sample_type extractFormat(const tint::ast::Identifier* iden){
+    if(auto templiden = iden->As<tint::ast::TemplatedIdentifier>()){
+        for(size_t i = 0;i < templiden->arguments.Length();i++){
+            if(templiden->arguments[i]->As<tint::ast::IdentifierExpression>() && templiden->arguments[i]->As<tint::ast::IdentifierExpression>()->identifier){
+                auto arg_iden = templiden->arguments[i]->As<tint::ast::IdentifierExpression>()->identifier;
+                if(arg_iden->symbol.Name() == "r32float"){
+                    return format_r32float;
+                }
+                else if(arg_iden->symbol.Name() == "r32uint"){
+                    return format_r32uint;
+                }
+                else if(arg_iden->symbol.Name() == "rgba8unorm"){
+                    return format_rgba8unorm;
+                }
+                else if(arg_iden->symbol.Name() == "rgba32float"){
+                    return format_rgba32float;
+                }
+                if(arg_iden->symbol.Name() == "f32"){
+                    return sample_f32;
+                }
+                else if(arg_iden->symbol.Name() == "u32"){
+                    return sample_u32;
+                }
+                //TODO: support all, there's not that many
+            }
+        }
+    }
+    return format_or_sample_type(12123);
+}
+static inline WGPUTextureFormat toStorageTextureFormat(format_or_sample_type fmt){
+    switch(fmt){
+        case format_or_sample_type::format_r32float: return WGPUTextureFormat_R32Float;
+        case format_or_sample_type::format_r32uint: return WGPUTextureFormat_R32Uint;
+        case format_or_sample_type::format_rgba8unorm: return WGPUTextureFormat_RGBA8Unorm;
+        case format_or_sample_type::format_rgba32float: return WGPUTextureFormat_RGBA32Float;
+        default: rg_unreachable();
+    }
+    return WGPUTextureFormat_Force32;
+}
+RGAPI WGPUReflectionInfo reflectionInfo_wgsl_sync(WGPUStringView wgslSource) {
+
     WGPUReflectionInfo ret{};
     size_t length = (wgslSource.length == WGPU_STRLEN) ? std::strlen(wgslSource.data) : wgslSource.length;
     tint::Source::File file("<not a file>", std::string_view(wgslSource.data, wgslSource.data + length));
     tint::Program prog = tint::wgsl::reader::Parse(&file);
-    
 
     std::unordered_map<std::string, VarVisibility> globalsByName;
     static_assert(sizeof(tint::ast::PipelineStage) <= 2);
-    
-    if(prog.IsValid()){
-        for(auto& gv : prog.AST().GlobalVariables()){
-            globalsByName.emplace(gv->name->symbol.Name(), VarVisibility{
-                .var = gv,
-                .vibibilty = ShaderStageMask(0)
-            });
+
+    if (prog.IsValid()) {
+        for (auto &gv : prog.AST().GlobalVariables()) {
+            globalsByName.emplace(gv->name->symbol.Name(), VarVisibility{.var = gv, .visibilty = ShaderStageMask(0)});
         }
-        ret.globalCount = prog.AST().GlobalVariables().Length();
-        for(const auto& ep : prog.AST().Functions()){
-            const auto& sem = prog.Sem().Get(ep);
-            for(auto& refbg : sem->TransitivelyReferencedGlobals()){
-                const tint::sem::Variable* asvar = refbg->As<tint::sem::Variable>();
+
+        for (const auto &ep : prog.AST().Functions()) {
+            const auto &sem = prog.Sem().Get(ep);
+            for (auto &refbg : sem->TransitivelyReferencedGlobals()) {
+                const tint::sem::Variable *asvar = refbg->As<tint::sem::Variable>();
                 std::string name = asvar->Declaration()->name->symbol.Name();
-                globalsByName[name].vibibilty = ShaderStageMask(globalsByName[name].vibibilty | toShaderStageMask(ep->PipelineStage()));
-                
+                globalsByName[name].visibilty =
+                    ShaderStageMask(globalsByName[name].visibilty | toShaderStageMask(ep->PipelineStage()));
             }
         }
-        for(auto& gv : prog.AST().GlobalVariables()){
-            globalsByName.emplace(gv->name->symbol.Name(), VarVisibility{
-                .var = gv,
-                .vibibilty = ShaderStageMask(0)
-            });
+
+        ret.globals = (WGPUGlobalReflectionInfo*)RL_CALLOC(globalsByName.size(), sizeof(WGPUGlobalReflectionInfo));
+        uint32_t globalInsertIndex = 0;
+        for (const auto &[name, varvis] : globalsByName) {
+
+            WGPUGlobalReflectionInfo insert{};
+            auto sem = prog.Sem().Get(varvis.var)->As<tint::sem::GlobalVariable>();
+
+            insert.bindGroup = sem->Attributes().binding_point->group;
+            insert.binding = sem->Attributes().binding_point->binding;
+            insert.name = WGPUStringView{name.c_str(), name.size()};
+            insert.visibility = varvis.visibilty;
+            
+            auto iden = varvis.var->type->As<tint::ast::IdentifierExpression>()->identifier;
+
+            if (iden->symbol.Name().starts_with("texture_2d")) {
+                format_or_sample_type sampletype = extractFormat(iden);
+                assert(sampletype == format_or_sample_type::sample_f32 || sampletype == format_or_sample_type::sample_u32 && "Invalid format or sample type");
+                insert.texture.sampleType = (sampletype == format_or_sample_type::sample_f32) ? WGPUTextureSampleType_Float : WGPUTextureSampleType_Uint;
+                
+                if (iden->symbol.Name().starts_with("texture_2d_array")) {
+                    insert.texture.viewDimension = WGPUTextureViewDimension_2DArray;
+                } else {
+                    insert.texture.viewDimension = WGPUTextureViewDimension_2D;
+                }
+            }
+            if (iden->symbol.Name().starts_with("texture_3d")) {
+                format_or_sample_type sampletype = extractFormat(iden);
+                insert.texture.sampleType = (sampletype == format_or_sample_type::sample_f32) ? WGPUTextureSampleType_Float : WGPUTextureSampleType_Uint;
+                insert.texture.viewDimension = WGPUTextureViewDimension_3D;
+            }
+            if (iden->symbol.Name().starts_with("texture_storage_2d")) {
+                format_or_sample_type sampletype = extractFormat(iden);
+                insert.storageTexture.format = toStorageTextureFormat(sampletype);
+                
+                if(varvis.var->As<tint::ast::Var>()->declared_address_space->As<tint::ast::IdentifierExpression>()->identifier->symbol.NameView().starts_with("read_write"))
+                    insert.storageTexture.access = WGPUStorageTextureAccess_ReadWrite;
+                else if(varvis.var->As<tint::ast::Var>()->declared_address_space->As<tint::ast::IdentifierExpression>()->identifier->symbol.NameView().starts_with("readonly"))
+                    insert.storageTexture.access = WGPUStorageTextureAccess_ReadOnly;
+                else if(varvis.var->As<tint::ast::Var>()->declared_address_space->As<tint::ast::IdentifierExpression>()->identifier->symbol.NameView().starts_with("writeonly"))
+                    insert.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+                else{
+                    assert(false);
+                }
+
+                if (iden->symbol.Name().starts_with("texture_storage_2d_array")) {
+                    insert.storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;
+                } else {
+                    insert.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+                }
+
+            }
+            if (iden->symbol.Name().starts_with("texture_storage_3d")) {
+                insert.storageTexture.viewDimension = WGPUTextureViewDimension_3D;
+                format_or_sample_type sampletype = extractFormat(iden);
+            } else if (iden->symbol.Name().starts_with("sampler")) {
+                
+            }
+            const_cast<WGPUGlobalReflectionInfo*>(ret.globals)[globalInsertIndex++] = insert;
         }
+
+    
+        
     }
 
-    else{
+    else {
         std::cerr << "Compilation error\n";
     }
     return ret;
 }
-RGAPI void reflectionInfo_wgsl_free(WGPUReflectionInfo* reflectionInfo){
+RGAPI void reflectionInfo_wgsl_free(WGPUReflectionInfo *reflectionInfo) {}
+RGAPI tc_SpirvBlob wgslToSpirv(const WGPUShaderSourceWGSL *source) {
 
-}
-RGAPI tc_SpirvBlob wgslToSpirv(const WGPUShaderSourceWGSL* source){
-    
     size_t length = (source->code.length == WGPU_STRLEN) ? std::strlen(source->code.data) : source->code.length;
     tint::Source::File file("<not a file>", std::string_view(source->code.data, source->code.data + length));
     tint::Program prog = tint::wgsl::reader::Parse(&file);
@@ -78,12 +172,8 @@ RGAPI tc_SpirvBlob wgslToSpirv(const WGPUShaderSourceWGSL* source){
     tint::spirv::writer::Options options zeroinit;
     tint::Result<tint::spirv::writer::Output> spirvMaybe = tint::spirv::writer::Generate(module, options);
     tint::spirv::writer::Output output(spirvMaybe.Get());
-    tc_SpirvBlob ret{
-        (output.spirv.size() * sizeof(uint32_t)),
-        (uint32_t*)RL_CALLOC(output.spirv.size(), sizeof(uint32_t))
-    };
+    tc_SpirvBlob ret{(output.spirv.size() * sizeof(uint32_t)), (uint32_t *)RL_CALLOC(output.spirv.size(), sizeof(uint32_t))};
     std::copy(output.spirv.begin(), output.spirv.end(), ret.code);
 
     return ret;
 }
-

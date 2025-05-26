@@ -842,7 +842,6 @@ typedef struct WGPUGlobalReflectionInfo {
     WGPUStringView name;
     uint32_t bindGroup;
     uint32_t binding;
-    
     ShaderStageMask visibility;
     WGPUBufferBindingInfo buffer;
     WGPUSamplerBindingInfo sampler;
