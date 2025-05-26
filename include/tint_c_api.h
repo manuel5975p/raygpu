@@ -12,6 +12,6 @@ typedef struct tc_SpirvBlob{
 }tc_SpirvBlob;
 
 RGAPI tc_SpirvBlob wgslToSpirv(const WGPUShaderSourceWGSL* source);
-
+RGAPI void reflectionInfo_wgsl_free(WGPUReflectionInfo* reflectionInfo);
 
 #endif

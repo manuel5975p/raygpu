@@ -4147,6 +4147,7 @@ static void wgpuShaderModuleGetReflectionInfo_sync(void* userdata_){
                 userdata->callbackInfo.userdata1,
                 userdata->callbackInfo.userdata2
             );
+            reflectionInfo_wgsl_free(&reflectionInfo);
         }break;
         default:
         rassert(false, "Invalid sType for source");

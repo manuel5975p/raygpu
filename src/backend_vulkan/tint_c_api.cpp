@@ -7,7 +7,22 @@
 #include <src/tint/lang/wgsl/ast/identifier.h>
 #include <src/tint/lang/wgsl/ast/module.h>
 #include <src/tint/lang/wgsl/sem/function.h>
-
+static inline ShaderStageMask toShaderStageMask(tint::ast::PipelineStage pstage){
+    switch(pstage){
+        case tint::ast::PipelineStage::kVertex:
+        return ShaderStageMask_Vertex;
+        case tint::ast::PipelineStage::kFragment:
+        return ShaderStageMask_Fragment;
+        case tint::ast::PipelineStage::kCompute:
+        return ShaderStageMask_Compute;
+        case tint::ast::PipelineStage::kNone:
+        return ShaderStageMask(0);
+    }
+}
+struct VarVisibility {
+    const tint::ast::Variable* var;
+    ShaderStageMask vibibilty;
+} ;
 
 RGAPI WGPUReflectionInfo reflectionInfo_wgsl_sync(WGPUStringView wgslSource){
     
@@ -16,11 +31,32 @@ RGAPI WGPUReflectionInfo reflectionInfo_wgsl_sync(WGPUStringView wgslSource){
     tint::Source::File file("<not a file>", std::string_view(wgslSource.data, wgslSource.data + length));
     tint::Program prog = tint::wgsl::reader::Parse(&file);
     
+
+    std::unordered_map<std::string, VarVisibility> globalsByName;
+    static_assert(sizeof(tint::ast::PipelineStage) <= 2);
+    
     if(prog.IsValid()){
+        for(auto& gv : prog.AST().GlobalVariables()){
+            globalsByName.emplace(gv->name->symbol.Name(), VarVisibility{
+                .var = gv,
+                .vibibilty = ShaderStageMask(0)
+            });
+        }
+        ret.globalCount = prog.AST().GlobalVariables().Length();
         for(const auto& ep : prog.AST().Functions()){
-            if(ep->IsEntryPoint()){
-                std::cout << ep->name->symbol.NameView() << "\n";
+            const auto& sem = prog.Sem().Get(ep);
+            for(auto& refbg : sem->TransitivelyReferencedGlobals()){
+                const tint::sem::Variable* asvar = refbg->As<tint::sem::Variable>();
+                std::string name = asvar->Declaration()->name->symbol.Name();
+                globalsByName[name].vibibilty = ShaderStageMask(globalsByName[name].vibibilty | toShaderStageMask(ep->PipelineStage()));
+                
             }
+        }
+        for(auto& gv : prog.AST().GlobalVariables()){
+            globalsByName.emplace(gv->name->symbol.Name(), VarVisibility{
+                .var = gv,
+                .vibibilty = ShaderStageMask(0)
+            });
         }
     }
 
@@ -29,7 +65,9 @@ RGAPI WGPUReflectionInfo reflectionInfo_wgsl_sync(WGPUStringView wgslSource){
     }
     return ret;
 }
+RGAPI void reflectionInfo_wgsl_free(WGPUReflectionInfo* reflectionInfo){
 
+}
 RGAPI tc_SpirvBlob wgslToSpirv(const WGPUShaderSourceWGSL* source){
     
     size_t length = (source->code.length == WGPU_STRLEN) ? std::strlen(source->code.data) : source->code.length;
