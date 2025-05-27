@@ -1257,6 +1257,7 @@ typedef struct WGPUMultisampleState {
     uint32_t mask;
     Bool32 alphaToCoverageEnabled;
 } WGPUMultisampleState;
+
 typedef struct WGPUComputeState {
     WGPUChainedStruct * nextInChain;
     WGPUShaderModule module;
@@ -1279,6 +1280,7 @@ typedef struct WGPURenderPipelineDescriptor {
 typedef struct WGPUComputePipelineDescriptor {
     WGPUChainedStruct* nextInChain;
     WGPUStringView label;
+    WGPUPipelineLayout layout;
     WGPUComputeState compute;
 } WGPUComputePipelineDescriptor;
 
@@ -1364,7 +1366,7 @@ WGPUBindGroupLayout wgpuDeviceCreateBindGroupLayout(WGPUDevice device, const Res
 WGPUShaderModule    wgpuDeviceCreateShaderModule   (WGPUDevice device, WGPUShaderModuleDescriptor const * descriptor);
 WGPUPipelineLayout  wgpuDeviceCreatePipelineLayout (WGPUDevice device, const WGPUPipelineLayoutDescriptor* pldesc);
 WGPURenderPipeline  wgpuDeviceCreateRenderPipeline (WGPUDevice device, WGPURenderPipelineDescriptor const * descriptor);
-WGPURenderPipeline  wgpuDeviceCreateComputePipeline(WGPUDevice device, WGPUComputePipelineDescriptor const * descriptor);
+WGPUComputePipeline  wgpuDeviceCreateComputePipeline(WGPUDevice device, WGPUComputePipelineDescriptor const * descriptor);
 
 WGPUFuture wgpuShaderModuleGetReflectionInfo(WGPUShaderModule shaderModule, WGPUReflectionInfoCallbackInfo callbackInfo);
 

@@ -72,6 +72,7 @@ void wgpuTraceLog(int logType, const char *text, ...);
 #include "../amalgamation/SPIRV-Reflect/spirv_reflect.c"
 #include <macros_and_constants.h>
 #include <wgvk.h>
+#define VOLK_HEADER_VERSION
 #include <external/VmaUsage.h>
 #include <stdarg.h>
 
@@ -972,6 +973,7 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
         //    TRACELOG(LOG_WARNING, "Freeing %llu of memory type %u", size, type);
         //}
     };
+
     aci.pDeviceMemoryCallbacks = &callbacks;
     VmaVulkanFunctions vmaVulkanFunctions = {
         .vkAllocateMemory                    = retDevice->functions.vkAllocateMemory,
@@ -987,7 +989,7 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
         .vkGetInstanceProcAddr               = vkGetInstanceProcAddr,
         .vkGetDeviceProcAddr                 = vkGetDeviceProcAddr
     };
-
+    
     aci.pVulkanFunctions = &vmaVulkanFunctions;
     VkResult allocatorCreateResult = vmaCreateAllocator(&aci, &retDevice->allocator);
 
@@ -2714,6 +2716,41 @@ void wgpuBindGroupRelease(WGPUBindGroup dshandle) {
         RL_FREE(dshandle);
     }
 }
+
+WGPUComputePipeline wgpuDeviceCreateComputePipeline(WGPUDevice device, WGPUComputePipelineDescriptor const * descriptor){
+    WGPUComputePipeline ret = RL_CALLOC(1, sizeof(WGPUComputePipelineImpl));
+    char namebuffer[512];
+    rassert(descriptor->compute.entryPoint.length < 511, "griiindumehaue");
+    memcpy(namebuffer, descriptor->compute.entryPoint.data, descriptor->compute.entryPoint.length);
+    namebuffer[descriptor->compute.entryPoint.length] = 0;
+    
+    
+    VkPipelineShaderStageCreateInfo computeStage = {
+        VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        NULL,
+        0,
+        VK_SHADER_STAGE_COMPUTE_BIT,
+        descriptor->compute.module->vulkanModule,
+        namebuffer,
+        NULL
+    };
+
+    VkComputePipelineCreateInfo cpci = {
+        VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+        NULL,
+        0,
+        computeStage,
+        descriptor->layout->layout,
+        0,
+        0
+    };
+    device->functions.vkCreateComputePipelines(device->device, NULL, 1, &cpci, NULL, &ret->computePipeline);
+    ret->refCount = 1;
+    ret->layout = descriptor->layout;
+    wgpuPipelineLayoutAddRef(ret->layout);
+    return ret;
+}
+
 
 WGPURenderPipeline wgpuDeviceCreateRenderPipeline(WGPUDevice device, const WGPURenderPipelineDescriptor* descriptor) {
     WGPUDeviceImpl* deviceImpl = (WGPUDeviceImpl*)(device);

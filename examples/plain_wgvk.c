@@ -33,6 +33,7 @@ void reflectionCallback(WGPUReflectionInfoRequestStatus status, const WGPUReflec
             assert(typedesc == NULL && "Two entries set");
             typedesc = "sampler";
         }
+        
 
         char namebuffer[256] = {0};
         
@@ -183,4 +184,34 @@ int main(){
         },
     };
     wgpuInstanceWaitAny(instance, 1, reflectionWaitInfo + 2, 1 << 30);
+    WGPUComputePipelineDescriptor cplDesc = {
+        .nextInChain = NULL,
+        .label = STRVIEW("Kopmute paipline"),
+        .compute = {
+            .constantCount = 0,
+            .constants = NULL,
+            .entryPoint = STRVIEW("compute_main"),
+            .module = computeModule,
+            .nextInChain = NULL
+        }
+    };
+    ResourceTypeDescriptor bglEntries[1] = {
+        [0] = {
+            storage_buffer,
+            8,
+            0,
+            readwrite,
+            we_dont_know,
+            ShaderStageMask_Compute
+        }
+    };
+    
+    WGPUBindGroupLayout layout = wgpuDeviceCreateBindGroupLayout(device, bglEntries, 1);
+    WGPUPipelineLayout pllayout = wgpuDeviceCreatePipelineLayout(device, &(WGPUPipelineLayoutDescriptor){
+        .bindGroupLayoutCount = 1,
+        .bindGroupLayouts = &layout,
+    });
+    cplDesc.layout = pllayout;
+    WGPUComputePipeline cpl = wgpuDeviceCreateComputePipeline(device, &cplDesc);
+    assert(cpl);
 }
