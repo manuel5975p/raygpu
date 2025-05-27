@@ -2014,7 +2014,7 @@ void wgpuRenderPassEncoderEnd(WGPURenderPassEncoder renderPassEncoder){
                 uniform_type eType = layout->entries[bindingIndex].type;
                 if(eType == uniform_buffer || eType == storage_buffer){
                     rassert(group->entries[bindingIndex].buffer, "Layout indicates buffer but no buffer passed");
-                    ShaderStageMask visibility = layout->entries[bindingIndex].visibility;
+                    WGPUShaderStage visibility = layout->entries[bindingIndex].visibility;
                     rassert(visibility, "Empty visibility goddamnit");
                     ce_trackBuffer(
                         renderPassEncoder->cmdEncoder,
@@ -2026,7 +2026,7 @@ void wgpuRenderPassEncoderEnd(WGPURenderPassEncoder renderPassEncoder){
                     );
                 }
                 else if(snaps[eType].layout){
-                    ShaderStageMask visibility = layout->entries[bindingIndex].visibility;
+                    WGPUShaderStage visibility = layout->entries[bindingIndex].visibility;
                     rassert(visibility, "Empty visibility goddamnit");
                     if(visibility == 0){ //TODO: Get rid of this hack
                         visibility = (ShaderStageMask_Vertex | ShaderStageMask_Fragment | ShaderStageMask_Compute);
@@ -3954,8 +3954,8 @@ WGPUGlobalReflectionInfo* getGlobalRI(SpvReflectShaderModule mod, uint32_t* coun
 }
 
 
-static ShaderStageMask toWGPUShaderStage(SpvReflectShaderStageFlagBits stageBits){
-    ShaderStageMask ret = 0;
+static WGPUShaderStage toWGPUShaderStage(SpvReflectShaderStageFlagBits stageBits){
+    WGPUShaderStage ret = 0;
 
     if(stageBits & SPV_REFLECT_SHADER_STAGE_VERTEX_BIT){
         ret |= ShaderStageMask_Vertex;

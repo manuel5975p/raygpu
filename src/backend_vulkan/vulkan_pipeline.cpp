@@ -25,7 +25,7 @@ extern "C" DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sources){
         uint32_t epCount = module.GetEntryPointCount();
         for(uint32_t i = 0;i < epCount;i++){
             SpvReflectShaderStageFlagBits epStage = module.GetEntryPointShaderStage(i);
-            ShaderStage stage = [](SpvReflectShaderStageFlagBits epStage){
+            WGPUShaderStageEnum stage = [](SpvReflectShaderStageFlagBits epStage){
                 switch(epStage){
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_VERTEX_BIT:
                         return ShaderStage_Vertex;

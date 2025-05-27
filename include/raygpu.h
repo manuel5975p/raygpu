@@ -655,7 +655,7 @@ typedef const void* char_or_uint32_pointer;
 typedef struct ShaderStageSource{
     char_or_uint32_pointer data;
     uint32_t sizeInBytes;
-    ShaderStageMask stageMask;
+    WGPUShaderStage stageMask;
 }ShaderStageSource;
 
 /**
@@ -677,7 +677,7 @@ typedef struct ShaderSources{
 }ShaderSources;
 
 typedef struct ShaderEntryPoint{
-    ShaderStage stage;
+    WGPUShaderStageEnum stage;
     char name[16];
 }ShaderEntryPoint;
 
@@ -1082,7 +1082,7 @@ EXTERN_C_BEGIN
     RGAPI DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sourcesSpirv);
     RGAPI DescribedShaderModule LoadShaderModule     (ShaderSources source);
 
-    RGAPI const char* GetStageEntryPointName         (ShaderReflectionInfo reflectionInfo, ShaderStage stage);
+    RGAPI const char* GetStageEntryPointName         (ShaderReflectionInfo reflectionInfo, WGPUShaderStageEnum stage);
     RGAPI uint32_t    GetReflectionUniformLocation   (ShaderReflectionInfo reflectionInfo, const char* name );
     RGAPI uint32_t    GetReflectionAttributeLocation (ShaderReflectionInfo reflectionInfo, const char* name );
 

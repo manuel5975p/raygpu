@@ -207,8 +207,8 @@ std::vector<std::pair<ShaderStage, std::string>> getEntryPointsWGSL(const char* 
     return entryPoints;
 }
 #endif
-std::pair<std::vector<uint32_t>, ShaderStageMask> wgsl_to_spirv_single(const char* source){
-    std::pair<std::vector<uint32_t>, ShaderStageMask> ret;
+std::pair<std::vector<uint32_t>, WGPUShaderStage> wgsl_to_spirv_single(const char* source){
+    std::pair<std::vector<uint32_t>, WGPUShaderStage> ret;
     #if SUPPORT_WGSL_PARSER == 1 && !defined(__EMSCRIPTEN__)
     tint::Source::File sourceFile("", source);
     tint::Program program = tint::wgsl::reader::Parse(&sourceFile);
@@ -235,7 +235,7 @@ ShaderSources wgsl_to_spirv(ShaderSources sources){
     ret.language = sourceTypeSPIRV;
 
     for(uint32_t i = 0;i < sources.sourceCount;i++){
-        ShaderStage stage = (ShaderStage)std::countr_zero((uint32_t)sources.sources[i].stageMask);
+        WGPUShaderStageEnum stage = (WGPUShaderStageEnum)std::countr_zero((uint32_t)sources.sources[i].stageMask);
         std::vector<uint32_t> stageToSpirv = wgsl_to_spirv_single((const char*)sources.sources[i].data).first;
         uint32_t* odata = (uint32_t*)std::calloc(stageToSpirv.size(), sizeof(uint32_t));
         std::copy(stageToSpirv.begin(), stageToSpirv.end(), odata);

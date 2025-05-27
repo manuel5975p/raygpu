@@ -34,9 +34,12 @@ void reflectionCallback(WGPUReflectionInfoRequestStatus status, const WGPUReflec
             typedesc = "sampler";
         }
 
-        char namebuffer[1024] = {0};
-        memcpy(namebuffer, reflectionInfo->globals[i].name.data, reflectionInfo->globals[i].name.length);
-        printf("Name: %s, location: %u, type: %s\n", reflectionInfo->globals[i].name.data, reflectionInfo->globals[i].binding, typedesc);
+        char namebuffer[256] = {0};
+        
+        const WGPUGlobalReflectionInfo* toBePrinted = reflectionInfo->globals + i;
+
+        memcpy(namebuffer, toBePrinted->name.data, toBePrinted->name.length);
+        printf("Name: %s, location: %u, type: %s\n", namebuffer, toBePrinted->binding, typedesc);
     }
 }
 

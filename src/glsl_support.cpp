@@ -245,7 +245,7 @@ std::vector<uint32_t> glsl_to_spirv(const char *cs){
 #ifndef CHAR_BIT
 #define CHAR_BIT 8
 #endif
-EShLanguage ShaderStageToGlslanguage(ShaderStage stage){
+EShLanguage ShaderStageToGlslanguage(WGPUShaderStageEnum stage){
     switch(stage){
         case ShaderStage_Vertex: return EShLangVertex; 
         case ShaderStage_TessControl: return EShLangTessControl; 
@@ -297,10 +297,10 @@ InOutAttributeInfo getAttributesGLSL(ShaderSources sources){
     std::vector<std::pair<EShLanguage, std::unique_ptr<glslang::TShader>>> shaders;
     std::vector<const char*> stageSources;
     for(uint32_t i = 0;i < sources.sourceCount;i++){
-        if(std::bitset<sizeof(ShaderStageMask) * CHAR_BIT>(+sources.sources[i].stageMask).count() != 1){
+        if(std::bitset<sizeof(WGPUShaderStage) * CHAR_BIT>(+sources.sources[i].stageMask).count() != 1){
             TRACELOG(LOG_ERROR, "Only single stages are supported for GLSL");
         }
-        ShaderStage stage = (ShaderStage)std::countr_zero(uint32_t(sources.sources[i].stageMask));
+        WGPUShaderStageEnum stage = (WGPUShaderStageEnum)std::countr_zero(uint32_t(sources.sources[i].stageMask));
         shaders.emplace_back(ShaderStageToGlslanguage(stage), std::make_unique<glslang::TShader>(ShaderStageToGlslanguage(stage)));
         shaders.back().second->setEnvTarget(glslang::EshTargetSpv, defaultSpirvVersion);
     }
@@ -427,14 +427,14 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
     std::vector<std::pair<EShLanguage, std::unique_ptr<glslang::TShader>>> shaders;
     std::vector<const char*> stageSources;
     for(uint32_t i = 0;i < sources.sourceCount;i++){
-        if(std::bitset<sizeof(ShaderStageMask) * CHAR_BIT>(+sources.sources[i].stageMask).count() == 0){
+        if(std::bitset<sizeof(WGPUShaderStage) * CHAR_BIT>(+sources.sources[i].stageMask).count() == 0){
             TRACELOG(LOG_FATAL, "Empty shader stage");
         }
-        else if(std::bitset<sizeof(ShaderStageMask) * CHAR_BIT>(+sources.sources[i].stageMask).count() > 1){
+        else if(std::bitset<sizeof(WGPUShaderStage) * CHAR_BIT>(+sources.sources[i].stageMask).count() > 1){
             std::cout << sources.sources[i].stageMask << "\n";
             TRACELOG(LOG_FATAL, "Only single stages are supported for GLSL");
         }
-        ShaderStage stage = (ShaderStage)std::countr_zero(uint32_t(sources.sources[i].stageMask));
+        WGPUShaderStageEnum stage = (WGPUShaderStageEnum)std::countr_zero(uint32_t(sources.sources[i].stageMask));
         shaders.emplace_back(ShaderStageToGlslanguage(stage), std::make_unique<glslang::TShader>(ShaderStageToGlslanguage(stage)));
         shaders.back().second->setEnvTarget(glslang::EShTargetSpv, defaultSpirvVersion);
     }
@@ -528,7 +528,7 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
                     insert.location = set->bindings[i]->binding;
                     ret[set->bindings[i]->name] = insert;
                     auto& inserted = *ret.find(set->bindings[i]->name);
-                    inserted.second.visibility = ShaderStageMask(inserted.second.visibility | ShaderStageMask(1u << lang));
+                    inserted.second.visibility = WGPUShaderStage(inserted.second.visibility | WGPUShaderStage(1u << lang));
                 }
 
                 //TRACELOG(LOG_WARNING, "Parsed uniforms %s at binding %u", set->bindings[i]->name, (unsigned)set->bindings[i]->binding);// << ": " <<  set->bindings[i]->descriptor_type << "\n";
@@ -553,7 +553,7 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
         insert.type = uniform ? uniform_buffer : storage_buffer;
         ret[name] = insert;
         auto& inserted = *ret.find(name);
-        inserted.second.visibility = ShaderStageMask(inserted.second.visibility | ShaderStageMask(program.getUniformBlock(i).stages));
+        inserted.second.visibility = WGPUShaderStage(inserted.second.visibility | WGPUShaderStage(program.getUniformBlock(i).stages));
     }
 //
     //for(uint32_t i = 0;i < program.getNumUniformVariables();i++){
@@ -595,7 +595,7 @@ ShaderSources glsl_to_spirv(ShaderSources sources){
     ret.language = sourceTypeSPIRV;
 
     for(uint32_t i = 0;i < sources.sourceCount;i++){
-        ShaderStage stage = (ShaderStage)std::countr_zero((uint32_t)sources.sources[i].stageMask);
+        WGPUShaderStageEnum stage = (WGPUShaderStageEnum)std::countr_zero((uint32_t)sources.sources[i].stageMask);
         std::vector<uint32_t> stageToSpirv = glsl_to_spirv_single((const char*)sources.sources[i].data, ShaderStageToGlslanguage(stage));
         uint32_t* odata = (uint32_t*)std::calloc(stageToSpirv.size(), sizeof(uint32_t));
         std::copy(stageToSpirv.begin(), stageToSpirv.end(), odata);

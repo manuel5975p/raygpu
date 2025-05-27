@@ -1,4 +1,4 @@
-@group(0) @binding(0) var<storage, read_write> data: array<f32>;
+@group(0) @binding(0) var<storage, read_write> data: array<f32, 5>;
 
 @compute @workgroup_size(32, 1, 1)
 

@@ -273,10 +273,10 @@ RGAPICXX void* InitWindow(uint32_t width, uint32_t height, const char* title){
 
 
     ResourceTypeDescriptor uniforms[4] = {
-        ResourceTypeDescriptor{uniform_buffer, 64, 0, readonly, format_or_sample_type::we_dont_know, ShaderStageMask(ShaderStageMask_Vertex | ShaderStageMask_Fragment)},
-        ResourceTypeDescriptor{texture2d, 0, 1      , readonly, sample_f32,                          ShaderStageMask(ShaderStageMask_Vertex | ShaderStageMask_Fragment)},
-        ResourceTypeDescriptor{texture_sampler, 0, 2, readonly, format_or_sample_type::we_dont_know, ShaderStageMask(ShaderStageMask_Vertex | ShaderStageMask_Fragment)},
-        ResourceTypeDescriptor{storage_buffer, 64, 3, readonly, format_or_sample_type::we_dont_know, ShaderStageMask(ShaderStageMask_Vertex | ShaderStageMask_Fragment)}
+        ResourceTypeDescriptor{uniform_buffer, 64, 0, readonly, format_or_sample_type::we_dont_know, WGPUShaderStage(ShaderStageMask_Vertex | ShaderStageMask_Fragment)},
+        ResourceTypeDescriptor{texture2d, 0, 1      , readonly, sample_f32,                          WGPUShaderStage(ShaderStageMask_Vertex | ShaderStageMask_Fragment)},
+        ResourceTypeDescriptor{texture_sampler, 0, 2, readonly, format_or_sample_type::we_dont_know, WGPUShaderStage(ShaderStageMask_Vertex | ShaderStageMask_Fragment)},
+        ResourceTypeDescriptor{storage_buffer, 64, 3, readonly, format_or_sample_type::we_dont_know, WGPUShaderStage(ShaderStageMask_Vertex | ShaderStageMask_Fragment)}
     };
 
     AttributeAndResidence attrs[4] = {

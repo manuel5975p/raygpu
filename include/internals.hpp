@@ -386,36 +386,36 @@ extern "C" const char* copyString(const char* str);
 //    std::free(set.attributePool);
 //}
 
-static inline ShaderSources singleStage(const char* code, ShaderSourceType language, ShaderStage stage){
+static inline ShaderSources singleStage(const char* code, ShaderSourceType language, WGPUShaderStageEnum stage){
     ShaderSources sources zeroinit;
     sources.language = language;
     sources.sourceCount = 1;
     sources.sources[0].data = code;
     sources.sources[0].sizeInBytes = std::strlen(code);
-    sources.sources[0].stageMask = ShaderStageMask(1u << uint32_t(+stage));
+    sources.sources[0].stageMask = WGPUShaderStage(1u << uint32_t(+stage));
     return sources;
 }
 
-static inline ShaderSources dualStage(const char* code, ShaderSourceType language, ShaderStage stage1, ShaderStage stage2){
+static inline ShaderSources dualStage(const char* code, ShaderSourceType language, WGPUShaderStageEnum stage1, WGPUShaderStageEnum stage2){
     ShaderSources sources zeroinit;
     sources.language = language;
     sources.sourceCount = 1;
     sources.sources[0].data = code;
     sources.sources[0].sizeInBytes = std::strlen(code);
-    sources.sources[0].stageMask = ShaderStageMask((1u << uint32_t(stage1)) | (1u << uint32_t(stage2)));
+    sources.sources[0].stageMask = WGPUShaderStage((1u << uint32_t(stage1)) | (1u << uint32_t(stage2)));
     return sources;
 }
-static inline ShaderSources dualStage(const char* code1, const char* code2, ShaderSourceType language, ShaderStage stage1, ShaderStage stage2){
+static inline ShaderSources dualStage(const char* code1, const char* code2, ShaderSourceType language, WGPUShaderStageEnum stage1, WGPUShaderStageEnum stage2){
     ShaderSources sources zeroinit;
     sources.language = language;
     sources.sourceCount = 2;
     sources.sources[0].data = code1;
     sources.sources[0].sizeInBytes = std::strlen(code1);
-    sources.sources[0].stageMask = ShaderStageMask(1u << uint32_t(+stage1));
+    sources.sources[0].stageMask = WGPUShaderStage(1u << uint32_t(+stage1));
 
     sources.sources[1].data = code2;
     sources.sources[1].sizeInBytes = std::strlen(code2);
-    sources.sources[1].stageMask = ShaderStageMask(1u << uint32_t(+stage2));
+    sources.sources[1].stageMask = WGPUShaderStage(1u << uint32_t(+stage2));
  
     return sources;
 }

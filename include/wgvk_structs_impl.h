@@ -117,6 +117,7 @@ DEFINE_PTR_HASH_MAP (CONTAINERAPI, BufferUsageRecordMap, BufferUsageRecord)
 //DEFINE_PTR_HASH_MAP (CONTAINERAPI, LayoutAssumptions, ImageLayoutPair)
 DEFINE_PTR_HASH_MAP (CONTAINERAPI, ImageUsageRecordMap, ImageUsageRecord)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupUsageSet, WGPUBindGroup)
+DEFINE_VECTOR(static inline, VkDynamicState, VkDynamicStateVector)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupLayoutUsageSet, WGPUBindGroupLayout)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, SamplerUsageSet, WGPUSampler)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, ImageViewUsageSet, WGPUTextureView)
@@ -518,7 +519,7 @@ typedef struct WGPUShaderModuleImpl{
     
     WGPUChainedStruct* source;
 }WGPUShaderModuleImpl;
-DEFINE_VECTOR(static inline, VkDynamicState, VkDynamicStateVector)
+
 typedef struct WGPURenderPipelineImpl{
     VkPipeline renderPipeline;
     WGPUPipelineLayout layout;

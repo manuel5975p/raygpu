@@ -128,77 +128,10 @@ typedef enum WGPUTextureViewDimension{
     WGPUTextureViewDimension_Force32 = 0x7FFFFFFF
 }WGPUTextureViewDimension;
 
-typedef enum ShaderStage{
-    ShaderStage_Vertex,
-    ShaderStage_TessControl,
-    ShaderStage_TessEvaluation,
-    ShaderStage_Geometry,
-    ShaderStage_Fragment,
-    ShaderStage_Compute,
-    ShaderStage_RayGen,
-    ShaderStage_RayGenNV = ShaderStage_RayGen,
-    ShaderStage_Intersect,
-    ShaderStage_IntersectNV = ShaderStage_Intersect,
-    ShaderStage_AnyHit,
-    ShaderStage_AnyHitNV = ShaderStage_AnyHit,
-    ShaderStage_ClosestHit,
-    ShaderStage_ClosestHitNV = ShaderStage_ClosestHit,
-    ShaderStage_Miss,
-    ShaderStage_MissNV = ShaderStage_Miss,
-    ShaderStage_Callable,
-    ShaderStage_CallableNV = ShaderStage_Callable,
-    ShaderStage_Task,
-    ShaderStage_TaskNV = ShaderStage_Task,
-    ShaderStage_Mesh,
-    ShaderStage_MeshNV = ShaderStage_Mesh,
-    ShaderStage_EnumCount
-}ShaderStage;
-
-typedef enum ShaderStageMask{
-    ShaderStageMask_Vertex = (1u << ShaderStage_Vertex),
-    ShaderStageMask_TessControl = (1u << ShaderStage_TessControl),
-    ShaderStageMask_TessEvaluation = (1u << ShaderStage_TessEvaluation),
-    ShaderStageMask_Geometry = (1u << ShaderStage_Geometry),
-    ShaderStageMask_Fragment = (1u << ShaderStage_Fragment),
-    ShaderStageMask_Compute = (1u << ShaderStage_Compute),
-    ShaderStageMask_RayGen = (1u << ShaderStage_RayGen),
-    ShaderStageMask_RayGenNV = (1u << ShaderStage_RayGenNV),
-    ShaderStageMask_Intersect = (1u << ShaderStage_Intersect),
-    ShaderStageMask_IntersectNV = (1u << ShaderStage_IntersectNV),
-    ShaderStageMask_AnyHit = (1u << ShaderStage_AnyHit),
-    ShaderStageMask_AnyHitNV = (1u << ShaderStage_AnyHitNV),
-    ShaderStageMask_ClosestHit = (1u << ShaderStage_ClosestHit),
-    ShaderStageMask_ClosestHitNV = (1u << ShaderStage_ClosestHitNV),
-    ShaderStageMask_Miss = (1u << ShaderStage_Miss),
-    ShaderStageMask_MissNV = (1u << ShaderStage_MissNV),
-    ShaderStageMask_Callable = (1u << ShaderStage_Callable),
-    ShaderStageMask_CallableNV = (1u << ShaderStage_CallableNV),
-    ShaderStageMask_Task = (1u << ShaderStage_Task),
-    ShaderStageMask_TaskNV = (1u << ShaderStage_TaskNV),
-    ShaderStageMask_Mesh = (1u << ShaderStage_Mesh),
-    ShaderStageMask_MeshNV = (1u << ShaderStage_MeshNV),
-    ShaderStageMask_EnumCount = (1u << ShaderStage_EnumCount)
-}ShaderStageMask;
 
 
-typedef enum PresentMode{ 
-    PresentMode_Undefined = 0x00000000,
-    PresentMode_Fifo = 0x00000001,
-    PresentMode_FifoRelaxed = 0x00000002,
-    PresentMode_Immediate = 0x00000003,
-    PresentMode_Mailbox = 0x00000004,
-}PresentMode;
 
-typedef enum TextureAspect {
-    TextureAspect_Undefined = 0x00000000,
-    TextureAspect_All = 0x00000001,
-    TextureAspect_StencilOnly = 0x00000002,
-    TextureAspect_DepthOnly = 0x00000003,
-    TextureAspect_Plane0Only = 0x00050000,
-    TextureAspect_Plane1Only = 0x00050001,
-    TextureAspect_Plane2Only = 0x00050002,
-    TextureAspect_Force32 = 0x7FFFFFFF
-} TextureAspect;
+
 typedef enum PrimitiveType{
     RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS, RL_LINES, RL_POINTS
 }PrimitiveType;
@@ -867,7 +800,7 @@ static inline VkCompareOp toVulkanCompareFunction(CompareFunction cf) {
     }
 }
 
-static inline VkShaderStageFlagBits toVulkanShaderStage(ShaderStage stage) {
+static inline VkShaderStageFlagBits toVulkanShaderStage(WGPUShaderStageEnum stage) {
     switch (stage){
         case ShaderStage_Vertex:         return VK_SHADER_STAGE_VERTEX_BIT;
         case ShaderStage_TessControl:    return VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
@@ -887,7 +820,7 @@ static inline VkShaderStageFlagBits toVulkanShaderStage(ShaderStage stage) {
     }
 }
 
-static inline VkPipelineStageFlags toVulkanPipelineStage(ShaderStageMask stage) {
+static inline VkPipelineStageFlags toVulkanPipelineStage(WGPUShaderStageEnum stage) {
     VkPipelineStageFlags ret = 0;
     if(stage & ShaderStageMask_Vertex){
         ret |= VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
@@ -934,7 +867,7 @@ static inline VkPipelineStageFlags toVulkanPipelineStage(ShaderStageMask stage) 
     return ret;
 }
 
-static inline VkShaderStageFlagBits toVulkanShaderStageBits(ShaderStageMask stage) {
+static inline VkShaderStageFlagBits toVulkanShaderStageBits(WGPUShaderStageEnum stage) {
     unsigned ret = 0;
     for(unsigned iter = stage;iter;iter &= (iter - 1)){
         ShaderStageMask stage = (ShaderStageMask)(iter & -iter);

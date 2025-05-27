@@ -2,7 +2,6 @@
 
 #ifndef WGPU_H_INCLUDED
 #define WGPU_H_INCLUDED
-#include <enum_translation.h>
 #include <macros_and_constants.h>
 #if SUPPORT_VULKAN_BACKEND == 1
 //#include <external/volk.h>
@@ -117,13 +116,17 @@ X(DestroyAccelerationStructureKHR) \
 X(GetAccelerationStructureDeviceAddressKHR) \
 X(GetRayTracingShaderGroupHandlesKHR) \
 X(CmdTraceRaysKHR)
-#ifdef __cplusplus
-#define X(A) extern "C" PFN_vk##A fulk##A;
-#else
-#define X(A) extern PFN_vk##A fulk##A;
-#endif
-RTFunctions
-#undef X
+
+//#ifdef __cplusplus
+//#define X(A) extern "C" PFN_vk##A fulk##A;
+//#else
+//#define X(A) extern PFN_vk##A fulk##A;
+//#endif
+//RTFunctions
+//#undef X
+
+typedef uint64_t WGPUFlags;
+typedef uint32_t WGPUBool;
 
 struct WGPUTextureImpl;
 struct WGPUTextureViewImpl;
@@ -177,6 +180,58 @@ typedef struct WGPUBottomLevelAccelerationStructureImpl* WGPUBottomLevelAccelera
 typedef struct WGPURaytracingPipelineImpl* WGPURaytracingPipeline;
 typedef struct WGPURaytracingPassEncoderImpl* WGPURaytracingPassEncoder;
 
+typedef enum WGPUShaderStageEnum{
+    ShaderStage_Vertex,
+    ShaderStage_TessControl,
+    ShaderStage_TessEvaluation,
+    ShaderStage_Geometry,
+    ShaderStage_Fragment,
+    ShaderStage_Compute,
+    ShaderStage_RayGen,
+    ShaderStage_RayGenNV = ShaderStage_RayGen,
+    ShaderStage_Intersect,
+    ShaderStage_IntersectNV = ShaderStage_Intersect,
+    ShaderStage_AnyHit,
+    ShaderStage_AnyHitNV = ShaderStage_AnyHit,
+    ShaderStage_ClosestHit,
+    ShaderStage_ClosestHitNV = ShaderStage_ClosestHit,
+    ShaderStage_Miss,
+    ShaderStage_MissNV = ShaderStage_Miss,
+    ShaderStage_Callable,
+    ShaderStage_CallableNV = ShaderStage_Callable,
+    ShaderStage_Task,
+    ShaderStage_TaskNV = ShaderStage_Task,
+    ShaderStage_Mesh,
+    ShaderStage_MeshNV = ShaderStage_Mesh,
+    ShaderStage_EnumCount
+}WGPUShaderStageEnum;
+
+typedef WGPUFlags WGPUShaderStage;
+const static WGPUShaderStage ShaderStageMask_Vertex = (1u << ShaderStage_Vertex);
+const static WGPUShaderStage ShaderStageMask_TessControl = (1u << ShaderStage_TessControl);
+const static WGPUShaderStage ShaderStageMask_TessEvaluation = (1u << ShaderStage_TessEvaluation);
+const static WGPUShaderStage ShaderStageMask_Geometry = (1u << ShaderStage_Geometry);
+const static WGPUShaderStage ShaderStageMask_Fragment = (1u << ShaderStage_Fragment);
+const static WGPUShaderStage ShaderStageMask_Compute = (1u << ShaderStage_Compute);
+const static WGPUShaderStage ShaderStageMask_RayGen = (1u << ShaderStage_RayGen);
+const static WGPUShaderStage ShaderStageMask_RayGenNV = (1u << ShaderStage_RayGenNV);
+const static WGPUShaderStage ShaderStageMask_Intersect = (1u << ShaderStage_Intersect);
+const static WGPUShaderStage ShaderStageMask_IntersectNV = (1u << ShaderStage_IntersectNV);
+const static WGPUShaderStage ShaderStageMask_AnyHit = (1u << ShaderStage_AnyHit);
+const static WGPUShaderStage ShaderStageMask_AnyHitNV = (1u << ShaderStage_AnyHitNV);
+const static WGPUShaderStage ShaderStageMask_ClosestHit = (1u << ShaderStage_ClosestHit);
+const static WGPUShaderStage ShaderStageMask_ClosestHitNV = (1u << ShaderStage_ClosestHitNV);
+const static WGPUShaderStage ShaderStageMask_Miss = (1u << ShaderStage_Miss);
+const static WGPUShaderStage ShaderStageMask_MissNV = (1u << ShaderStage_MissNV);
+const static WGPUShaderStage ShaderStageMask_Callable = (1u << ShaderStage_Callable);
+const static WGPUShaderStage ShaderStageMask_CallableNV = (1u << ShaderStage_CallableNV);
+const static WGPUShaderStage ShaderStageMask_Task = (1u << ShaderStage_Task);
+const static WGPUShaderStage ShaderStageMask_TaskNV = (1u << ShaderStage_TaskNV);
+const static WGPUShaderStage ShaderStageMask_Mesh = (1u << ShaderStage_Mesh);
+const static WGPUShaderStage ShaderStageMask_MeshNV = (1u << ShaderStage_MeshNV);
+const static WGPUShaderStage ShaderStageMask_EnumCount = (1u << ShaderStage_EnumCount);
+
+
 typedef enum WGPUWaitStatus {
     WGPUWaitStatus_Success = 0x00000001,
     WGPUWaitStatus_TimedOut = 0x00000002,
@@ -184,6 +239,24 @@ typedef enum WGPUWaitStatus {
     WGPUWaitStatus_Force32 = 0x7FFFFFFF
 } WGPUWaitStatus;
 
+typedef enum PresentMode{ 
+    PresentMode_Undefined = 0x00000000,
+    PresentMode_Fifo = 0x00000001,
+    PresentMode_FifoRelaxed = 0x00000002,
+    PresentMode_Immediate = 0x00000003,
+    PresentMode_Mailbox = 0x00000004,
+}PresentMode;
+
+typedef enum TextureAspect {
+    TextureAspect_Undefined = 0x00000000,
+    TextureAspect_All = 0x00000001,
+    TextureAspect_StencilOnly = 0x00000002,
+    TextureAspect_DepthOnly = 0x00000003,
+    TextureAspect_Plane0Only = 0x00050000,
+    TextureAspect_Plane1Only = 0x00050001,
+    TextureAspect_Plane2Only = 0x00050002,
+    TextureAspect_Force32 = 0x7FFFFFFF
+} TextureAspect;
 
 
 typedef enum WGPUSType {
@@ -388,7 +461,7 @@ typedef struct WGPUTexelCopyTextureInfo {
     WGPUTexture texture;
     uint32_t mipLevel;
     WGPUOrigin3D origin;
-    VkImageAspectFlagBits aspect;
+    TextureAspect aspect;
 } WGPUTexelCopyTextureInfo;
 
 typedef struct WGPUChainedStruct {
@@ -445,7 +518,7 @@ typedef struct WGPUBindGroupEntry{
     WGPUBuffer buffer;
     uint64_t offset;
     uint64_t size;
-    VkSampler sampler;
+    WGPUSampler sampler;
     WGPUTextureView textureView;
 }WGPUBindGroupEntry;
 
@@ -457,7 +530,7 @@ typedef struct ResourceTypeDescriptor{
     //Applicable for storage buffers and textures
     access_type access;
     format_or_sample_type fstype;
-    ShaderStageMask visibility;
+    WGPUShaderStage visibility;
 }ResourceTypeDescriptor;
 
 typedef struct ResourceDescriptor {
@@ -842,7 +915,7 @@ typedef struct WGPUGlobalReflectionInfo {
     WGPUStringView name;
     uint32_t bindGroup;
     uint32_t binding;
-    ShaderStageMask visibility;
+    WGPUShaderStage visibility;
     WGPUBufferBindingInfo buffer;
     WGPUSamplerBindingInfo sampler;
     WGPUTextureBindingInfo texture;
