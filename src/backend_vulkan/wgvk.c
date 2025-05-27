@@ -72,7 +72,6 @@ void wgpuTraceLog(int logType, const char *text, ...);
 #include "../amalgamation/SPIRV-Reflect/spirv_reflect.c"
 #include <macros_and_constants.h>
 #include <wgvk.h>
-#define VOLK_HEADER_VERSION
 #include <external/VmaUsage.h>
 #include <stdarg.h>
 

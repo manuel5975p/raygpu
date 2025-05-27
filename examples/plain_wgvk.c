@@ -213,5 +213,12 @@ int main(){
     });
     cplDesc.layout = pllayout;
     WGPUComputePipeline cpl = wgpuDeviceCreateComputePipeline(device, &cplDesc);
-    assert(cpl);
+    
+    WGPUBuffer stbuf = wgpuDeviceCreateBuffer(device, &(WGPUBufferDescriptor){
+        .size = 64,
+        .usage = WGPUBufferUsage_Storage | WGPUBufferUsage_MapWrite
+    });
+
+    
+    assert(stbuf);
 }
