@@ -54,24 +54,24 @@
 //#include <tint/lang/glsl/writer/writer.h>
 //#include <tint/lang/wgsl/reader/reader.h>
 
-const std::unordered_map<std::string, VertexFormat> builtins = [](){
-    std::unordered_map<std::string, VertexFormat> map;
-    map["vec2u"] = VertexFormat_Uint32x2;
-    map["vec3u"] = VertexFormat_Uint32x3;
-    map["vec4u"] = VertexFormat_Uint32x4;
-    map["vec2f"] = VertexFormat_Float32x2;
-    map["vec3f"] = VertexFormat_Float32x3;
-    map["vec4f"] = VertexFormat_Float32x4;
+const std::unordered_map<std::string, WGPUVertexFormat> builtins = [](){
+    std::unordered_map<std::string, WGPUVertexFormat> map;
+    map["vec2u"] = WGPUVertexFormat_Uint32x2;
+    map["vec3u"] = WGPUVertexFormat_Uint32x3;
+    map["vec4u"] = WGPUVertexFormat_Uint32x4;
+    map["vec2f"] = WGPUVertexFormat_Float32x2;
+    map["vec3f"] = WGPUVertexFormat_Float32x3;
+    map["vec4f"] = WGPUVertexFormat_Float32x4;
     return map;
 }();
-const std::unordered_map<std::string, std::unordered_map<std::string, VertexFormat>> builtins_templated = [](){
-    std::unordered_map<std::string, std::unordered_map<std::string, VertexFormat>> map;
-    map["vec2"]["f32"] = VertexFormat_Float32x2;
-    map["vec3"]["f32"] = VertexFormat_Float32x3;
-    map["vec4"]["f32"] = VertexFormat_Float32x4;
-    map["vec2"]["u32"] = VertexFormat_Uint32x2;
-    map["vec3"]["u32"] = VertexFormat_Uint32x3;
-    map["vec4"]["u32"] = VertexFormat_Uint32x4;
+const std::unordered_map<std::string, std::unordered_map<std::string, WGPUVertexFormat>> builtins_templated = [](){
+    std::unordered_map<std::string, std::unordered_map<std::string, WGPUVertexFormat>> map;
+    map["vec2"]["f32"] = WGPUVertexFormat_Float32x2;
+    map["vec3"]["f32"] = WGPUVertexFormat_Float32x3;
+    map["vec4"]["f32"] = WGPUVertexFormat_Float32x4;
+    map["vec2"]["u32"] = WGPUVertexFormat_Uint32x2;
+    map["vec3"]["u32"] = WGPUVertexFormat_Uint32x3;
+    map["vec4"]["u32"] = WGPUVertexFormat_Uint32x4;
     return map;
 }();
 #if SUPPORT_WGSL_PARSER == 1
@@ -118,7 +118,7 @@ DescribedShaderModule LoadShaderModuleWGSL(ShaderSources sources) {
     ret.reflectionInfo.colorAttachmentCount = attachments.size();
     return ret;
 }
-format_or_sample_type extractFormat(const tint::ast::Identifier* iden){
+static format_or_sample_type extractFormat(const tint::ast::Identifier* iden){
     if(auto templiden = iden->As<tint::ast::TemplatedIdentifier>()){
         for(size_t i = 0;i < templiden->arguments.Length();i++){
             if(templiden->arguments[i]->As<tint::ast::IdentifierExpression>() && templiden->arguments[i]->As<tint::ast::IdentifierExpression>()->identifier){
@@ -181,15 +181,15 @@ access_type extractAccess(const tint::ast::Identifier* iden){
     TRACELOG(LOG_FATAL, "Shader parse failed");
     return access_type(12123);
 }
-std::vector<std::pair<ShaderStage, std::string>> getEntryPointsWGSL(const char* shaderSourceWGSL){
-    std::vector<std::pair<ShaderStage, std::string>> entryPoints;
+std::vector<std::pair<WGPUShaderStageEnum, std::string>> getEntryPointsWGSL(const char* shaderSourceWGSL){
+    std::vector<std::pair<WGPUShaderStageEnum, std::string>> entryPoints;
     tint::Source::File file("", shaderSourceWGSL);
     tint::Program prog = tint::wgsl::reader::Parse(&file);
     tint::inspector::Inspector inspector(prog);
     std::vector<tint::inspector::EntryPoint> eps = inspector.GetEntryPoints();
 
     for(auto& ep : eps){
-        ShaderStage stage;
+        WGPUShaderStageEnum stage;
         switch(ep.stage){
             case tint::inspector::PipelineStage::kVertex:
             stage = ShaderStage_Vertex;
@@ -256,7 +256,7 @@ InOutAttributeInfo getAttributesWGSL(ShaderSources sources){
     
     std::string_view source_view = std::string_view((const char*)sources.sources[0].data, (const char*)sources.sources[0].data + sources.sources[0].sizeInBytes);
     InOutAttributeInfo retvalue;
-    std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>>& ret = retvalue.vertexAttributes;
+    std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>>& ret = retvalue.vertexAttributes;
     //TODO attachmentss
 #if SUPPORT_WGSL_PARSER == 1
     tint::Source::File f("path", shaderSourceWGSL);
@@ -289,16 +289,16 @@ InOutAttributeInfo getAttributesWGSL(ShaderSources sources){
                 if(insp.GetEntryPoints()[i].input_variables[j].component_type == ti::ComponentType::kF32){
                     switch(insp.GetEntryPoints()[i].input_variables[j].composition_type){
                         case ti::CompositionType::kScalar:{
-                            ret[varname] = {VertexFormat_Float32, location};
+                            ret[varname] = {WGPUVertexFormat_Float32, location};
                         }break;
                         case ti::CompositionType::kVec2:{
-                            ret[varname] = {VertexFormat_Float32x2, location};
+                            ret[varname] = {WGPUVertexFormat_Float32x2, location};
                         }break;
                         case ti::CompositionType::kVec3:{
-                            ret[varname] = {VertexFormat_Float32x3, location};
+                            ret[varname] = {WGPUVertexFormat_Float32x3, location};
                         }break;
                         case ti::CompositionType::kVec4:{
-                            ret[varname] = {VertexFormat_Float32x4, location};
+                            ret[varname] = {WGPUVertexFormat_Float32x4, location};
                         }break;
                         case ti::CompositionType::kUnknown:{
                             TRACELOG(LOG_ERROR, "Unknown composition type");
@@ -307,16 +307,16 @@ InOutAttributeInfo getAttributesWGSL(ShaderSources sources){
                 }else if(insp.GetEntryPoints()[i].input_variables[j].component_type == ti::ComponentType::kU32){
                     switch(insp.GetEntryPoints()[i].input_variables[j].composition_type){
                         case ti::CompositionType::kScalar:{
-                            ret[varname] = {VertexFormat_Uint32, location};
+                            ret[varname] = {WGPUVertexFormat_Uint32, location};
                         }break;
                         case ti::CompositionType::kVec2:{
-                            ret[varname] = {VertexFormat_Uint32x2, location};
+                            ret[varname] = {WGPUVertexFormat_Uint32x2, location};
                         }break;
                         case ti::CompositionType::kVec3:{
-                            ret[varname] = {VertexFormat_Uint32x3, location};
+                            ret[varname] = {WGPUVertexFormat_Uint32x3, location};
                         }break;
                         case ti::CompositionType::kVec4:{
-                            ret[varname] = {VertexFormat_Uint32x4, location};
+                            ret[varname] = {WGPUVertexFormat_Uint32x4, location};
                         }break;
                         case ti::CompositionType::kUnknown:{
                             TRACELOG(LOG_ERROR, "Unknown composition type");
@@ -326,16 +326,16 @@ InOutAttributeInfo getAttributesWGSL(ShaderSources sources){
                 else if(insp.GetEntryPoints()[i].input_variables[j].component_type == ti::ComponentType::kI32){
                     switch(insp.GetEntryPoints()[i].input_variables[j].composition_type){
                         case ti::CompositionType::kScalar:{
-                            ret[varname] = {VertexFormat_Sint32, location};
+                            ret[varname] = {WGPUVertexFormat_Sint32, location};
                         }break;
                         case ti::CompositionType::kVec2:{
-                            ret[varname] = {VertexFormat_Sint32x2, location};
+                            ret[varname] = {WGPUVertexFormat_Sint32x2, location};
                         }break;
                         case ti::CompositionType::kVec3:{
-                            ret[varname] = {VertexFormat_Sint32x3, location};
+                            ret[varname] = {WGPUVertexFormat_Sint32x3, location};
                         }break;
                         case ti::CompositionType::kVec4:{
-                            ret[varname] = {VertexFormat_Sint32x4, location};
+                            ret[varname] = {WGPUVertexFormat_Sint32x4, location};
                         }break;
                         case ti::CompositionType::kUnknown:{
                             TRACELOG(LOG_ERROR, "Unknown composition type");
@@ -344,16 +344,16 @@ InOutAttributeInfo getAttributesWGSL(ShaderSources sources){
                 }else if(insp.GetEntryPoints()[i].input_variables[j].component_type == ti::ComponentType::kF16){
                     switch(insp.GetEntryPoints()[i].input_variables[j].composition_type){
                         case ti::CompositionType::kScalar:{
-                            ret[varname] = {VertexFormat_Float16, location};
+                            ret[varname] = {WGPUVertexFormat_Float16, location};
                         }break;
                         case ti::CompositionType::kVec2:{
-                            ret[varname] = {VertexFormat_Float16x2, location};
+                            ret[varname] = {WGPUVertexFormat_Float16x2, location};
                         }break;
                         case ti::CompositionType::kVec3:{
                             TRACELOG(LOG_ERROR, "That should not be possible: vec3<f16>");
                         }break;
                         case ti::CompositionType::kVec4:{
-                            ret[varname] = {VertexFormat_Float16x4, location};
+                            ret[varname] = {WGPUVertexFormat_Float16x4, location};
                         }break;
                         case ti::CompositionType::kUnknown:{
                             TRACELOG(LOG_ERROR, "Unknown composition type");

@@ -244,7 +244,7 @@ RGAPICXX VertexArray* LoadVertexArray(){
     new (ret) VertexArray;
     return ret;
 }
-RGAPICXX void VertexAttribPointer(VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, VertexFormat format, uint32_t offset, VertexStepMode stepmode){
+RGAPICXX void VertexAttribPointer(VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, WGPUVertexFormat format, uint32_t offset, WGPUVertexStepMode stepmode){
     array->add(buffer, attribLocation, format, offset, stepmode);
 }
 RGAPICXX void BindVertexArray(VertexArray* va){
@@ -557,17 +557,17 @@ RGAPICXX void BeginBlendMode(rlBlendMode blendMode) {
     auto& blendState = g_renderstate.currentSettings.blendState;
     
     // Default common operation
-    blendState.color.operation = (BlendOperation_Add);
-    blendState.alpha.operation = (BlendOperation_Add);
+    blendState.color.operation = (WGPUBlendOperation_Add);
+    blendState.alpha.operation = (WGPUBlendOperation_Add);
 
     switch (blendMode) {
         case BLEND_ALPHA:
             // Alpha blend: SrcColor * SrcAlpha + DstColor * (1 - SrcAlpha)
             // Alpha blend: SrcAlpha * 1 + DstAlpha * (1 - SrcAlpha)
-            blendState.color.srcFactor = (BlendFactor_SrcAlpha);
-            blendState.color.dstFactor = (BlendFactor_OneMinusSrcAlpha);
-            blendState.alpha.srcFactor = (BlendFactor_One); // Often One or SrcAlpha
-            blendState.alpha.dstFactor = (BlendFactor_OneMinusSrcAlpha);
+            blendState.color.srcFactor = (WGPUBlendFactor_SrcAlpha);
+            blendState.color.dstFactor = (WGPUBlendFactor_OneMinusSrcAlpha);
+            blendState.alpha.srcFactor = (WGPUBlendFactor_One); // Often One or SrcAlpha
+            blendState.alpha.dstFactor = (WGPUBlendFactor_OneMinusSrcAlpha);
             // Operation is already BlendOperation_Add
             break;
 
@@ -577,10 +577,10 @@ RGAPICXX void BeginBlendMode(rlBlendMode blendMode) {
             // This matches glBlendFunc(GL_SRC_ALPHA, GL_ONE) and glBlendEquation(GL_FUNC_ADD)
             // Often, additive alpha is just (One, One) or preserves dest alpha (Zero, One)
             // Let's assume (SrcAlpha, One) for color and (One, One) for alpha for brightness.
-            blendState.color.srcFactor = (BlendFactor_SrcAlpha);
-            blendState.color.dstFactor = (BlendFactor_One);
-            blendState.alpha.srcFactor = (BlendFactor_One); // Could be SrcAlpha or Zero depending on desired alpha result
-            blendState.alpha.dstFactor = (BlendFactor_One); // Could be One or Zero
+            blendState.color.srcFactor = (WGPUBlendFactor_SrcAlpha);
+            blendState.color.dstFactor = (WGPUBlendFactor_One);
+            blendState.alpha.srcFactor = (WGPUBlendFactor_One); // Could be SrcAlpha or Zero depending on desired alpha result
+            blendState.alpha.dstFactor = (WGPUBlendFactor_One); // Could be One or Zero
             // Operation is already BlendOperation_Add
             break;
 
@@ -590,10 +590,10 @@ RGAPICXX void BeginBlendMode(rlBlendMode blendMode) {
             // Matches glBlendFuncSeparate(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE) commonly used for multiply
             // The original code used glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA) which would affect alpha too.
             // Let's implement the common separate logic for better results.
-            blendState.color.srcFactor = (BlendFactor_Dst);
-            blendState.color.dstFactor = (BlendFactor_OneMinusSrcAlpha);
-            blendState.alpha.srcFactor = (BlendFactor_Zero); // Keeps destination alpha
-            blendState.alpha.dstFactor = (BlendFactor_One);
+            blendState.color.srcFactor = (WGPUBlendFactor_Dst);
+            blendState.color.dstFactor = (WGPUBlendFactor_OneMinusSrcAlpha);
+            blendState.alpha.srcFactor = (WGPUBlendFactor_Zero); // Keeps destination alpha
+            blendState.alpha.dstFactor = (WGPUBlendFactor_One);
             // Operation is already BlendOperation_Add
             break;
 
@@ -601,10 +601,10 @@ RGAPICXX void BeginBlendMode(rlBlendMode blendMode) {
             // Add colors blend: SrcColor * 1 + DstColor * 1
             // Alpha blend: SrcAlpha * 1 + DstAlpha * 1
             // Matches glBlendFunc(GL_ONE, GL_ONE) and glBlendEquation(GL_FUNC_ADD)
-            blendState.color.srcFactor = (BlendFactor_One);
-            blendState.color.dstFactor = (BlendFactor_One);
-            blendState.alpha.srcFactor = (BlendFactor_One);
-            blendState.alpha.dstFactor = (BlendFactor_One);
+            blendState.color.srcFactor = (WGPUBlendFactor_One);
+            blendState.color.dstFactor = (WGPUBlendFactor_One);
+            blendState.alpha.srcFactor = (WGPUBlendFactor_One);
+            blendState.alpha.dstFactor = (WGPUBlendFactor_One);
             // Operation is already BlendOperation_Add
             break;
 
@@ -615,22 +615,22 @@ RGAPICXX void BeginBlendMode(rlBlendMode blendMode) {
             // Alpha blend: DstAlpha * 1 - SrcAlpha * 1 (or Add alpha?)
             // Matches glBlendFunc(GL_ONE, GL_ONE) and glBlendEquation(GL_FUNC_SUBTRACT)
             // Applying SUBTRACT operation to both color and alpha based on glBlendEquation.
-            blendState.color.srcFactor = (BlendFactor_One);
-            blendState.color.dstFactor = (BlendFactor_One);
-            blendState.color.operation = (BlendOperation_Subtract); // Or ReverseSubtract depending on desired outcome
-            blendState.alpha.srcFactor = (BlendFactor_One);
-            blendState.alpha.dstFactor = (BlendFactor_One);
-            blendState.alpha.operation = (BlendOperation_Subtract); // Apply to alpha too, mimicking glBlendEquation
+            blendState.color.srcFactor = (WGPUBlendFactor_One);
+            blendState.color.dstFactor = (WGPUBlendFactor_One);
+            blendState.color.operation = (WGPUBlendOperation_Subtract); // Or ReverseSubtract depending on desired outcome
+            blendState.alpha.srcFactor = (WGPUBlendFactor_One);
+            blendState.alpha.dstFactor = (WGPUBlendFactor_One);
+            blendState.alpha.operation = (WGPUBlendOperation_Subtract); // Apply to alpha too, mimicking glBlendEquation
             break;
 
         case BLEND_ALPHA_PREMULTIPLY:
             // Premultiplied alpha blend: SrcColor * 1 + DstColor * (1 - SrcAlpha)
             // Alpha blend: SrcAlpha * 1 + DstAlpha * (1 - SrcAlpha)
             // Matches glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA) and glBlendEquation(GL_FUNC_ADD)
-            blendState.color.srcFactor = (BlendFactor_One);
-            blendState.color.dstFactor = (BlendFactor_OneMinusSrcAlpha);
-            blendState.alpha.srcFactor = (BlendFactor_One);
-            blendState.alpha.dstFactor = (BlendFactor_OneMinusSrcAlpha);
+            blendState.color.srcFactor = (WGPUBlendFactor_One);
+            blendState.color.dstFactor = (WGPUBlendFactor_OneMinusSrcAlpha);
+            blendState.alpha.srcFactor = (WGPUBlendFactor_One);
+            blendState.alpha.dstFactor = (WGPUBlendFactor_OneMinusSrcAlpha);
             // Operation is already BlendOperation_Add
             break;
 
@@ -1291,7 +1291,7 @@ Shader LoadShaderFromMemory(const char *vsCode, const char *fsCode){
     return shader;
 }
 extern "C" Texture3D LoadTexture3DEx(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format){
-    return LoadTexture3DPro(width, height, depth, format, TextureUsage_CopyDst | TextureUsage_TextureBinding | TextureUsage_StorageBinding, 1);
+    return LoadTexture3DPro(width, height, depth, format, WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_StorageBinding, 1);
 }
 
 
@@ -1351,7 +1351,7 @@ DescribedBindGroupLayout LoadBindGroupLayoutMod(const DescribedShaderModule* sha
 }
 
 extern "C" Texture LoadTextureEx(uint32_t width, uint32_t height, PixelFormat format, bool to_be_used_as_rendertarget){
-    return LoadTexturePro(width, height, format, (TextureUsage_RenderAttachment * to_be_used_as_rendertarget) | TextureUsage_TextureBinding | TextureUsage_CopyDst | TextureUsage_CopySrc, 1, 1);
+    return LoadTexturePro(width, height, format, (WGPUTextureUsage_RenderAttachment * to_be_used_as_rendertarget) | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 1, 1);
 }
 
 Texture LoadTexture(const char* filename){
@@ -1371,15 +1371,15 @@ RenderTexture LoadRenderTextureEx(uint32_t width, uint32_t height, PixelFormat c
     RenderTexture ret{
         .texture = LoadTextureEx(width, height, colorFormat, true),
         .colorMultisample = Texture{}, 
-        .depth = LoadTexturePro(width, height, Depth32, TextureUsage_RenderAttachment | TextureUsage_CopySrc, sampleCount, 1)
+        .depth = LoadTexturePro(width, height, Depth32, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, sampleCount, 1)
     };
     if(sampleCount > 1){
-        ret.colorMultisample = LoadTexturePro(width, height, colorFormat, TextureUsage_RenderAttachment | TextureUsage_CopySrc, sampleCount, 1);
+        ret.colorMultisample = LoadTexturePro(width, height, colorFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, sampleCount, 1);
     }
     if(attachmentCount > 1){
         rassert(sampleCount == 1, "Multisampled and multi-Attachment tendertextures not supported yet");
         for(uint32_t i = 0;i < attachmentCount - 1;i++){
-            ret.moreColorAttachments[i] = LoadTexturePro(width, height, colorFormat, TextureUsage_TextureBinding | TextureUsage_RenderAttachment | TextureUsage_CopySrc, sampleCount, 1);
+            ret.moreColorAttachments[i] = LoadTexturePro(width, height, colorFormat, WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, sampleCount, 1);
         }
     }
     ret.colorAttachmentCount = attachmentCount;
@@ -2007,16 +2007,16 @@ int GetRandomValue(int min, int max){
 }
 
 extern "C" DescribedBuffer* GenVertexBuffer(const void* data, size_t size){
-    return GenBufferEx(data, size, BufferUsage_CopyDst | BufferUsage_Vertex);
+    return GenBufferEx(data, size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex);
 }
 DescribedBuffer* GenIndexBuffer(const void* data, size_t size){
-    return GenBufferEx(data, size, BufferUsage_CopyDst | BufferUsage_Index);
+    return GenBufferEx(data, size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index);
 }
 DescribedBuffer* GenUniformBuffer(const void* data, size_t size){
-    return GenBufferEx(data, size, BufferUsage_CopySrc | BufferUsage_CopyDst | BufferUsage_Uniform);
+    return GenBufferEx(data, size, WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
 }
 DescribedBuffer* GenStorageBuffer(const void* data, size_t size){
-    return GenBufferEx(data, size, BufferUsage_CopySrc | BufferUsage_CopyDst | BufferUsage_Storage);
+    return GenBufferEx(data, size, WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage);
 }
 
 
@@ -2069,15 +2069,15 @@ RenderSettings GetDefaultSettings(){
     ret.faceCull = 1;
     ret.frontFace = FrontFace_CCW;
     ret.depthTest = 1;
-    ret.depthCompare = CompareFunction_LessEqual;
+    ret.depthCompare = WGPUCompareFunction_LessEqual;
     ret.sampleCount = (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
 
-    ret.blendState.alpha.srcFactor = (BlendFactor_One);
-    ret.blendState.alpha.dstFactor = (BlendFactor_OneMinusSrcAlpha);
-    ret.blendState.alpha.operation = (BlendOperation_Add);
-    ret.blendState.color.srcFactor = (BlendFactor_SrcAlpha);
-    ret.blendState.color.dstFactor = (BlendFactor_OneMinusSrcAlpha);
-    ret.blendState.color.operation = (BlendOperation_Add);
+    ret.blendState.alpha.srcFactor = (WGPUBlendFactor_One);
+    ret.blendState.alpha.dstFactor = (WGPUBlendFactor_OneMinusSrcAlpha);
+    ret.blendState.alpha.operation = (WGPUBlendOperation_Add);
+    ret.blendState.color.srcFactor = (WGPUBlendFactor_SrcAlpha);
+    ret.blendState.color.dstFactor = (WGPUBlendFactor_OneMinusSrcAlpha);
+    ret.blendState.color.operation = (WGPUBlendOperation_Add);
     
     return ret;
 }

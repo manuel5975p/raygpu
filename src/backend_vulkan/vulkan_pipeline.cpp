@@ -133,7 +133,7 @@ extern "C" WGPURenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     depthStencil.depthTestEnable = settings.settings.depthTest ? VK_TRUE : VK_FALSE;
     depthStencil.depthWriteEnable = settings.settings.depthTest ? VK_TRUE : VK_FALSE;
-    depthStencil.depthCompareOp = toVulkanCompareFunction((CompareFunction)settings.settings.depthCompare);
+    depthStencil.depthCompareOp = toVulkanCompareFunction((WGPUCompareFunction)settings.settings.depthCompare);
     depthStencil.depthBoundsTestEnable = VK_FALSE;
     depthStencil.minDepthBounds = 0.0f; // Optional
     depthStencil.maxDepthBounds = 1.0f; // Optional
@@ -169,12 +169,12 @@ extern "C" WGPURenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
         
         // Enable blending based on whether blend operations are set
         bool blendingEnabled = 
-            settings.settings.blendState.alpha.operation != BlendOperation_Add || 
-            settings.settings.blendState.alpha.srcFactor != BlendFactor_One ||
-            settings.settings.blendState.alpha.dstFactor != BlendFactor_Zero ||
-            settings.settings.blendState.alpha.operation != BlendOperation_Add ||
-            settings.settings.blendState.alpha.srcFactor != BlendFactor_One ||
-            settings.settings.blendState.alpha.dstFactor != BlendFactor_Zero;
+            settings.settings.blendState.alpha.operation != WGPUBlendOperation_Add || 
+            settings.settings.blendState.alpha.srcFactor != WGPUBlendFactor_One ||
+            settings.settings.blendState.alpha.dstFactor != WGPUBlendFactor_Zero ||
+            settings.settings.blendState.alpha.operation != WGPUBlendOperation_Add ||
+            settings.settings.blendState.alpha.srcFactor != WGPUBlendFactor_One ||
+            settings.settings.blendState.alpha.dstFactor != WGPUBlendFactor_Zero;
 
         colorBlendAttachment.blendEnable = blendingEnabled ? VK_TRUE : VK_FALSE;
 

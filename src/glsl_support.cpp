@@ -264,25 +264,25 @@ EShLanguage ShaderStageToGlslanguage(WGPUShaderStageEnum stage){
         default: rg_unreachable();     
     }
 }
-VertexFormat fromGLVertexFormat(uint32_t glType){
+WGPUVertexFormat fromGLVertexFormat(uint32_t glType){
     switch(glType){
         default: 
             rassert(false, "unsupported gl vertex format");
-            return VertexFormat(~0);
-        case GL_INT:      return VertexFormat_Sint32;
-        case GL_INT_VEC2: return VertexFormat_Sint32x2;
-        case GL_INT_VEC3: return VertexFormat_Sint32x3;
-        case GL_INT_VEC4: return VertexFormat_Sint32x4;
+            return WGPUVertexFormat(~0);
+        case GL_INT:      return WGPUVertexFormat_Sint32;
+        case GL_INT_VEC2: return WGPUVertexFormat_Sint32x2;
+        case GL_INT_VEC3: return WGPUVertexFormat_Sint32x3;
+        case GL_INT_VEC4: return WGPUVertexFormat_Sint32x4;
 
-        case GL_UNSIGNED_INT:      return VertexFormat_Uint32;
-        case GL_UNSIGNED_INT_VEC2: return VertexFormat_Uint32x2;
-        case GL_UNSIGNED_INT_VEC3: return VertexFormat_Uint32x3;
-        case GL_UNSIGNED_INT_VEC4: return VertexFormat_Uint32x4;
+        case GL_UNSIGNED_INT:      return WGPUVertexFormat_Uint32;
+        case GL_UNSIGNED_INT_VEC2: return WGPUVertexFormat_Uint32x2;
+        case GL_UNSIGNED_INT_VEC3: return WGPUVertexFormat_Uint32x3;
+        case GL_UNSIGNED_INT_VEC4: return WGPUVertexFormat_Uint32x4;
 
-        case GL_FLOAT:      return VertexFormat_Float32;
-        case GL_FLOAT_VEC2: return VertexFormat_Float32x2;
-        case GL_FLOAT_VEC3: return VertexFormat_Float32x3;
-        case GL_FLOAT_VEC4: return VertexFormat_Float32x4;
+        case GL_FLOAT:      return WGPUVertexFormat_Float32;
+        case GL_FLOAT_VEC2: return WGPUVertexFormat_Float32x2;
+        case GL_FLOAT_VEC3: return WGPUVertexFormat_Float32x3;
+        case GL_FLOAT_VEC4: return WGPUVertexFormat_Float32x4;
     }
     rg_unreachable();
 };
@@ -336,7 +336,7 @@ InOutAttributeInfo getAttributesGLSL(ShaderSources sources){
         //TRACELOG(LOG_INFO, "Program linked successfully");
     }
     program.buildReflection();
-    std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>>& retInputs = ret.vertexAttributes;
+    std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>>& retInputs = ret.vertexAttributes;
     uint32_t attributeCount = program.getNumLiveAttributes();
 
     int pouts = program.getNumPipeOutputs();
@@ -368,7 +368,7 @@ InOutAttributeInfo getAttributesGLSL(ShaderSources sources){
         {
             uint32_t location = program.getAttributeTType(i)->getQualifier().layoutLocation;
             
-            VertexFormat type = fromGLVertexFormat(glattrib);
+            WGPUVertexFormat type = fromGLVertexFormat(glattrib);
             if(!attribname.starts_with("gl_")){
                 retInputs[attribname] = {type, location};
             }
@@ -642,12 +642,12 @@ DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
         return a.location < b.location;
     });
 
-    std::vector<std::pair<VertexFormat, unsigned int>> flatAttributes;
+    std::vector<std::pair<WGPUVertexFormat, unsigned int>> flatAttributes;
     flatAttributes.reserve(shaderModule.reflectionInfo.attributes->attributes.size());
     for(const auto& [x, y] : shaderModule.reflectionInfo.attributes->attributes){
         flatAttributes.push_back(y);
     }
-    std::sort(flatAttributes.begin(), flatAttributes.end(), [](const std::pair<VertexFormat, unsigned int>& a, const std::pair<VertexFormat, unsigned int>& b){
+    std::sort(flatAttributes.begin(), flatAttributes.end(), [](const std::pair<WGPUVertexFormat, unsigned int>& a, const std::pair<WGPUVertexFormat, unsigned int>& b){
         return a.second < b.second;
     });
     std::vector<AttributeAndResidence> allAttribsInOneBuffer;

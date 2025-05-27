@@ -2,10 +2,12 @@
 #define RAYGPU_H
 #include <config.h>
 #if SUPPORT_WGPU_BACKEND == 1
-#include <webgpu/webgpu.h>
-#ifdef __cplusplus
-#include <webgpu/webgpu_cpp.h>
-#endif
+    #include <webgpu/webgpu.h>
+    #ifdef __cplusplus
+        #include <webgpu/webgpu_cpp.h>
+    #endif
+#else
+    #include <wgvk.h>
 #endif
 #include <stdbool.h>
 #include <stdio.h>
@@ -144,7 +146,7 @@ typedef struct DescribedComputePass{
 
 
 typedef struct DescribedBuffer{
-    BufferUsage usage;
+    WGPUBufferUsage usage;
     uint64_t size;
     NativeBufferHandle buffer;
 }DescribedBuffer;
@@ -160,7 +162,7 @@ typedef struct DescribedSampler{
     
     float lodMinClamp;
     float lodMaxClamp;
-    CompareFunction compare;
+    WGPUCompareFunction compare;
     float maxAnisotropy;
 }DescribedSampler;
 
@@ -215,9 +217,9 @@ typedef struct Mesh {
     // WebGPU identifiers
     VertexArray* vao;
     DescribedBuffer** vbos;
-    DescribedBuffer* ibo;              //Index buffer object, optional
-    DescribedBuffer* boneMatrixBuffer; //Storage buffer
-    VertexFormat boneIDFormat;    //Either WGPUVertexFormat_Uint8 or Uint16;
+    DescribedBuffer* ibo;               //Index buffer object, optional
+    DescribedBuffer* boneMatrixBuffer;  //Storage buffer
+    WGPUVertexFormat boneIDFormat;      //Either WGPUVertexFormat_Uint8 or Uint16;
 } Mesh;
 
 typedef struct BoneInfo {
@@ -1118,25 +1120,25 @@ EXTERN_C_BEGIN
     RGAPI Texture LoadTexture(const char* filename);
     RGAPI Texture LoadDepthTexture(uint32_t width, uint32_t height);
     RGAPI Texture LoadTextureEx(uint32_t width, uint32_t height,  PixelFormat format, bool to_be_used_as_rendertarget);
-    RGAPI Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat format, TextureUsage usage, uint32_t sampleCount, uint32_t mipmaps);
+    RGAPI Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat format, WGPUTextureUsage usage, uint32_t sampleCount, uint32_t mipmaps);
     RGAPI void GenTextureMipmaps(Texture2D* tex);
     RGAPI Texture3D LoadTexture3DEx(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format);
-    RGAPI Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format, TextureUsage usage, uint32_t sampleCount);
+    RGAPI Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format, WGPUTextureUsage usage, uint32_t sampleCount);
     
     RGAPI RenderTexture LoadRenderTexture(uint32_t width, uint32_t height);
     RGAPI void UpdateTexture(Texture tex, void* data);
 
-    RGAPI StagingBuffer GenStagingBuffer(size_t size, BufferUsage usage);
+    RGAPI StagingBuffer GenStagingBuffer(size_t size, WGPUBufferUsage usage);
     RGAPI void UpdateStagingBuffer(StagingBuffer* buffer);
     RGAPI void RecreateStagingBuffer(StagingBuffer* buffer);
-    RGAPI void MapStagingBuffer(size_t size, BufferUsage usage);
+    RGAPI void MapStagingBuffer(size_t size, WGPUBufferUsage usage);
     RGAPI void UnloadStagingBuffer(StagingBuffer* buf);
     
     RGAPI DescribedBuffer* GenUniformBuffer(const void* data, size_t size);
     RGAPI DescribedBuffer* GenStorageBuffer(const void* data, size_t size);
     RGAPI DescribedBuffer* GenIndexBuffer(const void* data, size_t size);
     RGAPI DescribedBuffer* GenVertexBuffer(const void* data, size_t size);
-    RGAPI DescribedBuffer* GenBufferEx(const void* data, size_t size, BufferUsage usage);
+    RGAPI DescribedBuffer* GenBufferEx(const void* data, size_t size, WGPUBufferUsage usage);
     RGAPI void UnloadBuffer(DescribedBuffer* buffer);
     RGAPI void BufferData(DescribedBuffer* buffer, const void* data, size_t size);
     RGAPI void ResizeBuffer(DescribedBuffer* buffer, size_t newSize);
@@ -1200,7 +1202,7 @@ EXTERN_C_BEGIN
         aim to replicate the behaviour of OpenGL as closely as possible.
      */
     RGAPI VertexArray* LoadVertexArray (cwoid);
-    RGAPI void VertexAttribPointer     (VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, VertexFormat format, uint32_t offset, VertexStepMode stepmode);
+    RGAPI void VertexAttribPointer     (VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, WGPUVertexFormat format, uint32_t offset, WGPUVertexStepMode stepmode);
     RGAPI void EnableVertexAttribArray (VertexArray* array, uint32_t attribLocation);
     RGAPI void DisableVertexAttribArray(VertexArray* array, uint32_t attribLocation);
 
@@ -1315,37 +1317,37 @@ EXTERN_C_BEGIN
     RGAPI WGPUQueue   GetQueue   (cwoid);
     RGAPI void*       GetSurface (cwoid);
     
-    static inline uint32_t attributeSize(const VertexFormat fmt){
+    static inline uint32_t attributeSize(const WGPUVertexFormat fmt){
         switch(fmt){
-            case VertexFormat_Uint8x4:
-            case VertexFormat_Unorm8x4:
-            case VertexFormat_Float32:
-            case VertexFormat_Uint32:
-            case VertexFormat_Sint32:
-            case VertexFormat_Float16x2:
-            case VertexFormat_Uint16x2:
-            case VertexFormat_Sint16x2:
+            case WGPUVertexFormat_Uint8x4:
+            case WGPUVertexFormat_Unorm8x4:
+            case WGPUVertexFormat_Float32:
+            case WGPUVertexFormat_Uint32:
+            case WGPUVertexFormat_Sint32:
+            case WGPUVertexFormat_Float16x2:
+            case WGPUVertexFormat_Uint16x2:
+            case WGPUVertexFormat_Sint16x2:
             return 4;
-            case VertexFormat_Float32x2:
-            case VertexFormat_Uint32x2:
-            case VertexFormat_Sint32x2:
-            case VertexFormat_Float16x4:
-            case VertexFormat_Uint16x4:
-            case VertexFormat_Sint16x4:
+            case WGPUVertexFormat_Float32x2:
+            case WGPUVertexFormat_Uint32x2:
+            case WGPUVertexFormat_Sint32x2:
+            case WGPUVertexFormat_Float16x4:
+            case WGPUVertexFormat_Uint16x4:
+            case WGPUVertexFormat_Sint16x4:
             return 8;
-            case VertexFormat_Float32x3:
-            case VertexFormat_Uint32x3:
-            case VertexFormat_Sint32x3:
+            case WGPUVertexFormat_Float32x3:
+            case WGPUVertexFormat_Uint32x3:
+            case WGPUVertexFormat_Sint32x3:
             return 12;
-            case VertexFormat_Float32x4:
-            case VertexFormat_Uint32x4:
-            case VertexFormat_Sint32x4:
+            case WGPUVertexFormat_Float32x4:
+            case WGPUVertexFormat_Uint32x4:
+            case WGPUVertexFormat_Sint32x4:
             return 16;
-            case VertexFormat_Float16:
-            case VertexFormat_Uint16:
-            case VertexFormat_Sint16:
+            case WGPUVertexFormat_Float16:
+            case WGPUVertexFormat_Uint16:
+            case WGPUVertexFormat_Sint16:
             return 2;
-            case VertexFormat_Uint8:
+            case WGPUVertexFormat_Uint8:
             return 1;
             default:
             break;

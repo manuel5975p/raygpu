@@ -815,9 +815,9 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
     vkEnumerateDeviceExtensionProperties(adapter->physicalDevice, NULL, &deviceExtensionCount, deprops);
     
     const char* deviceExtensionsToLookFor[] = {
-        #ifndef FORCE_HEADLESS
+        //#ifndef FORCE_HEADLESS
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-        #endif
+        //#endif
         #if VULKAN_ENABLE_RAYTRACING == 1
         VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,      // "VK_KHR_acceleration_structure"
         VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,        // "VK_KHR_ray_tracing_pipeline"
@@ -898,6 +898,7 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
     } else {
         //TRACELOG(LOG_INFO, "Successfully created logical device");
         volkLoadDeviceTable(&retDevice->functions, retDevice->device);
+        retDevice->functions.vkQueuePresentKHR = (PFN_vkQueuePresentKHR)vkGetDeviceProcAddr(retDevice->device, "vkQueuePresentKHR");
     }
     retDevice->uncapturedErrorCallbackInfo = descriptor->uncapturedErrorCallbackInfo;
 
@@ -905,9 +906,9 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
     
     QueueIndices indices = adapter->queueIndices;
     retDevice->functions.vkGetDeviceQueue(retDevice->device, indices.graphicsIndex, 0, &retQueue->graphicsQueue);
-    #ifndef FORCE_HEADLESS
+    //#ifndef FORCE_HEADLESS
     retDevice->functions.vkGetDeviceQueue(retDevice->device, indices.presentIndex, 0, &retQueue->presentQueue);
-    #endif
+    //#endif
     if (indices.computeIndex != indices.graphicsIndex && indices.computeIndex != indices.presentIndex) {
         retDevice->functions.vkGetDeviceQueue(retDevice->device, indices.computeIndex, 0, &retQueue->computeQueue);
     } else {
@@ -1061,7 +1062,7 @@ WGPUBuffer wgpuDeviceCreateBuffer(WGPUDevice device, const WGPUBufferDescriptor*
     bufferDesc.usage = toVulkanBufferUsage(desc->usage);
     
     VkMemoryPropertyFlags propertyToFind = 0;
-    if(desc->usage & (BufferUsage_MapRead | BufferUsage_MapWrite)){
+    if(desc->usage & (WGPUBufferUsage_MapRead | WGPUBufferUsage_MapWrite)){
         propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
     }
     else{
@@ -1087,7 +1088,7 @@ WGPUBuffer wgpuDeviceCreateBuffer(WGPUDevice device, const WGPUBufferDescriptor*
     
     wgpuBuffer->memoryProperties = propertyToFind;
 
-    if(desc->usage & BufferUsage_ShaderDeviceAddress){
+    if(desc->usage & WGPUBufferUsage_ShaderDeviceAddress){
         VkBufferDeviceAddressInfo bdai zeroinit;
         bdai.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR;
         bdai.buffer = wgpuBuffer->buffer;
@@ -1129,7 +1130,7 @@ void wgpuQueueWriteBuffer(WGPUQueue cSelf, WGPUBuffer buffer, uint64_t bufferOff
     else{
         WGPUBufferDescriptor stDesc zeroinit;
         stDesc.size = size;
-        stDesc.usage = BufferUsage_MapWrite;
+        stDesc.usage = WGPUBufferUsage_MapWrite;
         WGPUBuffer stagingBuffer = wgpuDeviceCreateBuffer(cSelf->device, &stDesc);
         wgpuQueueWriteBuffer(cSelf, stagingBuffer, 0, data, size);
         wgpuCommandEncoderCopyBufferToBuffer(cSelf->presubmitCache, stagingBuffer, 0, buffer, bufferOffset, size);
@@ -1141,7 +1142,7 @@ void wgpuQueueWriteTexture(WGPUQueue cSelf, const WGPUTexelCopyTextureInfo* dest
 
     WGPUBufferDescriptor bdesc zeroinit;
     bdesc.size = dataSize;
-    bdesc.usage = BufferUsage_CopySrc | BufferUsage_MapWrite;
+    bdesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_MapWrite;
     WGPUBuffer stagingBuffer = wgpuDeviceCreateBuffer(cSelf->device, &bdesc);
     void* mappedMemory = NULL;
     wgpuBufferMap(stagingBuffer, MapMode_Write, 0, dataSize, &mappedMemory);
@@ -1178,7 +1179,7 @@ WGPUTexture wgpuDeviceCreateTexture(WGPUDevice device, const WGPUTextureDescript
     imageInfo.format = toVulkanPixelFormat(descriptor->format);
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    imageInfo.usage = toVulkanTextureUsage(descriptor->usage, descriptor->format);
+    imageInfo.usage = toVulkanWGPUTextureUsage(descriptor->usage, descriptor->format);
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageInfo.samples = toVulkanSampleCount(descriptor->sampleCount);
     
@@ -2449,7 +2450,7 @@ void wgpuSurfaceGetCapabilities(WGPUSurface wgpuSurface, WGPUAdapter adapter, WG
     capabilities->formatCount = wgpuSurface->formatCount;
     capabilities->presentModes = wgpuSurface->presentModeCache;
     capabilities->formats = wgpuSurface->formatCache;
-    capabilities->usages = fromVulkanTextureUsage(scap.supportedUsageFlags);
+    capabilities->usages = fromVulkanWGPUTextureUsage(scap.supportedUsageFlags);
 }
 
 void wgpuSurfaceConfigure(WGPUSurface surface, const WGPUSurfaceConfiguration* config){
@@ -2562,7 +2563,7 @@ void wgpuSurfaceConfigure(WGPUSurface surface, const WGPUSurfaceConfiguration* c
         viewDesc.aspect = TextureAspect_All;
         viewDesc.dimension = TextureViewDimension_2D;
         viewDesc.format = config->format;
-        viewDesc.usage = TextureUsage_RenderAttachment | TextureUsage_CopySrc;
+        viewDesc.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
         surface->imageViews[i] = wgpuTextureCreateView(surface->images[i], &viewDesc);
     }
 
@@ -2829,8 +2830,8 @@ WGPURenderPipeline wgpuDeviceCreateRenderPipeline(WGPUDevice device, const WGPUR
         depthStencil.maxDepthBounds = 1.0f;
 
         bool stencilTestRequired =
-            ds->stencilFront.compare != CompareFunction_Undefined || ds->stencilFront.failOp != WGPUStencilOperation_Undefined ||
-            ds->stencilBack.compare != CompareFunction_Undefined || ds->stencilBack.failOp != WGPUStencilOperation_Undefined ||
+            ds->stencilFront.compare != WGPUCompareFunction_Undefined || ds->stencilFront.failOp != WGPUStencilOperation_Undefined ||
+            ds->stencilBack.compare != WGPUCompareFunction_Undefined || ds->stencilBack.failOp != WGPUStencilOperation_Undefined ||
             ds->stencilReadMask != 0 || ds->stencilWriteMask != 0;
 
         depthStencil.stencilTestEnable = stencilTestRequired ? VK_TRUE : VK_FALSE;
@@ -4297,7 +4298,7 @@ const char* IndexFormat_ToString(IndexFormat format) { // Assuming IndexFormat i
     sprintf(buf, "IndexFormat(%d)", (int)format);
     return buf;
 }
-const char* BufferUsage_ToString(BufferUsage usage) { // Assuming BufferUsage is int-based enum (flags)
+const char* BufferUsage_ToString(WGPUBufferUsage usage) { // Assuming BufferUsage is int-based enum (flags)
     static char buf[64];
     sprintf(buf, "BufferUsage(0x%X)", (unsigned int)usage);
     return buf;

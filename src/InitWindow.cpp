@@ -280,10 +280,10 @@ RGAPICXX void* InitWindow(uint32_t width, uint32_t height, const char* title){
     };
 
     AttributeAndResidence attrs[4] = {
-        AttributeAndResidence{VertexAttribute{nullptr, VertexFormat_Float32x3, 0 * sizeof(float), 0}, 0, VertexStepMode_Vertex, true},
-        AttributeAndResidence{VertexAttribute{nullptr, VertexFormat_Float32x2, 3 * sizeof(float), 1}, 0, VertexStepMode_Vertex, true},
-        AttributeAndResidence{VertexAttribute{nullptr, VertexFormat_Float32x3, 5 * sizeof(float), 2}, 0, VertexStepMode_Vertex, true},
-        AttributeAndResidence{VertexAttribute{nullptr, VertexFormat_Float32x4, 8 * sizeof(float), 3}, 0, VertexStepMode_Vertex, true},
+        AttributeAndResidence{VertexAttribute{nullptr, WGPUVertexFormat_Float32x3, 0 * sizeof(float), 0}, 0, VertexStepMode_Vertex, true},
+        AttributeAndResidence{VertexAttribute{nullptr, WGPUVertexFormat_Float32x2, 3 * sizeof(float), 1}, 0, VertexStepMode_Vertex, true},
+        AttributeAndResidence{VertexAttribute{nullptr, WGPUVertexFormat_Float32x3, 5 * sizeof(float), 2}, 0, VertexStepMode_Vertex, true},
+        AttributeAndResidence{VertexAttribute{nullptr, WGPUVertexFormat_Float32x4, 8 * sizeof(float), 3}, 0, VertexStepMode_Vertex, true},
     };
     
     //arraySetter(shaderInputs.per_vertex_sizes, {3,2,4});
@@ -292,11 +292,11 @@ RGAPICXX void* InitWindow(uint32_t width, uint32_t height, const char* title){
     auto colorTexture = LoadTextureEx(width, height, (PixelFormat)g_renderstate.frameBufferFormat, true);
     //g_wgpustate.mainWindowRenderTarget.texture = colorTexture;
     if(g_renderstate.windowFlags & FLAG_MSAA_4X_HINT)
-        g_renderstate.mainWindowRenderTarget.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_renderstate.frameBufferFormat, TextureUsage_RenderAttachment | TextureUsage_TextureBinding | TextureUsage_CopyDst | TextureUsage_CopySrc, 4, 1);
+        g_renderstate.mainWindowRenderTarget.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_renderstate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4, 1);
     auto depthTexture = LoadTexturePro(width,
                                   height, 
                                   Depth32, 
-                                  TextureUsage_RenderAttachment | TextureUsage_TextureBinding | TextureUsage_CopyDst | TextureUsage_CopySrc, 
+                                  WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
                                   (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
                                   1
     );
@@ -317,10 +317,10 @@ RGAPICXX void* InitWindow(uint32_t width, uint32_t height, const char* title){
     renderBatchVBO = GenVertexBuffer(nullptr, size_t(RENDERBATCH_SIZE) * sizeof(vertex));
     
     renderBatchVAO = LoadVertexArray();
-    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 0, VertexFormat_Float32x3, 0 * sizeof(float), VertexStepMode_Vertex);
-    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 1, VertexFormat_Float32x2, 3 * sizeof(float), VertexStepMode_Vertex);
-    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 2, VertexFormat_Float32x3, 5 * sizeof(float), VertexStepMode_Vertex);
-    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 3, VertexFormat_Float32x4, 8 * sizeof(float), VertexStepMode_Vertex);
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 0, WGPUVertexFormat_Float32x3, 0 * sizeof(float), VertexStepMode_Vertex);
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 1, WGPUVertexFormat_Float32x2, 3 * sizeof(float), VertexStepMode_Vertex);
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 2, WGPUVertexFormat_Float32x3, 5 * sizeof(float), VertexStepMode_Vertex);
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 3, WGPUVertexFormat_Float32x4, 8 * sizeof(float), VertexStepMode_Vertex);
 
 
     g_renderstate.renderpass = LoadRenderpassEx(GetDefaultSettings(), false, DColor{0,0,0,1}, false, 0.0f);
@@ -354,7 +354,7 @@ RGAPICXX void* InitWindow(uint32_t width, uint32_t height, const char* title){
     #endif
     g_renderstate.activePipeline = g_renderstate.defaultPipeline;
     uint32_t quadCount = 2000;
-    g_renderstate.quadindicesCache = GenBufferEx(nullptr, quadCount * 6 * sizeof(uint32_t), BufferUsage_CopyDst | BufferUsage_Index);//allocnew(DescribedBuffer);    //WGPUBufferDescriptor vbmdesc{};
+    g_renderstate.quadindicesCache = GenBufferEx(nullptr, quadCount * 6 * sizeof(uint32_t), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index);//allocnew(DescribedBuffer);    //WGPUBufferDescriptor vbmdesc{};
     std::vector<uint32_t> indices(6 * quadCount);
     for(size_t i = 0;i < quadCount;i++){
         indices[i * 6 + 0] = (i * 4 + 0);
@@ -468,11 +468,11 @@ extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* 
     fsurface.surfaceConfig = config;
     fsurface.surface = vSurface;
     if(g_renderstate.windowFlags & FLAG_MSAA_4X_HINT)
-        fsurface.renderTarget.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_renderstate.frameBufferFormat, TextureUsage_RenderAttachment | TextureUsage_TextureBinding | TextureUsage_CopyDst | TextureUsage_CopySrc, 4, 1);
+        fsurface.renderTarget.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_renderstate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4, 1);
     fsurface.renderTarget.depth = LoadTexturePro(width,
                                   height, 
                                   Depth32, 
-                                  TextureUsage_RenderAttachment | TextureUsage_TextureBinding | TextureUsage_CopyDst | TextureUsage_CopySrc, 
+                                  WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 
                                   (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
                                   1
     );

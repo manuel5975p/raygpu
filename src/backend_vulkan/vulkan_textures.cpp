@@ -138,12 +138,12 @@ inline bool is__depth(VkFormat fmt){
 
 // Generalized LoadTexturePro function
 
-extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFormat format, TextureUsage usage, uint32_t sampleCount, uint32_t mipmaps, void* data) {
+extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFormat format, WGPUTextureUsage usage, uint32_t sampleCount, uint32_t mipmaps, void* data) {
     rassert(mipmaps < MAX_MIP_LEVELS, "Too many mip levels");
     Texture ret{};
     
     VkFormat vkFormat = toVulkanPixelFormat(format);
-    VkImageUsageFlags vkUsage = toVulkanTextureUsage(usage, format);
+    VkImageUsageFlags vkUsage = toVulkanWGPUTextureUsage(usage, format);
     
     bool hasData = data != nullptr;
     
@@ -159,7 +159,7 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     if(hasData){
         WGPUTexelCopyTextureInfo destination zeroinit;
         destination.texture = image;
-        destination.aspect = is__depth(format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+        destination.aspect = TextureAspect_All;
         destination.mipLevel = 0;
         destination.origin = WGPUOrigin3D{0, 0, 0};
 
@@ -218,7 +218,7 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     
     return ret;
 }
-extern "C" Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat format, TextureUsage usage, uint32_t sampleCount, uint32_t mipmaps){
+extern "C" Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat format, WGPUTextureUsage usage, uint32_t sampleCount, uint32_t mipmaps){
     return LoadTexturePro_Data(width, height, format, usage, sampleCount, mipmaps, nullptr);
 }
 
@@ -239,7 +239,7 @@ extern "C" Texture2DArray LoadTextureArray(uint32_t width, uint32_t height, uint
     tDesc.dimension = TextureDimension_2D;
     tDesc.sampleCount = 1;
     tDesc.mipLevelCount = 1;
-    tDesc.usage = TextureUsage_StorageBinding | TextureUsage_CopySrc | TextureUsage_CopyDst;
+    tDesc.usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_CopySrc | WGPUTextureUsage_CopyDst;
     tDesc.viewFormatCount = 1;
     //tDesc.viewFormats = &tDesc.format;
     ret.id = wgpuDeviceCreateTexture((WGPUDevice)g_vulkanstate.device, &tDesc);
@@ -294,7 +294,7 @@ extern "C" Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t mipLevel){
     VkDeviceMemory bufferMemory{};
     size_t bufferSize = size * tex->width * tex->height;
     WGPUBufferDescriptor bdesc = {
-        .usage = BufferUsage_CopyDst | BufferUsage_CopySrc | BufferUsage_MapWrite,
+        .usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc | WGPUBufferUsage_MapWrite,
         .size = bufferSize 
     };
     WGPUBuffer stagingBuffer = wgpuDeviceCreateBuffer(g_vulkanstate.device, &bdesc);
@@ -367,13 +367,12 @@ Texture LoadTextureFromImage(Image img) {
     else if (img.format != RGBA8 && img.format != BGRA8 && img.format != RGBA16F && img.format != RGBA32F && img.format != Depth24) {
         TRACELOG(LOG_FATAL, "Unsupported image format.");
     }
-    TextureUsage x;
     rassert(img.mipmaps < MAX_MIP_LEVELS, "Too many mip levels");
     auto ret = LoadTexturePro_Data(
         img.width,
         img.height,
         img.format == GRAYSCALE ? RGBA8 : img.format,
-        TextureUsage_CopyDst | TextureUsage_TextureBinding, // Assuming TextureUsage enum exists and has a Sampled option
+        WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding, // Assuming TextureUsage enum exists and has a Sampled option
         1, // sampleCount
         img.mipmaps > 0 ? img.mipmaps : 1, 
         altdata ? altdata : img.data
@@ -382,14 +381,14 @@ Texture LoadTextureFromImage(Image img) {
     TRACELOG(LOG_INFO, "Successfully loaded %u x %u texture from image", (unsigned)img.width, (unsigned)img.height);
     return ret;
 }
-Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format, TextureUsage usage, uint32_t sampleCount){
+Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format, WGPUTextureUsage usage, uint32_t sampleCount){
     Texture3D ret zeroinit;
     WGPUTextureDescriptor tDesc{};
     tDesc.dimension = TextureDimension_3D;
     tDesc.size = Extent3D{width, height, depth};
     tDesc.mipLevelCount = 1;
     tDesc.sampleCount = sampleCount;
-    tDesc.usage = TextureUsage_StorageBinding | TextureUsage_TextureBinding | TextureUsage_CopySrc | TextureUsage_CopyDst;
+    tDesc.usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc | WGPUTextureUsage_CopyDst;
     tDesc.format = format;
     ret.width = width;
     ret.height = height;
@@ -403,7 +402,7 @@ Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, Pixe
     vDesc.baseMipLevel = 0;
     vDesc.aspect = TextureAspect_All;
     vDesc.dimension = TextureViewDimension_3D;
-    vDesc.usage = TextureUsage_StorageBinding | TextureUsage_TextureBinding | TextureUsage_CopySrc | TextureUsage_CopyDst;
+    vDesc.usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc | WGPUTextureUsage_CopyDst;
     
     ret.view = wgpuTextureCreateView((WGPUTexture)ret.id, &vDesc);
     ret.sampleCount = sampleCount;

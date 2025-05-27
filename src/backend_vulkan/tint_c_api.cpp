@@ -31,7 +31,7 @@ struct VarVisibility {
     WGPUShaderStage visibilty;
 };
 
-format_or_sample_type extractFormat(const tint::ast::Identifier *iden) {
+static format_or_sample_type extractFormat(const tint::ast::Identifier *iden) {
     if (auto templiden = iden->As<tint::ast::TemplatedIdentifier>()) {
         for (size_t i = 0; i < templiden->arguments.Length(); i++) {
             if (templiden->arguments[i]->As<tint::ast::IdentifierExpression>() &&
@@ -191,7 +191,7 @@ RGAPI WGPUReflectionInfo reflectionInfo_wgsl_sync(WGPUStringView wgslSource) {
         namespace ti = tint::inspector;
 
         const tint::sem::Info &psem = prog.Sem();
-        std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> retattrmap;
+        std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> retattrmap;
         for (size_t i = 0; i < insp.GetEntryPoints().size(); i++) {
             if (insp.GetEntryPoints()[i].stage == ti::PipelineStage::kVertex) {
                 for (size_t j = 0; j < insp.GetEntryPoints()[i].input_variables.size(); j++) {
@@ -206,16 +206,16 @@ RGAPI WGPUReflectionInfo reflectionInfo_wgsl_sync(WGPUStringView wgslSource) {
                     if (insp.GetEntryPoints()[i].input_variables[j].component_type == ti::ComponentType::kF32) {
                         switch (insp.GetEntryPoints()[i].input_variables[j].composition_type) {
                         case ti::CompositionType::kScalar: {
-                            retattrmap[varname] = {VertexFormat_Float32, location};
+                            retattrmap[varname] = {WGPUVertexFormat_Float32, location};
                         } break;
                         case ti::CompositionType::kVec2: {
-                            retattrmap[varname] = {VertexFormat_Float32x2, location};
+                            retattrmap[varname] = {WGPUVertexFormat_Float32x2, location};
                         } break;
                         case ti::CompositionType::kVec3: {
-                            retattrmap[varname] = {VertexFormat_Float32x3, location};
+                            retattrmap[varname] = {WGPUVertexFormat_Float32x3, location};
                         } break;
                         case ti::CompositionType::kVec4: {
-                            retattrmap[varname] = {VertexFormat_Float32x4, location};
+                            retattrmap[varname] = {WGPUVertexFormat_Float32x4, location};
                         } break;
                         case ti::CompositionType::kUnknown: {
                             TRACELOG(LOG_ERROR, "Unknown composition type");
@@ -224,16 +224,16 @@ RGAPI WGPUReflectionInfo reflectionInfo_wgsl_sync(WGPUStringView wgslSource) {
                     } else if (insp.GetEntryPoints()[i].input_variables[j].component_type == ti::ComponentType::kU32) {
                         switch (insp.GetEntryPoints()[i].input_variables[j].composition_type) {
                         case ti::CompositionType::kScalar: {
-                            retattrmap[varname] = {VertexFormat_Uint32, location};
+                            retattrmap[varname] = {WGPUVertexFormat_Uint32, location};
                         } break;
                         case ti::CompositionType::kVec2: {
-                            retattrmap[varname] = {VertexFormat_Uint32x2, location};
+                            retattrmap[varname] = {WGPUVertexFormat_Uint32x2, location};
                         } break;
                         case ti::CompositionType::kVec3: {
-                            retattrmap[varname] = {VertexFormat_Uint32x3, location};
+                            retattrmap[varname] = {WGPUVertexFormat_Uint32x3, location};
                         } break;
                         case ti::CompositionType::kVec4: {
-                            retattrmap[varname] = {VertexFormat_Uint32x4, location};
+                            retattrmap[varname] = {WGPUVertexFormat_Uint32x4, location};
                         } break;
                         case ti::CompositionType::kUnknown: {
                             TRACELOG(LOG_ERROR, "Unknown composition type");
@@ -242,16 +242,16 @@ RGAPI WGPUReflectionInfo reflectionInfo_wgsl_sync(WGPUStringView wgslSource) {
                     } else if (insp.GetEntryPoints()[i].input_variables[j].component_type == ti::ComponentType::kI32) {
                         switch (insp.GetEntryPoints()[i].input_variables[j].composition_type) {
                         case ti::CompositionType::kScalar: {
-                            retattrmap[varname] = {VertexFormat_Sint32, location};
+                            retattrmap[varname] = {WGPUVertexFormat_Sint32, location};
                         } break;
                         case ti::CompositionType::kVec2: {
-                            retattrmap[varname] = {VertexFormat_Sint32x2, location};
+                            retattrmap[varname] = {WGPUVertexFormat_Sint32x2, location};
                         } break;
                         case ti::CompositionType::kVec3: {
-                            retattrmap[varname] = {VertexFormat_Sint32x3, location};
+                            retattrmap[varname] = {WGPUVertexFormat_Sint32x3, location};
                         } break;
                         case ti::CompositionType::kVec4: {
-                            retattrmap[varname] = {VertexFormat_Sint32x4, location};
+                            retattrmap[varname] = {WGPUVertexFormat_Sint32x4, location};
                         } break;
                         case ti::CompositionType::kUnknown: {
                             TRACELOG(LOG_ERROR, "Unknown composition type");
@@ -260,16 +260,16 @@ RGAPI WGPUReflectionInfo reflectionInfo_wgsl_sync(WGPUStringView wgslSource) {
                     } else if (insp.GetEntryPoints()[i].input_variables[j].component_type == ti::ComponentType::kF16) {
                         switch (insp.GetEntryPoints()[i].input_variables[j].composition_type) {
                         case ti::CompositionType::kScalar: {
-                            retattrmap[varname] = {VertexFormat_Float16, location};
+                            retattrmap[varname] = {WGPUVertexFormat_Float16, location};
                         } break;
                         case ti::CompositionType::kVec2: {
-                            retattrmap[varname] = {VertexFormat_Float16x2, location};
+                            retattrmap[varname] = {WGPUVertexFormat_Float16x2, location};
                         } break;
                         case ti::CompositionType::kVec3: {
                             TRACELOG(LOG_ERROR, "That should not be possible: vec3<f16>");
                         } break;
                         case ti::CompositionType::kVec4: {
-                            retattrmap[varname] = {VertexFormat_Float16x4, location};
+                            retattrmap[varname] = {WGPUVertexFormat_Float16x4, location};
                         } break;
                         case ti::CompositionType::kUnknown: {
                             TRACELOG(LOG_ERROR, "Unknown composition type");

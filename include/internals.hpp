@@ -142,7 +142,7 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindings(ShaderSource
  * @return std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> 
  */
 struct InOutAttributeInfo{
-    std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> vertexAttributes;
+    std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> vertexAttributes;
     std::vector<std::pair<uint32_t, format_or_sample_type>> attachments;    
 };
 
@@ -155,7 +155,7 @@ extern "C" DescribedBuffer* UpdateVulkanRenderbatch();
 extern "C" void PushUsedBuffer(void* nativeBuffer);
 struct VertexBufferLayout{
     uint64_t arrayStride;
-    VertexStepMode stepMode;
+    WGPUVertexStepMode stepMode;
     size_t attributeCount;
     VertexAttribute* attributes; //NOT owned, points into data owned by VertexBufferLayoutSet::attributePool with an offset
 };
@@ -344,7 +344,7 @@ inline VertexBufferLayoutSet getBufferLayoutRepresentation(const AttributeAndRes
     std::vector<VertexBufferLayout> vbLayouts(number_of_buffers);
 
     std::vector<uint32_t> strides  (number_of_buffers, 0);
-    std::vector<VertexStepMode> stepmodes(number_of_buffers, VertexStepMode_None);
+    std::vector<WGPUVertexStepMode> stepmodes(number_of_buffers, VertexStepMode_None);
     std::vector<uint32_t> attrIndex(number_of_buffers, 0);
 
     for(size_t i = 0;i < number_of_attribs;i++){
@@ -423,7 +423,7 @@ static inline ShaderSources dualStage(const char* code1, const char* code2, Shad
 void detectShaderLanguage(ShaderSources* sources);
 ShaderSourceType detectShaderLanguage(const void* sourceptr, size_t size);
 std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSources source);
-std::vector<std::pair<ShaderStage, std::string>> getEntryPointsWGSL(const char* shaderSourceWGSL);
+std::vector<std::pair<WGPUShaderStageEnum, std::string>> getEntryPointsWGSL(const char* shaderSourceWGSL);
 DescribedShaderModule LoadShaderModule(ShaderSources source);
 
 extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, const std::vector<AttributeAndResidence>& attribs);
@@ -437,10 +437,10 @@ inline VertexBufferLayoutSet getBufferLayoutRepresentation(const AttributeAndRes
 }
 typedef struct VertexArray{
     std::vector<AttributeAndResidence> attributes;
-    std::vector<std::pair<DescribedBuffer*, VertexStepMode>> buffers;
+    std::vector<std::pair<DescribedBuffer*, WGPUVertexStepMode>> buffers;
     void add(DescribedBuffer* buffer, uint32_t shaderLocation, 
-                              VertexFormat fmt, uint32_t offset, 
-                              VertexStepMode stepmode) {
+                              WGPUVertexFormat fmt, uint32_t offset, 
+                              WGPUVertexStepMode stepmode) {
         // Search for existing attribute by shaderLocation
         auto it = std::find_if(attributes.begin(), attributes.end(),
                                [shaderLocation](const AttributeAndResidence& ar) {
@@ -457,7 +457,7 @@ typedef struct VertexArray{
                 // Attempting to update to a new buffer
                 // Check if the new buffer is already in buffers
                 auto bufferIt = std::find_if(buffers.begin(), buffers.end(),
-                                            [buffer, stepmode](const std::pair<DescribedBuffer*, VertexStepMode>& b) {
+                                            [buffer, stepmode](const std::pair<DescribedBuffer*, WGPUVertexStepMode>& b) {
                                                 return b.first->buffer == buffer->buffer && b.second == stepmode;
                                             });
 
@@ -530,7 +530,7 @@ typedef struct VertexArray{
             return a.attr.shaderLocation < b.attr.shaderLocation;
         });
     }
-    void add_old(DescribedBuffer* buffer, uint32_t shaderLocation, VertexFormat fmt, uint32_t offset, VertexStepMode stepmode){
+    void add_old(DescribedBuffer* buffer, uint32_t shaderLocation, WGPUVertexFormat fmt, uint32_t offset, WGPUVertexStepMode stepmode){
         AttributeAndResidence insert{};
         for(size_t i = 0;i < buffers.size();i++){
             auto& _buffer = buffers[i];
@@ -636,8 +636,8 @@ typedef struct StringToUniformMap{
 }StringToUniformMap;
 
 typedef struct StringToAttributeMap{
-    std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> attributes;
-    std::pair<VertexFormat, uint32_t> operator[](const std::string& v)const noexcept{
+    std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> attributes;
+    std::pair<WGPUVertexFormat, uint32_t> operator[](const std::string& v)const noexcept{
         return attributes.find(v)->second;
     }
     uint32_t GetLocation(const std::string& v)const noexcept{
@@ -646,7 +646,7 @@ typedef struct StringToAttributeMap{
             return LOCATION_NOT_FOUND;
         return it->second.second;
     }
-    std::pair<VertexFormat, uint32_t> operator[](const char* v)const noexcept{
+    std::pair<WGPUVertexFormat, uint32_t> operator[](const char* v)const noexcept{
         return attributes.find(v)->second;
     }
     uint32_t GetLocation(const char* v)const noexcept{

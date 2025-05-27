@@ -44,237 +44,18 @@ using std::uint64_t;
 #endif
 #if SUPPORT_VULKAN_BACKEND == 1
 #define VK_NO_PROTOTYPES
+#include <wgvk.h>
 #include <vulkan/vulkan_core.h>
 #endif
 // ------------------------- Enum Definitions -------------------------
 
-typedef enum uniform_type { uniform_type_undefined, uniform_buffer, storage_buffer, texture2d, texture2d_array, storage_texture2d, texture_sampler, texture3d, storage_texture3d, storage_texture2d_array, acceleration_structure, combined_image_sampler, uniform_type_enumcount, uniform_type_force32 = 0x7fffffff} uniform_type;
-
-typedef enum access_type { readonly, readwrite, writeonly } access_type;
-
-typedef enum format_or_sample_type { we_dont_know, sample_f32, sample_u32, format_r32float, format_r32uint, format_rgba8unorm, format_rgba32float } format_or_sample_type;
-
-typedef enum filterMode {
-    filter_nearest = 0x1,
-    filter_linear = 0x2,
-} filterMode;
-
-typedef enum addressMode {
-    clampToEdge = 0x1,
-    repeat = 0x2,
-    mirrorRepeat = 0x3,
-} addressMode;
-
-typedef enum PixelFormat {
-    RGBA8      = 0x12, //WGPUTextureFormat_RGBA8Unorm,
-    RGBA8_Srgb = 0x13, //WGPUTextureFormat_RGBA8UnormSrgb,
-    BGRA8      = 0x17, //WGPUTextureFormat_BGRA8Unorm,
-    BGRA8_Srgb = 0x18, //WGPUTextureFormat_BGRA8UnormSrgb,
-    RGBA16F    = 0x22, //WGPUTextureFormat_RGBA16Float,
-    RGBA32F    = 0x23, //WGPUTextureFormat_RGBA32Float,
-    Depth24    = 0x28, //WGPUTextureFormat_Depth24Plus,
-    Depth32    = 0x2A, //WGPUTextureFormat_Depth32Float,
-
-    GRAYSCALE = 0x100000, // No WGPU_ equivalent
-    RGB8 = 0x100001,      // No WGPU_ equivalent
-    PixelFormat_Force32 = 0x7FFFFFFF
-} PixelFormat;
-
-typedef enum CompareFunction {
-    CompareFunction_Undefined = 0x00000000,
-    CompareFunction_Never = 0x00000001,
-    CompareFunction_Less = 0x00000002,
-    CompareFunction_Equal = 0x00000003,
-    CompareFunction_LessEqual = 0x00000004,
-    CompareFunction_Greater = 0x00000005,
-    CompareFunction_NotEqual = 0x00000006,
-    CompareFunction_GreaterEqual = 0x00000007,
-    CompareFunction_Always = 0x00000008
-} CompareFunction;
-typedef enum MapMode{
-    MapMode_Read,
-    MapMode_Write,
-    MapMode_ReadWrite,
-}MapMode;
-
-typedef enum TextureDimension{
-    TextureDimension_Undefined = 0x00000000,
-    TextureDimension_1D = 0x00000001,
-    TextureDimension_2D = 0x00000002,
-    //TextureViewDimension_2DArray = 0x00000003,
-    //TextureViewDimension_Cube = 0x00000004,
-    //TextureViewDimension_CubeArray = 0x00000005,
-    TextureDimension_3D = 0x00000003
-}TextureDimension;
-typedef enum TextureViewDimension{
-    TextureViewDimension_Undefined = 0x00000000,
-    TextureViewDimension_1D = 0x00000001,
-    TextureViewDimension_2D = 0x00000002,
-    TextureViewDimension_2DArray = 0x00000003,
-    //TextureViewDimension_Cube = 0x00000004,
-    //TextureViewDimension_CubeArray = 0x00000005,
-    TextureViewDimension_3D = 0x00000006,
-    TextureViewDimension_Force32 = 0x7FFFFFFF
-}TextureViewDimension;
-
-typedef enum WGPUTextureViewDimension{
-    WGPUTextureViewDimension_Undefined = 0x00000000,
-    WGPUTextureViewDimension_1D = 0x00000001,
-    WGPUTextureViewDimension_2D = 0x00000002,
-    WGPUTextureViewDimension_2DArray = 0x00000003,
-    WGPUTextureViewDimension_Cube = 0x00000004,
-    WGPUTextureViewDimension_CubeArray = 0x00000005,
-    WGPUTextureViewDimension_3D = 0x00000006,
-    WGPUTextureViewDimension_Force32 = 0x7FFFFFFF
-}WGPUTextureViewDimension;
-
-
-
-
-
-typedef enum PrimitiveType{
-    RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS, RL_LINES, RL_POINTS
-}PrimitiveType;
-
-typedef enum TFilterMode { TFilterMode_Undefined = 0x00000000, TFilterMode_Nearest = 0x00000001, TFilterMode_Linear = 0x00000002, TFilterMode_Force32 = 0x7FFFFFFF } TFilterMode;
-
-typedef enum FrontFace { FrontFace_Undefined = 0x00000000, FrontFace_CCW = 0x00000001, FrontFace_CW = 0x00000002, FrontFace_Force32 = 0x7FFFFFFF } FrontFace;
-
-typedef enum IndexFormat { IndexFormat_Undefined = 0x00000000, IndexFormat_Uint16 = 0x00000001, IndexFormat_Uint32 = 0x00000002, IndexFormat_Force32 = 0x7FFFFFFF } IndexFormat;
-
-typedef enum WGPUCullMode{
-    WGPUCullMode_Undefined = 0x00000000,
-    WGPUCullMode_None = 0x00000001,
-    WGPUCullMode_Front = 0x00000002,
-    WGPUCullMode_Back = 0x00000003,
-    WGPUCullMode_Force32 = 0x7FFFFFFF
-}WGPUCullMode;
-
-typedef enum LoadOp {
-    LoadOp_Undefined = 0x00000000,
-    LoadOp_Load = 0x00000001,
-    LoadOp_Clear = 0x00000002,
-    LoadOp_ExpandResolveTexture = 0x00050003,
-    LoadOp_Force32 = 0x7FFFFFFF
-} LoadOp;
-
-typedef enum StoreOp {
-    StoreOp_Undefined = 0x00000000,
-    StoreOp_Store = 0x00000001,
-    StoreOp_Discard = 0x00000002,
-    StoreOp_Force32 = 0x7FFFFFFF
-} StoreOp;
 #if SUPPORT_VULKAN_BACKEND == 1
-typedef enum WGPUCompositeAlphaMode {
-    WGPUCompositeAlphaMode_Auto = 0x00000000,
-    WGPUCompositeAlphaMode_Opaque = 0x00000001,
-    WGPUCompositeAlphaMode_Premultiplied = 0x00000002,
-    WGPUCompositeAlphaMode_Unpremultiplied = 0x00000003,
-    WGPUCompositeAlphaMode_Inherit = 0x00000004,
-    WGPUCompositeAlphaMode_Force32 = 0x7FFFFFFF
-} WGPUCompositeAlphaMode;
 
-typedef enum WGPURequestAdapterStatus {
-    WGPURequestAdapterStatus_Success = 0x00000001,
-    WGPURequestAdapterStatus_InstanceDropped = 0x00000002,
-    WGPURequestAdapterStatus_Unavailable = 0x00000003,
-    WGPURequestAdapterStatus_Error = 0x00000004,
-    WGPURequestAdapterStatus_Force32 = 0x7FFFFFFF
-} WGPURequestAdapterStatus;
 
-typedef enum VertexFormat {
-    VertexFormat_Uint8 = 0x00000001,
-    VertexFormat_Uint8x2 = 0x00000002,
-    VertexFormat_Uint8x4 = 0x00000003,
-    VertexFormat_Sint8 = 0x00000004,
-    VertexFormat_Sint8x2 = 0x00000005,
-    VertexFormat_Sint8x4 = 0x00000006,
-    VertexFormat_Unorm8 = 0x00000007,
-    VertexFormat_Unorm8x2 = 0x00000008,
-    VertexFormat_Unorm8x4 = 0x00000009,
-    VertexFormat_Snorm8 = 0x0000000A,
-    VertexFormat_Snorm8x2 = 0x0000000B,
-    VertexFormat_Snorm8x4 = 0x0000000C,
-    VertexFormat_Uint16 = 0x0000000D,
-    VertexFormat_Uint16x2 = 0x0000000E,
-    VertexFormat_Uint16x4 = 0x0000000F,
-    VertexFormat_Sint16 = 0x00000010,
-    VertexFormat_Sint16x2 = 0x00000011,
-    VertexFormat_Sint16x4 = 0x00000012,
-    VertexFormat_Unorm16 = 0x00000013,
-    VertexFormat_Unorm16x2 = 0x00000014,
-    VertexFormat_Unorm16x4 = 0x00000015,
-    VertexFormat_Snorm16 = 0x00000016,
-    VertexFormat_Snorm16x2 = 0x00000017,
-    VertexFormat_Snorm16x4 = 0x00000018,
-    VertexFormat_Float16 = 0x00000019,
-    VertexFormat_Float16x2 = 0x0000001A,
-    VertexFormat_Float16x4 = 0x0000001B,
-    VertexFormat_Float32 = 0x0000001C,
-    VertexFormat_Float32x2 = 0x0000001D,
-    VertexFormat_Float32x3 = 0x0000001E,
-    VertexFormat_Float32x4 = 0x0000001F,
-    VertexFormat_Uint32 = 0x00000020,
-    VertexFormat_Uint32x2 = 0x00000021,
-    VertexFormat_Uint32x3 = 0x00000022,
-    VertexFormat_Uint32x4 = 0x00000023,
-    VertexFormat_Sint32 = 0x00000024,
-    VertexFormat_Sint32x2 = 0x00000025,
-    VertexFormat_Sint32x3 = 0x00000026,
-    VertexFormat_Sint32x4 = 0x00000027,
-    VertexFormat_Unorm10_10_10_2 = 0x00000028,
-    VertexFormat_Unorm8x4BGRA = 0x00000029,
-    VertexFormat_Force32 = 0x7FFFFFFF
-} VertexFormat;
-typedef enum BlendFactor {
-    BlendFactor_Undefined = 0x00000000,
-    BlendFactor_Zero = 0x00000001,
-    BlendFactor_One = 0x00000002,
-    BlendFactor_Src = 0x00000003,
-    BlendFactor_OneMinusSrc = 0x00000004,
-    BlendFactor_SrcAlpha = 0x00000005,
-    BlendFactor_OneMinusSrcAlpha = 0x00000006,
-    BlendFactor_Dst = 0x00000007,
-    BlendFactor_OneMinusDst = 0x00000008,
-    BlendFactor_DstAlpha = 0x00000009,
-    BlendFactor_OneMinusDstAlpha = 0x0000000A,
-    BlendFactor_SrcAlphaSaturated = 0x0000000B,
-    BlendFactor_Constant = 0x0000000C,
-    BlendFactor_OneMinusConstant = 0x0000000D,
-    BlendFactor_Src1 = 0x0000000E,
-    BlendFactor_OneMinusSrc1 = 0x0000000F,
-    BlendFactor_Src1Alpha = 0x00000010,
-    BlendFactor_OneMinusSrc1Alpha = 0x00000011,
-} BlendFactor;
 
-typedef enum BlendOperation {
-    BlendOperation_Undefined = 0x00000000,
-    BlendOperation_Add = 0x00000001,
-    BlendOperation_Subtract = 0x00000002,
-    BlendOperation_ReverseSubtract = 0x00000003,
-    BlendOperation_Min = 0x00000004,
-    BlendOperation_Max = 0x00000005,
-    //BlendOperation_Force32 = 0x7FFFFFFF
-} BlendOperation;
 
-typedef enum WGPUStencilOperation {
-    WGPUStencilOperation_Undefined = 0x00000000,
-    WGPUStencilOperation_Keep = 0x00000001,
-    WGPUStencilOperation_Zero = 0x00000002,
-    WGPUStencilOperation_Replace = 0x00000003,
-    WGPUStencilOperation_Invert = 0x00000004,
-    WGPUStencilOperation_IncrementClamp = 0x00000005,
-    WGPUStencilOperation_DecrementClamp = 0x00000006,
-    WGPUStencilOperation_IncrementWrap = 0x00000007,
-    WGPUStencilOperation_DecrementWrap = 0x00000008,
-    WGPUStencilOperation_Force32 = 0x7FFFFFFF
-} WGPUStencilOperation;
-
-typedef int WGPUDeviceLostReason;
 #else 
-typedef WGPUDeviceLostReason WGPUDeviceLostReason;
-typedef WGPUErrorType WGPUErrorType;
-typedef WGPUVertexFormat VertexFormat;
+
 #define VertexFormat_Uint8 WGPUVertexFormat_Uint8
 #define VertexFormat_Uint8x2 WGPUVertexFormat_Uint8x2
 #define VertexFormat_Uint8x4 WGPUVertexFormat_Uint8x4
@@ -317,7 +98,7 @@ typedef WGPUVertexFormat VertexFormat;
 #define VertexFormat_Unorm10_10_10_2 WGPUVertexFormat_Unorm10_10_10_2
 #define VertexFormat_Unorm8x4BGRA WGPUVertexFormat_Unorm8x4BGRA
 #define VertexFormat_Force32 WGPUVertexFormat_Force32
-typedef WGPURequestAdapterStatus WGPURequestAdapterStatus;
+//typedef WGPURequestAdapterStatus WGPURequestAdapterStatus;
 
 #define WGPURequestAdapterStatus_Success WGPURequestAdapterStatus_Success
 #define WGPURequestAdapterStatus_InstanceDropped WGPURequestAdapterStatus_InstanceDropped
@@ -326,7 +107,7 @@ typedef WGPURequestAdapterStatus WGPURequestAdapterStatus;
 #define WGPURequestAdapterStatus_Force32 WGPURequestAdapterStatus_Force32
 
 
-typedef WGPUBlendFactor BlendFactor;
+//typedef WGPUBlendFactor BlendFactor;
 #define BlendFactor_Undefined WGPUBlendFactor_Undefined
 #define BlendFactor_Zero WGPUBlendFactor_Zero
 #define BlendFactor_One WGPUBlendFactor_One
@@ -346,7 +127,7 @@ typedef WGPUBlendFactor BlendFactor;
 #define BlendFactor_Src1Alpha WGPUBlendFactor_Src1Alpha
 #define BlendFactor_OneMinusSrc1Alpha WGPUBlendFactor_OneMinusSrc1Alpha
 
-typedef WGPUBlendOperation BlendOperation;
+//typedef WGPUBlendOperation BlendOperation;
 #define BlendOperation_Undefined WGPUBlendOperation_Undefined
 #define BlendOperation_Add WGPUBlendOperation_Add
 #define BlendOperation_Subtract WGPUBlendOperation_Subtract
@@ -354,7 +135,7 @@ typedef WGPUBlendOperation BlendOperation;
 #define BlendOperation_Min WGPUBlendOperation_Min
 #define BlendOperation_Max WGPUBlendOperation_Max
 
-typedef WGPUCompositeAlphaMode WGPUCompositeAlphaMode;
+//typedef WGPUCompositeAlphaMode WGPUCompositeAlphaMode;
 #define WGPUCompositeAlphaMode_Auto WGPUCompositeAlphaMode_Auto
 #define WGPUCompositeAlphaMode_Opaque WGPUCompositeAlphaMode_Opaque
 #define WGPUCompositeAlphaMode_Premultiplied WGPUCompositeAlphaMode_Premultiplied
@@ -364,61 +145,8 @@ typedef WGPUCompositeAlphaMode WGPUCompositeAlphaMode;
 
 #endif
 
-typedef enum VertexStepMode { VertexStepMode_None = 0x0, VertexStepMode_Vertex = 0x1, VertexStepMode_Instance = 0x2, VertexStepMode_Force32 = 0x7FFFFFFF } VertexStepMode;
 
-typedef uint64_t BufferUsage;
-typedef uint64_t TextureUsage;
-#ifdef __cplusplus
-constexpr BufferUsage BufferUsage_None = 0x0000000000000000;
-constexpr BufferUsage BufferUsage_MapRead = 0x0000000000000001;
-constexpr BufferUsage BufferUsage_MapWrite = 0x0000000000000002;
-constexpr BufferUsage BufferUsage_CopySrc = 0x0000000000000004;
-constexpr BufferUsage BufferUsage_CopyDst = 0x0000000000000008;
-constexpr BufferUsage BufferUsage_Index = 0x0000000000000010;
-constexpr BufferUsage BufferUsage_Vertex = 0x0000000000000020;
-constexpr BufferUsage BufferUsage_Uniform = 0x0000000000000040;
-constexpr BufferUsage BufferUsage_Storage = 0x0000000000000080;
-constexpr BufferUsage BufferUsage_Indirect = 0x0000000000000100;
-constexpr BufferUsage BufferUsage_QueryResolve = 0x0000000000000200;
-constexpr BufferUsage BufferUsage_ShaderDeviceAddress = 0x0000000001000000;
-constexpr BufferUsage BufferUsage_AccelerationStructureInput = 0x0000000002000000;
-constexpr BufferUsage BufferUsage_AccelerationStructureStorage = 0x0000000004000000;
-constexpr BufferUsage BufferUsage_ShaderBindingTable = 0x0000000008000000;
 
-constexpr TextureUsage TextureUsage_None = 0x0000000000000000;
-constexpr TextureUsage TextureUsage_CopySrc = 0x0000000000000001;
-constexpr TextureUsage TextureUsage_CopyDst = 0x0000000000000002;
-constexpr TextureUsage TextureUsage_TextureBinding = 0x0000000000000004;
-constexpr TextureUsage TextureUsage_StorageBinding = 0x0000000000000008;
-constexpr TextureUsage TextureUsage_RenderAttachment = 0x0000000000000010;
-constexpr TextureUsage TextureUsage_TransientAttachment = 0x0000000000000020;
-constexpr TextureUsage TextureUsage_StorageAttachment = 0x0000000000000040;
-
-#else
-#define BufferUsage_None 0x0000000000000000
-#define BufferUsage_MapRead 0x0000000000000001
-#define BufferUsage_MapWrite 0x0000000000000002
-#define BufferUsage_CopySrc 0x0000000000000004
-#define BufferUsage_CopyDst 0x0000000000000008
-#define BufferUsage_Index 0x0000000000000010
-#define BufferUsage_Vertex 0x0000000000000020
-#define BufferUsage_Uniform 0x0000000000000040
-#define BufferUsage_Storage 0x0000000000000080
-#define BufferUsage_Indirect 0x0000000000000100
-#define BufferUsage_QueryResolve 0x0000000000000200
-#define TextureUsage_None 0x0000000000000000
-#define TextureUsage_CopySrc 0x0000000000000001
-#define TextureUsage_CopyDst 0x0000000000000002
-#define TextureUsage_TextureBinding 0x0000000000000004
-#define TextureUsage_StorageBinding 0x0000000000000008
-#define TextureUsage_RenderAttachment 0x0000000000000010
-#define TextureUsage_TransientAttachment 0x0000000000000020
-#define TextureUsage_StorageAttachment 0x0000000000000040
-#define BufferUsage_ShaderDeviceAddress 0x0000000001000000
-#define BufferUsage_AccelerationStructureInput 0x0000000002000000
-#define BufferUsage_AccelerationStructureStorage 0x0000000004000000
-#define BufferUsage_ShaderBindingTable 0x0000000008000000
-#endif
 
 
 // -------------------- Vulkan Translation Functions --------------------
@@ -426,45 +154,45 @@ constexpr TextureUsage TextureUsage_StorageAttachment = 0x0000000000000040;
 #if SUPPORT_VULKAN_BACKEND == 1
 
 /**
- * @brief Translates custom TextureUsage flags to Vulkan's VkImageUsageFlags.
+ * @brief Translates custom WGPUTextureUsage flags to Vulkan's VkImageUsageFlags.
  *
- * @param usage The TextureUsage bitmask to translate.
+ * @param usage The WGPUTextureUsage bitmask to translate.
  * @return VkImageUsageFlags The corresponding Vulkan image usage flags.
  */
-static inline VkImageUsageFlags toVulkanTextureUsage(TextureUsage usage, PixelFormat format) {
+static inline VkImageUsageFlags toVulkanWGPUTextureUsage(WGPUTextureUsage usage, PixelFormat format) {
     VkImageUsageFlags vkUsage = 0;
 
-    // Array of all possible TextureUsage flags
-    const TextureUsage allFlags[] = {TextureUsage_CopySrc, TextureUsage_CopyDst, TextureUsage_TextureBinding, TextureUsage_StorageBinding, TextureUsage_RenderAttachment, TextureUsage_TransientAttachment, TextureUsage_StorageAttachment};
-    const uint32_t nFlags = sizeof(allFlags) / sizeof(TextureUsage);
+    // Array of all possible WGPUTextureUsage flags
+    const WGPUTextureUsage allFlags[] = {WGPUTextureUsage_CopySrc, WGPUTextureUsage_CopyDst, WGPUTextureUsage_TextureBinding, WGPUTextureUsage_StorageBinding, WGPUTextureUsage_RenderAttachment, WGPUTextureUsage_TransientAttachment, WGPUTextureUsage_StorageAttachment};
+    const uint32_t nFlags = sizeof(allFlags) / sizeof(WGPUTextureUsage);
     // Iterate through each flag and map accordingly
     for (uint32_t i = 0; i < nFlags; i++) {
         uint32_t flag = allFlags[i];
         if (usage & flag) {
             switch (flag) {
-            case TextureUsage_CopySrc:
+            case WGPUTextureUsage_CopySrc:
                 vkUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
                 break;
-            case TextureUsage_CopyDst:
+            case WGPUTextureUsage_CopyDst:
                 vkUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
                 break;
-            case TextureUsage_TextureBinding:
+            case WGPUTextureUsage_TextureBinding:
                 vkUsage |= VK_IMAGE_USAGE_SAMPLED_BIT;
                 break;
-            case TextureUsage_StorageBinding:
+            case WGPUTextureUsage_StorageBinding:
                 vkUsage |= VK_IMAGE_USAGE_STORAGE_BIT;
                 break;
-            case TextureUsage_RenderAttachment:
+            case WGPUTextureUsage_RenderAttachment:
                 if(format == Depth24 || format == Depth32){
                     vkUsage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
                 }else{
                     vkUsage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
                 }
                 break;
-            case TextureUsage_TransientAttachment:
+            case WGPUTextureUsage_TransientAttachment:
                 vkUsage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
                 break;
-            case TextureUsage_StorageAttachment:
+            case WGPUTextureUsage_StorageAttachment:
                 vkUsage |= VK_IMAGE_USAGE_STORAGE_BIT;
                 break;
             default:
@@ -491,33 +219,33 @@ static inline VkImageAspectFlags toVulkanAspectMask(TextureAspect aspect){
         }
     }
 }
-// Inverse conversion: Vulkan usage flags -> TextureUsage flags
-static inline TextureUsage fromVulkanTextureUsage(VkImageUsageFlags vkUsage) {
-    TextureUsage usage = 0;
+// Inverse conversion: Vulkan usage flags -> WGPUTextureUsage flags
+static inline WGPUTextureUsage fromVulkanWGPUTextureUsage(VkImageUsageFlags vkUsage) {
+    WGPUTextureUsage usage = 0;
     
     // Map transfer bits
     if (vkUsage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
-        usage |= TextureUsage_CopySrc;
+        usage |= WGPUTextureUsage_CopySrc;
     if (vkUsage & VK_IMAGE_USAGE_TRANSFER_DST_BIT)
-        usage |= TextureUsage_CopyDst;
+        usage |= WGPUTextureUsage_CopyDst;
     
     // Map sampling bit
     if (vkUsage & VK_IMAGE_USAGE_SAMPLED_BIT)
-        usage |= TextureUsage_TextureBinding;
+        usage |= WGPUTextureUsage_TextureBinding;
     
     // Map storage bit (ambiguous: could originate from either storage flag)
     if (vkUsage & VK_IMAGE_USAGE_STORAGE_BIT)
-        usage |= TextureUsage_StorageBinding | TextureUsage_StorageAttachment;
+        usage |= WGPUTextureUsage_StorageBinding | WGPUTextureUsage_StorageAttachment;
     
     // Map render attachment bits (depth/stencil or color, both yield RenderAttachment)
     if (vkUsage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
-        usage |= TextureUsage_RenderAttachment;
+        usage |= WGPUTextureUsage_RenderAttachment;
     if (vkUsage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
-        usage |= TextureUsage_RenderAttachment;
+        usage |= WGPUTextureUsage_RenderAttachment;
     
     // Map transient attachment
     if (vkUsage & VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT)
-        usage |= TextureUsage_TransientAttachment;
+        usage |= WGPUTextureUsage_TransientAttachment;
     
     return usage;
 }
@@ -573,54 +301,54 @@ static inline VkPrimitiveTopology toVulkanPrimitive(PrimitiveType type){
             rg_unreachable();
     }
 }
-static inline VkBufferUsageFlags toVulkanBufferUsage(BufferUsage busg) {
+static inline VkBufferUsageFlags toVulkanBufferUsage(WGPUBufferUsage busg) {
     VkBufferUsageFlags usage = 0;
 
     while (busg != 0) {
         // Isolate the least significant set bit
-        BufferUsage flag = (busg & (-busg));
+        WGPUBufferUsage flag = (busg & (-busg));
 
         switch (flag) {
-        case BufferUsage_CopySrc:
+        case WGPUBufferUsage_CopySrc:
             usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
             break;
-        case BufferUsage_CopyDst:
+        case WGPUBufferUsage_CopyDst:
             usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
             break;
-        case BufferUsage_Vertex:
+        case WGPUBufferUsage_Vertex:
             usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
             break;
-        case BufferUsage_Index:
+        case WGPUBufferUsage_Index:
             usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
             break;
-        case BufferUsage_Uniform:
+        case WGPUBufferUsage_Uniform:
             usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
             break;
-        case BufferUsage_Storage:
+        case WGPUBufferUsage_Storage:
             usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
             break;
-        case BufferUsage_Indirect:
+        case WGPUBufferUsage_Indirect:
             usage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
             break;
-        case BufferUsage_MapRead:
+        case WGPUBufferUsage_MapRead:
             usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
             break;
-        case BufferUsage_MapWrite:
+        case WGPUBufferUsage_MapWrite:
             usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
             break;
-        case BufferUsage_QueryResolve:
+        case WGPUBufferUsage_QueryResolve:
             // Handle Vulkan-specific flags for query resolve if applicable.
             break;
-        case BufferUsage_ShaderDeviceAddress:
+        case WGPUBufferUsage_ShaderDeviceAddress:
             usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
             break;
-        case BufferUsage_AccelerationStructureInput:
+        case WGPUBufferUsage_AccelerationStructureInput:
             usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
             break;
-        case BufferUsage_AccelerationStructureStorage:
+        case WGPUBufferUsage_AccelerationStructureStorage:
             usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
             break;
-        case BufferUsage_ShaderBindingTable:
+        case WGPUBufferUsage_ShaderBindingTable:
             usage |= VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR;
             break;
         default:
@@ -777,25 +505,26 @@ static inline VkSamplerAddressMode toVulkanAddressMode(addressMode am) {
     }
 }
 
-static inline VkCompareOp toVulkanCompareFunction(CompareFunction cf) {
+static inline VkCompareOp toVulkanCompareFunction(WGPUCompareFunction cf) {
     switch (cf) {
-    case CompareFunction_Never:
+    case WGPUCompareFunction_Never:
         return VK_COMPARE_OP_NEVER;
-    case CompareFunction_Less:
+    case WGPUCompareFunction_Less:
         return VK_COMPARE_OP_LESS;
-    case CompareFunction_Equal:
+    case WGPUCompareFunction_Equal:
         return VK_COMPARE_OP_EQUAL;
-    case CompareFunction_LessEqual:
+    case WGPUCompareFunction_LessEqual:
         return VK_COMPARE_OP_LESS_OR_EQUAL;
-    case CompareFunction_Greater:
+    case WGPUCompareFunction_Greater:
         return VK_COMPARE_OP_GREATER;
-    case CompareFunction_NotEqual:
+    case WGPUCompareFunction_NotEqual:
         return VK_COMPARE_OP_NOT_EQUAL;
-    case CompareFunction_GreaterEqual:
+    case WGPUCompareFunction_GreaterEqual:
         return VK_COMPARE_OP_GREATER_OR_EQUAL;
-    case CompareFunction_Always:
+    case WGPUCompareFunction_Always:
         return VK_COMPARE_OP_ALWAYS;
     default:
+        rg_unreachable();
         return VK_COMPARE_OP_ALWAYS; // Default fallback
     }
 }
@@ -870,7 +599,7 @@ static inline VkPipelineStageFlags toVulkanPipelineStage(WGPUShaderStageEnum sta
 static inline VkShaderStageFlagBits toVulkanShaderStageBits(WGPUShaderStageEnum stage) {
     unsigned ret = 0;
     for(unsigned iter = stage;iter;iter &= (iter - 1)){
-        ShaderStageMask stage = (ShaderStageMask)(iter & -iter);
+        WGPUShaderStage stage = (WGPUShaderStage)(iter & -iter);
         switch (stage){
             case ShaderStageMask_Vertex:         ret |= VK_SHADER_STAGE_VERTEX_BIT;break;
             case ShaderStageMask_TessControl:    ret |= VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;break;
@@ -892,58 +621,58 @@ static inline VkShaderStageFlagBits toVulkanShaderStageBits(WGPUShaderStageEnum 
     return (VkShaderStageFlagBits)(ret);
 }
 
-static inline VkBlendFactor toVulkanBlendFactor(BlendFactor bf) {
+static inline VkBlendFactor toVulkanBlendFactor(WGPUBlendFactor bf) {
     switch (bf) {
-    case BlendFactor_Zero:
+    case WGPUBlendFactor_Zero:
         return VK_BLEND_FACTOR_ZERO;
-    case BlendFactor_One:
+    case WGPUBlendFactor_One:
         return VK_BLEND_FACTOR_ONE;
-    case BlendFactor_Src:
+    case WGPUBlendFactor_Src:
         return VK_BLEND_FACTOR_SRC_COLOR;
-    case BlendFactor_OneMinusSrc:
+    case WGPUBlendFactor_OneMinusSrc:
         return VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
-    case BlendFactor_SrcAlpha:
+    case WGPUBlendFactor_SrcAlpha:
         return VK_BLEND_FACTOR_SRC_ALPHA;
-    case BlendFactor_OneMinusSrcAlpha:
+    case WGPUBlendFactor_OneMinusSrcAlpha:
         return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    case BlendFactor_Dst:
+    case WGPUBlendFactor_Dst:
         return VK_BLEND_FACTOR_DST_COLOR;
-    case BlendFactor_OneMinusDst:
+    case WGPUBlendFactor_OneMinusDst:
         return VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
-    case BlendFactor_DstAlpha:
+    case WGPUBlendFactor_DstAlpha:
         return VK_BLEND_FACTOR_DST_ALPHA;
-    case BlendFactor_OneMinusDstAlpha:
+    case WGPUBlendFactor_OneMinusDstAlpha:
         return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
-    case BlendFactor_SrcAlphaSaturated:
+    case WGPUBlendFactor_SrcAlphaSaturated:
         return VK_BLEND_FACTOR_SRC_ALPHA_SATURATE;
-    case BlendFactor_Constant:
+    case WGPUBlendFactor_Constant:
         return VK_BLEND_FACTOR_CONSTANT_COLOR;
-    case BlendFactor_OneMinusConstant:
+    case WGPUBlendFactor_OneMinusConstant:
         return VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR;
-    case BlendFactor_Src1:
+    case WGPUBlendFactor_Src1:
         return VK_BLEND_FACTOR_SRC1_COLOR;
-    case BlendFactor_OneMinusSrc1:
+    case WGPUBlendFactor_OneMinusSrc1:
         return VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR;
-    case BlendFactor_Src1Alpha:
+    case WGPUBlendFactor_Src1Alpha:
         return VK_BLEND_FACTOR_SRC1_ALPHA;
-    case BlendFactor_OneMinusSrc1Alpha:
+    case WGPUBlendFactor_OneMinusSrc1Alpha:
         return VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA;
     default:
         return VK_BLEND_FACTOR_ONE; // Default fallback
     }
 }
 
-static inline VkBlendOp toVulkanBlendOperation(BlendOperation bo) {
+static inline VkBlendOp toVulkanBlendOperation(WGPUBlendOperation bo) {
     switch (bo) {
-    case BlendOperation_Add:
+    case WGPUBlendOperation_Add:
         return VK_BLEND_OP_ADD;
-    case BlendOperation_Subtract:
+    case WGPUBlendOperation_Subtract:
         return VK_BLEND_OP_SUBTRACT;
-    case BlendOperation_ReverseSubtract:
+    case WGPUBlendOperation_ReverseSubtract:
         return VK_BLEND_OP_REVERSE_SUBTRACT;
-    case BlendOperation_Min:
+    case WGPUBlendOperation_Min:
         return VK_BLEND_OP_MIN;
-    case BlendOperation_Max:
+    case WGPUBlendOperation_Max:
         return VK_BLEND_OP_MAX;
     default:
         return VK_BLEND_OP_ADD; // Default fallback
@@ -1030,96 +759,96 @@ static inline VkCullModeFlags toVulkanCullMode(WGPUCullMode cm){
     }
 }
 
-static inline VkFormat toVulkanVertexFormat(VertexFormat vf) {
+static inline VkFormat toVulkanVertexFormat(WGPUVertexFormat vf) {
     switch (vf) {
-    case VertexFormat_Uint8:
+    case WGPUVertexFormat_Uint8:
         return VK_FORMAT_R8_UINT;
-    case VertexFormat_Uint8x2:
+    case WGPUVertexFormat_Uint8x2:
         return VK_FORMAT_R8G8_UINT;
-    case VertexFormat_Uint8x4:
+    case WGPUVertexFormat_Uint8x4:
         return VK_FORMAT_R8G8B8A8_UINT;
-    case VertexFormat_Sint8:
+    case WGPUVertexFormat_Sint8:
         return VK_FORMAT_R8_SINT;
-    case VertexFormat_Sint8x2:
+    case WGPUVertexFormat_Sint8x2:
         return VK_FORMAT_R8G8_SINT;
-    case VertexFormat_Sint8x4:
+    case WGPUVertexFormat_Sint8x4:
         return VK_FORMAT_R8G8B8A8_SINT;
-    case VertexFormat_Unorm8:
+    case WGPUVertexFormat_Unorm8:
         return VK_FORMAT_R8_UNORM;
-    case VertexFormat_Unorm8x2:
+    case WGPUVertexFormat_Unorm8x2:
         return VK_FORMAT_R8G8_UNORM;
-    case VertexFormat_Unorm8x4:
+    case WGPUVertexFormat_Unorm8x4:
         return VK_FORMAT_R8G8B8A8_UNORM;
-    case VertexFormat_Snorm8:
+    case WGPUVertexFormat_Snorm8:
         return VK_FORMAT_R8_SNORM;
-    case VertexFormat_Snorm8x2:
+    case WGPUVertexFormat_Snorm8x2:
         return VK_FORMAT_R8G8_SNORM;
-    case VertexFormat_Snorm8x4:
+    case WGPUVertexFormat_Snorm8x4:
         return VK_FORMAT_R8G8B8A8_SNORM;
-    case VertexFormat_Uint16:
+    case WGPUVertexFormat_Uint16:
         return VK_FORMAT_R16_UINT;
-    case VertexFormat_Uint16x2:
+    case WGPUVertexFormat_Uint16x2:
         return VK_FORMAT_R16G16_UINT;
-    case VertexFormat_Uint16x4:
+    case WGPUVertexFormat_Uint16x4:
         return VK_FORMAT_R16G16B16A16_UINT;
-    case VertexFormat_Sint16:
+    case WGPUVertexFormat_Sint16:
         return VK_FORMAT_R16_SINT;
-    case VertexFormat_Sint16x2:
+    case WGPUVertexFormat_Sint16x2:
         return VK_FORMAT_R16G16_SINT;
-    case VertexFormat_Sint16x4:
+    case WGPUVertexFormat_Sint16x4:
         return VK_FORMAT_R16G16B16A16_SINT;
-    case VertexFormat_Unorm16:
+    case WGPUVertexFormat_Unorm16:
         return VK_FORMAT_R16_UNORM;
-    case VertexFormat_Unorm16x2:
+    case WGPUVertexFormat_Unorm16x2:
         return VK_FORMAT_R16G16_UNORM;
-    case VertexFormat_Unorm16x4:
+    case WGPUVertexFormat_Unorm16x4:
         return VK_FORMAT_R16G16B16A16_UNORM;
-    case VertexFormat_Snorm16:
+    case WGPUVertexFormat_Snorm16:
         return VK_FORMAT_R16_SNORM;
-    case VertexFormat_Snorm16x2:
+    case WGPUVertexFormat_Snorm16x2:
         return VK_FORMAT_R16G16_SNORM;
-    case VertexFormat_Snorm16x4:
+    case WGPUVertexFormat_Snorm16x4:
         return VK_FORMAT_R16G16B16A16_SNORM;
-    case VertexFormat_Float16:
+    case WGPUVertexFormat_Float16:
         return VK_FORMAT_R16_SFLOAT;
-    case VertexFormat_Float16x2:
+    case WGPUVertexFormat_Float16x2:
         return VK_FORMAT_R16G16_SFLOAT;
-    case VertexFormat_Float16x4:
+    case WGPUVertexFormat_Float16x4:
         return VK_FORMAT_R16G16B16A16_SFLOAT;
-    case VertexFormat_Float32:
+    case WGPUVertexFormat_Float32:
         return VK_FORMAT_R32_SFLOAT;
-    case VertexFormat_Float32x2:
+    case WGPUVertexFormat_Float32x2:
         return VK_FORMAT_R32G32_SFLOAT;
-    case VertexFormat_Float32x3:
+    case WGPUVertexFormat_Float32x3:
         return VK_FORMAT_R32G32B32_SFLOAT;
-    case VertexFormat_Float32x4:
+    case WGPUVertexFormat_Float32x4:
         return VK_FORMAT_R32G32B32A32_SFLOAT;
-    case VertexFormat_Uint32:
+    case WGPUVertexFormat_Uint32:
         return VK_FORMAT_R32_UINT;
-    case VertexFormat_Uint32x2:
+    case WGPUVertexFormat_Uint32x2:
         return VK_FORMAT_R32G32_UINT;
-    case VertexFormat_Uint32x3:
+    case WGPUVertexFormat_Uint32x3:
         return VK_FORMAT_R32G32B32_UINT;
-    case VertexFormat_Uint32x4:
+    case WGPUVertexFormat_Uint32x4:
         return VK_FORMAT_R32G32B32A32_UINT;
-    case VertexFormat_Sint32:
+    case WGPUVertexFormat_Sint32:
         return VK_FORMAT_R32_SINT;
-    case VertexFormat_Sint32x2:
+    case WGPUVertexFormat_Sint32x2:
         return VK_FORMAT_R32G32_SINT;
-    case VertexFormat_Sint32x3:
+    case WGPUVertexFormat_Sint32x3:
         return VK_FORMAT_R32G32B32_SINT;
-    case VertexFormat_Sint32x4:
+    case WGPUVertexFormat_Sint32x4:
         return VK_FORMAT_R32G32B32A32_SINT;
-    case VertexFormat_Unorm10_10_10_2:
+    case WGPUVertexFormat_Unorm10_10_10_2:
         return VK_FORMAT_A2R10G10B10_UNORM_PACK32;
-    case VertexFormat_Unorm8x4BGRA:
+    case WGPUVertexFormat_Unorm8x4BGRA:
         return VK_FORMAT_B8G8R8A8_UNORM;
     default:
         return VK_FORMAT_UNDEFINED; // Default fallback
     }
 }
 
-static inline VkVertexInputRate toVulkanVertexStepMode(VertexStepMode vsm) {
+static inline VkVertexInputRate toVulkanVertexStepMode(WGPUVertexStepMode vsm) {
     switch (vsm) {
     case VertexStepMode_Vertex:
         return VK_VERTEX_INPUT_RATE_VERTEX;
@@ -1139,40 +868,40 @@ static inline VkVertexInputRate toVulkanVertexStepMode(VertexStepMode vsm) {
 
 #if SUPPORT_WGPU_BACKEND == 1
 /**
- * @brief Translates custom TextureUsage flags to WebGPU's WGPUTextureUsage flags.
+ * @brief Translates custom WGPUTextureUsage flags to WebGPU's WGPUTextureUsage flags.
  *
- * @param usage The TextureUsage bitmask to translate.
+ * @param usage The WGPUTextureUsage bitmask to translate.
  * @return WGPUTextureUsage The corresponding WebGPU texture usage flags.
  */
-static inline WGPUTextureUsage toWebGPUTextureUsage(TextureUsage usage) {
+static inline WGPUTextureUsage toWebGPUTextureUsage(WGPUTextureUsage usage) {
     WGPUTextureUsage wgpuUsage = 0;
 
-    // Array of all possible TextureUsage flags
-    const TextureUsage allFlags[] = {TextureUsage_CopySrc, TextureUsage_CopyDst, TextureUsage_TextureBinding, TextureUsage_StorageBinding, TextureUsage_RenderAttachment, TextureUsage_TransientAttachment, TextureUsage_StorageAttachment};
+    // Array of all possible WGPUTextureUsage flags
+    const WGPUTextureUsage allFlags[] = {WGPUTextureUsage_CopySrc, WGPUTextureUsage_CopyDst, WGPUTextureUsage_TextureBinding, WGPUTextureUsage_StorageBinding, WGPUTextureUsage_RenderAttachment, WGPUTextureUsage_TransientAttachment, WGPUTextureUsage_StorageAttachment};
     // Iterate through each dflag and map accordingly
     uint32_t remainigFlags = usage;
     while (remainigFlags != 0) {
         uint32_t flag = remainigFlags & -remainigFlags;
         switch (flag) {
-        case TextureUsage_CopySrc:
+        case WGPUTextureUsage_CopySrc:
             wgpuUsage |= WGPUTextureUsage_CopySrc;
             break;
-        case TextureUsage_CopyDst:
+        case WGPUTextureUsage_CopyDst:
             wgpuUsage |= WGPUTextureUsage_CopyDst;
             break;
-        case TextureUsage_TextureBinding:
+        case WGPUTextureUsage_TextureBinding:
             wgpuUsage |= WGPUTextureUsage_TextureBinding;
             break;
-        case TextureUsage_StorageBinding:
+        case WGPUTextureUsage_StorageBinding:
             wgpuUsage |= WGPUTextureUsage_StorageBinding;
             break;
-        case TextureUsage_RenderAttachment:
+        case WGPUTextureUsage_RenderAttachment:
             wgpuUsage |= WGPUTextureUsage_RenderAttachment;
             break;
-        //case TextureUsage_TransientAttachment:
+        //case WGPUTextureUsage_TransientAttachment:
         //    wgpuUsage |= WGPUTextureUsage_TransientAttachment;
         //    break;
-        //case TextureUsage_StorageAttachment:
+        //case WGPUTextureUsage_StorageAttachment:
         //    wgpuUsage |= WGPUTextureUsage_StorageAttachment;
         //    break;
         default:
@@ -1194,41 +923,41 @@ static inline WGPUPrimitiveTopology toWebGPUPrimitive(PrimitiveType pt){
         rg_unreachable();
     }
 }
-static inline WGPUBufferUsage toWebGPUBufferUsage(BufferUsage busg) {
+static inline WGPUBufferUsage toWebGPUBufferUsage(WGPUBufferUsage busg) {
     WGPUBufferUsage usage = 0;
 
     while (busg != 0) {
-        BufferUsage flag = (busg & (-busg));
+        WGPUBufferUsage flag = (busg & (-busg));
 
         switch (flag) {
-        case BufferUsage_CopySrc:
+        case WGPUBufferUsage_CopySrc:
             usage |= WGPUBufferUsage_CopySrc;
             break;
-        case BufferUsage_CopyDst:
+        case WGPUBufferUsage_CopyDst:
             usage |= WGPUBufferUsage_CopyDst;
             break;
-        case BufferUsage_Vertex:
+        case WGPUBufferUsage_Vertex:
             usage |= WGPUBufferUsage_Vertex;
             break;
-        case BufferUsage_Index:
+        case WGPUBufferUsage_Index:
             usage |= WGPUBufferUsage_Index;
             break;
-        case BufferUsage_Uniform:
+        case WGPUBufferUsage_Uniform:
             usage |= WGPUBufferUsage_Uniform;
             break;
-        case BufferUsage_Storage:
+        case WGPUBufferUsage_Storage:
             usage |= WGPUBufferUsage_Storage;
             break;
-        case BufferUsage_Indirect:
+        case WGPUBufferUsage_Indirect:
             usage |= WGPUBufferUsage_Indirect;
             break;
-        case BufferUsage_MapRead:
+        case WGPUBufferUsage_MapRead:
             usage |= WGPUBufferUsage_MapRead;
             break;
-        case BufferUsage_MapWrite:
+        case WGPUBufferUsage_MapWrite:
             usage |= WGPUBufferUsage_MapWrite;
             break;
-        case BufferUsage_QueryResolve:
+        case WGPUBufferUsage_QueryResolve:
             usage |= WGPUBufferUsage_QueryResolve;
             break;
         default:
@@ -1334,48 +1063,7 @@ static inline WGPUCompareFunction toWebGPUCompareFunction(CompareFunction cf) {
     }
 }
 
-// Translation function for BlendFactor to WGPUBlendFactor
-static inline WGPUBlendFactor toWebGPUBlendFactor(BlendFactor bf) {
-    return bf;
-    //switch (bf) {
-    //case BlendFactor_Zero:
-    //    return WGPUBlendFactor_Zero;
-    //case BlendFactor_One:
-    //    return WGPUBlendFactor_One;
-    //case BlendFactor_Src:
-    //    return WGPUBlendFactor_Src;
-    //case BlendFactor_OneMinusSrc:
-    //    return WGPUBlendFactor_OneMinusSrc;
-    //case BlendFactor_SrcAlpha:
-    //    return WGPUBlendFactor_SrcAlpha;
-    //case BlendFactor_OneMinusSrcAlpha:
-    //    return WGPUBlendFactor_OneMinusSrcAlpha;
-    //case BlendFactor_Dst:
-    //    return WGPUBlendFactor_Dst;
-    //case BlendFactor_OneMinusDst:
-    //    return WGPUBlendFactor_OneMinusDst;
-    //case BlendFactor_DstAlpha:
-    //    return WGPUBlendFactor_DstAlpha;
-    //case BlendFactor_OneMinusDstAlpha:
-    //    return WGPUBlendFactor_OneMinusDstAlpha;
-    //case BlendFactor_SrcAlphaSaturated:
-    //    return WGPUBlendFactor_SrcAlphaSaturated;
-    //case BlendFactor_Constant:
-    //    return WGPUBlendFactor_Constant;
-    //case BlendFactor_OneMinusConstant:
-    //    return WGPUBlendFactor_OneMinusConstant;
-    //case BlendFactor_Src1:
-    //    return WGPUBlendFactor_Src1;
-    //case BlendFactor_OneMinusSrc1:
-    //    return WGPUBlendFactor_OneMinusSrc1;
-    //case BlendFactor_Src1Alpha:
-    //    return WGPUBlendFactor_Src1Alpha;
-    //case BlendFactor_OneMinusSrc1Alpha:
-    //    return WGPUBlendFactor_OneMinusSrc1Alpha;
-    //default:
-    //    return WGPUBlendFactor_One; // Default fallback
-    //}
-}
+
 
 // Translation function for BlendOperation to WGPUBlendOperation
 static inline WGPUBlendOperation toWebGPUBlendOperation(BlendOperation bo) {
@@ -1458,90 +1146,7 @@ static inline WGPULoadOp toWebGPULoadOperation(LoadOp lop) {
 }
 
 // Translation function for VertexFormat to WGPUVertexFormat
-static inline WGPUVertexFormat toWebGPUVertexFormat(VertexFormat vf) {
-    switch (vf) {
-    case VertexFormat_Uint8:
-        return WGPUVertexFormat_Uint8;
-    case VertexFormat_Uint8x2:
-        return WGPUVertexFormat_Uint8x2;
-    case VertexFormat_Uint8x4:
-        return WGPUVertexFormat_Uint8x4;
-    case VertexFormat_Sint8:
-        return WGPUVertexFormat_Sint8;
-    case VertexFormat_Sint8x2:
-        return WGPUVertexFormat_Sint8x2;
-    case VertexFormat_Sint8x4:
-        return WGPUVertexFormat_Sint8x4;
-    case VertexFormat_Unorm8:
-        return WGPUVertexFormat_Unorm8;
-    case VertexFormat_Unorm8x2:
-        return WGPUVertexFormat_Unorm8x2;
-    case VertexFormat_Unorm8x4:
-        return WGPUVertexFormat_Unorm8x4;
-    case VertexFormat_Snorm8:
-        return WGPUVertexFormat_Snorm8;
-    case VertexFormat_Snorm8x2:
-        return WGPUVertexFormat_Snorm8x2;
-    case VertexFormat_Snorm8x4:
-        return WGPUVertexFormat_Snorm8x4;
-    case VertexFormat_Uint16:
-        return WGPUVertexFormat_Uint16;
-    case VertexFormat_Uint16x2:
-        return WGPUVertexFormat_Uint16x2;
-    case VertexFormat_Uint16x4:
-        return WGPUVertexFormat_Uint16x4;
-    case VertexFormat_Sint16:
-        return WGPUVertexFormat_Sint16;
-    case VertexFormat_Sint16x2:
-        return WGPUVertexFormat_Sint16x2;
-    case VertexFormat_Sint16x4:
-        return WGPUVertexFormat_Sint16x4;
-    case VertexFormat_Unorm16:
-        return WGPUVertexFormat_Unorm16;
-    case VertexFormat_Unorm16x2:
-        return WGPUVertexFormat_Unorm16x2;
-    case VertexFormat_Unorm16x4:
-        return WGPUVertexFormat_Unorm16x4;
-    case VertexFormat_Snorm16:
-        return WGPUVertexFormat_Snorm16;
-    case VertexFormat_Snorm16x2:
-        return WGPUVertexFormat_Snorm16x2;
-    case VertexFormat_Snorm16x4:
-        return WGPUVertexFormat_Snorm16x4;
-    case VertexFormat_Float16:
-        return WGPUVertexFormat_Float16;
-    case VertexFormat_Float16x2:
-        return WGPUVertexFormat_Float16x2;
-    case VertexFormat_Float16x4:
-        return WGPUVertexFormat_Float16x4;
-    case VertexFormat_Float32:
-        return WGPUVertexFormat_Float32;
-    case VertexFormat_Float32x2:
-        return WGPUVertexFormat_Float32x2;
-    case VertexFormat_Float32x3:
-        return WGPUVertexFormat_Float32x3;
-    case VertexFormat_Float32x4:
-        return WGPUVertexFormat_Float32x4;
-    case VertexFormat_Uint32:
-        return WGPUVertexFormat_Uint32;
-    case VertexFormat_Uint32x2:
-        return WGPUVertexFormat_Uint32x2;
-    case VertexFormat_Uint32x3:
-        return WGPUVertexFormat_Uint32x3;
-    case VertexFormat_Uint32x4:
-        return WGPUVertexFormat_Uint32x4;
-    case VertexFormat_Sint32:
-        return WGPUVertexFormat_Sint32;
-    case VertexFormat_Sint32x2:
-        return WGPUVertexFormat_Sint32x2;
-    case VertexFormat_Sint32x3:
-        return WGPUVertexFormat_Sint32x3;
-    case VertexFormat_Sint32x4:
-        return WGPUVertexFormat_Sint32x4;
-    default:
-        return WGPUVertexFormat_Force32; // Default fallback
-    }
-}
+
 
 // Translation function for VertexStepMode to WGPUVertexStepMode
 static inline WGPUVertexStepMode toWebGPUVertexStepMode(VertexStepMode vsm) {

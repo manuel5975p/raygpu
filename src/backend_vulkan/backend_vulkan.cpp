@@ -159,7 +159,7 @@ void PostPresentSurface(){
     queue->syncState[cacheIndex].submits = 0;
     queue->presubmitCache = wgpuDeviceCreateCommandEncoder(surfaceDevice, &cedesc);
 }
-extern "C" DescribedBuffer* GenBufferEx(const void* data, size_t size, BufferUsage usage){
+extern "C" DescribedBuffer* GenBufferEx(const void* data, size_t size, WGPUBufferUsage usage){
     DescribedBuffer* ret = callocnew(DescribedBuffer);
     WGPUBufferDescriptor descriptor{};
     descriptor.size = size;
@@ -182,9 +182,9 @@ extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t width, uint32_t he
 
     wgpuSurfaceConfigure((WGPUSurface)fsurface->surface, &fsurface->surfaceConfig);
     UnloadTexture(fsurface->renderTarget.depth);
-    fsurface->renderTarget.depth = LoadTexturePro(width, height, Depth32, TextureUsage_RenderAttachment, GetDefaultSettings().sampleCount, 1);
+    fsurface->renderTarget.depth = LoadTexturePro(width, height, Depth32, WGPUTextureUsage_RenderAttachment, GetDefaultSettings().sampleCount, 1);
     if(fsurface->renderTarget.depth.sampleCount > 1){
-        fsurface->renderTarget.colorMultisample = LoadTexturePro(width, height, BGRA8, TextureUsage_RenderAttachment, GetDefaultSettings().sampleCount, 1);
+        fsurface->renderTarget.colorMultisample = LoadTexturePro(width, height, BGRA8, WGPUTextureUsage_RenderAttachment, GetDefaultSettings().sampleCount, 1);
     }
 }
 
@@ -284,7 +284,7 @@ DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode m
     DescribedSampler ret zeroinit;// = callocnew(DescribedSampler);
     WGPUSamplerDescriptor sdesc zeroinit;
     
-    sdesc.compare = CompareFunction_Less;
+    sdesc.compare = WGPUCompareFunction_Less;
     sdesc.addressModeU = amode;
     sdesc.addressModeV = amode;
     sdesc.addressModeW = amode;
@@ -302,7 +302,7 @@ DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode m
     ret.addressModeV = amode;
     ret.addressModeW = amode;
     ret.maxAnisotropy = maxAnisotropy;
-    ret.compare = CompareFunction_Less;//huh??
+    ret.compare = WGPUCompareFunction_Less;//huh??
     ret.sampler = wgpuDeviceCreateSampler(g_vulkanstate.device, &sdesc);
     return ret;
 }
@@ -813,7 +813,7 @@ void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, cons
     ResourceDescriptor entry{};
     WGPUBufferDescriptor bufferDesc{};
     bufferDesc.size = size;
-    bufferDesc.usage = BufferUsage_CopyDst | BufferUsage_Uniform;
+    bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
     WGPUBuffer wgpuBuffer = wgpuDeviceCreateBuffer(g_vulkanstate.device, &bufferDesc);
     //wgpuBuffer->refCount++;
     wgpuQueueWriteBuffer(g_vulkanstate.queue, wgpuBuffer, 0, data, size);
@@ -828,7 +828,7 @@ void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, cons
     ResourceDescriptor entry{};
     WGPUBufferDescriptor bufferDesc{};
     bufferDesc.size = size;
-    bufferDesc.usage = BufferUsage_CopyDst | BufferUsage_Storage;
+    bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
     WGPUBuffer wgpuBuffer = wgpuDeviceCreateBuffer(g_vulkanstate.device, &bufferDesc);
     wgpuQueueWriteBuffer(g_vulkanstate.queue, wgpuBuffer, 0, data, size);
     entry.binding = index;
@@ -948,7 +948,7 @@ extern "C" void PrepareFrameGlobals(){
     }
     if(cache.unusedBatchBuffers.size == 0){
         WGPUBufferDescriptor bdesc{
-            .usage = BufferUsage_CopyDst | BufferUsage_MapWrite | BufferUsage_Vertex,
+            .usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapWrite | WGPUBufferUsage_Vertex,
             .size = (RENDERBATCH_SIZE * sizeof(vertex))
         };
 
@@ -984,7 +984,7 @@ extern "C" DescribedBuffer* UpdateVulkanRenderbatch(){
     }
     if(WGPUBufferVector_empty(&cache.unusedBatchBuffers)){
         WGPUBufferDescriptor bdesc = {
-            .usage = BufferUsage_CopyDst | BufferUsage_MapWrite | BufferUsage_Vertex,
+            .usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapWrite | WGPUBufferUsage_Vertex,
             .size = (RENDERBATCH_SIZE * sizeof(vertex))
         };
 
@@ -1186,10 +1186,10 @@ RenderTexture LoadRenderTexture(uint32_t width, uint32_t height){
     RenderTexture ret{
         .texture = LoadTextureEx(width, height, (PixelFormat)g_renderstate.frameBufferFormat, true),
         .colorMultisample = Texture{}, 
-        .depth = LoadTexturePro(width, height, Depth32, TextureUsage_RenderAttachment | TextureUsage_CopySrc, (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1, 1)
+        .depth = LoadTexturePro(width, height, Depth32, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1, 1)
     };
     if(g_renderstate.windowFlags & FLAG_MSAA_4X_HINT){
-        ret.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_renderstate.frameBufferFormat, TextureUsage_RenderAttachment | TextureUsage_CopySrc, 4, 1);
+        ret.colorMultisample = LoadTexturePro(width, height, (PixelFormat)g_renderstate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc, 4, 1);
     }
     WGPUTextureView colorTargetView = (WGPUTextureView)ret.texture.view;
     //wgpuQueueTransitionLayout(g_vulkanstate.queue, colorTargetView->texture, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -1439,7 +1439,7 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
 void UpdateTexture(Texture tex, void* data){
     WGPUTexelCopyTextureInfo destination{};
     destination.texture = (WGPUTexture)tex.id;
-    destination.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    destination.aspect = TextureAspect_All;
     destination.mipLevel = 0;
     destination.origin = WGPUOrigin3D{0,0,0};
 

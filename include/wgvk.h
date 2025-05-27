@@ -127,6 +127,7 @@ X(CmdTraceRaysKHR)
 
 typedef uint64_t WGPUFlags;
 typedef uint32_t WGPUBool;
+#define WGPU_ENUM_ATTRIBUTE
 
 struct WGPUTextureImpl;
 struct WGPUTextureViewImpl;
@@ -231,7 +232,32 @@ const static WGPUShaderStage ShaderStageMask_Mesh = (1u << ShaderStage_Mesh);
 const static WGPUShaderStage ShaderStageMask_MeshNV = (1u << ShaderStage_MeshNV);
 const static WGPUShaderStage ShaderStageMask_EnumCount = (1u << ShaderStage_EnumCount);
 
+typedef WGPUFlags WGPUTextureUsage;
+static const WGPUTextureUsage WGPUTextureUsage_None = 0x0000000000000000;
+static const WGPUTextureUsage WGPUTextureUsage_CopySrc = 0x0000000000000001;
+static const WGPUTextureUsage WGPUTextureUsage_CopyDst = 0x0000000000000002;
+static const WGPUTextureUsage WGPUTextureUsage_TextureBinding = 0x0000000000000004;
+static const WGPUTextureUsage WGPUTextureUsage_StorageBinding = 0x0000000000000008;
+static const WGPUTextureUsage WGPUTextureUsage_RenderAttachment = 0x0000000000000010;
+static const WGPUTextureUsage WGPUTextureUsage_TransientAttachment = 0x0000000000001000;
+static const WGPUTextureUsage WGPUTextureUsage_StorageAttachment = 0x0000000000002000;
 
+typedef WGPUFlags WGPUBufferUsage;
+static const WGPUBufferUsage WGPUBufferUsage_None = 0x0000000000000000;
+static const WGPUBufferUsage WGPUBufferUsage_MapRead = 0x0000000000000001;
+static const WGPUBufferUsage WGPUBufferUsage_MapWrite = 0x0000000000000002;
+static const WGPUBufferUsage WGPUBufferUsage_CopySrc = 0x0000000000000004;
+static const WGPUBufferUsage WGPUBufferUsage_CopyDst = 0x0000000000000008;
+static const WGPUBufferUsage WGPUBufferUsage_Index = 0x0000000000000010;
+static const WGPUBufferUsage WGPUBufferUsage_Vertex = 0x0000000000000020;
+static const WGPUBufferUsage WGPUBufferUsage_Uniform = 0x0000000000000040;
+static const WGPUBufferUsage WGPUBufferUsage_Storage = 0x0000000000000080;
+static const WGPUBufferUsage WGPUBufferUsage_Indirect = 0x0000000000000100;
+static const WGPUBufferUsage WGPUBufferUsage_QueryResolve = 0x0000000000000200;
+static const WGPUBufferUsage WGPUBufferUsage_ShaderDeviceAddress = 0x0000000010000000;
+static const WGPUBufferUsage WGPUBufferUsage_AccelerationStructureInput = 0x0000000020000000;
+static const WGPUBufferUsage WGPUBufferUsage_AccelerationStructureStorage = 0x0000000040000000;
+static const WGPUBufferUsage WGPUBufferUsage_ShaderBindingTable = 0x0000000080000000;
 typedef enum WGPUWaitStatus {
     WGPUWaitStatus_Success = 0x00000001,
     WGPUWaitStatus_TimedOut = 0x00000002,
@@ -272,6 +298,40 @@ typedef enum WGPUSType {
     WGPUSType_InstanceValidationLayerSelection = 0x10000001
 }WGPUSType;
 
+typedef enum WGPU_VK_ImageLayout {
+    WGPU_VK_IMAGE_LAYOUT_UNDEFINED = 0,
+    WGPU_VK_IMAGE_LAYOUT_GENERAL = 1,
+    WGPU_VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL = 2,
+    WGPU_VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL = 3,
+    WGPU_VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL = 4,
+    WGPU_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL = 5,
+    WGPU_VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL = 6,
+    WGPU_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL = 7,
+    WGPU_VK_IMAGE_LAYOUT_PREINITIALIZED = 8,
+    WGPU_VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL = 1000117000,
+    WGPU_VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL = 1000117001,
+    WGPU_VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL = 1000241000,
+    WGPU_VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL = 1000241001,
+    WGPU_VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL = 1000241002,
+    WGPU_VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL = 1000241003,
+    WGPU_VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL = 1000314000,
+    WGPU_VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL = 1000314001,
+    WGPU_VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ = 1000232000,
+    WGPU_VK_IMAGE_LAYOUT_PRESENT_SRC_KHR = 1000001002,
+    WGPU_VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR = 1000024000,
+    WGPU_VK_IMAGE_LAYOUT_VIDEO_DECODE_SRC_KHR = 1000024001,
+    WGPU_VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR = 1000024002,
+    WGPU_VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR = 1000111000,
+    WGPU_VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT = 1000218000,
+    WGPU_VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR = 1000164003,
+    WGPU_VK_IMAGE_LAYOUT_VIDEO_ENCODE_DST_KHR = 1000299000,
+    WGPU_VK_IMAGE_LAYOUT_VIDEO_ENCODE_SRC_KHR = 1000299001,
+    WGPU_VK_IMAGE_LAYOUT_VIDEO_ENCODE_DPB_KHR = 1000299002,
+    WGPU_VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT = 1000339000,
+    WGPU_VK_IMAGE_LAYOUT_VIDEO_ENCODE_QUANTIZATION_MAP_KHR = 1000553000,
+    WGPU_VK_IMAGE_LAYOUT_MAX_ENUM = 0x7FFFFFFF
+} WGPU_VK_ImageLayout;
+
 typedef enum WGPUCallbackMode {
     WGPUCallbackMode_WaitAnyOnly = 0x00000001,
     WGPUCallbackMode_AllowProcessEvents = 0x00000002,
@@ -301,6 +361,133 @@ typedef struct WGPUTexelCopyBufferLayout {
     uint32_t bytesPerRow;
     uint32_t rowsPerImage;
 } WGPUTexelCopyBufferLayout;
+typedef enum uniform_type { uniform_type_undefined, uniform_buffer, storage_buffer, texture2d, texture2d_array, storage_texture2d, texture_sampler, texture3d, storage_texture3d, storage_texture2d_array, acceleration_structure, combined_image_sampler, uniform_type_enumcount, uniform_type_force32 = 0x7fffffff} uniform_type;
+
+typedef enum access_type { readonly, readwrite, writeonly } access_type;
+
+typedef enum format_or_sample_type { we_dont_know, sample_f32, sample_u32, format_r32float, format_r32uint, format_rgba8unorm, format_rgba32float } format_or_sample_type;
+
+typedef enum filterMode {
+    filter_nearest = 0x1,
+    filter_linear = 0x2,
+} filterMode;
+
+typedef enum addressMode {
+    clampToEdge = 0x1,
+    repeat = 0x2,
+    mirrorRepeat = 0x3,
+} addressMode;
+
+typedef enum PixelFormat {
+    RGBA8      = 0x12, //WGPUTextureFormat_RGBA8Unorm,
+    RGBA8_Srgb = 0x13, //WGPUTextureFormat_RGBA8UnormSrgb,
+    BGRA8      = 0x17, //WGPUTextureFormat_BGRA8Unorm,
+    BGRA8_Srgb = 0x18, //WGPUTextureFormat_BGRA8UnormSrgb,
+    RGBA16F    = 0x22, //WGPUTextureFormat_RGBA16Float,
+    RGBA32F    = 0x23, //WGPUTextureFormat_RGBA32Float,
+    Depth24    = 0x28, //WGPUTextureFormat_Depth24Plus,
+    Depth32    = 0x2A, //WGPUTextureFormat_Depth32Float,
+
+    GRAYSCALE = 0x100000, // No WGPU_ equivalent
+    RGB8 = 0x100001,      // No WGPU_ equivalent
+    PixelFormat_Force32 = 0x7FFFFFFF
+} PixelFormat;
+
+typedef enum WGPUCompareFunction {
+    WGPUCompareFunction_Undefined = 0x00000000,
+    WGPUCompareFunction_Never = 0x00000001,
+    WGPUCompareFunction_Less = 0x00000002,
+    WGPUCompareFunction_Equal = 0x00000003,
+    WGPUCompareFunction_LessEqual = 0x00000004,
+    WGPUCompareFunction_Greater = 0x00000005,
+    WGPUCompareFunction_NotEqual = 0x00000006,
+    WGPUCompareFunction_GreaterEqual = 0x00000007,
+    WGPUCompareFunction_Always = 0x00000008
+} WGPUCompareFunction;
+typedef enum MapMode{
+    MapMode_Read,
+    MapMode_Write,
+    MapMode_ReadWrite,
+}MapMode;
+
+typedef enum TextureDimension{
+    TextureDimension_Undefined = 0x00000000,
+    TextureDimension_1D = 0x00000001,
+    TextureDimension_2D = 0x00000002,
+    //TextureViewDimension_2DArray = 0x00000003,
+    //TextureViewDimension_Cube = 0x00000004,
+    //TextureViewDimension_CubeArray = 0x00000005,
+    TextureDimension_3D = 0x00000003
+}TextureDimension;
+typedef enum TextureViewDimension{
+    TextureViewDimension_Undefined = 0x00000000,
+    TextureViewDimension_1D = 0x00000001,
+    TextureViewDimension_2D = 0x00000002,
+    TextureViewDimension_2DArray = 0x00000003,
+    //TextureViewDimension_Cube = 0x00000004,
+    //TextureViewDimension_CubeArray = 0x00000005,
+    TextureViewDimension_3D = 0x00000006,
+    TextureViewDimension_Force32 = 0x7FFFFFFF
+}TextureViewDimension;
+
+typedef enum WGPUTextureViewDimension{
+    WGPUTextureViewDimension_Undefined = 0x00000000,
+    WGPUTextureViewDimension_1D = 0x00000001,
+    WGPUTextureViewDimension_2D = 0x00000002,
+    WGPUTextureViewDimension_2DArray = 0x00000003,
+    WGPUTextureViewDimension_Cube = 0x00000004,
+    WGPUTextureViewDimension_CubeArray = 0x00000005,
+    WGPUTextureViewDimension_3D = 0x00000006,
+    WGPUTextureViewDimension_Force32 = 0x7FFFFFFF
+}WGPUTextureViewDimension;
+typedef enum PrimitiveType{
+    RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS, RL_LINES, RL_POINTS
+}PrimitiveType;
+
+typedef enum TFilterMode { TFilterMode_Undefined = 0x00000000, TFilterMode_Nearest = 0x00000001, TFilterMode_Linear = 0x00000002, TFilterMode_Force32 = 0x7FFFFFFF } TFilterMode;
+
+typedef enum FrontFace { FrontFace_Undefined = 0x00000000, FrontFace_CCW = 0x00000001, FrontFace_CW = 0x00000002, FrontFace_Force32 = 0x7FFFFFFF } FrontFace;
+
+typedef enum IndexFormat { IndexFormat_Undefined = 0x00000000, IndexFormat_Uint16 = 0x00000001, IndexFormat_Uint32 = 0x00000002, IndexFormat_Force32 = 0x7FFFFFFF } IndexFormat;
+
+typedef enum WGPUCullMode{
+    WGPUCullMode_Undefined = 0x00000000,
+    WGPUCullMode_None = 0x00000001,
+    WGPUCullMode_Front = 0x00000002,
+    WGPUCullMode_Back = 0x00000003,
+    WGPUCullMode_Force32 = 0x7FFFFFFF
+}WGPUCullMode;
+
+typedef enum LoadOp {
+    LoadOp_Undefined = 0x00000000,
+    LoadOp_Load = 0x00000001,
+    LoadOp_Clear = 0x00000002,
+    LoadOp_ExpandResolveTexture = 0x00050003,
+    LoadOp_Force32 = 0x7FFFFFFF
+} LoadOp;
+
+typedef enum StoreOp {
+    StoreOp_Undefined = 0x00000000,
+    StoreOp_Store = 0x00000001,
+    StoreOp_Discard = 0x00000002,
+    StoreOp_Force32 = 0x7FFFFFFF
+} StoreOp;
+
+typedef enum WGPUVertexStepMode { 
+    VertexStepMode_None = 0x0, 
+    VertexStepMode_Vertex = 0x1,
+    VertexStepMode_Instance = 0x2,
+    VertexStepMode_Force32 = 0x7FFFFFFF 
+} WGPUVertexStepMode;
+
+typedef enum WGPURequestAdapterStatus {
+    WGPURequestAdapterStatus_Success = 0x00000001,
+    WGPURequestAdapterStatus_CallbackCancelled = 0x00000002,
+    WGPURequestAdapterStatus_Unavailable = 0x00000003,
+    WGPURequestAdapterStatus_Error = 0x00000004,
+    WGPURequestAdapterStatus_Force32 = 0x7FFFFFFF
+} WGPURequestAdapterStatus WGPU_ENUM_ATTRIBUTE;
+
 
 typedef enum WGPUBufferBindingType {
     WGPUBufferBindingType_BindingNotUsed = 0x00000000,
@@ -555,7 +742,7 @@ typedef struct WGPUSamplerDescriptor {
     filterMode mipmapFilter;
     float lodMinClamp;
     float lodMaxClamp;
-    CompareFunction compare;
+    WGPUCompareFunction compare;
     uint16_t maxAnisotropy;
 } WGPUSamplerDescriptor;
 typedef struct WGPUFutureWaitInfo {
@@ -644,8 +831,61 @@ typedef enum WGPUErrorType {
     WGPUErrorType_Internal = 0x00000004,
     WGPUErrorType_Unknown = 0x00000005,
     WGPUErrorType_Force32 = 0x7FFFFFFF
-} WGPUErrorType;
+} WGPUErrorType WGPU_ENUM_ATTRIBUTE;
 
+
+typedef enum WGPUDeviceLostReason {
+    WGPUDeviceLostReason_Unknown = 0x00000001,
+    WGPUDeviceLostReason_Destroyed = 0x00000002,
+    WGPUDeviceLostReason_CallbackCancelled = 0x00000003,
+    WGPUDeviceLostReason_FailedCreation = 0x00000004,
+    WGPUDeviceLostReason_Force32 = 0x7FFFFFFF
+} WGPUDeviceLostReason WGPU_ENUM_ATTRIBUTE;
+
+typedef enum WGPUVertexFormat {
+    WGPUVertexFormat_Uint8 = 0x00000001,
+    WGPUVertexFormat_Uint8x2 = 0x00000002,
+    WGPUVertexFormat_Uint8x4 = 0x00000003,
+    WGPUVertexFormat_Sint8 = 0x00000004,
+    WGPUVertexFormat_Sint8x2 = 0x00000005,
+    WGPUVertexFormat_Sint8x4 = 0x00000006,
+    WGPUVertexFormat_Unorm8 = 0x00000007,
+    WGPUVertexFormat_Unorm8x2 = 0x00000008,
+    WGPUVertexFormat_Unorm8x4 = 0x00000009,
+    WGPUVertexFormat_Snorm8 = 0x0000000A,
+    WGPUVertexFormat_Snorm8x2 = 0x0000000B,
+    WGPUVertexFormat_Snorm8x4 = 0x0000000C,
+    WGPUVertexFormat_Uint16 = 0x0000000D,
+    WGPUVertexFormat_Uint16x2 = 0x0000000E,
+    WGPUVertexFormat_Uint16x4 = 0x0000000F,
+    WGPUVertexFormat_Sint16 = 0x00000010,
+    WGPUVertexFormat_Sint16x2 = 0x00000011,
+    WGPUVertexFormat_Sint16x4 = 0x00000012,
+    WGPUVertexFormat_Unorm16 = 0x00000013,
+    WGPUVertexFormat_Unorm16x2 = 0x00000014,
+    WGPUVertexFormat_Unorm16x4 = 0x00000015,
+    WGPUVertexFormat_Snorm16 = 0x00000016,
+    WGPUVertexFormat_Snorm16x2 = 0x00000017,
+    WGPUVertexFormat_Snorm16x4 = 0x00000018,
+    WGPUVertexFormat_Float16 = 0x00000019,
+    WGPUVertexFormat_Float16x2 = 0x0000001A,
+    WGPUVertexFormat_Float16x4 = 0x0000001B,
+    WGPUVertexFormat_Float32 = 0x0000001C,
+    WGPUVertexFormat_Float32x2 = 0x0000001D,
+    WGPUVertexFormat_Float32x3 = 0x0000001E,
+    WGPUVertexFormat_Float32x4 = 0x0000001F,
+    WGPUVertexFormat_Uint32 = 0x00000020,
+    WGPUVertexFormat_Uint32x2 = 0x00000021,
+    WGPUVertexFormat_Uint32x3 = 0x00000022,
+    WGPUVertexFormat_Uint32x4 = 0x00000023,
+    WGPUVertexFormat_Sint32 = 0x00000024,
+    WGPUVertexFormat_Sint32x2 = 0x00000025,
+    WGPUVertexFormat_Sint32x3 = 0x00000026,
+    WGPUVertexFormat_Sint32x4 = 0x00000027,
+    WGPUVertexFormat_Unorm10_10_10_2 = 0x00000028,
+    WGPUVertexFormat_Unorm8x4BGRA = 0x00000029,
+    WGPUVertexFormat_Force32 = 0x7FFFFFFF
+} WGPUVertexFormat WGPU_ENUM_ATTRIBUTE;
 typedef void (*WGPUDeviceLostCallback)(const WGPUDevice*, WGPUDeviceLostReason, struct WGPUStringView, void*, void*);
 typedef void (*WGPUUncapturedErrorCallback)(const WGPUDevice*, WGPUErrorType, struct WGPUStringView, void*, void*);
 
@@ -720,7 +960,7 @@ typedef struct Extent3D{
 typedef struct WGPUTextureDescriptor{
     WGPUChainedStruct* nextInChain;
     WGPUStringView label;
-    TextureUsage usage;
+    WGPUTextureUsage usage;
     TextureDimension dimension;
     Extent3D size;
     PixelFormat format;
@@ -739,11 +979,11 @@ typedef struct WGPUTextureViewDescriptor{
     uint32_t baseArrayLayer;
     uint32_t arrayLayerCount;
     TextureAspect aspect;
-    TextureUsage usage;
+    WGPUTextureUsage usage;
 }WGPUTextureViewDescriptor;
 
 typedef struct WGPUBufferDescriptor{
-    BufferUsage usage;
+    WGPUBufferUsage usage;
     uint64_t size;
 }WGPUBufferDescriptor;
 
@@ -764,7 +1004,7 @@ typedef struct WGPUPipelineLayoutDescriptor {
 }WGPUPipelineLayoutDescriptor;
 
 typedef struct WGPUSurfaceCapabilities{
-    TextureUsage usages;
+    WGPUTextureUsage usages;
     size_t formatCount;
     PixelFormat const* formats;
     size_t presentModeCount;
@@ -779,14 +1019,14 @@ typedef struct WGPUConstantEntry {
 
 typedef struct VertexAttribute {
     WGPUChainedStruct* nextInChain;
-    VertexFormat format;
+    WGPUVertexFormat format;
     uint64_t offset;
     uint32_t shaderLocation;
 }VertexAttribute;
 
 typedef struct WGPUVertexBufferLayout {
     WGPUChainedStruct* nextInChain;
-    VertexStepMode stepMode;
+    WGPUVertexStepMode stepMode;
     uint64_t arrayStride;
     size_t attributeCount;
     const VertexAttribute* attributes;
@@ -801,10 +1041,42 @@ typedef struct WGPUVertexState {
     size_t bufferCount;
     const WGPUVertexBufferLayout* buffers;
 } WGPUVertexState;
+typedef enum WGPUBlendOperation {
+    WGPUBlendOperation_Undefined = 0x00000000,
+    WGPUBlendOperation_Add = 0x00000001,
+    WGPUBlendOperation_Subtract = 0x00000002,
+    WGPUBlendOperation_ReverseSubtract = 0x00000003,
+    WGPUBlendOperation_Min = 0x00000004,
+    WGPUBlendOperation_Max = 0x00000005,
+    WGPUBlendOperation_Force32 = 0x7FFFFFFF
+} WGPUBlendOperation WGPU_ENUM_ATTRIBUTE;
+
+typedef enum WGPUBlendFactor {
+    WGPUBlendFactor_Undefined = 0x00000000,
+    WGPUBlendFactor_Zero = 0x00000001,
+    WGPUBlendFactor_One = 0x00000002,
+    WGPUBlendFactor_Src = 0x00000003,
+    WGPUBlendFactor_OneMinusSrc = 0x00000004,
+    WGPUBlendFactor_SrcAlpha = 0x00000005,
+    WGPUBlendFactor_OneMinusSrcAlpha = 0x00000006,
+    WGPUBlendFactor_Dst = 0x00000007,
+    WGPUBlendFactor_OneMinusDst = 0x00000008,
+    WGPUBlendFactor_DstAlpha = 0x00000009,
+    WGPUBlendFactor_OneMinusDstAlpha = 0x0000000A,
+    WGPUBlendFactor_SrcAlphaSaturated = 0x0000000B,
+    WGPUBlendFactor_Constant = 0x0000000C,
+    WGPUBlendFactor_OneMinusConstant = 0x0000000D,
+    WGPUBlendFactor_Src1 = 0x0000000E,
+    WGPUBlendFactor_OneMinusSrc1 = 0x0000000F,
+    WGPUBlendFactor_Src1Alpha = 0x00000010,
+    WGPUBlendFactor_OneMinusSrc1Alpha = 0x00000011,
+    WGPUBlendFactor_Force32 = 0x7FFFFFFF
+} WGPUBlendFactor WGPU_ENUM_ATTRIBUTE;
+
 typedef struct WGPUBlendComponent {
-    BlendOperation operation;
-    BlendFactor srcFactor;
-    BlendFactor dstFactor;
+    WGPUBlendOperation operation;
+    WGPUBlendFactor srcFactor;
+    WGPUBlendFactor dstFactor;
     #ifdef __cplusplus
     constexpr bool operator==(const WGPUBlendComponent& other)const noexcept{
         return operation == other.operation && srcFactor == other.srcFactor && dstFactor == other.dstFactor;
@@ -867,8 +1139,21 @@ typedef struct WGPUPrimitiveState {
     Bool32 unclippedDepth;
 } WGPUPrimitiveState;
 
+typedef enum WGPUStencilOperation {
+    WGPUStencilOperation_Undefined = 0x00000000,
+    WGPUStencilOperation_Keep = 0x00000001,
+    WGPUStencilOperation_Zero = 0x00000002,
+    WGPUStencilOperation_Replace = 0x00000003,
+    WGPUStencilOperation_Invert = 0x00000004,
+    WGPUStencilOperation_IncrementClamp = 0x00000005,
+    WGPUStencilOperation_DecrementClamp = 0x00000006,
+    WGPUStencilOperation_IncrementWrap = 0x00000007,
+    WGPUStencilOperation_DecrementWrap = 0x00000008,
+    WGPUStencilOperation_Force32 = 0x7FFFFFFF
+} WGPUStencilOperation WGPU_ENUM_ATTRIBUTE;
+
 typedef struct WGPUStencilFaceState {
-    CompareFunction compare;
+    WGPUCompareFunction compare;
     WGPUStencilOperation failOp;
     WGPUStencilOperation depthFailOp;
     WGPUStencilOperation passOp;
@@ -878,7 +1163,7 @@ typedef struct WGVkDepthStencilState {
     WGPUChainedStruct* nextInChain;
     PixelFormat format;
     Bool32 depthWriteEnabled;
-    CompareFunction depthCompare;
+    WGPUCompareFunction depthCompare;
     
     WGPUStencilFaceState stencilFront;
     WGPUStencilFaceState stencilBack;
@@ -997,6 +1282,14 @@ typedef struct WGPUComputePipelineDescriptor {
     WGPUComputeState compute;
 } WGPUComputePipelineDescriptor;
 
+typedef enum WGPUCompositeAlphaMode {
+    WGPUCompositeAlphaMode_Auto = 0x00000000,
+    WGPUCompositeAlphaMode_Opaque = 0x00000001,
+    WGPUCompositeAlphaMode_Premultiplied = 0x00000002,
+    WGPUCompositeAlphaMode_Unpremultiplied = 0x00000003,
+    WGPUCompositeAlphaMode_Inherit = 0x00000004,
+    WGPUCompositeAlphaMode_Force32 = 0x7FFFFFFF
+} WGPUCompositeAlphaMode WGPU_ENUM_ATTRIBUTE;
 typedef struct WGPUSurfaceConfiguration {
     WGPUChainedStruct* nextInChain;
     WGPUDevice device;                // Device that surface belongs to (WPGUDevice or WGPUDevice)
@@ -1021,24 +1314,24 @@ typedef struct WGPUBottomLevelAccelerationStructureDescriptor {
     uint32_t vertexCount;             // Number of vertices
     WGPUBuffer indexBuffer;           // Optional index buffer
     uint32_t indexCount;              // Number of indices
-    VkDeviceSize vertexStride;        // Size of each vertex
+    size_t vertexStride;        // Size of each vertex
 }WGPUBottomLevelAccelerationStructureDescriptor;
 
 typedef struct WGPUTopLevelAccelerationStructureDescriptor {
-    WGPUBottomLevelAccelerationStructure *bottomLevelAS;     // Array of bottom level acceleration structures
-    uint32_t blasCount;                                      // Number of BLAS instances
-    VkTransformMatrixKHR *transformMatrices;                 // Optional transformation matrices
-    uint32_t *instanceCustomIndexes;                         // Optional custom instance indexes
-    uint32_t *instanceShaderBindingTableRecordOffsets;       // Optional SBT record offsets
-    VkGeometryInstanceFlagsKHR *instanceFlags;               // Optional instance flags
+    WGPUBottomLevelAccelerationStructure* bottomLevelAS;       // Array of bottom level acceleration structures
+    uint32_t blasCount;                                        // Number of BLAS instances
+    void* transformMatrices;                 // Optional transformation matrices
+    uint32_t* instanceCustomIndexes;                           // Optional custom instance indexes
+    uint32_t* instanceShaderBindingTableRecordOffsets;         // Optional SBT record offsets
+    void* instanceFlags;               // Optional instance flags
 }WGPUTopLevelAccelerationStructureDescriptor;
 #ifdef __cplusplus
 extern "C"{
 #endif
-void wgpuQueueTransitionLayout                (WGPUQueue cSelf, WGPUTexture texture, VkImageLayout from, VkImageLayout to);
-void wgpuCommandEncoderTransitionTextureLayout(WGPUCommandEncoder encoder, WGPUTexture texture, VkImageLayout from, VkImageLayout to);
-void wgpuRenderPassEncoderBindIndexBuffer     (WGPURenderPassEncoder rpe, WGPUBuffer buffer, VkDeviceSize offset, IndexFormat indexType);
-void wgpuRenderPassEncoderBindVertexBuffer    (WGPURenderPassEncoder rpe, uint32_t binding, WGPUBuffer buffer, VkDeviceSize offset);
+void wgpuQueueTransitionLayout                (WGPUQueue cSelf, WGPUTexture texture, WGPU_VK_ImageLayout from, WGPU_VK_ImageLayout to);
+void wgpuCommandEncoderTransitionTextureLayout(WGPUCommandEncoder encoder, WGPUTexture texture, WGPU_VK_ImageLayout from, WGPU_VK_ImageLayout to);
+void wgpuRenderPassEncoderBindIndexBuffer     (WGPURenderPassEncoder rpe, WGPUBuffer buffer, size_t offset, IndexFormat indexType);
+void wgpuRenderPassEncoderBindVertexBuffer    (WGPURenderPassEncoder rpe, uint32_t binding, WGPUBuffer buffer, size_t offset);
 WGPUTopLevelAccelerationStructure wgpuDeviceCreateTopLevelAccelerationStructure(WGPUDevice device, const WGPUTopLevelAccelerationStructureDescriptor *descriptor);
 WGPUBottomLevelAccelerationStructure wgpuDeviceCreateBottomLevelAccelerationStructure(WGPUDevice device, const WGPUBottomLevelAccelerationStructureDescriptor *descriptor);
 #ifdef __cplusplus

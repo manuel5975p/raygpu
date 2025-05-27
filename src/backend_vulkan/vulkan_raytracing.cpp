@@ -95,7 +95,7 @@ extern "C" WGPUTopLevelAccelerationStructure wgpuDeviceCreateTopLevelAcceleratio
         VkAccelerationStructureInstanceKHR &instance = instanceData[i];
         // Set transform matrix (identity if not provided)
         if (descriptor->transformMatrices) {
-            std::memcpy(&instance.transform, &descriptor->transformMatrices[i], sizeof(VkTransformMatrixKHR));
+            std::memcpy(&instance.transform, ((VkTransformMatrixKHR const*const*const )(&descriptor->transformMatrices))[i], sizeof(VkTransformMatrixKHR));
         } else {
             // Identity matrix
             std::memset(&instance.transform, 0, sizeof(VkTransformMatrixKHR));
@@ -108,7 +108,7 @@ extern "C" WGPUTopLevelAccelerationStructure wgpuDeviceCreateTopLevelAcceleratio
         instance.instanceCustomIndex = descriptor->instanceCustomIndexes ? descriptor->instanceCustomIndexes[i] : 0;
         instance.mask = 0xFF; // Visible to all ray types by default
         instance.instanceShaderBindingTableRecordOffset = descriptor->instanceShaderBindingTableRecordOffsets ? descriptor->instanceShaderBindingTableRecordOffsets[i] : 0;
-        instance.flags = descriptor->instanceFlags ? descriptor->instanceFlags[i] : VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
+        instance.flags = descriptor->instanceFlags ? ((const VkGeometryInstanceFlagsKHR*)descriptor->instanceFlags)[i] : VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
         instance.accelerationStructureReference = blasAddress;
     }
 
@@ -605,7 +605,7 @@ WGPURaytracingPipeline LoadRTPipeline(const DescribedShaderModule *module) {
     std::vector<char> shaderGroupHandles_Buffer(shaderGroups.size() * sgHandleSize);
     fulkGetRayTracingShaderGroupHandlesKHR(device->device, pipeline->raytracingPipeline, 0, shaderGroups.size(), shaderGroups.size() * sgHandleSize, shaderGroupHandles_Buffer.data());
     WGPUBufferDescriptor bdesc zeroinit;
-    bdesc.usage = BufferUsage_MapWrite | BufferUsage_ShaderDeviceAddress | BufferUsage_ShaderBindingTable;
+    bdesc.usage = WGPUBufferUsage_MapWrite | WGPUBufferUsage_ShaderDeviceAddress | WGPUBufferUsage_ShaderBindingTable;
     bdesc.size = sgHandleSize;
     pipeline->raygenBindingTable = wgpuDeviceCreateBuffer(device, &bdesc);
     pipeline->missBindingTable = wgpuDeviceCreateBuffer(device, &bdesc);

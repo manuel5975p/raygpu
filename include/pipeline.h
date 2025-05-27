@@ -27,7 +27,6 @@
 #define PIPELINE_H
 #include <stdint.h>
 #include <macros_and_constants.h>
-#include <enum_translation.h>
 #include <wgvk.h>
 typedef void* NativeShaderModuleHandle;
 typedef void* NativeBindgroupLayoutHandle;
@@ -58,13 +57,13 @@ typedef void* NativeComputePassEncoderHandle;
  * 
  */
 typedef struct RenderSettings{
-    Bool32 depthTest;
-    Bool32 faceCull;
+    WGPUBool depthTest;
+    WGPUBool faceCull;
     uint32_t sampleCount;
     uint32_t lineWidth;
     WGPUBlendState blendState;    
     FrontFace frontFace;
-    CompareFunction depthCompare;
+    WGPUCompareFunction depthCompare;
     #ifdef __cplusplus
     bool operator==(const RenderSettings& rs) const noexcept{
         return
@@ -107,7 +106,7 @@ typedef struct DescribedBindGroup{
 typedef struct AttributeAndResidence{
     VertexAttribute attr;
     uint32_t bufferSlot; //Describes the actual buffer it will reside in
-    VertexStepMode stepMode;
+    WGPUVertexStepMode stepMode;
     uint32_t enabled;
 }AttributeAndResidence;
 

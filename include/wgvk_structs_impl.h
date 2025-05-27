@@ -436,7 +436,7 @@ typedef struct WGPUBufferImpl{
     VkBuffer buffer;
     WGPUDevice device;
     uint32_t cacheIndex;
-    BufferUsage usage;
+    WGPUBufferUsage usage;
     size_t capacity;
     VmaAllocation allocation;
     VkMemoryPropertyFlags memoryProperties;
@@ -922,7 +922,7 @@ const char* RCPassCommandType_ToString(RCPassCommandType type);
 const char* LoadOp_ToString(LoadOp op);   // Assuming LoadOp is an enum from raygpu.h
 const char* StoreOp_ToString(StoreOp op); // Assuming StoreOp is an enum from raygpu.h
 const char* IndexFormat_ToString(IndexFormat format); // Assuming IndexFormat is an enum
-const char* BufferUsage_ToString(BufferUsage usage); // Assuming BufferUsage is an enum
+const char* BufferUsage_ToString(WGPUBufferUsage usage); // Assuming BufferUsage is an enum
 
 // --- Debug Print Function Declarations for structs defined in wgpu_structs_impl.h ---
 
