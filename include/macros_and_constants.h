@@ -1,7 +1,10 @@
 #ifndef MACROS_AND_CONSTANTS
 #define MACROS_AND_CONSTANTS
-
+#ifdef __cplusplus
 #define STRVIEW(X) WGPUStringView{X, sizeof(X) - 1}
+#else
+#define STRVIEW(X) (WGPUStringView){X, sizeof(X) - 1}
+#endif
 #define callocnew(X) ((X*)calloc(1, (sizeof(X))))
 #define callocnewpp(X) new (std::calloc(1, sizeof(X))) X
 #ifdef __cplusplus

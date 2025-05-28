@@ -973,21 +973,23 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
         //}
     };
     aci.pDeviceMemoryCallbacks = &callbacks;
-    VmaVulkanFunctions vmaVulkanFunctions = {
-        .vkAllocateMemory                    = retDevice->functions.vkAllocateMemory,
-        .vkFreeMemory                        = retDevice->functions.vkFreeMemory,
-        .vkCreateBuffer                      = retDevice->functions.vkCreateBuffer,
-        .vkCreateImage                       = retDevice->functions.vkCreateImage,
-        .vkDestroyBuffer                     = retDevice->functions.vkDestroyBuffer,
-        .vkDestroyImage                      = retDevice->functions.vkDestroyImage,
-        .vkGetDeviceBufferMemoryRequirements = retDevice->functions.vkGetDeviceBufferMemoryRequirements,
-        .vkGetDeviceImageMemoryRequirements  = retDevice->functions.vkGetDeviceImageMemoryRequirements,
-        .vkBindBufferMemory                  = retDevice->functions.vkBindBufferMemory,
-        .vkCmdCopyBuffer                     = retDevice->functions.vkCmdCopyBuffer,
-        .vkGetInstanceProcAddr               = vkGetInstanceProcAddr,
-        .vkGetDeviceProcAddr                 = vkGetDeviceProcAddr
-    };
-
+    VmaVulkanFunctions vmaVulkanFunctions
+    // = {
+    //    .vkAllocateMemory                    = retDevice->functions.vkAllocateMemory,
+    //    .vkFreeMemory                        = retDevice->functions.vkFreeMemory,
+    //    .vkCreateBuffer                      = retDevice->functions.vkCreateBuffer,
+    //    .vkCreateImage                       = retDevice->functions.vkCreateImage,
+    //    .vkDestroyBuffer                     = retDevice->functions.vkDestroyBuffer,
+    //    .vkDestroyImage                      = retDevice->functions.vkDestroyImage,
+    //    .vkGetDeviceBufferMemoryRequirements = retDevice->functions.vkGetDeviceBufferMemoryRequirements,
+    //    .vkGetDeviceImageMemoryRequirements  = retDevice->functions.vkGetDeviceImageMemoryRequirements,
+    //    .vkBindBufferMemory                  = retDevice->functions.vkBindBufferMemory,
+    //    .vkCmdCopyBuffer                     = retDevice->functions.vkCmdCopyBuffer,
+    //    .vkGetInstanceProcAddr               = vkGetInstanceProcAddr,
+    //    .vkGetDeviceProcAddr                 = vkGetDeviceProcAddr
+    //}
+    ;
+    vmaImportVulkanFunctionsFromVolk(&aci, &vmaVulkanFunctions);
     aci.pVulkanFunctions = &vmaVulkanFunctions;
     VkResult allocatorCreateResult = vmaCreateAllocator(&aci, &retDevice->allocator);
 
@@ -1041,6 +1043,9 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
     }
 
     return retDevice;
+}
+WGPUQueue wgpuDeviceGetQueue(WGPUDevice device){
+    return device->queue;
 }
 
 
@@ -1097,7 +1102,7 @@ WGPUBuffer wgpuDeviceCreateBuffer(WGPUDevice device, const WGPUBufferDescriptor*
     return wgpuBuffer;
 }
 
-void wgpuBufferMap(WGPUBuffer buffer, MapMode mapmode, size_t offset, size_t size, void** data){
+void wgpuBufferMap(WGPUBuffer buffer, WGPUMapMode mapmode, size_t offset, size_t size, void** data){
     vmaMapMemory(buffer->device->allocator, buffer->allocation, data);
 }
 
@@ -1108,6 +1113,11 @@ void wgpuBufferUnmap(WGPUBuffer buffer){
     //vkUnmapMemory(buffer->device->device, allocationInfo.deviceMemory);
     //mappedMemories.erase(allocationInfo.deviceMemory);
 }
+
+WGPUFuture wgpuBufferMapAsync(WGPUBuffer buffer, WGPUMapMode mode, size_t offset, size_t size, WGPUBufferMapCallbackInfo callbackInfo){
+    return NULL;
+}
+
 size_t wgpuBufferGetSize(WGPUBuffer buffer){
     VmaAllocationInfo info zeroinit;
     vmaGetAllocationInfo(buffer->device->allocator, buffer->allocation, &info);
@@ -1118,7 +1128,7 @@ void wgpuQueueWriteBuffer(WGPUQueue cSelf, WGPUBuffer buffer, uint64_t bufferOff
     void* mappedMemory = NULL;
     if(buffer->memoryProperties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT){
         void* mappedMemory = NULL;
-        wgpuBufferMap(buffer, MapMode_Write, bufferOffset, size, &mappedMemory);
+        wgpuBufferMap(buffer, WGPUMapMode_Write, bufferOffset, size, &mappedMemory);
         
         if (mappedMemory != NULL) {
             // Memory is host mappable: copy data and unmap.
@@ -1145,7 +1155,7 @@ void wgpuQueueWriteTexture(WGPUQueue cSelf, const WGPUTexelCopyTextureInfo* dest
     bdesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_MapWrite;
     WGPUBuffer stagingBuffer = wgpuDeviceCreateBuffer(cSelf->device, &bdesc);
     void* mappedMemory = NULL;
-    wgpuBufferMap(stagingBuffer, MapMode_Write, 0, dataSize, &mappedMemory);
+    wgpuBufferMap(stagingBuffer, WGPUMapMode_Write, 0, dataSize, &mappedMemory);
     if(mappedMemory != NULL){
         memcpy(mappedMemory, data, dataSize);
         wgpuBufferUnmap(stagingBuffer);
@@ -2073,6 +2083,7 @@ void wgpuRenderPassEncoderEnd(WGPURenderPassEncoder renderPassEncoder){
  * 
  */
 WGPUCommandBuffer wgpuCommandEncoderFinish(WGPUCommandEncoder commandEncoder){
+    vkQueueWaitIdle(commandEncoder->device->queue->graphicsQueue);
     WGPUCommandBuffer ret = callocnew(WGPUCommandBufferImpl);
     ret->refCount = 1;
     rassert(commandEncoder->movedFrom == 0, "Command encoder is already invalidated");
@@ -2714,6 +2725,41 @@ void wgpuBindGroupRelease(WGPUBindGroup dshandle) {
         RL_FREE(dshandle);
     }
 }
+
+WGPUComputePipeline wgpuDeviceCreateComputePipeline(WGPUDevice device, WGPUComputePipelineDescriptor const * descriptor){
+    WGPUComputePipeline ret = RL_CALLOC(1, sizeof(WGPUComputePipelineImpl));
+    char namebuffer[512];
+    rassert(descriptor->compute.entryPoint.length < 511, "griiindumehaue");
+    memcpy(namebuffer, descriptor->compute.entryPoint.data, descriptor->compute.entryPoint.length);
+    namebuffer[descriptor->compute.entryPoint.length] = 0;
+    
+    
+    VkPipelineShaderStageCreateInfo computeStage = {
+        VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        NULL,
+        0,
+        VK_SHADER_STAGE_COMPUTE_BIT,
+        descriptor->compute.module->vulkanModule,
+        namebuffer,
+        NULL
+    };
+
+    VkComputePipelineCreateInfo cpci = {
+        VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+        NULL,
+        0,
+        computeStage,
+        descriptor->layout->layout,
+        0,
+        0
+    };
+    device->functions.vkCreateComputePipelines(device->device, NULL, 1, &cpci, NULL, &ret->computePipeline);
+    ret->refCount = 1;
+    ret->layout = descriptor->layout;
+    wgpuPipelineLayoutAddRef(ret->layout);
+    return ret;
+}
+
 
 WGPURenderPipeline wgpuDeviceCreateRenderPipeline(WGPUDevice device, const WGPURenderPipelineDescriptor* descriptor) {
     WGPUDeviceImpl* deviceImpl = (WGPUDeviceImpl*)(device);
