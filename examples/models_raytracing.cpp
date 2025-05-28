@@ -167,7 +167,7 @@ int main(){
         -1, 1, 1,
          1, 1, 1};
     bdesc1.size = sizeof(vertexData);
-    bdesc1.usage = BufferUsage_MapWrite | BufferUsage_CopyDst | BufferUsage_ShaderDeviceAddress | BufferUsage_AccelerationStructureInput;
+    bdesc1.usage = WGPUBufferUsage_MapWrite | WGPUBufferUsage_CopyDst | WGPUBufferUsage_ShaderDeviceAddress | WGPUBufferUsage_AccelerationStructureInput;
     WGPUBuffer vertexBuffer = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &bdesc1);
     
     wgpuQueueWriteBuffer((WGPUQueue)g_vulkanstate.queue, vertexBuffer, 0, vertexData, sizeof(vertexData));
@@ -192,10 +192,10 @@ int main(){
     tlasdesc.transformMatrices = matrix;
     
     WGPUTopLevelAccelerationStructure tlas = wgpuDeviceCreateTopLevelAccelerationStructure((WGPUDevice)GetDevice(), &tlasdesc);
-    Texture2D storageTex = LoadTexturePro(50, 50, RGBA8, TextureUsage_StorageBinding | TextureUsage_CopySrc | TextureUsage_TextureBinding, 1, 1);
+    Texture2D storageTex = LoadTexturePro(50, 50, RGBA8, WGPUTextureUsage_StorageBinding | WGPUTextureUsage_CopySrc | WGPUTextureUsage_TextureBinding, 1, 1);
     
     Matrix camPadded = padCamera(cam);
-    DescribedBuffer* uniformBuffer = GenBufferEx(&camPadded, sizeof(Matrix), BufferUsage_CopyDst | BufferUsage_Uniform);
+    DescribedBuffer* uniformBuffer = GenBufferEx(&camPadded, sizeof(Matrix), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
     ShaderSources sources zeroinit;
     sources.language = sourceTypeGLSL;
     sources.sourceCount = 3;
@@ -245,8 +245,8 @@ int main(){
         BeginDrawing();
         if(GetFrameCount() == 0){
             wgpuQueueSubmit(g_vulkanstate.queue, 1, &cmdBuffer);
-            wgpuReleaseCommandEncoder(cmdEncoder);
-            wgpuReleaseCommandBuffer(cmdBuffer);
+            wgpuCommandEncoderRelease(cmdEncoder);
+            wgpuCommandBufferRelease(cmdBuffer);
         }
         ClearBackground(DARKGRAY);
         DrawFPS(5, 5);

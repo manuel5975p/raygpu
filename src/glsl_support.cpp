@@ -664,7 +664,7 @@ DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
                 .shaderLocation = location
             },
             .bufferSlot = 0,
-            .stepMode = VertexStepMode_Vertex,
+            .stepMode = WGPUVertexStepMode_Vertex,
             .enabled = true}
         );
         offset += attributeSize(format);

@@ -24,14 +24,22 @@ typedef struct ImageUsageSnap{
 typedef struct BufferUsageRecord{
     VkPipelineStageFlags lastStage;
     VkAccessFlags lastAccess;
+    VkBool32 everWrittenTo;
 }BufferUsageRecord;
 
-typedef BufferUsageRecord BufferUsageSnap;
+typedef struct BufferUsageSnap{
+    VkPipelineStageFlags stage;
+    VkAccessFlags access;
+}BufferUsageSnap;
 
 typedef enum RCPassCommandType{
     rp_command_type_invalid = 0,
     rp_command_type_draw,
     rp_command_type_draw_indexed,
+    rp_command_type_draw_indexed_indirect,
+    rp_command_type_draw_indirect,
+    rp_command_type_set_blend_constant,
+    rp_command_type_set_viewport,
     rp_command_type_set_vertex_buffer,
     rp_command_type_set_index_buffer,
     rp_command_type_set_bind_group,
@@ -89,6 +97,29 @@ typedef struct ComputePassCommandDispatchWorkgroups {
     uint32_t x, y, z;
 } ComputePassCommandDispatchWorkgroups;
 
+typedef struct RenderPassCommandSetViewport{
+    float x;
+    float y;
+    float width;
+    float height;
+    float minDepth;
+    float maxDepth;
+}RenderPassCommandSetViewport;
+typedef struct RenderPassCommandDrawIndexedIndirect{
+    WGPUBuffer indirectBuffer;
+    uint64_t indirectOffset;
+}RenderPassCommandDrawIndexedIndirect;
+
+typedef struct RenderPassCommandDrawIndirect{
+    WGPUBuffer indirectBuffer;
+    uint64_t indirectOffset;
+}RenderPassCommandDrawIndirect;
+
+typedef struct RenderPassCommandSetBlendConstant{
+    WGPUColor color;
+}RenderPassCommandSetBlendConstant;
+
+
 typedef struct RenderPassCommandBegin{
     WGPUStringView label;
     size_t colorAttachmentCount;
@@ -102,6 +133,10 @@ typedef struct RenderPassCommandGeneric {
     union {
         RenderPassCommandDraw draw;
         RenderPassCommandDrawIndexed drawIndexed;
+        RenderPassCommandSetViewport setViewport;
+        RenderPassCommandDrawIndexedIndirect drawIndexedIndirect;
+        RenderPassCommandDrawIndirect drawIndirect;
+        RenderPassCommandSetBlendConstant setBlendConstant;
         RenderPassCommandSetVertexBuffer setVertexBuffer;
         RenderPassCommandSetIndexBuffer setIndexBuffer;
         RenderPassCommandSetBindGroup setBindGroup;
@@ -117,7 +152,6 @@ DEFINE_PTR_HASH_MAP (CONTAINERAPI, BufferUsageRecordMap, BufferUsageRecord)
 //DEFINE_PTR_HASH_MAP (CONTAINERAPI, LayoutAssumptions, ImageLayoutPair)
 DEFINE_PTR_HASH_MAP (CONTAINERAPI, ImageUsageRecordMap, ImageUsageRecord)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupUsageSet, WGPUBindGroup)
-DEFINE_VECTOR(static inline, VkDynamicState, VkDynamicStateVector)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, BindGroupLayoutUsageSet, WGPUBindGroupLayout)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, SamplerUsageSet, WGPUSampler)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, ImageViewUsageSet, WGPUTextureView)
@@ -127,7 +161,9 @@ DEFINE_PTR_HASH_SET (CONTAINERAPI, ComputePipelineUsageSet, WGPUComputePipeline)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, WGPUComputePassEncoderSet, WGPUComputePassEncoder)
 DEFINE_PTR_HASH_SET (CONTAINERAPI, WGPURaytracingPassEncoderSet, WGPURaytracingPassEncoder)
 
+DEFINE_VECTOR(static inline, VkDynamicState, VkDynamicStateVector)
 DEFINE_VECTOR (CONTAINERAPI, VkWriteDescriptorSet, VkWriteDescriptorSetVector)
+DEFINE_VECTOR (CONTAINERAPI, VkFence, VkFenceVector)
 DEFINE_VECTOR (CONTAINERAPI, VkCommandBuffer, VkCommandBufferVector)
 DEFINE_VECTOR (CONTAINERAPI, RenderPassCommandGeneric, RenderPassCommandGenericVector)
 DEFINE_VECTOR (CONTAINERAPI, VkSemaphore, VkSemaphoreVector)
@@ -388,6 +424,7 @@ typedef struct PerframeCache{
     //std::map<uint64_t, small_vector<MappableBufferMemory>> stagingBufferCache;
     //std::unordered_map<WGPUBindGroupLayout, std::vector<std::pair<VkDescriptorPool, VkDescriptorSet>>> bindGroupCache;
     BindGroupCacheMap bindGroupCache;
+    VkFenceVector reusableFences;
 }PerframeCache;
 
 typedef struct QueueIndices{
@@ -561,8 +598,8 @@ typedef struct CommandBufferAndSomeState{
     WGPUBindGroup graphicsBindGroups[8];
     WGPUBindGroup computeBindGroups[8];
 }CommandBufferAndSomeState;
-void recordVkCommand(CommandBufferAndSomeState* destination, const RenderPassCommandGeneric* command);
-void recordVkCommands(VkCommandBuffer destination, WGPUDevice device, const RenderPassCommandGenericVector* commands);
+void recordVkCommand(CommandBufferAndSomeState* destination, const RenderPassCommandGeneric* command, const RenderPassCommandBegin *beginInfo);
+void recordVkCommands(VkCommandBuffer destination, WGPUDevice device, const RenderPassCommandGenericVector* commands, const RenderPassCommandBegin *beginInfo);
 
 typedef struct WGPURenderPassEncoderImpl{
     VkRenderPass renderPass; //ONLY if !dynamicRendering
@@ -587,6 +624,7 @@ typedef struct WGPUComputePassEncoderImpl{
 
     WGPUPipelineLayout lastLayout;
     WGPUCommandEncoder cmdEncoder;
+    WGPUBindGroup bindGroups[8];
 }WGPUComputePassEncoderImpl;
 
 void RenderPassEncoder_PushCommand(WGPURenderPassEncoder, const RenderPassCommandGeneric* cmd);

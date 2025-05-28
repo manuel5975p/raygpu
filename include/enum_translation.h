@@ -850,11 +850,11 @@ static inline VkFormat toVulkanVertexFormat(WGPUVertexFormat vf) {
 
 static inline VkVertexInputRate toVulkanVertexStepMode(WGPUVertexStepMode vsm) {
     switch (vsm) {
-    case VertexStepMode_Vertex:
+    case WGPUVertexStepMode_Vertex:
         return VK_VERTEX_INPUT_RATE_VERTEX;
-    case VertexStepMode_Instance:
+    case WGPUVertexStepMode_Instance:
         return VK_VERTEX_INPUT_RATE_INSTANCE;
-    case VertexStepMode_None:
+    case WGPUVertexStepMode_None:
         // Vulkan does not have a direct equivalent for 'None'; defaulting to Vertex
         return VK_VERTEX_INPUT_RATE_VERTEX;
     default:

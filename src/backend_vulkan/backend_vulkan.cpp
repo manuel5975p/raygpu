@@ -79,7 +79,7 @@ void resetFenceAndReleaseBuffers(void* fence_, WGPUCommandBufferVector* cBuffers
         vkResetFences(device->device, 1, (VkFence*)&fence_);
     }
     for(size_t i = 0;i < cBuffers->size;i++){
-        wgpuReleaseCommandBuffer(cBuffers->data[i]);
+        wgpuCommandBufferRelease(cBuffers->data[i]);
     }
     WGPUCommandBufferVector_free(cBuffers);
 }
@@ -151,8 +151,8 @@ void PostPresentSurface(){
     PendingCommandBufferMap_clear(&queue->pendingCommandBuffers[cacheIndex]);
     
     WGPUCommandBuffer buffer = wgpuCommandEncoderFinish(queue->presubmitCache);
-    wgpuReleaseCommandEncoder(queue->presubmitCache);
-    wgpuReleaseCommandBuffer(buffer);
+    wgpuCommandEncoderRelease(queue->presubmitCache);
+    wgpuCommandBufferRelease(buffer);
     vkResetCommandPool(surfaceDevice->device, surfaceDevice->frameCaches[cacheIndex].commandPool, 0);
     WGPUCommandEncoderDescriptor cedesc zeroinit;
 
@@ -195,8 +195,8 @@ extern "C" void BeginComputepassEx(DescribedComputepass* computePass){
 
 extern "C" void EndComputepassEx(DescribedComputepass* computePass){
     if(computePass->cpEncoder){
-        wgpuCommandEncoderEndComputePass((WGPUComputePassEncoder)computePass->cpEncoder);
-        wgpuReleaseComputePassEncoder((WGPUComputePassEncoder)computePass->cpEncoder);
+        wgpuComputePassEncoderEnd((WGPUComputePassEncoder)computePass->cpEncoder);
+        wgpuComputePassEncoderRelease((WGPUComputePassEncoder)computePass->cpEncoder);
         computePass->cpEncoder = 0;
     }
     
@@ -205,8 +205,8 @@ extern "C" void EndComputepassEx(DescribedComputepass* computePass){
 
     WGPUCommandBuffer command = wgpuCommandEncoderFinish((WGPUCommandEncoder)computePass->cmdEncoder);
     wgpuQueueSubmit(g_vulkanstate.queue, 1, &command);
-    wgpuReleaseCommandBuffer(command);
-    wgpuReleaseCommandEncoder((WGPUCommandEncoder)computePass->cmdEncoder);
+    wgpuCommandBufferRelease(command);
+    wgpuCommandEncoderRelease((WGPUCommandEncoder)computePass->cmdEncoder);
 }
 
 extern "C" DescribedRenderpass LoadRenderpassEx(RenderSettings settings, bool colorClear, DColor colorClearValue, bool depthClear, float depthClearValue){
@@ -788,8 +788,8 @@ void GenTextureMipmaps(Texture2D* tex){
     //ru_trackTexture(&enc->resourceUsage, wgpuTex);
     WGPUCommandBuffer buffer = wgpuCommandEncoderFinish(enc);
     wgpuQueueSubmit(g_vulkanstate.queue, 1, &buffer);
-    wgpuReleaseCommandBuffer(buffer);
-    wgpuReleaseCommandEncoder(enc);
+    wgpuCommandBufferRelease(buffer);
+    wgpuCommandEncoderRelease(enc);
 
     /* Compute based implementation
         static DescribedComputePipeline* cpl = LoadComputePipeline(mipmapComputerSource2);
@@ -921,11 +921,11 @@ void createRenderPass() {
     }
 }
 extern "C" void RenderPassSetIndexBuffer(DescribedRenderpass* drp, DescribedBuffer* buffer, IndexFormat format, uint64_t offset){
-    wgpuRenderPassEncoderBindIndexBuffer((WGPURenderPassEncoder)drp->rpEncoder, (WGPUBuffer)buffer->buffer, 0, format);
+    wgpuRenderPassEncoderSetIndexBuffer((WGPURenderPassEncoder)drp->rpEncoder, (WGPUBuffer)buffer->buffer, 0, format);
     //wgpuRenderPassEncoderSetIndexBuffer((WGPURenderPassEncoder)drp->rpEncoder, (WGPUBuffer)buffer->buffer, format, offset, buffer->size);
 }
 extern "C" void RenderPassSetVertexBuffer(DescribedRenderpass* drp, uint32_t slot, DescribedBuffer* buffer, uint64_t offset){
-    wgpuRenderPassEncoderBindVertexBuffer((WGPURenderPassEncoder)drp->rpEncoder, slot, (WGPUBuffer)buffer->buffer, offset);
+    wgpuRenderPassEncoderSetVertexBuffer((WGPURenderPassEncoder)drp->rpEncoder, slot, (WGPUBuffer)buffer->buffer, offset);
     //wgpuRenderPassEncoderSetVertexBuffer((WGPURenderPassEncoder)drp->rpEncoder, slot, (WGPUBuffer)buffer->buffer, offset, buffer->size);
 }
 extern "C" void RenderPassSetBindGroup(DescribedRenderpass* drp, uint32_t group, DescribedBindGroup* bindgroup){
@@ -1380,14 +1380,14 @@ extern "C" void CopyTextureToTexture(Texture source, Texture dest){
 }
 void ComputepassEndOnlyComputing(cwoid){
     WGPUComputePassEncoder computePassEncoder = (WGPUComputePassEncoder)g_renderstate.computepass.cpEncoder;
-    wgpuCommandEncoderEndComputePass(computePassEncoder);
+    wgpuComputePassEncoderEnd(computePassEncoder);
 }
 
 extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
     drawCurrentBatch();
     if(rp->rpEncoder){
         wgpuRenderPassEncoderEnd((WGPURenderPassEncoder)rp->rpEncoder);
-        wgpuReleaseRenderPassEncoder((WGPURenderPassEncoder)rp->rpEncoder);
+        wgpuRenderPassEncoderRelease((WGPURenderPassEncoder)rp->rpEncoder);
         rp->rpEncoder = nullptr;
     }
     VkImageMemoryBarrier rpAttachmentBarriers[2] zeroinit;
@@ -1424,12 +1424,12 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
 
     WGPURenderPassEncoder rpe = (WGPURenderPassEncoder)rp->rpEncoder;
     if(rpe){
-        wgpuReleaseRenderPassEncoder(rpe);
+        wgpuRenderPassEncoderRelease(rpe);
     }
     WGPUCommandEncoder cmdEncoder = (WGPUCommandEncoder)rp->cmdEncoder;
     rp->cmdEncoder = nullptr;
-    wgpuReleaseCommandEncoder(cmdEncoder);
-    wgpuReleaseCommandBuffer(cbuffer);
+    wgpuCommandEncoderRelease(cmdEncoder);
+    wgpuCommandBufferRelease(cbuffer);
     //vkResetFences(g_vulkanstate.device, 1, &g_vulkanstate.queue.syncState.renderFinishedFence);
     //g_vulkanstate.queue.syncState.submitsInThisFrame = 0;
     //vkDestroyFence(g_vulkanstate.device, fence, nullptr);

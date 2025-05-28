@@ -420,7 +420,7 @@ static inline void SetBindgroupTexture_Vk(DescribedBindGroup* bg, uint32_t index
 }
 static inline void BindVertexArray_Vk(WGPURenderPassEncoder rpenc, VertexArray* vao){
     for(uint32_t i = 0;i < vao->buffers.size();i++){
-        wgpuRenderPassEncoderBindVertexBuffer(rpenc, i, (WGPUBuffer)vao->buffers[i].first->buffer, 0);
+        wgpuRenderPassEncoderSetVertexBuffer(rpenc, i, (WGPUBuffer)vao->buffers[i].first->buffer, 0);
     }
 }
 

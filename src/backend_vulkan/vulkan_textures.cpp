@@ -226,9 +226,9 @@ void UnloadTexture(Texture tex){
     WGPUTextureView view = (WGPUTextureView)tex.view;
     WGPUTexture texture = (WGPUTexture)tex.id;
     if(view != nullptr)
-        wgpuReleaseTextureView(view);
+        wgpuTextureViewRelease(view);
     if(texture != nullptr)
-        wgpuReleaseTexture(texture);   
+        wgpuTextureRelease(texture);   
 }
 extern "C" Texture2DArray LoadTextureArray(uint32_t width, uint32_t height, uint32_t layerCount, PixelFormat format){
     Texture2DArray ret zeroinit;

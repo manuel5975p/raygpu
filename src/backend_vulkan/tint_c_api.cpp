@@ -161,11 +161,16 @@ RGAPI WGPUReflectionInfo reflectionInfo_wgsl_sync(WGPUStringView wgslSource) {
             } else if (iden->symbol.Name().starts_with("texture_storage_3d")) {
                 insert.storageTexture.viewDimension = WGPUTextureViewDimension_3D;
                 format_or_sample_type sampletype = extractFormat(iden);
-            } else if (iden->symbol.NameView().starts_with("array")) {
-                if (varvis.var->As<tint::ast::Var>()
-                        ->declared_address_space->As<tint::ast::IdentifierExpression>()
-                        ->identifier->symbol.NameView()
-                        .starts_with("storage")) {
+
+
+            } 
+            else if (iden->symbol.Name().starts_with("sampler")) {
+                insert.sampler.type = WGPUSamplerBindingType_Filtering;
+            }
+            else 
+            //if (iden->symbol.NameView().starts_with("array")) 
+            {
+                if (varvis.var->As<tint::ast::Var>()->declared_address_space->As<tint::ast::IdentifierExpression>()->identifier->symbol.NameView().starts_with("storage")) {
                     if (varvis.var->As<tint::ast::Var>()
                             ->declared_access->As<tint::ast::IdentifierExpression>()
                             ->identifier->symbol.NameView()
@@ -180,8 +185,7 @@ RGAPI WGPUReflectionInfo reflectionInfo_wgsl_sync(WGPUStringView wgslSource) {
                                .starts_with("uniform")) {
                     insert.buffer.type = WGPUBufferBindingType_Uniform;
                 }
-                insert.buffer.minBindingSize = sem->Type()->As<tint::core::type::Reference>()->Size();
-            } else if (iden->symbol.Name().starts_with("sampler")) {
+                insert.buffer.minBindingSize = sem->Type()->UnwrapPtrOrRef()->Size();
             }
             const_cast<WGPUGlobalReflectionInfo *>(ret.globals)[globalInsertIndex++] = insert;
         }
@@ -338,12 +342,18 @@ RGAPI tc_SpirvBlob wgslToSpirv(const WGPUShaderSourceWGSL *source) {
     tint::Source::File file("<not a file>", std::string_view(source->code.data, source->code.data + length));
     tint::Program prog = tint::wgsl::reader::Parse(&file);
     tint::Result<tint::core::ir::Module> maybeModule = tint::wgsl::reader::ProgramToLoweredIR(prog);
-    tint::core::ir::Module module(std::move(maybeModule.Get()));
-    tint::spirv::writer::Options options zeroinit;
-    tint::Result<tint::spirv::writer::Output> spirvMaybe = tint::spirv::writer::Generate(module, options);
-    tint::spirv::writer::Output output(spirvMaybe.Get());
-    tc_SpirvBlob ret{(output.spirv.size() * sizeof(uint32_t)), (uint32_t *)RL_CALLOC(output.spirv.size(), sizeof(uint32_t))};
-    std::copy(output.spirv.begin(), output.spirv.end(), ret.code);
-
-    return ret;
+    if(maybeModule == tint::Success){
+        tint::core::ir::Module module(std::move(maybeModule.Get()));
+        tint::spirv::writer::Options options zeroinit;
+        tint::Result<tint::spirv::writer::Output> spirvMaybe = tint::spirv::writer::Generate(module, options);
+        tint::spirv::writer::Output output(spirvMaybe.Get());
+        tc_SpirvBlob ret{(output.spirv.size() * sizeof(uint32_t)), (uint32_t *)RL_CALLOC(output.spirv.size(), sizeof(uint32_t))};
+        std::copy(output.spirv.begin(), output.spirv.end(), ret.code);
+        return ret;
+    }
+    else{
+        std::cerr << "Compilation failed: " << maybeModule.Failure().reason << "\n";
+        tc_SpirvBlob ret = {0};
+        return ret;
+    }
 }

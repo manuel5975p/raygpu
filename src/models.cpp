@@ -77,20 +77,20 @@ void UploadMesh(Mesh *mesh, bool dynamic){
             mesh->ibo = GenIndexBuffer(mesh->indices, mesh->triangleCount * 3 * sizeof(uint32_t));
         }
         mesh->vao = LoadVertexArray();
-        VertexAttribPointer(mesh->vao, mesh->vbos[0], 0, WGPUVertexFormat_Float32x3, sizeof(float) * 0, VertexStepMode_Vertex);
+        VertexAttribPointer(mesh->vao, mesh->vbos[0], 0, WGPUVertexFormat_Float32x3, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
         EnableVertexAttribArray(mesh->vao, 0);
-        VertexAttribPointer(mesh->vao, mesh->vbos[1], 1, WGPUVertexFormat_Float32x2, sizeof(float) * 0, VertexStepMode_Vertex);
+        VertexAttribPointer(mesh->vao, mesh->vbos[1], 1, WGPUVertexFormat_Float32x2, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
         EnableVertexAttribArray(mesh->vao, 1);
-        VertexAttribPointer(mesh->vao, mesh->vbos[2], 2, WGPUVertexFormat_Float32x3, sizeof(float) * 0, VertexStepMode_Vertex);
+        VertexAttribPointer(mesh->vao, mesh->vbos[2], 2, WGPUVertexFormat_Float32x3, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
         EnableVertexAttribArray(mesh->vao, 2);
-        VertexAttribPointer(mesh->vao, mesh->vbos[3], 3, WGPUVertexFormat_Unorm8x4, sizeof(float) * 0, VertexStepMode_Vertex);
+        VertexAttribPointer(mesh->vao, mesh->vbos[3], 3, WGPUVertexFormat_Unorm8x4, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
         EnableVertexAttribArray(mesh->vao, 3);
         if(mesh->boneWeights){
-            VertexAttribPointer(mesh->vao, mesh->vbos[4], 4, WGPUVertexFormat_Float32x4, sizeof(float) * 0, VertexStepMode_Vertex);
+            VertexAttribPointer(mesh->vao, mesh->vbos[4], 4, WGPUVertexFormat_Float32x4, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
             EnableVertexAttribArray(mesh->vao, 4);
         }
         if(mesh->boneIds){
-            VertexAttribPointer(mesh->vao, mesh->vbos[5], 5, mesh->boneIDFormat, sizeof(float) * 0, VertexStepMode_Vertex);
+            VertexAttribPointer(mesh->vao, mesh->vbos[5], 5, mesh->boneIDFormat, sizeof(float) * 0, WGPUVertexStepMode_Vertex);
             EnableVertexAttribArray(mesh->vao, 5);
         }
         if(mesh->boneMatrices && mesh->boneCount){

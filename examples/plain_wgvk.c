@@ -40,7 +40,11 @@ void reflectionCallback(WGPUReflectionInfoRequestStatus status, const WGPUReflec
         const WGPUGlobalReflectionInfo* toBePrinted = reflectionInfo->globals + i;
 
         memcpy(namebuffer, toBePrinted->name.data, toBePrinted->name.length);
-        printf("Name: %s, location: %u, type: %s\n", namebuffer, toBePrinted->binding, typedesc);
+        printf("Name: %s, location: %u, type: %s", namebuffer, toBePrinted->binding, typedesc);
+        if(reflectionInfo->globals[i].buffer.type != WGPUBufferBindingType_BindingNotUsed){
+            printf(", minBindingSize = %d", (int)toBePrinted->buffer.minBindingSize);
+        }
+        printf("\n");
     }
 }
 
@@ -63,7 +67,13 @@ int main(){
     //__builtin_dump_struct(&lsel, printf);
     
     WGPUInstanceDescriptor instanceDescriptor = {
-        .nextInChain = &lsel.chain,
+        .nextInChain = 
+        #ifdef NDEBUG
+        NULL
+        #else
+        &lsel.chain
+        #endif
+        ,
         .capabilities = {0}
     };
 
@@ -211,6 +221,7 @@ int main(){
         .bindGroupLayoutCount = 1,
         .bindGroupLayouts = &layout,
     });
+
     cplDesc.layout = pllayout;
     WGPUComputePipeline cpl = wgpuDeviceCreateComputePipeline(device, &cplDesc);
     
@@ -225,7 +236,7 @@ int main(){
 
     WGPUQueue queue = wgpuDeviceGetQueue(device);
     float floatData[16] = {
-        1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16
+        0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
     };
 
     ResourceDescriptor entries[1] = {
@@ -235,6 +246,7 @@ int main(){
             .size = 64,
         }
     };
+
     wgpuQueueWriteBuffer(queue, stbuf, 0, floatData, sizeof(floatData));
     WGPUBindGroup group = wgpuDeviceCreateBindGroup(device, &(WGPUBindGroupDescriptor){
         .entries = entries,
@@ -247,12 +259,14 @@ int main(){
     wgpuComputePassEncoderSetPipeline(cpenc, cpl);
     wgpuComputePassEncoderSetBindGroup(cpenc, 0, group, 0, NULL);
     wgpuComputePassEncoderDispatchWorkgroups(cpenc, 16, 1, 1);
-    wgpuCommandEncoderEndComputePass(cpenc);
+    wgpuComputePassEncoderEnd(cpenc);
     wgpuCommandEncoderCopyBufferToBuffer(cenc, stbuf, 0, readableBuffer, 0, 64);
     WGPUCommandBuffer cmdBuffer = wgpuCommandEncoderFinish(cenc);
     wgpuQueueSubmit(queue, 1, &cmdBuffer);
     float* floatRead = NULL;
     wgpuBufferMap(readableBuffer, WGPUMapMode_Read, 0, 64, (void**)&floatRead);
-    printf("Value: %f\n", floatRead[0]);
-    assert(stbuf);
+    for(int i = 0;i < 16;i++){
+        printf("output value[%d] = %f\n", i, floatRead[i]);
+    }
+    
 }

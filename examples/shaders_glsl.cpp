@@ -43,7 +43,7 @@ int main(){
     float vertices[6] = {0,-0.5,-0.5,0.5,0.5,0.5};
     DescribedBuffer* buffer = GenVertexBuffer(vertices, sizeof(vertices));
     VertexArray* vao = LoadVertexArray();
-    VertexAttribPointer(vao, buffer, 1, VertexFormat_Float32x2, 0, VertexStepMode_Vertex);
+    VertexAttribPointer(vao, buffer, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
     EnableVertexAttribArray(vao, 0);
     float color[4] = {1,1,0,1};
     SetPipelineUniformBufferData(colorInverter.id, 5, color, sizeof(color));

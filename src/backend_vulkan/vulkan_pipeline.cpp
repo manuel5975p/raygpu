@@ -585,7 +585,7 @@ extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
                 .shaderLocation = location
             },
             .bufferSlot = 0,
-            .stepMode = VertexStepMode_Vertex,
+            .stepMode = WGPUVertexStepMode_Vertex,
             .enabled = true}
         );
         offset += attributeSize(format);
@@ -712,7 +712,7 @@ extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t location, Re
     }
     else if(bg->entries[index].textureView){
         //TODO: currently not the case anyway, but this is nadinöf
-        wgpuReleaseTextureView((WGPUTextureView)bg->entries[index].textureView);
+        wgpuTextureViewRelease((WGPUTextureView)bg->entries[index].textureView);
     }
     else if(bg->entries[index].sampler){
         // TODO
