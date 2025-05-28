@@ -204,10 +204,10 @@ static inline VkImageUsageFlags toVulkanWGPUTextureUsage(WGPUTextureUsage usage,
     return vkUsage;
 }
 static inline VkImageAspectFlags toVulkanAspectMask(TextureAspect aspect){
-    VkImageAspectFlagBits ret;
+    
     switch(aspect){
         case TextureAspect_All:
-        return VK_IMAGE_ASPECT_COLOR_BIT | VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+        return VK_IMAGE_ASPECT_COLOR_BIT;// | VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
         case TextureAspect_DepthOnly:
         return VK_IMAGE_ASPECT_DEPTH_BIT;
         case TextureAspect_StencilOnly:

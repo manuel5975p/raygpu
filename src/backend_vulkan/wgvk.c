@@ -2979,7 +2979,7 @@ WGPURenderPipeline wgpuDeviceCreateRenderPipeline(WGPUDevice device, const WGPUR
     //wgpuDeviceAddRef(device);
     pipelineImpl->layout = pl_layout; // Store for potential use
     wgpuPipelineLayoutAddRef(pl_layout);
-    VkResult result = vkCreateGraphicsPipelines(device->device, VK_NULL_HANDLE, 1, &pipelineInfo, NULL, &pipelineImpl->renderPipeline);
+    VkResult result = device->functions.vkCreateGraphicsPipelines(device->device, VK_NULL_HANDLE, 1, &pipelineInfo, NULL, &pipelineImpl->renderPipeline);
 
     if (result != VK_SUCCESS) {
         // Handle pipeline creation failure
@@ -3051,7 +3051,7 @@ void wgpuCommandEncoderCopyBufferToBuffer  (WGPUCommandEncoder commandEncoder, W
 
     bufferbarr.dstQueueFamilyIndex = commandEncoder->device->adapter->queueIndices.graphicsIndex;
     bufferbarr.srcQueueFamilyIndex = commandEncoder->device->adapter->queueIndices.graphicsIndex;
-    vkCmdPipelineBarrier(commandEncoder->buffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, 0, 1, &bufferbarr, 0, 0);
+    commandEncoder->device->functions.vkCmdPipelineBarrier(commandEncoder->buffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, 0, 1, &bufferbarr, 0, 0);
 }
 void wgpuCommandEncoderCopyBufferToTexture (WGPUCommandEncoder commandEncoder, WGPUTexelCopyBufferInfo const * source, WGPUTexelCopyTextureInfo const * destination, WGPUExtent3D const * copySize){
     
@@ -3093,10 +3093,56 @@ void wgpuCommandEncoderCopyBufferToTexture (WGPUCommandEncoder commandEncoder, W
         }
     });
 
-    vkCmdCopyBufferToImage(commandEncoder->buffer, source->buffer->buffer, destination->texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+    commandEncoder->device->functions.vkCmdCopyBufferToImage(commandEncoder->buffer, source->buffer->buffer, destination->texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
-void wgpuCommandEncoderCopyTextureToBuffer (WGPUCommandEncoder commandEncoder, WGPUTexelCopyTextureInfo const * source, WGPUTexelCopyBufferInfo const * destination, WGPUExtent3D const * copySize){
-    TRACELOG(LOG_FATAL, "Not implemented");
+void wgpuCommandEncoderCopyTextureToBuffer (WGPUCommandEncoder commandEncoder, const WGPUTexelCopyTextureInfo* source, const WGPUTexelCopyBufferInfo* destination, const WGPUExtent3D* copySize){
+    ce_trackTexture(
+        commandEncoder,
+        source->texture,
+        (ImageUsageSnap){
+            .layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            .stage  = VK_PIPELINE_STAGE_TRANSFER_BIT,
+            .access = VK_ACCESS_TRANSFER_READ_BIT,
+            .subresource = {
+                .aspectMask     = toVulkanAspectMask(source->aspect),
+                .baseMipLevel   = source->mipLevel,
+                .baseArrayLayer = source->origin.z, // ?
+                .layerCount     = 1,
+                .levelCount     = 1,
+            }
+    });
+    ce_trackBuffer(commandEncoder, destination->buffer, (BufferUsageSnap){VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT});
+    
+    
+    VkBufferImageCopy region = {
+        .bufferOffset = destination->layout.offset,
+        .bufferRowLength = destination->layout.bytesPerRow,
+        .bufferImageHeight = destination->layout.rowsPerImage,
+        .imageSubresource = {
+            .aspectMask = toVulkanAspectMask(source->aspect),
+            .baseArrayLayer = source->origin.z, // ?
+            .mipLevel = source->mipLevel,
+            .layerCount = 1,
+        },
+        .imageOffset = {
+            .x = (int32_t)source->origin.x,
+            .y = (int32_t)source->origin.y,
+            .z = (int32_t)source->origin.z
+        },
+        .imageExtent = {
+            .width = copySize->width,
+            .height = copySize->height,
+            .depth = copySize->depthOrArrayLayers
+        }
+    };
+
+    commandEncoder->device->functions.vkCmdCopyImageToBuffer(
+        commandEncoder->buffer,
+        source->texture->image,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        destination->buffer->buffer,
+        1, &region
+    );
     rg_unreachable();
 }
 void wgpuCommandEncoderCopyTextureToTexture(WGPUCommandEncoder commandEncoder, const WGPUTexelCopyTextureInfo* source, const WGPUTexelCopyTextureInfo* destination, const WGPUExtent3D* copySize){
