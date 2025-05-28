@@ -3589,6 +3589,15 @@ void wgpuReleaseRaytracingPassEncoder(WGPURaytracingPassEncoder rtenc){
         RL_FREE(rtenc);
     }
 }
+
+void pcmNonnullFlattenCallback(void* fence_, WGPUCommandBufferVector* key, void* userdata){
+    VkFenceVector* vector = (VkFenceVector*)userdata;
+    VkFence fence = (VkFence)fence_;
+    if(fence != VK_NULL_HANDLE){
+        VkFenceVector_push_back(vector, fence);
+    }
+}
+
 void wgpuSurfacePresent(WGPUSurface surface){
     WGPUDevice device = surface->device;
     uint32_t cacheIndex = surface->device->submittedFrames % framesInFlight;
@@ -3696,7 +3705,8 @@ void wgpuSurfacePresent(WGPUSurface surface){
     PendingCommandBufferMap* pcm = &queue->pendingCommandBuffers[cacheIndex];
     size_t pcmSize = pcm->current_size;
 
-    VkFence fences[128] = {0};
+    VkFenceVector fences;
+    VkFenceVector_init(&fences);
     uint32_t fenceInsertPos = 0;
     if(pcm->current_size > 0){
         //fences.reserve(pcm->current_size);

@@ -229,6 +229,7 @@ int main(){
         .size = 64,
         .usage = WGPUBufferUsage_Storage | WGPUBufferUsage_MapWrite
     });
+    
     WGPUBuffer readableBuffer = wgpuDeviceCreateBuffer(device, &(WGPUBufferDescriptor){
         .size = 64,
         .usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead

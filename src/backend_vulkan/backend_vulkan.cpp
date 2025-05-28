@@ -83,10 +83,7 @@ void resetFenceAndReleaseBuffers(void* fence_, WGPUCommandBufferVector* cBuffers
     }
     WGPUCommandBufferVector_free(cBuffers);
 }
-void pcmNonnullFlattenCallback(void* fence_, WGPUCommandBufferVector *, void* stdvector){
-    if(fence_)
-        ((std::vector<VkFence>*)stdvector)->push_back((VkFence)fence_);
-}
+
 
 void PostPresentSurface(){
     
