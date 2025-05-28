@@ -957,7 +957,7 @@ extern "C" void PrepareFrameGlobals(){
         WGPUBufferVector_push_back(&cache.usedBatchBuffers, vbo_buf);
         wgpuBufferAddRef(vbo_buf);
 
-        wgpuBufferMap(vbo_buf, MapMode_Write, 0, bdesc.size, (void**)&vboptr_base);
+        wgpuBufferMap(vbo_buf, WGPUMapMode_Write, 0, bdesc.size, (void**)&vboptr_base);
         vboptr = vboptr_base;
         
     }
@@ -967,7 +967,7 @@ extern "C" void PrepareFrameGlobals(){
         WGPUBufferVector_push_back(&cache.usedBatchBuffers, vbo_buf);
         VmaAllocationInfo allocationInfo zeroinit;
         vmaGetAllocationInfo(g_vulkanstate.device->allocator, vbo_buf->allocation, &allocationInfo);
-        wgpuBufferMap(vbo_buf, MapMode_Write, 0, allocationInfo.size, (void**)&vboptr_base);
+        wgpuBufferMap(vbo_buf, WGPUMapMode_Write, 0, allocationInfo.size, (void**)&vboptr_base);
         vboptr = vboptr_base;
         wgpuBufferAddRef(vbo_buf);
     }
@@ -989,7 +989,7 @@ extern "C" DescribedBuffer* UpdateVulkanRenderbatch(){
         };
 
         vbo_buf = wgpuDeviceCreateBuffer(g_vulkanstate.device,  &bdesc);
-        wgpuBufferMap(vbo_buf, MapMode_Write, 0, bdesc.size, (void**)&vboptr_base);
+        wgpuBufferMap(vbo_buf, WGPUMapMode_Write, 0, bdesc.size, (void**)&vboptr_base);
         vboptr = vboptr_base;
         WGPUBufferVector_push_back(&cache.usedBatchBuffers, vbo_buf);
         wgpuBufferAddRef(vbo_buf);
@@ -1001,7 +1001,7 @@ extern "C" DescribedBuffer* UpdateVulkanRenderbatch(){
         WGPUBufferVector_push_back(&cache.usedBatchBuffers, vbo_buf);
         VmaAllocationInfo allocationInfo zeroinit;
         vmaGetAllocationInfo(g_vulkanstate.device->allocator,vbo_buf->allocation, &allocationInfo);
-        wgpuBufferMap(vbo_buf, MapMode_Write, 0, allocationInfo.size, (void**)&vboptr_base);
+        wgpuBufferMap(vbo_buf, WGPUMapMode_Write, 0, allocationInfo.size, (void**)&vboptr_base);
         vboptr = vboptr_base;
         wgpuBufferAddRef(vbo_buf);
     }

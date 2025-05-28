@@ -404,11 +404,11 @@ typedef enum WGPUCompareFunction {
     WGPUCompareFunction_GreaterEqual = 0x00000007,
     WGPUCompareFunction_Always = 0x00000008
 } WGPUCompareFunction;
-typedef enum MapMode{
-    MapMode_Read,
-    MapMode_Write,
-    MapMode_ReadWrite,
-}MapMode;
+
+typedef WGPUFlags WGPUMapMode;
+static const WGPUMapMode WGPUMapMode_None = 0x0000000000000000;
+static const WGPUMapMode WGPUMapMode_Read = 0x0000000000000001;
+static const WGPUMapMode WGPUMapMode_Write = 0x0000000000000002;
 
 typedef enum TextureDimension{
     TextureDimension_Undefined = 0x00000000,
@@ -780,6 +780,15 @@ typedef enum WGPUFeatureName {
     WGPUFeatureName_CoreFeaturesAndLimits = 0x00000012,
     WGPUFeatureName_Force32 = 0x7FFFFFFF
 } WGPUFeatureName;
+
+typedef enum WGPUMapAsyncStatus {
+    WGPUMapAsyncStatus_Success = 0x00000001,
+    WGPUMapAsyncStatus_CallbackCancelled = 0x00000002,
+    WGPUMapAsyncStatus_Error = 0x00000003,
+    WGPUMapAsyncStatus_Aborted = 0x00000004,
+    WGPUMapAsyncStatus_Force32 = 0x7FFFFFFF
+} WGPUMapAsyncStatus WGPU_ENUM_ATTRIBUTE;
+
 typedef struct WGPULimits {
     WGPUChainedStruct* nextInChain;
     uint32_t maxTextureDimension1D;
@@ -986,6 +995,15 @@ typedef struct WGPUBufferDescriptor{
     WGPUBufferUsage usage;
     uint64_t size;
 }WGPUBufferDescriptor;
+typedef void (*WGPUBufferMapCallback)(WGPUMapAsyncStatus status, WGPUStringView message, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2);
+
+typedef struct WGPUBufferMapCallbackInfo {
+    WGPUChainedStruct * nextInChain;
+    WGPUCallbackMode mode;
+    WGPUBufferMapCallback callback;
+    WGPU_NULLABLE void* userdata1;
+    WGPU_NULLABLE void* userdata2;
+} WGPUBufferMapCallbackInfo;
 
 typedef struct WGPUBindGroupDescriptor{
     WGPUChainedStruct* nextInChain;
@@ -1233,6 +1251,8 @@ typedef enum WGPUReflectionInfoRequestStatus {
     WGPUReflectionInfoRequestStatus_Force32           = 0x7FFFFFFF
 }WGPUReflectionInfoRequestStatus;
 
+
+
 typedef struct WGPUReflectionInfo {
     WGPUChainedStruct* nextInChain;
     uint32_t globalCount;
@@ -1240,7 +1260,6 @@ typedef struct WGPUReflectionInfo {
     const WGPUAttributeReflectionInfo* inputAttributes;
     const WGPUAttributeReflectionInfo* outputAttributes;
 }WGPUReflectionInfo;
-
 typedef void (*WGPUReflectionInfoCallback)(WGPUReflectionInfoRequestStatus status, WGPUReflectionInfo const* reflectionInfo, void* userdata1, void* userdata2);
 
 typedef struct WGPUReflectionInfoCallbackInfo {
@@ -1349,7 +1368,7 @@ WGPUWaitStatus wgpuInstanceWaitAny(WGPUInstance instance, size_t futureCount, WG
 WGPUFuture wgpuInstanceRequestAdapter(WGPUInstance instance, const WGPURequestAdapterOptions* options, WGPURequestAdapterCallbackInfo callbackInfo);
 WGPUSurface wgpuInstanceCreateSurface(WGPUInstance instance, const WGPUSurfaceDescriptor* descriptor);
 WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescriptor *descriptor);
-
+WGPUQueue wgpuDeviceGetQueue(WGPUDevice device);
 void wgpuSurfaceGetCapabilities(WGPUSurface wgpuSurface, WGPUAdapter adapter, WGPUSurfaceCapabilities* capabilities);
 void wgpuSurfaceConfigure(WGPUSurface surface, const WGPUSurfaceConfiguration* config);
 WGPUTexture wgpuDeviceCreateTexture(WGPUDevice device, const WGPUTextureDescriptor* descriptor);
@@ -1357,8 +1376,10 @@ WGPUTextureView wgpuTextureCreateView(WGPUTexture texture, const WGPUTextureView
 WGPUSampler wgpuDeviceCreateSampler(WGPUDevice device, const WGPUSamplerDescriptor* descriptor);
 WGPUBuffer wgpuDeviceCreateBuffer(WGPUDevice device, const WGPUBufferDescriptor* desc);
 void wgpuQueueWriteBuffer(WGPUQueue cSelf, WGPUBuffer buffer, uint64_t bufferOffset, const void* data, size_t size);
-void wgpuBufferMap(WGPUBuffer buffer, MapMode mapmode, size_t offset, size_t size, void** data);
+void wgpuBufferMap(WGPUBuffer buffer, WGPUMapMode mapmode, size_t offset, size_t size, void** data);
 void wgpuBufferUnmap(WGPUBuffer buffer);
+
+WGPUFuture wgpuBufferMapAsync(WGPUBuffer buffer, WGPUMapMode mode, size_t offset, size_t size, WGPUBufferMapCallbackInfo callbackInfo);
 size_t wgpuBufferGetSize(WGPUBuffer buffer);
 void wgpuQueueWriteTexture(WGPUQueue queue, WGPUTexelCopyTextureInfo const * destination, void const * data, size_t dataSize, WGPUTexelCopyBufferLayout const * dataLayout, WGPUExtent3D const * writeSize);
 

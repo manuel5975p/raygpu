@@ -218,7 +218,41 @@ int main(){
         .size = 64,
         .usage = WGPUBufferUsage_Storage | WGPUBufferUsage_MapWrite
     });
+    WGPUBuffer readableBuffer = wgpuDeviceCreateBuffer(device, &(WGPUBufferDescriptor){
+        .size = 64,
+        .usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead
+    });
 
-    
+    WGPUQueue queue = wgpuDeviceGetQueue(device);
+    float floatData[16] = {
+        1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16
+    };
+
+    ResourceDescriptor entries[1] = {
+        (ResourceDescriptor){
+            .binding = 0,
+            .buffer = stbuf,
+            .size = 64,
+        }
+    };
+    wgpuQueueWriteBuffer(queue, stbuf, 0, floatData, sizeof(floatData));
+    WGPUBindGroup group = wgpuDeviceCreateBindGroup(device, &(WGPUBindGroupDescriptor){
+        .entries = entries,
+        .entryCount = 1,
+        .layout = layout
+    });
+
+    WGPUCommandEncoder cenc = wgpuDeviceCreateCommandEncoder(device, NULL);
+    WGPUComputePassEncoder cpenc = wgpuCommandEncoderBeginComputePass(cenc);
+    wgpuComputePassEncoderSetPipeline(cpenc, cpl);
+    wgpuComputePassEncoderSetBindGroup(cpenc, 0, group, 0, NULL);
+    wgpuComputePassEncoderDispatchWorkgroups(cpenc, 16, 1, 1);
+    wgpuCommandEncoderEndComputePass(cpenc);
+    wgpuCommandEncoderCopyBufferToBuffer(cenc, stbuf, 0, readableBuffer, 0, 64);
+    WGPUCommandBuffer cmdBuffer = wgpuCommandEncoderFinish(cenc);
+    wgpuQueueSubmit(queue, 1, &cmdBuffer);
+    float* floatRead = NULL;
+    wgpuBufferMap(readableBuffer, WGPUMapMode_Read, 0, 64, (void**)&floatRead);
+    printf("Value: %f\n", floatRead[0]);
     assert(stbuf);
 }
