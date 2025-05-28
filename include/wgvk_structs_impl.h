@@ -479,6 +479,7 @@ typedef struct WGPUBufferImpl{
     VkMemoryPropertyFlags memoryProperties;
     VkDeviceAddress address; //uint64_t, if applicable (BufferUsage_ShaderDeviceAddress)
     refcount_type refCount;
+    VkFence latestFence;
 }WGPUBufferImpl;
 typedef struct WGPUBottomLevelAccelerationStructureImpl {
     VkDevice device;

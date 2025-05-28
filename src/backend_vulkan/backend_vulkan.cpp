@@ -89,75 +89,7 @@ void pcmNonnullFlattenCallback(void* fence_, WGPUCommandBufferVector *, void* st
 }
 
 void PostPresentSurface(){
-    WGPUDevice surfaceDevice = g_vulkanstate.device;
-    WGPUQueue queue = surfaceDevice->queue;
-
-    const uint32_t cacheIndex = surfaceDevice->submittedFrames % framesInFlight;
-    PendingCommandBufferMap* pcm = &queue->pendingCommandBuffers[cacheIndex];
-    size_t pcmSize = pcm->current_size;
-
-    std::vector<VkFence> fences;
-    if(pcm->current_size > 0){
-        fences.reserve(pcm->current_size);
-        PendingCommandBufferMap_for_each(pcm, pcmNonnullFlattenCallback, (void*)&fences);
-        //for(const auto& [fence, bufferset] : queue->pendingCommandBuffers[cacheIndex]){
-        //    if(fence){
-        //        fences.push_back(fence);
-        //    }
-        //}
-        if(fences.size() > 0){
-            VkResult waitResult = vkWaitForFences(surfaceDevice->device, fences.size(), fences.data(), VK_TRUE, ~uint64_t(0));
-            if(waitResult != VK_SUCCESS){
-                TRACELOG(LOG_FATAL, "Waitresult: %d", waitResult);
-            }
-            if(fences.size() == 1){
-                TRACELOG(LOG_TRACE, "Waiting for fence %p\n", fences[0]);
-            }
-        }
-        else{
-            TRACELOG(LOG_INFO, "No fences!");
-        }
-    }
-    else{
-        TRACELOG(LOG_INFO, "No fences!");
-    }
     
-    PendingCommandBufferMap_for_each(pcm, resetFenceAndReleaseBuffers, surfaceDevice);
-    //for(auto [fence, bufferset] : queue->pendingCommandBuffers[cacheIndex]){
-    //    if(fence){
-    //        vkResetFences(surfaceDevice->device, 1, &fence);
-    //    }
-    //    else{
-    //        //TRACELOG(LOG_INFO, "Amount of buffers to be cleared from null fence. %llu", (unsigned long long)queue->pendingCommandBuffers[cacheIndex].size());
-    //    }
-    //    for(auto buffer : bufferset){
-    //        rassert(buffer->refCount == 1, "CommandBuffer still in use after submit");
-    //        wgpuReleaseCommandBuffer(buffer);
-    //    }
-    //}
-    
-
-    WGPUBufferVector* usedBuffers = &surfaceDevice->frameCaches[cacheIndex].usedBatchBuffers;
-    WGPUBufferVector* unusedBuffers = &surfaceDevice->frameCaches[cacheIndex].unusedBatchBuffers;
-    if(unusedBuffers->capacity < unusedBuffers->size + usedBuffers->size){
-        size_t newcap = (unusedBuffers->size + usedBuffers->size);
-        WGPUBufferVector_reserve(unusedBuffers, newcap);
-    }
-    if(usedBuffers->size > 0){
-        memcpy(unusedBuffers->data + unusedBuffers->size, usedBuffers->data, usedBuffers->size * sizeof(WGPUBuffer));
-    }
-    unusedBuffers->size += usedBuffers->size;
-    WGPUBufferVector_clear(usedBuffers);//(WGPUBufferVector *dest, const WGPUBufferVector *source)
-    PendingCommandBufferMap_clear(&queue->pendingCommandBuffers[cacheIndex]);
-    
-    WGPUCommandBuffer buffer = wgpuCommandEncoderFinish(queue->presubmitCache);
-    wgpuCommandEncoderRelease(queue->presubmitCache);
-    wgpuCommandBufferRelease(buffer);
-    vkResetCommandPool(surfaceDevice->device, surfaceDevice->frameCaches[cacheIndex].commandPool, 0);
-    WGPUCommandEncoderDescriptor cedesc zeroinit;
-
-    queue->syncState[cacheIndex].submits = 0;
-    queue->presubmitCache = wgpuDeviceCreateCommandEncoder(surfaceDevice, &cedesc);
 }
 extern "C" DescribedBuffer* GenBufferEx(const void* data, size_t size, WGPUBufferUsage usage){
     DescribedBuffer* ret = callocnew(DescribedBuffer);

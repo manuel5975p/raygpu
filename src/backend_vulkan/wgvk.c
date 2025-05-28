@@ -1116,10 +1116,15 @@ WGPUBuffer wgpuDeviceCreateBuffer(WGPUDevice device, const WGPUBufferDescriptor*
 }
 
 void wgpuBufferMap(WGPUBuffer buffer, WGPUMapMode mapmode, size_t offset, size_t size, void** data){
+    if(buffer->latestFence){
+        buffer->device->functions.vkWaitForFences(buffer->device->device, 1, &buffer->latestFence, VK_TRUE, ((uint64_t)1) << 30);
+        buffer->latestFence = NULL;    
+    }
     vmaMapMemory(buffer->device->allocator, buffer->allocation, data);
 }
 
 void wgpuBufferUnmap(WGPUBuffer buffer){
+    
     vmaUnmapMemory(buffer->device->allocator, buffer->allocation);
     //VmaAllocationInfo allocationInfo zeroinit;
     //vmaGetAllocationInfo(buffer->device->allocator, buffer->allocation, &allocationInfo);
@@ -1161,19 +1166,19 @@ void wgpuQueueWriteBuffer(WGPUQueue cSelf, WGPUBuffer buffer, uint64_t bufferOff
     }
 }
 
-void wgpuQueueWriteTexture(WGPUQueue cSelf, const WGPUTexelCopyTextureInfo* destination, const void* data, size_t dataSize, const WGPUTexelCopyBufferLayout* dataLayout, const WGPUExtent3D* writeSize){
+void wgpuQueueWriteTexture(WGPUQueue queue, const WGPUTexelCopyTextureInfo* destination, const void* data, size_t dataSize, const WGPUTexelCopyBufferLayout* dataLayout, const WGPUExtent3D* writeSize){
 
     WGPUBufferDescriptor bdesc zeroinit;
     bdesc.size = dataSize;
     bdesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_MapWrite;
-    WGPUBuffer stagingBuffer = wgpuDeviceCreateBuffer(cSelf->device, &bdesc);
+    WGPUBuffer stagingBuffer = wgpuDeviceCreateBuffer(queue->device, &bdesc);
     void* mappedMemory = NULL;
     wgpuBufferMap(stagingBuffer, WGPUMapMode_Write, 0, dataSize, &mappedMemory);
     if(mappedMemory != NULL){
         memcpy(mappedMemory, data, dataSize);
         wgpuBufferUnmap(stagingBuffer);
     }
-    WGPUCommandEncoder enkoder = wgpuDeviceCreateCommandEncoder(cSelf->device, NULL);
+    WGPUCommandEncoder enkoder = wgpuDeviceCreateCommandEncoder(queue->device, NULL);
     WGPUTexelCopyBufferInfo source;
     source.buffer = stagingBuffer;
     source.layout = *dataLayout;
@@ -1181,7 +1186,7 @@ void wgpuQueueWriteTexture(WGPUQueue cSelf, const WGPUTexelCopyTextureInfo* dest
     wgpuCommandEncoderCopyBufferToTexture(enkoder, &source, destination, writeSize);
     WGPUCommandBuffer puffer = wgpuCommandEncoderFinish(enkoder);
 
-    wgpuQueueSubmit(cSelf, 1, &puffer);
+    wgpuQueueSubmit(queue, 1, &puffer);
     wgpuCommandEncoderRelease(enkoder);
     wgpuCommandBufferRelease(puffer);
 
@@ -2470,6 +2475,18 @@ void wgpuQueueSubmit(WGPUQueue queue, size_t commandCount, const WGPUCommandBuff
     }
 
     if(submitResult == VK_SUCCESS){
+
+        for(uint32_t i = 0;i < submittableWGPU.size;i++){
+            WGPUCommandBuffer submittedBuffer = submittableWGPU.data[i];
+            BufferUsageRecordMap map = submittedBuffer->resourceUsage.referencedBuffers; 
+            for(size_t refbEntry = 0;refbEntry < map.current_capacity;refbEntry++){
+                BufferUsageRecordMap_kv_pair* kv_pair = &map.table[refbEntry];
+                WGPUBuffer keybuffer = (WGPUBuffer)kv_pair->key;
+                if(kv_pair->key != PHM_EMPTY_SLOT_KEY && kv_pair->value.everWrittenTo != VK_FALSE && (keybuffer->usage & (WGPUBufferUsage_MapWrite | WGPUBufferUsage_MapRead))){
+                    keybuffer->latestFence = fence;
+                }
+            }
+        }
         WGPUCommandBufferVector insert;
         WGPUCommandBufferVector_init(&insert);
         
@@ -3671,6 +3688,77 @@ void wgpuSurfacePresent(WGPUSurface surface){
     if(presentRes != VK_SUCCESS){
         wgpuSurfaceConfigure(surface, &surface->lastConfig);
     }
+    
+    WGPUDevice surfaceDevice = surface->device;
+    WGPUQueue queue = surfaceDevice->queue;
+
+    cacheIndex = surfaceDevice->submittedFrames % framesInFlight;
+    PendingCommandBufferMap* pcm = &queue->pendingCommandBuffers[cacheIndex];
+    size_t pcmSize = pcm->current_size;
+
+    VkFence fences[128] = {0};
+    uint32_t fenceInsertPos = 0;
+    if(pcm->current_size > 0){
+        //fences.reserve(pcm->current_size);
+        PendingCommandBufferMap_for_each(pcm, pcmNonnullFlattenCallback, (void*)&fences);
+        //for(const auto& [fence, bufferset] : queue->pendingCommandBuffers[cacheIndex]){
+        //    if(fence){
+        //        fences.push_back(fence);
+        //    }
+        //}
+        if(fences.size() > 0){
+            VkResult waitResult = vkWaitForFences(surfaceDevice->device, fences.size(), fences.data(), VK_TRUE, ~uint64_t(0));
+            if(waitResult != VK_SUCCESS){
+                TRACELOG(LOG_FATAL, "Waitresult: %d", waitResult);
+            }
+            if(fences.size() == 1){
+                TRACELOG(LOG_TRACE, "Waiting for fence %p\n", fences[0]);
+            }
+        }
+        else{
+            TRACELOG(LOG_INFO, "No fences!");
+        }
+    }
+    else{
+        TRACELOG(LOG_INFO, "No fences!");
+    }
+    
+    PendingCommandBufferMap_for_each(pcm, resetFenceAndReleaseBuffers, surfaceDevice);
+    //for(auto [fence, bufferset] : queue->pendingCommandBuffers[cacheIndex]){
+    //    if(fence){
+    //        vkResetFences(surfaceDevice->device, 1, &fence);
+    //    }
+    //    else{
+    //        //TRACELOG(LOG_INFO, "Amount of buffers to be cleared from null fence. %llu", (unsigned long long)queue->pendingCommandBuffers[cacheIndex].size());
+    //    }
+    //    for(auto buffer : bufferset){
+    //        rassert(buffer->refCount == 1, "CommandBuffer still in use after submit");
+    //        wgpuReleaseCommandBuffer(buffer);
+    //    }
+    //}
+    
+
+    WGPUBufferVector* usedBuffers = &surfaceDevice->frameCaches[cacheIndex].usedBatchBuffers;
+    WGPUBufferVector* unusedBuffers = &surfaceDevice->frameCaches[cacheIndex].unusedBatchBuffers;
+    if(unusedBuffers->capacity < unusedBuffers->size + usedBuffers->size){
+        size_t newcap = (unusedBuffers->size + usedBuffers->size);
+        WGPUBufferVector_reserve(unusedBuffers, newcap);
+    }
+    if(usedBuffers->size > 0){
+        memcpy(unusedBuffers->data + unusedBuffers->size, usedBuffers->data, usedBuffers->size * sizeof(WGPUBuffer));
+    }
+    unusedBuffers->size += usedBuffers->size;
+    WGPUBufferVector_clear(usedBuffers);//(WGPUBufferVector *dest, const WGPUBufferVector *source)
+    PendingCommandBufferMap_clear(&queue->pendingCommandBuffers[cacheIndex]);
+    
+    WGPUCommandBuffer buffer = wgpuCommandEncoderFinish(queue->presubmitCache);
+    wgpuCommandEncoderRelease(queue->presubmitCache);
+    wgpuCommandBufferRelease(buffer);
+    vkResetCommandPool(surfaceDevice->device, surfaceDevice->frameCaches[cacheIndex].commandPool, 0);
+    WGPUCommandEncoderDescriptor cedesc zeroinit;
+
+    queue->syncState[cacheIndex].submits = 0;
+    queue->presubmitCache = wgpuDeviceCreateCommandEncoder(surfaceDevice, &cedesc);
 }
 
 static inline VkSamplerAddressMode vkamode(addressMode a){
