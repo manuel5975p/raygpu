@@ -1233,17 +1233,27 @@ typedef struct WGPUGlobalReflectionInfo {
 }WGPUGlobalReflectionInfo;
 
 
-typedef enum WGPUReflectionVectorEntryType{
-    WGPUReflectionVectorEntryType_Invalid,
-    WGPUReflectionVectorEntryType_Sint32,
-    WGPUReflectionVectorEntryType_Uint32,
-    WGPUReflectionVectorEntryType_Float32
-}WGPUReflectionVectorEntryType;
+typedef enum WGPUReflectionComponentType{
+    WGPUReflectionComponentType_Invalid,
+    WGPUReflectionComponentType_Sint32,
+    WGPUReflectionComponentType_Uint32,
+    WGPUReflectionComponentType_Float32,
+    WGPUReflectionComponentType_Float16
+}WGPUReflectionComponentType;
+
+typedef enum WGPUReflectionCompositionType{
+    WGPUReflectionCompositionType_Invalid,
+    WGPUReflectionCompositionType_Scalar,
+    WGPUReflectionCompositionType_Vec2,
+    WGPUReflectionCompositionType_Vec3,
+    WGPUReflectionCompositionType_Vec4
+}WGPUReflectionCompositionType;
+
 
 typedef struct WGPUReflectionAttribute{
     uint32_t location;
-    WGPUReflectionVectorEntryType entryType;
-    uint32_t components;
+    WGPUReflectionComponentType componentType;
+    WGPUReflectionCompositionType compositionType;
 }WGPUReflectionAttribute;
 
 typedef struct WGPUAttributeReflectionInfo{

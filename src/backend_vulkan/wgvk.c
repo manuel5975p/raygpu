@@ -75,6 +75,7 @@ void wgpuTraceLog(int logType, const char *text, ...);
 #include <external/VmaUsage.h>
 #include <stdarg.h>
 
+
 // WGPU struct implementations
 
 #include <wgvk_structs_impl.h>
@@ -3598,6 +3599,27 @@ void pcmNonnullFlattenCallback(void* fence_, WGPUCommandBufferVector* key, void*
     }
 }
 
+void resetFenceAndReleaseBuffers(void* fence_, WGPUCommandBufferVector* cBuffers, void* wgpudevice){
+    WGPUDevice device = (WGPUDevice)wgpudevice;
+    if(fence_){
+        vkResetFences(device->device, 1, (VkFence*)&fence_);
+    }
+    for(size_t i = 0;i < cBuffers->size;i++){
+        WGPUCommandBuffer relBuffer = cBuffers->data[i];
+        BufferUsageRecordMap* bmap = &relBuffer->resourceUsage.referencedBuffers;
+        for(size_t bi = 0; bi < bmap->current_capacity;bi++){
+            BufferUsageRecordMap_kv_pair* kvp = bmap->table + bi;
+            if(kvp->key != PHM_EMPTY_SLOT_KEY){
+                WGPUBuffer buffer = (WGPUBuffer)kvp->key;
+                buffer->latestFence = VK_NULL_HANDLE;
+            }
+        }
+        wgpuCommandBufferRelease(cBuffers->data[i]);
+    }
+    WGPUCommandBufferVector_free(cBuffers);
+}
+
+
 void wgpuSurfacePresent(WGPUSurface surface){
     WGPUDevice device = surface->device;
     uint32_t cacheIndex = surface->device->submittedFrames % framesInFlight;
@@ -3716,17 +3738,17 @@ void wgpuSurfacePresent(WGPUSurface surface){
         //        fences.push_back(fence);
         //    }
         //}
-        if(fences.size() > 0){
-            VkResult waitResult = vkWaitForFences(surfaceDevice->device, fences.size(), fences.data(), VK_TRUE, ~uint64_t(0));
+        if(fences.size > 0){
+            VkResult waitResult = vkWaitForFences(surfaceDevice->device, fences.size, fences.data, VK_TRUE, 0);
             if(waitResult != VK_SUCCESS){
-                TRACELOG(LOG_FATAL, "Waitresult: %d", waitResult);
+                //TRACELOG(LOG_FATAL, "Waitresult: %d", waitResult);
             }
-            if(fences.size() == 1){
-                TRACELOG(LOG_TRACE, "Waiting for fence %p\n", fences[0]);
+            if(fences.size == 1){
+                //TRACELOG(LOG_TRACE, "Waiting for fence %p\n", fences.data[0]);
             }
         }
         else{
-            TRACELOG(LOG_INFO, "No fences!");
+            //TRACELOG(LOG_INFO, "No fences!");
         }
     }
     else{
@@ -4365,52 +4387,52 @@ WGPUReflectionAttribute spvReflectToWGPUReflectAttrib(SpvReflectInterfaceVariabl
     result.location = spvAttrib->location;
     switch(spvAttrib->format){
         case SPV_REFLECT_FORMAT_R32_SFLOAT:
-            result.components = 1;
-            result.entryType = WGPUReflectionVectorEntryType_Float32;
+            result.compositionType = WGPUReflectionCompositionType_Scalar;
+            result.componentType = WGPUReflectionComponentType_Float32;
             break;
         case SPV_REFLECT_FORMAT_R32G32_SFLOAT:
-            result.components = 2;
-            result.entryType = WGPUReflectionVectorEntryType_Float32;
+            result.compositionType = WGPUReflectionCompositionType_Vec2;
+            result.componentType = WGPUReflectionComponentType_Float32;
             break;
         case SPV_REFLECT_FORMAT_R32G32B32_SFLOAT:
-            result.components = 3;
-            result.entryType = WGPUReflectionVectorEntryType_Float32;
+            result.compositionType = WGPUReflectionCompositionType_Vec3;
+            result.componentType = WGPUReflectionComponentType_Float32;
             break;
         case SPV_REFLECT_FORMAT_R32G32B32A32_SFLOAT:
-            result.components = 4;
-            result.entryType = WGPUReflectionVectorEntryType_Float32;
+            result.compositionType = WGPUReflectionCompositionType_Vec4;
+            result.componentType = WGPUReflectionComponentType_Float32;
             break;
         case SPV_REFLECT_FORMAT_R32_UINT:
-            result.components = 1;
-            result.entryType = WGPUReflectionVectorEntryType_Uint32;
+            result.compositionType = WGPUReflectionCompositionType_Scalar;
+            result.componentType = WGPUReflectionComponentType_Uint32;
             break;
         case SPV_REFLECT_FORMAT_R32G32_UINT:
-            result.components = 2;
-            result.entryType = WGPUReflectionVectorEntryType_Uint32;
+            result.compositionType = WGPUReflectionCompositionType_Vec2;
+            result.componentType = WGPUReflectionComponentType_Uint32;
             break;
         case SPV_REFLECT_FORMAT_R32G32B32_UINT:
-            result.components = 3;
-            result.entryType = WGPUReflectionVectorEntryType_Uint32;
+            result.compositionType = WGPUReflectionCompositionType_Vec3;
+            result.componentType = WGPUReflectionComponentType_Uint32;
             break;
         case SPV_REFLECT_FORMAT_R32G32B32A32_UINT:
-            result.components = 4;
-            result.entryType = WGPUReflectionVectorEntryType_Uint32;
+            result.compositionType = WGPUReflectionCompositionType_Vec4;
+            result.componentType = WGPUReflectionComponentType_Uint32;
             break;
         case SPV_REFLECT_FORMAT_R32_SINT:
-            result.components = 1;
-            result.entryType = WGPUReflectionVectorEntryType_Sint32;
+            result.compositionType = WGPUReflectionCompositionType_Scalar;
+            result.componentType = WGPUReflectionComponentType_Sint32;
             break;
         case SPV_REFLECT_FORMAT_R32G32_SINT:
-            result.components = 2;
-            result.entryType = WGPUReflectionVectorEntryType_Sint32;
+            result.compositionType = WGPUReflectionCompositionType_Vec2;
+            result.componentType = WGPUReflectionComponentType_Sint32;
             break;
         case SPV_REFLECT_FORMAT_R32G32B32_SINT:
-            result.components = 3;
-            result.entryType = WGPUReflectionVectorEntryType_Sint32;
+            result.compositionType = WGPUReflectionCompositionType_Vec3;
+            result.componentType = WGPUReflectionComponentType_Sint32;
             break;
         case SPV_REFLECT_FORMAT_R32G32B32A32_SINT:
-            result.components = 4;
-            result.entryType = WGPUReflectionVectorEntryType_Sint32;
+            result.compositionType = WGPUReflectionCompositionType_Vec4;
+            result.componentType = WGPUReflectionComponentType_Sint32;
             break;
         default: break; //rassert(false, "Unhandled Spirv-reflect attribute type");
     }
@@ -4429,8 +4451,6 @@ static void wgpuShaderModuleGetReflectionInfo_sync(void* userdata_){
 
             SpvReflectShaderModule mod zeroinit;
             SpvReflectResult result = spvReflectCreateShaderModule(spirvSource->codeSize, spirvSource->code, &mod);
-            
-
             
             if(result == SPV_REFLECT_RESULT_SUCCESS){
                 SpvReflectDescriptorSet* descriptorSets = NULL;

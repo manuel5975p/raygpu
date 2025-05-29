@@ -319,7 +319,6 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayout(DescribedPipeline* pl, co
 }
 */
 
-void PostPresentSurface(){}
 extern "C" void BindPipelineWithSettings(DescribedPipeline* pipeline, PrimitiveType drawMode, RenderSettings settings){
     pipeline->state.primitiveType = drawMode;
     pipeline->state.settings = settings;

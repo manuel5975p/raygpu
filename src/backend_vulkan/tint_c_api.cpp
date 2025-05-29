@@ -72,6 +72,28 @@ static inline WGPUTextureFormat toStorageTextureFormat(format_or_sample_type fmt
     }
     return WGPUTextureFormat_Force32;
 }
+static inline WGPUReflectionComponentType toWGPUComponentType(tint::inspector::ComponentType ctype){
+    switch(ctype){
+        case tint::inspector::ComponentType::kF32:return WGPUReflectionComponentType_Float32;
+        case tint::inspector::ComponentType::kU32:return WGPUReflectionComponentType_Uint32;
+        case tint::inspector::ComponentType::kI32:return WGPUReflectionComponentType_Sint32;
+        case tint::inspector::ComponentType::kF16:return WGPUReflectionComponentType_Float16;
+        case tint::inspector::ComponentType::kUnknown:return WGPUReflectionComponentType_Invalid;
+        default: rg_unreachable();
+    }
+}
+static inline WGPUReflectionCompositionType toWGPUCompositionType(tint::inspector::CompositionType ctype){
+    switch(ctype){
+        case tint::inspector::CompositionType::kScalar: return WGPUReflectionCompositionType_Scalar;
+        case tint::inspector::CompositionType::kVec2: return WGPUReflectionCompositionType_Vec2;
+        case tint::inspector::CompositionType::kVec3: return WGPUReflectionCompositionType_Vec3;
+        case tint::inspector::CompositionType::kVec4: return WGPUReflectionCompositionType_Vec4;
+        case tint::inspector::CompositionType::kUnknown: return WGPUReflectionCompositionType_Invalid;
+        default: rg_unreachable();
+    }
+}
+
+
 RGAPI WGPUReflectionInfo reflectionInfo_wgsl_sync(WGPUStringView wgslSource) {
 
     WGPUReflectionInfo ret{};
@@ -195,7 +217,8 @@ RGAPI WGPUReflectionInfo reflectionInfo_wgsl_sync(WGPUStringView wgslSource) {
         namespace ti = tint::inspector;
 
         const tint::sem::Info &psem = prog.Sem();
-        std::unordered_map<std::string, std::pair<WGPUVertexFormat, uint32_t>> retattrmap;
+        std::unordered_map<std::string, WGPUReflectionAttribute> inputAttributeMap;
+        std::unordered_map<std::string, WGPUReflectionAttribute> outputAttributeMap;
         for (size_t i = 0; i < insp.GetEntryPoints().size(); i++) {
             if (insp.GetEntryPoints()[i].stage == ti::PipelineStage::kVertex) {
                 for (size_t j = 0; j < insp.GetEntryPoints()[i].input_variables.size(); j++) {
@@ -204,121 +227,25 @@ RGAPI WGPUReflectionInfo reflectionInfo_wgsl_sync(WGPUStringView wgslSource) {
                     if (!insp.GetEntryPoints()[i].input_variables[j].attributes.location.has_value())
                         continue;
                     uint32_t location = insp.GetEntryPoints()[i].input_variables[j].attributes.location.value();
-                    // std::cout << name << " and " << varname << "\n";
-                    // std::cout << insp.GetEntryPoints()[i].input_variables[j].attributes.location.value() << ": ";
-                    // std::cout << (int)insp.GetEntryPoints()[i].input_variables[j]. << ", ";
-                    if (insp.GetEntryPoints()[i].input_variables[j].component_type == ti::ComponentType::kF32) {
-                        switch (insp.GetEntryPoints()[i].input_variables[j].composition_type) {
-                        case ti::CompositionType::kScalar: {
-                            retattrmap[varname] = {WGPUVertexFormat_Float32, location};
-                        } break;
-                        case ti::CompositionType::kVec2: {
-                            retattrmap[varname] = {WGPUVertexFormat_Float32x2, location};
-                        } break;
-                        case ti::CompositionType::kVec3: {
-                            retattrmap[varname] = {WGPUVertexFormat_Float32x3, location};
-                        } break;
-                        case ti::CompositionType::kVec4: {
-                            retattrmap[varname] = {WGPUVertexFormat_Float32x4, location};
-                        } break;
-                        case ti::CompositionType::kUnknown: {
-                            TRACELOG(LOG_ERROR, "Unknown composition type");
-                        } break;
-                        }
-                    } else if (insp.GetEntryPoints()[i].input_variables[j].component_type == ti::ComponentType::kU32) {
-                        switch (insp.GetEntryPoints()[i].input_variables[j].composition_type) {
-                        case ti::CompositionType::kScalar: {
-                            retattrmap[varname] = {WGPUVertexFormat_Uint32, location};
-                        } break;
-                        case ti::CompositionType::kVec2: {
-                            retattrmap[varname] = {WGPUVertexFormat_Uint32x2, location};
-                        } break;
-                        case ti::CompositionType::kVec3: {
-                            retattrmap[varname] = {WGPUVertexFormat_Uint32x3, location};
-                        } break;
-                        case ti::CompositionType::kVec4: {
-                            retattrmap[varname] = {WGPUVertexFormat_Uint32x4, location};
-                        } break;
-                        case ti::CompositionType::kUnknown: {
-                            TRACELOG(LOG_ERROR, "Unknown composition type");
-                        } break;
-                        }
-                    } else if (insp.GetEntryPoints()[i].input_variables[j].component_type == ti::ComponentType::kI32) {
-                        switch (insp.GetEntryPoints()[i].input_variables[j].composition_type) {
-                        case ti::CompositionType::kScalar: {
-                            retattrmap[varname] = {WGPUVertexFormat_Sint32, location};
-                        } break;
-                        case ti::CompositionType::kVec2: {
-                            retattrmap[varname] = {WGPUVertexFormat_Sint32x2, location};
-                        } break;
-                        case ti::CompositionType::kVec3: {
-                            retattrmap[varname] = {WGPUVertexFormat_Sint32x3, location};
-                        } break;
-                        case ti::CompositionType::kVec4: {
-                            retattrmap[varname] = {WGPUVertexFormat_Sint32x4, location};
-                        } break;
-                        case ti::CompositionType::kUnknown: {
-                            TRACELOG(LOG_ERROR, "Unknown composition type");
-                        } break;
-                        }
-                    } else if (insp.GetEntryPoints()[i].input_variables[j].component_type == ti::ComponentType::kF16) {
-                        switch (insp.GetEntryPoints()[i].input_variables[j].composition_type) {
-                        case ti::CompositionType::kScalar: {
-                            retattrmap[varname] = {WGPUVertexFormat_Float16, location};
-                        } break;
-                        case ti::CompositionType::kVec2: {
-                            retattrmap[varname] = {WGPUVertexFormat_Float16x2, location};
-                        } break;
-                        case ti::CompositionType::kVec3: {
-                            TRACELOG(LOG_ERROR, "That should not be possible: vec3<f16>");
-                        } break;
-                        case ti::CompositionType::kVec4: {
-                            retattrmap[varname] = {WGPUVertexFormat_Float16x4, location};
-                        } break;
-                        case ti::CompositionType::kUnknown: {
-                            TRACELOG(LOG_ERROR, "Unknown composition type");
-                        } break;
-                        }
-                    } else {
-                        TRACELOG(LOG_ERROR, "Unknown component type");
-                    }
-
-                    // std::cout << (int)insp.GetEntryPoints()[i].input_variables[j].composition_type << ", ";
+                    WGPUReflectionAttribute insert{
+                        .location = location,
+                        .componentType = toWGPUComponentType(insp.GetEntryPoints()[i].input_variables[j].component_type),
+                        .compositionType = toWGPUCompositionType(insp.GetEntryPoints()[i].input_variables[j].composition_type)
+                    };
+                    inputAttributeMap[varname] = insert;
                 }
                 // std::cout << "\n";
             } else if (insp.GetEntryPoints()[i].stage == ti::PipelineStage::kFragment) {
                 const std::vector<ti::StageVariable> vec_outvariables = insp.GetEntryPoints()[i].output_variables;
-
-                for (auto &outvar : vec_outvariables) {
+                for (const auto &outvar : vec_outvariables) {
                     uint32_t dim = ~0;
                     format_or_sample_type type = format_or_sample_type::we_dont_know;
-
-                    switch (outvar.composition_type) {
-                    case ti::CompositionType::kVec4:
-                        dim = 4;
-                        break;
-                    case ti::CompositionType::kVec3:
-                        dim = 3;
-                        break;
-                    case ti::CompositionType::kVec2:
-                        dim = 2;
-                        break;
-                    case ti::CompositionType::kScalar:
-                        dim = 1;
-                        break;
-                    default:
-                        rg_trap();
-                    }
-                    switch (outvar.component_type) {
-                    case ti::ComponentType::kF32:
-                        type = format_or_sample_type::sample_f32;
-                        break;
-                    case ti::ComponentType::kU32:
-                        type = format_or_sample_type::sample_u32;
-                        break;
-                    default:
-                        rg_trap();
-                    }
+                    WGPUReflectionAttribute insert = {
+                        .location = outvar.attributes.location.value_or(LOCATION_NOT_FOUND),
+                        .componentType = toWGPUComponentType(outvar.component_type),
+                        .compositionType = toWGPUCompositionType(outvar.composition_type)
+                    };
+                    outputAttributeMap[outvar.variable_name] = insert;
                     //retvalue.attachments.emplace_back(outvar.attributes.location.value_or(LOCATION_NOT_FOUND), type);
                 }
             }

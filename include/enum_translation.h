@@ -596,29 +596,29 @@ static inline VkPipelineStageFlags toVulkanPipelineStage(WGPUShaderStageEnum sta
     return ret;
 }
 
-static inline VkShaderStageFlagBits toVulkanShaderStageBits(WGPUShaderStageEnum stage) {
-    unsigned ret = 0;
-    for(unsigned iter = stage;iter;iter &= (iter - 1)){
-        WGPUShaderStage stage = (WGPUShaderStage)(iter & -iter);
-        switch (stage){
-            case ShaderStageMask_Vertex:         ret |= VK_SHADER_STAGE_VERTEX_BIT;break;
-            case ShaderStageMask_TessControl:    ret |= VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;break;
-            case ShaderStageMask_TessEvaluation: ret |= VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;break;
-            case ShaderStageMask_Geometry:       ret |= VK_SHADER_STAGE_GEOMETRY_BIT;break;
-            case ShaderStageMask_Fragment:       ret |= VK_SHADER_STAGE_FRAGMENT_BIT;break;
-            case ShaderStageMask_Compute:        ret |= VK_SHADER_STAGE_COMPUTE_BIT;break;
-            case ShaderStageMask_RayGen:         ret |= VK_SHADER_STAGE_RAYGEN_BIT_KHR;break;
-            case ShaderStageMask_Miss:           ret |= VK_SHADER_STAGE_MISS_BIT_KHR;break;
-            case ShaderStageMask_ClosestHit:     ret |= VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;break;
-            case ShaderStageMask_AnyHit:         ret |= VK_SHADER_STAGE_ANY_HIT_BIT_KHR;break;
-            case ShaderStageMask_Intersect:      ret |= VK_SHADER_STAGE_INTERSECTION_BIT_KHR;break;
-            case ShaderStageMask_Callable:       ret |= VK_SHADER_STAGE_CALLABLE_BIT_KHR;break;
-            case ShaderStageMask_Task:           ret |= VK_SHADER_STAGE_TASK_BIT_EXT;break;
-            case ShaderStageMask_Mesh:           ret |= VK_SHADER_STAGE_MESH_BIT_EXT;break;
-            default: rg_unreachable();
-        }
-    }
-    return (VkShaderStageFlagBits)(ret);
+static inline VkShaderStageFlagBits toVulkanShaderStageBits(WGPUShaderStage stageBits) {
+    VkShaderStageFlagBits ret = 0;
+    //for(unsigned iter = stageBits;iter;iter &= (iter - 1)){
+    //    WGPUShaderStage stage = (WGPUShaderStage)(iter & -iter);
+    //    switch (stage){
+    if(stageBits & ShaderStageMask_Vertex)         ret |= VK_SHADER_STAGE_VERTEX_BIT;
+    if(stageBits & ShaderStageMask_TessControl)    ret |= VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+    if(stageBits & ShaderStageMask_TessEvaluation) ret |= VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+    if(stageBits & ShaderStageMask_Geometry)       ret |= VK_SHADER_STAGE_GEOMETRY_BIT;
+    if(stageBits & ShaderStageMask_Fragment)       ret |= VK_SHADER_STAGE_FRAGMENT_BIT;
+    if(stageBits & ShaderStageMask_Compute)        ret |= VK_SHADER_STAGE_COMPUTE_BIT;
+    if(stageBits & ShaderStageMask_RayGen)         ret |= VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+    if(stageBits & ShaderStageMask_Miss)           ret |= VK_SHADER_STAGE_MISS_BIT_KHR;
+    if(stageBits & ShaderStageMask_ClosestHit)     ret |= VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+    if(stageBits & ShaderStageMask_AnyHit)         ret |= VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
+    if(stageBits & ShaderStageMask_Intersect)      ret |= VK_SHADER_STAGE_INTERSECTION_BIT_KHR;
+    if(stageBits & ShaderStageMask_Callable)       ret |= VK_SHADER_STAGE_CALLABLE_BIT_KHR;
+    if(stageBits & ShaderStageMask_Task)           ret |= VK_SHADER_STAGE_TASK_BIT_EXT;
+    if(stageBits & ShaderStageMask_Mesh)           ret |= VK_SHADER_STAGE_MESH_BIT_EXT;
+    //        default: rg_unreachable();
+    //    }
+    //}
+    return ret;
 }
 
 static inline VkBlendFactor toVulkanBlendFactor(WGPUBlendFactor bf) {

@@ -922,7 +922,6 @@ RGAPICXX void EndDrawing(){
     }
     else{
         DummySubmitOnQueue();
-        PostPresentSurface();
     }
     
     std::copy(g_renderstate.smallBufferRecyclingBin.begin(), g_renderstate.smallBufferRecyclingBin.end(), std::back_inserter(g_renderstate.smallBufferPool));

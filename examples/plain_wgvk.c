@@ -2,7 +2,6 @@
 #include <external/volk.h>
 #include <stdio.h>
 #include <external/incbin.h>
-#include <tint_c_api.h>
 
 INCBIN(default_vert, "../resources/default.vert.spv");
 INCBIN(default_frag, "../resources/default.frag.spv");
@@ -26,11 +25,9 @@ void reflectionCallback(WGPUReflectionInfoRequestStatus status, const WGPUReflec
             typedesc = "buffer";
         }
         if(reflectionInfo->globals[i].texture.sampleType != WGPUTextureSampleType_BindingNotUsed){
-            assert(typedesc == NULL && "Two entries set");
             typedesc = "texture";
         }
         if(reflectionInfo->globals[i].sampler.type != WGPUSamplerBindingType_BindingNotUsed){
-            assert(typedesc == NULL && "Two entries set");
             typedesc = "sampler";
         }
         

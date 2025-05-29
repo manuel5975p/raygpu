@@ -40,9 +40,6 @@ void BufferData(DescribedBuffer* buffer, void* data, size_t size){
 void PresentSurface(FullSurface* surface){
     wgpuSurfacePresent((WGPUSurface)surface->surface);
     WGPUSurface wgpusurf = (WGPUSurface)surface->surface;
-    
-    PostPresentSurface();
-
 }
 void DummySubmitOnQueue(){
     const uint32_t cacheIndex = g_vulkanstate.device->submittedFrames % framesInFlight;
@@ -73,21 +70,6 @@ void DummySubmitOnQueue(){
     //g_vulkanstate.queue->pendingCommandBuffers[cacheIndex].emplace(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence, std::unordered_set<WGPUCommandBuffer>{});
 }
 
-void resetFenceAndReleaseBuffers(void* fence_, WGPUCommandBufferVector* cBuffers, void* wgpudevice){
-    WGPUDevice device = (WGPUDevice)wgpudevice;
-    if(fence_){
-        vkResetFences(device->device, 1, (VkFence*)&fence_);
-    }
-    for(size_t i = 0;i < cBuffers->size;i++){
-        wgpuCommandBufferRelease(cBuffers->data[i]);
-    }
-    WGPUCommandBufferVector_free(cBuffers);
-}
-
-
-void PostPresentSurface(){
-    
-}
 extern "C" DescribedBuffer* GenBufferEx(const void* data, size_t size, WGPUBufferUsage usage){
     DescribedBuffer* ret = callocnew(DescribedBuffer);
     WGPUBufferDescriptor descriptor{};

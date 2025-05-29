@@ -768,7 +768,6 @@ EXTERN_C_BEGIN
     RGAPI void ResizeSurface (FullSurface* fsurface, uint32_t width, uint32_t height);
     RGAPI void GetNewTexture (FullSurface* fsurface);
     RGAPI void PresentSurface(FullSurface* fsurface);
-    RGAPI void PostPresentSurface(cwoid);
     RGAPI void DummySubmitOnQueue(cwoid);
 
     RGAPI int GetScreenWidth  (cwoid);                     //Window width
