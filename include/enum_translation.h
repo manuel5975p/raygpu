@@ -162,47 +162,36 @@ using std::uint64_t;
 static inline VkImageUsageFlags toVulkanWGPUTextureUsage(WGPUTextureUsage usage, PixelFormat format) {
     VkImageUsageFlags vkUsage = 0;
 
-    // Array of all possible WGPUTextureUsage flags
-    const WGPUTextureUsage allFlags[] = {WGPUTextureUsage_CopySrc, WGPUTextureUsage_CopyDst, WGPUTextureUsage_TextureBinding, WGPUTextureUsage_StorageBinding, WGPUTextureUsage_RenderAttachment, WGPUTextureUsage_TransientAttachment, WGPUTextureUsage_StorageAttachment};
-    const uint32_t nFlags = sizeof(allFlags) / sizeof(WGPUTextureUsage);
-    // Iterate through each flag and map accordingly
-    for (uint32_t i = 0; i < nFlags; i++) {
-        uint32_t flag = allFlags[i];
-        if (usage & flag) {
-            switch (flag) {
-            case WGPUTextureUsage_CopySrc:
-                vkUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-                break;
-            case WGPUTextureUsage_CopyDst:
-                vkUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-                break;
-            case WGPUTextureUsage_TextureBinding:
-                vkUsage |= VK_IMAGE_USAGE_SAMPLED_BIT;
-                break;
-            case WGPUTextureUsage_StorageBinding:
-                vkUsage |= VK_IMAGE_USAGE_STORAGE_BIT;
-                break;
-            case WGPUTextureUsage_RenderAttachment:
-                if(format == Depth24 || format == Depth32){
-                    vkUsage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-                }else{
-                    vkUsage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-                }
-                break;
-            case WGPUTextureUsage_TransientAttachment:
-                vkUsage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
-                break;
-            case WGPUTextureUsage_StorageAttachment:
-                vkUsage |= VK_IMAGE_USAGE_STORAGE_BIT;
-                break;
-            default:
-                break;
-            }
+    if (usage & WGPUTextureUsage_CopySrc) {
+        vkUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    }
+    if (usage & WGPUTextureUsage_CopyDst) {
+        vkUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    }
+    if (usage & WGPUTextureUsage_TextureBinding) {
+        vkUsage |= VK_IMAGE_USAGE_SAMPLED_BIT;
+    }
+    if (usage & WGPUTextureUsage_StorageBinding) {
+        vkUsage |= VK_IMAGE_USAGE_STORAGE_BIT;
+    }
+    if (usage & WGPUTextureUsage_RenderAttachment) {
+        if (format == Depth24 || format == Depth32) { // Assuming Depth24 and Depth32 are defined enum/macro values
+            vkUsage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        } else {
+            vkUsage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         }
     }
+    if (usage & WGPUTextureUsage_TransientAttachment) {
+        vkUsage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+    }
+    if (usage & WGPUTextureUsage_StorageAttachment) { // Note: Original code mapped this to VK_IMAGE_USAGE_STORAGE_BIT
+        vkUsage |= VK_IMAGE_USAGE_STORAGE_BIT;
+    }
+    // Any WGPUTextureUsage flags not explicitly handled here will be ignored.
 
     return vkUsage;
 }
+
 static inline VkImageAspectFlags toVulkanAspectMask(TextureAspect aspect){
     
     switch(aspect){
@@ -304,61 +293,48 @@ static inline VkPrimitiveTopology toVulkanPrimitive(PrimitiveType type){
 static inline VkBufferUsageFlags toVulkanBufferUsage(WGPUBufferUsage busg) {
     VkBufferUsageFlags usage = 0;
 
-    while (busg != 0) {
-        // Isolate the least significant set bit
-        WGPUBufferUsage flag = (busg & (-busg));
+    // Input: WGPUBufferUsageFlags busg
 
-        switch (flag) {
-        case WGPUBufferUsage_CopySrc:
-            usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-            break;
-        case WGPUBufferUsage_CopyDst:
-            usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-            break;
-        case WGPUBufferUsage_Vertex:
-            usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-            break;
-        case WGPUBufferUsage_Index:
-            usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-            break;
-        case WGPUBufferUsage_Uniform:
-            usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-            break;
-        case WGPUBufferUsage_Storage:
-            usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-            break;
-        case WGPUBufferUsage_Indirect:
-            usage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
-            break;
-        case WGPUBufferUsage_MapRead:
-            usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-            break;
-        case WGPUBufferUsage_MapWrite:
-            usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-            break;
-        case WGPUBufferUsage_QueryResolve:
-            // Handle Vulkan-specific flags for query resolve if applicable.
-            break;
-        case WGPUBufferUsage_ShaderDeviceAddress:
-            usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-            break;
-        case WGPUBufferUsage_AccelerationStructureInput:
-            usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
-            break;
-        case WGPUBufferUsage_AccelerationStructureStorage:
-            usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
-            break;
-        case WGPUBufferUsage_ShaderBindingTable:
-            usage |= VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR;
-            break;
-        default:
-            rg_unreachable();
-            break;
-        }
-
-        // Clear the least significant set bit
-        busg &= (busg - 1);
+    if (busg & WGPUBufferUsage_CopySrc) {
+        usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     }
+    if (busg & WGPUBufferUsage_CopyDst) {
+        usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    }
+    if (busg & WGPUBufferUsage_Vertex) {
+        usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    }
+    if (busg & WGPUBufferUsage_Index) {
+        usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+    }
+    if (busg & WGPUBufferUsage_Uniform) {
+        usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+    }
+    if (busg & WGPUBufferUsage_Storage) {
+        usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    }
+    if (busg & WGPUBufferUsage_Indirect) {
+        usage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+    }
+    if (busg & WGPUBufferUsage_MapRead) {
+        usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    }
+    if (busg & WGPUBufferUsage_MapWrite) {
+        usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    }
+    if (busg & WGPUBufferUsage_ShaderDeviceAddress) {
+        usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    }
+    if (busg & WGPUBufferUsage_AccelerationStructureInput) {
+        usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+    }
+    if (busg & WGPUBufferUsage_AccelerationStructureStorage) {
+        usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
+    }
+    if (busg & WGPUBufferUsage_ShaderBindingTable) {
+        usage |= VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR;
+    }
+
 
     return usage;
 }

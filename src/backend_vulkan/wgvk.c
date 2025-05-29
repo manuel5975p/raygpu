@@ -1194,6 +1194,43 @@ void wgpuQueueWriteTexture(WGPUQueue queue, const WGPUTexelCopyTextureInfo* dest
     wgpuBufferRelease(stagingBuffer);
 }
 
+
+
+
+WGPUFence wgpuDeviceCreateFence(WGPUDevice device){
+    WGPUFence fence = RL_CALLOC(1, sizeof(WGPUFenceImpl));
+    CallbackWithUserdataVector_init(&fence->callbacksOnWaitComplete);
+    VkResult result = device->functions.vkCreateFence(device->device, &(const VkFenceCreateInfo){ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, NULL, 0}, NULL, &fence->fence);
+    if(result != VK_SUCCESS){
+        RL_FREE(fence);
+        return NULL;
+    }
+
+    return fence;
+}
+void wgpuFenceWait(WGPUFence fence){
+    fence->device->functions.vkWaitForFences(fence->device->device, 1, &fence->fence, VK_TRUE, 1ull << 40);
+    for(size_t i = 0;i < fence->callbacksOnWaitComplete.size;i++){
+        fence->callbacksOnWaitComplete.data[i].callback(fence->callbacksOnWaitComplete.data[i].userdata);
+    }
+}
+void wgpuFenceAttachCallback(WGPUFence fence, void(*callback)(void*), void* userdata){
+    CallbackWithUserdataVector_push_back(&fence->callbacksOnWaitComplete, (CallbackWithUserdata){
+        .callback = callback,
+        .userdata = userdata
+    });
+}
+void wgpuFenceAddRef(WGPUFence fence){
+    ++fence->refCount;
+}
+void wgpuFenceRelease(WGPUFence fence){
+    if(!--fence->refCount){
+        fence->device->functions.vkDestroyFence(fence->device->device, fence->fence, NULL);
+        CallbackWithUserdataVector_free(&fence->callbacksOnWaitComplete);
+        RL_FREE(fence);
+    }
+}
+
 WGPUTexture wgpuDeviceCreateTexture(WGPUDevice device, const WGPUTextureDescriptor* descriptor){
     VkDeviceMemory imageMemory zeroinit;
     // Adjust usage flags based on format (e.g., depth formats might need different usages)

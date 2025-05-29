@@ -440,6 +440,20 @@ typedef struct WGPUSamplerImpl{
     WGPUDevice device;
 }WGPUSamplerImpl;
 
+typedef struct CallbackWithUserdata{
+    void(*callback)(void*);
+    void* userdata;
+}CallbackWithUserdata;
+
+DEFINE_VECTOR(static inline, CallbackWithUserdata, CallbackWithUserdataVector);
+
+typedef struct WGPUFenceImpl{
+    VkFence fence;
+    WGPUDevice device;
+    refcount_type refCount;
+    CallbackWithUserdataVector callbacksOnWaitComplete;
+}WGPUFenceImpl;
+
 typedef struct WGPUBindGroupImpl{
     VkDescriptorSet set;
     VkDescriptorPool pool;

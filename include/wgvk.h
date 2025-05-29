@@ -174,6 +174,7 @@ typedef struct WGPUCommandEncoderImpl* WGPUCommandEncoder;
 typedef struct WGPUTextureImpl* WGPUTexture;
 typedef struct WGPUTextureViewImpl* WGPUTextureView;
 typedef struct WGPUSamplerImpl* WGPUSampler;
+typedef struct WGPUFenceImpl* WGPUFence;
 typedef struct WGPURenderPipelineImpl* WGPURenderPipeline;
 typedef struct WGPUShaderModuleImpl* WGPUShaderModule;
 typedef struct WGPUComputePipelineImpl* WGPUComputePipeline;
@@ -1398,12 +1399,18 @@ WGPUFuture wgpuBufferMapAsync(WGPUBuffer buffer, WGPUMapMode mode, size_t offset
 size_t wgpuBufferGetSize(WGPUBuffer buffer);
 void wgpuQueueWriteTexture(WGPUQueue queue, WGPUTexelCopyTextureInfo const * destination, const void* data, size_t dataSize, WGPUTexelCopyBufferLayout const * dataLayout, WGPUExtent3D const * writeSize);
 
-WGPUBindGroupLayout wgpuDeviceCreateBindGroupLayout(WGPUDevice device, const ResourceTypeDescriptor* entries, uint32_t entryCount);
-WGPUShaderModule    wgpuDeviceCreateShaderModule   (WGPUDevice device, WGPUShaderModuleDescriptor const * descriptor);
-WGPUPipelineLayout  wgpuDeviceCreatePipelineLayout (WGPUDevice device, const WGPUPipelineLayoutDescriptor* pldesc);
-WGPURenderPipeline  wgpuDeviceCreateRenderPipeline (WGPUDevice device, const WGPURenderPipelineDescriptor* descriptor);
-WGPUComputePipeline wgpuDeviceCreateComputePipeline(WGPUDevice device, WGPUComputePipelineDescriptor const * descriptor);
-WGPUFuture wgpuShaderModuleGetReflectionInfo(WGPUShaderModule shaderModule, WGPUReflectionInfoCallbackInfo callbackInfo);
+WGPUFence wgpuDeviceCreateFence  (WGPUDevice device);
+void wgpuFenceWait               (WGPUFence fence);
+void wgpuFenceAttachCallback     (WGPUFence fence, void(*callback)(void*), void* userdata);
+void wgpuFenceAddRef             (WGPUFence fence);
+void wgpuFenceRelease            (WGPUFence fence);
+
+WGPUBindGroupLayout wgpuDeviceCreateBindGroupLayout  (WGPUDevice device, const ResourceTypeDescriptor* entries, uint32_t entryCount);
+WGPUShaderModule    wgpuDeviceCreateShaderModule     (WGPUDevice device, WGPUShaderModuleDescriptor const * descriptor);
+WGPUPipelineLayout  wgpuDeviceCreatePipelineLayout   (WGPUDevice device, const WGPUPipelineLayoutDescriptor* pldesc);
+WGPURenderPipeline  wgpuDeviceCreateRenderPipeline   (WGPUDevice device, const WGPURenderPipelineDescriptor* descriptor);
+WGPUComputePipeline wgpuDeviceCreateComputePipeline  (WGPUDevice device, WGPUComputePipelineDescriptor const * descriptor);
+WGPUFuture          wgpuShaderModuleGetReflectionInfo(WGPUShaderModule shaderModule, WGPUReflectionInfoCallbackInfo callbackInfo);
 
 WGPUBindGroup wgpuDeviceCreateBindGroup(WGPUDevice device, const WGPUBindGroupDescriptor* bgdesc);
 void wgpuWriteBindGroup(WGPUDevice device, WGPUBindGroup, const WGPUBindGroupDescriptor* bgdesc);
@@ -1429,6 +1436,7 @@ void wgpuRenderPassEncoderDrawIndexedIndirect    (WGPURenderPassEncoder renderPa
 void wgpuRenderPassEncoderDrawIndirect           (WGPURenderPassEncoder renderPassEncoder, WGPUBuffer indirectBuffer, uint64_t indirectOffset) WGPU_FUNCTION_ATTRIBUTE;
 void wgpuRenderPassEncoderSetBlendConstant       (WGPURenderPassEncoder renderPassEncoder, WGPUColor const * color) WGPU_FUNCTION_ATTRIBUTE;
 void wgpuRenderPassEncoderSetViewport            (WGPURenderPassEncoder renderPassEncoder, float x, float y, float width, float height, float minDepth, float maxDepth) WGPU_FUNCTION_ATTRIBUTE;
+void wgpuRenderPassEncoderSetScissorRect         (WGPURenderPassEncoder renderPassEncoder, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
 
 
 
