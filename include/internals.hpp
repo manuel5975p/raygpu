@@ -392,7 +392,7 @@ static inline ShaderSources singleStage(const char* code, ShaderSourceType langu
     sources.sourceCount = 1;
     sources.sources[0].data = code;
     sources.sources[0].sizeInBytes = std::strlen(code);
-    sources.sources[0].stageMask = WGPUShaderStage(1u << uint32_t(+stage));
+    sources.sources[0].stageMask = (1u << stage);
     return sources;
 }
 
@@ -411,11 +411,11 @@ static inline ShaderSources dualStage(const char* code1, const char* code2, Shad
     sources.sourceCount = 2;
     sources.sources[0].data = code1;
     sources.sources[0].sizeInBytes = std::strlen(code1);
-    sources.sources[0].stageMask = WGPUShaderStage(1u << uint32_t(+stage1));
+    sources.sources[0].stageMask = WGPUShaderStage(1ull << uint32_t(+stage1));
 
     sources.sources[1].data = code2;
     sources.sources[1].sizeInBytes = std::strlen(code2);
-    sources.sources[1].stageMask = WGPUShaderStage(1u << uint32_t(+stage2));
+    sources.sources[1].stageMask = WGPUShaderStage(1ull << uint32_t(+stage2));
  
     return sources;
 }

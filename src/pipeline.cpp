@@ -36,6 +36,7 @@
 #include <spirv_reflect.h>
 #endif
 
+#include <enum_translation.h>
 
 
 /*WGPUBindGroupLayout bindGroupLayoutFromUniformTypes(const UniformDescriptor* uniforms, uint32_t uniformCount){
@@ -162,19 +163,21 @@ DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sourcesSpirv){
         uint32_t entryPointCount = spv_mod.GetEntryPointCount();
         for(uint32_t i = 0;i < entryPointCount;i++){
             auto epStage = spv_mod.GetEntryPointShaderStage(i);
-            WGPUShaderStage stage = [](SpvReflectShaderStageFlagBits epStage){
+            WGPUShaderStageEnum stage = [](SpvReflectShaderStageFlagBits epStage){
                 switch(epStage){
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_VERTEX_BIT:
-                        return ShaderStage_Vertex;
+                        return WGPUShaderStageEnum_Vertex;
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_FRAGMENT_BIT:
-                        return ShaderStage_Fragment;
+                        return WGPUShaderStageEnum_Fragment;
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT:
-                        return ShaderStage_Compute;
+                        return WGPUShaderStageEnum_Fragment;
+                    #if SUPPORT_VULKAN_BACKEND == 1
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_GEOMETRY_BIT:
-                        return ShaderStage_Geometry;
+                        return WGPUShaderStageEnum_Vertex;
                     default:
+                    #endif
                         TRACELOG(LOG_FATAL, "Unknown shader stage: %d", (int)epStage);
-                        return ShaderStage_Vertex;
+                        return WGPUShaderStageEnum_Vertex;
                 }
             }(epStage);
 
@@ -214,7 +217,7 @@ WGPURenderPipeline createSingleRenderPipe(const ModifiablePipelineState &mst, co
     WGPUFragmentState fragmentState zeroinit;
     WGPUBlendState    blendState    zeroinit;
 
-    vertexState.module = (WGPUShaderModule)shaderModule.stages[ShaderStage_Vertex].module;
+    vertexState.module = (WGPUShaderModule)shaderModule.stages[WGPUShaderStageEnum_Vertex].module;
 
     VertexBufferLayoutSet vlayout_complete = getBufferLayoutRepresentation(mst.vertexAttributes.data(), mst.vertexAttributes.size());
     vertexState.bufferCount = vlayout_complete.number_of_buffers;
@@ -232,13 +235,13 @@ WGPURenderPipeline createSingleRenderPipe(const ModifiablePipelineState &mst, co
     }
     vertexState.buffers = layouts_converted.data();
     vertexState.constantCount = 0;
-    vertexState.entryPoint = WGPUStringView{shaderModule.reflectionInfo.ep[ShaderStage_Vertex].name, std::strlen(shaderModule.reflectionInfo.ep[ShaderStage_Vertex].name)};
+    vertexState.entryPoint = WGPUStringView{shaderModule.reflectionInfo.ep[WGPUShaderStageEnum_Vertex].name, std::strlen(shaderModule.reflectionInfo.ep[WGPUShaderStageEnum_Fragment].name)};
     pipelineDesc.vertex = vertexState;
 
 
     
-    fragmentState.module = (WGPUShaderModule)shaderModule.stages[ShaderStage_Fragment].module;
-    fragmentState.entryPoint = WGPUStringView{shaderModule.reflectionInfo.ep[ShaderStage_Fragment].name, std::strlen(shaderModule.reflectionInfo.ep[ShaderStage_Fragment].name)};
+    fragmentState.module = shaderModule.stages[WGPUShaderStageEnum_Fragment].module;
+    fragmentState.entryPoint = WGPUStringView{shaderModule.reflectionInfo.ep[WGPUShaderStageEnum_Fragment].name, std::strlen(shaderModule.reflectionInfo.ep[WGPUShaderStageEnum_Fragment].name)};
     fragmentState.constantCount = 0;
     fragmentState.constants = nullptr;
 
@@ -278,7 +281,17 @@ WGPURenderPipeline createSingleRenderPipe(const ModifiablePipelineState &mst, co
     pipelineDesc.primitive.frontFace = (WGPUFrontFace)settings.frontFace;
     pipelineDesc.primitive.cullMode = settings.faceCull ? WGPUCullMode_Back : WGPUCullMode_None;
     pipelineDesc.primitive.cullMode = WGPUCullMode_None;
-    
+    auto toWebGPUPrimitive = [](PrimitiveType pt){
+        switch(pt){
+            case RL_LINES: return WGPUPrimitiveTopology_LineList;
+            case RL_TRIANGLES: return WGPUPrimitiveTopology_TriangleList;
+            case RL_TRIANGLE_STRIP: return WGPUPrimitiveTopology_TriangleStrip;
+            case RL_POINTS: return WGPUPrimitiveTopology_PointList;
+            case RL_QUADS: 
+            default:
+            rg_unreachable();
+        }
+    };
     pipelineDesc.primitive.topology = toWebGPUPrimitive(mst.primitiveType);
     return wgpuDeviceCreateRenderPipeline((WGPUDevice)GetDevice(), &pipelineDesc);
 }
@@ -295,7 +308,7 @@ extern "C" DescribedPipeline* LoadPipelineForVAOEx(ShaderSources sources, Vertex
 }
 extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
     
-    ShaderSources sources = singleStage(shaderSource, detectShaderLanguage(shaderSource, std::strlen(shaderSource)), (ShaderStage)(ShaderStage_Vertex | ShaderStage_Fragment));
+    ShaderSources sources = dualStage(shaderSource, detectShaderLanguage(shaderSource, std::strlen(shaderSource)), WGPUShaderStageEnum_Vertex, WGPUShaderStageEnum_Fragment);
     DescribedShaderModule mod = LoadShaderModule(sources);
 
     return LoadPipelineMod(mod, attribs, attribCount, uniforms, uniformCount, settings);
@@ -314,9 +327,9 @@ extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const A
 
     ret.bglayout = LoadBindGroupLayout(uniforms, uniformCount, false);
 
-    std::vector<ResourceDescriptor> bge(uniformCount);
+    std::vector<WGPUBindGroupEntry> bge(uniformCount);
     for(uint32_t i = 0;i < bge.size();i++){
-        bge[i] = ResourceDescriptor{};
+        bge[i] = WGPUBindGroupEntry{};
         bge[i].binding = uniforms[i].location;
     }
     ret.bindGroup = LoadBindGroup(&ret.bglayout, bge.data(), bge.size());
@@ -355,21 +368,28 @@ WGPUBuffer cloneBuffer(WGPUBuffer b, WGPUBufferUsage usage){
 //    return cloned;
 //}
 DescribedComputePipeline* LoadComputePipeline(const char* shaderCode){
-    ShaderSources sources = singleStage(shaderCode, detectShaderLanguage(shaderCode, std::strlen(shaderCode)), ShaderStage_Compute);
+    ShaderSources sources = singleStage(shaderCode, detectShaderLanguage(shaderCode, std::strlen(shaderCode)), WGPUShaderStageEnum_Compute);
+
 
     auto bindmap = getBindings(sources);
-    std::vector<ResourceTypeDescriptor> udesc;
+    std::vector<WGPUBindGroupLayoutEntry> udesc;
     for(auto& [x,y] : bindmap){
+        WGPUBindGroupLayoutEntry insert{};
+        switch(y.type){
+            case uniform_buffer:
+        }
+
         udesc.push_back(y);
     }
     std::sort(udesc.begin(), udesc.end(), [](const ResourceTypeDescriptor& x, const ResourceTypeDescriptor& y){
         return x.location < y.location;
     });
+
     return LoadComputePipelineEx(shaderCode, udesc.data(), udesc.size());
     
 }
 DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount){
-    ShaderSources sources = singleStage(shaderCode, detectShaderLanguage(shaderCode, std::strlen(shaderCode)), ShaderStage_Compute);
+    ShaderSources sources = singleStage(shaderCode, detectShaderLanguage(shaderCode, std::strlen(shaderCode)), WGPUShaderStageEnum_Compute);
 
 
     auto bindmap = getBindings(sources);

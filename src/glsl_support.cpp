@@ -247,12 +247,13 @@ std::vector<uint32_t> glsl_to_spirv(const char *cs){
 #endif
 EShLanguage ShaderStageToGlslanguage(WGPUShaderStageEnum stage){
     switch(stage){
-        case ShaderStage_Vertex: return EShLangVertex; 
+        case WGPUShaderStageEnum_Vertex: return EShLangVertex; 
+        case WGPUShaderStageEnum_Fragment: return EShLangFragment; 
+        case WGPUShaderStageEnum_Compute: return EShLangCompute; 
+        #if SUPPORT_VULKAN_BACKEND == 1
         case ShaderStage_TessControl: return EShLangTessControl; 
         case ShaderStage_TessEvaluation: return EShLangTessEvaluation; 
         case ShaderStage_Geometry: return EShLangGeometry; 
-        case ShaderStage_Fragment: return EShLangFragment; 
-        case ShaderStage_Compute: return EShLangCompute; 
         case ShaderStage_RayGen: return EShLangRayGen; 
         case ShaderStage_Intersect: return EShLangIntersect; 
         case ShaderStage_AnyHit: return EShLangAnyHit; 
@@ -260,7 +261,8 @@ EShLanguage ShaderStageToGlslanguage(WGPUShaderStageEnum stage){
         case ShaderStage_Miss: return EShLangMiss; 
         case ShaderStage_Callable: return EShLangCallable; 
         case ShaderStage_Task: return EShLangTask; 
-        case ShaderStage_Mesh: return EShLangMesh; 
+        case ShaderStage_Mesh: return EShLangMesh;
+        #endif
         default: rg_unreachable();     
     }
 }
@@ -541,9 +543,7 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
     for(int i = 0;i < program.getNumUniformBlocks();i++){
         std::string name = program.getUniformBlockName(i);
         ResourceTypeDescriptor insert zeroinit;
-        //std::cout << program.getUniformBlock(i).getBinding() << ": " << program.getUniformBlockName(i) << " readonly: " << program.getUniformBlock(i).getType()->getStorageQualifierString() << "\n";
-        //std::cout << program.getUniformBlock(i).getBinding() << ": " << program.getUniformBlockName(i) << "\n";
-        //std::cout << program.getUniformBlockName(i) << ": " << program.getUniformBlock(i).size << "\n";
+
         insert.location = program.getUniformBlock(i).getBinding();
         insert.minBindingSize = program.getUniformBlock(i).size;
         insert.access = program.getUniformBlock(i).getType()->getQualifier().isWriteOnly() ? writeonly : (program.getUniformBlock(i).getType()->getQualifier().isReadOnly() ? readonly : readwrite);
@@ -555,37 +555,6 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
         auto& inserted = *ret.find(name);
         inserted.second.visibility = WGPUShaderStage(inserted.second.visibility | WGPUShaderStage(program.getUniformBlock(i).stages));
     }
-//
-    //for(uint32_t i = 0;i < program.getNumUniformVariables();i++){
-    //    if(program.getUniform(i).getBinding() != -1){
-    //        ResourceTypeDescriptor insert zeroinit;
-    //        
-    //        insert.location = program.getUniform(i).getBinding();
-    //        insert.minBindingSize = 0;
-    //        //insert.access = program.getUniformBlock(i).getType()->getQualifier().isWriteOnly() ? writeonly : (program.getUniformBlock(i).getType()->getQualifier().isReadOnly() ? readonly : readwrite);
-    //        //std::string storageOrUniform = program.getUniformBlock(i).getType()->getStorageQualifierString();
-    //        switch(program.getUniformType(i)){
-    //            case GL_SAMPLER_2D:
-    //            insert.type = texture_sampler;
-    //            break;
-    //            case GL_TEXTURE_2D:
-    //            insert.type = texture2d;
-    //            break;
-    //            
-    //            default:{
-    //                const glslang::TType* oo = program.getUniformTType(i);
-    //                bool cs = oo->containsSampler();
-    //                std::cout << "not handled: " << program.getUniformType(i) << std::endl;
-    //                //abort(); 
-    //            }break;
-    //        }
-    //        ret[program.getUniform(i).name] = insert;
-    //    }
-    //    //std::cout << program.getUniform(i).getBinding() << ": " << program.getUniform(i).name << " of type " << uniformTypeNames[program.getUniformType(i)] << "\n";
-    //}
-    //for(uint32_t i = 0;i < program.getNumUniformBlocks();i++){
-    //    std::cout << program.getUniformBlock(i).getBinding() << ": " << program.getUniformBlockName(i) << "\n";
-    //}
     return ret;
 }
 ShaderSources glsl_to_spirv(ShaderSources sources){
@@ -625,11 +594,11 @@ DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     glslSources.sourceCount = 2;
     glslSources.sources[0].data = vs ? vs : vertexSourceGLSL;
     glslSources.sources[0].sizeInBytes = std::strlen((const char*)glslSources.sources[0].data);
-    glslSources.sources[0].stageMask = ShaderStageMask_Vertex;
+    glslSources.sources[0].stageMask = WGPUShaderStage_Vertex;
 
     glslSources.sources[1].data = fs ? fs : fragmentSourceGLSL;
     glslSources.sources[1].sizeInBytes = std::strlen((const char*)glslSources.sources[1].data);
-    glslSources.sources[1].stageMask = ShaderStageMask_Fragment;
+    glslSources.sources[1].stageMask = WGPUShaderStage_Fragment;
 
     DescribedShaderModule shaderModule = LoadShaderModuleGLSL(glslSources);
 
@@ -657,7 +626,7 @@ DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs){
     
     for(const auto& [format, location] : flatAttributes){
         allAttribsInOneBuffer.push_back(AttributeAndResidence{
-            .attr = VertexAttribute{
+            .attr = WGPUVertexAttribute{
                 .nextInChain = nullptr,
                 .format = format,
                 .offset = offset,

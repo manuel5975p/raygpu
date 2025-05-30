@@ -888,17 +888,17 @@ static inline WGPUTextureUsage toWebGPUTextureUsage(WGPUTextureUsage usage) {
 
     return wgpuUsage;
 }
-static inline WGPUPrimitiveTopology toWebGPUPrimitive(PrimitiveType pt){
-    switch(pt){
-        case RL_LINES: return WGPUPrimitiveTopology_LineList;
-        case RL_TRIANGLES: return WGPUPrimitiveTopology_TriangleList;
-        case RL_TRIANGLE_STRIP: return WGPUPrimitiveTopology_TriangleStrip;
-        case RL_POINTS: return WGPUPrimitiveTopology_PointList;
-        case RL_QUADS: 
-        default:
-        rg_unreachable();
-    }
-}
+//static inline WGPUPrimitiveTopology toWebGPUPrimitive(PrimitiveType pt){
+//    switch(pt){
+//        case RL_LINES: return WGPUPrimitiveTopology_LineList;
+//        case RL_TRIANGLES: return WGPUPrimitiveTopology_TriangleList;
+//        case RL_TRIANGLE_STRIP: return WGPUPrimitiveTopology_TriangleStrip;
+//        case RL_POINTS: return WGPUPrimitiveTopology_PointList;
+//        case RL_QUADS: 
+//        default:
+//        rg_unreachable();
+//    }
+//}
 static inline WGPUBufferUsage toWebGPUBufferUsage(WGPUBufferUsage busg) {
     WGPUBufferUsage usage = 0;
 
@@ -1017,24 +1017,6 @@ static inline WGPUAddressMode toWebGPUAddressMode(addressMode am) {
 
 
 
-// Translation function for BlendOperation to WGPUBlendOperation
-static inline WGPUBlendOperation toWebGPUBlendOperation(BlendOperation bo) {
-    return bo;
-    //switch (bo) {
-    //case BlendOperation_Add:
-    //    return WGPUBlendOperation_Add;
-    //case BlendOperation_Subtract:
-    //    return WGPUBlendOperation_Subtract;
-    //case BlendOperation_ReverseSubtract:
-    //    return WGPUBlendOperation_ReverseSubtract;
-    //case BlendOperation_Min:
-    //    return WGPUBlendOperation_Min;
-    //case BlendOperation_Max:
-    //    return WGPUBlendOperation_Max;
-    //default:
-    //    return WGPUBlendOperation_Add; // Default fallback
-    //}
-}
 
 // Translation function for TFilterMode to WGPUFilterMode
 static inline WGPUFilterMode toWebGPUTFilterMode(TFilterMode tfm) {
