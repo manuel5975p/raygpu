@@ -363,37 +363,6 @@ typedef struct WGPUTexelCopyBufferLayout {
     uint32_t bytesPerRow;
     uint32_t rowsPerImage;
 } WGPUTexelCopyBufferLayout;
-typedef enum uniform_type { uniform_type_undefined, uniform_buffer, storage_buffer, texture2d, texture2d_array, storage_texture2d, texture_sampler, texture3d, storage_texture3d, storage_texture2d_array, acceleration_structure, combined_image_sampler, uniform_type_enumcount, uniform_type_force32 = 0x7fffffff} uniform_type;
-
-typedef enum access_type { readonly, readwrite, writeonly } access_type;
-
-typedef enum format_or_sample_type { we_dont_know, sample_f32, sample_u32, format_r32float, format_r32uint, format_rgba8unorm, format_rgba32float } format_or_sample_type;
-
-typedef enum filterMode {
-    filter_nearest = 0x1,
-    filter_linear = 0x2,
-} filterMode;
-
-typedef enum addressMode {
-    clampToEdge = 0x1,
-    repeat = 0x2,
-    mirrorRepeat = 0x3,
-} addressMode;
-
-typedef enum PixelFormat {
-    RGBA8      = 0x12, //WGPUTextureFormat_RGBA8Unorm,
-    RGBA8_Srgb = 0x13, //WGPUTextureFormat_RGBA8UnormSrgb,
-    BGRA8      = 0x17, //WGPUTextureFormat_BGRA8Unorm,
-    BGRA8_Srgb = 0x18, //WGPUTextureFormat_BGRA8UnormSrgb,
-    RGBA16F    = 0x22, //WGPUTextureFormat_RGBA16Float,
-    RGBA32F    = 0x23, //WGPUTextureFormat_RGBA32Float,
-    Depth24    = 0x28, //WGPUTextureFormat_Depth24Plus,
-    Depth32    = 0x2A, //WGPUTextureFormat_Depth32Float,
-
-    GRAYSCALE = 0x100000, // No WGPU_ equivalent
-    RGB8 = 0x100001,      // No WGPU_ equivalent
-    PixelFormat_Force32 = 0x7FFFFFFF
-} PixelFormat;
 
 typedef enum WGPUCompareFunction {
     WGPUCompareFunction_Undefined = 0x00000000,
@@ -442,9 +411,7 @@ typedef enum WGPUTextureViewDimension{
     WGPUTextureViewDimension_3D = 0x00000006,
     WGPUTextureViewDimension_Force32 = 0x7FFFFFFF
 }WGPUTextureViewDimension;
-typedef enum PrimitiveType{
-    RL_TRIANGLES, RL_TRIANGLE_STRIP, RL_QUADS, RL_LINES, RL_POINTS
-}PrimitiveType;
+
 
 typedef enum TFilterMode { TFilterMode_Undefined = 0x00000000, TFilterMode_Nearest = 0x00000001, TFilterMode_Linear = 0x00000002, TFilterMode_Force32 = 0x7FFFFFFF } TFilterMode;
 
@@ -711,27 +678,7 @@ typedef struct WGPUBindGroupEntry{
     WGPUTextureView textureView;
 }WGPUBindGroupEntry;
 
-typedef struct ResourceTypeDescriptor{
-    uniform_type type;
-    uint32_t minBindingSize;
-    uint32_t location; //only for @binding attribute in bindgroup 0
 
-    //Applicable for storage buffers and textures
-    access_type access;
-    format_or_sample_type fstype;
-    WGPUShaderStage visibility;
-}ResourceTypeDescriptor;
-
-typedef struct ResourceDescriptor {
-    void const * nextInChain; //hmm
-    uint32_t binding;
-    /*NULLABLE*/  WGPUBuffer buffer;
-    uint64_t offset;
-    uint64_t size;
-    /*NULLABLE*/ WGPUSampler sampler;
-    /*NULLABLE*/ WGPUTextureView textureView;
-    /*NULLABLE*/ WGPUTopLevelAccelerationStructure accelerationStructure;
-} ResourceDescriptor;
 
 typedef struct WGPUSamplerDescriptor {
     WGPUChainedStruct * nextInChain;

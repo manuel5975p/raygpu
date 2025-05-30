@@ -1,6 +1,5 @@
 #include <wgvk.h>
 #include <GLFW/glfw3.h>
-
 void adapterCallbackFunction(
         WGPURequestAdapterStatus status,
         WGPUAdapter adapter,

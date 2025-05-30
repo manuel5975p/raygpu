@@ -27,23 +27,11 @@
 #define PIPELINE_H
 #include <stdint.h>
 #include <macros_and_constants.h>
+#if SUPPORT_WGPU_BACKEND == 1
+#include <webgpu/webgpu.h>
+#else 
 #include <wgvk.h>
-typedef void* NativeShaderModuleHandle;
-typedef void* NativeBindgroupLayoutHandle;
-typedef void* NativeBindgroupHandle;
-typedef void* NativePipelineLayoutHandle;
-typedef void* NativeRenderPipelineHandle;
-typedef void* NativeComputePipelineHandle;
-typedef void* NativeSurfaceHandle;
-typedef void* NativeSwapchainHandle;
-typedef void* NativeBufferHandle;
-typedef void* NativeMemoryHandle;
-typedef void* NativeSamplerHandle;
-typedef void* NativeImageHandle;
-typedef void* NativeImageViewHandle;
-typedef void* NativeCommandEncoderHandle;
-typedef void* NativeRenderPassEncoderHandle;
-typedef void* NativeComputePassEncoderHandle;
+#endif
 
 
 
@@ -62,7 +50,7 @@ typedef struct RenderSettings{
     uint32_t sampleCount;
     uint32_t lineWidth;
     WGPUBlendState blendState;    
-    FrontFace frontFace;
+    WGPUFrontFace frontFace;
     WGPUCompareFunction depthCompare;
     #ifdef __cplusplus
     bool operator==(const RenderSettings& rs) const noexcept{
@@ -71,7 +59,7 @@ typedef struct RenderSettings{
                faceCull     == rs.faceCull      && 
                sampleCount  == rs.sampleCount   && 
                lineWidth    == rs.lineWidth     && 
-               blendState   == rs.blendState    && 
+               //blendState   == rs.blendState    && 
                frontFace    == rs.frontFace     && 
                depthCompare == rs.depthCompare  &&
         true;
@@ -85,7 +73,7 @@ typedef struct RenderSettings{
 typedef struct DescribedBindGroupLayout{
     WGPUBindGroupLayout layout;
     uint32_t entryCount;
-    ResourceTypeDescriptor* entries;
+    WGPUBindGroupLayoutEntry* entries;
 }DescribedBindGroupLayout;
 
 typedef struct DescribedBindGroup{
@@ -96,7 +84,7 @@ typedef struct DescribedBindGroup{
 
     //Description: entryCount and actual entries
     uint32_t entryCount;
-    ResourceDescriptor* entries;
+    WGPUBindGroupEntry* entries;
 
 
     uint64_t descriptorHash; //currently unused
@@ -104,7 +92,7 @@ typedef struct DescribedBindGroup{
 }DescribedBindGroup;
 
 typedef struct AttributeAndResidence{
-    VertexAttribute attr;
+    WGPUVertexAttribute attr;
     uint32_t bufferSlot; //Describes the actual buffer it will reside in
     WGPUVertexStepMode stepMode;
     uint32_t enabled;
@@ -174,16 +162,16 @@ EXTERN_C_BEGIN
     void UnloadBindGroupLayout(DescribedBindGroupLayout* bglayout);
     
 
-    DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const ResourceDescriptor* entries, size_t entryCount);
+    DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const WGPUBindGroupEntry* entries, size_t entryCount);
     WGPUBindGroup UpdateAndGetNativeBindGroup(DescribedBindGroup* bg);
     
-    void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry);
+    void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, WGPUBindGroupEntry entry);
     void UpdateBindGroup(DescribedBindGroup* bg);
     void UnloadBindGroup(DescribedBindGroup* bg);
     
     DescribedPipeline* Relayout(DescribedPipeline* pl, VertexArray* vao);
     RGAPI DescribedComputePipeline* LoadComputePipeline(const char* shaderCode);
-    RGAPI DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount);
+    RGAPI DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const WGPUBindGroupLayoutEntry* uniforms, uint32_t uniformCount);
 
     DescribedRaytracingPipeline* LoadRaytracingPipeline(const DescribedShaderModule* shaderModule); 
 

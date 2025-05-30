@@ -79,7 +79,7 @@ extern "C" DescribedPipeline* LoadPipelineForVAO(const char* shaderSource, Verte
     sources.sourceCount = 1;
     sources.language = sourceTypeWGSL;
 
-    sources.sources[0].stageMask = (ShaderStageMask)(ShaderStageMask_Vertex | ShaderStageMask_Fragment);
+    sources.sources[0].stageMask = (WGPUShaderStage)(WGPUShaderStage_Vertex | WGPUShaderStage_Fragment);
     sources.sources[0].data = shaderSource;
     sources.sources[0].sizeInBytes = std::strlen(shaderSource);
 
@@ -118,14 +118,14 @@ extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
     for(const auto& [name, attr] : attribs){
         const auto& [format, location] = attr;
         allAttribsInOneBuffer.push_back(AttributeAndResidence{
-            .attr = VertexAttribute{
+            .attr = WGPUVertexAttribute{
                 .nextInChain = nullptr,
-                .format = toWebGPUVertexFormat(format),
+                .format = format,
                 .offset = offset,
                 .shaderLocation = location
             },
             .bufferSlot = 0,
-            .stepMode = VertexStepMode_Vertex,
+            .stepMode = WGPUVertexStepMode_Vertex,
             .enabled = true}
         );
         offset += attributeSize(format);
@@ -162,7 +162,7 @@ DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sourcesSpirv){
         uint32_t entryPointCount = spv_mod.GetEntryPointCount();
         for(uint32_t i = 0;i < entryPointCount;i++){
             auto epStage = spv_mod.GetEntryPointShaderStage(i);
-            ShaderStage stage = [](SpvReflectShaderStageFlagBits epStage){
+            WGPUShaderStage stage = [](SpvReflectShaderStageFlagBits epStage){
                 switch(epStage){
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_VERTEX_BIT:
                         return ShaderStage_Vertex;
@@ -192,7 +192,7 @@ DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sourcesSpirv){
 
 void UnloadShaderModule(DescribedShaderModule mod){
     std::unordered_set<WGPUShaderModule> freed;
-    for(size_t i = 0;i < ShaderStage_EnumCount;i++){
+    for(size_t i = 0;i < WGPUShaderStageEnum_EnumCount;i++){
         if(mod.stages[i].module){
             if(!freed.contains((WGPUShaderModule)mod.stages[i].module)){
                 freed.insert((WGPUShaderModule)mod.stages[i].module);
