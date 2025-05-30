@@ -122,6 +122,7 @@ void main() {
 
 
 struct full_renderstate;
+
 #include <renderstate.hpp>
 
 
@@ -273,17 +274,17 @@ RGAPICXX void* InitWindow(uint32_t width, uint32_t height, const char* title){
 
 
     ResourceTypeDescriptor uniforms[4] = {
-        ResourceTypeDescriptor{uniform_buffer, 64, 0, readonly, format_or_sample_type::we_dont_know, WGPUShaderStage(ShaderStageMask_Vertex | ShaderStageMask_Fragment)},
-        ResourceTypeDescriptor{texture2d, 0, 1      , readonly, sample_f32,                          WGPUShaderStage(ShaderStageMask_Vertex | ShaderStageMask_Fragment)},
-        ResourceTypeDescriptor{texture_sampler, 0, 2, readonly, format_or_sample_type::we_dont_know, WGPUShaderStage(ShaderStageMask_Vertex | ShaderStageMask_Fragment)},
-        ResourceTypeDescriptor{storage_buffer, 64, 3, readonly, format_or_sample_type::we_dont_know, WGPUShaderStage(ShaderStageMask_Vertex | ShaderStageMask_Fragment)}
+        ResourceTypeDescriptor{uniform_buffer, 64, 0, readonly, format_or_sample_type::we_dont_know, WGPUShaderStage(WGPUShaderStage_Vertex | WGPUShaderStage_Fragment)},
+        ResourceTypeDescriptor{texture2d, 0, 1      , readonly, sample_f32,                          WGPUShaderStage(WGPUShaderStage_Vertex | WGPUShaderStage_Fragment)},
+        ResourceTypeDescriptor{texture_sampler, 0, 2, readonly, format_or_sample_type::we_dont_know, WGPUShaderStage(WGPUShaderStage_Vertex | WGPUShaderStage_Fragment)},
+        ResourceTypeDescriptor{storage_buffer, 64, 3, readonly, format_or_sample_type::we_dont_know, WGPUShaderStage(WGPUShaderStage_Vertex | WGPUShaderStage_Fragment)}
     };
 
     AttributeAndResidence attrs[4] = {
-        AttributeAndResidence{VertexAttribute{nullptr, WGPUVertexFormat_Float32x3, 0 * sizeof(float), 0}, 0, WGPUVertexStepMode_Vertex, true},
-        AttributeAndResidence{VertexAttribute{nullptr, WGPUVertexFormat_Float32x2, 3 * sizeof(float), 1}, 0, WGPUVertexStepMode_Vertex, true},
-        AttributeAndResidence{VertexAttribute{nullptr, WGPUVertexFormat_Float32x3, 5 * sizeof(float), 2}, 0, WGPUVertexStepMode_Vertex, true},
-        AttributeAndResidence{VertexAttribute{nullptr, WGPUVertexFormat_Float32x4, 8 * sizeof(float), 3}, 0, WGPUVertexStepMode_Vertex, true},
+        AttributeAndResidence{WGPUVertexAttribute{nullptr, WGPUVertexFormat_Float32x3, 0 * sizeof(float), 0}, 0, WGPUVertexStepMode_Vertex, true},
+        AttributeAndResidence{WGPUVertexAttribute{nullptr, WGPUVertexFormat_Float32x2, 3 * sizeof(float), 1}, 0, WGPUVertexStepMode_Vertex, true},
+        AttributeAndResidence{WGPUVertexAttribute{nullptr, WGPUVertexFormat_Float32x3, 5 * sizeof(float), 2}, 0, WGPUVertexStepMode_Vertex, true},
+        AttributeAndResidence{WGPUVertexAttribute{nullptr, WGPUVertexFormat_Float32x4, 8 * sizeof(float), 3}, 0, WGPUVertexStepMode_Vertex, true},
     };
     
     //arraySetter(shaderInputs.per_vertex_sizes, {3,2,4});
@@ -322,10 +323,15 @@ RGAPICXX void* InitWindow(uint32_t width, uint32_t height, const char* title){
     VertexAttribPointer(renderBatchVAO, renderBatchVBO, 2, WGPUVertexFormat_Float32x3, 5 * sizeof(float), WGPUVertexStepMode_Vertex);
     VertexAttribPointer(renderBatchVAO, renderBatchVBO, 3, WGPUVertexFormat_Float32x4, 8 * sizeof(float), WGPUVertexStepMode_Vertex);
 
+    constexpr WGPUColor opaqueBlack{
+        .r = 0.0,
+        .g = 0.0,
+        .b = 0.0,
+        .a = 1.0
+    };
+    g_renderstate.renderpass = LoadRenderpassEx(GetDefaultSettings(), false, opaqueBlack, false, 0.0f);
 
-    g_renderstate.renderpass = LoadRenderpassEx(GetDefaultSettings(), false, DColor{0,0,0,1}, false, 0.0f);
-
-    g_renderstate.clearPass = LoadRenderpassEx(GetDefaultSettings(), true, DColor{0,0,0,1}, true, 1.0f);
+    g_renderstate.clearPass = LoadRenderpassEx(GetDefaultSettings(), true, opaqueBlack, true, 1.0f);
     //}
     //state->clearPass.rca->clearValue = WGPUColor{1.0, 0.4, 0.2, 1.0};
     //state->clearPass.rca->loadOp = WGPULoadOp_Clear;
@@ -336,10 +342,10 @@ RGAPICXX void* InitWindow(uint32_t width, uint32_t height, const char* title){
     defaultGLSLSource.sourceCount = 2;
     defaultGLSLSource.sources[0].data = vertexSourceGLSL;
     defaultGLSLSource.sources[0].sizeInBytes = std::strlen(vertexSourceGLSL);
-    defaultGLSLSource.sources[0].stageMask = ShaderStageMask_Vertex;
+    defaultGLSLSource.sources[0].stageMask = WGPUShaderStage_Vertex;
     defaultGLSLSource.sources[1].data = fragmentSourceGLSL;
     defaultGLSLSource.sources[1].sizeInBytes = std::strlen(fragmentSourceGLSL);
-    defaultGLSLSource.sources[1].stageMask = ShaderStageMask_Fragment;
+    defaultGLSLSource.sources[1].stageMask = WGPUShaderStage_Fragment;
     g_renderstate.defaultPipeline = LoadPipelineForVAOEx(defaultGLSLSource, renderBatchVAO, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), GetDefaultSettings());
     g_renderstate.defaultShader = LoadShaderFromMemory(vertexSourceGLSL, fragmentSourceGLSL);
     #elif SUPPORT_WGSL_PARSER == 1
@@ -353,7 +359,7 @@ RGAPICXX void* InitWindow(uint32_t width, uint32_t height, const char* title){
     #error "Must support either glsl or wgsl"
     #endif
     g_renderstate.activePipeline = g_renderstate.defaultPipeline;
-    uint32_t quadCount = 2000;
+    size_t quadCount = 2000;
     g_renderstate.quadindicesCache = GenBufferEx(nullptr, quadCount * 6 * sizeof(uint32_t), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index);//allocnew(DescribedBuffer);    //WGPUBufferDescriptor vbmdesc{};
     std::vector<uint32_t> indices(6 * quadCount);
     for(size_t i = 0;i < quadCount;i++){

@@ -157,13 +157,13 @@ struct VertexBufferLayout{
     uint64_t arrayStride;
     WGPUVertexStepMode stepMode;
     size_t attributeCount;
-    VertexAttribute* attributes; //NOT owned, points into data owned by VertexBufferLayoutSet::attributePool with an offset
+    WGPUVertexAttribute* attributes; //NOT owned, points into data owned by VertexBufferLayoutSet::attributePool with an offset
 };
 
 typedef struct VertexBufferLayoutSet{
     uint32_t number_of_buffers;
     std::vector<VertexBufferLayout> layouts;    
-    std::vector<VertexAttribute> attributePool;
+    std::vector<WGPUVertexAttribute> attributePool;
 }VertexBufferLayoutSet;
 
 static inline uint64_t hash_bytes(const void* bytes, size_t count){
@@ -338,19 +338,19 @@ typedef struct DescribedPipeline{
  * @return VertexBufferLayoutSet 
  */
 inline VertexBufferLayoutSet getBufferLayoutRepresentation(const AttributeAndResidence* attributes, const uint32_t number_of_attribs, uint32_t number_of_buffers){
-    std::vector<std::vector<VertexAttribute>> buffer_to_attributes(number_of_buffers);
+    std::vector<std::vector<WGPUVertexAttribute>> buffer_to_attributes(number_of_buffers);
     
-    std::vector<VertexAttribute> attributePool(number_of_attribs);
+    std::vector<WGPUVertexAttribute> attributePool(number_of_attribs);
     std::vector<VertexBufferLayout> vbLayouts(number_of_buffers);
 
     std::vector<uint32_t> strides  (number_of_buffers, 0);
-    std::vector<WGPUVertexStepMode> stepmodes(number_of_buffers, WGPUVertexStepMode_None);
+    std::vector<WGPUVertexStepMode> stepmodes(number_of_buffers, WGPUVertexStepMode_Undefined);
     std::vector<uint32_t> attrIndex(number_of_buffers, 0);
 
     for(size_t i = 0;i < number_of_attribs;i++){
         buffer_to_attributes[attributes[i].bufferSlot].push_back(attributes[i].attr);
         strides[attributes[i].bufferSlot] += attributeSize(attributes[i].attr.format);
-        if(stepmodes[attributes[i].bufferSlot] != WGPUVertexStepMode_None && stepmodes[attributes[i].bufferSlot] != attributes[i].stepMode){
+        if(stepmodes[attributes[i].bufferSlot] != WGPUVertexStepMode_Undefined && stepmodes[attributes[i].bufferSlot] != attributes[i].stepMode){
             TRACELOG(LOG_ERROR, "Conflicting stepmodes");
         }
         stepmodes[attributes[i].bufferSlot] = attributes[i].stepMode;
@@ -362,7 +362,7 @@ inline VertexBufferLayoutSet getBufferLayoutRepresentation(const AttributeAndRes
     for(size_t i = 0;i < number_of_buffers;i++){
         attributeOffsets[i] = poolOffset;
         if(buffer_to_attributes[i].size())
-            std::memcpy(attributePool.data() + poolOffset, buffer_to_attributes[i].data(), buffer_to_attributes[i].size() * sizeof(VertexAttribute));
+            std::memcpy(attributePool.data() + poolOffset, buffer_to_attributes[i].data(), buffer_to_attributes[i].size() * sizeof(WGPUVertexAttribute));
         poolOffset += buffer_to_attributes[i].size();
     }
 

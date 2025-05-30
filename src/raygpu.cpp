@@ -50,6 +50,7 @@ extern "C" void ToggleFullscreenImpl(cwoid);
 #ifdef __EMSCRIPTEN__
 #endif  // __EMSCRIPTEN__
 #include <renderstate.hpp>
+#include <enum_translation.h>
 renderstate g_renderstate{};
 constexpr uint32_t swap_uint32(uint32_t val){
     val = ((val << 8) & 0xFF00FF00 ) | ((val >> 8) & 0xFF00FF ); 
@@ -1416,14 +1417,14 @@ void SetStorageBufferData         (uint32_t index, const void* data, size_t size
 
 
 void SetBindgroupUniformBuffer (DescribedBindGroup* bg, uint32_t index, DescribedBuffer* buffer){
-    ResourceDescriptor entry{};
+    WGPUBindGroupEntry entry{};
     entry.binding = index;
     entry.buffer = (WGPUBuffer)buffer->buffer;
     entry.size = buffer->size;
     UpdateBindGroupEntry(bg, index, entry);
 }
 void SetBindgroupStorageBuffer (DescribedBindGroup* bg, uint32_t index, DescribedBuffer* buffer){
-    ResourceDescriptor entry{};
+    WGPUBindGroupEntry entry{};
     entry.binding = index;
     entry.buffer = (WGPUBuffer)buffer->buffer;
     entry.size = buffer->size;
@@ -1431,21 +1432,21 @@ void SetBindgroupStorageBuffer (DescribedBindGroup* bg, uint32_t index, Describe
 }
 
 extern "C" void SetBindgroupTexture3D(DescribedBindGroup* bg, uint32_t index, Texture3D tex){
-    ResourceDescriptor entry{};
+    WGPUBindGroupEntry entry{};
     entry.binding = index;
     entry.textureView = (WGPUTextureView)tex.view;
     
     UpdateBindGroupEntry(bg, index, entry);
 }
 extern "C" void SetBindgroupTextureView(DescribedBindGroup* bg, uint32_t index, WGPUTextureView texView){
-    ResourceDescriptor entry{};
+    WGPUBindGroupEntry entry{};
     entry.binding = index;
     entry.textureView = texView;
     
     UpdateBindGroupEntry(bg, index, entry);
 }
 extern "C" void SetBindgroupTexture(DescribedBindGroup* bg, uint32_t index, Texture tex){
-    ResourceDescriptor entry{};
+    WGPUBindGroupEntry entry{};
     entry.binding = index;
     entry.textureView = (WGPUTextureView)tex.view;
     
@@ -1453,7 +1454,7 @@ extern "C" void SetBindgroupTexture(DescribedBindGroup* bg, uint32_t index, Text
 }
 
 extern "C" void SetBindgroupSampler(DescribedBindGroup* bg, uint32_t index, DescribedSampler sampler){
-    ResourceDescriptor entry{};
+    WGPUBindGroupEntry entry{};
     entry.binding = index;
     entry.sampler = sampler.sampler;
     UpdateBindGroupEntry(bg, index, entry);

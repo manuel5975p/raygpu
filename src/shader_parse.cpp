@@ -81,7 +81,7 @@ DescribedShaderModule LoadShaderModuleWGSL(ShaderSources sources) {
     #if SUPPORT_WGPU_BACKEND == 1
     WGPUShaderModuleWGSLDescriptor shaderCodeDesc zeroinit;
 
-    rassert(sources.language = sourceTypeWGSL, "Source language must be wgsl for this function");
+    rassert(sources.language == sourceTypeWGSL, "Source language must be wgsl for this function");
     
     for(uint32_t i = 0;i < sources.sourceCount;i++){
         WGPUShaderModuleDescriptor mDesc zeroinit;
@@ -91,14 +91,15 @@ DescribedShaderModule LoadShaderModuleWGSL(ShaderSources sources) {
 
         source.code = WGPUStringView{.data = (const char*)sources.sources[i].data, .length = sources.sources[i].sizeInBytes};
         WGPUShaderModule module = wgpuDeviceCreateShaderModule((WGPUDevice)GetDevice(), &mDesc);
-        ShaderStageMask sourceStageMask = sources.sources[i].stageMask;
+        WGPUShaderStage sourceStageMask = sources.sources[i].stageMask;
         
-        for(uint32_t i = 0;i < ShaderStage_EnumCount;++i){
+        for(uint32_t i = 0;i < WGPUShaderStageEnum_EnumCount;++i){
             if(uint32_t(sourceStageMask) & (1u << i)){
                 ret.stages[i].module = module;
             }
         }
-        std::vector<std::pair<ShaderStage, std::string>> entryPoints = getEntryPointsWGSL((const char*)sources.sources[i].data);
+        
+        std::vector<std::pair<WGPUShaderStageEnum, std::string>> entryPoints = getEntryPointsWGSL((const char*)sources.sources[i].data);
         for(uint32_t i = 0;i < entryPoints.size();i++){
             rassert(entryPoints[i].second.size() < 15, "Entrypoint name must be shorter than 15 characters");
             char* dest = ret.reflectionInfo.ep[entryPoints[i].first].name;
@@ -192,13 +193,13 @@ std::vector<std::pair<WGPUShaderStageEnum, std::string>> getEntryPointsWGSL(cons
         WGPUShaderStageEnum stage;
         switch(ep.stage){
             case tint::inspector::PipelineStage::kVertex:
-            stage = ShaderStage_Vertex;
+            stage = WGPUShaderStageEnum_Vertex;
             break;
             case tint::inspector::PipelineStage::kFragment:
-            stage = ShaderStage_Fragment;
+            stage = WGPUShaderStageEnum_Fragment;
             break;
             case tint::inspector::PipelineStage::kCompute:
-            stage = ShaderStage_Compute;
+            stage = WGPUShaderStageEnum_Compute;
             break;
             default: rg_unreachable();
         }

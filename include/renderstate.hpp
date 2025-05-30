@@ -5,7 +5,11 @@
 #include <mutex>
 #include <vector>
 #include <raygpu.h>
-
+#if SUPPORT_WGPU_BACKEND == 1
+    #include <webgpu/webgpu.h>
+#else
+    #include <wgvk.h>
+#endif
 struct PenInputState{
     float axes[16];
     Vector2 position;
@@ -68,8 +72,8 @@ struct array_stack{
 struct renderstate{
 
 
-    PresentMode unthrottled_PresentMode;
-    PresentMode throttled_PresentMode;
+    WGPUPresentMode unthrottled_PresentMode;
+    WGPUPresentMode throttled_PresentMode;
  
     GLFWwindow* window;
     uint32_t width, height;

@@ -1015,30 +1015,6 @@ static inline WGPUAddressMode toWebGPUAddressMode(addressMode am) {
     }
 }
 
-// Translation function for CompareFunction to WGPUCompareFunction
-static inline WGPUCompareFunction toWebGPUCompareFunction(CompareFunction cf) {
-    switch (cf) {
-    case CompareFunction_Never:
-        return WGPUCompareFunction_Never;
-    case CompareFunction_Less:
-        return WGPUCompareFunction_Less;
-    case CompareFunction_Equal:
-        return WGPUCompareFunction_Equal;
-    case CompareFunction_LessEqual:
-        return WGPUCompareFunction_LessEqual;
-    case CompareFunction_Greater:
-        return WGPUCompareFunction_Greater;
-    case CompareFunction_NotEqual:
-        return WGPUCompareFunction_NotEqual;
-    case CompareFunction_GreaterEqual:
-        return WGPUCompareFunction_GreaterEqual;
-    case CompareFunction_Always:
-        return WGPUCompareFunction_Always;
-    default:
-        return WGPUCompareFunction_Always; // Default fallback
-    }
-}
-
 
 
 // Translation function for BlendOperation to WGPUBlendOperation
