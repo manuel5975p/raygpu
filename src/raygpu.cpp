@@ -50,7 +50,9 @@ extern "C" void ToggleFullscreenImpl(cwoid);
 #ifdef __EMSCRIPTEN__
 #endif  // __EMSCRIPTEN__
 #include <renderstate.hpp>
-#include <enum_translation.h>
+
+//#include <enum_translation.h>
+
 renderstate g_renderstate{};
 constexpr uint32_t swap_uint32(uint32_t val){
     val = ((val << 8) & 0xFF00FF00 ) | ((val >> 8) & 0xFF00FF ); 
@@ -307,7 +309,7 @@ RGAPICXX void DrawArraysIndexed(PrimitiveType drawMode, DescribedBuffer indexBuf
     if(GetActivePipeline()->bindGroup.needsUpdate){
         RenderPassSetBindGroup(GetActiveRenderPass(), 0, &GetActivePipeline()->bindGroup);
     }
-    RenderPassSetIndexBuffer(GetActiveRenderPass(), &indexBuffer, IndexFormat_Uint32, 0);
+    RenderPassSetIndexBuffer(GetActiveRenderPass(), &indexBuffer, WGPUIndexFormat_Uint32, 0);
     RenderPassDrawIndexed(GetActiveRenderPass(), vertexCount, 1, 0, 0, 0);
 }
 RGAPICXX void DrawArraysIndexedInstanced(PrimitiveType drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount, uint32_t instanceCount){
@@ -316,7 +318,7 @@ RGAPICXX void DrawArraysIndexedInstanced(PrimitiveType drawMode, DescribedBuffer
         UpdateBindGroup(&GetActivePipeline()->bindGroup);
     }
     RenderPassSetBindGroup(GetActiveRenderPass(), 0, &GetActivePipeline()->bindGroup);
-    RenderPassSetIndexBuffer(GetActiveRenderPass(), &indexBuffer, IndexFormat_Uint32, 0);
+    RenderPassSetIndexBuffer(GetActiveRenderPass(), &indexBuffer, WGPUIndexFormat_Uint32, 0);
     RenderPassDrawIndexed(GetActiveRenderPass(), vertexCount, instanceCount, 0, 0, 0);
 }
 RGAPICXX void DrawArraysInstanced(PrimitiveType drawMode, uint32_t vertexCount, uint32_t instanceCount){
@@ -712,7 +714,13 @@ RGAPICXX void ClearBackground(Color clearColor){
     if(rpActive){
         EndRenderpassEx(g_renderstate.activeRenderpass);
     }
-    g_renderstate.clearPass.colorClear = DColor{clearColor.r / 255.0, clearColor.g / 255.0, clearColor.b / 255.0, clearColor.a / 255.0};
+    
+    g_renderstate.clearPass.colorClear = WGPUColor{
+        clearColor.r / 255.0,
+        clearColor.g / 255.0,
+        clearColor.b / 255.0,
+        clearColor.a / 255.0
+    };
     BeginRenderpassEx(&g_renderstate.clearPass);
     EndRenderpassEx(&g_renderstate.clearPass);
     if(rpActive){
@@ -1192,7 +1200,33 @@ Shader LoadShader(const char *vsFileName, const char *fsFileName){
 
     return shader;
 }
-
+static inline WGPUTextureFormat toWGPUPixelFormat(PixelFormat format) {
+    switch (format) {
+        case RGBA8:
+            return WGPUTextureFormat_RGBA8Unorm;
+        case RGBA8_Srgb:
+            return WGPUTextureFormat_RGBA8UnormSrgb;
+        case BGRA8:
+            return WGPUTextureFormat_BGRA8Unorm;
+        case BGRA8_Srgb:
+            return WGPUTextureFormat_BGRA8UnormSrgb;
+        case RGBA16F:
+            return WGPUTextureFormat_RGBA16Float;
+        case RGBA32F:
+            return WGPUTextureFormat_RGBA32Float;
+        case Depth24:
+            return WGPUTextureFormat_Depth24Plus;
+        case Depth32:
+            return WGPUTextureFormat_Depth32Float;
+        case GRAYSCALE:
+            assert(0 && "GRAYSCALE format not supported in Vulkan.");
+        case RGB8:
+            assert(0 && "RGB8 format not supported in Vulkan.");
+        default:
+            rg_unreachable();
+    }
+    return WGPUTextureFormat_Undefined;
+}
 extern "C" FullSurface CreateHeadlessSurface(uint32_t width, uint32_t height, PixelFormat format){
     FullSurface ret zeroinit;
     ret.headless = 1;
@@ -1497,10 +1531,21 @@ inline uint64_t bgEntryHash(const ResourceDescriptor& bge){
     return value;
 }
 
-extern "C" DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const ResourceDescriptor* entries, size_t entryCount){
+inline uint64_t bgEntryHash(const WGPUBindGroupEntry& bge){
+    const uint32_t rotation = (bge.binding * 7) & 63;
+    uint64_t value = ROT_BYTES((uint64_t)bge.buffer, rotation);
+    value ^= ROT_BYTES((uint64_t)bge.textureView, rotation);
+    value ^= ROT_BYTES((uint64_t)bge.sampler, rotation);
+    value ^= ROT_BYTES((uint64_t)bge.offset, rotation);
+    value ^= ROT_BYTES((uint64_t)bge.size, rotation);
+    return value;
+}
+
+extern "C" DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const WGPUBindGroupEntry* entries, size_t entryCount){
     DescribedBindGroup ret zeroinit;
     if(entryCount > 0){
-        ret.entries = (ResourceDescriptor*)std::calloc(entryCount, sizeof(ResourceDescriptor));
+
+        ret.entries = (WGPUBindGroupEntry*)RL_CALLOC(entryCount, sizeof(ResourceDescriptor));
         std::memcpy(ret.entries, entries, entryCount * sizeof(ResourceDescriptor));
     }
     ret.entryCount = entryCount;
@@ -1555,7 +1600,7 @@ DescribedSampler LoadSampler(addressMode amode, filterMode fmode){
 }
 
 
-NativeImageHandle GetActiveColorTarget(){
+WGPUTexture GetActiveColorTarget(){
     return g_renderstate.renderTargetStack.peek().texture.id;
 }
 
@@ -2067,7 +2112,7 @@ RenderSettings GetDefaultSettings(){
     RenderSettings ret zeroinit;
     ret.lineWidth = 1;
     ret.faceCull = 1;
-    ret.frontFace = FrontFace_CCW;
+    ret.frontFace = WGPUFrontFace_CCW;
     ret.depthTest = 1;
     ret.depthCompare = WGPUCompareFunction_LessEqual;
     ret.sampleCount = (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;

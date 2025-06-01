@@ -61,6 +61,11 @@ typedef enum PixelFormat {
     RGB8 = 0x100001,      // No WGPU_ equivalent
     PixelFormat_Force32 = 0x7FFFFFFF
 } PixelFormat;
+typedef enum TFilterMode { TFilterMode_Undefined = 0x00000000, TFilterMode_Nearest = 0x00000001, TFilterMode_Linear = 0x00000002, TFilterMode_Force32 = 0x7FFFFFFF } TFilterMode;
+
+typedef enum FrontFace { FrontFace_Undefined = 0x00000000, FrontFace_CCW = 0x00000001, FrontFace_CW = 0x00000002, FrontFace_Force32 = 0x7FFFFFFF } FrontFace;
+
+typedef enum IndexFormat { IndexFormat_Undefined = 0x00000000, IndexFormat_Uint16 = 0x00000001, IndexFormat_Uint32 = 0x00000002, IndexFormat_Force32 = 0x7FFFFFFF } IndexFormat;
 
 typedef enum filterMode {
     filter_nearest = 0x1,
@@ -1002,7 +1007,7 @@ EXTERN_C_BEGIN
     RGAPI DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode mipmapFilter, float maxAnisotropy);
     RGAPI void UnloadSampler(DescribedSampler sampler);
 
-    RGAPI WGPUTextureView GetActiveColorTarget(cwoid);
+    RGAPI WGPUTexture GetActiveColorTarget(cwoid);
     RGAPI Texture2DArray LoadTextureArray(uint32_t width, uint32_t height, uint32_t layerCount, PixelFormat format);
     RGAPI void* GetActiveWindowHandle(cwoid);
     RGAPI Texture LoadTextureFromImage(Image img);

@@ -413,11 +413,6 @@ typedef enum WGPUTextureViewDimension{
 }WGPUTextureViewDimension;
 
 
-typedef enum TFilterMode { TFilterMode_Undefined = 0x00000000, TFilterMode_Nearest = 0x00000001, TFilterMode_Linear = 0x00000002, TFilterMode_Force32 = 0x7FFFFFFF } TFilterMode;
-
-typedef enum FrontFace { FrontFace_Undefined = 0x00000000, FrontFace_CCW = 0x00000001, FrontFace_CW = 0x00000002, FrontFace_Force32 = 0x7FFFFFFF } FrontFace;
-
-typedef enum IndexFormat { IndexFormat_Undefined = 0x00000000, IndexFormat_Uint16 = 0x00000001, IndexFormat_Uint32 = 0x00000002, IndexFormat_Force32 = 0x7FFFFFFF } IndexFormat;
 
 typedef enum WGPUCullMode{
     WGPUCullMode_Undefined = 0x00000000,

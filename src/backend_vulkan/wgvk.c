@@ -3712,20 +3712,18 @@ void wgpuSurfacePresent(WGPUSurface surface){
     //EncodeTransitionImageLayout(transitionBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, surface->images[surface->activeImageIndex]);
     //EncodeTransitionImageLayout(transitionBuffer, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, (WGPUTexture)surface->renderTarget.depth.id);
     device->functions.vkEndCommandBuffer(transitionBuffer);
-    VkSubmitInfo cbsinfo zeroinit;
-    cbsinfo.commandBufferCount = 1;
-    cbsinfo.pCommandBuffers = &transitionBuffer;
-    cbsinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    cbsinfo.signalSemaphoreCount = 1;
-    cbsinfo.waitSemaphoreCount = 1;
     VkPipelineStageFlags wsmask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-    cbsinfo.pWaitDstStageMask = &wsmask;
-
-    cbsinfo.pWaitSemaphores = &surface->device->queue->syncState[cacheIndex].semaphores.data[surface->device->queue->syncState[cacheIndex].submits];
-    //TRACELOG(LOG_INFO, "Submit waiting for semaphore index: %u", g_vulkanstate.queue->syncState[cacheIndex].submits);
-    
-    cbsinfo.pSignalSemaphores = &surface->device->frameCaches[cacheIndex].finalTransitionSemaphore;
-    
+    const VkSubmitInfo cbsinfo = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .pNext = NULL,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &transitionBuffer,
+        .signalSemaphoreCount = 1,
+        .waitSemaphoreCount = 1,
+        .pWaitDstStageMask = &wsmask,
+        .pWaitSemaphores = &surface->device->queue->syncState[cacheIndex].semaphores.data[surface->device->queue->syncState[cacheIndex].submits],
+        .pSignalSemaphores = &surface->device->frameCaches[cacheIndex].finalTransitionSemaphore
+    };
     VkFence finalTransitionFence = surface->device->frameCaches[cacheIndex].finalTransitionFence;
     device->functions.vkQueueSubmit(surface->device->queue->graphicsQueue, 1, &cbsinfo, finalTransitionFence);
     
@@ -3792,20 +3790,7 @@ void wgpuSurfacePresent(WGPUSurface surface){
         TRACELOG(LOG_INFO, "No fences!");
     }
     
-    PendingCommandBufferMap_for_each(pcm, resetFenceAndReleaseBuffers, surfaceDevice);
-    //for(auto [fence, bufferset] : queue->pendingCommandBuffers[cacheIndex]){
-    //    if(fence){
-    //        vkResetFences(surfaceDevice->device, 1, &fence);
-    //    }
-    //    else{
-    //        //TRACELOG(LOG_INFO, "Amount of buffers to be cleared from null fence. %llu", (unsigned long long)queue->pendingCommandBuffers[cacheIndex].size());
-    //    }
-    //    for(auto buffer : bufferset){
-    //        rassert(buffer->refCount == 1, "CommandBuffer still in use after submit");
-    //        wgpuReleaseCommandBuffer(buffer);
-    //    }
-    //}
-    
+    PendingCommandBufferMap_for_each(pcm, resetFenceAndReleaseBuffers, surfaceDevice);    
 
     WGPUBufferVector* usedBuffers = &surfaceDevice->frameCaches[cacheIndex].usedBatchBuffers;
     WGPUBufferVector* unusedBuffers = &surfaceDevice->frameCaches[cacheIndex].unusedBatchBuffers;
@@ -3823,7 +3808,7 @@ void wgpuSurfacePresent(WGPUSurface surface){
     WGPUCommandBuffer buffer = wgpuCommandEncoderFinish(queue->presubmitCache);
     wgpuCommandEncoderRelease(queue->presubmitCache);
     wgpuCommandBufferRelease(buffer);
-    vkResetCommandPool(surfaceDevice->device, surfaceDevice->frameCaches[cacheIndex].commandPool, 0);
+    surfaceDevice->functions.vkResetCommandPool(surfaceDevice->device, surfaceDevice->frameCaches[cacheIndex].commandPool, 0);
     WGPUCommandEncoderDescriptor cedesc zeroinit;
 
     queue->syncState[cacheIndex].submits = 0;
@@ -3856,12 +3841,12 @@ WGPUSampler wgpuDeviceCreateSampler(WGPUDevice device, const WGPUSamplerDescript
     sci.addressModeV = vkamode(descriptor->addressModeV);
     sci.addressModeW = vkamode(descriptor->addressModeW);
     
-    sci.mipmapMode = ((descriptor->mipmapFilter == filter_linear) ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST);
+    sci.mipmapMode = ((descriptor->mipmapFilter == TFilterMode_Linear) ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST);
 
     sci.anisotropyEnable = false;
     sci.maxAnisotropy = descriptor->maxAnisotropy;
-    sci.magFilter = ((descriptor->magFilter == filter_linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
-    sci.minFilter = ((descriptor->minFilter == filter_linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
+    sci.magFilter = ((descriptor->magFilter == TFilterMode_Linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
+    sci.minFilter = ((descriptor->minFilter == TFilterMode_Linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
     VkResult result = device->functions.vkCreateSampler(device->device, &sci, NULL, &(ret->sampler));
     return ret;
 }
