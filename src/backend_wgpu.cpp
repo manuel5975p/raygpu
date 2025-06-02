@@ -2124,7 +2124,8 @@ DescribedComputePipeline* LoadComputePipeline(const char* shaderCode){
 
 
     auto bindmap = getBindings(sources);
-    std::vector<WGPUBindGroupLayoutEntry> udesc;
+    //std::vector<WGPUBindGroupLayoutEntry> udesc;
+    std::vector<ResourceTypeDescriptor> udesc;
     for(auto& [x,y] : bindmap){
         WGPUBindGroupLayoutEntry insert{};
         insert.binding = y.location;
@@ -2176,15 +2177,20 @@ DescribedComputePipeline* LoadComputePipeline(const char* shaderCode){
             rg_unreachable();
         }
 
-        udesc.push_back(insert);
+        udesc.push_back(y);
     }
-    std::sort(udesc.begin(), udesc.end(), [](const WGPUBindGroupLayoutEntry& x, const WGPUBindGroupLayoutEntry& y){
-        return x.binding < y.binding;
+    
+    //std::sort(udesc.begin(), udesc.end(), [](const WGPUBindGroupLayoutEntry& x, const WGPUBindGroupLayoutEntry& y){
+    //    return x.binding < y.binding;
+    //});
+
+    std::sort(udesc.begin(), udesc.end(), [](const ResourceTypeDescriptor& x, const ResourceTypeDescriptor& y){
+        return x.location < y.location;
     });
 
-    return LoadComputePipelineEx(shaderCode, udesc.data(), udesc.size());
-    
+    return LoadComputePipelineEx(shaderCode, udesc.data(), udesc.size());    
 }
+
 RGAPI DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount){
     ShaderSources sources = singleStage(shaderCode, detectShaderLanguage(shaderCode, std::strlen(shaderCode)), WGPUShaderStageEnum_Compute);
 

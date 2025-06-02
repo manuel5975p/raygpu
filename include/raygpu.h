@@ -786,7 +786,7 @@ typedef struct DescribedRaytracingPipeline{
     
     WGPURaytracingPipeline pipeline;
 
-    NativePipelineLayoutHandle layout;
+    WGPUPipelineLayout layout;
     
     DescribedBindGroupLayout bglayout;
     DescribedBindGroup bindGroup;
@@ -1183,7 +1183,7 @@ EXTERN_C_BEGIN
     RGAPI void UnloadBindGroup(DescribedBindGroup* bg);
     RGAPI DescribedPipeline* Relayout(DescribedPipeline* pl, VertexArray* vao);
     RGAPI DescribedComputePipeline* LoadComputePipeline(const char* shaderCode);
-    RGAPI DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const WGPUBindGroupLayoutEntry* uniforms, uint32_t uniformCount);
+    RGAPI DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount);
     RGAPI DescribedRaytracingPipeline* LoadRaytracingPipeline(const DescribedShaderModule* shaderModule); 
 
 

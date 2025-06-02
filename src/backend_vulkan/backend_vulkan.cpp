@@ -1062,8 +1062,8 @@ extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t he
     wgpuSurfaceGetCapabilities((WGPUSurface)ret.surface, adapter, &capa);
     WGPUSurfaceConfiguration config{};
 
-    PresentMode thm = g_renderstate.throttled_PresentMode;
-    PresentMode um  = g_renderstate.unthrottled_PresentMode;
+    WGPUPresentMode thm = g_renderstate.throttled_PresentMode;
+    WGPUPresentMode um  = g_renderstate.unthrottled_PresentMode;
     if (g_renderstate.windowFlags & FLAG_VSYNC_LOWLATENCY_HINT) {
         config.presentMode = (((g_renderstate.unthrottled_PresentMode == PresentMode_Mailbox) ? um : thm));
     } else if (g_renderstate.windowFlags & FLAG_VSYNC_HINT) {
@@ -1081,7 +1081,7 @@ extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t he
     //config.viewFormatCount = 1;
     config.device = g_vulkanstate.device;
 
-    ret.surfaceConfig.presentMode = (PresentMode)config.presentMode;
+    ret.surfaceConfig.presentMode = (WGPUPresentMode)config.presentMode;
     ret.surfaceConfig.device = config.device;
     ret.surfaceConfig.width = config.width;
     ret.surfaceConfig.height = config.width;

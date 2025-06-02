@@ -28,11 +28,11 @@ extern "C" DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sources){
             WGPUShaderStageEnum stage = [](SpvReflectShaderStageFlagBits epStage){
                 switch(epStage){
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_VERTEX_BIT:
-                        return ShaderStage_Vertex;
+                        return WGPUShaderStageEnum_Vertex;
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_FRAGMENT_BIT:
-                        return ShaderStage_Fragment;
+                        return WGPUShaderStageEnum_Fragment;
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT:
-                        return ShaderStage_Compute;
+                        return WGPUShaderStageEnum_Compute;
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_GEOMETRY_BIT:
                         return ShaderStage_Geometry;
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_RAYGEN_BIT_KHR:
@@ -43,7 +43,7 @@ extern "C" DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sources){
                         return ShaderStage_Miss;
                     default:
                         TRACELOG(LOG_FATAL, "Unknown shader stage: %d", (int)epStage);
-                        return ShaderStage_EnumCount;
+                        return WGPUShaderStageEnum_EnumCount;
                 }
             }(epStage);
             
@@ -68,14 +68,14 @@ extern "C" WGPURenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
 
-    vertShaderStageInfo.module = (VkShaderModule)shaderModule.stages[ShaderStage_Vertex].module;
-    vertShaderStageInfo.pName = shaderModule.reflectionInfo.ep[ShaderStage_Vertex].name;
+    vertShaderStageInfo.module = (VkShaderModule)shaderModule.stages[WGPUShaderStageEnum_Vertex].module;
+    vertShaderStageInfo.pName = shaderModule.reflectionInfo.ep[WGPUShaderStageEnum_Vertex].name;
 
     VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
     fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragShaderStageInfo.module = (VkShaderModule)shaderModule.stages[ShaderStage_Fragment].module;
-    fragShaderStageInfo.pName = shaderModule.reflectionInfo.ep[ShaderStage_Fragment].name;
+    fragShaderStageInfo.module = (VkShaderModule)shaderModule.stages[WGPUShaderStageEnum_Fragment].module;
+    fragShaderStageInfo.pName = shaderModule.reflectionInfo.ep[WGPUShaderStageEnum_Fragment].name;
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
@@ -562,14 +562,14 @@ extern "C" RenderPipelineQuartet GetPipelinesForLayoutSet(DescribedPipeline* ret
 //}
 
 extern "C" DescribedPipeline* LoadPipelineEx(const char* shaderSource, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings){
-    ShaderSources sources = dualStage(shaderSource, sourceTypeWGSL, ShaderStage_Vertex, ShaderStage_Fragment);
+    ShaderSources sources = dualStage(shaderSource, sourceTypeWGSL, WGPUShaderStageEnum_Vertex, WGPUShaderStageEnum_Fragment);
     
     DescribedShaderModule mod = LoadShaderModule(sources);
     //std::unordered_map<std::string, std::pair<VertexFormat, uint32_t>> attribs = getAttributes(shaderSource);
     return LoadPipelineMod(mod, attribs, attribCount, uniforms, uniformCount, settings);
 }
 extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
-    ShaderSources sources = dualStage(shaderSource, sourceTypeWGSL, ShaderStage_Vertex, ShaderStage_Fragment);
+    ShaderSources sources = dualStage(shaderSource, sourceTypeWGSL, WGPUShaderStageEnum_Vertex, WGPUShaderStageEnum_Fragment);
     auto [attribs, attachments] = getAttributesWGSL(sources);
     std::vector<AttributeAndResidence> allAttribsInOneBuffer;
     
@@ -578,7 +578,7 @@ extern "C" DescribedPipeline* LoadPipeline(const char* shaderSource){
     for(const auto& [name, attr] : attribs){
         const auto& [format, location] = attr;
         allAttribsInOneBuffer.push_back(AttributeAndResidence{
-            .attr = VertexAttribute{
+            .attr = WGPUVertexAttribute{
                 .nextInChain = nullptr,
                 .format = format,
                 .offset = offset,
@@ -814,7 +814,7 @@ void SetBindGroupSampler_Vk(DescribedBindGroup* bg, uint32_t binding, DescribedS
 
 extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount){
     DescribedComputePipeline* ret = callocnew(DescribedComputePipeline);
-    ShaderSources sources = singleStage(shaderCode, detectShaderLanguage(shaderCode, std::strlen(shaderCode)), ShaderStage_Compute);
+    ShaderSources sources = singleStage(shaderCode, detectShaderLanguage(shaderCode, std::strlen(shaderCode)), WGPUShaderStageEnum_Compute);
     DescribedShaderModule computeShaderModule = LoadShaderModule(sources);
     
     
@@ -827,11 +827,11 @@ extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCod
     VkResult pipelineCreationResult = vkCreatePipelineLayout(g_vulkanstate.device->device, &lci, nullptr, &layout);
     VkPipelineShaderStageCreateInfo computeStage zeroinit;
     computeStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    computeStage.module = (VkShaderModule)computeShaderModule.stages[ShaderStage_Compute].module;
+    computeStage.module = (VkShaderModule)computeShaderModule.stages[WGPUShaderStageEnum_Compute].module;
     
     
     computeStage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-    computeStage.pName = computeShaderModule.reflectionInfo.ep[ShaderStage_Compute].name;
+    computeStage.pName = computeShaderModule.reflectionInfo.ep[WGPUShaderStageEnum_Compute].name;
     
     VkComputePipelineCreateInfo cpci zeroinit;
     cpci.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
@@ -859,7 +859,7 @@ extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCod
 }
 
 extern "C" DescribedComputePipeline* LoadComputePipeline(const char* shaderCode){
-    ShaderSources source = singleStage(shaderCode, detectShaderLanguage(shaderCode, std::strlen(shaderCode)), ShaderStage_Compute);
+    ShaderSources source = singleStage(shaderCode, detectShaderLanguage(shaderCode, std::strlen(shaderCode)), WGPUShaderStageEnum_Compute);
     std::unordered_map<std::string, ResourceTypeDescriptor> bindings = getBindings(source);
     std::vector<ResourceTypeDescriptor> values;
     values.reserve(bindings.size());

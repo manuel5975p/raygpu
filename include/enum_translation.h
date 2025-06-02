@@ -159,7 +159,7 @@ using std::uint64_t;
  * @param usage The WGPUTextureUsage bitmask to translate.
  * @return VkImageUsageFlags The corresponding Vulkan image usage flags.
  */
-static inline VkImageUsageFlags toVulkanWGPUTextureUsage(WGPUTextureUsage usage, PixelFormat format) {
+static inline VkImageUsageFlags toVulkanWGPUTextureUsage(WGPUTextureUsage usage, WGPUTextureFormat format) {
     VkImageUsageFlags vkUsage = 0;
 
     if (usage & WGPUTextureUsage_CopySrc) {
@@ -175,7 +175,7 @@ static inline VkImageUsageFlags toVulkanWGPUTextureUsage(WGPUTextureUsage usage,
         vkUsage |= VK_IMAGE_USAGE_STORAGE_BIT;
     }
     if (usage & WGPUTextureUsage_RenderAttachment) {
-        if (format == Depth24 || format == Depth32) { // Assuming Depth24 and Depth32 are defined enum/macro values
+        if (format == WGPUTextureFormat_Depth24Plus || format == WGPUTextureFormat_Depth32Float) { // Assuming Depth24 and Depth32 are defined enum/macro values
             vkUsage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
         } else {
             vkUsage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -192,7 +192,7 @@ static inline VkImageUsageFlags toVulkanWGPUTextureUsage(WGPUTextureUsage usage,
     return vkUsage;
 }
 
-static inline VkImageAspectFlags toVulkanAspectMask(TextureAspect aspect){
+static inline VkImageAspectFlags toVulkanAspectMask(WGPUTextureAspect aspect){
     
     switch(aspect){
         case TextureAspect_All:
@@ -290,6 +290,8 @@ static inline VkPrimitiveTopology toVulkanPrimitive(PrimitiveType type){
             rg_unreachable();
     }
 }
+
+
 static inline VkBufferUsageFlags toVulkanBufferUsage(WGPUBufferUsage busg) {
     VkBufferUsageFlags usage = 0;
 
@@ -338,7 +340,7 @@ static inline VkBufferUsageFlags toVulkanBufferUsage(WGPUBufferUsage busg) {
 
     return usage;
 }
-static inline VkImageViewType toVulkanTextureViewDimension(TextureViewDimension dim){
+static inline VkImageViewType toVulkanTextureViewDimension(WGPUTextureViewDimension dim){
     VkImageViewCreateInfo info;
     switch(dim){
         default:
@@ -360,7 +362,7 @@ static inline VkImageViewType toVulkanTextureViewDimension(TextureViewDimension 
 
     }
 }
-static inline VkImageType toVulkanTextureDimension(TextureDimension dim){
+static inline VkImageType toVulkanTextureDimension(WGPUTextureDimension dim){
     VkImageViewCreateInfo info;
     switch(dim){
         default:
@@ -409,7 +411,7 @@ static inline PixelFormat fromVulkanPixelFormat(VkFormat format) {
         default: rg_unreachable();
     }
 }
-static inline VkPresentModeKHR toVulkanPresentMode(PresentMode mode){
+static inline VkPresentModeKHR toVulkanPresentMode(WGPUPresentMode mode){
     switch(mode){
         case PresentMode_Fifo:
             return VK_PRESENT_MODE_FIFO_KHR;
@@ -424,7 +426,7 @@ static inline VkPresentModeKHR toVulkanPresentMode(PresentMode mode){
     }
     return (VkPresentModeKHR)~0;
 }
-static inline PresentMode fromVulkanPresentMode(VkPresentModeKHR mode){
+static inline WGPUPresentMode fromVulkanPresentMode(VkPresentModeKHR mode){
     switch(mode){
         case VK_PRESENT_MODE_FIFO_KHR:
             return PresentMode_Fifo;
@@ -435,7 +437,7 @@ static inline PresentMode fromVulkanPresentMode(VkPresentModeKHR mode){
         case VK_PRESENT_MODE_MAILBOX_KHR:
             return PresentMode_Mailbox;
         default:
-            return (PresentMode)~0;
+            return (WGPUPresentMode)~0;
     }
 }
 static inline VkFormat toVulkanPixelFormat(PixelFormat format) {

@@ -80,7 +80,7 @@ typedef struct RenderPassCommandSetVertexBuffer {
 
 typedef struct RenderPassCommandSetIndexBuffer {
     WGPUBuffer buffer;
-    IndexFormat format;
+    WGPUIndexFormat format;
     uint64_t offset;
     uint64_t size;
 } RenderPassCommandSetIndexBuffer;
@@ -279,8 +279,8 @@ constexpr uint32_t max_color_attachments = MAX_COLOR_ATTACHMENTS;
 typedef struct AttachmentDescriptor{
     VkFormat format;
     uint32_t sampleCount;
-    LoadOp loadop;
-    StoreOp storeop;
+    WGPULoadOp loadop;
+    WGPUStoreOp storeop;
 #ifdef __cplusplus
     bool operator==(const AttachmentDescriptor& other)const noexcept{
         return format == other.format
@@ -702,7 +702,7 @@ typedef struct WGPUSurfaceImpl{
     uint32_t formatCount;
     PixelFormat* formatCache;
     uint32_t presentModeCount;
-    PresentMode* presentModeCache;
+    WGPUPresentMode* presentModeCache;
 }WGPUSurfaceImpl;
 
 typedef struct WGPUQueueImpl{
@@ -972,8 +972,8 @@ void PFN_Print_Indent(int indent_level, PrintfFunc_t PFN_printf);
 // --- Enum to String Helpers (Declarations) ---
 // (User should provide actual implementations if desired, otherwise stubs are used)
 const char* RCPassCommandType_ToString(RCPassCommandType type);
-const char* LoadOp_ToString(LoadOp op);   // Assuming LoadOp is an enum from raygpu.h
-const char* StoreOp_ToString(StoreOp op); // Assuming StoreOp is an enum from raygpu.h
+const char* LoadOp_ToString(WGPULoadOp op);   // Assuming LoadOp is an enum from raygpu.h
+const char* StoreOp_ToString(WGPUStoreOp op); // Assuming StoreOp is an enum from raygpu.h
 const char* IndexFormat_ToString(IndexFormat format); // Assuming IndexFormat is an enum
 const char* BufferUsage_ToString(WGPUBufferUsage usage); // Assuming BufferUsage is an enum
 
