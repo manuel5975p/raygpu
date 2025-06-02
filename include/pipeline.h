@@ -153,35 +153,5 @@ struct UniformAccessor{
 typedef struct VertexArray VertexArray;
 EXTERN_C_BEGIN
 
-    //inline void UsePipeline(WGPURenderPassEncoder rpEncoder, DescribedPipeline pl){
-    //    wgpuRenderPassEncoderSetPipeline(rpEncoder, (WGPURenderPipeline)pl.quartet.pipeline_TriangleList);
-    //}
-    
-
-    //DescribedBindGroupLayout LoadBindGroupLayout(const UniformDescriptor* uniforms, uint32_t uniformCount);
-    void UnloadBindGroupLayout(DescribedBindGroupLayout* bglayout);
-    
-
-    DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const WGPUBindGroupEntry* entries, size_t entryCount);
-    WGPUBindGroup UpdateAndGetNativeBindGroup(DescribedBindGroup* bg);
-    
-    void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, WGPUBindGroupEntry entry);
-    void UpdateBindGroup(DescribedBindGroup* bg);
-    void UnloadBindGroup(DescribedBindGroup* bg);
-    
-    DescribedPipeline* Relayout(DescribedPipeline* pl, VertexArray* vao);
-    RGAPI DescribedComputePipeline* LoadComputePipeline(const char* shaderCode);
-    RGAPI DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const WGPUBindGroupLayoutEntry* uniforms, uint32_t uniformCount);
-
-    DescribedRaytracingPipeline* LoadRaytracingPipeline(const DescribedShaderModule* shaderModule); 
-
-    /**
-     * @brief Loads a shader given vertex and fragment GLSL source.
-     * 
-     * @param vertexSource 
-     * @param fragmentSource 
-     * @return Shader 
-     */
-    //Shader LoadShaderFromMemory(const char* vertexSource, const char* fragmentSource);
 EXTERN_C_END
 #endif// PIPELINE_H

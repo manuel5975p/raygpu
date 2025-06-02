@@ -1174,6 +1174,20 @@ EXTERN_C_BEGIN
     RGAPI DescribedPipeline* LoadPipelineGLSL(const char* vs, const char* fs);
     RGAPI DescribedPipeline* LoadPipelinePro(cwoid);
     RGAPI DescribedPipeline* DefaultPipeline(cwoid);
+
+    RGAPI void UnloadBindGroupLayout(DescribedBindGroupLayout* bglayout);
+    RGAPI DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const WGPUBindGroupEntry* entries, size_t entryCount);
+    RGAPI WGPUBindGroup UpdateAndGetNativeBindGroup(DescribedBindGroup* bg);
+    RGAPI void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, WGPUBindGroupEntry entry);
+    RGAPI void UpdateBindGroup(DescribedBindGroup* bg);
+    RGAPI void UnloadBindGroup(DescribedBindGroup* bg);
+    RGAPI DescribedPipeline* Relayout(DescribedPipeline* pl, VertexArray* vao);
+    RGAPI DescribedComputePipeline* LoadComputePipeline(const char* shaderCode);
+    RGAPI DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const WGPUBindGroupLayoutEntry* uniforms, uint32_t uniformCount);
+    RGAPI DescribedRaytracingPipeline* LoadRaytracingPipeline(const DescribedShaderModule* shaderModule); 
+
+
+
     RGAPI Shader DefaultShader(cwoid);
     RGAPI RenderSettings GetDefaultSettings(cwoid);
     RGAPI Texture GetDefaultTexture(cwoid);

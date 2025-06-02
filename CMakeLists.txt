@@ -314,7 +314,7 @@ endif()
 if(SUPPORT_WGPU_BACKEND)
     list(APPEND RG_SOURCES
         "src/backend_wgpu.cpp"
-        "src/wgvk_to_wgpu.cpp"
+        #"src/wgvk_to_wgpu.cpp"
         "src/pipeline.cpp"
     )
 endif()

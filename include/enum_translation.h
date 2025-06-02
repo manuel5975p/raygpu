@@ -1064,40 +1064,6 @@ static inline WGPUTextureFormat toWGPUTextureFormat(PixelFormat format){
         default: return WGPUTextureFormat_Undefined;
     }
 }
-// Translation function for LoadOperation to WGPULoadOp
-static inline WGPULoadOp toWebGPULoadOperation(LoadOp lop) {
-    switch (lop) {
-    case LoadOp_Load:
-        return WGPULoadOp_Load;
-    case LoadOp_Clear:
-        return WGPULoadOp_Clear;
-    //case LoadOp_ExpandResolveTexture:
-    //    // WebGPU does not have a direct equivalent; choose appropriate op or handle separately
-    //    return WGPULoadOp_ExpandResolveTexture; // Example fallback
-    default:
-        return WGPULoadOp_Load; // Default fallback
-    }
-}
-
-// Translation function for VertexFormat to WGPUVertexFormat
-
-
-// Translation function for VertexStepMode to WGPUVertexStepMode
-static inline WGPUVertexStepMode toWebGPUVertexStepMode(VertexStepMode vsm) {
-    switch (vsm) {
-    case VertexStepMode_Vertex:
-        return WGPUVertexStepMode_Vertex;
-    case VertexStepMode_Instance:
-        return WGPUVertexStepMode_Instance;
-    case VertexStepMode_None:
-        // WebGPU does not have a direct equivalent for 'None'; defaulting to Vertex
-        return WGPUVertexStepMode_Vertex;
-    default:
-        return WGPUVertexStepMode_Vertex; // Default fallback
-    }
-}
-
-
 
 #endif // SUPPORT_WGPU_BACKEND
 
