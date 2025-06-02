@@ -185,54 +185,54 @@ typedef struct WGPURaytracingPassEncoderImpl* WGPURaytracingPassEncoder;
 
 typedef enum WGPUShaderStageEnum{
     WGPUShaderStageEnum_Vertex,
-    ShaderStage_TessControl,
-    ShaderStage_TessEvaluation,
-    ShaderStage_Geometry,
+    WGPUShaderStageEnum_TessControl,
+    WGPUShaderStageEnum_TessEvaluation,
+    WGPUShaderStageEnum_Geometry,
     WGPUShaderStageEnum_Fragment,
     WGPUShaderStageEnum_Compute,
-    ShaderStage_RayGen,
-    ShaderStage_RayGenNV = ShaderStage_RayGen,
-    ShaderStage_Intersect,
-    ShaderStage_IntersectNV = ShaderStage_Intersect,
-    ShaderStage_AnyHit,
-    ShaderStage_AnyHitNV = ShaderStage_AnyHit,
-    ShaderStage_ClosestHit,
-    ShaderStage_ClosestHitNV = ShaderStage_ClosestHit,
-    ShaderStage_Miss,
-    ShaderStage_MissNV = ShaderStage_Miss,
-    ShaderStage_Callable,
-    ShaderStage_CallableNV = ShaderStage_Callable,
-    ShaderStage_Task,
-    ShaderStage_TaskNV = ShaderStage_Task,
-    ShaderStage_Mesh,
-    ShaderStage_MeshNV = ShaderStage_Mesh,
+    WGPUShaderStageEnum_RayGen,
+    WGPUShaderStageEnum_RayGenNV = WGPUShaderStageEnum_RayGen,
+    WGPUShaderStageEnum_Intersect,
+    WGPUShaderStageEnum_IntersectNV = WGPUShaderStageEnum_Intersect,
+    WGPUShaderStageEnum_AnyHit,
+    WGPUShaderStageEnum_AnyHitNV = WGPUShaderStageEnum_AnyHit,
+    WGPUShaderStageEnum_ClosestHit,
+    WGPUShaderStageEnum_ClosestHitNV = WGPUShaderStageEnum_ClosestHit,
+    WGPUShaderStageEnum_Miss,
+    WGPUShaderStageEnum_MissNV = WGPUShaderStageEnum_Miss,
+    WGPUShaderStageEnum_Callable,
+    WGPUShaderStageEnum_CallableNV = WGPUShaderStageEnum_Callable,
+    WGPUShaderStageEnum_Task,
+    WGPUShaderStageEnum_TaskNV = WGPUShaderStageEnum_Task,
+    WGPUShaderStageEnum_Mesh,
+    WGPUShaderStageEnum_MeshNV = WGPUShaderStageEnum_Mesh,
     WGPUShaderStageEnum_EnumCount
 }WGPUShaderStageEnum;
 
 typedef WGPUFlags WGPUShaderStage;
-const static WGPUShaderStage ShaderStageMask_Vertex = (1u << WGPUShaderStageEnum_Vertex);
-const static WGPUShaderStage ShaderStageMask_TessControl = (1u << ShaderStage_TessControl);
-const static WGPUShaderStage ShaderStageMask_TessEvaluation = (1u << ShaderStage_TessEvaluation);
-const static WGPUShaderStage ShaderStageMask_Geometry = (1u << ShaderStage_Geometry);
-const static WGPUShaderStage ShaderStageMask_Fragment = (1u << WGPUShaderStageEnum_Fragment);
-const static WGPUShaderStage ShaderStageMask_Compute = (1u << WGPUShaderStageEnum_Compute);
-const static WGPUShaderStage ShaderStageMask_RayGen = (1u << ShaderStage_RayGen);
-const static WGPUShaderStage ShaderStageMask_RayGenNV = (1u << ShaderStage_RayGenNV);
-const static WGPUShaderStage ShaderStageMask_Intersect = (1u << ShaderStage_Intersect);
-const static WGPUShaderStage ShaderStageMask_IntersectNV = (1u << ShaderStage_IntersectNV);
-const static WGPUShaderStage ShaderStageMask_AnyHit = (1u << ShaderStage_AnyHit);
-const static WGPUShaderStage ShaderStageMask_AnyHitNV = (1u << ShaderStage_AnyHitNV);
-const static WGPUShaderStage ShaderStageMask_ClosestHit = (1u << ShaderStage_ClosestHit);
-const static WGPUShaderStage ShaderStageMask_ClosestHitNV = (1u << ShaderStage_ClosestHitNV);
-const static WGPUShaderStage ShaderStageMask_Miss = (1u << ShaderStage_Miss);
-const static WGPUShaderStage ShaderStageMask_MissNV = (1u << ShaderStage_MissNV);
-const static WGPUShaderStage ShaderStageMask_Callable = (1u << ShaderStage_Callable);
-const static WGPUShaderStage ShaderStageMask_CallableNV = (1u << ShaderStage_CallableNV);
-const static WGPUShaderStage ShaderStageMask_Task = (1u << ShaderStage_Task);
-const static WGPUShaderStage ShaderStageMask_TaskNV = (1u << ShaderStage_TaskNV);
-const static WGPUShaderStage ShaderStageMask_Mesh = (1u << ShaderStage_Mesh);
-const static WGPUShaderStage ShaderStageMask_MeshNV = (1u << ShaderStage_MeshNV);
-const static WGPUShaderStage ShaderStageMask_EnumCount = (1u << WGPUShaderStageEnum_EnumCount);
+const static WGPUShaderStage WGPUShaderStage_Vertex = (((WGPUFlags)1) << WGPUShaderStageEnum_Vertex);
+const static WGPUShaderStage WGPUShaderStage_TessControl = (((WGPUFlags)1) << WGPUShaderStageEnum_TessControl);
+const static WGPUShaderStage WGPUShaderStage_TessEvaluation = (((WGPUFlags)1) << WGPUShaderStageEnum_TessEvaluation);
+const static WGPUShaderStage WGPUShaderStage_Geometry = (((WGPUFlags)1) << WGPUShaderStageEnum_Geometry);
+const static WGPUShaderStage WGPUShaderStage_Fragment = (((WGPUFlags)1) << WGPUShaderStageEnum_Fragment);
+const static WGPUShaderStage WGPUShaderStage_Compute = (((WGPUFlags)1) << WGPUShaderStageEnum_Compute);
+const static WGPUShaderStage WGPUShaderStage_RayGen = (((WGPUFlags)1) << WGPUShaderStageEnum_RayGen);
+const static WGPUShaderStage WGPUShaderStage_RayGenNV = (((WGPUFlags)1) << WGPUShaderStageEnum_RayGenNV);
+const static WGPUShaderStage WGPUShaderStage_Intersect = (((WGPUFlags)1) << WGPUShaderStageEnum_Intersect);
+const static WGPUShaderStage WGPUShaderStage_IntersectNV = (((WGPUFlags)1) << WGPUShaderStageEnum_IntersectNV);
+const static WGPUShaderStage WGPUShaderStage_AnyHit = (((WGPUFlags)1) << WGPUShaderStageEnum_AnyHit);
+const static WGPUShaderStage WGPUShaderStage_AnyHitNV = (((WGPUFlags)1) << WGPUShaderStageEnum_AnyHitNV);
+const static WGPUShaderStage WGPUShaderStage_ClosestHit = (((WGPUFlags)1) << WGPUShaderStageEnum_ClosestHit);
+const static WGPUShaderStage WGPUShaderStage_ClosestHitNV = (((WGPUFlags)1) << WGPUShaderStageEnum_ClosestHitNV);
+const static WGPUShaderStage WGPUShaderStage_Miss = (((WGPUFlags)1) << WGPUShaderStageEnum_Miss);
+const static WGPUShaderStage WGPUShaderStage_MissNV = (((WGPUFlags)1) << WGPUShaderStageEnum_MissNV);
+const static WGPUShaderStage WGPUShaderStage_Callable = (((WGPUFlags)1) << WGPUShaderStageEnum_Callable);
+const static WGPUShaderStage WGPUShaderStage_CallableNV = (((WGPUFlags)1) << WGPUShaderStageEnum_CallableNV);
+const static WGPUShaderStage WGPUShaderStage_Task = (((WGPUFlags)1) << WGPUShaderStageEnum_Task);
+const static WGPUShaderStage WGPUShaderStage_TaskNV = (((WGPUFlags)1) << WGPUShaderStageEnum_TaskNV);
+const static WGPUShaderStage WGPUShaderStage_Mesh = (((WGPUFlags)1) << WGPUShaderStageEnum_Mesh);
+const static WGPUShaderStage WGPUShaderStage_MeshNV = (((WGPUFlags)1) << WGPUShaderStageEnum_MeshNV);
+const static WGPUShaderStage WGPUShaderStage_EnumCount = (((WGPUFlags)1) << WGPUShaderStageEnum_EnumCount);
 
 typedef WGPUFlags WGPUTextureUsage;
 static const WGPUTextureUsage WGPUTextureUsage_None = 0x0000000000000000;
@@ -398,17 +398,9 @@ typedef enum TextureDimension{
     //TextureViewDimension_Cube = 0x00000004,
     //TextureViewDimension_CubeArray = 0x00000005,
     TextureDimension_3D = 0x00000003
-}TextureDimension;
-typedef enum TextureViewDimension{
-    TextureViewDimension_Undefined = 0x00000000,
-    TextureViewDimension_1D = 0x00000001,
-    TextureViewDimension_2D = 0x00000002,
-    TextureViewDimension_2DArray = 0x00000003,
-    //TextureViewDimension_Cube = 0x00000004,
-    //TextureViewDimension_CubeArray = 0x00000005,
-    TextureViewDimension_3D = 0x00000006,
-    TextureViewDimension_Force32 = 0x7FFFFFFF
-}TextureViewDimension;
+}WGPUTextureDimension;
+
+
 
 typedef enum WGPUTextureViewDimension{
     WGPUTextureViewDimension_Undefined = 0x00000000,
@@ -1000,7 +992,7 @@ typedef struct WGPUTextureDescriptor{
     WGPUChainedStruct* nextInChain;
     WGPUStringView label;
     WGPUTextureUsage usage;
-    TextureDimension dimension;
+    WGPUTextureDimension dimension;
     Extent3D size;
     WGPUTextureFormat format;
     uint32_t mipLevelCount;
@@ -1012,7 +1004,7 @@ typedef struct WGPUTextureViewDescriptor{
     WGPUChainedStruct* nextInChain;
     WGPUStringView label;
     WGPUTextureFormat format;
-    TextureViewDimension dimension;
+    WGPUTextureViewDimension dimension;
     uint32_t baseMipLevel;
     uint32_t mipLevelCount;
     uint32_t baseArrayLayer;

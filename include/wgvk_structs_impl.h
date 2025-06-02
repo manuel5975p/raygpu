@@ -700,7 +700,7 @@ typedef struct WGPUSurfaceImpl{
     //VkFramebuffer* framebuffers;
 
     uint32_t formatCount;
-    PixelFormat* formatCache;
+    VkSurfaceFormatKHR* formatCache;
     uint32_t presentModeCount;
     WGPUPresentMode* presentModeCache;
 }WGPUSurfaceImpl;

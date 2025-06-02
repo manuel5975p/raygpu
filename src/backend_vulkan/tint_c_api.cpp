@@ -17,11 +17,11 @@
 static inline WGPUShaderStage toShaderStageMask(tint::ast::PipelineStage pstage) {
     switch (pstage) {
     case tint::ast::PipelineStage::kVertex:
-        return ShaderStageMask_Vertex;
+        return WGPUShaderStage_Vertex;
     case tint::ast::PipelineStage::kFragment:
-        return ShaderStageMask_Fragment;
+        return WGPUShaderStage_Fragment;
     case tint::ast::PipelineStage::kCompute:
-        return ShaderStageMask_Compute;
+        return WGPUShaderStage_Compute;
     case tint::ast::PipelineStage::kNone:
         return WGPUShaderStage(0);
     }

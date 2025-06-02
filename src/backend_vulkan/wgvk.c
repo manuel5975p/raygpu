@@ -219,22 +219,22 @@ static inline VkImageViewType toVulkanTextureViewDimension(WGPUTextureViewDimens
         case 0:{
             rg_unreachable();
         }
-        case TextureViewDimension_1D:{
+        case WGPUTextureViewDimension_1D:{
             return VK_IMAGE_VIEW_TYPE_1D;
         }
-        case TextureViewDimension_2D:{
+        case WGPUTextureViewDimension_2D:{
             return VK_IMAGE_VIEW_TYPE_2D;
         }
-        case TextureViewDimension_3D:{
+        case WGPUTextureViewDimension_3D:{
             return VK_IMAGE_VIEW_TYPE_3D;
         }
-        case TextureViewDimension_2DArray:{
+        case WGPUTextureViewDimension_2DArray:{
             return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
         }
 
     }
 }
-static inline VkImageType toVulkanTextureDimension(TextureDimension dim){
+static inline VkImageType toVulkanTextureDimension(WGPUTextureDimension dim){
     VkImageViewCreateInfo info;
     switch(dim){
         default:
@@ -358,6 +358,109 @@ VkFormat toVulkanPixelFormat(WGPUTextureFormat format) {
 }
 
 
+static inline WGPUTextureFormat fromVulkanPixelFormat(VkFormat format) {
+    switch (format) {
+        case VK_FORMAT_UNDEFINED: return WGPUTextureFormat_Undefined;
+        case VK_FORMAT_R8_UNORM: return WGPUTextureFormat_R8Unorm;
+        case VK_FORMAT_R8_SNORM: return WGPUTextureFormat_R8Snorm;
+        case VK_FORMAT_R8_UINT: return WGPUTextureFormat_R8Uint;
+        case VK_FORMAT_R8_SINT: return WGPUTextureFormat_R8Sint;
+        case VK_FORMAT_R16_UINT: return WGPUTextureFormat_R16Uint;
+        case VK_FORMAT_R16_SINT: return WGPUTextureFormat_R16Sint;
+        case VK_FORMAT_R16_SFLOAT: return WGPUTextureFormat_R16Float;
+        case VK_FORMAT_R8G8_UNORM: return WGPUTextureFormat_RG8Unorm;
+        case VK_FORMAT_R8G8_SNORM: return WGPUTextureFormat_RG8Snorm;
+        case VK_FORMAT_R8G8_UINT: return WGPUTextureFormat_RG8Uint;
+        case VK_FORMAT_R8G8_SINT: return WGPUTextureFormat_RG8Sint;
+        case VK_FORMAT_R32_SFLOAT: return WGPUTextureFormat_R32Float;
+        case VK_FORMAT_R32_UINT: return WGPUTextureFormat_R32Uint;
+        case VK_FORMAT_R32_SINT: return WGPUTextureFormat_R32Sint;
+        case VK_FORMAT_R16G16_UINT: return WGPUTextureFormat_RG16Uint;
+        case VK_FORMAT_R16G16_SINT: return WGPUTextureFormat_RG16Sint;
+        case VK_FORMAT_R16G16_SFLOAT: return WGPUTextureFormat_RG16Float;
+        case VK_FORMAT_R8G8B8A8_UNORM: return WGPUTextureFormat_RGBA8Unorm;
+        case VK_FORMAT_R8G8B8A8_SRGB: return WGPUTextureFormat_RGBA8UnormSrgb;
+        case VK_FORMAT_R8G8B8A8_SNORM: return WGPUTextureFormat_RGBA8Snorm;
+        case VK_FORMAT_R8G8B8A8_UINT: return WGPUTextureFormat_RGBA8Uint;
+        case VK_FORMAT_R8G8B8A8_SINT: return WGPUTextureFormat_RGBA8Sint;
+        case VK_FORMAT_B8G8R8A8_UNORM: return WGPUTextureFormat_BGRA8Unorm;
+        case VK_FORMAT_B8G8R8A8_SRGB: return WGPUTextureFormat_BGRA8UnormSrgb;
+        case VK_FORMAT_A2R10G10B10_UINT_PACK32: return WGPUTextureFormat_RGB10A2Uint;
+        case VK_FORMAT_A2R10G10B10_UNORM_PACK32: return WGPUTextureFormat_RGB10A2Unorm;
+        case VK_FORMAT_B10G11R11_UFLOAT_PACK32: return WGPUTextureFormat_RG11B10Ufloat;
+        case VK_FORMAT_E5B9G9R9_UFLOAT_PACK32: return WGPUTextureFormat_RGB9E5Ufloat;
+        case VK_FORMAT_R32G32_SFLOAT: return WGPUTextureFormat_RG32Float;
+        case VK_FORMAT_R32G32_UINT: return WGPUTextureFormat_RG32Uint;
+        case VK_FORMAT_R32G32_SINT: return WGPUTextureFormat_RG32Sint;
+        case VK_FORMAT_R16G16B16A16_UINT: return WGPUTextureFormat_RGBA16Uint;
+        case VK_FORMAT_R16G16B16A16_SINT: return WGPUTextureFormat_RGBA16Sint;
+        case VK_FORMAT_R16G16B16A16_SFLOAT: return WGPUTextureFormat_RGBA16Float;
+        case VK_FORMAT_R32G32B32A32_SFLOAT: return WGPUTextureFormat_RGBA32Float;
+        case VK_FORMAT_R32G32B32A32_UINT: return WGPUTextureFormat_RGBA32Uint;
+        case VK_FORMAT_R32G32B32A32_SINT: return WGPUTextureFormat_RGBA32Sint;
+        case VK_FORMAT_S8_UINT: return WGPUTextureFormat_Stencil8;
+        case VK_FORMAT_D16_UNORM: return WGPUTextureFormat_Depth16Unorm;
+        case VK_FORMAT_X8_D24_UNORM_PACK32: return WGPUTextureFormat_Depth24Plus;
+        case VK_FORMAT_D24_UNORM_S8_UINT: return WGPUTextureFormat_Depth24PlusStencil8;
+        case VK_FORMAT_D32_SFLOAT: return WGPUTextureFormat_Depth32Float;
+        case VK_FORMAT_D32_SFLOAT_S8_UINT: return WGPUTextureFormat_Depth32FloatStencil8;
+        case VK_FORMAT_BC1_RGBA_UNORM_BLOCK: return WGPUTextureFormat_BC1RGBAUnorm;
+        case VK_FORMAT_BC1_RGBA_SRGB_BLOCK: return WGPUTextureFormat_BC1RGBAUnormSrgb;
+        case VK_FORMAT_BC2_UNORM_BLOCK: return WGPUTextureFormat_BC2RGBAUnorm;
+        case VK_FORMAT_BC2_SRGB_BLOCK: return WGPUTextureFormat_BC2RGBAUnormSrgb;
+        case VK_FORMAT_BC3_UNORM_BLOCK: return WGPUTextureFormat_BC3RGBAUnorm;
+        case VK_FORMAT_BC3_SRGB_BLOCK: return WGPUTextureFormat_BC3RGBAUnormSrgb;
+        case VK_FORMAT_BC4_UNORM_BLOCK: return WGPUTextureFormat_BC4RUnorm;
+        case VK_FORMAT_BC4_SNORM_BLOCK: return WGPUTextureFormat_BC4RSnorm;
+        case VK_FORMAT_BC5_UNORM_BLOCK: return WGPUTextureFormat_BC5RGUnorm;
+        case VK_FORMAT_BC5_SNORM_BLOCK: return WGPUTextureFormat_BC5RGSnorm;
+        case VK_FORMAT_BC6H_UFLOAT_BLOCK: return WGPUTextureFormat_BC6HRGBUfloat;
+        case VK_FORMAT_BC6H_SFLOAT_BLOCK: return WGPUTextureFormat_BC6HRGBFloat;
+        case VK_FORMAT_BC7_UNORM_BLOCK: return WGPUTextureFormat_BC7RGBAUnorm;
+        case VK_FORMAT_BC7_SRGB_BLOCK: return WGPUTextureFormat_BC7RGBAUnormSrgb;
+        case VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK: return WGPUTextureFormat_ETC2RGB8Unorm;
+        case VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK: return WGPUTextureFormat_ETC2RGB8UnormSrgb;
+        case VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK: return WGPUTextureFormat_ETC2RGB8A1Unorm;
+        case VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK: return WGPUTextureFormat_ETC2RGB8A1UnormSrgb;
+        case VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK: return WGPUTextureFormat_ETC2RGBA8Unorm;
+        case VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK: return WGPUTextureFormat_ETC2RGBA8UnormSrgb;
+        case VK_FORMAT_EAC_R11_UNORM_BLOCK: return WGPUTextureFormat_EACR11Unorm;
+        case VK_FORMAT_EAC_R11_SNORM_BLOCK: return WGPUTextureFormat_EACR11Snorm;
+        case VK_FORMAT_EAC_R11G11_UNORM_BLOCK: return WGPUTextureFormat_EACRG11Unorm;
+        case VK_FORMAT_EAC_R11G11_SNORM_BLOCK: return WGPUTextureFormat_EACRG11Snorm;
+        case VK_FORMAT_ASTC_4x4_UNORM_BLOCK: return WGPUTextureFormat_ASTC4x4Unorm;
+        case VK_FORMAT_ASTC_4x4_SRGB_BLOCK: return WGPUTextureFormat_ASTC4x4UnormSrgb;
+        case VK_FORMAT_ASTC_5x4_UNORM_BLOCK: return WGPUTextureFormat_ASTC5x4Unorm;
+        case VK_FORMAT_ASTC_5x4_SRGB_BLOCK: return WGPUTextureFormat_ASTC5x4UnormSrgb;
+        case VK_FORMAT_ASTC_5x5_UNORM_BLOCK: return WGPUTextureFormat_ASTC5x5Unorm;
+        case VK_FORMAT_ASTC_5x5_SRGB_BLOCK: return WGPUTextureFormat_ASTC5x5UnormSrgb;
+        case VK_FORMAT_ASTC_6x5_UNORM_BLOCK: return WGPUTextureFormat_ASTC6x5Unorm;
+        case VK_FORMAT_ASTC_6x5_SRGB_BLOCK: return WGPUTextureFormat_ASTC6x5UnormSrgb;
+        case VK_FORMAT_ASTC_6x6_UNORM_BLOCK: return WGPUTextureFormat_ASTC6x6Unorm;
+        case VK_FORMAT_ASTC_6x6_SRGB_BLOCK: return WGPUTextureFormat_ASTC6x6UnormSrgb;
+        case VK_FORMAT_ASTC_8x5_UNORM_BLOCK: return WGPUTextureFormat_ASTC8x5Unorm;
+        case VK_FORMAT_ASTC_8x5_SRGB_BLOCK: return WGPUTextureFormat_ASTC8x5UnormSrgb;
+        case VK_FORMAT_ASTC_8x6_UNORM_BLOCK: return WGPUTextureFormat_ASTC8x6Unorm;
+        case VK_FORMAT_ASTC_8x6_SRGB_BLOCK: return WGPUTextureFormat_ASTC8x6UnormSrgb;
+        case VK_FORMAT_ASTC_8x8_UNORM_BLOCK: return WGPUTextureFormat_ASTC8x8Unorm;
+        case VK_FORMAT_ASTC_8x8_SRGB_BLOCK: return WGPUTextureFormat_ASTC8x8UnormSrgb;
+        case VK_FORMAT_ASTC_10x5_UNORM_BLOCK: return WGPUTextureFormat_ASTC10x5Unorm;
+        case VK_FORMAT_ASTC_10x5_SRGB_BLOCK: return WGPUTextureFormat_ASTC10x5UnormSrgb;
+        case VK_FORMAT_ASTC_10x6_UNORM_BLOCK: return WGPUTextureFormat_ASTC10x6Unorm;
+        case VK_FORMAT_ASTC_10x6_SRGB_BLOCK: return WGPUTextureFormat_ASTC10x6UnormSrgb;
+        case VK_FORMAT_ASTC_10x8_UNORM_BLOCK: return WGPUTextureFormat_ASTC10x8Unorm;
+        case VK_FORMAT_ASTC_10x8_SRGB_BLOCK: return WGPUTextureFormat_ASTC10x8UnormSrgb;
+        case VK_FORMAT_ASTC_10x10_UNORM_BLOCK: return WGPUTextureFormat_ASTC10x10Unorm;
+        case VK_FORMAT_ASTC_10x10_SRGB_BLOCK: return WGPUTextureFormat_ASTC10x10UnormSrgb;
+        case VK_FORMAT_ASTC_12x10_UNORM_BLOCK: return WGPUTextureFormat_ASTC12x10Unorm;
+        case VK_FORMAT_ASTC_12x10_SRGB_BLOCK: return WGPUTextureFormat_ASTC12x10UnormSrgb;
+        case VK_FORMAT_ASTC_12x12_UNORM_BLOCK: return WGPUTextureFormat_ASTC12x12Unorm;
+        case VK_FORMAT_ASTC_12x12_SRGB_BLOCK: return WGPUTextureFormat_ASTC12x12UnormSrgb;
+        default:                                     return WGPUTextureFormat_Undefined;
+    }
+}
+
+
 static inline VkAttachmentStoreOp toVulkanStoreOperation(WGPUStoreOp lop) {
     switch (lop) {
     case StoreOp_Store:
@@ -384,6 +487,61 @@ static inline VkAttachmentLoadOp toVulkanLoadOperation(WGPULoadOp lop) {
         return VK_ATTACHMENT_LOAD_OP_LOAD; // Default fallback
     }
 }
+static inline WGPUPresentMode fromVulkanPresentMode(VkPresentModeKHR mode){
+    switch(mode){
+        case VK_PRESENT_MODE_FIFO_KHR:
+            return PresentMode_Fifo;
+        case VK_PRESENT_MODE_FIFO_RELAXED_KHR:
+            return PresentMode_FifoRelaxed;
+        case VK_PRESENT_MODE_IMMEDIATE_KHR:
+            return PresentMode_Immediate;
+        case VK_PRESENT_MODE_MAILBOX_KHR:
+            return PresentMode_Mailbox;
+        default:
+            return (WGPUPresentMode)~0;
+    }
+}
+
+static inline VkPresentModeKHR toVulkanPresentMode(WGPUPresentMode mode){
+    switch(mode){
+        case PresentMode_Fifo:
+            return VK_PRESENT_MODE_FIFO_KHR;
+        case PresentMode_FifoRelaxed:
+            return VK_PRESENT_MODE_FIFO_RELAXED_KHR;
+        case PresentMode_Immediate:
+            return VK_PRESENT_MODE_IMMEDIATE_KHR;
+        case PresentMode_Mailbox:
+            return VK_PRESENT_MODE_MAILBOX_KHR;
+        default:
+            rg_trap();
+    }
+    return (VkPresentModeKHR)~0;
+}
+
+static inline VkCompareOp toVulkanCompareFunction(WGPUCompareFunction cf) {
+    switch (cf) {
+    case WGPUCompareFunction_Never:
+        return VK_COMPARE_OP_NEVER;
+    case WGPUCompareFunction_Less:
+        return VK_COMPARE_OP_LESS;
+    case WGPUCompareFunction_Equal:
+        return VK_COMPARE_OP_EQUAL;
+    case WGPUCompareFunction_LessEqual:
+        return VK_COMPARE_OP_LESS_OR_EQUAL;
+    case WGPUCompareFunction_Greater:
+        return VK_COMPARE_OP_GREATER;
+    case WGPUCompareFunction_NotEqual:
+        return VK_COMPARE_OP_NOT_EQUAL;
+    case WGPUCompareFunction_GreaterEqual:
+        return VK_COMPARE_OP_GREATER_OR_EQUAL;
+    case WGPUCompareFunction_Always:
+        return VK_COMPARE_OP_ALWAYS;
+    default:
+        rg_unreachable();
+        return VK_COMPARE_OP_ALWAYS; // Default fallback
+    }
+}
+
 static inline VkStencilOp toVulkanStencilOperation(WGPUStencilOperation op){
     switch(op){
         case WGPUStencilOperation_Keep: return VK_STENCIL_OP_KEEP;
@@ -403,6 +561,30 @@ static inline VkCullModeFlags toVulkanCullMode(WGPUCullMode cm){
         case WGPUCullMode_Front: return VK_CULL_MODE_FRONT_BIT;
         case WGPUCullMode_None: return 0;
         default: rg_unreachable();
+    }
+}
+
+static inline VkPrimitiveTopology toVulkanPrimitive(PrimitiveType type){
+    switch(type){
+        case RL_TRIANGLE_STRIP: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+        case RL_TRIANGLES: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        case RL_LINES: return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+        case RL_POINTS: return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+        case RL_QUADS:
+            //rassert(false, "Quads are not a primitive type");
+        default:
+            rg_unreachable();
+    }
+}
+
+static inline VkFrontFace toVulkanFrontFace(FrontFace ff) {
+    switch (ff) {
+    case FrontFace_CCW:
+        return VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    case FrontFace_CW:
+        return VK_FRONT_FACE_CLOCKWISE;
+    default:
+        return VK_FRONT_FACE_COUNTER_CLOCKWISE; // Default fallback
     }
 }
 
@@ -494,6 +676,39 @@ static inline VkFormat toVulkanVertexFormat(WGPUVertexFormat vf) {
         return VK_FORMAT_UNDEFINED; // Default fallback
     }
 }
+static inline VkDescriptorType toVulkanResourceType(uniform_type type) {
+    switch (type) {
+        case storage_texture2d:       [[fallthrough]];
+        case storage_texture2d_array: [[fallthrough]];
+        case storage_texture3d: 
+            return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        
+        case storage_buffer:
+            return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        case uniform_buffer:
+            return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+
+        
+        case texture2d:       [[fallthrough]];
+        case texture2d_array: [[fallthrough]];
+        case texture3d:
+            return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+
+
+        case texture_sampler:
+            return VK_DESCRIPTOR_TYPE_SAMPLER;
+        case acceleration_structure:
+            return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+        case combined_image_sampler:
+            return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        case uniform_type_undefined: [[fallthrough]];
+        case uniform_type_force32:   [[fallthrough]];
+        case uniform_type_enumcount: [[fallthrough]];
+        default:
+            rg_unreachable();
+    }
+    rg_unreachable();
+}
 
 static inline VkVertexInputRate toVulkanVertexStepMode(WGPUVertexStepMode vsm) {
     switch (vsm) {
@@ -506,6 +721,160 @@ static inline VkVertexInputRate toVulkanVertexStepMode(WGPUVertexStepMode vsm) {
         return VK_VERTEX_INPUT_RATE_VERTEX;
     default:
         return VK_VERTEX_INPUT_RATE_VERTEX; // Default fallback
+    }
+}
+static inline VkIndexType toVulkanIndexFormat(WGPUIndexFormat ifmt) {
+    switch (ifmt) {
+    case IndexFormat_Uint16:
+        return VK_INDEX_TYPE_UINT16;
+    case IndexFormat_Uint32:
+        return VK_INDEX_TYPE_UINT32;
+    default:
+        return VK_INDEX_TYPE_UINT16; // Default fallback
+    }
+}
+
+static inline VkShaderStageFlags toVulkanShaderStage(WGPUShaderStageEnum stage) {
+    switch (stage){
+        case WGPUShaderStageEnum_Vertex:         return VK_SHADER_STAGE_VERTEX_BIT;
+        case WGPUShaderStageEnum_TessControl:    return VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+        case WGPUShaderStageEnum_TessEvaluation: return VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+        case WGPUShaderStageEnum_Geometry:       return VK_SHADER_STAGE_GEOMETRY_BIT;
+        case WGPUShaderStageEnum_Fragment:       return VK_SHADER_STAGE_FRAGMENT_BIT;
+        case WGPUShaderStageEnum_Compute:        return VK_SHADER_STAGE_COMPUTE_BIT;
+        case WGPUShaderStageEnum_RayGen:         return VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+        case WGPUShaderStageEnum_Miss:           return VK_SHADER_STAGE_MISS_BIT_KHR;
+        case WGPUShaderStageEnum_ClosestHit:     return VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+        case WGPUShaderStageEnum_AnyHit:         return VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
+        case WGPUShaderStageEnum_Intersect:      return VK_SHADER_STAGE_INTERSECTION_BIT_KHR;
+        case WGPUShaderStageEnum_Callable:       return VK_SHADER_STAGE_CALLABLE_BIT_KHR;
+        case WGPUShaderStageEnum_Task:           return VK_SHADER_STAGE_TASK_BIT_EXT;
+        case WGPUShaderStageEnum_Mesh:           return VK_SHADER_STAGE_MESH_BIT_EXT;
+        default: rg_unreachable();
+    }
+}
+
+static inline VkShaderStageFlags toVulkanShaderStageBits(WGPUShaderStage stage) {
+    VkShaderStageFlags ret = 0;
+    if(stage & WGPUShaderStageEnum_Vertex){ret |= VK_SHADER_STAGE_VERTEX_BIT;}
+    if(stage & WGPUShaderStageEnum_TessControl){ret |= VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;}
+    if(stage & WGPUShaderStageEnum_TessEvaluation){ret |= VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;}
+    if(stage & WGPUShaderStageEnum_Geometry){ret |= VK_SHADER_STAGE_GEOMETRY_BIT;}
+    if(stage & WGPUShaderStageEnum_Fragment){ret |= VK_SHADER_STAGE_FRAGMENT_BIT;}
+    if(stage & WGPUShaderStageEnum_Compute){ret |= VK_SHADER_STAGE_COMPUTE_BIT;}
+    if(stage & WGPUShaderStageEnum_RayGen){ret |= VK_SHADER_STAGE_RAYGEN_BIT_KHR;}
+    if(stage & WGPUShaderStageEnum_Miss){ret |= VK_SHADER_STAGE_MISS_BIT_KHR;}
+    if(stage & WGPUShaderStageEnum_ClosestHit){ret |= VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;}
+    if(stage & WGPUShaderStageEnum_AnyHit){ret |= VK_SHADER_STAGE_ANY_HIT_BIT_KHR;}
+    if(stage & WGPUShaderStageEnum_Intersect){ret |= VK_SHADER_STAGE_INTERSECTION_BIT_KHR;}
+    if(stage & WGPUShaderStageEnum_Callable){ret |= VK_SHADER_STAGE_CALLABLE_BIT_KHR;}
+    if(stage & WGPUShaderStageEnum_Task){ret |= VK_SHADER_STAGE_TASK_BIT_EXT;}
+    if(stage & WGPUShaderStageEnum_Mesh){ret |= VK_SHADER_STAGE_MESH_BIT_EXT;}
+    return ret;
+}
+
+static inline VkPipelineStageFlags toVulkanPipelineStageBits(WGPUShaderStage stage) {
+    VkPipelineStageFlags ret = 0;
+    if(stage & WGPUShaderStage_Vertex){
+        ret |= VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+    }
+    if(stage & WGPUShaderStage_TessControl){
+        ret |= VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT;
+    }
+    if(stage & WGPUShaderStage_TessEvaluation){
+        ret |= VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
+    }
+    if(stage & WGPUShaderStage_Geometry){
+        ret |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
+    }
+    if(stage & WGPUShaderStage_Fragment){
+        ret |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    if(stage & WGPUShaderStage_Compute){
+        ret |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    }
+    if(stage & WGPUShaderStage_RayGen){
+        ret |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+    }
+    if(stage & WGPUShaderStage_Miss){
+        ret |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+    }
+    if(stage & WGPUShaderStage_ClosestHit){
+        ret |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+    }
+    if(stage & WGPUShaderStage_AnyHit){
+        ret |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+    }
+    if(stage & WGPUShaderStage_Intersect){
+        ret |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+    }
+    if(stage & WGPUShaderStage_Callable){
+        ret |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+    }
+    if(stage & WGPUShaderStage_Task){
+        ret |= VK_PIPELINE_STAGE_TASK_SHADER_BIT_EXT;
+    }
+    if(stage & WGPUShaderStage_Mesh){
+        ret |= VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT;
+    }
+    return ret;
+}
+
+static inline VkBlendFactor toVulkanBlendFactor(WGPUBlendFactor bf) {
+    switch (bf) {
+    case WGPUBlendFactor_Zero:
+        return VK_BLEND_FACTOR_ZERO;
+    case WGPUBlendFactor_One:
+        return VK_BLEND_FACTOR_ONE;
+    case WGPUBlendFactor_Src:
+        return VK_BLEND_FACTOR_SRC_COLOR;
+    case WGPUBlendFactor_OneMinusSrc:
+        return VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+    case WGPUBlendFactor_SrcAlpha:
+        return VK_BLEND_FACTOR_SRC_ALPHA;
+    case WGPUBlendFactor_OneMinusSrcAlpha:
+        return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    case WGPUBlendFactor_Dst:
+        return VK_BLEND_FACTOR_DST_COLOR;
+    case WGPUBlendFactor_OneMinusDst:
+        return VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+    case WGPUBlendFactor_DstAlpha:
+        return VK_BLEND_FACTOR_DST_ALPHA;
+    case WGPUBlendFactor_OneMinusDstAlpha:
+        return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+    case WGPUBlendFactor_SrcAlphaSaturated:
+        return VK_BLEND_FACTOR_SRC_ALPHA_SATURATE;
+    case WGPUBlendFactor_Constant:
+        return VK_BLEND_FACTOR_CONSTANT_COLOR;
+    case WGPUBlendFactor_OneMinusConstant:
+        return VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR;
+    case WGPUBlendFactor_Src1:
+        return VK_BLEND_FACTOR_SRC1_COLOR;
+    case WGPUBlendFactor_OneMinusSrc1:
+        return VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR;
+    case WGPUBlendFactor_Src1Alpha:
+        return VK_BLEND_FACTOR_SRC1_ALPHA;
+    case WGPUBlendFactor_OneMinusSrc1Alpha:
+        return VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA;
+    default:
+        return VK_BLEND_FACTOR_ONE; // Default fallback
+    }
+}
+
+static inline VkBlendOp toVulkanBlendOperation(WGPUBlendOperation bo) {
+    switch (bo) {
+    case WGPUBlendOperation_Add:
+        return VK_BLEND_OP_ADD;
+    case WGPUBlendOperation_Subtract:
+        return VK_BLEND_OP_SUBTRACT;
+    case WGPUBlendOperation_ReverseSubtract:
+        return VK_BLEND_OP_REVERSE_SUBTRACT;
+    case WGPUBlendOperation_Min:
+        return VK_BLEND_OP_MIN;
+    case WGPUBlendOperation_Max:
+        return VK_BLEND_OP_MAX;
+    default:
+        return VK_BLEND_OP_ADD; // Default fallback
     }
 }
 
@@ -2020,7 +2389,7 @@ WGPUBindGroupLayout wgpuDeviceCreateBindGroupLayout(WGPUDevice device, const WGP
         }
 
         else{
-            bindings.data[i].stageFlags = toVulkanShaderStageBits(entries[i].visibility);
+            bindings.data[i].stageFlags = toVulkanShaderStage(entries[i].visibility);
         }
     }
 
@@ -2549,7 +2918,7 @@ void wgpuRenderPassEncoderEnd(WGPURenderPassEncoder renderPassEncoder){
                         group->entries[bindingIndex].buffer,
                         (BufferUsageSnap){
                             .access = access_to_vk[layout->entries[bindingIndex].access],
-                            .stage = toVulkanPipelineStage(visibility)
+                            .stage = toVulkanPipelineStageBits(visibility)
                         }
                     );
                 }
@@ -2557,7 +2926,7 @@ void wgpuRenderPassEncoderEnd(WGPURenderPassEncoder renderPassEncoder){
                     WGPUShaderStage visibility = layout->entries[bindingIndex].visibility;
                     rassert(visibility, "Empty visibility goddamnit");
                     if(visibility == 0){ //TODO: Get rid of this hack
-                        visibility = (ShaderStageMask_Vertex | ShaderStageMask_Fragment | ShaderStageMask_Compute);
+                        visibility = (WGPUShaderStage_Vertex | WGPUShaderStage_Fragment | WGPUShaderStage_Compute);
                     }
                     ce_trackTextureView(
                         renderPassEncoder->cmdEncoder,
@@ -2565,7 +2934,7 @@ void wgpuRenderPassEncoderEnd(WGPURenderPassEncoder renderPassEncoder){
                         (ImageUsageSnap){
                             .layout = snaps[eType].layout,
                             .access = snaps[eType].access,
-                            .stage = toVulkanPipelineStage(visibility)
+                            .stage = toVulkanPipelineStageBits(visibility)
                         }
                     );
                 }
@@ -3033,14 +3402,14 @@ void wgpuSurfaceGetCapabilities(WGPUSurface wgpuSurface, WGPUAdapter adapter, WG
     vkGetPhysicalDeviceSurfaceFormatsKHR(vk_physicalDevice, surface, &formatCount, NULL);
     if (formatCount != 0) {
 
-        wgpuSurface->formatCache = (PixelFormat*)calloc(formatCount, sizeof(PixelFormat));
-        VkSurfaceFormatKHR* surfaceFormats = (VkSurfaceFormatKHR*)calloc(formatCount, sizeof(VkSurfaceFormatKHR));
+        wgpuSurface->formatCache = (VkSurfaceFormatKHR*)RL_CALLOC(formatCount, sizeof(VkSurfaceFormatKHR));
+        VkSurfaceFormatKHR* surfaceFormats = (VkSurfaceFormatKHR*)RL_CALLOC(formatCount, sizeof(VkSurfaceFormatKHR));
         vkGetPhysicalDeviceSurfaceFormatsKHR(vk_physicalDevice, surface, &formatCount, surfaceFormats);
         for(size_t i = 0;i < formatCount;i++){
-            wgpuSurface->formatCache[i] = fromVulkanPixelFormat(surfaceFormats[i].format);
+            wgpuSurface->formatCache[i] = surfaceFormats[i];
         }
         wgpuSurface->formatCount = formatCount;
-        free(surfaceFormats);
+        RL_FREE(surfaceFormats);
     }
 
     // Present Modes
@@ -3048,7 +3417,7 @@ void wgpuSurfaceGetCapabilities(WGPUSurface wgpuSurface, WGPUAdapter adapter, WG
     vkGetPhysicalDeviceSurfacePresentModesKHR(vk_physicalDevice, surface, &presentModeCount, NULL);
     if (presentModeCount != 0) {
         wgpuSurface->presentModeCache = (WGPUPresentMode*)RL_CALLOC(presentModeCount, sizeof(WGPUPresentMode));
-        VkPresentModeKHR presentModes[16] = {0};//(presentModeCount);
+        VkPresentModeKHR presentModes[32] = {0};//(presentModeCount);
         vkGetPhysicalDeviceSurfacePresentModesKHR(vk_physicalDevice, surface, &presentModeCount, presentModes);
         for(size_t i = 0;i < presentModeCount;i++){
             wgpuSurface->presentModeCache[i] = fromVulkanPresentMode(presentModes[i]);
@@ -3057,8 +3426,16 @@ void wgpuSurfaceGetCapabilities(WGPUSurface wgpuSurface, WGPUAdapter adapter, WG
     }
     capabilities->presentModeCount = wgpuSurface->presentModeCount;
     capabilities->formatCount = wgpuSurface->formatCount;
-    capabilities->presentModes = wgpuSurface->presentModeCache;
-    capabilities->formats = wgpuSurface->formatCache;
+
+    WGPUPresentMode* retpm   = RL_CALLOC(presentModeCount, sizeof(WGPUPresentMode));
+    WGPUTextureFormat* retfm = RL_CALLOC(formatCount,      sizeof(WGPUTextureFormat));
+
+    for(uint32_t i = 0;i < wgpuSurface->presentModeCount;i++){
+        retpm[i] = wgpuSurface->presentModeCache[i];
+    }
+    for(uint32_t i = 0;i < wgpuSurface->formatCount;i++){
+        retfm[i] = fromVulkanPixelFormat(wgpuSurface->formatCache[i].format);
+    }
     capabilities->usages = fromVulkanWGPUTextureUsage(scap.supportedUsageFlags);
 }
 
@@ -3170,7 +3547,7 @@ void wgpuSurfaceConfigure(WGPUSurface surface, const WGPUSurfaceConfiguration* c
         viewDesc.baseMipLevel = 0;
         viewDesc.mipLevelCount = 1;
         viewDesc.aspect = TextureAspect_All;
-        viewDesc.dimension = TextureViewDimension_2D;
+        viewDesc.dimension = WGPUTextureViewDimension_2D;
         viewDesc.format = config->format;
         viewDesc.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
         surface->imageViews[i] = wgpuTextureCreateView(surface->images[i], &viewDesc);
@@ -3999,7 +4376,7 @@ void wgpuRenderPassEncoderSetBindGroup(WGPURenderPassEncoder rpe, uint32_t group
     for(uint32_t i = 0;i < group->entryCount;i++){
         if(group->entries[i].buffer){
             const VkAccessFlags accessFlags = access_to_vk[group->layout->entries[i].access];
-            const VkPipelineStageFlags stage = toVulkanPipelineStage(group->layout->entries[i].visibility);
+            const VkPipelineStageFlags stage = toVulkanPipelineStageBits(group->layout->entries[i].visibility);
             ce_trackBuffer(rpe->cmdEncoder, group->entries[i].buffer, (BufferUsageSnap){
                 .stage = stage,
                 .access = accessFlags
@@ -4007,7 +4384,7 @@ void wgpuRenderPassEncoderSetBindGroup(WGPURenderPassEncoder rpe, uint32_t group
         }
         if(group->entries[i].textureView){
             const VkAccessFlags accessFlags = access_to_vk[group->layout->entries[i].access];
-            const VkPipelineStageFlags stage = toVulkanPipelineStage(group->layout->entries[i].visibility) | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            const VkPipelineStageFlags stage = toVulkanPipelineStageBits(group->layout->entries[i].visibility) | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
             ImageUsageSnap usageSnap zeroinit;
             VkImageLayout layout = is_storage_texture[group->layout->entries[i].type] ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
@@ -4802,60 +5179,60 @@ WGPUGlobalReflectionInfo* getGlobalRI(SpvReflectShaderModule mod, uint32_t* coun
 }
 
 
-static WGPUShaderStage toWGPUShaderStage(SpvReflectShaderStageFlagBits stageBits){
+static inline WGPUShaderStage toWGPUShaderStage(SpvReflectShaderStageFlagBits stageBits){
     WGPUShaderStage ret = 0;
 
     if(stageBits & SPV_REFLECT_SHADER_STAGE_VERTEX_BIT){
-        ret |= ShaderStageMask_Vertex;
+        ret |= WGPUShaderStage_Vertex;
     }
     if(stageBits & SPV_REFLECT_SHADER_STAGE_TESSELLATION_CONTROL_BIT){
-        ret |= ShaderStageMask_TessControl;
+        ret |= WGPUShaderStage_TessControl;
     }
     if(stageBits & SPV_REFLECT_SHADER_STAGE_TESSELLATION_EVALUATION_BIT){
-        ret |= ShaderStageMask_TessEvaluation;
+        ret |= WGPUShaderStage_TessEvaluation;
     }
     if(stageBits & SPV_REFLECT_SHADER_STAGE_GEOMETRY_BIT){
-        ret |= ShaderStageMask_Geometry;
+        ret |= WGPUShaderStage_Geometry;
     }
     if(stageBits & SPV_REFLECT_SHADER_STAGE_FRAGMENT_BIT){
-        ret |= ShaderStageMask_Fragment;
+        ret |= WGPUShaderStage_Fragment;
     }
     if(stageBits & SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT){
-        ret |= ShaderStageMask_Compute;
+        ret |= WGPUShaderStage_Compute;
     }
     if(stageBits & SPV_REFLECT_SHADER_STAGE_TASK_BIT_NV){
-        ret |= ShaderStageMask_Task;
+        ret |= WGPUShaderStage_Task;
     }
     if(stageBits & SPV_REFLECT_SHADER_STAGE_TASK_BIT_EXT){
-        ret |= ShaderStageMask_Task;
+        ret |= WGPUShaderStage_Task;
     }
     if(stageBits & SPV_REFLECT_SHADER_STAGE_MESH_BIT_NV){
-        ret |= ShaderStageMask_Mesh;
+        ret |= WGPUShaderStage_Mesh;
     }
     if(stageBits & SPV_REFLECT_SHADER_STAGE_MESH_BIT_EXT){
-        ret |= ShaderStageMask_Mesh;
+        ret |= WGPUShaderStage_Mesh;
     }
     if(stageBits & SPV_REFLECT_SHADER_STAGE_RAYGEN_BIT_KHR){
-        ret |= ShaderStageMask_RayGen;
+        ret |= WGPUShaderStage_RayGen;
     }
     if(stageBits & SPV_REFLECT_SHADER_STAGE_ANY_HIT_BIT_KHR){
-        ret |= ShaderStageMask_AnyHit;
+        ret |= WGPUShaderStage_AnyHit;
     }
     if(stageBits & SPV_REFLECT_SHADER_STAGE_CLOSEST_HIT_BIT_KHR){
-        ret |= ShaderStageMask_ClosestHit;
+        ret |= WGPUShaderStage_ClosestHit;
     }
     if(stageBits & SPV_REFLECT_SHADER_STAGE_MISS_BIT_KHR){
-        ret |= ShaderStageMask_Miss;
+        ret |= WGPUShaderStage_Miss;
     }
     if(stageBits & SPV_REFLECT_SHADER_STAGE_INTERSECTION_BIT_KHR){
-        ret |= ShaderStageMask_Intersect;
+        ret |= WGPUShaderStage_Intersect;
     }
     if(stageBits & SPV_REFLECT_SHADER_STAGE_CALLABLE_BIT_KHR){
-        ret |= ShaderStageMask_Callable;
+        ret |= WGPUShaderStage_Callable;
     }
-
     return ret;
 }
+
 struct wgpuShaderModuleGetReflectionInfo_sync_userdata{
     WGPUShaderModule module;
     WGPUReflectionInfoCallbackInfo callbackInfo;
