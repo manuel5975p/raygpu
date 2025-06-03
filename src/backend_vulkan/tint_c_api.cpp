@@ -1,4 +1,3 @@
-#include "src/tint/lang/core/type/reference.h"
 #include "src/tint/lang/wgsl/ast/identifier_expression.h"
 #include "src/tint/lang/wgsl/ast/templated_identifier.h"
 #include "src/tint/lang/wgsl/ast/var.h"

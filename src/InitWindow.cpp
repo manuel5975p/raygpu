@@ -467,7 +467,7 @@ extern "C" SubWindow OpenSubWindow(uint32_t width, uint32_t height, const char* 
     config.device = g_vulkanstate.device;
     config.width = width;
     config.height = height;
-    config.format = BGRA8;
+    config.format = WGPUTextureFormat_BGRA8Unorm;
     config.presentMode = PresentMode_Immediate;
     wgpuSurfaceConfigure(vSurface, &config);
     FullSurface fsurface zeroinit;

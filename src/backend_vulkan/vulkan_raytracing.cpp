@@ -514,7 +514,7 @@ WGPURaytracingPipeline LoadRTPipeline(const DescribedShaderModule *module) {
             const ShaderEntryPoint &entryPoint = module->reflectionInfo.ep[i];
             VkPipelineShaderStageCreateInfo stageInfo zeroinit;
             stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-            stageInfo.stage = toVulkanShaderStage(entryPoint.stage);
+            stageInfo.stage = (VkShaderStageFlagBits)toVulkanShaderStageBits(entryPoint.stage);
             stageInfo.module = (VkShaderModule)module->stages[i].module;
             stageInfo.pName = entryPoint.name;
             shaderStages.push_back(stageInfo);
@@ -621,7 +621,9 @@ DescribedRaytracingPipeline *LoadRaytracingPipeline(const DescribedShaderModule 
     ret->pipeline = LoadRTPipeline(shaderModule);
     auto [bgl, pll] = CreateRTPipelineLayout(g_vulkanstate.device, shaderModule);
     ret->bglayout = bgl;
-    ret->layout = pll;
+    rassert(false, "Unimplemented");
+    // this needs to be reworked to return WGPUPipelineLayout
+    // ret->layout = pll;
 
     return ret;
 }

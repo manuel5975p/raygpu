@@ -1,11 +1,12 @@
-#include <wgvk_structs_impl.h>
 #include "vulkan_internals.hpp"
+#include <wgvk_structs_impl.h>
 #include <raygpu.h>
 #include <cstddef>
 #include <stdexcept>
 #include <cstring>
 #include <iostream>
 #include <vulkan/vulkan_core.h>
+
 
 // Utility function to translate PixelFormat to VkFormat
 
@@ -138,10 +139,10 @@ inline bool is__depth(VkFormat fmt){
 
 // Generalized LoadTexturePro function
 
-extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFormat format, WGPUTextureUsage usage, uint32_t sampleCount, uint32_t mipmaps, void* data) {
+extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFormat format_, WGPUTextureUsage usage, uint32_t sampleCount, uint32_t mipmaps, void* data) {
     rassert(mipmaps < MAX_MIP_LEVELS, "Too many mip levels");
     Texture ret{};
-    
+    WGPUTextureFormat format = toWGPUPixelFormat(format_);
     VkFormat vkFormat = toVulkanPixelFormat(format);
     VkImageUsageFlags vkUsage = toVulkanWGPUTextureUsage(usage, format);
     
@@ -164,21 +165,28 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
         destination.origin = WGPUOrigin3D{0, 0, 0};
 
         WGPUTexelCopyBufferLayout bufferLayout zeroinit;
-        bufferLayout.bytesPerRow = width * GetPixelSizeInBytes(format);
+        bufferLayout.bytesPerRow = width * GetPixelSizeInBytes(format_);
         bufferLayout.offset = 0;
         bufferLayout.rowsPerImage = height;
         WGPUExtent3D writeExtent{width, height, 1u};
-        wgpuQueueWriteTexture(g_vulkanstate.queue, &destination, data, static_cast<size_t>(width) * static_cast<size_t>(height) * GetPixelSizeInBytes(format), &bufferLayout, &writeExtent);
+        wgpuQueueWriteTexture(
+            g_vulkanstate.queue,
+            &destination,
+            data,
+            static_cast<size_t>(width) * static_cast<size_t>(height) * GetPixelSizeInBytes(format_),
+            &bufferLayout,
+            &writeExtent
+        );
     }
     ret.width = width;
     ret.height = height;
     ret.mipmaps = mipmaps;
     ret.sampleCount = sampleCount;
     ret.id = image;
-    ret.format = format;
+    ret.format = format_;
     
     VkImageAspectFlags aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
-    if (format == Depth24 || format == Depth32) {
+    if (format_ == Depth24 || format_ == Depth32) {
         aspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
     }
     WGPUTextureViewDescriptor descriptor zeroinit;
@@ -187,8 +195,8 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     descriptor.baseArrayLayer = 0;
     descriptor.mipLevelCount = mipmaps;
     descriptor.baseMipLevel = 0;
-    descriptor.aspect = (format == Depth24 || format == Depth32) ? TextureAspect_DepthOnly : TextureAspect_All;
-    descriptor.dimension = TextureViewDimension_2D;
+    descriptor.aspect = (format_ == Depth24 || format_ == Depth32) ? TextureAspect_DepthOnly : TextureAspect_All;
+    descriptor.dimension = WGPUTextureViewDimension_2D;
     descriptor.usage = usage;
     WGPUTextureView view = wgpuTextureCreateView(image, &descriptor);
     view->width = width;
@@ -207,8 +215,8 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
             singleMipDescriptor.baseArrayLayer = 0;
             singleMipDescriptor.mipLevelCount = 1;
             singleMipDescriptor.baseMipLevel = i;
-            singleMipDescriptor.aspect = (format == Depth24 || format == Depth32) ? TextureAspect_DepthOnly : TextureAspect_All;
-            singleMipDescriptor.dimension = TextureViewDimension_2D;
+            singleMipDescriptor.aspect = (format_ == Depth24 || format_ == Depth32) ? TextureAspect_DepthOnly : TextureAspect_All;
+            singleMipDescriptor.dimension = WGPUTextureViewDimension_2D;
             singleMipDescriptor.usage = usage;
             ret.mipViews[i] = wgpuTextureCreateView(image, &singleMipDescriptor);
         }
@@ -230,11 +238,11 @@ void UnloadTexture(Texture tex){
     if(texture != nullptr)
         wgpuTextureRelease(texture);   
 }
-extern "C" Texture2DArray LoadTextureArray(uint32_t width, uint32_t height, uint32_t layerCount, PixelFormat format){
+extern "C" Texture2DArray LoadTextureArray(uint32_t width, uint32_t height, uint32_t layerCount, PixelFormat format_){
     Texture2DArray ret zeroinit;
     ret.sampleCount = 1;
     WGPUTextureDescriptor tDesc zeroinit;
-    tDesc.format = (format);
+    tDesc.format = toWGPUPixelFormat(format_);
     tDesc.size = Extent3D{width, height, layerCount};
     tDesc.dimension = TextureDimension_2D;
     tDesc.sampleCount = 1;
@@ -249,14 +257,14 @@ extern "C" Texture2DArray LoadTextureArray(uint32_t width, uint32_t height, uint
     vDesc.baseArrayLayer = 0;
     vDesc.mipLevelCount = 1;
     vDesc.baseMipLevel = 0;
-    vDesc.dimension = TextureViewDimension_2DArray;
+    vDesc.dimension = WGPUTextureViewDimension_2DArray;
     vDesc.format = tDesc.format;
     vDesc.usage = tDesc.usage;
     ret.view = wgpuTextureCreateView((WGPUTexture)ret.id, &vDesc);
     ret.width = width;
     ret.height = height;
     ret.layerCount = layerCount;
-    ret.format = format;
+    ret.format = format_;
     return ret;
 }
 extern "C" Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t mipLevel){
@@ -280,7 +288,7 @@ extern "C" Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t mipLevel){
     Image ret zeroinit;
     VkBufferImageCopy region{};
 
-    size_t size = GetPixelSizeInBytes(fromVulkanPixelFormat(tex->format));
+    size_t size = GetPixelSizeInBytes(fromWGPUPixelFormat(fromVulkanPixelFormat(tex->format)));
     region.bufferOffset = 0;
     region.bufferRowLength = 0;//size * tex->width; // Tightly packed
     region.bufferImageHeight = 0;//tex->height;
@@ -337,7 +345,7 @@ extern "C" Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t mipLevel){
             ret.data = std::calloc(bufferSize, 1);
             ret.width = tex->width;
             ret.height = tex->height;
-            ret.format = fromVulkanPixelFormat(tex->format);
+            ret.format = fromWGPUPixelFormat(fromVulkanPixelFormat(tex->format));
             ret.mipmaps = 0;
             ret.rowStrideInBytes = ret.width * size;
             std::memcpy(ret.data, mapPtr, bufferSize);
@@ -381,8 +389,9 @@ Texture LoadTextureFromImage(Image img) {
     TRACELOG(LOG_INFO, "Successfully loaded %u x %u texture from image", (unsigned)img.width, (unsigned)img.height);
     return ret;
 }
-Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format, WGPUTextureUsage usage, uint32_t sampleCount){
+Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format_, WGPUTextureUsage usage, uint32_t sampleCount){
     Texture3D ret zeroinit;
+    WGPUTextureFormat format = toWGPUPixelFormat(format_);
     WGPUTextureDescriptor tDesc{};
     tDesc.dimension = TextureDimension_3D;
     tDesc.size = Extent3D{width, height, depth};
@@ -401,7 +410,7 @@ Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, Pixe
     vDesc.mipLevelCount = 1;
     vDesc.baseMipLevel = 0;
     vDesc.aspect = TextureAspect_All;
-    vDesc.dimension = TextureViewDimension_3D;
+    vDesc.dimension = WGPUTextureViewDimension_3D;
     vDesc.usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc | WGPUTextureUsage_CopyDst;
     
     ret.view = wgpuTextureCreateView((WGPUTexture)ret.id, &vDesc);

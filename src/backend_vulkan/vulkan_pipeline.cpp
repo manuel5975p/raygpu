@@ -7,43 +7,50 @@
 #include "pipeline.h"
 #include "vulkan_internals.hpp"
 #include <spirv_reflect.h>
-#include <enum_translation.h>
+//#include <enum_translation.h>
 
 #include <wgvk_structs_impl.h>
+
 extern "C" DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sources){
     DescribedShaderModule ret zeroinit;
     
     for(uint32_t i = 0;i < sources.sourceCount;i++){
-        VkShaderModuleCreateInfo csCreateInfo zeroinit;
-        csCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        csCreateInfo.codeSize = sources.sources[i].sizeInBytes;
-        csCreateInfo.pCode = (const uint32_t*)sources.sources[i].data;
+        VkShaderModuleCreateInfo csCreateInfo{
+            VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            NULL,
+            0,
+            sources.sources[i].sizeInBytes,
+            (const uint32_t*)sources.sources[i].data
+        };
+
         VkWriteDescriptorSet ws;
-        VkShaderModule insert zeroinit;
-        vkCreateShaderModule(g_vulkanstate.device->device, &csCreateInfo, nullptr, &insert);
+        WGPUShaderModule insert = (WGPUShaderModule)RL_CALLOC(1, sizeof(WGPUShaderModuleImpl));
+        VkShaderModule insert_ zeroinit;
+        vkCreateShaderModule(g_vulkanstate.device->device, &csCreateInfo, nullptr, &insert_);
+        insert->vulkanModule = insert_;
         spv_reflect::ShaderModule module(csCreateInfo.codeSize, csCreateInfo.pCode);
         uint32_t epCount = module.GetEntryPointCount();
         for(uint32_t i = 0;i < epCount;i++){
             SpvReflectShaderStageFlagBits epStage = module.GetEntryPointShaderStage(i);
-            WGPUShaderStageEnum stage = [](SpvReflectShaderStageFlagBits epStage){
+            WGPUShaderStage stage = [](SpvReflectShaderStageFlagBits epStage){
                 switch(epStage){
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_VERTEX_BIT:
-                        return WGPUShaderStageEnum_Vertex;
+                        return WGPUShaderStage_Vertex;
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_FRAGMENT_BIT:
-                        return WGPUShaderStageEnum_Fragment;
+                        return WGPUShaderStage_Fragment;
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT:
-                        return WGPUShaderStageEnum_Compute;
+                        return WGPUShaderStage_Compute;
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_GEOMETRY_BIT:
-                        return ShaderStage_Geometry;
+                        return WGPUShaderStage_Geometry;
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_RAYGEN_BIT_KHR:
-                        return ShaderStage_RayGen;
+                        return WGPUShaderStage_RayGen;
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_CLOSEST_HIT_BIT_KHR:
-                        return ShaderStage_ClosestHit;
+                        return WGPUShaderStage_ClosestHit;
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_MISS_BIT_KHR:
-                        return ShaderStage_Miss;
+                        return WGPUShaderStage_Miss;
                     default:
                         TRACELOG(LOG_FATAL, "Unknown shader stage: %d", (int)epStage);
-                        return WGPUShaderStageEnum_EnumCount;
+                        return WGPUShaderStage(0);
                 }
             }(epStage);
             
@@ -242,14 +249,14 @@ extern "C" WGPURenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     rpLayout.depthAttachmentPresent = settings.settings.depthTest;
     
     for(uint32_t i = 0;i < rpLayout.colorAttachmentCount;i++){
-        rpLayout.colorAttachments[i].format = toVulkanPixelFormat(mst.colorAttachmentState.attachmentFormats[i]);
+        rpLayout.colorAttachments[i].format = toVulkanPixelFormat(toWGPUPixelFormat(mst.colorAttachmentState.attachmentFormats[i]));
         rpLayout.colorAttachments[i].loadop = LoadOp_Load;
         rpLayout.colorAttachments[i].storeop = StoreOp_Store;
         rpLayout.colorAttachments[i].sampleCount = settings.settings.sampleCount;
     }
     
     if(rpLayout.colorAttachments[0].sampleCount > 1){
-        rpLayout.colorResolveAttachments[0].format = toVulkanPixelFormat(mst.colorAttachmentState.attachmentFormats[0]);
+        rpLayout.colorResolveAttachments[0].format = toVulkanPixelFormat(toWGPUPixelFormat(mst.colorAttachmentState.attachmentFormats[0]));
         rpLayout.colorResolveAttachments[0].loadop = LoadOp_Load;
         rpLayout.colorResolveAttachments[0].storeop = StoreOp_Store;
         rpLayout.colorResolveAttachments[0].sampleCount = 1;
@@ -259,7 +266,7 @@ extern "C" WGPURenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     }
 
     if(settings.settings.depthTest){
-        rpLayout.depthAttachment.format = toVulkanPixelFormat(Depth32);
+        rpLayout.depthAttachment.format = toVulkanPixelFormat(WGPUTextureFormat_Depth32Float);
         rpLayout.depthAttachment.loadop = LoadOp_Load;
         rpLayout.depthAttachment.storeop = StoreOp_Store;
         rpLayout.depthAttachment.sampleCount = settings.settings.sampleCount;
@@ -642,10 +649,10 @@ extern "C" DescribedPipeline* LoadPipelineMod(DescribedShaderModule mod, const A
     pldesc.bindGroupLayouts = bgls;
 
     ret->layout.layout = wgpuDeviceCreatePipelineLayout(g_vulkanstate.device, &pldesc);
-    std::vector<ResourceDescriptor> bge(uniformCount);
+    std::vector<WGPUBindGroupEntry> bge(uniformCount);
 
     for(uint32_t i = 0;i < bge.size();i++){
-        bge[i] = ResourceDescriptor{};
+        bge[i] = WGPUBindGroupEntry{};
         bge[i].binding = uniforms[i].location;
     }
     ret->bindGroup = LoadBindGroup(&ret->bglayout, bge.data(), bge.size());
@@ -667,11 +674,11 @@ DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSou
     sources.sourceCount = 2;
     sources.sources[0].data = vsSource;
     sources.sources[0].sizeInBytes = std::strlen(vsSource);
-    sources.sources[0].stageMask = ShaderStageMask_Vertex;
+    sources.sources[0].stageMask = WGPUShaderStage_Vertex;
     
     sources.sources[1].data = fsSource;
     sources.sources[1].sizeInBytes = std::strlen(fsSource);
-    sources.sources[1].stageMask = ShaderStageMask_Fragment;
+    sources.sources[1].stageMask = WGPUShaderStage_Fragment;
 
     DescribedShaderModule sh = LoadShaderModule(sources);
     return LoadPipelineMod(sh, vao->attributes.data(), vao->attributes.size(), uniforms, uniformCount, settings);
@@ -689,7 +696,7 @@ extern "C" DescribedPipeline* LoadPipelineForVAOEx(ShaderSources sources, Vertex
     return pl;
 }
 
-extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t location, ResourceDescriptor entry){
+extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t location, WGPUBindGroupEntry entry){
 
     WGPUBindGroup bgImpl = (WGPUBindGroup)bg->bindGroup;
     uint32_t index = ~0u;
@@ -846,15 +853,15 @@ extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCod
     ret->layout = retlayout;
     retpipeline->layout = retlayout;
     ret->bglayout = bgl;
-    std::vector<ResourceDescriptor> bge(uniformCount);
+    std::vector<WGPUBindGroupEntry> bge(uniformCount);
     
     for(uint32_t i = 0;i < bge.size();i++){
-        bge[i] = ResourceDescriptor{};
+        bge[i] = WGPUBindGroupEntry{};
         bge[i].binding = uniforms[i].location;
     }
     ret->bindGroup = LoadBindGroup(&ret->bglayout, bge.data(), bge.size());
     ret->shaderModule = computeShaderModule;
-    ret->layout = layout;
+    ret->layout = retlayout;
     return ret;
 }
 

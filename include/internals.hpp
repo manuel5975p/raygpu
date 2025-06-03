@@ -27,6 +27,7 @@
 
 #ifndef INTERNALS_HPP_INCLUDED
 #define INTERNALS_HPP_INCLUDED
+#include <wgvk.h>
 #include "pipeline.h"
 #include <memory>
 #include <raygpu.h>

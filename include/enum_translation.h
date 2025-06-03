@@ -347,16 +347,16 @@ static inline VkImageViewType toVulkanTextureViewDimension(WGPUTextureViewDimens
         case 0:{
             rg_unreachable();
         }
-        case TextureViewDimension_1D:{
+        case WGPUTextureViewDimension_1D:{
             return VK_IMAGE_VIEW_TYPE_1D;
         }
-        case TextureViewDimension_2D:{
+        case WGPUTextureViewDimension_2D:{
             return VK_IMAGE_VIEW_TYPE_2D;
         }
-        case TextureViewDimension_3D:{
+        case WGPUTextureViewDimension_3D:{
             return VK_IMAGE_VIEW_TYPE_3D;
         }
-        case TextureViewDimension_2DArray:{
+        case WGPUTextureViewDimension_2DArray:{
             return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
         }
 
@@ -369,13 +369,13 @@ static inline VkImageType toVulkanTextureDimension(WGPUTextureDimension dim){
         case 0:{
             rg_unreachable();
         }
-        case TextureDimension_1D:{
+        case WGPUTextureDimension_1D:{
             return VK_IMAGE_TYPE_1D;
         }
-        case TextureDimension_2D:{
+        case WGPUTextureDimension_2D:{
             return VK_IMAGE_TYPE_2D;
         }
-        case TextureDimension_3D:{
+        case WGPUTextureDimension_3D:{
             return VK_IMAGE_TYPE_3D;
         }
     }
@@ -679,7 +679,7 @@ static inline VkFrontFace toVulkanFrontFace(FrontFace ff) {
     }
 }
 
-static inline VkIndexType toVulkanIndexFormat(IndexFormat ifmt) {
+static inline VkIndexType toVulkanIndexFormat(WGPUIndexFormat ifmt) {
     switch (ifmt) {
     case IndexFormat_Uint16:
         return VK_INDEX_TYPE_UINT16;
@@ -689,7 +689,7 @@ static inline VkIndexType toVulkanIndexFormat(IndexFormat ifmt) {
         return VK_INDEX_TYPE_UINT16; // Default fallback
     }
 }
-static inline VkAttachmentStoreOp toVulkanStoreOperation(StoreOp lop) {
+static inline VkAttachmentStoreOp toVulkanStoreOperation(WGPUStoreOp lop) {
     switch (lop) {
     case StoreOp_Store:
         return VK_ATTACHMENT_STORE_OP_STORE;
@@ -702,7 +702,7 @@ static inline VkAttachmentStoreOp toVulkanStoreOperation(StoreOp lop) {
         return VK_ATTACHMENT_STORE_OP_DONT_CARE; // Default fallback
     }
 }
-static inline VkAttachmentLoadOp toVulkanLoadOperation(LoadOp lop) {
+static inline VkAttachmentLoadOp toVulkanLoadOperation(WGPULoadOp lop) {
     switch (lop) {
     case LoadOp_Load:
         return VK_ATTACHMENT_LOAD_OP_LOAD;
@@ -832,7 +832,7 @@ static inline VkVertexInputRate toVulkanVertexStepMode(WGPUVertexStepMode vsm) {
         return VK_VERTEX_INPUT_RATE_VERTEX;
     case WGPUVertexStepMode_Instance:
         return VK_VERTEX_INPUT_RATE_INSTANCE;
-    case WGPUVertexStepMode_None:
+    case WGPUVertexStepMode_Undefined:
         // Vulkan does not have a direct equivalent for 'None'; defaulting to Vertex
         return VK_VERTEX_INPUT_RATE_VERTEX;
     default:

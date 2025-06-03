@@ -1234,7 +1234,7 @@ extern "C" FullSurface CreateHeadlessSurface(uint32_t width, uint32_t height, Pi
     ret.surfaceConfig.width = width;
     ret.surfaceConfig.width = height;
     #if SUPPORT_VULKAN_BACKEND == 1
-    ret.surfaceConfig.format = format;
+    ret.surfaceConfig.format = toWGPUPixelFormat(format);
     #else
     ret.surfaceConfig.format = toWGPUPixelFormat(format);
     #endif

@@ -120,7 +120,7 @@ extern "C" void EndComputepassEx(DescribedComputepass* computePass){
     wgpuCommandEncoderRelease((WGPUCommandEncoder)computePass->cmdEncoder);
 }
 
-extern "C" DescribedRenderpass LoadRenderpassEx(RenderSettings settings, bool colorClear, DColor colorClearValue, bool depthClear, float depthClearValue){
+extern "C" DescribedRenderpass LoadRenderpassEx(RenderSettings settings, bool colorClear, WGPUColor colorClearValue, bool depthClear, float depthClearValue){
     DescribedRenderpass ret{};
 
     VkRenderPassCreateInfo rpci{};
@@ -721,7 +721,7 @@ void GenTextureMipmaps(Texture2D* tex){
 }
 
 void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size){
-    ResourceDescriptor entry{};
+    WGPUBindGroupEntry entry{};
     WGPUBufferDescriptor bufferDesc{};
     bufferDesc.size = size;
     bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
@@ -736,7 +736,7 @@ void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, cons
 }
 
 void SetBindgroupStorageBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size){
-    ResourceDescriptor entry{};
+    WGPUBindGroupEntry entry{};
     WGPUBufferDescriptor bufferDesc{};
     bufferDesc.size = size;
     bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
@@ -780,7 +780,7 @@ void createRenderPass() {
     VkAttachmentDescription& colorAttachment = attachments[0];
     colorAttachment = VkAttachmentDescription{};
     //colorAttachment.format = toVulkanPixelFormat(g_vulkanstate.surface.surfaceConfig.format);
-    colorAttachment.format = toVulkanPixelFormat(BGRA8);
+    colorAttachment.format = toVulkanPixelFormat(WGPUTextureFormat_BGRA8Unorm);
     colorAttachment.samples = VK_SAMPLE_COUNT_4_BIT;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -831,7 +831,7 @@ void createRenderPass() {
         TRACELOG(LOG_FATAL, "failed to create render pass!");
     }
 }
-extern "C" void RenderPassSetIndexBuffer(DescribedRenderpass* drp, DescribedBuffer* buffer, IndexFormat format, uint64_t offset){
+extern "C" void RenderPassSetIndexBuffer(DescribedRenderpass* drp, DescribedBuffer* buffer, WGPUIndexFormat format, uint64_t offset){
     wgpuRenderPassEncoderSetIndexBuffer((WGPURenderPassEncoder)drp->rpEncoder, (WGPUBuffer)buffer->buffer, 0, format);
     //wgpuRenderPassEncoderSetIndexBuffer((WGPURenderPassEncoder)drp->rpEncoder, (WGPUBuffer)buffer->buffer, format, offset, buffer->size);
 }
@@ -1073,7 +1073,7 @@ extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t he
     }
     //TRACELOG(LOG_INFO, "Initialized surface with %s", presentModeSpellingTable.at(config.presentMode).c_str());
     //config.alphaMode = WGPUCompositeAlphaMode_Opaque;
-    config.format = g_renderstate.frameBufferFormat;
+    config.format = toWGPUPixelFormat(g_renderstate.frameBufferFormat);
     //config.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
     config.width = width;
     config.height = height;
@@ -1081,11 +1081,11 @@ extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t he
     //config.viewFormatCount = 1;
     config.device = g_vulkanstate.device;
 
-    ret.surfaceConfig.presentMode = (WGPUPresentMode)config.presentMode;
+    ret.surfaceConfig.presentMode = config.presentMode;
     ret.surfaceConfig.device = config.device;
     ret.surfaceConfig.width = config.width;
     ret.surfaceConfig.height = config.width;
-    ret.surfaceConfig.format = (PixelFormat)config.format;
+    ret.surfaceConfig.format = config.format;
     
     wgpuSurfaceConfigure((WGPUSurface)ret.surface, &config);
     WGPUSurface wvS = (WGPUSurface)ret.surface;

@@ -446,7 +446,7 @@ typedef enum WGPUFrontFace {
 } WGPUFrontFace WGPU_ENUM_ATTRIBUTE;
 
 typedef enum WGPUVertexStepMode { 
-    WGPUVertexStepMode_None = 0x0, 
+    WGPUVertexStepMode_Undefined = 0x0, 
     WGPUVertexStepMode_Vertex = 0x1,
     WGPUVertexStepMode_Instance = 0x2,
     WGPUVertexStepMode_Force32 = 0x7FFFFFFF 
@@ -939,6 +939,13 @@ typedef struct WGPUDeviceDescriptor {
     WGPUUncapturedErrorCallbackInfo uncapturedErrorCallbackInfo;
 } WGPUDeviceDescriptor;
 
+typedef struct WGPUColor {
+    double r;
+    double g;
+    double b;
+    double a;
+} WGPUColor;
+
 typedef struct WGPURenderPassColorAttachment{
     WGPUChainedStruct* nextInChain;
     WGPUTextureView view;
@@ -946,7 +953,7 @@ typedef struct WGPURenderPassColorAttachment{
     uint32_t depthSlice;
     WGPULoadOp loadOp;
     WGPUStoreOp storeOp;
-    DColor clearValue;
+    WGPUColor clearValue;
 }WGPURenderPassColorAttachment;
 
 typedef struct WGPURenderPassDepthStencilAttachment{
@@ -981,12 +988,6 @@ typedef struct WGPUCommandEncoderDescriptor{
 typedef struct Extent3D{
     uint32_t width, height, depthOrArrayLayers;
 }Extent3D;
-typedef struct WGPUColor {
-    double r;
-    double g;
-    double b;
-    double a;
-} WGPUColor;
 
 typedef struct WGPUTextureDescriptor{
     WGPUChainedStruct* nextInChain;

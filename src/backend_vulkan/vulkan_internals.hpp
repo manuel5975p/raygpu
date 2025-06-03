@@ -11,7 +11,7 @@
 #include <internals.hpp>
 #include <wgvk.h>
 //#define SUPPORT_VULKAN_BACKEND 1
-#include <enum_translation.h>
+//#include <enum_translation.h>
 #if SUPPORT_GLFW == 1
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -26,7 +26,107 @@
 #include <SDL2/SDL_vulkan.h>
 #endif
 
-
+static inline VkFormat toVulkanVertexFormat_(WGPUVertexFormat vf) {
+    switch (vf) {
+    case WGPUVertexFormat_Uint8:
+        return VK_FORMAT_R8_UINT;
+    case WGPUVertexFormat_Uint8x2:
+        return VK_FORMAT_R8G8_UINT;
+    case WGPUVertexFormat_Uint8x4:
+        return VK_FORMAT_R8G8B8A8_UINT;
+    case WGPUVertexFormat_Sint8:
+        return VK_FORMAT_R8_SINT;
+    case WGPUVertexFormat_Sint8x2:
+        return VK_FORMAT_R8G8_SINT;
+    case WGPUVertexFormat_Sint8x4:
+        return VK_FORMAT_R8G8B8A8_SINT;
+    case WGPUVertexFormat_Unorm8:
+        return VK_FORMAT_R8_UNORM;
+    case WGPUVertexFormat_Unorm8x2:
+        return VK_FORMAT_R8G8_UNORM;
+    case WGPUVertexFormat_Unorm8x4:
+        return VK_FORMAT_R8G8B8A8_UNORM;
+    case WGPUVertexFormat_Snorm8:
+        return VK_FORMAT_R8_SNORM;
+    case WGPUVertexFormat_Snorm8x2:
+        return VK_FORMAT_R8G8_SNORM;
+    case WGPUVertexFormat_Snorm8x4:
+        return VK_FORMAT_R8G8B8A8_SNORM;
+    case WGPUVertexFormat_Uint16:
+        return VK_FORMAT_R16_UINT;
+    case WGPUVertexFormat_Uint16x2:
+        return VK_FORMAT_R16G16_UINT;
+    case WGPUVertexFormat_Uint16x4:
+        return VK_FORMAT_R16G16B16A16_UINT;
+    case WGPUVertexFormat_Sint16:
+        return VK_FORMAT_R16_SINT;
+    case WGPUVertexFormat_Sint16x2:
+        return VK_FORMAT_R16G16_SINT;
+    case WGPUVertexFormat_Sint16x4:
+        return VK_FORMAT_R16G16B16A16_SINT;
+    case WGPUVertexFormat_Unorm16:
+        return VK_FORMAT_R16_UNORM;
+    case WGPUVertexFormat_Unorm16x2:
+        return VK_FORMAT_R16G16_UNORM;
+    case WGPUVertexFormat_Unorm16x4:
+        return VK_FORMAT_R16G16B16A16_UNORM;
+    case WGPUVertexFormat_Snorm16:
+        return VK_FORMAT_R16_SNORM;
+    case WGPUVertexFormat_Snorm16x2:
+        return VK_FORMAT_R16G16_SNORM;
+    case WGPUVertexFormat_Snorm16x4:
+        return VK_FORMAT_R16G16B16A16_SNORM;
+    case WGPUVertexFormat_Float16:
+        return VK_FORMAT_R16_SFLOAT;
+    case WGPUVertexFormat_Float16x2:
+        return VK_FORMAT_R16G16_SFLOAT;
+    case WGPUVertexFormat_Float16x4:
+        return VK_FORMAT_R16G16B16A16_SFLOAT;
+    case WGPUVertexFormat_Float32:
+        return VK_FORMAT_R32_SFLOAT;
+    case WGPUVertexFormat_Float32x2:
+        return VK_FORMAT_R32G32_SFLOAT;
+    case WGPUVertexFormat_Float32x3:
+        return VK_FORMAT_R32G32B32_SFLOAT;
+    case WGPUVertexFormat_Float32x4:
+        return VK_FORMAT_R32G32B32A32_SFLOAT;
+    case WGPUVertexFormat_Uint32:
+        return VK_FORMAT_R32_UINT;
+    case WGPUVertexFormat_Uint32x2:
+        return VK_FORMAT_R32G32_UINT;
+    case WGPUVertexFormat_Uint32x3:
+        return VK_FORMAT_R32G32B32_UINT;
+    case WGPUVertexFormat_Uint32x4:
+        return VK_FORMAT_R32G32B32A32_UINT;
+    case WGPUVertexFormat_Sint32:
+        return VK_FORMAT_R32_SINT;
+    case WGPUVertexFormat_Sint32x2:
+        return VK_FORMAT_R32G32_SINT;
+    case WGPUVertexFormat_Sint32x3:
+        return VK_FORMAT_R32G32B32_SINT;
+    case WGPUVertexFormat_Sint32x4:
+        return VK_FORMAT_R32G32B32A32_SINT;
+    case WGPUVertexFormat_Unorm10_10_10_2:
+        return VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+    case WGPUVertexFormat_Unorm8x4BGRA:
+        return VK_FORMAT_B8G8R8A8_UNORM;
+    default:
+        return VK_FORMAT_UNDEFINED; // Default fallback
+    }
+}
+static inline VkVertexInputRate toVulkanVertexStepMode_(WGPUVertexStepMode vsm) {
+    switch (vsm) {
+    case WGPUVertexStepMode_Vertex:
+        return VK_VERTEX_INPUT_RATE_VERTEX;
+    case WGPUVertexStepMode_Instance:
+        return VK_VERTEX_INPUT_RATE_INSTANCE;
+    case WGPUVertexStepMode_Undefined:
+        // Vulkan does not have a direct equivalent for 'None'; defaulting to Vertex
+        return VK_VERTEX_INPUT_RATE_VERTEX;
+    default:
+        return VK_VERTEX_INPUT_RATE_VERTEX; // Default fallback
+    }
+}
 
 inline std::pair<std::vector<VkVertexInputAttributeDescription>, std::vector<VkVertexInputBindingDescription>> genericVertexLayoutSetToVulkan(const VertexBufferLayoutSet& vls){
     std::pair<std::vector<VkVertexInputAttributeDescription>, std::vector<VkVertexInputBindingDescription>> ret{};
@@ -44,7 +144,7 @@ inline std::pair<std::vector<VkVertexInputAttributeDescription>, std::vector<VkV
             adesc.location = vls.layouts[i].attributes[j].shaderLocation;
             adesc.offset = vls.layouts[i].attributes[j].offset;
             adesc.binding = i;
-            adesc.format = toVulkanVertexFormat(vls.layouts[i].attributes[j].format);
+            adesc.format = toVulkanVertexFormat_(vls.layouts[i].attributes[j].format);
             attribs.push_back(adesc);
         }
     }
@@ -55,7 +155,7 @@ inline std::pair<std::vector<VkVertexInputAttributeDescription>, std::vector<VkV
     for(uint32_t i = 0;i < vls.number_of_buffers;i++){
         bufferLayouts[i].binding = i;
         bufferLayouts[i].stride = vls.layouts[i].arrayStride;
-        bufferLayouts[i].inputRate = toVulkanVertexStepMode(vls.layouts[i].stepMode);
+        bufferLayouts[i].inputRate = toVulkanVertexStepMode_(vls.layouts[i].stepMode);
     }
     return ret;
 }
@@ -398,21 +498,21 @@ extern "C" void UnloadBuffer(DescribedBuffer* buf);
 
 //wgpu I guess
 
-extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry);
+extern "C" void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, WGPUBindGroupEntry entry);
 extern "C" void GetNewTexture(FullSurface *fsurface);
 extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t width, uint32_t height);
 
 
 
 static inline void SetBindgroupSampler_Vk(DescribedBindGroup* bg, uint32_t index, DescribedSampler smp){
-    ResourceDescriptor entry{};
+    WGPUBindGroupEntry entry{};
     entry.binding = index;
     entry.sampler = smp.sampler;
     
     UpdateBindGroupEntry(bg, index, entry);
 }
 static inline void SetBindgroupTexture_Vk(DescribedBindGroup* bg, uint32_t index, Texture tex){
-    ResourceDescriptor entry{};
+    WGPUBindGroupEntry entry{};
     entry.binding = index;
     entry.textureView = (WGPUTextureView)tex.view;
     

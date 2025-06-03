@@ -748,7 +748,7 @@ typedef struct ShaderSources{
 }ShaderSources;
 
 typedef struct ShaderEntryPoint{
-    WGPUShaderStageEnum stage;
+    WGPUShaderStage stage;
     char name[16];
 }ShaderEntryPoint;
 
