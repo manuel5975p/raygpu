@@ -1276,7 +1276,7 @@ static inline VkImageType toVulkanTextureDimension(WGPUTextureDimension dim){
 }
 
 // Converts WGPUTextureFormat to VkFormat
-VkFormat toVulkanPixelFormat(WGPUTextureFormat format) {
+static inline VkFormat toVulkanPixelFormat(WGPUTextureFormat format) {
     switch (format) {
         case WGPUTextureFormat_Undefined:            return VK_FORMAT_UNDEFINED;
         case WGPUTextureFormat_R8Unorm:              return VK_FORMAT_R8_UNORM;
@@ -1394,7 +1394,7 @@ static inline PixelFormat fromWGPUPixelFormat(WGPUTextureFormat format) {
     }
     return (PixelFormat)(-1); // Unreachable but silences compiler warnings
 }
-VkSamplerAddressMode toVulkanAddressMode(WGPUAddressMode mode){
+static inline VkSamplerAddressMode toVulkanAddressMode(WGPUAddressMode mode){
     switch(mode){
         case WGPUAddressMode_ClampToEdge: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
         case WGPUAddressMode_Repeat: return VK_SAMPLER_ADDRESS_MODE_REPEAT;
@@ -1966,6 +1966,8 @@ static inline WGPUTextureFormat toWGPUPixelFormat(PixelFormat format) {
     }
     return WGPUTextureFormat_Undefined;
 }
+
+
 
 
 

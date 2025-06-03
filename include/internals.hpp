@@ -27,7 +27,10 @@
 
 #ifndef INTERNALS_HPP_INCLUDED
 #define INTERNALS_HPP_INCLUDED
+#if SUPPORT_VULKAN_BACKEND == 1
 #include <wgvk.h>
+#endif
+
 #include "pipeline.h"
 #include <memory>
 #include <raygpu.h>
@@ -740,4 +743,28 @@ extern "C" void* CreateSurfaceForWindow_SDL2(void* windowHandle);
 extern "C" void* CreateSurfaceForWindow_SDL3(void* windowHandle);
 extern "C" void* CreateSurfaceForWindow_GLFW(void* windowHandle);
 extern "C" void* CreateSurfaceForWindow_RGFW(void* windowHandle);
+
+
+static inline WGPUFilterMode toWGPUFilterMode(filterMode fm){
+    switch(fm){
+        case filter_linear:return WGPUFilterMode_Linear;
+        case filter_nearest: return WGPUFilterMode_Nearest;
+    }
+}
+static inline WGPUMipmapFilterMode toWGPUMipmapFilterMode(filterMode fm){
+    switch(fm){
+        case filter_linear:return WGPUMipmapFilterMode_Linear;
+        case filter_nearest: return WGPUMipmapFilterMode_Nearest;
+    }
+}
+static inline WGPUAddressMode toWGPUAddressMode(addressMode am){
+    switch(am){
+        case clampToEdge: return WGPUAddressMode_ClampToEdge;
+        case repeat: return WGPUAddressMode_Repeat;
+        case mirrorRepeat: return WGPUAddressMode_MirrorRepeat;
+    }
+}
+
+
+
 #endif

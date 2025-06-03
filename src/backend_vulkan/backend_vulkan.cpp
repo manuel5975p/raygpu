@@ -196,16 +196,16 @@ DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode m
     WGPUSamplerDescriptor sdesc zeroinit;
     
     sdesc.compare = WGPUCompareFunction_Less;
-    sdesc.addressModeU = amode;
-    sdesc.addressModeV = amode;
-    sdesc.addressModeW = amode;
+    sdesc.addressModeU = toWGPUAddressMode(amode);
+    sdesc.addressModeV = toWGPUAddressMode(amode);
+    sdesc.addressModeW = toWGPUAddressMode(amode);
     sdesc.lodMaxClamp = 10;
     sdesc.lodMinClamp = 0;
-    sdesc.mipmapFilter = fmode;
+    sdesc.mipmapFilter = toWGPUMipmapFilterMode(fmode);
     sdesc.maxAnisotropy = static_cast<uint16_t>(maxAnisotropy);
 
-    sdesc.minFilter = fmode;
-    sdesc.magFilter = fmode;
+    sdesc.minFilter = toWGPUFilterMode(fmode);
+    sdesc.magFilter = toWGPUFilterMode(fmode);
     
     ret.magFilter = fmode;
     ret.minFilter = fmode;
@@ -556,17 +556,131 @@ QueueIndices findQueueFamilies(WGPUAdapter adapter) {
 
     return ret;
 }
-extern "C" DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* descs, uint32_t uniformCount, bool){
-    DescribedBindGroupLayout retv{};
-    DescribedBindGroupLayout* ret = &retv;
-    WGPUBindGroupLayout retlayout = wgpuDeviceCreateBindGroupLayout(g_vulkanstate.device, descs, uniformCount);
-    ret->layout = retlayout;
-    ret->entries = (ResourceTypeDescriptor*)std::calloc(uniformCount, sizeof(ResourceTypeDescriptor));
-    if(uniformCount > 0)
-        std::memcpy(const_cast<ResourceTypeDescriptor*>(ret->entries), descs, uniformCount * sizeof(ResourceTypeDescriptor));
-    ret->entryCount = uniformCount;
-    std::vector<ResourceTypeDescriptor> a(retlayout->entries, retlayout->entries + ret->entryCount);
-    return retv;
+
+
+
+
+
+
+static inline WGPUStorageTextureAccess toStorageTextureAccess(access_type acc){
+    switch(acc){
+        case access_type::readonly:return WGPUStorageTextureAccess_ReadOnly;
+        case access_type::readwrite:return WGPUStorageTextureAccess_ReadWrite;
+        case access_type::writeonly:return WGPUStorageTextureAccess_WriteOnly;
+        default: rg_unreachable();
+    }
+    return WGPUStorageTextureAccess_Force32;
+}
+static inline WGPUBufferBindingType toStorageBufferAccess(access_type acc){
+    switch(acc){
+        case access_type::readonly: return WGPUBufferBindingType_ReadOnlyStorage;
+        case access_type::readwrite: [[fallthrough]];
+        case access_type::writeonly:return WGPUBufferBindingType_Storage;
+        default: rg_unreachable();
+    }
+    return WGPUBufferBindingType_Force32;
+}
+static inline WGPUTextureFormat toStorageTextureFormat(format_or_sample_type fmt){
+    switch(fmt){
+        case format_or_sample_type::format_r32float: return WGPUTextureFormat_R32Float;
+        case format_or_sample_type::format_r32uint: return WGPUTextureFormat_R32Uint;
+        case format_or_sample_type::format_rgba8unorm: return WGPUTextureFormat_RGBA8Unorm;
+        case format_or_sample_type::format_rgba32float: return WGPUTextureFormat_RGBA32Float;
+        default: rg_unreachable();
+    }
+    return WGPUTextureFormat_Force32;
+}
+static inline WGPUTextureSampleType toTextureSampleType(format_or_sample_type fmt){
+    switch(fmt){
+        case format_or_sample_type::sample_f32: return WGPUTextureSampleType_Float;
+        case format_or_sample_type::sample_u32: return WGPUTextureSampleType_Uint;
+        default: return WGPUTextureSampleType_Float;//rg_unreachable();
+    }
+    return WGPUTextureSampleType_Force32;
+}
+RGAPI DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, bool compute){
+    DescribedBindGroupLayout ret{};
+    WGPUShaderStage visible;
+    WGPUShaderStage vfragmentOnly = compute ? WGPUShaderStage_Compute : WGPUShaderStage_Fragment;
+    WGPUShaderStage vvertexOnly = compute ? WGPUShaderStage_Compute : WGPUShaderStage_Vertex;
+    if(compute){
+        visible = WGPUShaderStage_Compute;
+    }
+    else{
+        visible = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+    }
+
+    
+    WGPUBindGroupLayoutEntry* blayouts = (WGPUBindGroupLayoutEntry*)RL_CALLOC(uniformCount, sizeof(WGPUBindGroupLayoutEntry));
+    WGPUBindGroupLayoutDescriptor bglayoutdesc{};
+
+    for(size_t i = 0;i < uniformCount;i++){
+        blayouts[i].binding = uniforms[i].location;
+        switch(uniforms[i].type){
+            default:
+                rg_unreachable();
+            case uniform_buffer:
+                blayouts[i].visibility = visible;
+                blayouts[i].buffer.type = WGPUBufferBindingType_Uniform;
+                blayouts[i].buffer.minBindingSize = uniforms[i].minBindingSize;
+            break;
+            case storage_buffer:{
+                blayouts[i].visibility = visible;
+                blayouts[i].buffer.type = toStorageBufferAccess(uniforms[i].access);
+                blayouts[i].buffer.minBindingSize = 0;
+            }
+            break;
+            case texture2d:
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].texture.sampleType = toTextureSampleType(uniforms[i].fstype);
+                blayouts[i].texture.viewDimension = WGPUTextureViewDimension_2D;
+            break;
+            case texture2d_array:
+                blayouts[i].storageTexture.access = toStorageTextureAccess(uniforms[i].access);
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].storageTexture.format = toStorageTextureFormat(uniforms[i].fstype);
+                blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;    
+            break;
+            case texture_sampler:
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].sampler.type = WGPUSamplerBindingType_Filtering;
+            break;
+            case texture3d:
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].texture.sampleType = toTextureSampleType(uniforms[i].fstype);
+                blayouts[i].texture.viewDimension = WGPUTextureViewDimension_3D;
+            break;
+            case storage_texture2d:
+                blayouts[i].storageTexture.access = toStorageTextureAccess(uniforms[i].access);
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].storageTexture.format = toStorageTextureFormat(uniforms[i].fstype);
+                blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+            break;
+            case storage_texture2d_array:
+                blayouts[i].storageTexture.access = toStorageTextureAccess(uniforms[i].access);
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].storageTexture.format = toStorageTextureFormat(uniforms[i].fstype);
+                blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;
+            break;
+            case storage_texture3d:
+                blayouts[i].storageTexture.access = toStorageTextureAccess(uniforms[i].access);
+                blayouts[i].visibility = vfragmentOnly;
+                blayouts[i].storageTexture.format = toStorageTextureFormat(uniforms[i].fstype);
+                blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_3D;
+            break;
+        }
+    }
+    bglayoutdesc.entryCount = uniformCount;
+    bglayoutdesc.entries = blayouts;
+
+    ret.entries = (WGPUBindGroupLayoutEntry*)std::calloc(uniformCount, sizeof(WGPUBindGroupLayoutEntry));
+    if(uniformCount > 0){
+        std::memcpy(ret.entries, uniforms, uniformCount * sizeof(WGPUBindGroupLayoutEntry));
+    }
+    ret.layout = wgpuDeviceCreateBindGroupLayout((WGPUDevice)GetDevice(), &bglayoutdesc);
+
+    std::free(blayouts);
+    return ret;
 }
 
 // Function to pick a suitable physical device (GPU)

@@ -748,11 +748,11 @@ typedef struct ShaderSources{
 }ShaderSources;
 
 typedef struct ShaderEntryPoint{
-    WGPUShaderStage stage;
+    WGPUShaderStageEnum stage;
     char name[16];
 }ShaderEntryPoint;
 
-typedef struct ShaderRefletionInfo{
+typedef struct ShaderReflectionInfo{
     ShaderEntryPoint ep[16];
     StringToUniformMap* uniforms;
     StringToAttributeMap* attributes;

@@ -206,7 +206,8 @@ typedef enum WGPUShaderStageEnum{
     WGPUShaderStageEnum_TaskNV = WGPUShaderStageEnum_Task,
     WGPUShaderStageEnum_Mesh,
     WGPUShaderStageEnum_MeshNV = WGPUShaderStageEnum_Mesh,
-    WGPUShaderStageEnum_EnumCount
+    WGPUShaderStageEnum_EnumCount,
+    WGPUShaderStageEnum_Force32 = 0x7FFFFFFF
 }WGPUShaderStageEnum;
 
 typedef WGPUFlags WGPUShaderStage;
@@ -1017,7 +1018,9 @@ typedef struct WGPUTextureViewDescriptor{
 typedef struct WGPUBufferDescriptor{
     WGPUBufferUsage usage;
     uint64_t size;
+    WGPUBool mappedAtCreation;
 }WGPUBufferDescriptor;
+
 typedef void (*WGPUBufferMapCallback)(WGPUMapAsyncStatus status, WGPUStringView message, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2);
 
 typedef struct WGPUBufferMapCallbackInfo {

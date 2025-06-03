@@ -1312,8 +1312,8 @@ extern "C" Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat f
     textureViewDesc.dimension = WGPUTextureViewDimension_2D;
     textureViewDesc.format = tDesc.format;
     Texture ret zeroinit;
-    ret.id = wgpuDeviceCreateTexture((WGPUDevice)GetDevice(), &tDesc);
-    ret.view = wgpuTextureCreateView((WGPUTexture)ret.id, &textureViewDesc);
+    ret.id = wgpuDeviceCreateTexture(GetDevice(), &tDesc);
+    ret.view = wgpuTextureCreateView(ret.id, &textureViewDesc);
     ret.format = format;
     ret.width = width;
     ret.height = height;
@@ -1323,7 +1323,7 @@ extern "C" Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat f
         for(uint32_t i = 0;i < mipmaps;i++){
             textureViewDesc.baseMipLevel = i;
             textureViewDesc.mipLevelCount = 1;
-            ret.mipViews[i] = wgpuTextureCreateView((WGPUTexture)ret.id, &textureViewDesc);
+            ret.mipViews[i] = wgpuTextureCreateView(ret.id, &textureViewDesc);
         }
     }
     return ret;
@@ -1342,18 +1342,18 @@ DescribedSampler LoadSamplerEx(addressMode amode, filterMode fmode, filterMode m
     ret.addressModeW = amode;
 
     WGPUSamplerDescriptor sdesc{};
-    sdesc.magFilter    = (WGPUFilterMode)fmode;
-    sdesc.minFilter    = (WGPUFilterMode)fmode;
-    sdesc.mipmapFilter = (WGPUMipmapFilterMode)fmode;
-    sdesc.compare      = WGPUCompareFunction_Undefined;
-    sdesc.lodMinClamp  = 0.0f;
-    sdesc.lodMaxClamp  = 10.0f;
+    sdesc.magFilter     = toWGPUFilterMode(fmode);
+    sdesc.minFilter     = toWGPUFilterMode(fmode);
+    sdesc.mipmapFilter  = toWGPUMipmapFilterMode(fmode);
+    sdesc.compare       = WGPUCompareFunction_Undefined;
+    sdesc.lodMinClamp   = 0.0f;
+    sdesc.lodMaxClamp   = 10.0f;
     sdesc.maxAnisotropy = maxAnisotropy;
-    sdesc.addressModeU = (WGPUAddressMode)amode;
-    sdesc.addressModeV = (WGPUAddressMode)amode;
-    sdesc.addressModeW = (WGPUAddressMode)amode;
+    sdesc.addressModeU  = toWGPUAddressMode(amode);
+    sdesc.addressModeV  = toWGPUAddressMode(amode);
+    sdesc.addressModeW  = toWGPUAddressMode(amode);
 
-    ret.sampler = wgpuDeviceCreateSampler((WGPUDevice)GetDevice(), &sdesc);
+    ret.sampler = wgpuDeviceCreateSampler(GetDevice(), &sdesc);
     return ret;
 }
 void SetBindgroupUniformBufferData (DescribedBindGroup* bg, uint32_t index, const void* data, size_t size){

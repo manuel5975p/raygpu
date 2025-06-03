@@ -1589,7 +1589,7 @@ WGPUBindGroupLayout wgpuDeviceCreateBindGroupLayout(WGPUDevice device, const WGP
         }
 
         else{
-            bindings.data[i].stageFlags = toVulkanShaderStage(entries[i].visibility);
+            bindings.data[i].stageFlags = toVulkanShaderStageBits(entries[i].visibility);
         }
     }
 
@@ -1776,7 +1776,7 @@ WGPUTextureView wgpuTextureCreateView(WGPUTexture texture, const WGPUTextureView
     ret->subresourceRange = sr;
     return ret;
 }
-static inline VkClearValue toVkCV(const DColor c){
+static inline VkClearValue toVkCV(const WGPUColor c){
     VkClearValue cv zeroinit;
     cv.color.float32[0] = (float)c.r;
     cv.color.float32[1] = (float)c.g;

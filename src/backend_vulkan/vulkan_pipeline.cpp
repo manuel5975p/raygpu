@@ -32,25 +32,25 @@ extern "C" DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sources){
         uint32_t epCount = module.GetEntryPointCount();
         for(uint32_t i = 0;i < epCount;i++){
             SpvReflectShaderStageFlagBits epStage = module.GetEntryPointShaderStage(i);
-            WGPUShaderStage stage = [](SpvReflectShaderStageFlagBits epStage){
+            WGPUShaderStageEnum stage = [](SpvReflectShaderStageFlagBits epStage){
                 switch(epStage){
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_VERTEX_BIT:
-                        return WGPUShaderStage_Vertex;
+                        return WGPUShaderStageEnum_Vertex;
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_FRAGMENT_BIT:
-                        return WGPUShaderStage_Fragment;
+                        return WGPUShaderStageEnum_Fragment;
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT:
-                        return WGPUShaderStage_Compute;
+                        return WGPUShaderStageEnum_Compute;
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_GEOMETRY_BIT:
-                        return WGPUShaderStage_Geometry;
+                        return WGPUShaderStageEnum_Geometry;
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_RAYGEN_BIT_KHR:
-                        return WGPUShaderStage_RayGen;
+                        return WGPUShaderStageEnum_RayGen;
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_CLOSEST_HIT_BIT_KHR:
-                        return WGPUShaderStage_ClosestHit;
+                        return WGPUShaderStageEnum_ClosestHit;
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_MISS_BIT_KHR:
-                        return WGPUShaderStage_Miss;
+                        return WGPUShaderStageEnum_Miss;
                     default:
                         TRACELOG(LOG_FATAL, "Unknown shader stage: %d", (int)epStage);
-                        return WGPUShaderStage(0);
+                        return WGPUShaderStageEnum_Force32;
                 }
             }(epStage);
             
@@ -75,13 +75,13 @@ extern "C" WGPURenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
 
-    vertShaderStageInfo.module = (VkShaderModule)shaderModule.stages[WGPUShaderStageEnum_Vertex].module;
+    vertShaderStageInfo.module = shaderModule.stages[WGPUShaderStageEnum_Vertex].module->vulkanModule;
     vertShaderStageInfo.pName = shaderModule.reflectionInfo.ep[WGPUShaderStageEnum_Vertex].name;
 
     VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
     fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragShaderStageInfo.module = (VkShaderModule)shaderModule.stages[WGPUShaderStageEnum_Fragment].module;
+    fragShaderStageInfo.module = shaderModule.stages[WGPUShaderStageEnum_Fragment].module->vulkanModule;
     fragShaderStageInfo.pName = shaderModule.reflectionInfo.ep[WGPUShaderStageEnum_Fragment].name;
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
@@ -140,7 +140,7 @@ extern "C" WGPURenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     depthStencil.depthTestEnable = settings.settings.depthTest ? VK_TRUE : VK_FALSE;
     depthStencil.depthWriteEnable = settings.settings.depthTest ? VK_TRUE : VK_FALSE;
-    depthStencil.depthCompareOp = toVulkanCompareFunction((WGPUCompareFunction)settings.settings.depthCompare);
+    depthStencil.depthCompareOp = toVulkanCompareFunction(settings.settings.depthCompare);
     depthStencil.depthBoundsTestEnable = VK_FALSE;
     depthStencil.minDepthBounds = 0.0f; // Optional
     depthStencil.maxDepthBounds = 1.0f; // Optional
@@ -834,7 +834,7 @@ extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCod
     VkResult pipelineCreationResult = vkCreatePipelineLayout(g_vulkanstate.device->device, &lci, nullptr, &layout);
     VkPipelineShaderStageCreateInfo computeStage zeroinit;
     computeStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    computeStage.module = (VkShaderModule)computeShaderModule.stages[WGPUShaderStageEnum_Compute].module;
+    computeStage.module = computeShaderModule.stages[WGPUShaderStageEnum_Compute].module->vulkanModule;
     
     
     computeStage.stage = VK_SHADER_STAGE_COMPUTE_BIT;

@@ -251,17 +251,17 @@ EShLanguage ShaderStageToGlslanguage(WGPUShaderStageEnum stage){
         case WGPUShaderStageEnum_Fragment: return EShLangFragment; 
         case WGPUShaderStageEnum_Compute: return EShLangCompute; 
         #if SUPPORT_VULKAN_BACKEND == 1
-        case ShaderStage_TessControl: return EShLangTessControl; 
-        case ShaderStage_TessEvaluation: return EShLangTessEvaluation; 
-        case ShaderStage_Geometry: return EShLangGeometry; 
-        case ShaderStage_RayGen: return EShLangRayGen; 
-        case ShaderStage_Intersect: return EShLangIntersect; 
-        case ShaderStage_AnyHit: return EShLangAnyHit; 
-        case ShaderStage_ClosestHit: return EShLangClosestHit; 
-        case ShaderStage_Miss: return EShLangMiss; 
-        case ShaderStage_Callable: return EShLangCallable; 
-        case ShaderStage_Task: return EShLangTask; 
-        case ShaderStage_Mesh: return EShLangMesh;
+        case WGPUShaderStageEnum_TessControl: return EShLangTessControl; 
+        case WGPUShaderStageEnum_TessEvaluation: return EShLangTessEvaluation; 
+        case WGPUShaderStageEnum_Geometry: return EShLangGeometry; 
+        case WGPUShaderStageEnum_RayGen: return EShLangRayGen; 
+        case WGPUShaderStageEnum_Intersect: return EShLangIntersect; 
+        case WGPUShaderStageEnum_AnyHit: return EShLangAnyHit; 
+        case WGPUShaderStageEnum_ClosestHit: return EShLangClosestHit; 
+        case WGPUShaderStageEnum_Miss: return EShLangMiss; 
+        case WGPUShaderStageEnum_Callable: return EShLangCallable; 
+        case WGPUShaderStageEnum_Task: return EShLangTask; 
+        case WGPUShaderStageEnum_Mesh: return EShLangMesh;
         #endif
         default: rg_unreachable();     
     }
