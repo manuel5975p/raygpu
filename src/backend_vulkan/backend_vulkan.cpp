@@ -235,16 +235,34 @@ extern "C" void GetNewTexture(FullSurface* fsurface){
         vkQueueSubmit(g_vulkanstate.queue->graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
     }
     else{
-        WGPUSurface wgpusurf = ((WGPUSurface)fsurface->surface);
-        
+        WGPUSurface wgpusurf = (WGPUSurface)fsurface->surface;
+        WGPUDevice device = g_vulkanstate.device;
+        VkFence* cFence = &g_vulkanstate.queue->syncState[cacheIndex].acquireImageFence;
         //g_vulkanstate.queue->syncState[cacheIndex].submits = 0;
+        if(*cFence){
+            device->functions.vkWaitForFences(device->device, 1, cFence, VK_TRUE, 1ull << 31);
+            device->functions.vkResetFences(device->device, 1, cFence);
+        }
+        else{
+            VkFenceCreateInfo fci = {
+                .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0
+            };
 
-        VkResult acquireResult = vkAcquireNextImageKHR(
-            g_vulkanstate.device->device, 
-            wgpusurf->swapchain, 
-            UINT64_MAX, 
-            g_vulkanstate.queue->syncState[cacheIndex].acquireImageSemaphore, 
-            VK_NULL_HANDLE, 
+            device->functions.vkCreateFence(
+                device->device,
+                &fci,
+                nullptr,
+                cFence
+            );
+        }
+        VkResult acquireResult = g_vulkanstate.device->functions.vkAcquireNextImageKHR(
+            g_vulkanstate.device->device,
+            wgpusurf->swapchain,
+            UINT64_MAX,
+            g_vulkanstate.queue->syncState[cacheIndex].acquireImageSemaphore,
+            g_vulkanstate.queue->syncState[cacheIndex].acquireImageFence,
             &imageIndex
         );
         g_vulkanstate.queue->syncState[cacheIndex].acquireImageSemaphoreSignalled = true;
@@ -253,8 +271,6 @@ extern "C" void GetNewTexture(FullSurface* fsurface){
         }
         WGPUDevice surfaceDevice = ((WGPUSurface)fsurface->surface)->device;
         VkCommandBuffer buf = ((WGPUSurface)fsurface->surface)->device->queue->presubmitCache->buffer;
-        //EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, wgpusurf->images[imageIndex]);
-        //EncodeTransitionImageLayout(buf, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, (WGPUTexture)fsurface->renderTarget.depth.id);
         
         fsurface->renderTarget.texture.id = wgpusurf->images[imageIndex];
         fsurface->renderTarget.texture.view = wgpusurf->imageViews[imageIndex];

@@ -259,6 +259,7 @@ RGAPI void releaseAllAndClear(ResourceUsage* resourceUsage);
 typedef struct SyncState{
     VkSemaphoreVector semaphores;
     VkSemaphore acquireImageSemaphore;
+    VkFence acquireImageFence;
     bool acquireImageSemaphoreSignalled;
     uint32_t submits;
     //VkFence renderFinishedFence;    

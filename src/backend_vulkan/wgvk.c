@@ -3690,6 +3690,9 @@ void resetFenceAndReleaseBuffers(void* fence_, WGPUCommandBufferVector* cBuffers
     WGPUCommandBufferVector_free(cBuffers);
 }
 
+void wgpuSurfaceGetCurrentTexture(WGPUSurface surface, WGPUSurfaceTexture * surfaceTexture){
+
+}
 
 void wgpuSurfacePresent(WGPUSurface surface){
     WGPUDevice device = surface->device;

@@ -769,9 +769,16 @@ typedef struct WGPUFutureWaitInfo {
     Bool32 completed;
 } WGPUFutureWaitInfo;
 
-typedef struct DColor{
-    double r,g,b,a;
-}DColor;
+typedef enum WGPUSurfaceGetCurrentTextureStatus {
+    WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal = 0x00000001,
+    WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal = 0x00000002,
+    WGPUSurfaceGetCurrentTextureStatus_Timeout = 0x00000003,
+    WGPUSurfaceGetCurrentTextureStatus_Outdated = 0x00000004,
+    WGPUSurfaceGetCurrentTextureStatus_Lost = 0x00000005,
+    WGPUSurfaceGetCurrentTextureStatus_Error = 0x00000006,
+    WGPUSurfaceGetCurrentTextureStatus_Force32 = 0x7FFFFFFF
+} WGPUSurfaceGetCurrentTextureStatus WGPU_ENUM_ATTRIBUTE;
+
 typedef enum WGPUFeatureLevel {
     WGPUFeatureLevel_Undefined = 0x00000000,
     WGPUFeatureLevel_Compatibility = 0x00000001,
@@ -1055,6 +1062,12 @@ typedef struct WGPUPipelineLayoutDescriptor {
     const WGPUBindGroupLayout * bindGroupLayouts;
     uint32_t immediateDataRangeByteSize;
 }WGPUPipelineLayoutDescriptor;
+
+typedef struct WGPUSurfaceTexture {
+    WGPUChainedStruct * nextInChain;
+    WGPUTexture texture;
+    WGPUSurfaceGetCurrentTextureStatus status;
+} WGPUSurfaceTexture;
 
 typedef struct WGPUSurfaceCapabilities{
     WGPUTextureUsage usages;
@@ -1475,6 +1488,8 @@ void wgpuRaytracingPassEncoderTraceRays       (WGPURaytracingPassEncoder cpe, ui
 
 void wgpuComputePassEncoderDispatchWorkgroups (WGPUComputePassEncoder cpe, uint32_t x, uint32_t y, uint32_t z);
 void wgpuComputePassEncoderRelease            (WGPUComputePassEncoder cpenc);
+
+void wgpuSurfaceGetCurrentTexture             (WGPUSurface surface, WGPUSurfaceTexture * surfaceTexture);
 void wgpuSurfacePresent                       (WGPUSurface surface);
 
 WGPURaytracingPassEncoder wgpuCommandEncoderBeginRaytracingPass(WGPUCommandEncoder enc);
