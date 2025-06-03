@@ -698,6 +698,7 @@ typedef struct WGPUSurfaceImpl{
     VkColorSpaceKHR swapchainColorSpace;
     WGPUTexture* images;
     WGPUTextureView* imageViews;
+    VkSemaphore* presentSemaphores;
     //VkFramebuffer* framebuffers;
 
     uint32_t formatCount;

@@ -2643,6 +2643,7 @@ void wgpuSurfaceConfigure(WGPUSurface surface, const WGPUSurfaceConfiguration* c
     if(surface->imageViews){
         for (uint32_t i = 0; i < surface->imagecount; i++) {
             wgpuTextureViewRelease(surface->imageViews[i]);
+            device->functions.vkDestroySemaphore(surface->device->device, surface->presentSemaphores[i], NULL);
             //This line is not required, since those are swapchain-owned images
             //These images also have a null memory member
             //wgpuReleaseTexture(surface->images[i]);
@@ -2653,6 +2654,7 @@ void wgpuSurfaceConfigure(WGPUSurface surface, const WGPUSurfaceConfiguration* c
     
     free(surface->imageViews);
     free(surface->images);
+    free(surface->presentSemaphores);
     device->functions.vkDestroySwapchainKHR(device->device, surface->swapchain, NULL);
     
     VkSurfaceCapabilitiesKHR vkCapabilities zeroinit;
@@ -2724,6 +2726,7 @@ void wgpuSurfaceConfigure(WGPUSurface surface, const WGPUSurfaceConfiguration* c
     TRACELOG(LOG_INFO, "Imagecount: %d", (int)surface->imagecount);
     device->functions.vkGetSwapchainImagesKHR(device->device, surface->swapchain, &surface->imagecount, tmpImages);
     surface->images = (WGPUTexture*)calloc(surface->imagecount, sizeof(WGPUTexture));
+    surface->presentSemaphores = (VkSemaphore*)calloc(surface->imagecount, sizeof(VkSemaphore));
     for (uint32_t i = 0; i < surface->imagecount; i++) {
         surface->images[i] = callocnew(WGPUTextureImpl);
         surface->images[i]->device = device;
@@ -2733,6 +2736,13 @@ void wgpuSurfaceConfigure(WGPUSurface surface, const WGPUSurfaceConfiguration* c
         surface->images[i]->refCount = 1;
         surface->images[i]->sampleCount = 1;
         surface->images[i]->image = tmpImages[i];
+
+        VkSemaphoreCreateInfo vci = {
+            VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+            NULL,
+            0
+        };
+        surface->device->functions.vkCreateSemaphore(surface->device->device, &vci, NULL, surface->presentSemaphores + i);
     }
     surface->imageViews = (WGPUTextureView*)RL_CALLOC(surface->imagecount, sizeof(VkImageView));
 
@@ -3698,15 +3708,7 @@ void wgpuSurfacePresent(WGPUSurface surface){
     WGPUDevice device = surface->device;
     uint32_t cacheIndex = surface->device->submittedFrames % framesInFlight;
 
-    VkPresentInfoKHR presentInfo zeroinit;
-    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     
-    presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = &surface->device->frameCaches[cacheIndex].finalTransitionSemaphore;
-    VkSwapchainKHR swapChains[] = {surface->swapchain};
-    presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = swapChains;
-    presentInfo.pImageIndices = &surface->activeImageIndex;
     VkImageSubresourceRange isr zeroinit;
     isr.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     isr.layerCount = 1;
@@ -3759,8 +3761,9 @@ void wgpuSurfacePresent(WGPUSurface surface){
         .waitSemaphoreCount = 1,
         .pWaitDstStageMask = &wsmask,
         .pWaitSemaphores = &surface->device->queue->syncState[cacheIndex].semaphores.data[surface->device->queue->syncState[cacheIndex].submits],
-        .pSignalSemaphores = &surface->device->frameCaches[cacheIndex].finalTransitionSemaphore
+        .pSignalSemaphores = surface->presentSemaphores + surface->activeImageIndex
     };
+    
     VkFence finalTransitionFence = surface->device->frameCaches[cacheIndex].finalTransitionFence;
     device->functions.vkQueueSubmit(surface->device->queue->graphicsQueue, 1, &cbsinfo, finalTransitionFence);
     
@@ -3774,6 +3777,14 @@ void wgpuSurfacePresent(WGPUSurface surface){
         WGPUCommandBufferVector_init(cmdBuffers);
     }
 
+    VkPresentInfoKHR presentInfo  = {
+        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = surface->presentSemaphores + surface->activeImageIndex,
+        .swapchainCount = 1,
+        .pSwapchains = &surface->swapchain,
+        .pImageIndices = &surface->activeImageIndex,
+    };
     VkResult presentRes = device->functions.vkQueuePresentKHR(surface->device->queue->presentQueue, &presentInfo);
 
     ++surface->device->submittedFrames;
