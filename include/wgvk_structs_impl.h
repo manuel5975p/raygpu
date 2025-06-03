@@ -1814,6 +1814,7 @@ static inline VkShaderStageFlags toVulkanShaderStage(WGPUShaderStageEnum stage) 
     }
 }
 
+
 static inline VkShaderStageFlags toVulkanShaderStageBits(WGPUShaderStage stage) {
     VkShaderStageFlags ret = 0;
     if(stage & WGPUShaderStage_Vertex){ret |= VK_SHADER_STAGE_VERTEX_BIT;}
@@ -1984,6 +1985,9 @@ static inline VkDescriptorType extractVkDescriptorType(const WGPUBindGroupLayout
     }
     if(entry->sampler.type != WGPUSamplerBindingType_BindingNotUsed){
         return VK_DESCRIPTOR_TYPE_SAMPLER;
+    }
+    if(entry->accelerationStructure){
+        return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
     }
     rg_trap();
 }

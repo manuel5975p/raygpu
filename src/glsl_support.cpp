@@ -416,6 +416,15 @@ namespace glslang{
         virtual bool visitSwitch(TVisit, TIntermSwitch*)       { return true; }
     };
 }
+format_or_sample_type spirvToFormatOrSampleType(SpvImageFormat format){
+    switch(format){
+        case SpvImageFormatRgba8:
+            return format_rgba8unorm;
+        case SpvImageFormatRgba32f:
+            return format_rgba32float;
+        default: rg_unreachable();
+    }
+}
 
 std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSources sources){
     const int glslVersion = 460;
@@ -525,8 +534,15 @@ std::unordered_map<std::string, ResourceTypeDescriptor> getBindingsGLSL(ShaderSo
                     ResourceTypeDescriptor insert zeroinit;
                     auto& binding = set->bindings[i];
                     
-                    insert.fstype = traverser.sampleTypes[set->bindings[i]->name];
                     insert.type = spvdsToResourceType(set->bindings[i]->descriptor_type);
+                    if(insert.type == storage_texture2d){
+                        SpvReflectDescriptorBinding* bindingi = set->bindings[i];
+                        insert.fstype = spirvToFormatOrSampleType(bindingi->image.image_format);
+                    }
+                    else{
+                        insert.fstype = traverser.sampleTypes[set->bindings[i]->name];
+                    }
+                    
                     insert.location = set->bindings[i]->binding;
                     ret[set->bindings[i]->name] = insert;
                     auto& inserted = *ret.find(set->bindings[i]->name);

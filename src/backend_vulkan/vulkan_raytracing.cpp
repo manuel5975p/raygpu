@@ -95,7 +95,9 @@ extern "C" WGPUTopLevelAccelerationStructure wgpuDeviceCreateTopLevelAcceleratio
         VkAccelerationStructureInstanceKHR &instance = instanceData[i];
         // Set transform matrix (identity if not provided)
         if (descriptor->transformMatrices) {
-            std::memcpy(&instance.transform, ((VkTransformMatrixKHR const*const*const )(&descriptor->transformMatrices))[i], sizeof(VkTransformMatrixKHR));
+            VkTransformMatrixKHR* dest = &instance.transform;
+            const VkTransformMatrixKHR* src = reinterpret_cast<const VkTransformMatrixKHR*>(descriptor->transformMatrices) + i;
+            std::memcpy(dest, src, sizeof(VkTransformMatrixKHR));
         } else {
             // Identity matrix
             std::memset(&instance.transform, 0, sizeof(VkTransformMatrixKHR));
@@ -514,8 +516,8 @@ WGPURaytracingPipeline LoadRTPipeline(const DescribedShaderModule *module) {
             const ShaderEntryPoint &entryPoint = module->reflectionInfo.ep[i];
             VkPipelineShaderStageCreateInfo stageInfo zeroinit;
             stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-            stageInfo.stage = (VkShaderStageFlagBits)toVulkanShaderStageBits(entryPoint.stage);
-            stageInfo.module = (VkShaderModule)module->stages[i].module;
+            stageInfo.stage = (VkShaderStageFlagBits)toVulkanShaderStage(entryPoint.stage);
+            stageInfo.module = module->stages[i].module->vulkanModule;
             stageInfo.pName = entryPoint.name;
             shaderStages.push_back(stageInfo);
         }

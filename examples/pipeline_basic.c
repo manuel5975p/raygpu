@@ -27,7 +27,7 @@ int main(void){
     };
     vbo = GenVertexBuffer(vertices, sizeof(vertices)); 
     vao = LoadVertexArray();
-    VertexAttribPointer(vao, vbo, 0, VertexFormat_Float32x2, 0, VertexStepMode_Vertex);
+    VertexAttribPointer(vao, vbo, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
     EnableVertexAttribArray(vao, 0);
     pipeline = LoadPipeline(shaderSource);
 

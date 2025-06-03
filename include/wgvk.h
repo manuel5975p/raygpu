@@ -710,6 +710,7 @@ typedef struct WGPUBindGroupEntry{
     uint64_t size;
     WGPUSampler sampler;
     WGPUTextureView textureView;
+    WGPUTopLevelAccelerationStructure accelerationStructure;
 }WGPUBindGroupEntry;
 typedef struct WGPUTextureBindingLayout {
     WGPUChainedStruct * nextInChain;
@@ -745,6 +746,7 @@ typedef struct WGPUBindGroupLayoutEntry {
     WGPUSamplerBindingLayout sampler;
     WGPUTextureBindingLayout texture;
     WGPUStorageTextureBindingLayout storageTexture;
+    WGPUBool accelerationStructure;
 } WGPUBindGroupLayoutEntry;
 
 typedef struct WGPUSamplerDescriptor {
@@ -1384,7 +1386,7 @@ typedef struct WGPUBottomLevelAccelerationStructureDescriptor {
 typedef struct WGPUTopLevelAccelerationStructureDescriptor {
     WGPUBottomLevelAccelerationStructure* bottomLevelAS;       // Array of bottom level acceleration structures
     uint32_t blasCount;                                        // Number of BLAS instances
-    void* transformMatrices;                 // Optional transformation matrices
+    void* transformMatrices;                                   // Optional transformation matrices
     uint32_t* instanceCustomIndexes;                           // Optional custom instance indexes
     uint32_t* instanceShaderBindingTableRecordOffsets;         // Optional SBT record offsets
     void* instanceFlags;               // Optional instance flags

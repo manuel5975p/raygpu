@@ -616,9 +616,11 @@ RGAPI DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor*
 
     for(size_t i = 0;i < uniformCount;i++){
         blayouts[i].binding = uniforms[i].location;
+        auto& ui = uniforms[i];
         switch(uniforms[i].type){
             default:
                 rg_unreachable();
+            
             case uniform_buffer:
                 blayouts[i].visibility = visible;
                 blayouts[i].buffer.type = WGPUBufferBindingType_Uniform;
@@ -667,6 +669,9 @@ RGAPI DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor*
                 blayouts[i].visibility = vfragmentOnly;
                 blayouts[i].storageTexture.format = toStorageTextureFormat(uniforms[i].fstype);
                 blayouts[i].storageTexture.viewDimension = WGPUTextureViewDimension_3D;
+            break;
+            case acceleration_structure:
+                blayouts[i].accelerationStructure = 1;
             break;
         }
     }

@@ -191,7 +191,7 @@ int main(){
     
     tlasdesc.transformMatrices = matrix;
     
-    WGPUTopLevelAccelerationStructure tlas = wgpuDeviceCreateTopLevelAccelerationStructure((WGPUDevice)GetDevice(), &tlasdesc);
+    WGPUTopLevelAccelerationStructure tlas = wgpuDeviceCreateTopLevelAccelerationStructure(GetDevice(), &tlasdesc);
     Texture2D storageTex = LoadTexturePro(50, 50, RGBA8, WGPUTextureUsage_StorageBinding | WGPUTextureUsage_CopySrc | WGPUTextureUsage_TextureBinding, 1, 1);
     
     Matrix camPadded = padCamera(cam);
@@ -201,26 +201,26 @@ int main(){
     sources.sourceCount = 3;
     sources.sources[0].data = raygenSource;
     sources.sources[0].sizeInBytes = sizeof(raygenSource) - 1;
-    sources.sources[0].stageMask = ShaderStageMask_RayGen;
+    sources.sources[0].stageMask = WGPUShaderStage_RayGen;
 
     sources.sources[1].data = rchitSource;
     sources.sources[1].sizeInBytes = sizeof(rchitSource) - 1;
-    sources.sources[1].stageMask = ShaderStageMask_ClosestHit;
+    sources.sources[1].stageMask = WGPUShaderStage_ClosestHit;
 
     sources.sources[2].data = rmissSource;
     sources.sources[2].sizeInBytes = sizeof(rmissSource) - 1;
-    sources.sources[2].stageMask = ShaderStageMask_Miss;
+    sources.sources[2].stageMask = WGPUShaderStage_Miss;
 
     DescribedShaderModule rt_module = LoadShaderModule(sources);
 
     DescribedRaytracingPipeline* drtpl = LoadRaytracingPipeline(&rt_module);
 
-    ResourceDescriptor bgentries[3] zeroinit;
+    WGPUBindGroupEntry bgentries[3] zeroinit;
     bgentries[0].accelerationStructure = tlas;
     bgentries[0].binding = 0;
-    bgentries[1].textureView = (WGPUTextureView)storageTex.view;
+    bgentries[1].textureView = storageTex.view;
     bgentries[1].binding = 1;
-    bgentries[2].buffer = (WGPUBuffer)uniformBuffer->buffer;
+    bgentries[2].buffer = uniformBuffer->buffer;
     bgentries[2].binding = 2;
     bgentries[2].size = uniformBuffer->size;
     DescribedBindGroup rtbg = LoadBindGroup(&drtpl->bglayout, bgentries, 3);

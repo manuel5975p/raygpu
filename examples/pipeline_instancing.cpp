@@ -77,9 +77,9 @@ int main(){
     posc = GenVertexBuffer(colors.data(), colors.size() * sizeof(uint32_t));
     vao = LoadVertexArray();
     
-    VertexAttribPointer(vao, posb, 0, VertexFormat_Float32x2, 0, VertexStepMode_Vertex);
-    VertexAttribPointer(vao, poso, 1, VertexFormat_Float32x2, 0, VertexStepMode_Instance);
-    VertexAttribPointer(vao, posc, 2, VertexFormat_Uint32, 0, VertexStepMode_Instance);
+    VertexAttribPointer(vao, posb, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, poso, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Instance);
+    VertexAttribPointer(vao, posc, 2, WGPUVertexFormat_Uint32, 0, WGPUVertexStepMode_Instance);
 
     
     uint32_t trifanIndices[6] = {0,1,2,0,2,3};
