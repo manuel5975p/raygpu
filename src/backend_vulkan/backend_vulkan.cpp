@@ -1043,8 +1043,8 @@ void PushUsedBuffer(void* nativeBuffer){
 
 
 extern "C" void BindComputePipeline(DescribedComputePipeline* pipeline){
-    WGPUBindGroup bindGroup = (WGPUBindGroup)UpdateAndGetNativeBindGroup(&pipeline->bindGroup);
-    wgpuComputePassEncoderSetPipeline ((WGPUComputePassEncoder)g_renderstate.computepass.cpEncoder, (WGPUComputePipeline)pipeline->pipeline);
+    WGPUBindGroup bindGroup = UpdateAndGetNativeBindGroup(&pipeline->bindGroup);
+    wgpuComputePassEncoderSetPipeline ((WGPUComputePassEncoder)g_renderstate.computepass.cpEncoder, pipeline->pipeline);
     wgpuComputePassEncoderSetBindGroup((WGPUComputePassEncoder)g_renderstate.computepass.cpEncoder, 0, bindGroup, 0, NULL);
 }
 

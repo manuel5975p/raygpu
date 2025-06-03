@@ -1333,6 +1333,7 @@ static inline VkDescriptorType contiguousDescriptorType(uint32_t cont){
         default: rg_unreachable();
     }
 }
+#define DESCRIPTOR_TYPE_UPPER_LIMIT 32
 
 void wgpuWriteBindGroup(WGPUDevice device, WGPUBindGroup wvBindGroup, const WGPUBindGroupDescriptor* bgdesc){
     
@@ -1341,14 +1342,12 @@ void wgpuWriteBindGroup(WGPUDevice device, WGPUBindGroup wvBindGroup, const WGPU
     if(wvBindGroup->pool == NULL){
         wvBindGroup->layout = bgdesc->layout;
 
-        VkDescriptorType s;
-        #define DESCRIPTOR_TYPE_UPPER_LIMIT 32
         uint32_t counts[DESCRIPTOR_TYPE_UPPER_LIMIT] = {0};
 
         //std::unordered_map<VkDescriptorType, uint32_t> counts;
         for(uint32_t i = 0;i < bgdesc->layout->entryCount;i++){
-            rassert((int)toVulkanResourceType(bgdesc->layout->entries[i].type) < 10, "Unsupported descriptor type");
-            ++counts[descriptorTypeContiguous(toVulkanResourceType(bgdesc->layout->entries[i].type))];
+            rassert((int)extractVkDescriptorType(bgdesc->layout->entries + i) < 10, "Unsupported descriptor type");
+            ++counts[descriptorTypeContiguous(extractVkDescriptorType(bgdesc->layout->entries + i))];
         }
 
         VkDescriptorPoolSize sizes[DESCRIPTOR_TYPE_UPPER_LIMIT];
@@ -1425,44 +1424,41 @@ void wgpuWriteBindGroup(WGPUDevice device, WGPUBindGroup wvBindGroup, const WGPU
         uint32_t binding = bgdesc->entries[i].binding;
         writes.data[i].dstBinding = binding;
         writes.data[i].dstSet = wvBindGroup->set;
-        const ResourceTypeDescriptor* entryi = &bgdesc->layout->entries[i];
-        writes.data[i].descriptorType = toVulkanResourceType(bgdesc->layout->entries[i].type);
+        const WGPUBindGroupLayoutEntry* entryi = &bgdesc->layout->entries[i];
+        const VkDescriptorType entryType = extractVkDescriptorType(bgdesc->layout->entries + i);
+        writes.data[i].descriptorType = entryType;
         writes.data[i].descriptorCount = 1;
+        switch(entryType){
+            case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER: //[[fallthrough]];
+            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:{
+                WGPUBuffer bufferOfThatEntry = (WGPUBuffer)bgdesc->entries[i].buffer;
+                ru_trackBuffer(&wvBindGroup->resourceUsage, bufferOfThatEntry, (BufferUsageRecord){0, 0, VK_FALSE});
+                bufferInfos.data[i].buffer = bufferOfThatEntry->buffer;
+                bufferInfos.data[i].offset = bgdesc->entries[i].offset;
+                bufferInfos.data[i].range  =  bgdesc->entries[i].size;
+                writes.data[i].pBufferInfo = bufferInfos.data + i;
+            }break;
 
-        if(entryi->type == uniform_buffer || entryi->type == storage_buffer){
-            WGPUBuffer bufferOfThatEntry = (WGPUBuffer)bgdesc->entries[i].buffer;
-            ru_trackBuffer(&wvBindGroup->resourceUsage, bufferOfThatEntry, (BufferUsageRecord){0, 0, VK_FALSE});
-            bufferInfos.data[i].buffer = bufferOfThatEntry->buffer;
-            bufferInfos.data[i].offset = bgdesc->entries[i].offset;
-            bufferInfos.data[i].range  =  bgdesc->entries[i].size;
-            writes.data[i].pBufferInfo = bufferInfos.data + i;
+            case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:{
+                ru_trackTextureView(&wvBindGroup->resourceUsage, (WGPUTextureView)bgdesc->entries[i].textureView);
+                imageInfos.data[i].imageView   = ((WGPUTextureView)bgdesc->entries[i].textureView)->view;
+                imageInfos.data[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                writes    .data[i].pImageInfo  = imageInfos.data + i;
+            }break;
+            case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:{
+                ru_trackTextureView(&wvBindGroup->resourceUsage, (WGPUTextureView)bgdesc->entries[i].textureView);
+                imageInfos.data[i].imageView   = ((WGPUTextureView)bgdesc->entries[i].textureView)->view;
+                imageInfos.data[i].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+                writes    .data[i].pImageInfo  = imageInfos.data + i;
+            }break;
+            case VK_DESCRIPTOR_TYPE_SAMPLER:{
+                ru_trackSampler(&wvBindGroup->resourceUsage, bgdesc->entries[i].sampler);
+                imageInfos.data[i].sampler    = bgdesc->entries[i].sampler->sampler;
+                writes.    data[i].pImageInfo = imageInfos.data + i;
+            }break;
+            default:
+            rg_unreachable();
         }
-
-        if(entryi->type == texture2d || entryi->type == texture3d){
-            ru_trackTextureView(&wvBindGroup->resourceUsage, (WGPUTextureView)bgdesc->entries[i].textureView);
-            imageInfos.data[i].imageView   = ((WGPUTextureView)bgdesc->entries[i].textureView)->view;
-            imageInfos.data[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            writes    .data[i].pImageInfo  = imageInfos.data + i;
-        }
-        if(entryi->type == storage_texture2d || entryi->type == storage_texture3d){
-            ru_trackTextureView(&wvBindGroup->resourceUsage, (WGPUTextureView)bgdesc->entries[i].textureView);
-            imageInfos.data[i].imageView   = ((WGPUTextureView)bgdesc->entries[i].textureView)->view;
-            imageInfos.data[i].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-            writes    .data[i].pImageInfo  = imageInfos.data + i;
-        }
-
-        if(entryi->type == texture_sampler){
-            ru_trackSampler(&wvBindGroup->resourceUsage, bgdesc->entries[i].sampler);
-            imageInfos.data[i].sampler    = bgdesc->entries[i].sampler->sampler;
-            writes.    data[i].pImageInfo = imageInfos.data + i;
-        }
-
-        //if(entryi->type == acceleration_structure){
-        //    accelStructInfos.data[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
-        //    accelStructInfos.data[i].accelerationStructureCount = 1;
-        //    accelStructInfos.data[i].pAccelerationStructures = &bgdesc->entries[i].accelerationStructure->accelerationStructure;
-        //    writes          .data[i].pNext = &accelStructInfos.data[i];
-        //}
     }
 
     vkUpdateDescriptorSets(device->device, writes.size, writes.data, 0, NULL);
@@ -1497,14 +1493,14 @@ WGPUBindGroup wgpuDeviceCreateBindGroup(WGPUDevice device, const WGPUBindGroupDe
         uint32_t counts[DESCRIPTOR_TYPE_UPPER_LIMIT] = {0};
 
         for(uint32_t i = 0;i < bgdesc->layout->entryCount;i++){
-            ++counts[toVulkanResourceType(bgdesc->layout->entries[i].type)];
+            ++counts[extractVkDescriptorType(bgdesc->layout->entries + i)];
         }
         VkDescriptorPoolSize sizes[DESCRIPTOR_TYPE_UPPER_LIMIT];
         uint32_t VkDescriptorPoolSizeCount = 0;
         for(uint32_t i = 0;i < DESCRIPTOR_TYPE_UPPER_LIMIT;i++){
             if(counts[i] != 0){
                 sizes[VkDescriptorPoolSizeCount++] = (VkDescriptorPoolSize){
-                    .type = (VkDescriptorType)i, 
+                    .type = contiguousDescriptorType(i), 
                     .descriptorCount = counts[i]
                 };
             }
@@ -1531,10 +1527,10 @@ WGPUBindGroup wgpuDeviceCreateBindGroup(WGPUDevice device, const WGPUBindGroupDe
         --dsap->size;
     }
     ret->entryCount = bgdesc->entryCount;
-        
-    ret->entries = RL_CALLOC(bgdesc->entryCount, sizeof(ResourceDescriptor));
+
+    ret->entries = RL_CALLOC(bgdesc->entryCount, sizeof(WGPUBindGroupEntry));
     if(bgdesc->entryCount > 0){
-        memcpy(ret->entries, bgdesc->entries, bgdesc->entryCount * sizeof(ResourceDescriptor));
+        memcpy(ret->entries, bgdesc->entries, bgdesc->entryCount * sizeof(WGPUBindGroupEntry));
     }
     wgpuWriteBindGroup(device, ret, bgdesc);
     ret->layout = bgdesc->layout;
@@ -1543,27 +1539,7 @@ WGPUBindGroup wgpuDeviceCreateBindGroup(WGPUDevice device, const WGPUBindGroupDe
     return ret;
 }
 
-VkDescriptorType extractVkDescriptorType(const WGPUBindGroupLayoutEntry* entry){
-    if(entry->buffer.type == WGPUBufferBindingType_Storage){
-        return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    }
-    if(entry->buffer.type == WGPUBufferBindingType_ReadOnlyStorage){
-        return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    }
-    if(entry->buffer.type == WGPUBufferBindingType_Uniform){
-        return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    }
-    if(entry->storageTexture.access != WGPUStorageTextureAccess_BindingNotUsed){
-        return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    }
-    if(entry->texture.sampleType != WGPUTextureSampleType_BindingNotUsed){
-        return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    }
-    if(entry->sampler.type != WGPUSamplerBindingType_BindingNotUsed){
-        return VK_DESCRIPTOR_TYPE_SAMPLER;
-    }
-    rg_trap();
-}
+
 
 WGPUBindGroupLayout wgpuDeviceCreateBindGroupLayout(WGPUDevice device, const WGPUBindGroupLayoutDescriptor* bgldesc){
     WGPUBindGroupLayout ret = callocnew(WGPUBindGroupLayoutImpl);
@@ -1582,7 +1558,9 @@ WGPUBindGroupLayout wgpuDeviceCreateBindGroupLayout(WGPUDevice device, const WGP
     for(uint32_t i = 0;i < slci.bindingCount;i++){
         bindings.data[i].descriptorCount = 1;
         bindings.data[i].binding = entries[i].binding;
-        bindings.data[i].descriptorType = extractVkDescriptorType(entries + i);
+        VkDescriptorType vkdtype = extractVkDescriptorType(entries + i);
+        bindings.data[i].descriptorType = vkdtype;
+
         if(entries[i].visibility == 0){
             TRACELOG(LOG_WARNING, "Empty visibility detected, falling back to Vertex | Fragment | Compute mask");
             bindings.data[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
@@ -1596,9 +1574,10 @@ WGPUBindGroupLayout wgpuDeviceCreateBindGroupLayout(WGPUDevice device, const WGP
     slci.pBindings = bindings.data;
     slci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     vkCreateDescriptorSetLayout(device->device, &slci, NULL, &ret->layout);
-    ResourceTypeDescriptor* entriesCopy = (ResourceTypeDescriptor*)RL_CALLOC(entryCount, sizeof(ResourceTypeDescriptor));
+    WGPUBindGroupLayoutEntry* entriesCopy = (WGPUBindGroupLayoutEntry*)RL_CALLOC(entryCount, sizeof(WGPUBindGroupLayoutEntry));
+
     if(entryCount > 0){
-        memcpy(entriesCopy, entries, entryCount * sizeof(ResourceTypeDescriptor));
+        memcpy(entriesCopy, entries, entryCount * sizeof(WGPUBindGroupLayoutEntry));
     }
     ret->entries = entriesCopy;
 
@@ -2103,13 +2082,13 @@ void wgpuRenderPassEncoderEnd(WGPURenderPassEncoder renderPassEncoder){
             const WGPUBindGroupLayout layout = group->layout;
             for(uint32_t bindingIndex = 0;bindingIndex < layout->entryCount;bindingIndex++){
 
-                rassert(group->entries[bindingIndex].binding == layout->entries[bindingIndex].location, "Mismatch between layout and group, this will cause bugs.");
+                rassert(group->entries[bindingIndex].binding == layout->entries[bindingIndex].binding, "Mismatch between layout and group, this will cause bugs.");
                 
-                const ResourceDescriptor*     groupEntry  = &group ->entries[bindingIndex];
-                const ResourceTypeDescriptor* layoutEntry = &layout->entries[bindingIndex];
+                const WGPUBindGroupEntry*       groupEntry  = &group ->entries[bindingIndex];
+                const WGPUBindGroupLayoutEntry* layoutEntry = &layout->entries[bindingIndex];
 
-                uniform_type eType = layout->entries[bindingIndex].type;
-                if(eType == uniform_buffer || eType == storage_buffer){
+                //uniform_type eType = layout->entries[bindingIndex].type;
+                if(layout->entries[bindingIndex].buffer.type != WGPUBufferBindingType_BindingNotUsed){
                     rassert(group->entries[bindingIndex].buffer, "Layout indicates buffer but no buffer passed");
                     WGPUShaderStage visibility = layout->entries[bindingIndex].visibility;
                     rassert(visibility, "Empty visibility goddamnit");
@@ -2117,12 +2096,14 @@ void wgpuRenderPassEncoderEnd(WGPURenderPassEncoder renderPassEncoder){
                         renderPassEncoder->cmdEncoder,
                         group->entries[bindingIndex].buffer,
                         (BufferUsageSnap){
-                            .access = access_to_vk[layout->entries[bindingIndex].access],
+                            .access = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
+                            //.access = access_to_vk[layout->entries[bindingIndex].access], //TODO
                             .stage = toVulkanPipelineStageBits(visibility)
                         }
                     );
                 }
-                else if(snaps[eType].layout){
+
+                else if(layout->entries[bindingIndex].texture.sampleType != WGPUTextureSampleType_BindingNotUsed){
                     WGPUShaderStage visibility = layout->entries[bindingIndex].visibility;
                     rassert(visibility, "Empty visibility goddamnit");
                     if(visibility == 0){ //TODO: Get rid of this hack
@@ -2132,8 +2113,24 @@ void wgpuRenderPassEncoderEnd(WGPURenderPassEncoder renderPassEncoder){
                         renderPassEncoder->cmdEncoder,
                         group->entries[bindingIndex].textureView,
                         (ImageUsageSnap){
-                            .layout = snaps[eType].layout,
-                            .access = snaps[eType].access,
+                            .layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                            .access = VK_ACCESS_SHADER_READ_BIT,
+                            .stage = toVulkanPipelineStageBits(visibility)
+                        }
+                    );
+                }
+                else if(layout->entries[bindingIndex].storageTexture.access != WGPUStorageTextureAccess_BindingNotUsed){
+                    WGPUShaderStage visibility = layout->entries[bindingIndex].visibility;
+                    rassert(visibility, "Empty visibility goddamnit");
+                    if(visibility == 0){ //TODO: Get rid of this hack
+                        visibility = (WGPUShaderStage_Vertex | WGPUShaderStage_Fragment | WGPUShaderStage_Compute);
+                    }
+                    ce_trackTextureView(
+                        renderPassEncoder->cmdEncoder,
+                        group->entries[bindingIndex].textureView,
+                        (ImageUsageSnap){
+                            .layout = VK_IMAGE_LAYOUT_GENERAL,
+                            .access = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
                             .stage = toVulkanPipelineStageBits(visibility)
                         }
                     );
@@ -2188,43 +2185,42 @@ WGPUCommandBuffer wgpuCommandEncoderFinish(WGPUCommandEncoder commandEncoder){
 }
 
 static void validatePipelineLayouts(WGPUPipelineLayout inserted, WGPUPipelineLayout base){
-    WGPU_VALIDATE_EQ_PTR(inserted->device, inserted->device, base->device, "failed when verifying objects belong to the same device");
-   
-    WGPU_VALIDATE_EQ_UINT(inserted->device, inserted->bindGroupLayoutCount, base->bindGroupLayoutCount, "failed when validating bindGroupLayoutCounts");
-    //VALIDATE_EQ(inserted->device, inserted->bindGroupLayoutCount, base->bindGroupLayoutCount)
-    for(uint32_t i = 0;i < base->bindGroupLayoutCount;i++){
-        for(uint32_t j = 0;j < base->bindGroupLayouts[i]->entryCount;j++){
-            WGPU_VALIDATE_EQ_UINT(
-                inserted->device,
-                inserted->bindGroupLayouts[i]->entries[j].type,
-                base->bindGroupLayouts[i]->entries[j].type,
-                "failed when comparing BindGroupLayoutTypes"
-            );
-        }
-    }
+    //WGPU_VALIDATE_EQ_PTR(inserted->device, inserted->device, base->device, "failed when verifying objects belong to the same device");
+    //WGPU_VALIDATE_EQ_UINT(inserted->device, inserted->bindGroupLayoutCount, base->bindGroupLayoutCount, "failed when validating bindGroupLayoutCounts");
+    ////VALIDATE_EQ(inserted->device, inserted->bindGroupLayoutCount, base->bindGroupLayoutCount)
+    //for(uint32_t i = 0;i < base->bindGroupLayoutCount;i++){
+    //    for(uint32_t j = 0;j < base->bindGroupLayouts[i]->entryCount;j++){
+    //        WGPU_VALIDATE_EQ_UINT(
+    //            inserted->device,
+    //            inserted->bindGroupLayouts[i]->entries[j].type,
+    //            base->bindGroupLayouts[i]->entries[j].type,
+    //            "failed when comparing BindGroupLayoutTypes"
+    //        );
+    //    }
+    //}
 }
 static void validateBindGroup_BindGroupLayout(WGPUBindGroup group, WGPUBindGroupLayout layout){
-    ResourceDescriptor* reverse_ep[64] = {0};
-    ResourceTypeDescriptor* reverse_lep[64] = {0};
-
-
-    for(uint32_t i = 0;i < group->entryCount;i++){
-        if(reverse_ep[group->entries[i].binding]){
-            WGPU_VALIDATION_ERROR_MESSAGE("Duplicate binding %u in bindgroup", group->entries[i].binding);
-        }
-        rassert(group->entries[i].binding < 64, "Binding larger than 64, should be fixed...");
-        rassert(layout->entries[i].location < 64, "Binding larger than 64, should be fixed...");
-        reverse_ep[group->entries[i].binding] = group->entries + i;
-        reverse_lep[layout->entries[i].location] = layout->entries + i;
-    }
-
-    for(uint32_t i = 0;i < rg_countof(reverse_ep);i++){
-        if(reverse_lep[i]){
-            if(reverse_lep[i]->type == uniform_buffer || reverse_lep[i]->type == storage_buffer){
-                WGPU_VALIDATE_NEQ_PTR(group->device, reverse_ep[i]->buffer, NULL, "failed when sanitizing entries");
-            }
-        }
-    }
+    //ResourceDescriptor* reverse_ep[64] = {0};
+    //ResourceTypeDescriptor* reverse_lep[64] = {0};
+//
+//
+    //for(uint32_t i = 0;i < group->entryCount;i++){
+    //    if(reverse_ep[group->entries[i].binding]){
+    //        WGPU_VALIDATION_ERROR_MESSAGE("Duplicate binding %u in bindgroup", group->entries[i].binding);
+    //    }
+    //    rassert(group->entries[i].binding < 64, "Binding larger than 64, should be fixed...");
+    //    rassert(layout->entries[i].location < 64, "Binding larger than 64, should be fixed...");
+    //    reverse_ep[group->entries[i].binding] = group->entries + i;
+    //    reverse_lep[layout->entries[i].location] = layout->entries + i;
+    //}
+//
+    //for(uint32_t i = 0;i < rg_countof(reverse_ep);i++){
+    //    if(reverse_lep[i]){
+    //        if(reverse_lep[i]->type == uniform_buffer || reverse_lep[i]->type == storage_buffer){
+    //            WGPU_VALIDATE_NEQ_PTR(group->device, reverse_ep[i]->buffer, NULL, "failed when sanitizing entries");
+    //        }
+    //    }
+    //}
 }
 
 void recordVkCommand(CommandBufferAndSomeState* destination_, const RenderPassCommandGeneric* command, const RenderPassCommandBegin *beginInfo){
@@ -2764,7 +2760,7 @@ void wgpuComputePassEncoderDispatchWorkgroups(WGPUComputePassEncoder cpe, uint32
         if(cpe->bindGroups[groupIndex]){
             const WGPUBindGroup group = cpe->bindGroups[groupIndex];
             for(uint32_t entryIndex = 0;entryIndex < group->entryCount;entryIndex++){
-                const ResourceDescriptor* entry = group->entries + entryIndex;
+                const WGPUBindGroupEntry* entry = group->entries + entryIndex;
                 if(entry->buffer){
                     ce_trackBuffer(cpe->cmdEncoder, entry->buffer, (BufferUsageSnap){
                         .access = VK_ACCESS_SHADER_WRITE_BIT,
@@ -3574,25 +3570,29 @@ void wgpuRenderPassEncoderSetBindGroup(WGPURenderPassEncoder rpe, uint32_t group
     
 
     for(uint32_t i = 0;i < group->entryCount;i++){
-        if(group->entries[i].buffer){
-            const VkAccessFlags accessFlags = access_to_vk[group->layout->entries[i].access];
+
+        const WGPUBindGroupEntry* entry = &group->entries[i];
+
+        if(entry->buffer){
+            const VkAccessFlags accessFlags = extractVkAccessFlags(group->layout->entries + i);
             const VkPipelineStageFlags stage = toVulkanPipelineStageBits(group->layout->entries[i].visibility);
-            ce_trackBuffer(rpe->cmdEncoder, group->entries[i].buffer, (BufferUsageSnap){
+            ce_trackBuffer(rpe->cmdEncoder, entry->buffer, (BufferUsageSnap){
                 .stage = stage,
                 .access = accessFlags
             });
         }
-        if(group->entries[i].textureView){
-            const VkAccessFlags accessFlags = access_to_vk[group->layout->entries[i].access];
-            const VkPipelineStageFlags stage = toVulkanPipelineStageBits(group->layout->entries[i].visibility) | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-            ImageUsageSnap usageSnap zeroinit;
-            VkImageLayout layout = is_storage_texture[group->layout->entries[i].type] ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-            ce_trackTextureView(rpe->cmdEncoder, group->entries[i].textureView, (ImageUsageSnap){
+        if(entry->textureView){
+            const VkAccessFlags accessFlags = extractVkAccessFlags(group->layout->entries + i);
+            const VkPipelineStageFlags stage = toVulkanPipelineStageBits(group->layout->entries[i].visibility) | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            
+            //VkImageLayout layout = (extractVkDescriptorType(group->layout->entries + i) == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+            ce_trackTextureView(rpe->cmdEncoder, entry->textureView, (ImageUsageSnap){
                 .layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                 .access = accessFlags,
                 .stage = stage,
-                .subresource = group->entries[i].textureView->subresourceRange
+                .subresource = entry->textureView->subresourceRange
             });
         }
     }
@@ -5412,7 +5412,7 @@ void WGPUBindGroupImpl_DebugPrint(const WGPUBindGroupImpl* impl, PrintfFunc_t PF
     PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("entries: %p\n", (void*)impl->entries);
     for (uint32_t i = 0; i < impl->entryCount; ++i) {
         PFN_Print_Indent(indent + 2, PFN_printf); PFN_printf("entry[%u]:\n", i);
-        ResourceDescriptor_DebugPrint(&impl->entries[i], PFN_printf, indent + 3);
+        //ResourceDescriptor_DebugPrint(&impl->entries[i], PFN_printf, indent + 3);
     }
 }
 void WGPUBindGroup_DebugPrint(WGPUBindGroup bindGroup, PrintfFunc_t PFN_printf) {
@@ -5431,7 +5431,7 @@ void WGPUBindGroupLayoutImpl_DebugPrint(const WGPUBindGroupLayoutImpl* impl, Pri
     PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("entries: %p\n", (void*)impl->entries);
      for (uint32_t i = 0; i < impl->entryCount; ++i) {
         PFN_Print_Indent(indent + 2, PFN_printf); PFN_printf("entry[%u]:\n", i);
-        ResourceTypeDescriptor_DebugPrint(&impl->entries[i], PFN_printf, indent + 3);
+        //ResourceTypeDescriptor_DebugPrint(&impl->entries[i], PFN_printf, indent + 3);
     }
     PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("refCount: %u\n", impl->refCount);
 }

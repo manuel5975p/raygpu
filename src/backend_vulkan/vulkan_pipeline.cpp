@@ -767,9 +767,9 @@ void UpdateBindGroup(DescribedBindGroup* bg){
 
     bgdesc.entryCount = bg->entryCount;
     bgdesc.entries = bg->entries;
-    WGPUBindGroupLayout wvl = (WGPUBindGroupLayout)bg->layout->layout;
+    WGPUBindGroupLayout wvl = bg->layout->layout;
     bgdesc.layout = wvl;
-    std::vector<ResourceTypeDescriptor> ldtypes(wvl->entries, wvl->entries + wvl->entryCount);
+    //std::vector<ResourceTypeDescriptor> ldtypes(wvl->entries, wvl->entries + wvl->entryCount);
     //bgdesc.entries 
     if(bg->bindGroup && ((WGPUBindGroup)bg->bindGroup)->refCount == 1){  
         WGPUBindGroup writeTo = (WGPUBindGroup)bg->bindGroup;      
@@ -840,10 +840,16 @@ extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCod
     computeStage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     computeStage.pName = computeShaderModule.reflectionInfo.ep[WGPUShaderStageEnum_Compute].name;
     
-    VkComputePipelineCreateInfo cpci zeroinit;
-    cpci.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-    cpci.layout = layout;
-    cpci.stage = computeStage;
+    const VkComputePipelineCreateInfo cpci{
+        .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .stage = computeStage,
+        .layout = layout,
+        .basePipelineHandle = nullptr, 
+        .basePipelineIndex = 0
+    };
+    
     WGPUComputePipeline retpipeline = callocnewpp(WGPUComputePipelineImpl);
     ret->pipeline = retpipeline;
     WGPUPipelineLayout retlayout = callocnewpp(WGPUPipelineLayoutImpl);

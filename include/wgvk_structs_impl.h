@@ -462,14 +462,14 @@ typedef struct WGPUBindGroupImpl{
     ResourceUsage resourceUsage;
     WGPUDevice device;
     uint32_t cacheIndex;
-    ResourceDescriptor* entries;
+    WGPUBindGroupEntry* entries;
     uint32_t entryCount;
 }WGPUBindGroupImpl;
 
 typedef struct WGPUBindGroupLayoutImpl{
     VkDescriptorSetLayout layout;
     WGPUDevice device;
-    ResourceTypeDescriptor* entries;
+    WGPUBindGroupLayoutEntry* entries;
     uint32_t entryCount;
 
     refcount_type refCount;
@@ -1777,11 +1777,10 @@ static inline VkVertexInputRate toVulkanVertexStepMode(WGPUVertexStepMode vsm) {
         return VK_VERTEX_INPUT_RATE_VERTEX;
     case WGPUVertexStepMode_Instance:
         return VK_VERTEX_INPUT_RATE_INSTANCE;
-    case WGPUVertexStepMode_Undefined:
-        // Vulkan does not have a direct equivalent for 'None'; defaulting to Vertex
-        return VK_VERTEX_INPUT_RATE_VERTEX;
+    
+    case WGPUVertexStepMode_Undefined: //fallthrough
     default:
-        return VK_VERTEX_INPUT_RATE_VERTEX; // Default fallback
+        return VK_VERTEX_INPUT_RATE_MAX_ENUM; // Default fallback
     }
 }
 static inline VkIndexType toVulkanIndexFormat(WGPUIndexFormat ifmt) {
@@ -1817,20 +1816,20 @@ static inline VkShaderStageFlags toVulkanShaderStage(WGPUShaderStageEnum stage) 
 
 static inline VkShaderStageFlags toVulkanShaderStageBits(WGPUShaderStage stage) {
     VkShaderStageFlags ret = 0;
-    if(stage & WGPUShaderStageEnum_Vertex){ret |= VK_SHADER_STAGE_VERTEX_BIT;}
-    if(stage & WGPUShaderStageEnum_TessControl){ret |= VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;}
-    if(stage & WGPUShaderStageEnum_TessEvaluation){ret |= VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;}
-    if(stage & WGPUShaderStageEnum_Geometry){ret |= VK_SHADER_STAGE_GEOMETRY_BIT;}
-    if(stage & WGPUShaderStageEnum_Fragment){ret |= VK_SHADER_STAGE_FRAGMENT_BIT;}
-    if(stage & WGPUShaderStageEnum_Compute){ret |= VK_SHADER_STAGE_COMPUTE_BIT;}
-    if(stage & WGPUShaderStageEnum_RayGen){ret |= VK_SHADER_STAGE_RAYGEN_BIT_KHR;}
-    if(stage & WGPUShaderStageEnum_Miss){ret |= VK_SHADER_STAGE_MISS_BIT_KHR;}
-    if(stage & WGPUShaderStageEnum_ClosestHit){ret |= VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;}
-    if(stage & WGPUShaderStageEnum_AnyHit){ret |= VK_SHADER_STAGE_ANY_HIT_BIT_KHR;}
-    if(stage & WGPUShaderStageEnum_Intersect){ret |= VK_SHADER_STAGE_INTERSECTION_BIT_KHR;}
-    if(stage & WGPUShaderStageEnum_Callable){ret |= VK_SHADER_STAGE_CALLABLE_BIT_KHR;}
-    if(stage & WGPUShaderStageEnum_Task){ret |= VK_SHADER_STAGE_TASK_BIT_EXT;}
-    if(stage & WGPUShaderStageEnum_Mesh){ret |= VK_SHADER_STAGE_MESH_BIT_EXT;}
+    if(stage & WGPUShaderStage_Vertex){ret |= VK_SHADER_STAGE_VERTEX_BIT;}
+    if(stage & WGPUShaderStage_TessControl){ret |= VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;}
+    if(stage & WGPUShaderStage_TessEvaluation){ret |= VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;}
+    if(stage & WGPUShaderStage_Geometry){ret |= VK_SHADER_STAGE_GEOMETRY_BIT;}
+    if(stage & WGPUShaderStage_Fragment){ret |= VK_SHADER_STAGE_FRAGMENT_BIT;}
+    if(stage & WGPUShaderStage_Compute){ret |= VK_SHADER_STAGE_COMPUTE_BIT;}
+    if(stage & WGPUShaderStage_RayGen){ret |= VK_SHADER_STAGE_RAYGEN_BIT_KHR;}
+    if(stage & WGPUShaderStage_Miss){ret |= VK_SHADER_STAGE_MISS_BIT_KHR;}
+    if(stage & WGPUShaderStage_ClosestHit){ret |= VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;}
+    if(stage & WGPUShaderStage_AnyHit){ret |= VK_SHADER_STAGE_ANY_HIT_BIT_KHR;}
+    if(stage & WGPUShaderStage_Intersect){ret |= VK_SHADER_STAGE_INTERSECTION_BIT_KHR;}
+    if(stage & WGPUShaderStage_Callable){ret |= VK_SHADER_STAGE_CALLABLE_BIT_KHR;}
+    if(stage & WGPUShaderStage_Task){ret |= VK_SHADER_STAGE_TASK_BIT_EXT;}
+    if(stage & WGPUShaderStage_Mesh){ret |= VK_SHADER_STAGE_MESH_BIT_EXT;}
     return ret;
 }
 
@@ -1967,7 +1966,49 @@ static inline WGPUTextureFormat toWGPUPixelFormat(PixelFormat format) {
     return WGPUTextureFormat_Undefined;
 }
 
+static inline VkDescriptorType extractVkDescriptorType(const WGPUBindGroupLayoutEntry* entry){
+    if(entry->buffer.type == WGPUBufferBindingType_Storage){
+        return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    }
+    if(entry->buffer.type == WGPUBufferBindingType_ReadOnlyStorage){
+        return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    }
+    if(entry->buffer.type == WGPUBufferBindingType_Uniform){
+        return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    }
+    if(entry->storageTexture.access != WGPUStorageTextureAccess_BindingNotUsed){
+        return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    }
+    if(entry->texture.sampleType != WGPUTextureSampleType_BindingNotUsed){
+        return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    }
+    if(entry->sampler.type != WGPUSamplerBindingType_BindingNotUsed){
+        return VK_DESCRIPTOR_TYPE_SAMPLER;
+    }
+    rg_trap();
+}
 
+static inline VkAccessFlags extractVkAccessFlags(const WGPUBindGroupLayoutEntry* entry){
+    if(entry->buffer.type == WGPUBufferBindingType_Storage){
+        return VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+    }
+    if(entry->buffer.type == WGPUBufferBindingType_ReadOnlyStorage){
+        return VK_ACCESS_SHADER_READ_BIT;
+    }
+    if(entry->buffer.type == WGPUBufferBindingType_Uniform){
+        return VK_ACCESS_SHADER_READ_BIT;
+    }
+    if(entry->storageTexture.access != WGPUStorageTextureAccess_BindingNotUsed){
+        return VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT;
+    }
+    if(entry->texture.sampleType != WGPUTextureSampleType_BindingNotUsed){
+        return VK_ACCESS_SHADER_READ_BIT;
+    }
+    if(entry->sampler.type != WGPUSamplerBindingType_BindingNotUsed){
+        return 0;
+    }
+    rg_trap();
+}
 
 
 
