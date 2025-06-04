@@ -947,10 +947,7 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
         cbai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         cbai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         retDevice->functions.vkAllocateCommandBuffers(retDevice->device, &cbai, &retDevice->frameCaches[i].finalTransitionBuffer);
-        VkFenceCreateInfo sci zeroinit;
-        VkFence ret zeroinit;
-        sci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-        VkResult res = retDevice->functions.vkCreateFence(retDevice->device, &sci, NULL, &retDevice->frameCaches[i].finalTransitionFence);
+        retDevice->frameCaches[i].finalTransitionFence = wgpuDeviceCreateFence(retDevice);
     }
     retQueue->presubmitCache = wgpuDeviceCreateCommandEncoder(retDevice, &cedesc);
 
@@ -1116,9 +1113,11 @@ WGPUBuffer wgpuDeviceCreateBuffer(WGPUDevice device, const WGPUBufferDescriptor*
 }
 
 void wgpuBufferMap(WGPUBuffer buffer, WGPUMapMode mapmode, size_t offset, size_t size, void** data){
-    if(buffer->latestFence){
-        buffer->device->functions.vkWaitForFences(buffer->device->device, 1, &buffer->latestFence, VK_TRUE, ((uint64_t)1) << 30);
+    if(buffer->latestFence && buffer->latestFence->state == WGPUFenceState_InUse){
+        wgpuFenceWait(buffer->latestFence);
+        wgpuFenceRelease(buffer->latestFence);
         buffer->latestFence = NULL;    
+        //buffer->device->functions.vkWaitForFences(buffer->device->device, 1, &buffer->latestFence, VK_TRUE, ((uint64_t)1) << 30);
     }
     vmaMapMemory(buffer->device->allocator, buffer->allocation, data);
 }
@@ -2532,7 +2531,10 @@ void wgpuQueueSubmit(WGPUQueue queue, size_t commandCount, const WGPUCommandBuff
 
         WGPUFence submitFence = (i == (submittable.size - 1)) ? fence : NULL;
         submitResult |= queue->device->functions.vkQueueSubmit(queue->graphicsQueue, 1, &si, submitFence ? submitFence->fence : VK_NULL_HANDLE);
-
+        if(submitFence){
+            submitFence->state = WGPUFenceState_InUse;
+        }
+        
         VkSemaphoreVector_free(&waitSemaphores);
         RL_FREE(waitFlags);
     }
@@ -3678,18 +3680,19 @@ void wgpuReleaseRaytracingPassEncoder(WGPURaytracingPassEncoder rtenc){
 }
 
 void pcmNonnullFlattenCallback(void* fence_, WGPUCommandBufferVector* key, void* userdata){
-    VkFenceVector* vector = (VkFenceVector*)userdata;
-    VkFence fence = (VkFence)fence_;
+    WGPUFenceVector* vector = (WGPUFenceVector*)userdata;
+    WGPUFence fence = (WGPUFence)fence_;
     if(fence != VK_NULL_HANDLE){
-        VkFenceVector_push_back(vector, fence);
+        WGPUFenceVector_push_back(vector, fence);
     }
 }
 
 void resetFenceAndReleaseBuffers(void* fence_, WGPUCommandBufferVector* cBuffers, void* wgpudevice){
     WGPUDevice device = (WGPUDevice)wgpudevice;
     if(fence_){
-        VkFence fence = fence_;
-        device->functions.vkResetFences(device->device, 1, &fence);
+        WGPUFence fence = fence_;
+        device->functions.vkResetFences(device->device, 1, &fence->fence);
+        fence->state = WGPUFenceState_Reset;
     }
     for(size_t i = 0;i < cBuffers->size;i++){
         WGPUCommandBuffer relBuffer = cBuffers->data[i];
@@ -3770,9 +3773,9 @@ void wgpuSurfacePresent(WGPUSurface surface){
         .pSignalSemaphores = surface->presentSemaphores + surface->activeImageIndex
     };
     
-    VkFence finalTransitionFence = surface->device->frameCaches[cacheIndex].finalTransitionFence;
-    device->functions.vkQueueSubmit(surface->device->queue->graphicsQueue, 1, &cbsinfo, finalTransitionFence);
-    
+    WGPUFence finalTransitionFence = surface->device->frameCaches[cacheIndex].finalTransitionFence;
+    device->functions.vkQueueSubmit(surface->device->queue->graphicsQueue, 1, &cbsinfo, finalTransitionFence->fence);
+    finalTransitionFence->state = WGPUFenceState_InUse;
     
     WGPUCommandBufferVector* cmdBuffers = PendingCommandBufferMap_get(&surface->device->queue->pendingCommandBuffers[cacheIndex], (void*)finalTransitionFence);
     
@@ -3816,13 +3819,17 @@ void wgpuSurfacePresent(WGPUSurface surface){
     PendingCommandBufferMap* pcm = &queue->pendingCommandBuffers[cacheIndex];
     size_t pcmSize = pcm->current_size;
 
-    VkFenceVector fences;
-    VkFenceVector_init(&fences);
+    WGPUFenceVector fences;
+    WGPUFenceVector_init(&fences);
 
     if(pcm->current_size > 0){
         PendingCommandBufferMap_for_each(pcm, pcmNonnullFlattenCallback, (void*)&fences);
         if(fences.size > 0){
-            VkResult waitResult = surfaceDevice->functions.vkWaitForFences(surfaceDevice->device, fences.size, fences.data, VK_TRUE, UINT64_MAX);
+            VkFence wFences[2048];
+            for(uint32_t i = 0;i < fences.size;i++){
+                wFences[i] = fences.data[i]->fence;
+            }
+            VkResult waitResult = surfaceDevice->functions.vkWaitForFences(surfaceDevice->device, fences.size, wFences, VK_TRUE, UINT64_MAX);
             if(waitResult != VK_SUCCESS){
                 TRACELOG(LOG_FATAL, "Waitresult: %d", waitResult);
             }
@@ -3838,7 +3845,7 @@ void wgpuSurfacePresent(WGPUSurface surface){
         TRACELOG(LOG_INFO, "No fences!");
     }
     PendingCommandBufferMap_for_each(pcm, resetFenceAndReleaseBuffers, surfaceDevice);    
-    VkFenceVector_free(&fences);
+    WGPUFenceVector_free(&fences);
 
     WGPUBufferVector* usedBuffers = &surfaceDevice->frameCaches[cacheIndex].usedBatchBuffers;
     WGPUBufferVector* unusedBuffers = &surfaceDevice->frameCaches[cacheIndex].unusedBatchBuffers;

@@ -163,6 +163,7 @@ DEFINE_PTR_HASH_SET (CONTAINERAPI, WGPURaytracingPassEncoderSet, WGPURaytracingP
 
 DEFINE_VECTOR(static inline, VkDynamicState, VkDynamicStateVector)
 DEFINE_VECTOR (CONTAINERAPI, VkWriteDescriptorSet, VkWriteDescriptorSetVector)
+DEFINE_VECTOR (CONTAINERAPI, WGPUFence, WGPUFenceVector)
 DEFINE_VECTOR (CONTAINERAPI, VkFence, VkFenceVector)
 DEFINE_VECTOR (CONTAINERAPI, VkCommandBuffer, VkCommandBufferVector)
 DEFINE_VECTOR (CONTAINERAPI, RenderPassCommandGeneric, RenderPassCommandGenericVector)
@@ -420,7 +421,7 @@ typedef struct PerframeCache{
     
     VkCommandBuffer finalTransitionBuffer;
     VkSemaphore finalTransitionSemaphore;
-    VkFence finalTransitionFence;
+    WGPUFence finalTransitionFence;
     //std::map<uint64_t, small_vector<MappableBufferMemory>> stagingBufferCache;
     //std::unordered_map<WGPUBindGroupLayout, std::vector<std::pair<VkDescriptorPool, VkDescriptorSet>>> bindGroupCache;
     BindGroupCacheMap bindGroupCache;

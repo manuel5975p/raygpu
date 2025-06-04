@@ -45,12 +45,13 @@ void DummySubmitOnQueue(){
     const uint32_t cacheIndex = g_vulkanstate.device->submittedFrames % framesInFlight;
     const uint32_t submits = g_vulkanstate.queue->syncState[cacheIndex].submits;
     if(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence == 0){
-        VkFenceCreateInfo vci = {
-            .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-            .pNext = NULL,
-            .flags = 0,
-        };
-        vkCreateFence(g_vulkanstate.device->device, &vci, nullptr, &g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence);
+        abort();
+        //VkFenceCreateInfo vci = {
+        //    .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+        //    .pNext = NULL,
+        //    .flags = 0,
+        //};
+        //vkCreateFence(g_vulkanstate.device->device, &vci, nullptr, &g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence);
     }
     VkSubmitInfo emptySubmit zeroinit;
     emptySubmit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -59,11 +60,12 @@ void DummySubmitOnQueue(){
     emptySubmit.pWaitSemaphores = g_vulkanstate.queue->syncState[cacheIndex].semaphores.data + submits;
     VkPipelineStageFlags waitmask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     emptySubmit.pWaitDstStageMask = &waitmask;
-    vkQueueSubmit(g_vulkanstate.device->queue->graphicsQueue, 1, &emptySubmit, g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence);
-    WGPUCommandBufferVector insert;
+    g_vulkanstate.device->functions.vkQueueSubmit(g_vulkanstate.device->queue->graphicsQueue, 1, &emptySubmit, g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence->fence);
+    g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence->state = WGPUFenceState_InUse;
+    WGPUCommandBufferVector insert{};
 
     PendingCommandBufferMap* pcmap = &g_vulkanstate.queue->pendingCommandBuffers[cacheIndex];
-    VkFence ftf = g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence;
+    WGPUFence ftf = g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence;
     PendingCommandBufferMap_put(pcmap, ftf, insert);
     WGPUCommandBufferVector* inserted = PendingCommandBufferMap_get(pcmap, ftf);
     WGPUCommandBufferVector_init(inserted);
