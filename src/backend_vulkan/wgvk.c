@@ -1194,8 +1194,6 @@ void wgpuQueueWriteTexture(WGPUQueue queue, const WGPUTexelCopyTextureInfo* dest
 }
 
 
-
-
 WGPUFence wgpuDeviceCreateFence(WGPUDevice device){
     WGPUFence fence = RL_CALLOC(1, sizeof(WGPUFenceImpl));
     CallbackWithUserdataVector_init(&fence->callbacksOnWaitComplete);
@@ -1208,9 +1206,12 @@ WGPUFence wgpuDeviceCreateFence(WGPUDevice device){
     return fence;
 }
 void wgpuFenceWait(WGPUFence fence){
-    fence->device->functions.vkWaitForFences(fence->device->device, 1, &fence->fence, VK_TRUE, 1ull << 40);
-    for(size_t i = 0;i < fence->callbacksOnWaitComplete.size;i++){
-        fence->callbacksOnWaitComplete.data[i].callback(fence->callbacksOnWaitComplete.data[i].userdata);
+    VkResult waitResult = fence->device->functions.vkWaitForFences(fence->device->device, 1, &fence->fence, VK_TRUE, 1ull << 40);
+    if(waitResult == VK_SUCCESS){
+        fence->state = WGPUFenceState_Finished;
+        for(size_t i = 0;i < fence->callbacksOnWaitComplete.size;i++){
+            fence->callbacksOnWaitComplete.data[i].callback(fence->callbacksOnWaitComplete.data[i].userdata);
+        }
     }
 }
 void wgpuFenceAttachCallback(WGPUFence fence, void(*callback)(void*), void* userdata){
@@ -2468,19 +2469,20 @@ void wgpuQueueSubmit(WGPUQueue queue, size_t commandCount, const WGPUCommandBuff
     for(uint32_t i = 0;i < submittableWGPU.size;i++){
         ImageUsageRecordMap_for_each(&submittableWGPU.data[i]->resourceUsage.referencedTextures, updateLayoutCallback, NULL);
     }
+    
+    WGPUFence fence = wgpuDeviceCreateFence(queue->device);
 
-    VkFence fence = VK_NULL_HANDLE;
-    VkResult result = queue->device->functions.vkCreateFence(
-        queue->device->device,
-        &(VkFenceCreateInfo){
-            VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-            NULL,
-            0,
-        },
-        NULL,
-        &fence
-    );
-    rassert(result == VK_SUCCESS, "Could not create VkFence");
+    //VkResult result = queue->device->functions.vkCreateFence(
+    //    queue->device->device,
+    //    &(VkFenceCreateInfo){
+    //        VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+    //        NULL,
+    //        0,
+    //    },
+    //    NULL,
+    //    &fence
+    //);
+    //rassert(result == VK_SUCCESS, "Could not create VkFence");
         
     si.commandBufferCount = submittable.size;
     si.pCommandBuffers = submittable.data;
@@ -2527,7 +2529,9 @@ void wgpuQueueSubmit(WGPUQueue queue, size_t commandCount, const WGPUCommandBuff
         si.pCommandBuffers = submittable.data + i;
         
         ++queue->syncState[cacheIndex].submits;
-        submitResult |= queue->device->functions.vkQueueSubmit(queue->graphicsQueue, 1, &si, i == (submittable.size - 1) ? fence : VK_NULL_HANDLE);
+
+        WGPUFence submitFence = (i == (submittable.size - 1)) ? fence : NULL;
+        submitResult |= queue->device->functions.vkQueueSubmit(queue->graphicsQueue, 1, &si, submitFence ? submitFence->fence : VK_NULL_HANDLE);
 
         VkSemaphoreVector_free(&waitSemaphores);
         RL_FREE(waitFlags);
@@ -2543,6 +2547,7 @@ void wgpuQueueSubmit(WGPUQueue queue, size_t commandCount, const WGPUCommandBuff
                 WGPUBuffer keybuffer = (WGPUBuffer)kv_pair->key;
                 if(kv_pair->key != PHM_EMPTY_SLOT_KEY && kv_pair->value.everWrittenTo != VK_FALSE && (keybuffer->usage & (WGPUBufferUsage_MapWrite | WGPUBufferUsage_MapRead))){
                     keybuffer->latestFence = fence;
+                    wgpuFenceAddRef(fence);
                 }
             }
         }

@@ -202,18 +202,21 @@ int main(){
             .nextInChain = NULL
         }
     };
-    ResourceTypeDescriptor bglEntries[1] = {
+    WGPUBindGroupLayoutEntry bglEntries[1] = {
         [0] = {
-            storage_buffer,
-            8,
-            0,
-            readwrite,
-            we_dont_know,
-            ShaderStageMask_Compute
+            .binding = 0,
+            .buffer = {
+                .type = WGPUBufferBindingType_Storage,
+                .hasDynamicOffset = 0,
+                .minBindingSize = 4
+            }
         }
     };
-    
-    WGPUBindGroupLayout layout = wgpuDeviceCreateBindGroupLayout(device, bglEntries, 1);
+    WGPUBindGroupLayoutDescriptor bglDesc = {
+        .entries = bglEntries,
+        .entryCount = 1
+    };
+    WGPUBindGroupLayout layout = wgpuDeviceCreateBindGroupLayout(device, &bglDesc);
     WGPUPipelineLayout pllayout = wgpuDeviceCreatePipelineLayout(device, &(WGPUPipelineLayoutDescriptor){
         .bindGroupLayoutCount = 1,
         .bindGroupLayouts = &layout,
@@ -237,8 +240,8 @@ int main(){
         0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
     };
 
-    ResourceDescriptor entries[1] = {
-        (ResourceDescriptor){
+    WGPUBindGroupEntry entries[1] = {
+        (WGPUBindGroupEntry){
             .binding = 0,
             .buffer = stbuf,
             .size = 64,

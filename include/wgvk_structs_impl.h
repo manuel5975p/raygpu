@@ -447,8 +447,15 @@ typedef struct CallbackWithUserdata{
 
 DEFINE_VECTOR(static inline, CallbackWithUserdata, CallbackWithUserdataVector);
 
+typedef enum WGPUFenceState{
+    WGPUFenceState_Reset,
+    WGPUFenceState_InUse,
+    WGPUFenceState_Finished,
+    WGPUFenceState_Force32 = 0x7FFFFFFF,
+}WGPUFenceState;
 typedef struct WGPUFenceImpl{
     VkFence fence;
+    WGPUFenceState state;
     WGPUDevice device;
     refcount_type refCount;
     CallbackWithUserdataVector callbacksOnWaitComplete;
