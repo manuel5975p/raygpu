@@ -2470,7 +2470,6 @@ void wgpuQueueSubmit(WGPUQueue queue, size_t commandCount, const WGPUCommandBuff
     }
 
     VkFence fence = VK_NULL_HANDLE;
-
     VkResult result = queue->device->functions.vkCreateFence(
         queue->device->device,
         &(VkFenceCreateInfo){
@@ -2547,6 +2546,7 @@ void wgpuQueueSubmit(WGPUQueue queue, size_t commandCount, const WGPUCommandBuff
                 }
             }
         }
+        
         WGPUCommandBufferVector insert;
         WGPUCommandBufferVector_init(&insert);
         
@@ -3683,7 +3683,8 @@ void pcmNonnullFlattenCallback(void* fence_, WGPUCommandBufferVector* key, void*
 void resetFenceAndReleaseBuffers(void* fence_, WGPUCommandBufferVector* cBuffers, void* wgpudevice){
     WGPUDevice device = (WGPUDevice)wgpudevice;
     if(fence_){
-        vkResetFences(device->device, 1, (VkFence*)&fence_);
+        VkFence fence = fence_;
+        device->functions.vkResetFences(device->device, 1, &fence);
     }
     for(size_t i = 0;i < cBuffers->size;i++){
         WGPUCommandBuffer relBuffer = cBuffers->data[i];
@@ -3812,19 +3813,13 @@ void wgpuSurfacePresent(WGPUSurface surface){
 
     VkFenceVector fences;
     VkFenceVector_init(&fences);
-    uint32_t fenceInsertPos = 0;
+
     if(pcm->current_size > 0){
-        //fences.reserve(pcm->current_size);
         PendingCommandBufferMap_for_each(pcm, pcmNonnullFlattenCallback, (void*)&fences);
-        //for(const auto& [fence, bufferset] : queue->pendingCommandBuffers[cacheIndex]){
-        //    if(fence){
-        //        fences.push_back(fence);
-        //    }
-        //}
         if(fences.size > 0){
-            VkResult waitResult = vkWaitForFences(surfaceDevice->device, fences.size, fences.data, VK_TRUE, 0);
+            VkResult waitResult = surfaceDevice->functions.vkWaitForFences(surfaceDevice->device, fences.size, fences.data, VK_TRUE, UINT64_MAX);
             if(waitResult != VK_SUCCESS){
-                //TRACELOG(LOG_FATAL, "Waitresult: %d", waitResult);
+                TRACELOG(LOG_FATAL, "Waitresult: %d", waitResult);
             }
             if(fences.size == 1){
                 //TRACELOG(LOG_TRACE, "Waiting for fence %p\n", fences.data[0]);
@@ -3837,8 +3832,8 @@ void wgpuSurfacePresent(WGPUSurface surface){
     else{
         TRACELOG(LOG_INFO, "No fences!");
     }
-    
     PendingCommandBufferMap_for_each(pcm, resetFenceAndReleaseBuffers, surfaceDevice);    
+    VkFenceVector_free(&fences);
 
     WGPUBufferVector* usedBuffers = &surfaceDevice->frameCaches[cacheIndex].usedBatchBuffers;
     WGPUBufferVector* unusedBuffers = &surfaceDevice->frameCaches[cacheIndex].unusedBatchBuffers;

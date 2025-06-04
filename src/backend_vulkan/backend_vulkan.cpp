@@ -237,32 +237,14 @@ extern "C" void GetNewTexture(FullSurface* fsurface){
     else{
         WGPUSurface wgpusurf = (WGPUSurface)fsurface->surface;
         WGPUDevice device = g_vulkanstate.device;
-        VkFence* cFence = &g_vulkanstate.queue->syncState[cacheIndex].acquireImageFence;
         //g_vulkanstate.queue->syncState[cacheIndex].submits = 0;
-        if(*cFence){
-            device->functions.vkWaitForFences(device->device, 1, cFence, VK_TRUE, 1ull << 31);
-            device->functions.vkResetFences(device->device, 1, cFence);
-        }
-        else{
-            VkFenceCreateInfo fci = {
-                .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-                .pNext = nullptr,
-                .flags = 0
-            };
-
-            device->functions.vkCreateFence(
-                device->device,
-                &fci,
-                nullptr,
-                cFence
-            );
-        }
+        
         VkResult acquireResult = g_vulkanstate.device->functions.vkAcquireNextImageKHR(
             g_vulkanstate.device->device,
             wgpusurf->swapchain,
             UINT64_MAX,
             g_vulkanstate.queue->syncState[cacheIndex].acquireImageSemaphore,
-            g_vulkanstate.queue->syncState[cacheIndex].acquireImageFence,
+            VK_NULL_HANDLE,
             &imageIndex
         );
         g_vulkanstate.queue->syncState[cacheIndex].acquireImageSemaphoreSignalled = true;

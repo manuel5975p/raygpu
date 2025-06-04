@@ -259,7 +259,6 @@ RGAPI void releaseAllAndClear(ResourceUsage* resourceUsage);
 typedef struct SyncState{
     VkSemaphoreVector semaphores;
     VkSemaphore acquireImageSemaphore;
-    VkFence acquireImageFence;
     bool acquireImageSemaphoreSignalled;
     uint32_t submits;
     //VkFence renderFinishedFence;    
@@ -494,8 +493,9 @@ typedef struct WGPUBufferImpl{
     VkMemoryPropertyFlags memoryProperties;
     VkDeviceAddress address; //uint64_t, if applicable (BufferUsage_ShaderDeviceAddress)
     refcount_type refCount;
-    VkFence latestFence;
+    WGPUFence latestFence;
 }WGPUBufferImpl;
+
 typedef struct WGPUBottomLevelAccelerationStructureImpl {
     VkDevice device;
     VkAccelerationStructureKHR accelerationStructure;
