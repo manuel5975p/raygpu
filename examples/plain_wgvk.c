@@ -107,7 +107,6 @@ int main(){
     
     WGPUDevice device = wgpuAdapterCreateDevice(requestedAdapter, &ddesc);
     
-    
     WGPUShaderSourceSPIRV vertexSource = {
         .chain = {
             .next = NULL,
@@ -286,4 +285,6 @@ int main(){
     wgpuDeviceRelease(device);
     wgpuAdapterRelease(requestedAdapter);
     wgpuInstanceRelease(instance);
+
+    return 0;
 }

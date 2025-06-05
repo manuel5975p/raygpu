@@ -1021,20 +1021,20 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
         }
         retQueue->syncState[i].acquireImageSemaphore = CreateSemaphoreD(retDevice);
 
-        VmaPoolCreateInfo vpci zeroinit;
-        vpci.minAllocationAlignment = 64;
-        vkGetPhysicalDeviceMemoryProperties(adapter->physicalDevice, &memoryProperties);
-        uint32_t hostVisibleCoherentIndex = 0;
-        for(;hostVisibleCoherentIndex < memoryProperties.memoryTypeCount;hostVisibleCoherentIndex++){
-            if(memoryProperties.memoryTypes[hostVisibleCoherentIndex].propertyFlags & (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)){
-                break;
-            }
-        }
-        vpci.memoryTypeIndex = hostVisibleCoherentIndex;
-        vpci.blockSize = (1 << 16);
-        vmaCreatePool(retDevice->allocator, &vpci, &retDevice->aligned_hostVisiblePool);
-        // TODO
+        // TODO what? I don't remember
     }
+    VmaPoolCreateInfo vpci zeroinit;
+    vpci.minAllocationAlignment = 64;
+    vkGetPhysicalDeviceMemoryProperties(adapter->physicalDevice, &memoryProperties);
+    uint32_t hostVisibleCoherentIndex = 0;
+    for(;hostVisibleCoherentIndex < memoryProperties.memoryTypeCount;hostVisibleCoherentIndex++){
+        if(memoryProperties.memoryTypes[hostVisibleCoherentIndex].propertyFlags & (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)){
+            break;
+        }
+    }
+    vpci.memoryTypeIndex = hostVisibleCoherentIndex;
+    vpci.blockSize = (1 << 16);
+    vmaCreatePool(retDevice->allocator, &vpci, &retDevice->aligned_hostVisiblePool);
 
     {
 
@@ -1754,8 +1754,8 @@ WGPUCommandEncoder wgpuDeviceCreateCommandEncoder(WGPUDevice device, const WGPUC
         bai.commandPool = cache->commandPool;
         bai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         bai.commandBufferCount = 1;
-        vkAllocateCommandBuffers(device->device, &bai, &ret->buffer);
-        //TRACELOG(LOG_INFO, "Allocating new command buffer");
+        device->functions.vkAllocateCommandBuffers(device->device, &bai, &ret->buffer);
+        TRACELOG(LOG_INFO, "Allocating new command buffer");
     }
     else{
         //TRACELOG(LOG_INFO, "Reusing");
@@ -1764,10 +1764,14 @@ WGPUCommandEncoder wgpuDeviceCreateCommandEncoder(WGPUDevice device, const WGPUC
         //vkResetCommandBuffer(ret->buffer, 0);
     }
 
-    VkCommandBufferBeginInfo bbi zeroinit;
-    bbi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    bbi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    vkBeginCommandBuffer(ret->buffer, &bbi);
+    const VkCommandBufferBeginInfo bbi = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .pNext = NULL,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        .pInheritanceInfo = NULL
+    };
+    
+    device->functions.vkBeginCommandBuffer(ret->buffer, &bbi);
     
     return ret;
 }
@@ -2995,6 +2999,9 @@ void wgpuAdapterRelease(WGPUAdapter adapter){
 
 void wgpuDeviceRelease(WGPUDevice device){
     if(--device->refCount == 0){
+        WGPUCommandBuffer cBuffer = wgpuCommandEncoderFinish(device->queue->presubmitCache);
+        wgpuCommandEncoderRelease(device->queue->presubmitCache);
+        wgpuCommandBufferRelease(cBuffer);
 
         {  // Destroy PerframeCaches
             for(uint32_t i = 0;i < framesInFlight;i++){
@@ -3014,11 +3021,20 @@ void wgpuDeviceRelease(WGPUDevice device){
                         }
                     }
                 }
+                device->functions.vkFreeCommandBuffers(device->device, cache->commandPool, 1, &cache->finalTransitionBuffer);
+                device->functions.vkDestroySemaphore(device->device, cache->finalTransitionSemaphore, NULL);
+                device->functions.vkDestroySemaphore(device->device, device->queue->syncState[i].acquireImageSemaphore, NULL);
+                device->functions.vkDestroySemaphore(device->device, device->queue->syncState[i].semaphores, NULL);//todo
+                wgpuFenceRelease(cache->finalTransitionFence);
+
+                
                 if(cache->commandBuffers.size){
                     device->functions.vkFreeCommandBuffers(device->device, cache->commandPool, cache->commandBuffers.size, cache->commandBuffers.data);
                     device->functions.vkDestroyCommandPool(device->device, cache->commandPool, NULL);
                 }
             }
+            vmaDestroyPool(device->allocator, device->aligned_hostVisiblePool);
+            vmaDestroyAllocator(device->allocator);
         }
 
         wgpuQueueRelease(device->queue);
