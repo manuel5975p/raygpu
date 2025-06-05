@@ -3023,8 +3023,12 @@ void wgpuDeviceRelease(WGPUDevice device){
                 }
                 device->functions.vkFreeCommandBuffers(device->device, cache->commandPool, 1, &cache->finalTransitionBuffer);
                 device->functions.vkDestroySemaphore(device->device, cache->finalTransitionSemaphore, NULL);
+
+
                 device->functions.vkDestroySemaphore(device->device, device->queue->syncState[i].acquireImageSemaphore, NULL);
-                device->functions.vkDestroySemaphore(device->device, device->queue->syncState[i].semaphores, NULL);//todo
+                for(uint32_t s = 0;s < device->queue->syncState[i].semaphores.size;s++){
+                    device->functions.vkDestroySemaphore(device->device, device->queue->syncState[i].semaphores.data[s], NULL);//todo
+                }
                 wgpuFenceRelease(cache->finalTransitionFence);
 
                 
