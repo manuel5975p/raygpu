@@ -1113,8 +1113,10 @@ WGPUBuffer wgpuDeviceCreateBuffer(WGPUDevice device, const WGPUBufferDescriptor*
 }
 
 void wgpuBufferMap(WGPUBuffer buffer, WGPUMapMode mapmode, size_t offset, size_t size, void** data){
-    if(buffer->latestFence && buffer->latestFence->state == WGPUFenceState_InUse){
-        wgpuFenceWait(buffer->latestFence);
+    if(buffer->latestFence){
+        if(buffer->latestFence->state == WGPUFenceState_InUse){
+            wgpuFenceWait(buffer->latestFence);
+        }
         wgpuFenceRelease(buffer->latestFence);
         buffer->latestFence = NULL;    
         //buffer->device->functions.vkWaitForFences(buffer->device->device, 1, &buffer->latestFence, VK_TRUE, ((uint64_t)1) << 30);
@@ -1195,8 +1197,16 @@ void wgpuQueueWriteTexture(WGPUQueue queue, const WGPUTexelCopyTextureInfo* dest
 
 WGPUFence wgpuDeviceCreateFence(WGPUDevice device){
     WGPUFence fence = RL_CALLOC(1, sizeof(WGPUFenceImpl));
+    fence->refCount = 1;
+    fence->device = device;
     CallbackWithUserdataVector_init(&fence->callbacksOnWaitComplete);
-    VkResult result = device->functions.vkCreateFence(device->device, &(const VkFenceCreateInfo){ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, NULL, 0}, NULL, &fence->fence);
+    VkFenceCreateInfo createInfo = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+    VkResult result = device->functions.vkCreateFence(
+        device->device, 
+        &createInfo,
+        NULL,
+        &fence->fence
+    );
     if(result != VK_SUCCESS){
         RL_FREE(fence);
         return NULL;
@@ -1223,7 +1233,8 @@ void wgpuFenceAddRef(WGPUFence fence){
     ++fence->refCount;
 }
 void wgpuFenceRelease(WGPUFence fence){
-    if(!--fence->refCount){
+    rassert(fence->refCount > 0, "refCount already zero");
+    if(--fence->refCount == 0){
         fence->device->functions.vkDestroyFence(fence->device->device, fence->fence, NULL);
         CallbackWithUserdataVector_free(&fence->callbacksOnWaitComplete);
         RL_FREE(fence);
@@ -1346,7 +1357,6 @@ void wgpuWriteBindGroup(WGPUDevice device, WGPUBindGroup wvBindGroup, const WGPU
 
         //std::unordered_map<VkDescriptorType, uint32_t> counts;
         for(uint32_t i = 0;i < bgdesc->layout->entryCount;i++){
-            rassert((int)extractVkDescriptorType(bgdesc->layout->entries + i) < 10, "Unsupported descriptor type");
             ++counts[descriptorTypeContiguous(extractVkDescriptorType(bgdesc->layout->entries + i))];
         }
 
@@ -2895,6 +2905,10 @@ void wgpuComputePipelineRelease(WGPUComputePipeline pipeline){
 void wgpuBufferRelease(WGPUBuffer buffer) {
     --buffer->refCount;
     if (buffer->refCount == 0) {
+        if(buffer->latestFence){
+            wgpuFenceRelease(buffer->latestFence);
+            buffer->latestFence = NULL;
+        }
         vmaDestroyBuffer(buffer->device->allocator, buffer->buffer, buffer->allocation);
         RL_FREE(buffer);
     }
@@ -3693,6 +3707,7 @@ void resetFenceAndReleaseBuffers(void* fence_, WGPUCommandBufferVector* cBuffers
         WGPUFence fence = fence_;
         device->functions.vkResetFences(device->device, 1, &fence->fence);
         fence->state = WGPUFenceState_Reset;
+        wgpuFenceRelease(fence);
     }
     for(size_t i = 0;i < cBuffers->size;i++){
         WGPUCommandBuffer relBuffer = cBuffers->data[i];
@@ -3774,6 +3789,7 @@ void wgpuSurfacePresent(WGPUSurface surface){
     };
     
     WGPUFence finalTransitionFence = surface->device->frameCaches[cacheIndex].finalTransitionFence;
+    wgpuFenceAddRef(finalTransitionFence);
     device->functions.vkQueueSubmit(surface->device->queue->graphicsQueue, 1, &cbsinfo, finalTransitionFence->fence);
     finalTransitionFence->state = WGPUFenceState_InUse;
     
