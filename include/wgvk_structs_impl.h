@@ -444,6 +444,7 @@ typedef struct WGPUSamplerImpl{
 typedef struct CallbackWithUserdata{
     void(*callback)(void*);
     void* userdata;
+    void(*freeUserData)(void*);
 }CallbackWithUserdata;
 
 DEFINE_VECTOR(static inline, CallbackWithUserdata, CallbackWithUserdataVector);
@@ -461,6 +462,11 @@ typedef struct WGPUFenceImpl{
     refcount_type refCount;
     CallbackWithUserdataVector callbacksOnWaitComplete;
 }WGPUFenceImpl;
+
+typedef struct PendingCommandBufferListRef{
+    WGPUFence fence;
+    PendingCommandBufferMap* map;
+}PendingCommandBufferListRef;
 
 typedef struct WGPUBindGroupImpl{
     VkDescriptorSet set;
@@ -530,6 +536,7 @@ typedef struct WGPUTopLevelAccelerationStructureImpl {
 
 typedef struct WGPUInstanceImpl{
     VkInstance instance;
+    uint32_t refCount;
     VkDebugUtilsMessengerEXT debugMessenger;
 }WGPUInstanceImpl;
 
@@ -540,6 +547,7 @@ typedef struct WGPUFutureImpl{
 
 typedef struct WGPUAdapterImpl{
     VkPhysicalDevice physicalDevice;
+    uint32_t refCount;
     WGPUInstance instance;
     VkPhysicalDeviceRayTracingPipelinePropertiesKHR rayTracingPipelineProperties;
     VkPhysicalDeviceMemoryProperties memProperties;
@@ -551,6 +559,7 @@ typedef struct WGPUAdapterImpl{
 DEFINE_GENERIC_HASH_MAP(CONTAINERAPI, RenderPassCache, RenderPassLayout, LayoutedRenderPass, renderPassLayoutHash, renderPassLayoutCompare, CLITERAL(RenderPassLayout){0});
 typedef struct WGPUDeviceImpl{
     VkDevice device;
+    uint32_t refCount;
     WGPUAdapter adapter;
     WGPUQueue queue;
     size_t submittedFrames;
@@ -560,6 +569,7 @@ typedef struct WGPUDeviceImpl{
 
     RenderPassCache renderPassCache;
     WGPUUncapturedErrorCallbackInfo uncapturedErrorCallbackInfo;
+    
     struct VolkDeviceTable functions;
 }WGPUDeviceImpl;
 
@@ -720,6 +730,7 @@ typedef struct WGPUQueueImpl{
     VkQueue computeQueue;
     VkQueue transferQueue;
     VkQueue presentQueue;
+    uint32_t refCount;
 
     SyncState syncState[framesInFlight];
     WGPUDevice device;
@@ -962,158 +973,7 @@ typedef struct WGPUQueueImpl{
 #endif // WGPU_VALIDATION_ENABLED
 
 
-
-
-
-typedef int (*PrintfFunc_t)(const char *format, ...);
-
-// --- Forward Declarations for Impl structs (if not already via wgvk_structs_impl.h) ---
-// (Most are defined as typedefs to pointers, e.g. typedef struct WGPUDeviceImpl* WGPUDevice)
-// So, we mostly need declarations for the *Impl_DebugPrint functions.
-
-// --- Forward Declarations for _DebugPrint functions for each struct ---
-
-// Forward declarations for WGPU opaque types are implicit via wgpu_structs_impl.h
-// We need to declare print functions for the *Impl structs and WGPU opaque types.
-
-// Helper to print indentation
-void PFN_Print_Indent(int indent_level, PrintfFunc_t PFN_printf);
-
-// --- Enum to String Helpers (Declarations) ---
-// (User should provide actual implementations if desired, otherwise stubs are used)
-const char* RCPassCommandType_ToString(RCPassCommandType type);
-const char* LoadOp_ToString(WGPULoadOp op);   // Assuming LoadOp is an enum from raygpu.h
-const char* StoreOp_ToString(WGPUStoreOp op); // Assuming StoreOp is an enum from raygpu.h
-const char* IndexFormat_ToString(WGPUIndexFormat format); // Assuming IndexFormat is an enum
-const char* BufferUsage_ToString(WGPUBufferUsage usage); // Assuming BufferUsage is an enum
-
-// --- Debug Print Function Declarations for structs defined in wgpu_structs_impl.h ---
-
-void WGPUStringView_DebugPrint(const WGPUStringView* sv, PrintfFunc_t PFN_printf, int indent);
-void WGPURenderPassColorAttachment_DebugPrint(const WGPURenderPassColorAttachment* att, PrintfFunc_t PFN_printf, int indent);
-void WGPURenderPassDepthStencilAttachment_DebugPrint(const WGPURenderPassDepthStencilAttachment* att, PrintfFunc_t PFN_printf, int indent);
-void WGPUSurfaceConfiguration_DebugPrint(const WGPUSurfaceConfiguration* config, PrintfFunc_t PFN_printf, int indent);
-void ResourceDescriptor_DebugPrint(const ResourceDescriptor* desc, PrintfFunc_t PFN_printf, int indent);
-void ResourceTypeDescriptor_DebugPrint(const ResourceTypeDescriptor* desc, PrintfFunc_t PFN_printf, int indent);
-void WGPUUncapturedErrorCallbackInfo_DebugPrint(const WGPUUncapturedErrorCallbackInfo* info, PrintfFunc_t PFN_printf, int indent);
-void VolkDeviceTable_DebugPrint(const struct VolkDeviceTable* table, PrintfFunc_t PFN_printf, int indent);
-
-void ImageUsageRecord_DebugPrint(const ImageUsageRecord* record, PrintfFunc_t PFN_printf, int indent);
-void ImageUsageSnap_DebugPrint(const ImageUsageSnap* snap, PrintfFunc_t PFN_printf, int indent);
-void BufferUsageRecord_DebugPrint(const BufferUsageRecord* record, PrintfFunc_t PFN_printf, int indent);
-// BufferUsageSnap is a typedef for BufferUsageRecord
-
-void RenderPassCommandDraw_DebugPrint(const RenderPassCommandDraw* cmd, PrintfFunc_t PFN_printf, int indent);
-void RenderPassCommandDrawIndexed_DebugPrint(const RenderPassCommandDrawIndexed* cmd, PrintfFunc_t PFN_printf, int indent);
-void RenderPassCommandSetBindGroup_DebugPrint(const RenderPassCommandSetBindGroup* cmd, PrintfFunc_t PFN_printf, int indent);
-void RenderPassCommandSetVertexBuffer_DebugPrint(const RenderPassCommandSetVertexBuffer* cmd, PrintfFunc_t PFN_printf, int indent);
-void RenderPassCommandSetIndexBuffer_DebugPrint(const RenderPassCommandSetIndexBuffer* cmd, PrintfFunc_t PFN_printf, int indent);
-void RenderPassCommandSetPipeline_DebugPrint(const RenderPassCommandSetPipeline* cmd, PrintfFunc_t PFN_printf, int indent);
-void ComputePassCommandSetPipeline_DebugPrint(const ComputePassCommandSetPipeline* cmd, PrintfFunc_t PFN_printf, int indent);
-void ComputePassCommandDispatchWorkgroups_DebugPrint(const ComputePassCommandDispatchWorkgroups* cmd, PrintfFunc_t PFN_printf, int indent);
-void RenderPassCommandBegin_DebugPrint(const RenderPassCommandBegin* cmd, PrintfFunc_t PFN_printf, int indent);
-void RenderPassCommandGeneric_DebugPrint(const RenderPassCommandGeneric* cmd, PrintfFunc_t PFN_printf, int indent);
-
-// --- Vector Printers ---
-void VkWriteDescriptorSetVector_DebugPrint(const VkWriteDescriptorSetVector* vec, PrintfFunc_t PFN_printf, int indent);
-void VkCommandBufferVector_DebugPrint(const VkCommandBufferVector* vec, PrintfFunc_t PFN_printf, int indent);
-void RenderPassCommandGenericVector_DebugPrint(const RenderPassCommandGenericVector* vec, PrintfFunc_t PFN_printf, int indent);
-void VkSemaphoreVector_DebugPrint(const VkSemaphoreVector* vec, PrintfFunc_t PFN_printf, int indent);
-void WGPUCommandBufferVector_DebugPrint(const WGPUCommandBufferVector* vec, PrintfFunc_t PFN_printf, int indent);
-void VkDescriptorBufferInfoVector_DebugPrint(const VkDescriptorBufferInfoVector* vec, PrintfFunc_t PFN_printf, int indent);
-void VkDescriptorImageInfoVector_DebugPrint(const VkDescriptorImageInfoVector* vec, PrintfFunc_t PFN_printf, int indent);
-void VkWriteDescriptorSetAccelerationStructureKHRVector_DebugPrint(const VkWriteDescriptorSetAccelerationStructureKHRVector* vec, PrintfFunc_t PFN_printf, int indent);
-void VkDescriptorSetLayoutBindingVector_DebugPrint(const VkDescriptorSetLayoutBindingVector* vec, PrintfFunc_t PFN_printf, int indent);
-void VkAttachmentDescriptionVector_DebugPrint(const VkAttachmentDescriptionVector* vec, PrintfFunc_t PFN_printf, int indent);
-void WGPUBufferVector_DebugPrint(const WGPUBufferVector* vec, PrintfFunc_t PFN_printf, int indent);
-void DescriptorSetAndPoolVector_DebugPrint(const DescriptorSetAndPoolVector* vec, PrintfFunc_t PFN_printf, int indent);
-void VkDynamicStateVector_DebugPrint(const VkDynamicStateVector* vec, PrintfFunc_t PFN_printf, int indent);
-
-
-// --- Hash Map/Set Printers (Placeholders) ---
-void BufferUsageRecordMap_DebugPrint(const BufferUsageRecordMap* map, PrintfFunc_t PFN_printf, int indent);
-void ImageUsageRecordMap_DebugPrint(const ImageUsageRecordMap* map, PrintfFunc_t PFN_printf, int indent);
-void BindGroupUsageSet_DebugPrint(const BindGroupUsageSet* set, PrintfFunc_t PFN_printf, int indent);
-void BindGroupLayoutUsageSet_DebugPrint(const BindGroupLayoutUsageSet* set, PrintfFunc_t PFN_printf, int indent);
-void SamplerUsageSet_DebugPrint(const SamplerUsageSet* set, PrintfFunc_t PFN_printf, int indent);
-void ImageViewUsageSet_DebugPrint(const ImageViewUsageSet* set, PrintfFunc_t PFN_printf, int indent);
-void WGPURenderPassEncoderSet_DebugPrint(const WGPURenderPassEncoderSet* set, PrintfFunc_t PFN_printf, int indent);
-void RenderPipelineUsageSet_DebugPrint(const RenderPipelineUsageSet* set, PrintfFunc_t PFN_printf, int indent);
-void ComputePipelineUsageSet_DebugPrint(const ComputePipelineUsageSet* set, PrintfFunc_t PFN_printf, int indent);
-void WGPUComputePassEncoderSet_DebugPrint(const WGPUComputePassEncoderSet* set, PrintfFunc_t PFN_printf, int indent);
-void WGPURaytracingPassEncoderSet_DebugPrint(const WGPURaytracingPassEncoderSet* set, PrintfFunc_t PFN_printf, int indent);
-void PendingCommandBufferMap_DebugPrint(const PendingCommandBufferMap* map, PrintfFunc_t PFN_printf, int indent);
-void BindGroupCacheMap_DebugPrint(const BindGroupCacheMap* map, PrintfFunc_t PFN_printf, int indent);
-void RenderPassCache_DebugPrint(const RenderPassCache* cache, PrintfFunc_t PFN_printf, int indent);
-
-
-void DescriptorSetAndPool_DebugPrint(const DescriptorSetAndPool* dsp, PrintfFunc_t PFN_printf, int indent);
-void ResourceUsage_DebugPrint(const ResourceUsage* ru, PrintfFunc_t PFN_printf, int indent);
-void SyncState_DebugPrint(const SyncState* ss, PrintfFunc_t PFN_printf, int indent);
-void MappableBufferMemory_DebugPrint(const MappableBufferMemory* mem, PrintfFunc_t PFN_printf, int indent);
-void AttachmentDescriptor_DebugPrint(const AttachmentDescriptor* ad, PrintfFunc_t PFN_printf, int indent);
-void RenderPassLayout_DebugPrint(const RenderPassLayout* rpl, PrintfFunc_t PFN_printf, int indent);
-void LayoutedRenderPass_DebugPrint(const LayoutedRenderPass* lrpl, PrintfFunc_t PFN_printf, int indent);
-void wgpuxorshiftstate_DebugPrint(const wgpuxorshiftstate* state, PrintfFunc_t PFN_printf, int indent);
-void PerframeCache_DebugPrint(const PerframeCache* cache, PrintfFunc_t PFN_printf, int indent);
-void QueueIndices_DebugPrint(const QueueIndices* qi, PrintfFunc_t PFN_printf, int indent);
-
-void WGPUSamplerImpl_DebugPrint(const WGPUSamplerImpl* sampler, PrintfFunc_t PFN_printf, int indent);
-void WGPUBindGroupImpl_DebugPrint(const WGPUBindGroupImpl* bg, PrintfFunc_t PFN_printf, int indent);
-void WGPUBindGroupLayoutImpl_DebugPrint(const WGPUBindGroupLayoutImpl* bgl, PrintfFunc_t PFN_printf, int indent);
-void WGPUPipelineLayoutImpl_DebugPrint(const WGPUPipelineLayoutImpl* pl, PrintfFunc_t PFN_printf, int indent);
-void WGPUBufferImpl_DebugPrint(const WGPUBufferImpl* buffer, PrintfFunc_t PFN_printf, int indent);
-void WGPUBottomLevelAccelerationStructureImpl_DebugPrint(const WGPUBottomLevelAccelerationStructureImpl* blas, PrintfFunc_t PFN_printf, int indent);
-void WGPUTopLevelAccelerationStructureImpl_DebugPrint(const WGPUTopLevelAccelerationStructureImpl* tlas, PrintfFunc_t PFN_printf, int indent);
-void WGPUInstanceImpl_DebugPrint(const WGPUInstanceImpl* instance, PrintfFunc_t PFN_printf, int indent);
-void WGPUFutureImpl_DebugPrint(const WGPUFutureImpl* future, PrintfFunc_t PFN_printf, int indent);
-void WGPUAdapterImpl_DebugPrint(const WGPUAdapterImpl* adapter, PrintfFunc_t PFN_printf, int indent);
-void WGPUDeviceImpl_DebugPrint(const WGPUDeviceImpl* device, PrintfFunc_t PFN_printf, int indent);
-void WGPUTextureImpl_DebugPrint(const WGPUTextureImpl* texture, PrintfFunc_t PFN_printf, int indent);
-void WGPUShaderModuleImpl_DebugPrint(const WGPUShaderModuleImpl* sm, PrintfFunc_t PFN_printf, int indent);
-void WGPURenderPipelineImpl_DebugPrint(const WGPURenderPipelineImpl* rp, PrintfFunc_t PFN_printf, int indent);
-void WGPUComputePipelineImpl_DebugPrint(const WGPUComputePipelineImpl* cp, PrintfFunc_t PFN_printf, int indent);
-void WGPURaytracingPipelineImpl_DebugPrint(const WGPURaytracingPipelineImpl* rtp, PrintfFunc_t PFN_printf, int indent);
-void WGPUTextureViewImpl_DebugPrint(const WGPUTextureViewImpl* tv, PrintfFunc_t PFN_printf, int indent);
-void CommandBufferAndSomeState_DebugPrint(const CommandBufferAndSomeState* cbs, PrintfFunc_t PFN_printf, int indent);
-void WGPURenderPassEncoderImpl_DebugPrint(const WGPURenderPassEncoderImpl* rpe, PrintfFunc_t PFN_printf, int indent);
-void WGPUComputePassEncoderImpl_DebugPrint(const WGPUComputePassEncoderImpl* cpe, PrintfFunc_t PFN_printf, int indent);
-void WGPUCommandEncoderImpl_DebugPrint(const WGPUCommandEncoderImpl* ce, PrintfFunc_t PFN_printf, int indent);
-void WGPUCommandBufferImpl_DebugPrint(const WGPUCommandBufferImpl* cb, PrintfFunc_t PFN_printf, int indent);
-void WGPURaytracingPassEncoderImpl_DebugPrint(const WGPURaytracingPassEncoderImpl* rtpe, PrintfFunc_t PFN_printf, int indent);
-void WGPUSurfaceImpl_DebugPrint(const WGPUSurfaceImpl* surface, PrintfFunc_t PFN_printf, int indent);
-void WGPUQueueImpl_DebugPrint(const WGPUQueueImpl* queue, PrintfFunc_t PFN_printf, int indent);
-
-
-// --- Wrapper Debug Print Functions for WGPU Opaque Handles ---
-void WGPUSampler_DebugPrint(WGPUSampler sampler, PrintfFunc_t PFN_printf);
-void WGPUBindGroup_DebugPrint(WGPUBindGroup bindGroup, PrintfFunc_t PFN_printf);
-void WGPUBindGroupLayout_DebugPrint(WGPUBindGroupLayout bindGroupLayout, PrintfFunc_t PFN_printf);
-void WGPUPipelineLayout_DebugPrint(WGPUPipelineLayout pipelineLayout, PrintfFunc_t PFN_printf);
-void WGPUBuffer_DebugPrint(WGPUBuffer buffer, PrintfFunc_t PFN_printf);
-void WGPUBottomLevelAccelerationStructure_DebugPrint(WGPUBottomLevelAccelerationStructure blas, PrintfFunc_t PFN_printf);
-void WGPUTopLevelAccelerationStructure_DebugPrint(WGPUTopLevelAccelerationStructure tlas, PrintfFunc_t PFN_printf);
-void WGPUInstance_DebugPrint(WGPUInstance instance, PrintfFunc_t PFN_printf);
-void WGPUFuture_DebugPrint(WGPUFuture future, PrintfFunc_t PFN_printf);
-void WGPUAdapter_DebugPrint(WGPUAdapter adapter, PrintfFunc_t PFN_printf);
-void WGPUDevice_DebugPrint(WGPUDevice device, PrintfFunc_t PFN_printf);
-void WGPUTexture_DebugPrint(WGPUTexture texture, PrintfFunc_t PFN_printf);
-void WGPUShaderModule_DebugPrint(WGPUShaderModule shaderModule, PrintfFunc_t PFN_printf);
-void WGPURenderPipeline_DebugPrint(WGPURenderPipeline renderPipeline, PrintfFunc_t PFN_printf);
-void WGPUComputePipeline_DebugPrint(WGPUComputePipeline computePipeline, PrintfFunc_t PFN_printf);
-void WGPURaytracingPipeline_DebugPrint(WGPURaytracingPipeline raytracingPipeline, PrintfFunc_t PFN_printf);
-void WGPUTextureView_DebugPrint(WGPUTextureView textureView, PrintfFunc_t PFN_printf);
-void WGPURenderPassEncoder_DebugPrint(WGPURenderPassEncoder renderPassEncoder, PrintfFunc_t PFN_printf);
-void WGPUComputePassEncoder_DebugPrint(WGPUComputePassEncoder computePassEncoder, PrintfFunc_t PFN_printf);
-void WGPUCommandEncoder_DebugPrint(WGPUCommandEncoder commandEncoder, PrintfFunc_t PFN_printf);
-void WGPUCommandBuffer_DebugPrint(WGPUCommandBuffer commandBuffer, PrintfFunc_t PFN_printf);
-void WGPURaytracingPassEncoder_DebugPrint(WGPURaytracingPassEncoder raytracingPassEncoder, PrintfFunc_t PFN_printf);
-void WGPUSurface_DebugPrint(WGPUSurface surface, PrintfFunc_t PFN_printf);
-void WGPUQueue_DebugPrint(WGPUQueue queue, PrintfFunc_t PFN_printf);
-
-
-
-static inline VkImageUsageFlags toVulkanWGPUTextureUsage(WGPUTextureUsage usage, WGPUTextureFormat format) {
+static inline VkImageUsageFlags toVulkanTextureUsage(WGPUTextureUsage usage, WGPUTextureFormat format) {
     VkImageUsageFlags vkUsage = 0;
 
     if (usage & WGPUTextureUsage_CopySrc) {

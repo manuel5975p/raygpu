@@ -185,11 +185,11 @@ typedef struct WGPURaytracingPassEncoderImpl* WGPURaytracingPassEncoder;
 
 typedef enum WGPUShaderStageEnum{
     WGPUShaderStageEnum_Vertex,
+    WGPUShaderStageEnum_Fragment,
+    WGPUShaderStageEnum_Compute,
     WGPUShaderStageEnum_TessControl,
     WGPUShaderStageEnum_TessEvaluation,
     WGPUShaderStageEnum_Geometry,
-    WGPUShaderStageEnum_Fragment,
-    WGPUShaderStageEnum_Compute,
     WGPUShaderStageEnum_RayGen,
     WGPUShaderStageEnum_RayGenNV = WGPUShaderStageEnum_RayGen,
     WGPUShaderStageEnum_Intersect,
@@ -211,6 +211,7 @@ typedef enum WGPUShaderStageEnum{
 }WGPUShaderStageEnum;
 
 typedef WGPUFlags WGPUShaderStage;
+const static WGPUShaderStage WGPUShaderStage_None = 0;
 const static WGPUShaderStage WGPUShaderStage_Vertex = (((WGPUFlags)1) << WGPUShaderStageEnum_Vertex);
 const static WGPUShaderStage WGPUShaderStage_TessControl = (((WGPUFlags)1) << WGPUShaderStageEnum_TessControl);
 const static WGPUShaderStage WGPUShaderStage_TessEvaluation = (((WGPUFlags)1) << WGPUShaderStageEnum_TessEvaluation);
@@ -1440,7 +1441,8 @@ size_t wgpuBufferGetSize(WGPUBuffer buffer);
 void wgpuQueueWriteTexture(WGPUQueue queue, WGPUTexelCopyTextureInfo const * destination, const void* data, size_t dataSize, WGPUTexelCopyBufferLayout const * dataLayout, WGPUExtent3D const * writeSize);
 
 WGPUFence wgpuDeviceCreateFence  (WGPUDevice device);
-void wgpuFenceWait               (WGPUFence fence);
+void wgpuFenceWait               (WGPUFence fence, uint64_t timeoutNS);
+void wgpuFencesWait              (const WGPUFence* fences, uint32_t fenceCount, uint64_t timeoutNS);
 void wgpuFenceAttachCallback     (WGPUFence fence, void(*callback)(void*), void* userdata);
 void wgpuFenceAddRef             (WGPUFence fence);
 void wgpuFenceRelease            (WGPUFence fence);
@@ -1498,7 +1500,10 @@ WGPUComputePassEncoder wgpuCommandEncoderBeginComputePass(WGPUCommandEncoder enc
 void wgpuComputePassEncoderEnd(WGPUComputePassEncoder commandEncoder);
 WGPURenderPassEncoder wgpuCommandEncoderBeginRenderPass(WGPUCommandEncoder enc, const WGPURenderPassDescriptor* rpdesc);
 
-
+void wgpuInstanceAddRef                       (WGPUInstance instance);
+void wgpuAdapterAddRef                        (WGPUAdapter adapter);
+void wgpuDeviceAddRef                         (WGPUDevice device);
+void wgpuQueueAddRef                          (WGPUQueue device);
 void wgpuReleaseRaytracingPassEncoder         (WGPURaytracingPassEncoder rtenc);
 void wgpuTextureAddRef                        (WGPUTexture texture);
 void wgpuTextureViewAddRef                    (WGPUTextureView textureView);
@@ -1511,11 +1516,18 @@ void wgpuPipelineLayoutAddRef                 (WGPUPipelineLayout pipelineLayout
 void wgpuCommandEncoderRelease                (WGPUCommandEncoder commandBuffer);
 void wgpuCommandBufferRelease                 (WGPUCommandBuffer commandBuffer);
 
+void wgpuInstanceRelease                      (WGPUInstance instance);
+void wgpuAdapterRelease                       (WGPUAdapter adapter);
+void wgpuDeviceRelease                        (WGPUDevice device);
+void wgpuQueueRelease                         (WGPUQueue device);
 void wgpuComputePassEncoderRelease            (WGPUComputePassEncoder rpenc);
+void wgpuComputePipelineRelease               (WGPUComputePipeline pipeline);
+void wgpuRenderPipelineRelease                (WGPURenderPipeline pipeline);
 void wgpuBufferRelease                        (WGPUBuffer buffer);
 void wgpuBindGroupRelease                     (WGPUBindGroup commandBuffer);
 void wgpuBindGroupLayoutRelease               (WGPUBindGroupLayout commandBuffer);
 void wgpuBindGroupLayoutRelease               (WGPUBindGroupLayout bglayout);
+void wgpuPipelineLayoutRelease                (WGPUPipelineLayout layout);
 void wgpuTextureRelease                       (WGPUTexture texture);
 void wgpuTextureViewRelease                   (WGPUTextureView view);
 void wgpuSamplerRelease                       (WGPUSampler sampler);

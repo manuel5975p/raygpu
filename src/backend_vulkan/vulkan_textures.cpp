@@ -144,7 +144,7 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     Texture ret{};
     WGPUTextureFormat format = toWGPUPixelFormat(format_);
     VkFormat vkFormat = toVulkanPixelFormat(format);
-    VkImageUsageFlags vkUsage = toVulkanWGPUTextureUsage(usage, format);
+    VkImageUsageFlags vkUsage = toVulkanTextureUsage(usage, format);
     
     bool hasData = data != nullptr;
     

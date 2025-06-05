@@ -261,13 +261,29 @@ int main(){
     wgpuComputePassEncoderSetBindGroup(cpenc, 0, group, 0, NULL);
     wgpuComputePassEncoderDispatchWorkgroups(cpenc, 16, 1, 1);
     wgpuComputePassEncoderEnd(cpenc);
+    wgpuComputePassEncoderRelease(cpenc);
     wgpuCommandEncoderCopyBufferToBuffer(cenc, stbuf, 0, readableBuffer, 0, 64);
     WGPUCommandBuffer cmdBuffer = wgpuCommandEncoderFinish(cenc);
+    wgpuCommandEncoderRelease(cenc);
     wgpuQueueSubmit(queue, 1, &cmdBuffer);
+    wgpuCommandBufferRelease(cmdBuffer);
+
     float* floatRead = NULL;
     wgpuBufferMap(readableBuffer, WGPUMapMode_Read, 0, 64, (void**)&floatRead);
     for(int i = 0;i < 16;i++){
         printf("output value[%d] = %f\n", i, floatRead[i]);
     }
+    wgpuBufferUnmap(readableBuffer);
+    wgpuBufferRelease(readableBuffer);
+    wgpuBufferRelease(stbuf);
     
+    wgpuShaderModuleRelease(computeModule);
+    wgpuComputePipelineRelease(cpl);
+    wgpuBindGroupRelease(group);
+    wgpuBindGroupLayoutRelease(layout);
+    wgpuPipelineLayoutRelease(pllayout);
+    wgpuQueueRelease(queue);
+    wgpuDeviceRelease(device);
+    wgpuAdapterRelease(requestedAdapter);
+    wgpuInstanceRelease(instance);
 }

@@ -451,6 +451,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 
     return VK_FALSE;
 }
+
 static inline bool isWritingAccess(VkAccessFlags flags){
     return flags & (
           VK_ACCESS_SHADER_WRITE_BIT
@@ -484,6 +485,7 @@ WGPUInstance wgpuCreateInstance(const WGPUInstanceDescriptor* descriptor) {
 #else
 
     WGPUInstance ret = (WGPUInstance)RL_CALLOC(1, sizeof(WGPUInstanceImpl));
+    ret->refCount = 1;
     volkInitialize();
     if (!ret) {
         fprintf(stderr, "Failed to allocate memory for WGPUInstanceImpl\n");
@@ -686,6 +688,7 @@ typedef struct userdataforcreateadapter{
     WGPURequestAdapterCallbackInfo info;
     WGPURequestAdapterOptions options;
 } userdataforcreateadapter;
+
 static inline VkPhysicalDeviceType tvkpdt(AdapterType atype){
     switch(atype){
         case DISCRETE_GPU: return VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
@@ -716,6 +719,8 @@ void wgpuCreateAdapter_impl(void* userdata_v){
     }
     WGPUAdapter adapter = (WGPUAdapter)RL_CALLOC(1, sizeof(WGPUAdapterImpl));
     adapter->instance = userdata->instance;
+    wgpuInstanceAddRef(userdata->instance);
+    adapter->refCount = 1;
     adapter->physicalDevice = pds[i];
     vkGetPhysicalDeviceMemoryProperties(adapter->physicalDevice, &adapter->memProperties);
     uint32_t QueueFamilyPropertyCount;
@@ -901,8 +906,9 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
     
     // (Optional) Enable validation layers for device-specific debugging
     WGPUDevice retDevice = callocnew(WGPUDeviceImpl);
+    retDevice->refCount = 1;
     WGPUQueue retQueue = callocnew(WGPUQueueImpl);
-
+    retQueue->refCount = 0;
     VkResult dcresult = vkCreateDevice(adapter->physicalDevice, &createInfo, NULL, &(retDevice->device));
     struct VolkDeviceTable table = {0};
 
@@ -998,7 +1004,7 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
     //    .vkGetInstanceProcAddr               = vkGetInstanceProcAddr,
     //    .vkGetDeviceProcAddr                 = vkGetDeviceProcAddr
     //}
-    ;
+     = {0};
     vmaImportVulkanFunctionsFromVolk(&aci, &vmaVulkanFunctions);
     aci.pVulkanFunctions = &vmaVulkanFunctions;
     VkResult allocatorCreateResult = vmaCreateAllocator(&aci, &retDevice->allocator);
@@ -1034,7 +1040,9 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
 
         //auto [device, queue] = ret;
         retDevice->queue = retQueue;
+
         retDevice->adapter = adapter;
+        wgpuAdapterAddRef(adapter);
         {
             
             // Get ray tracing pipeline properties
@@ -1055,6 +1063,7 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
     return retDevice;
 }
 WGPUQueue wgpuDeviceGetQueue(WGPUDevice device){
+    wgpuQueueAddRef(device->queue);
     return device->queue;
 }
 
@@ -1115,11 +1124,10 @@ WGPUBuffer wgpuDeviceCreateBuffer(WGPUDevice device, const WGPUBufferDescriptor*
 void wgpuBufferMap(WGPUBuffer buffer, WGPUMapMode mapmode, size_t offset, size_t size, void** data){
     if(buffer->latestFence){
         if(buffer->latestFence->state == WGPUFenceState_InUse){
-            wgpuFenceWait(buffer->latestFence);
+            wgpuFenceWait(buffer->latestFence, ((uint64_t)1) << 40);
         }
         wgpuFenceRelease(buffer->latestFence);
         buffer->latestFence = NULL;    
-        //buffer->device->functions.vkWaitForFences(buffer->device->device, 1, &buffer->latestFence, VK_TRUE, ((uint64_t)1) << 30);
     }
     vmaMapMemory(buffer->device->allocator, buffer->allocation, data);
 }
@@ -1214,8 +1222,41 @@ WGPUFence wgpuDeviceCreateFence(WGPUDevice device){
 
     return fence;
 }
-void wgpuFenceWait(WGPUFence fence){
-    VkResult waitResult = fence->device->functions.vkWaitForFences(fence->device->device, 1, &fence->fence, VK_TRUE, 1ull << 40);
+void wgpuFencesWait(const WGPUFence* fences, uint32_t fenceCount, uint64_t timeoutNS){
+    if(fenceCount){
+        if(fenceCount <= 128){
+            VkFence vkFences[128];
+            uint32_t actualFenceCount = 0;
+            for(uint32_t i = 0;i < fenceCount;i++){
+                if(fences[i]->state == WGPUFenceState_InUse){
+                    vkFences[actualFenceCount++] = fences[i]->fence;
+                }
+            }
+            fences[0]->device->functions.vkWaitForFences(fences[0]->device->device, actualFenceCount, vkFences, VK_TRUE, timeoutNS);
+        }
+        else{
+            VkFence* vkFences = (VkFence*)RL_CALLOC(fenceCount, sizeof(VkFence));
+            uint32_t actualFenceCount = 0;
+            for(uint32_t i = 0;i < fenceCount;i++){
+                if(fences[i]->state == WGPUFenceState_InUse){
+                    vkFences[actualFenceCount++] = fences[i]->fence;
+                }
+            }
+            fences[0]->device->functions.vkWaitForFences(fences[0]->device->device, actualFenceCount, vkFences, VK_TRUE, timeoutNS);
+            RL_FREE((void*)vkFences);
+        }
+        for(uint32_t i = 0;i < fenceCount;i++){
+            if(fences[i]->state == WGPUFenceState_InUse){
+                for(uint32_t ci = 0;ci < fences[i]->callbacksOnWaitComplete.size;ci++){
+                    fences[i]->callbacksOnWaitComplete.data[ci].callback(fences[i]->callbacksOnWaitComplete.data[ci].userdata);
+                }
+                fences[i]->state = WGPUFenceState_Finished;
+            }
+        }
+    }
+}
+RGAPI void wgpuFenceWait(WGPUFence fence, uint64_t timeoutNS){
+    VkResult waitResult = fence->device->functions.vkWaitForFences(fence->device->device, 1, &fence->fence, VK_TRUE, timeoutNS);
     if(waitResult == VK_SUCCESS){
         fence->state = WGPUFenceState_Finished;
         for(size_t i = 0;i < fence->callbacksOnWaitComplete.size;i++){
@@ -1236,6 +1277,12 @@ void wgpuFenceRelease(WGPUFence fence){
     rassert(fence->refCount > 0, "refCount already zero");
     if(--fence->refCount == 0){
         fence->device->functions.vkDestroyFence(fence->device->device, fence->fence, NULL);
+        for(uint32_t i = 0;i < CallbackWithUserdataVector_size(&fence->callbacksOnWaitComplete);i++){
+            CallbackWithUserdata* cbu = CallbackWithUserdataVector_get(&fence->callbacksOnWaitComplete, i);
+            if(cbu->freeUserData){
+                cbu->freeUserData(cbu->userdata);
+            }
+        }
         CallbackWithUserdataVector_free(&fence->callbacksOnWaitComplete);
         RL_FREE(fence);
     }
@@ -1255,7 +1302,7 @@ WGPUTexture wgpuDeviceCreateTexture(WGPUDevice device, const WGPUTextureDescript
     imageInfo.format = toVulkanPixelFormat(descriptor->format);
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    imageInfo.usage = toVulkanWGPUTextureUsage(descriptor->usage, descriptor->format);
+    imageInfo.usage = toVulkanTextureUsage(descriptor->usage, descriptor->format);
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageInfo.samples = toVulkanSampleCount(descriptor->sampleCount);
     
@@ -2194,45 +2241,6 @@ WGPUCommandBuffer wgpuCommandEncoderFinish(WGPUCommandEncoder commandEncoder){
     return ret;
 }
 
-static void validatePipelineLayouts(WGPUPipelineLayout inserted, WGPUPipelineLayout base){
-    //WGPU_VALIDATE_EQ_PTR(inserted->device, inserted->device, base->device, "failed when verifying objects belong to the same device");
-    //WGPU_VALIDATE_EQ_UINT(inserted->device, inserted->bindGroupLayoutCount, base->bindGroupLayoutCount, "failed when validating bindGroupLayoutCounts");
-    ////VALIDATE_EQ(inserted->device, inserted->bindGroupLayoutCount, base->bindGroupLayoutCount)
-    //for(uint32_t i = 0;i < base->bindGroupLayoutCount;i++){
-    //    for(uint32_t j = 0;j < base->bindGroupLayouts[i]->entryCount;j++){
-    //        WGPU_VALIDATE_EQ_UINT(
-    //            inserted->device,
-    //            inserted->bindGroupLayouts[i]->entries[j].type,
-    //            base->bindGroupLayouts[i]->entries[j].type,
-    //            "failed when comparing BindGroupLayoutTypes"
-    //        );
-    //    }
-    //}
-}
-static void validateBindGroup_BindGroupLayout(WGPUBindGroup group, WGPUBindGroupLayout layout){
-    //ResourceDescriptor* reverse_ep[64] = {0};
-    //ResourceTypeDescriptor* reverse_lep[64] = {0};
-//
-//
-    //for(uint32_t i = 0;i < group->entryCount;i++){
-    //    if(reverse_ep[group->entries[i].binding]){
-    //        WGPU_VALIDATION_ERROR_MESSAGE("Duplicate binding %u in bindgroup", group->entries[i].binding);
-    //    }
-    //    rassert(group->entries[i].binding < 64, "Binding larger than 64, should be fixed...");
-    //    rassert(layout->entries[i].location < 64, "Binding larger than 64, should be fixed...");
-    //    reverse_ep[group->entries[i].binding] = group->entries + i;
-    //    reverse_lep[layout->entries[i].location] = layout->entries + i;
-    //}
-//
-    //for(uint32_t i = 0;i < rg_countof(reverse_ep);i++){
-    //    if(reverse_lep[i]){
-    //        if(reverse_lep[i]->type == uniform_buffer || reverse_lep[i]->type == storage_buffer){
-    //            WGPU_VALIDATE_NEQ_PTR(group->device, reverse_ep[i]->buffer, NULL, "failed when sanitizing entries");
-    //        }
-    //    }
-    //}
-}
-
 void recordVkCommand(CommandBufferAndSomeState* destination_, const RenderPassCommandGeneric* command, const RenderPassCommandBegin *beginInfo){
     VkCommandBuffer destination = destination_->buffer;
     WGPUDevice device = destination_->device;
@@ -2440,10 +2448,21 @@ void registerTransitionCallback(void* texture_, ImageUsageRecord* record, void* 
     );
     //ce_trackTexture(pscache, texture, artificial);
 }
+
 void updateLayoutCallback(void* texture_, ImageUsageRecord* record, void* unused){
     WGPUTexture texture = (WGPUTexture)texture_;
     texture->layout = record->lastLayout;
 }
+
+void releaseCommandBuffersDependingOnFence(void* userdata){
+    PendingCommandBufferListRef* list = (PendingCommandBufferListRef*)userdata;
+    WGPUCommandBufferVector* bufferVector = PendingCommandBufferMap_get(list->map, list->fence);
+    for(uint32_t i = 0;i < bufferVector->size;i++){
+        wgpuCommandBufferRelease(bufferVector->data[i]);
+    }
+    WGPUCommandBufferVector_free(bufferVector);
+}
+
 void wgpuQueueSubmit(WGPUQueue queue, size_t commandCount, const WGPUCommandBuffer* buffers){
     VkSubmitInfo si zeroinit;
     si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -2480,18 +2499,6 @@ void wgpuQueueSubmit(WGPUQueue queue, size_t commandCount, const WGPUCommandBuff
     }
     
     WGPUFence fence = wgpuDeviceCreateFence(queue->device);
-
-    //VkResult result = queue->device->functions.vkCreateFence(
-    //    queue->device->device,
-    //    &(VkFenceCreateInfo){
-    //        VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-    //        NULL,
-    //        0,
-    //    },
-    //    NULL,
-    //    &fence
-    //);
-    //rassert(result == VK_SUCCESS, "Could not create VkFence");
         
     si.commandBufferCount = submittable.size;
     si.pCommandBuffers = submittable.data;
@@ -2560,6 +2567,9 @@ void wgpuQueueSubmit(WGPUQueue queue, size_t commandCount, const WGPUCommandBuff
                 if(kv_pair->key != PHM_EMPTY_SLOT_KEY && kv_pair->value.everWrittenTo != VK_FALSE && (keybuffer->usage & (WGPUBufferUsage_MapWrite | WGPUBufferUsage_MapRead))){
                     keybuffer->latestFence = fence;
                     wgpuFenceAddRef(fence);
+                    //CallbackWithUserdataVector_push_back(
+                    //    &fence->callbacksOnWaitComplete
+                    //);
                 }
             }
         }
@@ -2581,6 +2591,15 @@ void wgpuQueueSubmit(WGPUQueue queue, size_t commandCount, const WGPUCommandBuff
             WGPUCommandBufferVector insert;
             PendingCommandBufferMap_put(&(queue->pendingCommandBuffers[frameCount % framesInFlight]), (void*)fence, insert);
             fence_iterator = PendingCommandBufferMap_get(&(queue->pendingCommandBuffers[frameCount % framesInFlight]), (void*)fence);
+            PendingCommandBufferListRef* ud = RL_CALLOC(1, sizeof(PendingCommandBufferListRef));
+            ud->fence = fence;
+            ud->map = &(queue->pendingCommandBuffers[frameCount % framesInFlight]);
+            
+            CallbackWithUserdataVector_push_back(&fence->callbacksOnWaitComplete, (CallbackWithUserdata){
+                .callback = releaseCommandBuffersDependingOnFence,
+                .userdata = ud,
+                .freeUserData = free
+            });
             rassert(fence_iterator != NULL, "Something is wrong with the hash set");
             WGPUCommandBufferVector_init(fence_iterator);
         }
@@ -2611,10 +2630,10 @@ void wgpuSurfaceGetCapabilities(WGPUSurface wgpuSurface, WGPUAdapter adapter, WG
     // TRACELOG(LOG_INFO, "scalphaflags: %d", scap.supportedCompositeAlpha);
     
     // Formats
-    uint32_t formatCount;
+    uint32_t formatCount = 0;
     vkGetPhysicalDeviceSurfaceFormatsKHR(vk_physicalDevice, surface, &formatCount, NULL);
+    
     if (formatCount != 0) {
-
         wgpuSurface->formatCache = (VkSurfaceFormatKHR*)RL_CALLOC(formatCount, sizeof(VkSurfaceFormatKHR));
         VkSurfaceFormatKHR* surfaceFormats = (VkSurfaceFormatKHR*)RL_CALLOC(formatCount, sizeof(VkSurfaceFormatKHR));
         vkGetPhysicalDeviceSurfaceFormatsKHR(vk_physicalDevice, surface, &formatCount, surfaceFormats);
@@ -2640,7 +2659,7 @@ void wgpuSurfaceGetCapabilities(WGPUSurface wgpuSurface, WGPUAdapter adapter, WG
     capabilities->presentModeCount = wgpuSurface->presentModeCount;
     capabilities->formatCount = wgpuSurface->formatCount;
 
-    WGPUPresentMode* retpm   = RL_CALLOC(presentModeCount, sizeof(WGPUPresentMode));
+    WGPUPresentMode*   retpm = RL_CALLOC(presentModeCount, sizeof(WGPUPresentMode));
     WGPUTextureFormat* retfm = RL_CALLOC(formatCount,      sizeof(WGPUTextureFormat));
 
     for(uint32_t i = 0;i < wgpuSurface->presentModeCount;i++){
@@ -2865,9 +2884,12 @@ void wgpuRenderPassEncoderRelease(WGPURenderPassEncoder rpenc) {
 }
 
 void wgpuShaderModuleRelease(WGPUShaderModule module){
-    if(--module->refCount){
+    if(--module->refCount == 0){
         if(module->source->sType == WGPUSType_ShaderSourceSPIRV){
             RL_FREE(((WGPUShaderSourceSPIRV*)module->source)->code);
+        }
+        if(module->source->sType == WGPUSType_ShaderSourceWGSL){
+            RL_FREE((void*)((WGPUShaderSourceWGSL*)module->source)->code.data);
         }
         RL_FREE(module->source);
         RL_FREE(module);
@@ -2887,7 +2909,6 @@ void wgpuPipelineLayoutRelease(WGPUPipelineLayout layout){
         RL_FREE(layout);
     }
 }
-
 void wgpuRenderPipelineRelease(WGPURenderPipeline pipeline){
     if(!--pipeline->refCount){
         wgpuPipelineLayoutRelease(pipeline->layout);
@@ -2943,6 +2964,74 @@ void wgpuBindGroupRelease(WGPUBindGroup dshandle) {
         // vkDestroyDescriptorPool(dshandle->device->device, dshandle->pool, NULL);
         
         RL_FREE(dshandle);
+    }
+}
+void wgpuInstanceAddRef                       (WGPUInstance instance){
+    ++instance->refCount;
+}
+void wgpuAdapterAddRef                        (WGPUAdapter adapter){
+    ++adapter->refCount;
+}
+void wgpuDeviceAddRef                         (WGPUDevice device){
+    ++device->refCount;
+}
+void wgpuQueueAddRef                          (WGPUQueue queue){
+    ++queue->refCount;
+}
+
+void wgpuInstanceRelease                      (WGPUInstance instance){
+    if(--instance->refCount == 0){
+        vkDestroyInstance(instance->instance, NULL);
+        RL_FREE(instance);
+    }
+}
+
+void wgpuAdapterRelease(WGPUAdapter adapter){
+    if(--adapter->refCount == 0){
+        wgpuInstanceRelease(adapter->instance);
+        RL_FREE(adapter);
+    }
+}
+
+void wgpuDeviceRelease(WGPUDevice device){
+    if(--device->refCount == 0){
+
+        {  // Destroy PerframeCaches
+            for(uint32_t i = 0;i < framesInFlight;i++){
+                PerframeCache* cache = device->frameCaches + i;
+                PendingCommandBufferMap* pcm = device->queue->pendingCommandBuffers + i;
+                for(size_t c = 0;c < pcm->current_capacity;c++){
+                    PendingCommandBufferMap_kv_pair* kvp = pcm->table + c;
+
+                    if(kvp->key != PHM_EMPTY_SLOT_KEY){
+                        WGPUFence keyfence = kvp->key;
+                        if(keyfence->state == WGPUFenceState_InUse){
+                            wgpuFenceWait(keyfence, UINT32_MAX);
+                        }
+                        WGPUCommandBufferVector* value = &kvp->value;
+                        for(size_t cbi = 0;cbi < value->size;cbi++){
+                            wgpuCommandBufferRelease(value->data[cbi]);
+                        }
+                    }
+                }
+                if(cache->commandBuffers.size){
+                    device->functions.vkFreeCommandBuffers(device->device, cache->commandPool, cache->commandBuffers.size, cache->commandBuffers.data);
+                    device->functions.vkDestroyCommandPool(device->device, cache->commandPool, NULL);
+                }
+            }
+        }
+
+        wgpuQueueRelease(device->queue);
+        wgpuAdapterRelease(device->adapter);
+        device->functions.vkDestroyDevice(device->device, NULL);
+        // Still a lot to do
+        RL_FREE(device->queue);
+        RL_FREE(device);
+    }
+}
+void wgpuQueueRelease                         (WGPUQueue queue){
+    if(--queue->refCount == 0){
+        //wgpuDeviceRelease(queue->device);
     }
 }
 
@@ -3574,29 +3663,9 @@ void wgpuRenderPassEncoderSetBindGroup(WGPURenderPassEncoder rpe, uint32_t group
             dynamicOffsets
         }
     };
-    validateBindGroup_BindGroupLayout(group, rpe->lastLayout->bindGroupLayouts[groupIndex]);
-    
-    //for(uint32_t i = 0;i < group->entryCount;i++){
-    //    const ResourceDescriptor* cur = group->entries + i;
-    //    const ResourceTypeDescriptor* cur_le = NULL;
-    //    for(uint32_t j = 0;j < group->layout->entryCount;j++){
-    //        if(group->layout->entries[j].location == cur->binding){
-    //            cur_le = group->layout->entries + j;
-    //            goto found;
-    //        }
-    //    }
-    //    goto error;
-    //    found:
-    //    if(is_storage_texture[]){
-    //    }
-    //}
     
     RenderPassEncoder_PushCommand(rpe, &insert);
     
-    //VkBufferMemoryBarrier bufferbarriers[64] = {0};
-    //uint32_t bbInsertPos = 0;
-    //VkImageMemoryBarrier imageBarriers  [64] = {0};
-    //uint32_t ibInsertPos = 0;
     
     
 
@@ -3716,7 +3785,10 @@ void resetFenceAndReleaseBuffers(void* fence_, WGPUCommandBufferVector* cBuffers
             BufferUsageRecordMap_kv_pair* kvp = bmap->table + bi;
             if(kvp->key != PHM_EMPTY_SLOT_KEY){
                 WGPUBuffer buffer = (WGPUBuffer)kvp->key;
-                buffer->latestFence = VK_NULL_HANDLE;
+                if(buffer->latestFence){
+                    wgpuFenceRelease(buffer->latestFence);
+                    buffer->latestFence = VK_NULL_HANDLE;
+                }
             }
         }
         wgpuCommandBufferRelease(cBuffers->data[i]);
@@ -3724,8 +3796,28 @@ void resetFenceAndReleaseBuffers(void* fence_, WGPUCommandBufferVector* cBuffers
     WGPUCommandBufferVector_free(cBuffers);
 }
 
-void wgpuSurfaceGetCurrentTexture(WGPUSurface surface, WGPUSurfaceTexture * surfaceTexture){
-
+ void wgpuSurfaceGetCurrentTexture(WGPUSurface surface, WGPUSurfaceTexture* surfaceTexture){
+    VkResult acquireResult = surface->device->functions.vkAcquireNextImageKHR(surface->device->device, surface->swapchain, UINT32_MAX, VK_NULL_HANDLE, VK_NULL_HANDLE, &surface->activeImageIndex);
+    switch(acquireResult){
+        case VK_SUBOPTIMAL_KHR:
+            surfaceTexture->status = WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal;
+        break;
+        case VK_SUCCESS:
+            surfaceTexture->status = WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal;
+        break;
+        case VK_TIMEOUT:
+            surfaceTexture->status = WGPUSurfaceGetCurrentTextureStatus_Timeout;
+        break;
+        case VK_ERROR_OUT_OF_DATE_KHR:
+            surfaceTexture->status = WGPUSurfaceGetCurrentTextureStatus_Outdated;
+        break;
+        default:
+            surfaceTexture->status = WGPUSurfaceGetCurrentTextureStatus_Error;
+        break;
+    }
+    if(surfaceTexture->status == WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal || surfaceTexture->status == WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal){
+        surfaceTexture->texture = surface->images[surface->activeImageIndex];
+    }
 }
 
 void wgpuSurfacePresent(WGPUSurface surface){
@@ -3841,25 +3933,13 @@ void wgpuSurfacePresent(WGPUSurface surface){
     if(pcm->current_size > 0){
         PendingCommandBufferMap_for_each(pcm, pcmNonnullFlattenCallback, (void*)&fences);
         if(fences.size > 0){
-            VkFence wFences[2048];
-            for(uint32_t i = 0;i < fences.size;i++){
-                wFences[i] = fences.data[i]->fence;
-            }
-            VkResult waitResult = surfaceDevice->functions.vkWaitForFences(surfaceDevice->device, fences.size, wFences, VK_TRUE, UINT64_MAX);
-            if(waitResult != VK_SUCCESS){
-                TRACELOG(LOG_FATAL, "Waitresult: %d", waitResult);
-            }
-            if(fences.size == 1){
-                //TRACELOG(LOG_TRACE, "Waiting for fence %p\n", fences.data[0]);
-            }
-        }
-        else{
-            //TRACELOG(LOG_INFO, "No fences!");
+            wgpuFencesWait(fences.data, fences.size, UINT32_MAX);
         }
     }
     else{
         TRACELOG(LOG_INFO, "No fences!");
     }
+
     PendingCommandBufferMap_for_each(pcm, resetFenceAndReleaseBuffers, surfaceDevice);    
     WGPUFenceVector_free(&fences);
 
@@ -4709,1186 +4789,4 @@ const char* vkErrorString(int code){
         case VK_ERROR_NOT_ENOUGH_SPACE_KHR: return "VK_ERROR_NOT_ENOUGH_SPACE_KHR";
         default: return "<Unknown VkResult enum>";
     }
-}
-
-
-
-void PFN_Print_Indent(int indent_level, PrintfFunc_t PFN_printf) {
-    for (int i = 0; i < indent_level; ++i) {
-        PFN_printf("  ");
-    }
-}
-
-// --- Enum to String Helper Implementations (Stubs or actual) ---
-const char* RCPassCommandType_ToString(RCPassCommandType type) {
-    switch (type) {
-        case rp_command_type_invalid: return "rp_command_type_invalid";
-        case rp_command_type_draw: return "rp_command_type_draw";
-        case rp_command_type_draw_indexed: return "rp_command_type_draw_indexed";
-        case rp_command_type_set_vertex_buffer: return "rp_command_type_set_vertex_buffer";
-        case rp_command_type_set_index_buffer: return "rp_command_type_set_index_buffer";
-        case rp_command_type_set_bind_group: return "rp_command_type_set_bind_group";
-        case rp_command_type_set_render_pipeline: return "rp_command_type_set_render_pipeline";
-        case cp_command_type_set_compute_pipeline: return "cp_command_type_set_compute_pipeline";
-        case cp_command_type_dispatch_workgroups: return "cp_command_type_dispatch_workgroups";
-        // rp_command_type_enum_count is likely not a command type itself
-        default: return "Unknown RCPassCommandType";
-    }
-}
-
-const char* LoadOp_ToString(WGPULoadOp op) { // Assuming LoadOp is int-based enum
-    static char buf[32];
-    // In a real scenario, you'd have proper enum to string from raygpu.h
-    // Or #define LOAD_OP_LOAD 1 etc.
-    // For now, just print value.
-    // Example: if (op == LOAD_OP_LOAD) return "LOAD_OP_LOAD";
-    sprintf(buf, "LoadOp(%d)", (int)op);
-    return buf;
-}
-
-const char* StoreOp_ToString(WGPUStoreOp op) { // Assuming StoreOp is int-based enum
-    static char buf[32];
-    sprintf(buf, "StoreOp(%d)", (int)op);
-    return buf;
-}
-const char* IndexFormat_ToString(WGPUIndexFormat format) { // Assuming IndexFormat is int-based enum
-    static char buf[32];
-     // Example: if (format == INDEX_FORMAT_UINT16) return "INDEX_FORMAT_UINT16";
-    sprintf(buf, "IndexFormat(%d)", (int)format);
-    return buf;
-}
-const char* BufferUsage_ToString(WGPUBufferUsage usage) { // Assuming BufferUsage is int-based enum (flags)
-    static char buf[64];
-    sprintf(buf, "BufferUsage(0x%X)", (unsigned int)usage);
-    return buf;
-}
-
-
-// --- Placeholder Debug Print Implementations for external/assumed structs ---
-void WGPUStringView_DebugPrint(const WGPUStringView* sv, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!sv) { PFN_printf("WGPUStringView: (NULL)\n"); return; }
-    // Safely print string, respecting sv->length, ensure null termination for print
-    char temp_str[256]; // Buffer for temporary null-terminated string
-    size_t len_to_copy = sv->length < (sizeof(temp_str) - 1) ? sv->length : (sizeof(temp_str) - 1);
-    if (sv->data) {
-        strncpy(temp_str, sv->data, len_to_copy);
-    } else {
-        len_to_copy = 0; // or copy "(null data)"
-    }
-    temp_str[len_to_copy] = '\0';
-    PFN_printf("WGPUStringView: length=%zu, data=\"%s\"%s\n",
-        sv->length,
-        temp_str,
-        sv->length >= (sizeof(temp_str) -1) ? " (truncated)" : ""
-    );
-}
-
-void WGPURenderPassColorAttachment_DebugPrint(const WGPURenderPassColorAttachment* att, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!att) { PFN_printf("WGPURenderPassColorAttachment: (NULL)\n"); return; }
-    PFN_printf("WGPURenderPassColorAttachment: (details omitted, assuming fields like view, loadOp, storeOp)\n");
-    // Example:
-    // PFN_printf("WGPURenderPassColorAttachment:\n");
-    // PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("view: %p\n", (void*)att->view);
-    // PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("resolveTarget: %p\n", (void*)att->resolveTarget);
-    // PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("loadOp: %s\n", LoadOp_ToString(att->loadOp));
-    // PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("storeOp: %s\n", StoreOp_ToString(att->storeOp));
-    // PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("clearValue: r=%.2f g=%.2f b=%.2f a=%.2f\n", att->clearValue.r, att->clearValue.g, att->clearValue.b, att->clearValue.a);
-}
-
-void WGPURenderPassDepthStencilAttachment_DebugPrint(const WGPURenderPassDepthStencilAttachment* att, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!att) { PFN_printf("WGPURenderPassDepthStencilAttachment: (NULL)\n"); return; }
-    PFN_printf("WGPURenderPassDepthStencilAttachment: (details omitted)\n");
-    // Similar to ColorAttachment, print view, depthLoadOp, depthStoreOp, stencilLoadOp, etc.
-}
-
-void WGPUSurfaceConfiguration_DebugPrint(const WGPUSurfaceConfiguration* config, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!config) { PFN_printf("WGPUSurfaceConfiguration: (NULL)\n"); return; }
-    //PFN_printf("WGPUSurfaceConfiguration: (details omitted, assuming fields like device, format, usage, width, height)\n");
-    // Example:
-    PFN_printf("WGPUSurfaceConfiguration:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("device: %p\n", (void*)config->device);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("format: %d\n", config->format); // Use format to string if available
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("presentMode: %d\n", config->presentMode);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("width: %u\n", config->width);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("height: %u\n", config->height);
-}
-
-void ResourceDescriptor_DebugPrint(const ResourceDescriptor* desc, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!desc) { PFN_printf("ResourceDescriptor: (NULL)\n"); return; }
-    PFN_printf("ResourceDescriptor: (opaque, details omitted)\n");
-}
-
-void ResourceTypeDescriptor_DebugPrint(const ResourceTypeDescriptor* desc, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!desc) { PFN_printf("ResourceTypeDescriptor: (NULL)\n"); return; }
-    PFN_printf("ResourceTypeDescriptor: (opaque, details omitted)\n");
-}
-
-void WGPUUncapturedErrorCallbackInfo_DebugPrint(const WGPUUncapturedErrorCallbackInfo* info, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!info) { PFN_printf("WGPUUncapturedErrorCallbackInfo: (NULL)\n"); return; }
-    PFN_printf("WGPUUncapturedErrorCallbackInfo:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("callback: %p\n", (void*)info->callback);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("userdata1: %p\n", info->userdata1);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("userdata2: %p\n", info->userdata2);
-}
-
-void VolkDeviceTable_DebugPrint(const struct VolkDeviceTable* table, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!table) { PFN_printf("VolkDeviceTable: (NULL)\n"); return; }
-    int allnull = 1;
-    uintptr_t* begin = (uintptr_t*)table;
-    for(uint32_t i = 0;i < sizeof(struct VolkDeviceTable) / sizeof(uintptr_t);i++){
-        if(begin[i]){
-            allnull = 0;
-            break;
-        }
-    }
-    if(allnull)
-        PFN_printf("VolkDeviceTable: (function pointer table, all entries NULL)\n");
-    else{
-        PFN_printf("VolkDeviceTable: (function pointer table, some entries non-NULL)\n");
-        PFN_Print_Indent(indent + 1, PFN_printf);
-        PFN_printf("vkCmdDraw: %p\n", (void*)table->vkCmdDraw);
-    }
-}
-
-// --- Actual Struct Debug Print Implementations ---
-
-void ImageUsageRecord_DebugPrint(const ImageUsageRecord* record, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!record) { PFN_printf("ImageUsageRecord: (NULL)\n"); return; }
-    PFN_printf("ImageUsageRecord:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("initialLayout: %d\n", record->initialLayout);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("lastLayout: %d\n", record->lastLayout);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("lastStage: 0x%X\n", record->lastStage);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("lastAccess: 0x%X\n", record->lastAccess);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("lastAccessedSubresource: (aspectMask=0x%X, baseMipLevel=%u, levelCount=%u, baseArrayLayer=%u, layerCount=%u)\n",
-        record->lastAccessedSubresource.aspectMask, record->lastAccessedSubresource.baseMipLevel,
-        record->lastAccessedSubresource.levelCount, record->lastAccessedSubresource.baseArrayLayer,
-        record->lastAccessedSubresource.layerCount);
-}
-
-void ImageUsageSnap_DebugPrint(const ImageUsageSnap* snap, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!snap) { PFN_printf("ImageUsageSnap: (NULL)\n"); return; }
-    PFN_printf("ImageUsageSnap:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("layout: %d\n", snap->layout);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("stage: 0x%X\n", snap->stage);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("access: 0x%X\n", snap->access);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("subresource: (aspectMask=0x%X, baseMipLevel=%u, levelCount=%u, baseArrayLayer=%u, layerCount=%u)\n",
-        snap->subresource.aspectMask, snap->subresource.baseMipLevel,
-        snap->subresource.levelCount, snap->subresource.baseArrayLayer,
-        snap->subresource.layerCount);
-}
-
-void BufferUsageRecord_DebugPrint(const BufferUsageRecord* record, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!record) { PFN_printf("BufferUsageRecord: (NULL)\n"); return; }
-    PFN_printf("BufferUsageRecord:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("lastStage: 0x%X\n", record->lastStage);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("lastAccess: 0x%X\n", record->lastAccess);
-}
-
-void RenderPassCommandDraw_DebugPrint(const RenderPassCommandDraw* cmd, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!cmd) { PFN_printf("RenderPassCommandDraw: (NULL)\n"); return; }
-    PFN_printf("RenderPassCommandDraw: vertexCount=%u, instanceCount=%u, firstVertex=%u, firstInstance=%u\n",
-        cmd->vertexCount, cmd->instanceCount, cmd->firstVertex, cmd->firstInstance);
-}
-
-void RenderPassCommandDrawIndexed_DebugPrint(const RenderPassCommandDrawIndexed* cmd, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!cmd) { PFN_printf("RenderPassCommandDrawIndexed: (NULL)\n"); return; }
-    PFN_printf("RenderPassCommandDrawIndexed: indexCount=%u, instanceCount=%u, firstIndex=%u, baseVertex=%d, firstInstance=%u\n",
-        cmd->indexCount, cmd->instanceCount, cmd->firstIndex, cmd->baseVertex, cmd->firstInstance);
-}
-
-void RenderPassCommandSetBindGroup_DebugPrint(const RenderPassCommandSetBindGroup* cmd, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!cmd) { PFN_printf("RenderPassCommandSetBindGroup: (NULL)\n"); return; }
-    PFN_printf("RenderPassCommandSetBindGroup:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("groupIndex: %u\n", cmd->groupIndex);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("group: %p\n", (void*)cmd->group);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("bindPoint: %d\n", cmd->bindPoint);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("dynamicOffsetCount: %zu\n", cmd->dynamicOffsetCount);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("dynamicOffsets: %p", (void*)cmd->dynamicOffsets);
-    if (cmd->dynamicOffsets && cmd->dynamicOffsetCount > 0) {
-        PFN_printf(" [");
-        for (size_t i = 0; i < cmd->dynamicOffsetCount; ++i) {
-            PFN_printf("%u%s", cmd->dynamicOffsets[i], (i == cmd->dynamicOffsetCount - 1) ? "" : ", ");
-            if (i >= 4 && cmd->dynamicOffsetCount > 5) { PFN_printf("..."); break; } // Print a few
-        }
-        PFN_printf("]\n");
-    } else {
-        PFN_printf("\n");
-    }
-}
-
-void RenderPassCommandSetVertexBuffer_DebugPrint(const RenderPassCommandSetVertexBuffer* cmd, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!cmd) { PFN_printf("RenderPassCommandSetVertexBuffer: (NULL)\n"); return; }
-    PFN_printf("RenderPassCommandSetVertexBuffer: slot=%u, buffer=%p, offset=%" PRIu64 "\n",
-        cmd->slot, (void*)cmd->buffer, cmd->offset);
-}
-
-void RenderPassCommandSetIndexBuffer_DebugPrint(const RenderPassCommandSetIndexBuffer* cmd, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!cmd) { PFN_printf("RenderPassCommandSetIndexBuffer: (NULL)\n"); return; }
-    PFN_printf("RenderPassCommandSetIndexBuffer: buffer=%p, format=%s, offset=%" PRIu64 ", size=%" PRIu64 "\n",
-        (void*)cmd->buffer, IndexFormat_ToString(cmd->format), cmd->offset, cmd->size);
-}
-
-void RenderPassCommandSetPipeline_DebugPrint(const RenderPassCommandSetPipeline* cmd, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!cmd) { PFN_printf("RenderPassCommandSetPipeline: (NULL)\n"); return; }
-    PFN_printf("RenderPassCommandSetPipeline: pipeline=%p\n", (void*)cmd->pipeline);
-}
-
-void ComputePassCommandSetPipeline_DebugPrint(const ComputePassCommandSetPipeline* cmd, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!cmd) { PFN_printf("ComputePassCommandSetPipeline: (NULL)\n"); return; }
-    PFN_printf("ComputePassCommandSetPipeline: pipeline=%p\n", (void*)cmd->pipeline);
-}
-
-void ComputePassCommandDispatchWorkgroups_DebugPrint(const ComputePassCommandDispatchWorkgroups* cmd, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!cmd) { PFN_printf("ComputePassCommandDispatchWorkgroups: (NULL)\n"); return; }
-    PFN_printf("ComputePassCommandDispatchWorkgroups: x=%u, y=%u, z=%u\n", cmd->x, cmd->y, cmd->z);
-}
-
-void RenderPassCommandBegin_DebugPrint(const RenderPassCommandBegin* cmd, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!cmd) { PFN_printf("RenderPassCommandBegin: (NULL)\n"); return; }
-    PFN_printf("RenderPassCommandBegin:\n");
-    WGPUStringView_DebugPrint(&cmd->label, PFN_printf, indent + 1);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("colorAttachmentCount: %zu\n", cmd->colorAttachmentCount);
-    for (size_t i = 0; i < cmd->colorAttachmentCount; ++i) {
-        if (i >= MAX_COLOR_ATTACHMENTS) {
-            PFN_Print_Indent(indent + 2, PFN_printf); PFN_printf("... (more than MAX_COLOR_ATTACHMENTS)\n");
-            break;
-        }
-        PFN_Print_Indent(indent + 2, PFN_printf); PFN_printf("colorAttachments[%zu]:\n", i);
-        WGPURenderPassColorAttachment_DebugPrint(&cmd->colorAttachments[i], PFN_printf, indent + 3);
-    }
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("depthAttachmentPresent: %s\n", cmd->depthAttachmentPresent ? "VK_TRUE" : "VK_FALSE");
-    if (cmd->depthAttachmentPresent) {
-        PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("depthStencilAttachment:\n");
-        WGPURenderPassDepthStencilAttachment_DebugPrint(&cmd->depthStencilAttachment, PFN_printf, indent + 2);
-    }
-}
-
-void RenderPassCommandGeneric_DebugPrint(const RenderPassCommandGeneric* cmd, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!cmd) { PFN_printf("RenderPassCommandGeneric: (NULL)\n"); return; }
-    PFN_printf("RenderPassCommandGeneric: type=%s (%d)\n", RCPassCommandType_ToString(cmd->type), cmd->type);
-    int next_indent = indent +1;
-    switch (cmd->type) {
-        case rp_command_type_draw:
-            RenderPassCommandDraw_DebugPrint(&cmd->draw, PFN_printf, next_indent);
-            break;
-        case rp_command_type_draw_indexed:
-            RenderPassCommandDrawIndexed_DebugPrint(&cmd->drawIndexed, PFN_printf, next_indent);
-            break;
-        case rp_command_type_set_vertex_buffer:
-            RenderPassCommandSetVertexBuffer_DebugPrint(&cmd->setVertexBuffer, PFN_printf, next_indent);
-            break;
-        case rp_command_type_set_index_buffer:
-            RenderPassCommandSetIndexBuffer_DebugPrint(&cmd->setIndexBuffer, PFN_printf, next_indent);
-            break;
-        case rp_command_type_set_bind_group:
-            RenderPassCommandSetBindGroup_DebugPrint(&cmd->setBindGroup, PFN_printf, next_indent);
-            break;
-        case rp_command_type_set_render_pipeline:
-            RenderPassCommandSetPipeline_DebugPrint(&cmd->setRenderPipeline, PFN_printf, next_indent);
-            break;
-        case cp_command_type_set_compute_pipeline:
-            ComputePassCommandSetPipeline_DebugPrint(&cmd->setComputePipeline, PFN_printf, next_indent);
-            break;
-        case cp_command_type_dispatch_workgroups:
-            ComputePassCommandDispatchWorkgroups_DebugPrint(&cmd->dispatchWorkgroups, PFN_printf, next_indent);
-            break;
-        default:
-            PFN_Print_Indent(next_indent, PFN_printf); PFN_printf("(No specific data for this type or type is invalid/unknown)\n");
-            break;
-    }
-}
-
-// --- Vector Printer Implementations ---
-#define DEFINE_VECTOR_PRINTER(VecName, ElemType, ElemPrinter) \
-void VecName##_DebugPrint(const VecName* vec, PrintfFunc_t PFN_printf, int indent) { \
-    PFN_Print_Indent(indent, PFN_printf); \
-    if (!vec) { PFN_printf(#VecName ": (NULL)\n"); return; } \
-    PFN_printf(#VecName ": count=%zu, capacity=%zu\n", vec->size, vec->capacity); \
-    for (size_t i = 0; i < vec->size; ++i) { \
-        PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("[%zu]:\n", i); \
-        ElemPrinter(&vec->data[i], PFN_printf, indent + 2); \
-    } \
-}
-
-#define DEFINE_VECTOR_PRINTER_OPAQUE_HANDLE(VecName, ElemType) \
-void VecName##_DebugPrint(const VecName* vec, PrintfFunc_t PFN_printf, int indent) { \
-    PFN_Print_Indent(indent, PFN_printf); \
-    if (!vec) { PFN_printf(#VecName ": (NULL)\n"); return; } \
-    PFN_printf(#VecName ": count=%zu, capacity=%zu\n", vec->size, vec->capacity); \
-    for (size_t i = 0; i < vec->size; ++i) { \
-        PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("[%zu]: %p (" #ElemType ")\n", i, (void*)vec->data[i]); \
-    } \
-}
-
-#define DEFINE_VECTOR_PRINTER_VK_STRUCT(VecName, ElemType) \
-void VecName##_DebugPrint(const VecName* vec, PrintfFunc_t PFN_printf, int indent) { \
-    PFN_Print_Indent(indent, PFN_printf); \
-    if (!vec) { PFN_printf(#VecName ": (NULL)\n"); return; } \
-    PFN_printf(#VecName ": count=%zu, capacity=%zu\n", vec->count, vec->capacity); \
-    for (size_t i = 0; i < vec->count; ++i) { \
-        PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("[%zu]: (Vk Struct " #ElemType ", details omitted)\n", i); \
-        /* If ElemType has a printer: ElemType##_DebugPrint(&vec->data[i], PFN_printf, indent + 2); */ \
-    } \
-}
-
-// Placeholder for VkWriteDescriptorSet, VkDescriptorBufferInfo, etc. as they are complex
-void VkWriteDescriptorSet_Placeholder_DebugPrint(const VkWriteDescriptorSet* obj, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf); PFN_printf("VkWriteDescriptorSet (details omitted)\n");
-}
-void VkDescriptorBufferInfo_Placeholder_DebugPrint(const VkDescriptorBufferInfo* obj, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf); PFN_printf("VkDescriptorBufferInfo (details omitted)\n");
-}
-void VkDescriptorImageInfo_Placeholder_DebugPrint(const VkDescriptorImageInfo* obj, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf); PFN_printf("VkDescriptorImageInfo (details omitted)\n");
-}
-void VkWriteDescriptorSetAccelerationStructureKHR_Placeholder_DebugPrint(const VkWriteDescriptorSetAccelerationStructureKHR* obj, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf); PFN_printf("VkWriteDescriptorSetAccelerationStructureKHR (details omitted)\n");
-}
-void VkDescriptorSetLayoutBinding_Placeholder_DebugPrint(const VkDescriptorSetLayoutBinding* obj, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf); PFN_printf("VkDescriptorSetLayoutBinding (details omitted)\n");
-}
-void VkAttachmentDescription_Placeholder_DebugPrint(const VkAttachmentDescription* obj, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf); PFN_printf("VkAttachmentDescription (details omitted)\n");
-}
-void VkDynamicState_Placeholder_DebugPrint(const VkDynamicState* obj, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf); PFN_printf("VkDynamicState: %d\n", *obj);
-}
-
-
-DEFINE_VECTOR_PRINTER(VkWriteDescriptorSetVector, VkWriteDescriptorSet, VkWriteDescriptorSet_Placeholder_DebugPrint);
-DEFINE_VECTOR_PRINTER_OPAQUE_HANDLE(VkCommandBufferVector, VkCommandBuffer);
-DEFINE_VECTOR_PRINTER(RenderPassCommandGenericVector, RenderPassCommandGeneric, RenderPassCommandGeneric_DebugPrint);
-DEFINE_VECTOR_PRINTER_OPAQUE_HANDLE(VkSemaphoreVector, VkSemaphore);
-DEFINE_VECTOR_PRINTER_OPAQUE_HANDLE(WGPUCommandBufferVector, WGPUCommandBuffer); // Needs WGPUCommandBuffer_DebugPrint if detailed view wanted
-DEFINE_VECTOR_PRINTER(VkDescriptorBufferInfoVector, VkDescriptorBufferInfo, VkDescriptorBufferInfo_Placeholder_DebugPrint);
-DEFINE_VECTOR_PRINTER(VkDescriptorImageInfoVector, VkDescriptorImageInfo, VkDescriptorImageInfo_Placeholder_DebugPrint);
-DEFINE_VECTOR_PRINTER(VkWriteDescriptorSetAccelerationStructureKHRVector, VkWriteDescriptorSetAccelerationStructureKHR, VkWriteDescriptorSetAccelerationStructureKHR_Placeholder_DebugPrint);
-DEFINE_VECTOR_PRINTER(VkDescriptorSetLayoutBindingVector, VkDescriptorSetLayoutBinding, VkDescriptorSetLayoutBinding_Placeholder_DebugPrint);
-DEFINE_VECTOR_PRINTER(VkAttachmentDescriptionVector, VkAttachmentDescription, VkAttachmentDescription_Placeholder_DebugPrint);
-DEFINE_VECTOR_PRINTER_OPAQUE_HANDLE(WGPUBufferVector, WGPUBuffer); // Needs WGPUBuffer_DebugPrint if detailed view wanted
-DEFINE_VECTOR_PRINTER(DescriptorSetAndPoolVector, DescriptorSetAndPool, DescriptorSetAndPool_DebugPrint);
-DEFINE_VECTOR_PRINTER(VkDynamicStateVector, VkDynamicState, VkDynamicState_Placeholder_DebugPrint);
-
-
-#define DEFINE_PTR_HASH_MAP_DEBUG_PRINT(SCOPE, Name, ValueType, ValuePrinterFunc) \
-SCOPE void Name##_DebugPrint(const Name* map, PrintfFunc_t PFN_printf, int indent) { \
-    PFN_Print_Indent(indent, PFN_printf); \
-    if (!map) { PFN_printf(#Name ": (NULL)\n"); return; } \
-    uint64_t total_elements = map->current_size + (map->has_null_key ? 1 : 0); \
-    PFN_printf(#Name ": total_elements=%llu (table_size=%llu, has_null_key=%s), current_capacity=%llu\n", \
-        (unsigned long long)total_elements, (unsigned long long)map->current_size, \
-        map->has_null_key ? "true" : "false", (unsigned long long)map->current_capacity); \
-    int child_indent = indent + 1; \
-    if (total_elements == 0) { \
-        PFN_Print_Indent(child_indent, PFN_printf); PFN_printf("(empty)\n"); return; \
-    } \
-    if (total_elements <= 8) { \
-        uint64_t printed_count = 0; \
-        if (map->has_null_key) { \
-            PFN_Print_Indent(child_indent, PFN_printf); PFN_printf("Entry %llu (key: NULL):\n", (unsigned long long)printed_count++); \
-            ValuePrinterFunc(&map->null_value, PFN_printf, child_indent + 1); \
-        } \
-        if (map->table && map->current_size > 0) { /* current_size is for non-NULL keys in table */ \
-            for (uint64_t i = 0; i < map->current_capacity && (printed_count - (map->has_null_key ? 1:0)) < map->current_size; ++i) { \
-                if (map->table[i].key != PHM_EMPTY_SLOT_KEY) { \
-                    PFN_Print_Indent(child_indent, PFN_printf); PFN_printf("Entry %llu (key: %p):\n", (unsigned long long)printed_count++, map->table[i].key); \
-                    ValuePrinterFunc(&map->table[i].value, PFN_printf, child_indent + 1); \
-                } \
-            } \
-        } \
-    } else { /* More than 8 elements, collect all then print selected */ \
-        Name##_kv_pair* collected_items = (Name##_kv_pair*)malloc(total_elements * sizeof(Name##_kv_pair)); \
-        if (!collected_items) { PFN_Print_Indent(child_indent, PFN_printf); PFN_printf("(Failed to allocate memory for printing %llu items)\n", (unsigned long long)total_elements); return; } \
-        uint64_t current_collected_idx = 0; \
-        if (map->has_null_key) { \
-            collected_items[current_collected_idx].key = NULL; /* Represent NULL key */ \
-            collected_items[current_collected_idx++].value = map->null_value; \
-        } \
-        if (map->table && map->current_size > 0) { \
-            for (uint64_t i = 0; i < map->current_capacity && (current_collected_idx - (map->has_null_key ? 1:0)) < map->current_size; ++i) { \
-                if (map->table[i].key != PHM_EMPTY_SLOT_KEY) { \
-                    collected_items[current_collected_idx++] = map->table[i]; \
-                } \
-            } \
-        } \
-        /* Print first 4 */ \
-        for (uint64_t k = 0; k < 4; ++k) { \
-            PFN_Print_Indent(child_indent, PFN_printf); PFN_printf("Entry %llu (key: %p):\n", k, collected_items[k].key); \
-            ValuePrinterFunc(&collected_items[k].value, PFN_printf, child_indent + 1); \
-        } \
-        PFN_Print_Indent(child_indent, PFN_printf); PFN_printf("... (%llu more entries) ...\n", (unsigned long long)(total_elements - 8)); \
-        /* Print last 4 */ \
-        for (uint64_t k = 0; k < 4; ++k) { \
-            uint64_t item_idx = total_elements - 4 + k; \
-            PFN_Print_Indent(child_indent, PFN_printf); PFN_printf("Entry %llu (key: %p):\n", item_idx, collected_items[item_idx].key); \
-            ValuePrinterFunc(&collected_items[item_idx].value, PFN_printf, child_indent + 1); \
-        } \
-        free(collected_items); \
-    } \
-}
-
-#define DEFINE_PTR_HASH_SET_DEBUG_PRINT(SCOPE, Name, Type, ElementPrinterFunc) \
-SCOPE void Name##_DebugPrint(const Name* set, PrintfFunc_t PFN_printf, int indent) { \
-    PFN_Print_Indent(indent, PFN_printf); \
-    if (!set) { PFN_printf(#Name ": (NULL)\n"); return; } \
-    uint64_t total_elements = set->current_size + (set->has_null_element ? 1 : 0); \
-    PFN_printf(#Name ": total_elements=%llu (table_size=%llu, has_null_element=%s), current_capacity=%llu\n", \
-        (unsigned long long)total_elements, (unsigned long long)set->current_size, \
-        set->has_null_element ? "true" : "false", (unsigned long long)set->current_capacity); \
-    int child_indent = indent + 1; \
-    if (total_elements == 0) { \
-        PFN_Print_Indent(child_indent, PFN_printf); PFN_printf("(empty)\n"); return; \
-    } \
-    if (total_elements <= 8) { \
-        uint64_t printed_count = 0; \
-        if (set->has_null_element) { \
-            PFN_Print_Indent(child_indent, PFN_printf); PFN_printf("Element %llu (ptr: NULL via has_null_element):\n", (unsigned long long)printed_count++); \
-            ElementPrinterFunc((Type)0, PFN_printf, child_indent + 1); /* Pass (Type)0 for null element */ \
-        } \
-        if (set->table && set->current_size > 0) { /* current_size is for non-NULL elements in table */ \
-            for (uint64_t i = 0; i < set->current_capacity && (printed_count - (set->has_null_element ? 1:0)) < set->current_size; ++i) { \
-                if (set->table[i] != (Type)PHM_EMPTY_SLOT_KEY) { \
-                    PFN_Print_Indent(child_indent, PFN_printf); PFN_printf("Element %llu (ptr: %p):\n", (unsigned long long)printed_count++, (void*)set->table[i]); \
-                    ElementPrinterFunc(set->table[i], PFN_printf, child_indent + 1); \
-                } \
-            } \
-        } \
-    } else { /* More than 8 elements, collect all then print selected */ \
-        Type* collected_elements = (Type*)malloc(total_elements * sizeof(Type)); \
-        if (!collected_elements) { PFN_Print_Indent(child_indent, PFN_printf); PFN_printf("(Failed to allocate memory for printing %llu items)\n", (unsigned long long)total_elements); return; } \
-        uint64_t current_collected_idx = 0; \
-        if (set->has_null_element) { \
-            collected_elements[current_collected_idx++] = (Type)0; /* Store (Type)0 for the null element */ \
-        } \
-        if (set->table && set->current_size > 0) { \
-            for (uint64_t i = 0; i < set->current_capacity && (current_collected_idx - (set->has_null_element ? 1:0)) < set->current_size; ++i) { \
-                if (set->table[i] != (Type)PHM_EMPTY_SLOT_KEY) { \
-                    collected_elements[current_collected_idx++] = set->table[i]; \
-                } \
-            } \
-        } \
-        /* Print first 4 */ \
-        for (uint64_t k = 0; k < 4; ++k) { \
-            PFN_Print_Indent(child_indent, PFN_printf); PFN_printf("Element %llu (ptr: %p):\n", k, (void*)collected_elements[k]); \
-            ElementPrinterFunc(collected_elements[k], PFN_printf, child_indent + 1); \
-        } \
-        PFN_Print_Indent(child_indent, PFN_printf); PFN_printf("... (%llu more entries) ...\n", (unsigned long long)(total_elements - 8)); \
-        /* Print last 4 */ \
-        for (uint64_t k = 0; k < 4; ++k) { \
-            uint64_t item_idx = total_elements - 4 + k; \
-            PFN_Print_Indent(child_indent, PFN_printf); PFN_printf("Element %llu (ptr: %p):\n", item_idx, (void*)collected_elements[item_idx]); \
-            ElementPrinterFunc(collected_elements[item_idx], PFN_printf, child_indent + 1); \
-        } \
-        free(collected_elements); \
-    } \
-}
-
-#define DEFINE_GENERIC_HASH_MAP_DEBUG_PRINT(SCOPE, Name, KeyType, ValueType, KeyPrinterFunc, ValuePrinterFunc, KeyCmpFunc) \
-SCOPE void Name##_DebugPrint(const Name* map, PrintfFunc_t PFN_printf, int indent) { \
-    PFN_Print_Indent(indent, PFN_printf); \
-    if (!map) { PFN_printf(#Name ": (NULL)\n"); return; } \
-    PFN_printf(#Name ": current_size=%llu, current_capacity=%llu\n", \
-        (unsigned long long)map->current_size, (unsigned long long)map->current_capacity); \
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("Empty Key Sentinel:\n"); \
-    KeyPrinterFunc(&map->empty_key_sentinel, PFN_printf, indent + 2); \
-    int child_indent = indent + 1; \
-    if (map->current_size == 0) { \
-        PFN_Print_Indent(child_indent, PFN_printf); PFN_printf("(empty map)\n"); return; \
-    } \
-    if (map->current_size <= 8) { \
-        uint64_t printed_count = 0; \
-        if (map->table) { \
-            for (uint64_t i = 0; i < map->current_capacity && printed_count < map->current_size; ++i) { \
-                if (!KeyCmpFunc(map->table[i].key, map->empty_key_sentinel)) { \
-                    PFN_Print_Indent(child_indent, PFN_printf); PFN_printf("Entry %llu:\n", (unsigned long long)printed_count); \
-                    PFN_Print_Indent(child_indent + 1, PFN_printf); PFN_printf("Key:\n"); \
-                    KeyPrinterFunc(&map->table[i].key, PFN_printf, child_indent + 2); \
-                    PFN_Print_Indent(child_indent + 1, PFN_printf); PFN_printf("Value:\n"); \
-                    ValuePrinterFunc(&map->table[i].value, PFN_printf, child_indent + 2); \
-                    printed_count++; \
-                } \
-            } \
-        } \
-    } else { /* More than 8 elements */ \
-        Name##_kv_pair* collected_items = (Name##_kv_pair*)malloc(map->current_size * sizeof(Name##_kv_pair)); \
-        if (!collected_items) { PFN_Print_Indent(child_indent, PFN_printf); PFN_printf("(Failed to allocate memory for printing %llu items)\n", (unsigned long long)map->current_size); return; } \
-        uint64_t current_collected_idx = 0; \
-        if (map->table) { \
-            for (uint64_t i = 0; i < map->current_capacity && current_collected_idx < map->current_size; ++i) { \
-                if (!KeyCmpFunc(map->table[i].key, map->empty_key_sentinel)) { \
-                    collected_items[current_collected_idx++] = map->table[i]; \
-                } \
-            } \
-        } \
-        /* Print first 4 */ \
-        for (uint64_t k = 0; k < 4; ++k) { \
-            PFN_Print_Indent(child_indent, PFN_printf); PFN_printf("Entry %llu:\n", k); \
-            PFN_Print_Indent(child_indent + 1, PFN_printf); PFN_printf("Key:\n"); \
-            KeyPrinterFunc(&collected_items[k].key, PFN_printf, child_indent + 2); \
-            PFN_Print_Indent(child_indent + 1, PFN_printf); PFN_printf("Value:\n"); \
-            ValuePrinterFunc(&collected_items[k].value, PFN_printf, child_indent + 2); \
-        } \
-        PFN_Print_Indent(child_indent, PFN_printf); PFN_printf("... (%llu more entries) ...\n", (unsigned long long)(map->current_size - 8)); \
-        /* Print last 4 */ \
-        for (uint64_t k = 0; k < 4; ++k) { \
-            uint64_t item_idx = map->current_size - 4 + k; \
-            PFN_Print_Indent(child_indent, PFN_printf); PFN_printf("Entry %llu:\n", item_idx); \
-            PFN_Print_Indent(child_indent + 1, PFN_printf); PFN_printf("Key:\n"); \
-            KeyPrinterFunc(&collected_items[item_idx].key, PFN_printf, child_indent + 2); \
-            PFN_Print_Indent(child_indent + 1, PFN_printf); PFN_printf("Value:\n"); \
-            ValuePrinterFunc(&collected_items[item_idx].value, PFN_printf, child_indent + 2); \
-        } \
-        free(collected_items); \
-    } \
-}
-
-// --- Helper for printing simple handles in sets/maps ---
-#define DEFINE_HANDLE_SIMPLE_PRINTER(WGPUHandleType) \
-static void WGPUHandleType##_Handle_DebugPrint(WGPUHandleType handle, PrintfFunc_t PFN_printf, int indent) { \
-    PFN_Print_Indent(indent, PFN_printf); \
-    PFN_printf("%s: %p\n", #WGPUHandleType, (void*)handle); \
-}
-
-// Instantiate simple printers for WGPU handle types used in sets
-//DEFINE_HANDLE_SIMPLE_PRINTER(WGPUBindGroup)
-DEFINE_HANDLE_SIMPLE_PRINTER(WGPUBindGroupLayout)
-DEFINE_HANDLE_SIMPLE_PRINTER(WGPUSampler)
-DEFINE_HANDLE_SIMPLE_PRINTER(WGPUTextureView)
-DEFINE_HANDLE_SIMPLE_PRINTER(WGPURenderPassEncoder)
-DEFINE_HANDLE_SIMPLE_PRINTER(WGPURenderPipeline)
-DEFINE_HANDLE_SIMPLE_PRINTER(WGPUComputePipeline)
-DEFINE_HANDLE_SIMPLE_PRINTER(WGPUComputePassEncoder)
-DEFINE_HANDLE_SIMPLE_PRINTER(WGPURaytracingPassEncoder)
-
-
-// --- Instantiate Debug Printers for Specific Map and Set Types ---
-
-// DEFINE_PTR_HASH_MAP(SCOPE, Name, ValueType)
-DEFINE_PTR_HASH_MAP_DEBUG_PRINT(, BufferUsageRecordMap, BufferUsageRecord, BufferUsageRecord_DebugPrint)
-DEFINE_PTR_HASH_MAP_DEBUG_PRINT(, ImageUsageRecordMap, ImageUsageRecord, ImageUsageRecord_DebugPrint)
-DEFINE_PTR_HASH_MAP_DEBUG_PRINT(, BindGroupCacheMap, DescriptorSetAndPoolVector, DescriptorSetAndPoolVector_DebugPrint)
-DEFINE_PTR_HASH_MAP_DEBUG_PRINT(, PendingCommandBufferMap, WGPUCommandBufferVector, WGPUCommandBufferVector_DebugPrint)
-
-// DEFINE_PTR_HASH_SET(SCOPE, Name, Type)
-DEFINE_PTR_HASH_SET_DEBUG_PRINT(, BindGroupUsageSet, WGPUBindGroup, WGPUBindGroupImpl_DebugPrint)
-DEFINE_PTR_HASH_SET_DEBUG_PRINT(, BindGroupLayoutUsageSet, WGPUBindGroupLayout, WGPUBindGroupLayout_Handle_DebugPrint)
-DEFINE_PTR_HASH_SET_DEBUG_PRINT(, SamplerUsageSet, WGPUSampler, WGPUSampler_Handle_DebugPrint)
-DEFINE_PTR_HASH_SET_DEBUG_PRINT(, ImageViewUsageSet, WGPUTextureView, WGPUTextureView_Handle_DebugPrint)
-DEFINE_PTR_HASH_SET_DEBUG_PRINT(, WGPURenderPassEncoderSet, WGPURenderPassEncoder, WGPURenderPassEncoder_Handle_DebugPrint)
-DEFINE_PTR_HASH_SET_DEBUG_PRINT(, RenderPipelineUsageSet, WGPURenderPipeline, WGPURenderPipeline_Handle_DebugPrint)
-DEFINE_PTR_HASH_SET_DEBUG_PRINT(, ComputePipelineUsageSet, WGPUComputePipeline, WGPUComputePipeline_Handle_DebugPrint)
-DEFINE_PTR_HASH_SET_DEBUG_PRINT(, WGPUComputePassEncoderSet, WGPUComputePassEncoder, WGPUComputePassEncoder_Handle_DebugPrint)
-DEFINE_PTR_HASH_SET_DEBUG_PRINT(, WGPURaytracingPassEncoderSet, WGPURaytracingPassEncoder, WGPURaytracingPassEncoder_Handle_DebugPrint)
-
-// DEFINE_GENERIC_HASH_MAP(SCOPE, Name, KeyType, ValueType, KeyHashFunc, KeyCmpFunc, KeyEmptyVal)
-// RenderPassCache uses RenderPassLayout for Key, LayoutedRenderPass for Value
-DEFINE_GENERIC_HASH_MAP_DEBUG_PRINT(, RenderPassCache, RenderPassLayout, LayoutedRenderPass, RenderPassLayout_DebugPrint, LayoutedRenderPass_DebugPrint, renderPassLayoutCompare)
-
-
-void DescriptorSetAndPool_DebugPrint(const DescriptorSetAndPool* dsp, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!dsp) { PFN_printf("DescriptorSetAndPool: (NULL)\n"); return; }
-    PFN_printf("DescriptorSetAndPool: pool=%p, set=%p\n", (void*)dsp->pool, (void*)dsp->set);
-}
-
-void ResourceUsage_DebugPrint(const ResourceUsage* ru, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!ru) { PFN_printf("ResourceUsage: (NULL)\n"); return; }
-    PFN_printf("ResourceUsage:\n");
-    BufferUsageRecordMap_DebugPrint(&ru->referencedBuffers, PFN_printf, indent + 1);
-    ImageUsageRecordMap_DebugPrint(&ru->referencedTextures, PFN_printf, indent + 1);
-    ImageViewUsageSet_DebugPrint(&ru->referencedTextureViews, PFN_printf, indent + 1);
-    BindGroupUsageSet_DebugPrint(&ru->referencedBindGroups, PFN_printf, indent + 1);
-    BindGroupLayoutUsageSet_DebugPrint(&ru->referencedBindGroupLayouts, PFN_printf, indent + 1);
-    SamplerUsageSet_DebugPrint(&ru->referencedSamplers, PFN_printf, indent + 1);
-    RenderPipelineUsageSet_DebugPrint(&ru->referencedRenderPipelines, PFN_printf, indent + 1);
-    ComputePipelineUsageSet_DebugPrint(&ru->referencedComputePipelines, PFN_printf, indent + 1);
-}
-
-void SyncState_DebugPrint(const SyncState* ss, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!ss) { PFN_printf("SyncState: (NULL)\n"); return; }
-    PFN_printf("SyncState:\n");
-    VkSemaphoreVector_DebugPrint(&ss->semaphores, PFN_printf, indent + 1);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("acquireImageSemaphore: %p\n", (void*)ss->acquireImageSemaphore);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("acquireImageSemaphoreSignalled: %s\n", ss->acquireImageSemaphoreSignalled ? "true" : "false");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("submits: %u\n", ss->submits);
-}
-
-void MappableBufferMemory_DebugPrint(const MappableBufferMemory* mem, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!mem) { PFN_printf("MappableBufferMemory: (NULL)\n"); return; }
-    PFN_printf("MappableBufferMemory:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("buffer: %p\n", (void*)mem->buffer);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("allocation: %p (VmaAllocation)\n", (void*)mem->allocation);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("propertyFlags: 0x%X\n", mem->propertyFlags);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("capacity: %zu\n", mem->capacity);
-}
-
-void AttachmentDescriptor_DebugPrint(const AttachmentDescriptor* ad, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!ad) { PFN_printf("AttachmentDescriptor: (NULL)\n"); return; }
-    PFN_printf("AttachmentDescriptor: format=%d, sampleCount=%u, loadop=%s, storeop=%s\n",
-        ad->format, ad->sampleCount, LoadOp_ToString(ad->loadop), StoreOp_ToString(ad->storeop));
-}
-
-void RenderPassLayout_DebugPrint(const RenderPassLayout* rpl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!rpl) { PFN_printf("RenderPassLayout: (NULL)\n"); return; }
-    PFN_printf("RenderPassLayout:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("colorAttachmentCount: %u\n", rpl->colorAttachmentCount);
-    for (uint32_t i = 0; i < rpl->colorAttachmentCount; ++i) {
-        if (i >= 4) { PFN_Print_Indent(indent + 2, PFN_printf); PFN_printf("... (more than 4 attachments)\n"); break; } // Array is fixed to 4
-        PFN_Print_Indent(indent + 2, PFN_printf); PFN_printf("colorAttachments[%u]:\n", i);
-        AttachmentDescriptor_DebugPrint(&rpl->colorAttachments[i], PFN_printf, indent + 3);
-        PFN_Print_Indent(indent + 2, PFN_printf); PFN_printf("colorResolveAttachments[%u]:\n", i);
-        AttachmentDescriptor_DebugPrint(&rpl->colorResolveAttachments[i], PFN_printf, indent + 3);
-    }
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("depthAttachmentPresent: %u (%s)\n", rpl->depthAttachmentPresent, rpl->depthAttachmentPresent ? "true" : "false");
-    if (rpl->depthAttachmentPresent) {
-        PFN_Print_Indent(indent + 2, PFN_printf); PFN_printf("depthAttachment:\n");
-        AttachmentDescriptor_DebugPrint(&rpl->depthAttachment, PFN_printf, indent + 3);
-    }
-}
-
-void LayoutedRenderPass_DebugPrint(const LayoutedRenderPass* lrpl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!lrpl) { PFN_printf("LayoutedRenderPass: (NULL)\n"); return; }
-    PFN_printf("LayoutedRenderPass:\n");
-    RenderPassLayout_DebugPrint(&lrpl->layout, PFN_printf, indent + 1);
-    VkAttachmentDescriptionVector_DebugPrint(&lrpl->allAttachments, PFN_printf, indent + 1);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("renderPass: %p (VkRenderPass)\n", (void*)lrpl->renderPass);
-}
-
-void wgpuxorshiftstate_DebugPrint(const wgpuxorshiftstate* state, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!state) { PFN_printf("wgpuxorshiftstate: (NULL)\n"); return; }
-    PFN_printf("wgpuxorshiftstate: x64=0x%" PRIX64 "\n", state->x64);
-}
-
-void PerframeCache_DebugPrint(const PerframeCache* cache, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!cache) { PFN_printf("PerframeCache: (NULL)\n"); return; }
-    PFN_printf("PerframeCache:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("commandPool: %p (VkCommandPool)\n", (void*)cache->commandPool);
-    VkCommandBufferVector_DebugPrint(&cache->commandBuffers, PFN_printf, indent + 1);
-    WGPUBufferVector_DebugPrint(&cache->unusedBatchBuffers, PFN_printf, indent + 1);
-    WGPUBufferVector_DebugPrint(&cache->usedBatchBuffers, PFN_printf, indent + 1);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("finalTransitionBuffer: %p (VkCommandBuffer)\n", (void*)cache->finalTransitionBuffer);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("finalTransitionSemaphore: %p (VkSemaphore)\n", (void*)cache->finalTransitionSemaphore);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("finalTransitionFence: %p (VkFence)\n", (void*)cache->finalTransitionFence);
-    BindGroupCacheMap_DebugPrint(&cache->bindGroupCache, PFN_printf, indent + 1);
-}
-
-void QueueIndices_DebugPrint(const QueueIndices* qi, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!qi) { PFN_printf("QueueIndices: (NULL)\n"); return; }
-    PFN_printf("QueueIndices: graphics=%u, compute=%u, transfer=%u, present=%u\n",
-        qi->graphicsIndex, qi->computeIndex, qi->transferIndex, qi->presentIndex);
-}
-
-// ... Implementations for WGPU*Impl structs and their wrappers ...
-// This will follow a pattern:
-// void WGPUSomethingImpl_DebugPrint(const WGPUSomethingImpl* impl, PrintfFunc_t PFN_printf, int indent) { /* print fields */ }
-// void WGPUSomething_DebugPrint(WGPUSomething handle, PrintfFunc_t PFN_printf) {
-//     PFN_printf("WGPUSomething (%p):\n", (void*)handle);
-//     if (handle) WGPUSomethingImpl_DebugPrint((const WGPUSomethingImpl*)handle, PFN_printf, 1);
-//     else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL)\n"); }
-// }
-
-// Example for WGPUSampler
-void WGPUSamplerImpl_DebugPrint(const WGPUSamplerImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPUSamplerImpl: (NULL)\n"); return; }
-    PFN_printf("WGPUSamplerImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("sampler: %p (VkSampler)\n", (void*)impl->sampler);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("refCount: %u\n", impl->refCount);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("device: %p (WGPUDevice)\n", (void*)impl->device);
-}
-void WGPUSampler_DebugPrint(WGPUSampler sampler, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPUSampler (%p):\n", (void*)sampler);
-    if (sampler) WGPUSamplerImpl_DebugPrint((const WGPUSamplerImpl*)sampler, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPUSampler)\n"); }
-}
-
-// ... (Repeat this pattern for ALL WGPU* types listed in the header)
-
-void WGPUBindGroupImpl_DebugPrint(const WGPUBindGroupImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPUBindGroupImpl: (NULL)\n"); return; }
-    PFN_printf("WGPUBindGroupImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("set: %p (VkDescriptorSet)\n", (void*)impl->set);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("pool: %p (VkDescriptorPool)\n", (void*)impl->pool);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("layout: %p (WGPUBindGroupLayout)\n", (void*)impl->layout);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("refCount: %u\n", impl->refCount);
-    ResourceUsage_DebugPrint(&impl->resourceUsage, PFN_printf, indent + 1);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("device: %p (WGPUDevice)\n", (void*)impl->device);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("cacheIndex: %u\n", impl->cacheIndex);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("entryCount: %u\n", impl->entryCount);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("entries: %p\n", (void*)impl->entries);
-    for (uint32_t i = 0; i < impl->entryCount; ++i) {
-        PFN_Print_Indent(indent + 2, PFN_printf); PFN_printf("entry[%u]:\n", i);
-        //ResourceDescriptor_DebugPrint(&impl->entries[i], PFN_printf, indent + 3);
-    }
-}
-void WGPUBindGroup_DebugPrint(WGPUBindGroup bindGroup, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPUBindGroup (%p):\n", (void*)bindGroup);
-    if (bindGroup) WGPUBindGroupImpl_DebugPrint((const WGPUBindGroupImpl*)bindGroup, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPUBindGroup)\n"); }
-}
-
-void WGPUBindGroupLayoutImpl_DebugPrint(const WGPUBindGroupLayoutImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPUBindGroupLayoutImpl: (NULL)\n"); return; }
-    PFN_printf("WGPUBindGroupLayoutImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("layout: %p (VkDescriptorSetLayout)\n", (void*)impl->layout);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("device: %p (WGPUDevice)\n", (void*)impl->device);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("entryCount: %u\n", impl->entryCount);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("entries: %p\n", (void*)impl->entries);
-     for (uint32_t i = 0; i < impl->entryCount; ++i) {
-        PFN_Print_Indent(indent + 2, PFN_printf); PFN_printf("entry[%u]:\n", i);
-        //ResourceTypeDescriptor_DebugPrint(&impl->entries[i], PFN_printf, indent + 3);
-    }
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("refCount: %u\n", impl->refCount);
-}
-void WGPUBindGroupLayout_DebugPrint(WGPUBindGroupLayout bindGroupLayout, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPUBindGroupLayout (%p):\n", (void*)bindGroupLayout);
-    if (bindGroupLayout) WGPUBindGroupLayoutImpl_DebugPrint((const WGPUBindGroupLayoutImpl*)bindGroupLayout, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPUBindGroupLayout)\n"); }
-}
-
-
-void WGPUPipelineLayoutImpl_DebugPrint(const WGPUPipelineLayoutImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPUPipelineLayoutImpl: (NULL)\n"); return; }
-    PFN_printf("WGPUPipelineLayoutImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("layout: %p (VkPipelineLayout)\n", (void*)impl->layout);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("device: %p (WGPUDevice)\n", (void*)impl->device);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("bindGroupLayoutCount: %u\n", impl->bindGroupLayoutCount);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("bindGroupLayouts: %p\n", (void*)impl->bindGroupLayouts);
-    for (uint32_t i = 0; i < impl->bindGroupLayoutCount; ++i) {
-         PFN_Print_Indent(indent + 2, PFN_printf); PFN_printf("bindGroupLayout[%u]: %p\n", i, (void*)impl->bindGroupLayouts[i]);
-         // Optionally call WGPUBindGroupLayout_DebugPrint if recursive printing is desired and safe
-    }
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("refCount: %u\n", impl->refCount);
-}
-void WGPUPipelineLayout_DebugPrint(WGPUPipelineLayout pipelineLayout, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPUPipelineLayout (%p):\n", (void*)pipelineLayout);
-    if (pipelineLayout) WGPUPipelineLayoutImpl_DebugPrint((const WGPUPipelineLayoutImpl*)pipelineLayout, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPUPipelineLayout)\n"); }
-}
-
-void WGPUBufferImpl_DebugPrint(const WGPUBufferImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPUBufferImpl: (NULL)\n"); return; }
-    PFN_printf("WGPUBufferImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("buffer: %p (VkBuffer)\n", (void*)impl->buffer);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("device: %p (WGPUDevice)\n", (void*)impl->device);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("cacheIndex: %u\n", impl->cacheIndex);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("usage: %s\n", BufferUsage_ToString(impl->usage));
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("capacity: %zu\n", impl->capacity);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("allocation: %p (VmaAllocation)\n", (void*)impl->allocation);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("memoryProperties: 0x%X\n", impl->memoryProperties);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("address: 0x%" PRIX64 "\n", impl->address);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("refCount: %u\n", impl->refCount);
-}
-void WGPUBuffer_DebugPrint(WGPUBuffer buffer, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPUBuffer (%p):\n", (void*)buffer);
-    if (buffer) WGPUBufferImpl_DebugPrint((const WGPUBufferImpl*)buffer, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPUBuffer)\n"); }
-}
-
-void WGPUBottomLevelAccelerationStructureImpl_DebugPrint(const WGPUBottomLevelAccelerationStructureImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPUBottomLevelAccelerationStructureImpl: (NULL)\n"); return; }
-    PFN_printf("WGPUBottomLevelAccelerationStructureImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("device: %p (VkDevice)\n", (void*)impl->device);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("accelerationStructure: %p (VkAccelerationStructureKHR)\n", (void*)impl->accelerationStructure);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("accelerationStructureMemory: %p (VkDeviceMemory)\n", (void*)impl->accelerationStructureMemory);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("scratchBuffer: %p (VkBuffer)\n", (void*)impl->scratchBuffer);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("scratchBufferMemory: %p (VkDeviceMemory)\n", (void*)impl->scratchBufferMemory);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("accelerationStructureBuffer: %p (VkBuffer)\n", (void*)impl->accelerationStructureBuffer);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("accelerationStructureBufferMemory: %p (VkDeviceMemory)\n", (void*)impl->accelerationStructureBufferMemory);
-}
-void WGPUBottomLevelAccelerationStructure_DebugPrint(WGPUBottomLevelAccelerationStructure blas, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPUBottomLevelAccelerationStructure (%p):\n", (void*)blas);
-    if (blas) WGPUBottomLevelAccelerationStructureImpl_DebugPrint((const WGPUBottomLevelAccelerationStructureImpl*)blas, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPUBottomLevelAccelerationStructure)\n"); }
-}
-
-void WGPUTopLevelAccelerationStructureImpl_DebugPrint(const WGPUTopLevelAccelerationStructureImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPUTopLevelAccelerationStructureImpl: (NULL)\n"); return; }
-    PFN_printf("WGPUTopLevelAccelerationStructureImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("device: %p (VkDevice)\n", (void*)impl->device);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("accelerationStructure: %p (VkAccelerationStructureKHR)\n", (void*)impl->accelerationStructure);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("accelerationStructureMemory: %p (VkDeviceMemory)\n", (void*)impl->accelerationStructureMemory);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("scratchBuffer: %p (VkBuffer)\n", (void*)impl->scratchBuffer);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("scratchBufferMemory: %p (VkDeviceMemory)\n", (void*)impl->scratchBufferMemory);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("accelerationStructureBuffer: %p (VkBuffer)\n", (void*)impl->accelerationStructureBuffer);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("accelerationStructureBufferMemory: %p (VkDeviceMemory)\n", (void*)impl->accelerationStructureBufferMemory);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("instancesBuffer: %p (VkBuffer)\n", (void*)impl->instancesBuffer);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("instancesBufferMemory: %p (VkDeviceMemory)\n", (void*)impl->instancesBufferMemory);
-}
-void WGPUTopLevelAccelerationStructure_DebugPrint(WGPUTopLevelAccelerationStructure tlas, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPUTopLevelAccelerationStructure (%p):\n", (void*)tlas);
-    if (tlas) WGPUTopLevelAccelerationStructureImpl_DebugPrint((const WGPUTopLevelAccelerationStructureImpl*)tlas, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPUTopLevelAccelerationStructure)\n"); }
-}
-
-
-void WGPUInstanceImpl_DebugPrint(const WGPUInstanceImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPUInstanceImpl: (NULL)\n"); return; }
-    PFN_printf("WGPUInstanceImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("instance: %p (VkInstance)\n", (void*)impl->instance);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("debugMessenger: %p (VkDebugUtilsMessengerEXT)\n", (void*)impl->debugMessenger);
-}
-void WGPUInstance_DebugPrint(WGPUInstance instance, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPUInstance (%p):\n", (void*)instance);
-    if (instance) WGPUInstanceImpl_DebugPrint((const WGPUInstanceImpl*)instance, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPUInstance)\n"); }
-}
-
-void WGPUFutureImpl_DebugPrint(const WGPUFutureImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPUFutureImpl: (NULL)\n"); return; }
-    PFN_printf("WGPUFutureImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("userdataForFunction: %p\n", impl->userdataForFunction);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("functionCalledOnWaitAny: %p\n", (void*)impl->functionCalledOnWaitAny);
-}
-void WGPUFuture_DebugPrint(WGPUFuture future, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPUFuture (%p):\n", (void*)future);
-    if (future) WGPUFutureImpl_DebugPrint((const WGPUFutureImpl*)future, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPUFuture)\n"); }
-}
-
-
-void WGPUAdapterImpl_DebugPrint(const WGPUAdapterImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPUAdapterImpl: (NULL)\n"); return; }
-    PFN_printf("WGPUAdapterImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("physicalDevice: %p (VkPhysicalDevice)\n", (void*)impl->physicalDevice);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("instance: %p (WGPUInstance)\n", (void*)impl->instance);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("rayTracingPipelineProperties: (VkPhysicalDeviceRayTracingPipelinePropertiesKHR, details omitted)\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("memProperties: (VkPhysicalDeviceMemoryProperties, details omitted)\n");
-    QueueIndices_DebugPrint(&impl->queueIndices, PFN_printf, indent + 1);
-}
-void WGPUAdapter_DebugPrint(WGPUAdapter adapter, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPUAdapter (%p):\n", (void*)adapter);
-    if (adapter) WGPUAdapterImpl_DebugPrint((const WGPUAdapterImpl*)adapter, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPUAdapter)\n"); }
-}
-
-void WGPUDeviceImpl_DebugPrint(const WGPUDeviceImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPUDeviceImpl: (NULL)\n"); return; }
-    PFN_printf("WGPUDeviceImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("device: %p (VkDevice)\n", (void*)impl->device);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("adapter: %p (WGPUAdapter)\n", (void*)impl->adapter);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("queue: %p (WGPUQueue)\n", (void*)impl->queue);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("submittedFrames: %zu\n", impl->submittedFrames);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("allocator: %p (VmaAllocator)\n", (void*)impl->allocator);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("aligned_hostVisiblePool: %p (VmaPool)\n", (void*)impl->aligned_hostVisiblePool);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("frameCaches (count %d):\n", framesInFlight);
-    for (int i = 0; i < framesInFlight; ++i) {
-        PFN_Print_Indent(indent + 2, PFN_printf); PFN_printf("frameCaches[%d]:\n", i);
-        PerframeCache_DebugPrint(&impl->frameCaches[i], PFN_printf, indent + 3);
-    }
-    RenderPassCache_DebugPrint(&impl->renderPassCache, PFN_printf, indent + 1);
-    WGPUUncapturedErrorCallbackInfo_DebugPrint(&impl->uncapturedErrorCallbackInfo, PFN_printf, indent + 1);
-    VolkDeviceTable_DebugPrint(&impl->functions, PFN_printf, indent + 1);
-}
-void WGPUDevice_DebugPrint(WGPUDevice device, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPUDevice (%p):\n", (void*)device);
-    if (device) WGPUDeviceImpl_DebugPrint((const WGPUDeviceImpl*)device, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPUDevice)\n"); }
-}
-
-void WGPUTextureImpl_DebugPrint(const WGPUTextureImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPUTextureImpl: (NULL)\n"); return; }
-    PFN_printf("WGPUTextureImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("image: %p (VkImage)\n", (void*)impl->image);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("format: %d (VkFormat)\n", impl->format);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("layout: %d (VkImageLayout)\n", impl->layout);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("memory: %p (VkDeviceMemory)\n", (void*)impl->memory);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("device: %p (WGPUDevice)\n", (void*)impl->device);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("refCount: %u\n", impl->refCount);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("width: %u, height: %u, depthOrArrayLayers: %u\n", impl->width, impl->height, impl->depthOrArrayLayers);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("mipLevels: %u\n", impl->mipLevels);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("sampleCount: %u\n", impl->sampleCount);
-}
-void WGPUTexture_DebugPrint(WGPUTexture texture, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPUTexture (%p):\n", (void*)texture);
-    if (texture) WGPUTextureImpl_DebugPrint((const WGPUTextureImpl*)texture, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPUTexture)\n"); }
-}
-
-void WGPUShaderModuleImpl_DebugPrint(const WGPUShaderModuleImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPUShaderModuleImpl: (NULL)\n"); return; }
-    PFN_printf("WGPUShaderModuleImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("refCount: %u\n", impl->refCount);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("vulkanModule: %p (VkShaderModule)\n", (void*)impl->vulkanModule);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("source (WGPUChainedStruct*): %p\n", (void*)impl->source);
-}
-void WGPUShaderModule_DebugPrint(WGPUShaderModule shaderModule, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPUShaderModule (%p):\n", (void*)shaderModule);
-    if (shaderModule) WGPUShaderModuleImpl_DebugPrint((const WGPUShaderModuleImpl*)shaderModule, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPUShaderModule)\n"); }
-}
-
-void WGPURenderPipelineImpl_DebugPrint(const WGPURenderPipelineImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPURenderPipelineImpl: (NULL)\n"); return; }
-    PFN_printf("WGPURenderPipelineImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("renderPipeline: %p (VkPipeline)\n", (void*)impl->renderPipeline);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("layout: %p (WGPUPipelineLayout)\n", (void*)impl->layout);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("refCount: %u\n", impl->refCount);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("device: %p (WGPUDevice)\n", (void*)impl->device);
-    VkDynamicStateVector_DebugPrint(&impl->dynamicStates, PFN_printf, indent + 1);
-}
-void WGPURenderPipeline_DebugPrint(WGPURenderPipeline renderPipeline, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPURenderPipeline (%p):\n", (void*)renderPipeline);
-    if (renderPipeline) WGPURenderPipelineImpl_DebugPrint((const WGPURenderPipelineImpl*)renderPipeline, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPURenderPipeline)\n"); }
-}
-
-void WGPUComputePipelineImpl_DebugPrint(const WGPUComputePipelineImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPUComputePipelineImpl: (NULL)\n"); return; }
-    PFN_printf("WGPUComputePipelineImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("computePipeline: %p (VkPipeline)\n", (void*)impl->computePipeline);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("layout: %p (WGPUPipelineLayout)\n", (void*)impl->layout);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("refCount: %u\n", impl->refCount);
-}
-void WGPUComputePipeline_DebugPrint(WGPUComputePipeline computePipeline, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPUComputePipeline (%p):\n", (void*)computePipeline);
-    if (computePipeline) WGPUComputePipelineImpl_DebugPrint((const WGPUComputePipelineImpl*)computePipeline, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPUComputePipeline)\n"); }
-}
-
-void WGPURaytracingPipelineImpl_DebugPrint(const WGPURaytracingPipelineImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPURaytracingPipelineImpl: (NULL)\n"); return; }
-    PFN_printf("WGPURaytracingPipelineImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("raytracingPipeline: %p (VkPipeline)\n", (void*)impl->raytracingPipeline);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("layout: %p (VkPipelineLayout)\n", (void*)impl->layout); // This is VkPipelineLayout directly
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("raygenBindingTable: %p (WGPUBuffer)\n", (void*)impl->raygenBindingTable);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("missBindingTable: %p (WGPUBuffer)\n", (void*)impl->missBindingTable);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("hitBindingTable: %p (WGPUBuffer)\n", (void*)impl->hitBindingTable);
-}
-void WGPURaytracingPipeline_DebugPrint(WGPURaytracingPipeline rtp, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPURaytracingPipeline (%p):\n", (void*)rtp);
-    if (rtp) WGPURaytracingPipelineImpl_DebugPrint((const WGPURaytracingPipelineImpl*)rtp, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPURaytracingPipeline)\n"); }
-}
-
-void WGPUTextureViewImpl_DebugPrint(const WGPUTextureViewImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPUTextureViewImpl: (NULL)\n"); return; }
-    PFN_printf("WGPUTextureViewImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("view: %p (VkImageView)\n", (void*)impl->view);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("format: %d (VkFormat)\n", impl->format);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("refCount: %u\n", impl->refCount);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("texture: %p (WGPUTexture)\n", (void*)impl->texture);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("subresourceRange: (aspectMask=0x%X, baseMipLevel=%u, levelCount=%u, baseArrayLayer=%u, layerCount=%u)\n",
-        impl->subresourceRange.aspectMask, impl->subresourceRange.baseMipLevel,
-        impl->subresourceRange.levelCount, impl->subresourceRange.baseArrayLayer,
-        impl->subresourceRange.layerCount);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("width: %u, height: %u, depthOrArrayLayers: %u\n", impl->width, impl->height, impl->depthOrArrayLayers);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("sampleCount: %u\n", impl->sampleCount);
-}
-void WGPUTextureView_DebugPrint(WGPUTextureView textureView, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPUTextureView (%p):\n", (void*)textureView);
-    if (textureView) WGPUTextureViewImpl_DebugPrint((const WGPUTextureViewImpl*)textureView, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPUTextureView)\n"); }
-}
-
-void CommandBufferAndSomeState_DebugPrint(const CommandBufferAndSomeState* cbs, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!cbs) { PFN_printf("CommandBufferAndSomeState: (NULL)\n"); return; }
-    PFN_printf("CommandBufferAndSomeState:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("buffer: %p (VkCommandBuffer)\n", (void*)cbs->buffer);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("lastLayout: %p (VkPipelineLayout)\n", (void*)cbs->lastLayout);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("device: %p (WGPUDevice)\n", (void*)cbs->device);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("vertexBuffers:\n");
-    for(int i=0; i<8; ++i) { PFN_Print_Indent(indent + 2, PFN_printf); PFN_printf("[%d]: %p (WGPUBuffer)\n", i, (void*)cbs->vertexBuffers[i]); }
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("indexBuffer: %p (WGPUBuffer)\n", (void*)cbs->indexBuffer);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("graphicsBindGroups:\n");
-    for(int i=0; i<8; ++i) { PFN_Print_Indent(indent + 2, PFN_printf); PFN_printf("[%d]: %p (WGPUBindGroup)\n", i, (void*)cbs->graphicsBindGroups[i]); }
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("computeBindGroups:\n");
-    for(int i=0; i<8; ++i) { PFN_Print_Indent(indent + 2, PFN_printf); PFN_printf("[%d]: %p (WGPUBindGroup)\n", i, (void*)cbs->computeBindGroups[i]); }
-}
-
-void WGPURenderPassEncoderImpl_DebugPrint(const WGPURenderPassEncoderImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPURenderPassEncoderImpl: (NULL)\n"); return; }
-    PFN_printf("WGPURenderPassEncoderImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("renderPass (dynamic?): %p (VkRenderPass)\n", (void*)impl->renderPass);
-    RenderPassCommandBegin_DebugPrint(&impl->beginInfo, PFN_printf, indent + 1);
-    RenderPassCommandGenericVector_DebugPrint(&impl->bufferedCommands, PFN_printf, indent + 1);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("device: %p (WGPUDevice)\n", (void*)impl->device);
-    ResourceUsage_DebugPrint(&impl->resourceUsage, PFN_printf, indent + 1);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("refCount: %u\n", impl->refCount);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("lastLayout: %p (WGPUPipelineLayout)\n", (void*)impl->lastLayout);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("frameBuffer: %p (VkFramebuffer)\n", (void*)impl->frameBuffer);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("cmdEncoder: %p (WGPUCommandEncoder)\n", (void*)impl->cmdEncoder);
-}
-void WGPURenderPassEncoder_DebugPrint(WGPURenderPassEncoder rpe, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPURenderPassEncoder (%p):\n", (void*)rpe);
-    if (rpe) WGPURenderPassEncoderImpl_DebugPrint((const WGPURenderPassEncoderImpl*)rpe, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPURenderPassEncoder)\n"); }
-}
-
-void WGPUComputePassEncoderImpl_DebugPrint(const WGPUComputePassEncoderImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPUComputePassEncoderImpl: (NULL)\n"); return; }
-    PFN_printf("WGPUComputePassEncoderImpl:\n");
-    RenderPassCommandGenericVector_DebugPrint(&impl->bufferedCommands, PFN_printf, indent + 1);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("device: %p (WGPUDevice)\n", (void*)impl->device);
-    ResourceUsage_DebugPrint(&impl->resourceUsage, PFN_printf, indent + 1);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("refCount: %u\n", impl->refCount);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("lastLayout: %p (WGPUPipelineLayout)\n", (void*)impl->lastLayout);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("cmdEncoder: %p (WGPUCommandEncoder)\n", (void*)impl->cmdEncoder);
-}
-void WGPUComputePassEncoder_DebugPrint(WGPUComputePassEncoder cpe, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPUComputePassEncoder (%p):\n", (void*)cpe);
-    if (cpe) WGPUComputePassEncoderImpl_DebugPrint((const WGPUComputePassEncoderImpl*)cpe, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPUComputePassEncoder)\n"); }
-}
-
-void WGPUCommandEncoderImpl_DebugPrint(const WGPUCommandEncoderImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPUCommandEncoderImpl: (NULL)\n"); return; }
-    PFN_printf("WGPUCommandEncoderImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("buffer: %p (VkCommandBuffer)\n", (void*)impl->buffer);
-    WGPURenderPassEncoderSet_DebugPrint(&impl->referencedRPs, PFN_printf, indent + 1);
-    WGPUComputePassEncoderSet_DebugPrint(&impl->referencedCPs, PFN_printf, indent + 1);
-    WGPURaytracingPassEncoderSet_DebugPrint(&impl->referencedRTs, PFN_printf, indent + 1);
-    ResourceUsage_DebugPrint(&impl->resourceUsage, PFN_printf, indent + 1);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("device: %p (WGPUDevice)\n", (void*)impl->device);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("cacheIndex: %u\n", impl->cacheIndex);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("movedFrom: %u\n", impl->movedFrom);
-}
-void WGPUCommandEncoder_DebugPrint(WGPUCommandEncoder ce, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPUCommandEncoder (%p):\n", (void*)ce);
-    if (ce) WGPUCommandEncoderImpl_DebugPrint((const WGPUCommandEncoderImpl*)ce, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPUCommandEncoder)\n"); }
-}
-
-void WGPUCommandBufferImpl_DebugPrint(const WGPUCommandBufferImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPUCommandBufferImpl: (NULL)\n"); return; }
-    PFN_printf("WGPUCommandBufferImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("buffer: %p (VkCommandBuffer)\n", (void*)impl->buffer);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("refCount: %u\n", impl->refCount);
-    WGPURenderPassEncoderSet_DebugPrint(&impl->referencedRPs, PFN_printf, indent + 1);
-    WGPUComputePassEncoderSet_DebugPrint(&impl->referencedCPs, PFN_printf, indent + 1);
-    WGPURaytracingPassEncoderSet_DebugPrint(&impl->referencedRTs, PFN_printf, indent + 1);
-    ResourceUsage_DebugPrint(&impl->resourceUsage, PFN_printf, indent + 1);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("device: %p (WGPUDevice)\n", (void*)impl->device);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("cacheIndex: %u\n", impl->cacheIndex);
-}
-void WGPUCommandBuffer_DebugPrint(WGPUCommandBuffer cb, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPUCommandBuffer (%p):\n", (void*)cb);
-    if (cb) WGPUCommandBufferImpl_DebugPrint((const WGPUCommandBufferImpl*)cb, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPUCommandBuffer)\n"); }
-}
-
-void WGPURaytracingPassEncoderImpl_DebugPrint(const WGPURaytracingPassEncoderImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPURaytracingPassEncoderImpl: (NULL)\n"); return; }
-    PFN_printf("WGPURaytracingPassEncoderImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("cmdBuffer: %p (VkCommandBuffer)\n", (void*)impl->cmdBuffer);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("device: %p (WGPUDevice)\n", (void*)impl->device);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("lastPipeline: %p (WGPURaytracingPipeline)\n", (void*)impl->lastPipeline);
-    ResourceUsage_DebugPrint(&impl->resourceUsage, PFN_printf, indent + 1);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("refCount: %u\n", impl->refCount);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("lastLayout: %p (VkPipelineLayout)\n", (void*)impl->lastLayout);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("cmdEncoder: %p (WGPUCommandEncoder)\n", (void*)impl->cmdEncoder);
-}
-void WGPURaytracingPassEncoder_DebugPrint(WGPURaytracingPassEncoder rtpe, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPURaytracingPassEncoder (%p):\n", (void*)rtpe);
-    if (rtpe) WGPURaytracingPassEncoderImpl_DebugPrint((const WGPURaytracingPassEncoderImpl*)rtpe, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPURaytracingPassEncoder)\n"); }
-}
-
-void WGPUSurfaceImpl_DebugPrint(const WGPUSurfaceImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPUSurfaceImpl: (NULL)\n"); return; }
-    PFN_printf("WGPUSurfaceImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("surface: %p (VkSurfaceKHR)\n", (void*)impl->surface);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("swapchain: %p (VkSwapchainKHR)\n", (void*)impl->swapchain);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("device: %p (WGPUDevice)\n", (void*)impl->device);
-    WGPUSurfaceConfiguration_DebugPrint(&impl->lastConfig, PFN_printf, indent + 1);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("imagecount: %u\n", impl->imagecount);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("activeImageIndex: %u\n", impl->activeImageIndex);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("width: %u, height: %u\n", impl->width, impl->height);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("swapchainImageFormat: %d (VkFormat)\n", impl->swapchainImageFormat);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("swapchainColorSpace: %d (VkColorSpaceKHR)\n", impl->swapchainColorSpace);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("images: %p (WGPUTexture*)\n", (void*)impl->images);
-    for(uint32_t i=0; i<impl->imagecount && impl->images; ++i) { PFN_Print_Indent(indent + 2, PFN_printf); PFN_printf("[%u]: %p\n", i, (void*)impl->images[i]); }
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("imageViews: %p (WGPUTextureView*)\n", (void*)impl->imageViews);
-    for(uint32_t i=0; i<impl->imagecount && impl->imageViews; ++i) { PFN_Print_Indent(indent + 2, PFN_printf); PFN_printf("[%u]: %p\n", i, (void*)impl->imageViews[i]); }
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("formatCount: %u\n", impl->formatCount);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("formatCache: %p (PixelFormat*)\n", (void*)impl->formatCache);
-    // Print formatCache elements if desired
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("presentModeCount: %u\n", impl->presentModeCount);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("presentModeCache: %p (PresentMode*)\n", (void*)impl->presentModeCache);
-    // Print presentModeCache elements if desired
-}
-void WGPUSurface_DebugPrint(WGPUSurface surface, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPUSurface (%p):\n", (void*)surface);
-    if (surface) WGPUSurfaceImpl_DebugPrint((const WGPUSurfaceImpl*)surface, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPUSurface)\n"); }
-}
-
-void WGPUQueueImpl_DebugPrint(const WGPUQueueImpl* impl, PrintfFunc_t PFN_printf, int indent) {
-    PFN_Print_Indent(indent, PFN_printf);
-    if (!impl) { PFN_printf("WGPUQueueImpl: (NULL)\n"); return; }
-    PFN_printf("WGPUQueueImpl:\n");
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("graphicsQueue: %p (VkQueue)\n", (void*)impl->graphicsQueue);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("computeQueue: %p (VkQueue)\n", (void*)impl->computeQueue);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("transferQueue: %p (VkQueue)\n", (void*)impl->transferQueue);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("presentQueue: %p (VkQueue)\n", (void*)impl->presentQueue);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("syncState (count %d):\n", framesInFlight);
-    for (int i = 0; i < framesInFlight; ++i) {
-        PFN_Print_Indent(indent + 2, PFN_printf); PFN_printf("syncState[%d]:\n", i);
-        SyncState_DebugPrint(&impl->syncState[i], PFN_printf, indent + 3);
-    }
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("device: %p (WGPUDevice)\n", (void*)impl->device);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("presubmitCache: %p (WGPUCommandEncoder)\n", (void*)impl->presubmitCache);
-    PFN_Print_Indent(indent + 1, PFN_printf); PFN_printf("pendingCommandBuffers (count %d):\n", framesInFlight);
-     for (int i = 0; i < framesInFlight; ++i) {
-        PFN_Print_Indent(indent + 2, PFN_printf); PFN_printf("pendingCommandBuffers[%d]:\n", i);
-        PendingCommandBufferMap_DebugPrint(&impl->pendingCommandBuffers[i], PFN_printf, indent + 3);
-    }
-}
-void WGPUQueue_DebugPrint(WGPUQueue queue, PrintfFunc_t PFN_printf) {
-    PFN_printf("WGPUQueue (%p):\n", (void*)queue);
-    if (queue) WGPUQueueImpl_DebugPrint((const WGPUQueueImpl*)queue, PFN_printf, 1);
-    else { PFN_Print_Indent(1, PFN_printf); PFN_printf("(NULL WGPUQueue)\n"); }
 }

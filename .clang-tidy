@@ -1,1 +1,1 @@
-Checks: bugprone-*, performance-*, -performance-enum-size
+Checks: bugprone-*, performance-*, -performance-enum-size, -bugprone-easily-swappable-parameters
