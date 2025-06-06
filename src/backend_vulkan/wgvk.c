@@ -3881,10 +3881,12 @@ void wgpuSurfacePresent(WGPUSurface surface){
     
     VkCommandBuffer transitionBuffer = surface->device->frameCaches[cacheIndex].finalTransitionBuffer;
     
-    VkCommandBufferBeginInfo beginInfo zeroinit;
-    beginInfo.sType =  VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags =  VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    device->functions.vkBeginCommandBuffer(transitionBuffer, &beginInfo);
+    VkCommandBufferBeginInfo transitionBufferBeginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+    };
+
+    device->functions.vkBeginCommandBuffer(transitionBuffer, &transitionBufferBeginInfo);
 
     VkImageMemoryBarrier finalBarrier = {
         VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -3912,8 +3914,6 @@ void wgpuSurfacePresent(WGPUSurface surface){
         1, &finalBarrier  
     );
     surface->images[surface->activeImageIndex]->layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    //EncodeTransitionImageLayout(transitionBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, surface->images[surface->activeImageIndex]);
-    //EncodeTransitionImageLayout(transitionBuffer, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, (WGPUTexture)surface->renderTarget.depth.id);
     device->functions.vkEndCommandBuffer(transitionBuffer);
     VkPipelineStageFlags wsmask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
     const VkSubmitInfo cbsinfo = {
@@ -3936,7 +3936,7 @@ void wgpuSurfacePresent(WGPUSurface surface){
     WGPUCommandBufferVector* cmdBuffers = PendingCommandBufferMap_get(&surface->device->queue->pendingCommandBuffers[cacheIndex], (void*)finalTransitionFence);
     
     if(cmdBuffers == NULL){
-        WGPUCommandBufferVector insert;
+        WGPUCommandBufferVector insert = {0};
         PendingCommandBufferMap_put(&surface->device->queue->pendingCommandBuffers[cacheIndex], finalTransitionFence, insert);
         cmdBuffers = PendingCommandBufferMap_get(&surface->device->queue->pendingCommandBuffers[cacheIndex], (void*)finalTransitionFence);
         WGPUCommandBufferVector_init(cmdBuffers);
@@ -3952,8 +3952,6 @@ void wgpuSurfacePresent(WGPUSurface surface){
     };
     VkResult presentRes = device->functions.vkQueuePresentKHR(surface->device->queue->presentQueue, &presentInfo);
 
-    ++surface->device->submittedFrames;
-    vmaSetCurrentFrameIndex(surface->device->allocator, surface->device->submittedFrames % framesInFlight);
     if(presentRes != VK_SUCCESS && presentRes != VK_SUBOPTIMAL_KHR){
         if(presentRes == VK_ERROR_OUT_OF_DATE_KHR){
             TRACELOG(LOG_ERROR, "presentRes is VK_ERROR_OUT_OF_DATE_KHR");
@@ -3967,11 +3965,21 @@ void wgpuSurfacePresent(WGPUSurface surface){
     if(presentRes != VK_SUCCESS){
         wgpuSurfaceConfigure(surface, &surface->lastConfig);
     }
+    wgpuDeviceTick(surface->device);
+}
+void wgpuDeviceTick(WGPUDevice device){
+    WGPUQueue queue = device->queue;
+    WGPUCommandBuffer buffer = wgpuCommandEncoderFinish(queue->presubmitCache);
+    wgpuCommandEncoderRelease(queue->presubmitCache);
+    wgpuCommandBufferRelease(buffer);
     
-    WGPUDevice surfaceDevice = surface->device;
-    WGPUQueue queue = surfaceDevice->queue;
+    ++device->submittedFrames;
+    vmaSetCurrentFrameIndex(device->allocator, device->submittedFrames % framesInFlight);
+    
+    
+    
 
-    cacheIndex = surfaceDevice->submittedFrames % framesInFlight;
+    uint32_t cacheIndex = device->submittedFrames % framesInFlight;
     PendingCommandBufferMap* pcm = &queue->pendingCommandBuffers[cacheIndex];
     size_t pcmSize = pcm->current_size;
 
@@ -3988,11 +3996,11 @@ void wgpuSurfacePresent(WGPUSurface surface){
         TRACELOG(LOG_INFO, "No fences!");
     }
 
-    PendingCommandBufferMap_for_each(pcm, resetFenceAndReleaseBuffers, surfaceDevice);    
+    PendingCommandBufferMap_for_each(pcm, resetFenceAndReleaseBuffers, device);    
     WGPUFenceVector_free(&fences);
 
-    WGPUBufferVector* usedBuffers = &surfaceDevice->frameCaches[cacheIndex].usedBatchBuffers;
-    WGPUBufferVector* unusedBuffers = &surfaceDevice->frameCaches[cacheIndex].unusedBatchBuffers;
+    WGPUBufferVector* usedBuffers = &device->frameCaches[cacheIndex].usedBatchBuffers;
+    WGPUBufferVector* unusedBuffers = &device->frameCaches[cacheIndex].unusedBatchBuffers;
     if(unusedBuffers->capacity < unusedBuffers->size + usedBuffers->size){
         size_t newcap = (unusedBuffers->size + usedBuffers->size);
         WGPUBufferVector_reserve(unusedBuffers, newcap);
@@ -4003,15 +4011,12 @@ void wgpuSurfacePresent(WGPUSurface surface){
     unusedBuffers->size += usedBuffers->size;
     WGPUBufferVector_clear(usedBuffers);//(WGPUBufferVector *dest, const WGPUBufferVector *source)
     PendingCommandBufferMap_clear(&queue->pendingCommandBuffers[cacheIndex]);
+    device->functions.vkResetCommandPool(device->device, device->frameCaches[device->submittedFrames % framesInFlight].commandPool, 0);
     
-    WGPUCommandBuffer buffer = wgpuCommandEncoderFinish(queue->presubmitCache);
-    wgpuCommandEncoderRelease(queue->presubmitCache);
-    wgpuCommandBufferRelease(buffer);
-    surfaceDevice->functions.vkResetCommandPool(surfaceDevice->device, surfaceDevice->frameCaches[cacheIndex].commandPool, 0);
+    
     WGPUCommandEncoderDescriptor cedesc zeroinit;
-
+    device->queue->presubmitCache = wgpuDeviceCreateCommandEncoder(device, &cedesc);
     queue->syncState[cacheIndex].submits = 0;
-    queue->presubmitCache = wgpuDeviceCreateCommandEncoder(surfaceDevice, &cedesc);
 }
 WGPUSampler wgpuDeviceCreateSampler(WGPUDevice device, const WGPUSamplerDescriptor* descriptor){
 
