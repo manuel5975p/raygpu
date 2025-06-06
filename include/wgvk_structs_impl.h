@@ -586,6 +586,7 @@ typedef struct WGPUTextureImpl{
 }WGPUTextureImpl;
 typedef struct WGPUShaderModuleImpl{
     uint32_t refCount;
+    WGPUDevice device;
     VkShaderModule vulkanModule;
     
     WGPUChainedStruct* source;
@@ -601,6 +602,7 @@ typedef struct WGPURenderPipelineImpl{
 
 typedef struct WGPUComputePipelineImpl{
     VkPipeline computePipeline;
+    WGPUDevice device;
     WGPUPipelineLayout layout;
     refcount_type refCount;
 }WGPUComputePipelineImpl;

@@ -277,6 +277,8 @@ int main(){
     wgpuBufferRelease(stbuf);
     
     wgpuShaderModuleRelease(computeModule);
+    wgpuShaderModuleRelease(vertexModule);
+    wgpuShaderModuleRelease(fragmentModule);
     wgpuComputePipelineRelease(cpl);
     wgpuBindGroupRelease(group);
     wgpuBindGroupLayoutRelease(layout);
