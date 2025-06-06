@@ -133,7 +133,7 @@ constexpr float RAD2DEG = 180.0 / M_PI;
 
 #if RAYGPU_DISABLE_ASSERT == 1
 
-#define rassert(Condition, Message) __builtin_assume(Condition)
+#define rassert(Condition, Message, ...) //__builtin_assume(Condition)
 
 #else
 #define rassert(Condition, Message, ...)                                                          \

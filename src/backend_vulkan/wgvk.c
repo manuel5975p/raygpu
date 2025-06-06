@@ -364,7 +364,7 @@ LayoutedRenderPass LoadRenderPassFromLayout(WGPUDevice device, RenderPassLayout 
     LayoutedRenderPass ret zeroinit;
     VkAttachmentDescriptionVector_move(&ret.allAttachments, &allAttachments);
     //ret.allAttachments = std::move(allAttachments);
-    VkResult result = vkCreateRenderPass(device->device, &rpci, NULL, &ret.renderPass);
+    VkResult result = device->functions.vkCreateRenderPass(device->device, &rpci, NULL, &ret.renderPass);
     // (Handle errors appropriately in production code)
     if(result == VK_SUCCESS){
         RenderPassCache_put(&device->renderPassCache, layout, ret);
@@ -1307,7 +1307,7 @@ WGPUTexture wgpuDeviceCreateTexture(WGPUDevice device, const WGPUTextureDescript
     imageInfo.samples = toVulkanSampleCount(descriptor->sampleCount);
     
     VkImage image zeroinit;
-    if (vkCreateImage(device->device, &imageInfo, NULL, &image) != VK_SUCCESS)
+    if (device->functions.vkCreateImage(device->device, &imageInfo, NULL, &image) != VK_SUCCESS)
         TRACELOG(LOG_FATAL, "Failed to create image!");
     
     VkMemoryRequirements memReq;
@@ -1322,7 +1322,7 @@ WGPUTexture wgpuDeviceCreateTexture(WGPUDevice device, const WGPUTextureDescript
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
     );
     
-    if (vkAllocateMemory(device->device, &allocInfo, NULL, &imageMemory) != VK_SUCCESS){
+    if (device->functions.vkAllocateMemory(device->device, &allocInfo, NULL, &imageMemory) != VK_SUCCESS){
         TRACELOG(LOG_FATAL, "Failed to allocate image memory!");
     }
     device->functions.vkBindImageMemory(device->device, image, imageMemory, 0);
@@ -1566,7 +1566,7 @@ WGPUBindGroup wgpuDeviceCreateBindGroup(WGPUDevice device, const WGPUBindGroupDe
         dpci.poolSizeCount = VkDescriptorPoolSizeCount;
         dpci.pPoolSizes = sizes;
         dpci.maxSets = 1;
-        vkCreateDescriptorPool(device->device, &dpci, NULL, &ret->pool);
+        device->functions.vkCreateDescriptorPool(device->device, &dpci, NULL, &ret->pool);
 
         //VkCopyDescriptorSet copy{};
         //copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
@@ -1576,7 +1576,7 @@ WGPUBindGroup wgpuDeviceCreateBindGroup(WGPUDevice device, const WGPUBindGroupDe
         dsai.descriptorPool = ret->pool;
         dsai.descriptorSetCount = 1;
         dsai.pSetLayouts = (VkDescriptorSetLayout*)&bgdesc->layout->layout;
-        vkAllocateDescriptorSets(device->device, &dsai, &ret->set);
+        device->functions.vkAllocateDescriptorSets(device->device, &dsai, &ret->set);
     }
     else{
         ret->pool = dsap->data[dsap->size - 1].pool;
@@ -1630,7 +1630,7 @@ WGPUBindGroupLayout wgpuDeviceCreateBindGroupLayout(WGPUDevice device, const WGP
 
     slci.pBindings = bindings.data;
     slci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    vkCreateDescriptorSetLayout(device->device, &slci, NULL, &ret->layout);
+    device->functions.vkCreateDescriptorSetLayout(device->device, &slci, NULL, &ret->layout);
     WGPUBindGroupLayoutEntry* entriesCopy = (WGPUBindGroupLayoutEntry*)RL_CALLOC(entryCount, sizeof(WGPUBindGroupLayoutEntry));
 
     if(entryCount > 0){
@@ -1806,7 +1806,7 @@ WGPUTextureView wgpuTextureCreateView(WGPUTexture texture, const WGPUTextureView
     ivci.subresourceRange = sr;
     WGPUTextureView ret = callocnew(WGPUTextureViewImpl);
     ret->refCount = 1;
-    vkCreateImageView(texture->device->device, &ivci, NULL, &ret->view);
+    texture->device->functions.vkCreateImageView(texture->device->device, &ivci, NULL, &ret->view);
     ret->format = ivci.format;
     ret->texture = texture;
     ++texture->refCount;
@@ -3158,12 +3158,13 @@ WGPURenderPipeline wgpuDeviceCreateRenderPipeline(WGPUDevice device, const WGPUR
 
         for (size_t j = 0; j < layout->attributeCount; ++j) {
             const WGPUVertexAttribute* attrib = &layout->attributes[j];
-            VkVertexInputAttributeDescription vkAttrib zeroinit;
-            vkAttrib.binding = currentBinding;
-            vkAttrib.location = attrib->shaderLocation;
-            vkAttrib.format = toVulkanVertexFormat(attrib->format);
-            vkAttrib.offset = (uint32_t)attrib->offset;
-            attributeDescriptions[attributeDescriptionCount++] = vkAttrib;
+            
+            attributeDescriptions[attributeDescriptionCount++] = (VkVertexInputAttributeDescription){
+                .location = attrib->shaderLocation,
+                .binding = currentBinding,
+                .format = toVulkanVertexFormat(attrib->format),
+                .offset = (uint32_t)attrib->offset
+            };
         }
         currentBinding++;
     }
