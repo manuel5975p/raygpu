@@ -70,6 +70,8 @@ extern "C" DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sources){
 extern "C" WGPURenderPipeline createSingleRenderPipe(const ModifiablePipelineState& mst, const DescribedShaderModule& shaderModule, const DescribedBindGroupLayout& bglayout, const DescribedPipelineLayout& pllayout){
     TRACELOG(LOG_INFO, "Generating new single pipeline");
     WGPURenderPipeline ret = callocnewpp(WGPURenderPipelineImpl);
+    ret->refCount = 1;
+    ret->device = bglayout.layout->device;
     auto& settings = mst;
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;

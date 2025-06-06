@@ -56,7 +56,7 @@
 #define Matrix rlMatrix
     #include <wgvk_structs_impl.h>
     //#include <enum_translation.h>
-    #include "tint_c_api.h"
+    #include <tint_c_api.h>
     //#include "vulkan_internals.hpp"
     //#include <raygpu.h>
 #undef Font
@@ -161,6 +161,7 @@ WGPUSurface wgpuInstanceCreateSurface(WGPUInstance instance, const WGPUSurfaceDe
     }
     return ret;
 }
+
 static RenderPassLayout GetRenderPassLayout2(const RenderPassCommandBegin* rpdesc){
     RenderPassLayout ret zeroinit;
     if(rpdesc->depthAttachmentPresent){
@@ -758,25 +759,27 @@ WGPUFuture wgpuInstanceRequestAdapter(WGPUInstance instance, const WGPURequestAd
     ret->functionCalledOnWaitAny = wgpuCreateAdapter_impl;
     return ret;
 }
-int cmp_uint32_(const void *a, const void *b) {
+
+static int cmp_uint32_(const void *a, const void *b) {
     uint32_t ua = *(const uint32_t *)a;
     uint32_t ub = *(const uint32_t *)b;
     if (ua < ub) return -1;
     if (ua > ub) return 1;
     return 0;
 }
+
 static inline VkSemaphore CreateSemaphoreD(WGPUDevice device){
-    VkSemaphoreCreateInfo sci zeroinit;
-    VkSemaphore ret zeroinit;
-    sci.flags = 0;
-    sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    VkSemaphore ret = NULL;
+    VkSemaphoreCreateInfo sci = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+    
     VkResult res = device->functions.vkCreateSemaphore(device->device, &sci, NULL, &ret);
     if(res != VK_SUCCESS){
         TRACELOG(LOG_ERROR, "Error creating semaphore");
     }
     return ret;
 }
-size_t sort_uniqueuints(uint32_t *arr, size_t count) {
+
+static size_t sort_uniqueuints(uint32_t *arr, size_t count) {
     if (count <= 1) return count;
     qsort(arr, count, sizeof(uint32_t), cmp_uint32_);
     size_t unique_count = 1;
@@ -4010,19 +4013,6 @@ void wgpuSurfacePresent(WGPUSurface surface){
     queue->syncState[cacheIndex].submits = 0;
     queue->presubmitCache = wgpuDeviceCreateCommandEncoder(surfaceDevice, &cedesc);
 }
-
-static inline VkSamplerAddressMode vkamode(addressMode a){
-    switch(a){
-        case clampToEdge:
-            return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        case mirrorRepeat:
-            return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
-        case repeat:
-            return VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        default:
-            rg_unreachable();
-    }
-};
 WGPUSampler wgpuDeviceCreateSampler(WGPUDevice device, const WGPUSamplerDescriptor* descriptor){
 
     WGPUSampler ret = callocnew(WGPUSamplerImpl);
