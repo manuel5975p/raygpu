@@ -1462,6 +1462,28 @@ static inline VkCompareOp toVulkanCompareFunction(WGPUCompareFunction cf) {
         return VK_COMPARE_OP_ALWAYS; // Default fallback
     }
 }
+static inline VkSamplerMipmapMode toVulkanMipmapFilter(WGPUMipmapFilterMode mmfilter){
+    switch(mmfilter){
+        case WGPUMipmapFilterMode_Linear:
+            return VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        case WGPUMipmapFilterMode_Nearest:
+            return VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        default:
+            rg_unreachable();
+            return VK_SAMPLER_MIPMAP_MODE_MAX_ENUM;
+    }
+}
+static inline VkFilter toVulkanFilterMode(WGPUFilterMode filterMode){
+    switch(filterMode){
+        case WGPUFilterMode_Linear:
+            return VK_FILTER_LINEAR;
+        case WGPUFilterMode_Nearest:
+            return VK_FILTER_NEAREST;
+        default:
+            rg_unreachable();
+            return VK_FILTER_LINEAR;
+    }
+}
 
 static inline VkStencilOp toVulkanStencilOperation(WGPUStencilOperation op){
     switch(op){

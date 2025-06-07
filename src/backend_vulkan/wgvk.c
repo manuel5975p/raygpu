@@ -74,8 +74,15 @@ void wgpuTraceLog(int logType, const char *text, ...);
 #include <wgvk.h>
 #include <external/VmaUsage.h>
 #include <stdarg.h>
-
-
+static inline uint64_t identity_sdf(uint64_t x){
+    return x;
+}
+static inline int comparison_sdf(uint64_t x, uint64_t y){
+    return x == y;
+}
+static uint64_t currentFutureId = 1;
+DEFINE_GENERIC_HASH_MAP(static inline, FutureIDMap, uint64_t, WGPUFutureImpl, identity_sdf, comparison_sdf, 0);
+FutureIDMap g_futureIDMap = {0};
 // WGPU struct implementations
 
 #include <wgvk_structs_impl.h>
@@ -754,10 +761,14 @@ WGPUFuture wgpuInstanceRequestAdapter(WGPUInstance instance, const WGPURequestAd
     info->instance = instance;
     info->options = *options;
     info->info = callbackInfo;
-    WGPUFuture ret = (WGPUFuture)RL_CALLOC(1, sizeof(WGPUFutureImpl));
-    ret->userdataForFunction = info;
-    ret->functionCalledOnWaitAny = wgpuCreateAdapter_impl;
-    return ret;
+    WGPUFutureImpl ret = {
+        .userdataForFunction = info,
+        .functionCalledOnWaitAny = wgpuCreateAdapter_impl,
+        .freeUserData = RL_FREE
+    };
+    uint64_t id = currentFutureId++; //atomic?
+    FutureIDMap_put(&g_futureIDMap, id, ret);
+    return (WGPUFuture){ id };
 }
 
 static int cmp_uint32_(const void *a, const void *b) {
@@ -4019,25 +4030,25 @@ void wgpuDeviceTick(WGPUDevice device){
     queue->syncState[cacheIndex].submits = 0;
 }
 WGPUSampler wgpuDeviceCreateSampler(WGPUDevice device, const WGPUSamplerDescriptor* descriptor){
-
     WGPUSampler ret = callocnew(WGPUSamplerImpl);
     ret->refCount = 1;
-    VkSamplerCreateInfo sci zeroinit;
-    sci.compareEnable = VK_FALSE;
-    //sci.compareOp = VK_COMPARE_OP_LESS;
-    sci.maxLod = descriptor->lodMaxClamp;
-    sci.minLod = descriptor->lodMinClamp;
-    sci.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    sci.addressModeU = toVulkanAddressMode(descriptor->addressModeU);
-    sci.addressModeV = toVulkanAddressMode(descriptor->addressModeV);
-    sci.addressModeW = toVulkanAddressMode(descriptor->addressModeW);
     
-    sci.mipmapMode = ((descriptor->mipmapFilter == WGPUMipmapFilterMode_Linear) ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST);
-
-    sci.anisotropyEnable = false;
-    sci.maxAnisotropy = descriptor->maxAnisotropy;
-    sci.magFilter = ((descriptor->magFilter == WGPUFilterMode_Linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
-    sci.minFilter = ((descriptor->minFilter == WGPUFilterMode_Linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST);
+    const VkSamplerCreateInfo sci = {
+        .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+        .pNext = NULL,
+        .flags = 0,
+        .compareEnable = VK_FALSE,
+        .maxLod = descriptor->lodMaxClamp,
+        .minLod = descriptor->lodMinClamp,
+        .addressModeU = toVulkanAddressMode(descriptor->addressModeU),
+        .addressModeV = toVulkanAddressMode(descriptor->addressModeV),
+        .addressModeW = toVulkanAddressMode(descriptor->addressModeW),
+        .mipmapMode = ((descriptor->mipmapFilter == WGPUMipmapFilterMode_Linear) ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST),
+        .anisotropyEnable = false,
+        .maxAnisotropy = descriptor->maxAnisotropy,
+        .magFilter = ((descriptor->magFilter == WGPUFilterMode_Linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST),
+        .minFilter = ((descriptor->minFilter == WGPUFilterMode_Linear) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST),
+    };
     VkResult result = device->functions.vkCreateSampler(device->device, &sci, NULL, &(ret->sampler));
     return ret;
 }

@@ -162,7 +162,6 @@ typedef struct WGPUBindGroupLayoutImpl* WGPUBindGroupLayout;
 typedef struct WGPUPipelineLayoutImpl* WGPUPipelineLayout;
 typedef struct WGPUBindGroupImpl* WGPUBindGroup;
 typedef struct WGPUBufferImpl* WGPUBuffer;
-typedef struct WGPUFutureImpl* WGPUFuture;
 typedef struct WGPUQueueImpl* WGPUQueue;
 typedef struct WGPUInstanceImpl* WGPUInstance;
 typedef struct WGPUAdapterImpl* WGPUAdapter;
@@ -641,6 +640,10 @@ typedef struct WGPUOrigin3D {
     uint32_t y;
     uint32_t z;
 } WGPUOrigin3D;
+
+typedef struct WGPUFuture {
+    uint64_t id;
+} WGPUFuture;
 
 typedef struct WGPUExtent3D {
     uint32_t width;
