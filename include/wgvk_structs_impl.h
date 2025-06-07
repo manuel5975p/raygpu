@@ -543,6 +543,7 @@ typedef struct WGPUInstanceImpl{
 typedef struct WGPUFutureImpl{
     void* userdataForFunction;
     void (*functionCalledOnWaitAny)(void*);
+    void (*freeUserData)(void*);
 }WGPUFutureImpl;
 
 typedef struct WGPUAdapterImpl{
