@@ -533,18 +533,33 @@ typedef struct WGPUTopLevelAccelerationStructureImpl {
     VkDeviceMemory instancesBufferMemory;
 } WGPUTopLevelAccelerationStructureImpl;
 
-
-typedef struct WGPUInstanceImpl{
-    VkInstance instance;
-    uint32_t refCount;
-    VkDebugUtilsMessengerEXT debugMessenger;
-}WGPUInstanceImpl;
+static inline uint64_t identity_sdf(uint64_t x){
+    return x;
+}
+static inline int comparison_sdf(uint64_t x, uint64_t y){
+    return x == y;
+}
 
 typedef struct WGPUFutureImpl{
     void* userdataForFunction;
     void (*functionCalledOnWaitAny)(void*);
     void (*freeUserData)(void*);
 }WGPUFutureImpl;
+
+DEFINE_GENERIC_HASH_MAP(CONTAINERAPI, RenderPassCache, RenderPassLayout, LayoutedRenderPass, renderPassLayoutHash, renderPassLayoutCompare, CLITERAL(RenderPassLayout){0});
+DEFINE_GENERIC_HASH_MAP(static inline, FutureIDMap, uint64_t, WGPUFutureImpl, identity_sdf, comparison_sdf, 0);
+
+
+typedef struct WGPUInstanceImpl{
+    VkInstance instance;
+    uint32_t refCount;
+    VkDebugUtilsMessengerEXT debugMessenger;
+
+    uint64_t currentFutureId;
+    FutureIDMap g_futureIDMap;
+}WGPUInstanceImpl;
+
+
 
 typedef struct WGPUAdapterImpl{
     VkPhysicalDevice physicalDevice;
@@ -557,7 +572,6 @@ typedef struct WGPUAdapterImpl{
 
 #define framesInFlight 2
 
-DEFINE_GENERIC_HASH_MAP(CONTAINERAPI, RenderPassCache, RenderPassLayout, LayoutedRenderPass, renderPassLayoutHash, renderPassLayoutCompare, CLITERAL(RenderPassLayout){0});
 typedef struct WGPUDeviceImpl{
     VkDevice device;
     uint32_t refCount;

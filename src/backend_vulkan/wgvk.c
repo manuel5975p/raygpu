@@ -74,15 +74,8 @@ void wgpuTraceLog(int logType, const char *text, ...);
 #include <wgvk.h>
 #include <external/VmaUsage.h>
 #include <stdarg.h>
-static inline uint64_t identity_sdf(uint64_t x){
-    return x;
-}
-static inline int comparison_sdf(uint64_t x, uint64_t y){
-    return x == y;
-}
-static uint64_t currentFutureId = 1;
-DEFINE_GENERIC_HASH_MAP(static inline, FutureIDMap, uint64_t, WGPUFutureImpl, identity_sdf, comparison_sdf, 0);
-FutureIDMap g_futureIDMap = {0};
+
+
 // WGPU struct implementations
 
 #include <wgvk_structs_impl.h>
@@ -611,13 +604,13 @@ WGPUInstance wgpuCreateInstance(const WGPUInstanceDescriptor* descriptor) {
 
     ici.enabledLayerCount = requestedLayerCount;
     ici.ppEnabledLayerNames = requestedLayers;
-
+    VkValidationFeatureEnableEXT enables[] = {
+        VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
+    };
     // If layers are enabled, configure specific validation features, BUT only if debug utils is available
     if (requestedLayerCount > 0) {
         if(debugUtilsAvailable) {
-            VkValidationFeatureEnableEXT enables[] = {
-                VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
-            };
+            
             validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
             validationFeatures.enabledValidationFeatureCount = sizeof(enables) / sizeof(enables[0]);
             validationFeatures.pEnabledValidationFeatures = enables;
@@ -638,6 +631,7 @@ WGPUInstance wgpuCreateInstance(const WGPUInstanceDescriptor* descriptor) {
     // 5. Create the Vulkan Instance
     VkResult result = vkCreateInstance(&ici, NULL, &ret->instance);
 
+
     // --- Free temporary extension memory ---
     RL_FREE(availableExtensions);        // Properties buffer
     RL_FREE((void*)enabledExtensions);   // Names buffer (pointers into availableExtensions)
@@ -650,7 +644,8 @@ WGPUInstance wgpuCreateInstance(const WGPUInstanceDescriptor* descriptor) {
         RL_FREE(ret);
         return NULL;
     }
-    
+    ret->currentFutureId = 1;
+    FutureIDMap_init(&ret->g_futureIDMap);
     // 6. Load instance-level functions using volk
     volkLoadInstance(ret->instance);
 
@@ -682,11 +677,15 @@ WGPUInstance wgpuCreateInstance(const WGPUInstanceDescriptor* descriptor) {
 
 #endif // SUPPORT_VULKAN_BACKEND
 }
-WGPUWaitStatus wgpuInstanceWaitAny(WGPUInstance instance, size_t futureCount, WGPUFutureWaitInfo* futures, uint64_t timeoutNS){
+WGPUWaitStatus wgpuInstanceWaitAny(WGPUInstance instance, size_t futureCount, WGPUFutureWaitInfo* futureWaitInfos, uint64_t timeoutNS){
     for(uint32_t i = 0;i < futureCount;i++){
-        if(!futures[i].completed){
-            futures[i].future->functionCalledOnWaitAny(futures[i].future->userdataForFunction);
-            futures[i].completed = 1;
+        if(!futureWaitInfos[i].completed){
+            WGPUFutureImpl* futureObject = FutureIDMap_get(&instance->g_futureIDMap, futureWaitInfos[i].future.id);
+            futureObject->functionCalledOnWaitAny(futureObject->userdataForFunction);
+            if(futureObject->freeUserData){
+                futureObject->freeUserData(futureObject->userdataForFunction);
+            }
+            futureWaitInfos[i].completed = 1;
         }
     }
     return WGPUWaitStatus_Success;
@@ -766,8 +765,8 @@ WGPUFuture wgpuInstanceRequestAdapter(WGPUInstance instance, const WGPURequestAd
         .functionCalledOnWaitAny = wgpuCreateAdapter_impl,
         .freeUserData = RL_FREE
     };
-    uint64_t id = currentFutureId++; //atomic?
-    FutureIDMap_put(&g_futureIDMap, id, ret);
+    uint64_t id = instance->currentFutureId++; //atomic?
+    FutureIDMap_put(&instance->g_futureIDMap, id, ret);
     return (WGPUFuture){ id };
 }
 
@@ -1073,7 +1072,7 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
         retDevice->adapter = adapter;
         retQueue->device = retDevice;
     }
-
+    RL_FREE(deprops);
     return retDevice;
 }
 WGPUQueue wgpuDeviceGetQueue(WGPUDevice device){
@@ -1156,7 +1155,7 @@ void wgpuBufferUnmap(WGPUBuffer buffer){
 }
 
 WGPUFuture wgpuBufferMapAsync(WGPUBuffer buffer, WGPUMapMode mode, size_t offset, size_t size, WGPUBufferMapCallbackInfo callbackInfo){
-    return NULL;
+    return (WGPUFuture){0};
 }
 
 size_t wgpuBufferGetSize(WGPUBuffer buffer){
@@ -1656,11 +1655,12 @@ WGPUBindGroupLayout wgpuDeviceCreateBindGroupLayout(WGPUDevice device, const WGP
     
     return ret;
 }
-void wgpuReleasePipelineLayout(WGPUPipelineLayout pllayout){
+void wgpuPipelineLayoutRelease(WGPUPipelineLayout pllayout){
     if(!--pllayout->refCount){
         for(uint32_t i = 0;i < pllayout->bindGroupLayoutCount;i++){
             wgpuBindGroupLayoutRelease(pllayout->bindGroupLayouts[i]);
         }
+        pllayout->device->functions.vkDestroyPipelineLayout(pllayout->device->device, pllayout->layout, NULL);
         RL_FREE((void*)pllayout->bindGroupLayouts);
         RL_FREE(pllayout);
     }
@@ -1744,7 +1744,7 @@ WGPUPipelineLayout wgpuDeviceCreatePipelineLayout(WGPUDevice device, const WGPUP
     lci.setLayoutCount = ret->bindGroupLayoutCount;
     VkResult res = vkCreatePipelineLayout(device->device, &lci, NULL, &ret->layout);
     if(res != VK_SUCCESS){
-        wgpuReleasePipelineLayout(ret);
+        wgpuPipelineLayoutRelease(ret);
         ret = NULL;
     }
     return ret;
@@ -2925,15 +2925,6 @@ void wgpuSamplerRelease(WGPUSampler sampler){
         RL_FREE(sampler);
     }
 }
-void wgpuPipelineLayoutRelease(WGPUPipelineLayout layout){
-    if(!--layout->refCount){
-        for(uint32_t i = 0;i < layout->bindGroupLayoutCount;i++){
-            wgpuBindGroupLayoutRelease(layout->bindGroupLayouts[i]);
-        }
-        layout->device->functions.vkDestroyPipelineLayout(layout->device->device, layout->layout, NULL);
-        RL_FREE(layout);
-    }
-}
 void wgpuRenderPipelineRelease(WGPURenderPipeline pipeline){
     if(!--pipeline->refCount){
         wgpuPipelineLayoutRelease(pipeline->layout);
@@ -3010,6 +3001,7 @@ void wgpuInstanceRelease                      (WGPUInstance instance){
     if(--instance->refCount == 0){
         vkDestroyDebugUtilsMessengerEXT(instance->instance, instance->debugMessenger, NULL);
         vkDestroyInstance(instance->instance, NULL);
+        FutureIDMap_free(&instance->g_futureIDMap);
         RL_FREE(instance);
     }
 }
@@ -3046,6 +3038,7 @@ void wgpuDeviceRelease(WGPUDevice device){
                         }
                     }
                 }
+                PendingCommandBufferMap_free(pcm);
                 //PendingCommandBufferMap_for_each(pcm, resetFenceAndReleaseBuffers, device);  
                 device->functions.vkFreeCommandBuffers(device->device, cache->commandPool, 1, &cache->finalTransitionBuffer);
                 device->functions.vkDestroySemaphore(device->device, cache->finalTransitionSemaphore, NULL);
@@ -3055,10 +3048,12 @@ void wgpuDeviceRelease(WGPUDevice device){
                 for(uint32_t s = 0;s < device->queue->syncState[i].semaphores.size;s++){
                     device->functions.vkDestroySemaphore(device->device, device->queue->syncState[i].semaphores.data[s], NULL);//todo
                 }
+                VkSemaphoreVector_free(&device->queue->syncState[i].semaphores);
                 wgpuFenceRelease(cache->finalTransitionFence);
                 
                 if(cache->commandBuffers.size){
                     device->functions.vkFreeCommandBuffers(device->device, cache->commandPool, cache->commandBuffers.size, cache->commandBuffers.data);
+                    VkCommandBufferVector_free(&cache->commandBuffers);
                 }
                 for(size_t bgc = 0;bgc < cache->bindGroupCache.current_capacity;bgc++){
                     if(cache->bindGroupCache.table[bgc].key != PHM_EMPTY_SLOT_KEY){
@@ -3070,13 +3065,14 @@ void wgpuDeviceRelease(WGPUDevice device){
                         DescriptorSetAndPoolVector_free(dspv);
                     }
                 }
+                BindGroupCacheMap_free(&cache->bindGroupCache);
                 device->functions.vkDestroyCommandPool(device->device, cache->commandPool, NULL);
             }
             vmaDestroyPool(device->allocator, device->aligned_hostVisiblePool);
             vmaDestroyAllocator(device->allocator);
         }
         
-
+        
         wgpuQueueRelease(device->queue);
         wgpuAdapterRelease(device->adapter);
         device->functions.vkDestroyDevice(device->device, NULL);
@@ -4750,13 +4746,18 @@ static void wgpuShaderModuleGetReflectionInfo_sync(void* userdata_){
 
 
 WGPUFuture wgpuShaderModuleGetReflectionInfo(WGPUShaderModule shaderModule, WGPUReflectionInfoCallbackInfo callbackInfo){
-    WGPUFuture ret = RL_CALLOC(1, sizeof(WGPUFutureImpl));
-    ret->functionCalledOnWaitAny = wgpuShaderModuleGetReflectionInfo_sync;
     struct wgpuShaderModuleGetReflectionInfo_sync_userdata* udff = RL_CALLOC(1, sizeof(struct wgpuShaderModuleGetReflectionInfo_sync_userdata));
-    udff->module = shaderModule;
+    WGPUInstance instance = shaderModule->device->adapter->instance;
     udff->callbackInfo = callbackInfo;
-    ret->userdataForFunction = udff;
-    return ret;
+    udff->module = shaderModule;
+    WGPUFutureImpl ret = {
+        .functionCalledOnWaitAny = wgpuShaderModuleGetReflectionInfo_sync,
+        .userdataForFunction = udff,
+        .freeUserData = RL_FREE
+    };
+    WGPUFuture rete = { shaderModule->device->adapter->instance->currentFutureId++ };
+    FutureIDMap_put(&instance->g_futureIDMap, rete.id, ret);
+    return rete;
 }
 
 

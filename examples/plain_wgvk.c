@@ -189,7 +189,7 @@ int main(){
             .completed = 0
         },
     };
-    wgpuInstanceWaitAny(instance, 1, reflectionWaitInfo + 2, 1 << 30);
+    wgpuInstanceWaitAny(instance, 3, reflectionWaitInfo, 1 << 30);
     WGPUComputePipelineDescriptor cplDesc = {
         .nextInChain = NULL,
         .label = STRVIEW("Kopmute paipline"),
