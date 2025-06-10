@@ -726,7 +726,10 @@ typedef struct WGPUSurfaceImpl{
 
     WGPUSurfaceConfiguration lastConfig;
     uint32_t formatCount;
+    uint32_t wgpuFormatCount;
     VkSurfaceFormatKHR* formatCache;
+    WGPUTextureFormat* wgpuFormatCache;
+
     uint32_t presentModeCount;
     WGPUPresentMode* presentModeCache;
 

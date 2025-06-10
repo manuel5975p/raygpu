@@ -106,20 +106,20 @@ int main(){
     glfwSetKeyCallback(window, keyfunc);
 
 
-    //WGPUSurfaceSourceXlibWindow surfaceChain;
-    //surfaceChain.chain.sType = WGPUSType_SurfaceSourceXlibWindow;
-    //surfaceChain.chain.next = NULL;
-    //surfaceChain.display = x11_display;
-    //surfaceChain.window = x11_window;
+    WGPUSurfaceSourceXlibWindow surfaceChain;
+    surfaceChain.chain.sType = WGPUSType_SurfaceSourceXlibWindow;
+    surfaceChain.chain.next = NULL;
+    surfaceChain.display = x11_display;
+    surfaceChain.window = x11_window;
 
     struct wl_display* native_display = glfwGetWaylandDisplay();
     struct wl_surface* native_surface = glfwGetWaylandWindow(window);
 
-    WGPUSurfaceSourceWaylandSurface surfaceChain;
-    surfaceChain.chain.sType = WGPUSType_SurfaceSourceWaylandSurface;
-    surfaceChain.chain.next = NULL;
-    surfaceChain.display = native_display;
-    surfaceChain.surface = native_surface;
+    //WGPUSurfaceSourceWaylandSurface surfaceChain;
+    //surfaceChain.chain.sType = WGPUSType_SurfaceSourceWaylandSurface;
+    //surfaceChain.chain.next = NULL;
+    //surfaceChain.display = native_display;
+    //surfaceChain.surface = native_surface;
 
     WGPUSurfaceDescriptor surfaceDescriptor;
     surfaceDescriptor.nextInChain = &surfaceChain.chain;
@@ -137,6 +137,7 @@ int main(){
         .height = height
     });
     WGPUSurfaceTexture surfaceTexture;
+    int i = 0;
     while(!glfwWindowShouldClose(window)){
         glfwPollEvents();
         wgpuSurfaceGetCurrentTexture(surface, &surfaceTexture);
@@ -152,7 +153,7 @@ int main(){
         });
         WGPUCommandEncoder cenc = wgpuDeviceCreateCommandEncoder(device, NULL);
         WGPURenderPassColorAttachment colorAttachment = {
-            .clearValue = (WGPUColor){1,0,0,1},
+            .clearValue = (WGPUColor){(i % 255) / 255.0,0,0,1},
             .loadOp = WGPULoadOp_Clear,
             .storeOp = WGPUStoreOp_Store,
             .view = surfaceView
@@ -172,7 +173,7 @@ int main(){
         wgpuRenderPassEncoderRelease(rpenc);
         wgpuTextureViewRelease(surfaceView);
         wgpuSurfacePresent(surface);
-        glfwSwapBuffers(window);
+        //glfwSwapBuffers(window);
     }
     wgpuSurfaceRelease(surface);
 }
