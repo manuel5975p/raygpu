@@ -211,7 +211,6 @@ static inline void ResourceUsage_free(ResourceUsage* ru){
     BindGroupUsageSet_free(&ru->referencedBindGroups);
     BindGroupLayoutUsageSet_free(&ru->referencedBindGroupLayouts);
     SamplerUsageSet_free(&ru->referencedSamplers);
-    //LayoutAssumptions_free(&ru->entryAndFinalLayouts);
 }
 
 static inline void ResourceUsage_move(ResourceUsage* dest, ResourceUsage* source){
@@ -552,7 +551,7 @@ DEFINE_GENERIC_HASH_MAP(static inline, FutureIDMap, uint64_t, WGPUFutureImpl, id
 
 typedef struct WGPUInstanceImpl{
     VkInstance instance;
-    uint32_t refCount;
+    refcount_type refCount;
     VkDebugUtilsMessengerEXT debugMessenger;
 
     uint64_t currentFutureId;
@@ -563,7 +562,7 @@ typedef struct WGPUInstanceImpl{
 
 typedef struct WGPUAdapterImpl{
     VkPhysicalDevice physicalDevice;
-    uint32_t refCount;
+    refcount_type refCount;
     WGPUInstance instance;
     VkPhysicalDeviceRayTracingPipelinePropertiesKHR rayTracingPipelineProperties;
     VkPhysicalDeviceMemoryProperties memProperties;
@@ -574,7 +573,7 @@ typedef struct WGPUAdapterImpl{
 
 typedef struct WGPUDeviceImpl{
     VkDevice device;
-    uint32_t refCount;
+    refcount_type refCount;
     WGPUAdapter adapter;
     WGPUQueue queue;
     size_t submittedFrames;
@@ -600,7 +599,7 @@ typedef struct WGPUTextureImpl{
     uint32_t sampleCount;
 }WGPUTextureImpl;
 typedef struct WGPUShaderModuleImpl{
-    uint32_t refCount;
+    refcount_type refCount;
     WGPUDevice device;
     VkShaderModule vulkanModule;
     
@@ -722,11 +721,17 @@ typedef struct WGPURaytracingPassEncoderImpl{
 
 typedef struct WGPUSurfaceImpl{
     VkSurfaceKHR surface;
-    VkSwapchainKHR swapchain;
+    refcount_type refCount;
     WGPUDevice device;
-    WGPUSurfaceConfiguration lastConfig;
-    uint32_t imagecount;
 
+    WGPUSurfaceConfiguration lastConfig;
+    uint32_t formatCount;
+    VkSurfaceFormatKHR* formatCache;
+    uint32_t presentModeCount;
+    WGPUPresentMode* presentModeCache;
+
+    VkSwapchainKHR swapchain;
+    uint32_t imagecount;
     uint32_t activeImageIndex;
     uint32_t width, height;
     VkFormat swapchainImageFormat;
@@ -734,12 +739,6 @@ typedef struct WGPUSurfaceImpl{
     WGPUTexture* images;
     WGPUTextureView* imageViews;
     VkSemaphore* presentSemaphores;
-    //VkFramebuffer* framebuffers;
-
-    uint32_t formatCount;
-    VkSurfaceFormatKHR* formatCache;
-    uint32_t presentModeCount;
-    WGPUPresentMode* presentModeCache;
 }WGPUSurfaceImpl;
 
 typedef struct WGPUQueueImpl{
@@ -747,7 +746,7 @@ typedef struct WGPUQueueImpl{
     VkQueue computeQueue;
     VkQueue transferQueue;
     VkQueue presentQueue;
-    uint32_t refCount;
+    refcount_type refCount;
 
     SyncState syncState[framesInFlight];
     WGPUDevice device;

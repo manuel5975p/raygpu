@@ -100,7 +100,7 @@ static inline uint32_t findMemoryType(WGPUAdapter adapter, uint32_t typeFilter, 
 WGPUSurface wgpuInstanceCreateSurface(WGPUInstance instance, const WGPUSurfaceDescriptor* descriptor){
     rassert(descriptor->nextInChain, "SurfaceDescriptor must have a nextInChain");
     WGPUSurface ret = callocnew(WGPUSurfaceImpl);
-
+    ret->refCount = 1;
     switch(descriptor->nextInChain->sType){
         #if SUPPORT_METAL_SURFACE
         case WGPUSType_SurfaceSourceMetalLayer:{
@@ -2710,28 +2710,28 @@ void wgpuSurfaceConfigure(WGPUSurface surface, const WGPUSurfaceConfiguration* c
     }
 
     //std::free(surface->framebuffers);
-    
-    free(surface->imageViews);
-    free(surface->images);
-    free(surface->presentSemaphores);
-    device->functions.vkDestroySwapchainKHR(device->device, surface->swapchain, NULL);
-    
+    if(surface->swapchain){
+        RL_FREE((void*)surface->imageViews);
+        RL_FREE((void*)surface->images);
+        RL_FREE((void*)surface->presentSemaphores);
+        device->functions.vkDestroySwapchainKHR(device->device, surface->swapchain, NULL);
+    }
     VkSurfaceCapabilitiesKHR vkCapabilities zeroinit;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device->adapter->physicalDevice, surface->surface, &vkCapabilities);
     VkSwapchainCreateInfoKHR createInfo zeroinit;
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     createInfo.surface = surface->surface;
     uint32_t correctedWidth, correctedHeight;
-    #define ICLAMP_TEMP(V, MINI, MAXI) ((V) < (MINI)) ? (MINI) : (((V) > (MAXI)) ? (MAXI) : (V))
+    #define SWAPCHAIN_ICLAMP_TEMP(V, MINI, MAXI) ((V) < (MINI)) ? (MINI) : (((V) > (MAXI)) ? (MAXI) : (V))
     if(config->width < vkCapabilities.minImageExtent.width || config->width > vkCapabilities.maxImageExtent.width){
-        correctedWidth = ICLAMP_TEMP(config->width, vkCapabilities.minImageExtent.width, vkCapabilities.maxImageExtent.width);
+        correctedWidth = SWAPCHAIN_ICLAMP_TEMP(config->width, vkCapabilities.minImageExtent.width, vkCapabilities.maxImageExtent.width);
         TRACELOG(LOG_WARNING, "Invalid SurfaceConfiguration::width %u, adjusting to %u", config->width, correctedWidth);
     }
     else{
         correctedWidth = config->width;
     }
     if(config->height < vkCapabilities.minImageExtent.height || config->height > vkCapabilities.maxImageExtent.height){
-        correctedHeight = ICLAMP_TEMP(config->height, vkCapabilities.minImageExtent.height, vkCapabilities.maxImageExtent.height);
+        correctedHeight = SWAPCHAIN_ICLAMP_TEMP(config->height, vkCapabilities.minImageExtent.height, vkCapabilities.maxImageExtent.height);
         TRACELOG(LOG_WARNING, "Invalid SurfaceConfiguration::height %u, adjusting to %u", config->height, correctedHeight);
     }
     else{
@@ -2744,7 +2744,7 @@ void wgpuSurfaceConfigure(WGPUSurface surface, const WGPUSurfaceConfiguration* c
     surface->width  = correctedWidth;
     surface->height = correctedHeight;
     surface->device = config->device;
-    VkExtent2D newExtent = CLITERAL(VkExtent2D){correctedWidth, correctedHeight};
+    VkExtent2D newExtent = {correctedWidth, correctedHeight};
     createInfo.imageExtent = newExtent;
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -2781,11 +2781,9 @@ void wgpuSurfaceConfigure(WGPUSurface surface, const WGPUSurfaceConfiguration* c
 
     VkImage tmpImages[32] = {0};
 
-    //surface->imageViews = (VkImageView*)std::calloc(surface->imagecount, sizeof(VkImageView));
-    TRACELOG(LOG_INFO, "Imagecount: %d", (int)surface->imagecount);
     device->functions.vkGetSwapchainImagesKHR(device->device, surface->swapchain, &surface->imagecount, tmpImages);
-    surface->images = (WGPUTexture*)calloc(surface->imagecount, sizeof(WGPUTexture));
-    surface->presentSemaphores = (VkSemaphore*)calloc(surface->imagecount, sizeof(VkSemaphore));
+    surface->images            = (WGPUTexture*)RL_CALLOC(surface->imagecount, sizeof(WGPUTexture));
+    surface->presentSemaphores = (VkSemaphore*)RL_CALLOC(surface->imagecount, sizeof(VkSemaphore));
     for (uint32_t i = 0; i < surface->imagecount; i++) {
         surface->images[i] = callocnew(WGPUTextureImpl);
         surface->images[i]->device = device;
@@ -2796,28 +2794,39 @@ void wgpuSurfaceConfigure(WGPUSurface surface, const WGPUSurfaceConfiguration* c
         surface->images[i]->sampleCount = 1;
         surface->images[i]->image = tmpImages[i];
 
-        VkSemaphoreCreateInfo vci = {
-            VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-            NULL,
-            0
-        };
-        surface->device->functions.vkCreateSemaphore(surface->device->device, &vci, NULL, surface->presentSemaphores + i);
+        VkSemaphoreCreateInfo vci = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+        device->functions.vkCreateSemaphore(device->device, &vci, NULL, surface->presentSemaphores + i);
     }
     surface->imageViews = (WGPUTextureView*)RL_CALLOC(surface->imagecount, sizeof(VkImageView));
 
     for (uint32_t i = 0; i < surface->imagecount; i++) {
-        WGPUTextureViewDescriptor viewDesc zeroinit;
-        viewDesc.arrayLayerCount = 1;
-        viewDesc.baseArrayLayer = 0;
-        viewDesc.baseMipLevel = 0;
-        viewDesc.mipLevelCount = 1;
-        viewDesc.aspect = WGPUTextureAspect_All;
-        viewDesc.dimension = WGPUTextureViewDimension_2D;
-        viewDesc.format = config->format;
-        viewDesc.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
+        const WGPUTextureViewDescriptor viewDesc = {
+            .arrayLayerCount = 1,
+            .baseArrayLayer = 0,
+            .baseMipLevel = 0,
+            .mipLevelCount = 1,
+            .aspect = WGPUTextureAspect_All,
+            .dimension = WGPUTextureViewDimension_2D,
+            .format = config->format,
+            .usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc,
+        };
         surface->imageViews[i] = wgpuTextureCreateView(surface->images[i], &viewDesc);
     }
+}
 
+void wgpuSurfaceRelease(WGPUSurface surface){
+    if(--surface->refCount == 0){
+        if(surface->swapchain){
+            for(uint32_t i = 0;i < surface->imagecount;i++){
+                wgpuTextureViewRelease(surface->imageViews[i]);
+            }
+            RL_FREE((void*)surface->imageViews);
+            RL_FREE((void*)surface->images);
+            RL_FREE(surface->formatCache);
+            RL_FREE(surface->presentModeCache);
+            surface->device->functions.vkDestroySwapchainKHR(surface->device->device, surface->swapchain, NULL);
+        }
+    }
 }
 
 void wgpuComputePassEncoderDispatchWorkgroups(WGPUComputePassEncoder cpe, uint32_t x, uint32_t y, uint32_t z){
@@ -2833,7 +2842,7 @@ void wgpuComputePassEncoderDispatchWorkgroups(WGPUComputePassEncoder cpe, uint32
                 if(entry->buffer){
                     ce_trackBuffer(cpe->cmdEncoder, entry->buffer, (BufferUsageSnap){
                         .access = VK_ACCESS_SHADER_WRITE_BIT,
-                        .stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+                        .stage  = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
                     });
                 }
             }
@@ -3853,39 +3862,43 @@ void resetFenceAndReleaseBuffers(void* fence_, WGPUCommandBufferVector* cBuffers
     WGPUCommandBufferVector_free(cBuffers);
 }
 
- void wgpuSurfaceGetCurrentTexture(WGPUSurface surface, WGPUSurfaceTexture* surfaceTexture){
+void wgpuSurfaceGetCurrentTexture(WGPUSurface surface, WGPUSurfaceTexture* surfaceTexture){
     const size_t submittedframes = surface->device->submittedFrames;
     const uint32_t cacheIndex = surface->device->submittedFrames % framesInFlight;
+    if(surface->swapchain){
+        VkResult acquireResult = surface->device->functions.vkAcquireNextImageKHR(
+            surface->device->device,
+            surface->swapchain,
+            UINT32_MAX,
+            surface->device->queue->syncState[cacheIndex].acquireImageSemaphore,
+            VK_NULL_HANDLE,
+            &surface->activeImageIndex
+        );
+        surface->device->queue->syncState[cacheIndex].acquireImageSemaphoreSignalled = true;
 
-    VkResult acquireResult = surface->device->functions.vkAcquireNextImageKHR(
-        surface->device->device,
-        surface->swapchain,
-        UINT32_MAX,
-        surface->device->queue->syncState[cacheIndex].acquireImageSemaphore,
-        VK_NULL_HANDLE,
-        &surface->activeImageIndex
-    );
-    surface->device->queue->syncState[cacheIndex].acquireImageSemaphoreSignalled = true;
-
-    switch(acquireResult){
-        case VK_SUBOPTIMAL_KHR:
-            surfaceTexture->status = WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal;
-        break;
-        case VK_SUCCESS:
-            surfaceTexture->status = WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal;
-        break;
-        case VK_TIMEOUT:
-            surfaceTexture->status = WGPUSurfaceGetCurrentTextureStatus_Timeout;
-        break;
-        case VK_ERROR_OUT_OF_DATE_KHR:
-            surfaceTexture->status = WGPUSurfaceGetCurrentTextureStatus_Outdated;
-        break;
-        default:
-            surfaceTexture->status = WGPUSurfaceGetCurrentTextureStatus_Error;
-        break;
+        switch(acquireResult){
+            case VK_SUBOPTIMAL_KHR:
+                surfaceTexture->status = WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal;
+            break;
+            case VK_SUCCESS:
+                surfaceTexture->status = WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal;
+            break;
+            case VK_TIMEOUT:
+                surfaceTexture->status = WGPUSurfaceGetCurrentTextureStatus_Timeout;
+            break;
+            case VK_ERROR_OUT_OF_DATE_KHR:
+                surfaceTexture->status = WGPUSurfaceGetCurrentTextureStatus_Outdated;
+            break;
+            default:
+                surfaceTexture->status = WGPUSurfaceGetCurrentTextureStatus_Error;
+            break;
+        }
+        if(surfaceTexture->status == WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal || surfaceTexture->status == WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal){
+            surfaceTexture->texture = surface->images[surface->activeImageIndex];
+        }
     }
-    if(surfaceTexture->status == WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal || surfaceTexture->status == WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal){
-        surfaceTexture->texture = surface->images[surface->activeImageIndex];
+    else{
+        TRACELOG(LOG_ERROR, "Surface is not configured");
     }
 }
 

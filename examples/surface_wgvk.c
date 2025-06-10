@@ -39,7 +39,11 @@ void adapterCallbackFunction(
     ){
     *((WGPUAdapter*)userdata1) = adapter;
 }
-
+void keyfunc(GLFWwindow* window, int key, int scancode, int action, int mods){
+    if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
+        return glfwSetWindowShouldClose(window, GLFW_TRUE);
+    }
+}
 int main(){
     WGPUInstanceLayerSelection lsel = {
         .chain = {
@@ -96,11 +100,10 @@ int main(){
     WGPUDevice device = wgpuAdapterCreateDevice(requestedAdapter, &ddesc);
     WGPUQueue queue = wgpuDeviceGetQueue(device);
     glfwInit();
-
     GLFWwindow* window = glfwCreateWindow(500, 500, "Binbow", NULL, NULL);
     Display* x11_display = glfwGetX11Display();
     Window x11_window = glfwGetX11Window(window);
-
+    glfwSetKeyCallback(window, keyfunc);
     WGPUSurfaceSourceXlibWindow fromXlibWindow;
     fromXlibWindow.chain.sType = WGPUSType_SurfaceSourceXlibWindow;
     fromXlibWindow.chain.next = NULL;
@@ -112,6 +115,7 @@ int main(){
     surfaceDescriptor.label = (WGPUStringView){ NULL, WGPU_STRLEN };
     int width, height;
     glfwGetWindowSize(window, &width, &height);
+
     WGPUSurface surface = wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
     wgpuSurfaceConfigure(surface, &(const WGPUSurfaceConfiguration){
         .alphaMode = WGPUCompositeAlphaMode_Opaque,
@@ -159,4 +163,5 @@ int main(){
         wgpuSurfacePresent(surface);
         glfwSwapBuffers(window);
     }
+    wgpuSurfaceRelease(surface);
 }
