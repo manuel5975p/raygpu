@@ -296,6 +296,7 @@ if(SUPPORT_VULKAN_BACKEND)
         if(WAYLAND_CLIENT_FOUND)
             set_property(SOURCE ${TARGET_SOURCE_FILE} APPEND PROPERTY COMPILE_DEFINITIONS SUPPORT_WAYLAND_SURFACE=1)
             target_compile_definitions(wgvk_standalone PUBLIC SUPPORT_WAYLAND_SURFACE=1)
+            set(DAWN_USE_WAYLAND ON)
             # Ensure WAYLAND_CLIENT_INCLUDE_DIRS and WAYLAND_CLIENT_LIBRARIES are used later
             # target_include_directories(YourTarget PRIVATE ${WAYLAND_CLIENT_INCLUDE_DIRS})
             # target_link_libraries(YourTarget PRIVATE ${WAYLAND_CLIENT_LIBRARIES})
