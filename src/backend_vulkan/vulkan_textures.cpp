@@ -160,7 +160,7 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     if(hasData){
         WGPUTexelCopyTextureInfo destination zeroinit;
         destination.texture = image;
-        destination.aspect = TextureAspect_All;
+        destination.aspect = WGPUTextureAspect_All;
         destination.mipLevel = 0;
         destination.origin = WGPUOrigin3D{0, 0, 0};
 
@@ -195,7 +195,7 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     descriptor.baseArrayLayer = 0;
     descriptor.mipLevelCount = mipmaps;
     descriptor.baseMipLevel = 0;
-    descriptor.aspect = (format_ == Depth24 || format_ == Depth32) ? TextureAspect_DepthOnly : TextureAspect_All;
+    descriptor.aspect = (format_ == Depth24 || format_ == Depth32) ? WGPUTextureAspect_DepthOnly : WGPUTextureAspect_All;
     descriptor.dimension = WGPUTextureViewDimension_2D;
     descriptor.usage = usage;
     WGPUTextureView view = wgpuTextureCreateView(image, &descriptor);
@@ -215,7 +215,7 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
             singleMipDescriptor.baseArrayLayer = 0;
             singleMipDescriptor.mipLevelCount = 1;
             singleMipDescriptor.baseMipLevel = i;
-            singleMipDescriptor.aspect = (format_ == Depth24 || format_ == Depth32) ? TextureAspect_DepthOnly : TextureAspect_All;
+            singleMipDescriptor.aspect = (format_ == Depth24 || format_ == Depth32) ? WGPUTextureAspect_DepthOnly : WGPUTextureAspect_All;
             singleMipDescriptor.dimension = WGPUTextureViewDimension_2D;
             singleMipDescriptor.usage = usage;
             ret.mipViews[i] = wgpuTextureCreateView(image, &singleMipDescriptor);
@@ -252,7 +252,7 @@ extern "C" Texture2DArray LoadTextureArray(uint32_t width, uint32_t height, uint
     //tDesc.viewFormats = &tDesc.format;
     ret.id = wgpuDeviceCreateTexture((WGPUDevice)g_vulkanstate.device, &tDesc);
     WGPUTextureViewDescriptor vDesc zeroinit;
-    vDesc.aspect = TextureAspect_All;
+    vDesc.aspect = WGPUTextureAspect_All;
     vDesc.arrayLayerCount = layerCount;
     vDesc.baseArrayLayer = 0;
     vDesc.mipLevelCount = 1;
@@ -409,7 +409,7 @@ Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, Pixe
     vDesc.baseArrayLayer = 0;
     vDesc.mipLevelCount = 1;
     vDesc.baseMipLevel = 0;
-    vDesc.aspect = TextureAspect_All;
+    vDesc.aspect = WGPUTextureAspect_All;
     vDesc.dimension = WGPUTextureViewDimension_3D;
     vDesc.usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc | WGPUTextureUsage_CopyDst;
     

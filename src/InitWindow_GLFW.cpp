@@ -430,7 +430,7 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
         #elif SUPPORT_VULKAN_BACKEND == 1
         WGPUSurfaceConfiguration config{};
         config.format = WGPUTextureFormat_BGRA8Unorm;
-        config.presentMode = PresentMode_Fifo;
+        config.presentMode = WGPUPresentMode_Fifo;
         config.width = width;
         config.height = height;
         //ret.surface = LoadSurface((GLFWwindow*)window, config);

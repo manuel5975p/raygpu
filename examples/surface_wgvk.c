@@ -1,5 +1,35 @@
-#include <wgvk.h>
 #include <GLFW/glfw3.h>
+#include <wgvk.h>
+#ifdef __EMSCRIPTEN__
+#  define GLFW_EXPOSE_NATIVE_EMSCRIPTEN
+#  ifndef GLFW_PLATFORM_EMSCRIPTEN // not defined in older versions of emscripten
+#    define GLFW_PLATFORM_EMSCRIPTEN 0
+#  endif
+#else // __EMSCRIPTEN__
+#  ifdef SUPPORT_XLIB_SURFACE
+#    define GLFW_EXPOSE_NATIVE_X11
+#  endif
+#  ifdef SUPPORT_WAYLAND_SURFACE
+#    define GLFW_EXPOSE_NATIVE_WAYLAND
+#  endif
+#  ifdef _GLFW_COCOA
+#    define GLFW_EXPOSE_NATIVE_COCOA
+#  endif
+#  ifdef _GLFW_WIN32
+#    define GLFW_EXPOSE_NATIVE_WIN32
+#  endif
+#endif // __EMSCRIPTEN__
+
+#ifdef GLFW_EXPOSE_NATIVE_COCOA
+#  include <Foundation/Foundation.h>
+#  include <QuartzCore/CAMetalLayer.h>
+#endif
+
+#ifndef __EMSCRIPTEN__
+#  include <GLFW/glfw3native.h>
+#endif
+
+
 void adapterCallbackFunction(
         WGPURequestAdapterStatus status,
         WGPUAdapter adapter,
@@ -64,10 +94,69 @@ int main(){
     };
     
     WGPUDevice device = wgpuAdapterCreateDevice(requestedAdapter, &ddesc);
+    WGPUQueue queue = wgpuDeviceGetQueue(device);
     glfwInit();
-    GLFWwindow* win = glfwCreateWindow(500, 500, "Binbow", NULL, NULL);
-    while(!glfwWindowShouldClose(win)){
+
+    GLFWwindow* window = glfwCreateWindow(500, 500, "Binbow", NULL, NULL);
+    Display* x11_display = glfwGetX11Display();
+    Window x11_window = glfwGetX11Window(window);
+
+    WGPUSurfaceSourceXlibWindow fromXlibWindow;
+    fromXlibWindow.chain.sType = WGPUSType_SurfaceSourceXlibWindow;
+    fromXlibWindow.chain.next = NULL;
+    fromXlibWindow.display = x11_display;
+    fromXlibWindow.window = x11_window;
+
+    WGPUSurfaceDescriptor surfaceDescriptor;
+    surfaceDescriptor.nextInChain = &fromXlibWindow.chain;
+    surfaceDescriptor.label = (WGPUStringView){ NULL, WGPU_STRLEN };
+    int width, height;
+    glfwGetWindowSize(window, &width, &height);
+    WGPUSurface surface = wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
+    wgpuSurfaceConfigure(surface, &(const WGPUSurfaceConfiguration){
+        .alphaMode = WGPUCompositeAlphaMode_Opaque,
+        .presentMode = WGPUPresentMode_Fifo,
+        .device = device,
+        .format = WGPUTextureFormat_BGRA8Unorm,
+        .width = width,
+        .height = height
+    });
+    WGPUSurfaceTexture surfaceTexture;
+    while(!glfwWindowShouldClose(window)){
         glfwPollEvents();
-        glfwSwapBuffers(win);
+        wgpuSurfaceGetCurrentTexture(surface, &surfaceTexture);
+        WGPUTextureView surfaceView = wgpuTextureCreateView(surfaceTexture.texture, &(const WGPUTextureViewDescriptor){
+            .baseArrayLayer = 0,
+            .arrayLayerCount = 1,
+            .baseMipLevel = 0,
+            .mipLevelCount = 1,
+            .format = WGPUTextureFormat_BGRA8Unorm,
+            .dimension = WGPUTextureViewDimension_2D,
+            .usage = WGPUTextureUsage_RenderAttachment,
+            .aspect = WGPUTextureAspect_All,
+        });
+        WGPUCommandEncoder cenc = wgpuDeviceCreateCommandEncoder(device, NULL);
+        WGPURenderPassColorAttachment colorAttachment = {
+            .clearValue = (WGPUColor){1,0,0,1},
+            .loadOp = WGPULoadOp_Clear,
+            .storeOp = WGPUStoreOp_Store,
+            .view = surfaceView
+        };
+
+        WGPURenderPassEncoder rpenc = wgpuCommandEncoderBeginRenderPass(cenc, &(const WGPURenderPassDescriptor){
+            .colorAttachmentCount = 1,
+            .colorAttachments = &colorAttachment,
+        });
+        wgpuRenderPassEncoderEnd(rpenc);
+        
+        WGPUCommandBuffer cBuffer = wgpuCommandEncoderFinish(cenc);
+        
+        wgpuQueueSubmit(queue, 1, &cBuffer);
+        wgpuCommandEncoderRelease(cenc);
+        wgpuCommandBufferRelease(cBuffer);
+        wgpuRenderPassEncoderRelease(rpenc);
+        wgpuTextureViewRelease(surfaceView);
+        wgpuSurfacePresent(surface);
+        glfwSwapBuffers(window);
     }
 }

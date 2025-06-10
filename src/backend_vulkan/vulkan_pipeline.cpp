@@ -252,15 +252,15 @@ extern "C" WGPURenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     
     for(uint32_t i = 0;i < rpLayout.colorAttachmentCount;i++){
         rpLayout.colorAttachments[i].format = toVulkanPixelFormat(toWGPUPixelFormat(mst.colorAttachmentState.attachmentFormats[i]));
-        rpLayout.colorAttachments[i].loadop = LoadOp_Load;
-        rpLayout.colorAttachments[i].storeop = StoreOp_Store;
+        rpLayout.colorAttachments[i].loadop = WGPULoadOp_Load;
+        rpLayout.colorAttachments[i].storeop = WGPUStoreOp_Store;
         rpLayout.colorAttachments[i].sampleCount = settings.settings.sampleCount;
     }
     
     if(rpLayout.colorAttachments[0].sampleCount > 1){
         rpLayout.colorResolveAttachments[0].format = toVulkanPixelFormat(toWGPUPixelFormat(mst.colorAttachmentState.attachmentFormats[0]));
-        rpLayout.colorResolveAttachments[0].loadop = LoadOp_Load;
-        rpLayout.colorResolveAttachments[0].storeop = StoreOp_Store;
+        rpLayout.colorResolveAttachments[0].loadop = WGPULoadOp_Load;
+        rpLayout.colorResolveAttachments[0].storeop = WGPUStoreOp_Store;
         rpLayout.colorResolveAttachments[0].sampleCount = 1;
     }
     else{
@@ -269,8 +269,8 @@ extern "C" WGPURenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
 
     if(settings.settings.depthTest){
         rpLayout.depthAttachment.format = toVulkanPixelFormat(WGPUTextureFormat_Depth32Float);
-        rpLayout.depthAttachment.loadop = LoadOp_Load;
-        rpLayout.depthAttachment.storeop = StoreOp_Store;
+        rpLayout.depthAttachment.loadop = WGPULoadOp_Load;
+        rpLayout.depthAttachment.storeop = WGPUStoreOp_Store;
         rpLayout.depthAttachment.sampleCount = settings.settings.sampleCount;
     }
     

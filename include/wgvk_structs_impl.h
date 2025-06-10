@@ -1024,14 +1024,19 @@ static inline VkImageUsageFlags toVulkanTextureUsage(WGPUTextureUsage usage, WGP
 }
 
 static inline VkImageAspectFlags toVulkanAspectMask(WGPUTextureAspect aspect){
-    
     switch(aspect){
-        case TextureAspect_All:
+        case WGPUTextureAspect_All:
         return VK_IMAGE_ASPECT_COLOR_BIT;// | VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-        case TextureAspect_DepthOnly:
+        case WGPUTextureAspect_DepthOnly:
         return VK_IMAGE_ASPECT_DEPTH_BIT;
-        case TextureAspect_StencilOnly:
+        case WGPUTextureAspect_StencilOnly:
         return VK_IMAGE_ASPECT_STENCIL_BIT;
+        case WGPUTextureAspect_Plane0Only:
+        return VK_IMAGE_ASPECT_PLANE_0_BIT;
+        case WGPUTextureAspect_Plane1Only:
+        return VK_IMAGE_ASPECT_PLANE_1_BIT;
+        case WGPUTextureAspect_Plane2Only:
+        return VK_IMAGE_ASPECT_PLANE_2_BIT;
 
         default: {
             assert(false && "This aspect is not implemented");
@@ -1398,11 +1403,11 @@ static inline WGPUTextureFormat fromVulkanPixelFormat(VkFormat format) {
 
 static inline VkAttachmentStoreOp toVulkanStoreOperation(WGPUStoreOp lop) {
     switch (lop) {
-    case StoreOp_Store:
+    case WGPUStoreOp_Store:
         return VK_ATTACHMENT_STORE_OP_STORE;
-    case StoreOp_Discard:
+    case WGPUStoreOp_Discard:
         return VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    case StoreOp_Undefined:
+    case WGPUStoreOp_Undefined:
     
         return VK_ATTACHMENT_STORE_OP_DONT_CARE; // Example fallback
     default:
@@ -1411,11 +1416,11 @@ static inline VkAttachmentStoreOp toVulkanStoreOperation(WGPUStoreOp lop) {
 }
 static inline VkAttachmentLoadOp toVulkanLoadOperation(WGPULoadOp lop) {
     switch (lop) {
-    case LoadOp_Load:
+    case WGPULoadOp_Load:
         return VK_ATTACHMENT_LOAD_OP_LOAD;
-    case LoadOp_Clear:
+    case WGPULoadOp_Clear:
         return VK_ATTACHMENT_LOAD_OP_CLEAR;
-    case LoadOp_ExpandResolveTexture:
+    case WGPULoadOp_ExpandResolveTexture:
         // Vulkan does not have a direct equivalent; choose appropriate op or handle separately
         return VK_ATTACHMENT_LOAD_OP_LOAD; // Example fallback
     default:
@@ -1425,13 +1430,13 @@ static inline VkAttachmentLoadOp toVulkanLoadOperation(WGPULoadOp lop) {
 static inline WGPUPresentMode fromVulkanPresentMode(VkPresentModeKHR mode){
     switch(mode){
         case VK_PRESENT_MODE_FIFO_KHR:
-            return PresentMode_Fifo;
+            return WGPUPresentMode_Fifo;
         case VK_PRESENT_MODE_FIFO_RELAXED_KHR:
-            return PresentMode_FifoRelaxed;
+            return WGPUPresentMode_FifoRelaxed;
         case VK_PRESENT_MODE_IMMEDIATE_KHR:
-            return PresentMode_Immediate;
+            return WGPUPresentMode_Immediate;
         case VK_PRESENT_MODE_MAILBOX_KHR:
-            return PresentMode_Mailbox;
+            return WGPUPresentMode_Mailbox;
         default:
             return (WGPUPresentMode)~0;
     }
@@ -1439,13 +1444,13 @@ static inline WGPUPresentMode fromVulkanPresentMode(VkPresentModeKHR mode){
 
 static inline VkPresentModeKHR toVulkanPresentMode(WGPUPresentMode mode){
     switch(mode){
-        case PresentMode_Fifo:
+        case WGPUPresentMode_Fifo:
             return VK_PRESENT_MODE_FIFO_KHR;
-        case PresentMode_FifoRelaxed:
+        case WGPUPresentMode_FifoRelaxed:
             return VK_PRESENT_MODE_FIFO_RELAXED_KHR;
-        case PresentMode_Immediate:
+        case WGPUPresentMode_Immediate:
             return VK_PRESENT_MODE_IMMEDIATE_KHR;
-        case PresentMode_Mailbox:
+        case WGPUPresentMode_Mailbox:
             return VK_PRESENT_MODE_MAILBOX_KHR;
         default:
             rg_trap();

@@ -115,9 +115,11 @@ WGPUSurface wgpuInstanceCreateSurface(WGPUInstance instance, const WGPUSurfaceDe
         #if SUPPORT_XLIB_SURFACE
         case WGPUSType_SurfaceSourceXlibWindow:{
             WGPUSurfaceSourceXlibWindow* xlibSource = (WGPUSurfaceSourceXlibWindow*)descriptor->nextInChain;
-            VkXlibSurfaceCreateInfoKHR sci zeroinit;
-            sci.window = (uint64_t)xlibSource->window;
-            sci.dpy = (Display*)xlibSource->display;
+            VkXlibSurfaceCreateInfoKHR sci = {
+                .sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR,
+                .window = (uint64_t)xlibSource->window,
+                .dpy = (Display*)xlibSource->display
+            };
             //((PFN_vkCreateXlibSurfaceKHR)vkGetInstanceProcAddr(instance->instance, "vkCreateXlibSurfaceKHR"))
             vkCreateXlibSurfaceKHR
             (
@@ -274,7 +276,7 @@ static VkAttachmentDescription atttransformFunction(AttachmentDescriptor att){
     ret.storeOp    = toVulkanStoreOperation(att.storeop);
     ret.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     ret.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    ret.initialLayout  = (att.loadop == LoadOp_Load ? (is__depthVk(att.format) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) : (VK_IMAGE_LAYOUT_UNDEFINED));
+    ret.initialLayout  = (att.loadop == WGPULoadOp_Load ? (is__depthVk(att.format) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) : (VK_IMAGE_LAYOUT_UNDEFINED));
     if(is__depthVk(att.format)){
         ret.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     }else{
@@ -2809,7 +2811,7 @@ void wgpuSurfaceConfigure(WGPUSurface surface, const WGPUSurfaceConfiguration* c
         viewDesc.baseArrayLayer = 0;
         viewDesc.baseMipLevel = 0;
         viewDesc.mipLevelCount = 1;
-        viewDesc.aspect = TextureAspect_All;
+        viewDesc.aspect = WGPUTextureAspect_All;
         viewDesc.dimension = WGPUTextureViewDimension_2D;
         viewDesc.format = config->format;
         viewDesc.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
@@ -3852,7 +3854,19 @@ void resetFenceAndReleaseBuffers(void* fence_, WGPUCommandBufferVector* cBuffers
 }
 
  void wgpuSurfaceGetCurrentTexture(WGPUSurface surface, WGPUSurfaceTexture* surfaceTexture){
-    VkResult acquireResult = surface->device->functions.vkAcquireNextImageKHR(surface->device->device, surface->swapchain, UINT32_MAX, VK_NULL_HANDLE, VK_NULL_HANDLE, &surface->activeImageIndex);
+    const size_t submittedframes = surface->device->submittedFrames;
+    const uint32_t cacheIndex = surface->device->submittedFrames % framesInFlight;
+
+    VkResult acquireResult = surface->device->functions.vkAcquireNextImageKHR(
+        surface->device->device,
+        surface->swapchain,
+        UINT32_MAX,
+        surface->device->queue->syncState[cacheIndex].acquireImageSemaphore,
+        VK_NULL_HANDLE,
+        &surface->activeImageIndex
+    );
+    surface->device->queue->syncState[cacheIndex].acquireImageSemaphoreSignalled = true;
+
     switch(acquireResult){
         case VK_SUBOPTIMAL_KHR:
             surfaceTexture->status = WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal;
@@ -4722,6 +4736,8 @@ static void wgpuShaderModuleGetReflectionInfo_sync(void* userdata_){
                 RL_FREE(output_attribute_info.attributes);
                 RL_FREE((void*)input_vars);
                 RL_FREE((void*)output_vars);
+                RL_FREE((void*)reflectionInfo.globals);
+                spvReflectDestroyShaderModule(&mod);
             }
         }
         break;

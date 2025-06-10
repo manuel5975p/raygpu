@@ -130,10 +130,10 @@ extern "C" DescribedRenderpass LoadRenderpassEx(RenderSettings settings, bool co
 
     ret.colorClear = colorClearValue;
     ret.depthClear = depthClearValue;
-    ret.colorLoadOp = colorClear ? LoadOp_Clear : LoadOp_Load;
-    ret.colorStoreOp = StoreOp_Store;
-    ret.depthLoadOp = depthClear ? LoadOp_Clear : LoadOp_Load;
-    ret.depthStoreOp = StoreOp_Store;
+    ret.colorLoadOp = colorClear ? WGPULoadOp_Clear : WGPULoadOp_Load;
+    ret.colorStoreOp = WGPUStoreOp_Store;
+    ret.depthLoadOp = depthClear ? WGPULoadOp_Clear : WGPULoadOp_Load;
+    ret.depthStoreOp = WGPUStoreOp_Store;
     VkAttachmentDescription attachments[2] = {};
 
     VkAttachmentDescription& colorAttachment = attachments[0];
@@ -273,19 +273,19 @@ void negotiateSurfaceFormatAndPresentMode(WGPUAdapter adapter, const void* Surfa
     vkGetPhysicalDeviceSurfacePresentModesKHR(adapter->physicalDevice, surface->surface, &presentModeCount, presentModes.data());
     
     if(std::find(presentModes.begin(), presentModes.end(), VK_PRESENT_MODE_FIFO_RELAXED_KHR) != presentModes.end()){
-        g_renderstate.throttled_PresentMode = PresentMode_FifoRelaxed;
+        g_renderstate.throttled_PresentMode = WGPUPresentMode_FifoRelaxed;
     }
     else{
-        g_renderstate.throttled_PresentMode = PresentMode_Fifo;
+        g_renderstate.throttled_PresentMode = WGPUPresentMode_Fifo;
     }
     if(std::find(presentModes.begin(), presentModes.end(), VK_PRESENT_MODE_MAILBOX_KHR) != presentModes.end()){
-        g_renderstate.unthrottled_PresentMode = PresentMode_Mailbox;
+        g_renderstate.unthrottled_PresentMode = WGPUPresentMode_Mailbox;
     }
     else if(std::find(presentModes.begin(), presentModes.end(), VK_PRESENT_MODE_IMMEDIATE_KHR) != presentModes.end()){
-        g_renderstate.unthrottled_PresentMode = PresentMode_Immediate;
+        g_renderstate.unthrottled_PresentMode = WGPUPresentMode_Immediate;
     }
     else{
-        g_renderstate.unthrottled_PresentMode = PresentMode_Fifo;
+        g_renderstate.unthrottled_PresentMode = WGPUPresentMode_Fifo;
     }
     uint32_t surfaceFormatCount = 0;
     vkGetPhysicalDeviceSurfaceFormatsKHR(adapter->physicalDevice, surface->surface, &surfaceFormatCount, nullptr);
@@ -1184,7 +1184,7 @@ extern "C" FullSurface CreateSurface(void* nsurface, uint32_t width, uint32_t he
     WGPUPresentMode thm = g_renderstate.throttled_PresentMode;
     WGPUPresentMode um  = g_renderstate.unthrottled_PresentMode;
     if (g_renderstate.windowFlags & FLAG_VSYNC_LOWLATENCY_HINT) {
-        config.presentMode = (((g_renderstate.unthrottled_PresentMode == PresentMode_Mailbox) ? um : thm));
+        config.presentMode = (((g_renderstate.unthrottled_PresentMode == WGPUPresentMode_Mailbox) ? um : thm));
     } else if (g_renderstate.windowFlags & FLAG_VSYNC_HINT) {
         config.presentMode = thm;
     } else {
@@ -1271,8 +1271,8 @@ extern "C" void BeginRenderpassEx(DescribedRenderpass *renderPass){
     WGPURenderPassDepthStencilAttachment dsa zeroinit;
     dsa.depthClearValue = renderPass->depthClear;
     dsa.stencilClearValue = 0;
-    dsa.stencilLoadOp = LoadOp_Undefined;
-    dsa.stencilStoreOp = StoreOp_Discard;
+    dsa.stencilLoadOp = WGPULoadOp_Undefined;
+    dsa.stencilStoreOp = WGPUStoreOp_Discard;
     dsa.depthLoadOp = renderPass->depthLoadOp;
     dsa.depthStoreOp = renderPass->depthStoreOp;
     dsa.view = (WGPUTextureView)rtex.depth.view;
@@ -1469,7 +1469,7 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
 void UpdateTexture(Texture tex, void* data){
     WGPUTexelCopyTextureInfo destination{};
     destination.texture = (WGPUTexture)tex.id;
-    destination.aspect = TextureAspect_All;
+    destination.aspect = WGPUTextureAspect_All;
     destination.mipLevel = 0;
     destination.origin = WGPUOrigin3D{0,0,0};
 

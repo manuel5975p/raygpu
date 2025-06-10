@@ -269,22 +269,22 @@ typedef enum WGPUWaitStatus {
 } WGPUWaitStatus;
 
 typedef enum PresentMode{ 
-    PresentMode_Undefined = 0x00000000,
-    PresentMode_Fifo = 0x00000001,
-    PresentMode_FifoRelaxed = 0x00000002,
-    PresentMode_Immediate = 0x00000003,
-    PresentMode_Mailbox = 0x00000004,
+    WGPUPresentMode_Undefined = 0x00000000,
+    WGPUPresentMode_Fifo = 0x00000001,
+    WGPUPresentMode_FifoRelaxed = 0x00000002,
+    WGPUPresentMode_Immediate = 0x00000003,
+    WGPUPresentMode_Mailbox = 0x00000004,
 }WGPUPresentMode;
 
 typedef enum WGPUTextureAspect {
-    TextureAspect_Undefined = 0x00000000,
-    TextureAspect_All = 0x00000001,
-    TextureAspect_StencilOnly = 0x00000002,
-    TextureAspect_DepthOnly = 0x00000003,
-    TextureAspect_Plane0Only = 0x00050000,
-    TextureAspect_Plane1Only = 0x00050001,
-    TextureAspect_Plane2Only = 0x00050002,
-    TextureAspect_Force32 = 0x7FFFFFFF
+    WGPUTextureAspect_Undefined = 0x00000000,
+    WGPUTextureAspect_All = 0x00000001,
+    WGPUTextureAspect_StencilOnly = 0x00000002,
+    WGPUTextureAspect_DepthOnly = 0x00000003,
+    WGPUTextureAspect_Plane0Only = 0x00050000,
+    WGPUTextureAspect_Plane1Only = 0x00050001,
+    WGPUTextureAspect_Plane2Only = 0x00050002,
+    WGPUTextureAspect_Force32 = 0x7FFFFFFF
 } WGPUTextureAspect;
 
 typedef enum WGPUPrimitiveTopology {
@@ -425,18 +425,18 @@ typedef enum WGPUCullMode{
 } WGPUCullMode;
 
 typedef enum WGPULoadOp {
-    LoadOp_Undefined = 0x00000000,
-    LoadOp_Load = 0x00000001,
-    LoadOp_Clear = 0x00000002,
-    LoadOp_ExpandResolveTexture = 0x00050003,
-    LoadOp_Force32 = 0x7FFFFFFF
+    WGPULoadOp_Undefined = 0x00000000,
+    WGPULoadOp_Load = 0x00000001,
+    WGPULoadOp_Clear = 0x00000002,
+    WGPULoadOp_ExpandResolveTexture = 0x00050003,
+    WGPULoadOp_Force32 = 0x7FFFFFFF
 } WGPULoadOp;
 
 typedef enum WGPUStoreOp {
-    StoreOp_Undefined = 0x00000000,
-    StoreOp_Store = 0x00000001,
-    StoreOp_Discard = 0x00000002,
-    StoreOp_Force32 = 0x7FFFFFFF
+    WGPUStoreOp_Undefined = 0x00000000,
+    WGPUStoreOp_Store = 0x00000001,
+    WGPUStoreOp_Discard = 0x00000002,
+    WGPUStoreOp_Force32 = 0x7FFFFFFF
 } WGPUStoreOp;
 
 typedef enum WGPUFrontFace {
