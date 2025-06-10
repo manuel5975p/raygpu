@@ -23,6 +23,7 @@
 
 #if SUPPORT_WAYLAND_SURFACE == 1
     #include <wayland-client.h>
+    #include <wayland-client-protocol.h>
     #define VK_NO_PROTOTYPES
     #include <vulkan/vulkan.h>
     #include <vulkan/vulkan_wayland.h>
@@ -135,9 +136,11 @@ WGPUSurface wgpuInstanceCreateSurface(WGPUInstance instance, const WGPUSurfaceDe
         #if SUPPORT_WAYLAND_SURFACE
         case WGPUSType_SurfaceSourceWaylandSurface:{
             WGPUSurfaceSourceWaylandSurface* waylandSource = (WGPUSurfaceSourceWaylandSurface*)descriptor->nextInChain;
-            VkWaylandSurfaceCreateInfoKHR sci zeroinit;
-            sci.surface = (wl_surface*)waylandSource->surface;
-            sci.display = (wl_display*)waylandSource->display;
+            VkWaylandSurfaceCreateInfoKHR sci = {
+                .sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
+                .surface = (struct wl_surface*)waylandSource->surface,
+                .display = (struct wl_display*)waylandSource->display
+            };
             vkCreateWaylandSurfaceKHR(
                 instance->instance,
                 &sci,

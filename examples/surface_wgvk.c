@@ -104,14 +104,25 @@ int main(){
     Display* x11_display = glfwGetX11Display();
     Window x11_window = glfwGetX11Window(window);
     glfwSetKeyCallback(window, keyfunc);
-    WGPUSurfaceSourceXlibWindow fromXlibWindow;
-    fromXlibWindow.chain.sType = WGPUSType_SurfaceSourceXlibWindow;
-    fromXlibWindow.chain.next = NULL;
-    fromXlibWindow.display = x11_display;
-    fromXlibWindow.window = x11_window;
+
+
+    //WGPUSurfaceSourceXlibWindow surfaceChain;
+    //surfaceChain.chain.sType = WGPUSType_SurfaceSourceXlibWindow;
+    //surfaceChain.chain.next = NULL;
+    //surfaceChain.display = x11_display;
+    //surfaceChain.window = x11_window;
+
+    struct wl_display* native_display = glfwGetWaylandDisplay();
+    struct wl_surface* native_surface = glfwGetWaylandWindow(window);
+
+    WGPUSurfaceSourceWaylandSurface surfaceChain;
+    surfaceChain.chain.sType = WGPUSType_SurfaceSourceWaylandSurface;
+    surfaceChain.chain.next = NULL;
+    surfaceChain.display = native_display;
+    surfaceChain.surface = native_surface;
 
     WGPUSurfaceDescriptor surfaceDescriptor;
-    surfaceDescriptor.nextInChain = &fromXlibWindow.chain;
+    surfaceDescriptor.nextInChain = &surfaceChain.chain;
     surfaceDescriptor.label = (WGPUStringView){ NULL, WGPU_STRLEN };
     int width, height;
     glfwGetWindowSize(window, &width, &height);
