@@ -100,21 +100,21 @@ int main(){
     WGPUDevice device = wgpuAdapterCreateDevice(requestedAdapter, &ddesc);
     WGPUQueue queue = wgpuDeviceGetQueue(device);
     glfwInit();
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     GLFWwindow* window = glfwCreateWindow(500, 500, "Binbow", NULL, NULL);
+    glfwSetKeyCallback(window, keyfunc);
+    
+    
     Display* x11_display = glfwGetX11Display();
     Window x11_window = glfwGetX11Window(window);
-    glfwSetKeyCallback(window, keyfunc);
-
-
     WGPUSurfaceSourceXlibWindow surfaceChain;
     surfaceChain.chain.sType = WGPUSType_SurfaceSourceXlibWindow;
     surfaceChain.chain.next = NULL;
     surfaceChain.display = x11_display;
     surfaceChain.window = x11_window;
 
-    struct wl_display* native_display = glfwGetWaylandDisplay();
-    struct wl_surface* native_surface = glfwGetWaylandWindow(window);
-
+    //struct wl_display* native_display = glfwGetX11Display();
+    //struct wl_surface* native_surface = glfwGetWaylandWindow(window);
     //WGPUSurfaceSourceWaylandSurface surfaceChain;
     //surfaceChain.chain.sType = WGPUSType_SurfaceSourceWaylandSurface;
     //surfaceChain.chain.next = NULL;
@@ -130,9 +130,9 @@ int main(){
     WGPUSurface surface = wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
     wgpuSurfaceConfigure(surface, &(const WGPUSurfaceConfiguration){
         .alphaMode = WGPUCompositeAlphaMode_Opaque,
-        .presentMode = WGPUPresentMode_Fifo,
+        .presentMode = WGPUPresentMode_Immediate,
         .device = device,
-        .format = WGPUTextureFormat_BGRA8Unorm,
+        .format = WGPUTextureFormat_BGRA8UnormSrgb,
         .width = width,
         .height = height
     });
@@ -146,12 +146,13 @@ int main(){
             .arrayLayerCount = 1,
             .baseMipLevel = 0,
             .mipLevelCount = 1,
-            .format = WGPUTextureFormat_BGRA8Unorm,
+            .format = WGPUTextureFormat_BGRA8UnormSrgb,
             .dimension = WGPUTextureViewDimension_2D,
             .usage = WGPUTextureUsage_RenderAttachment,
             .aspect = WGPUTextureAspect_All,
         });
         WGPUCommandEncoder cenc = wgpuDeviceCreateCommandEncoder(device, NULL);
+        i++;
         WGPURenderPassColorAttachment colorAttachment = {
             .clearValue = (WGPUColor){(i % 255) / 255.0,0,0,1},
             .loadOp = WGPULoadOp_Clear,
