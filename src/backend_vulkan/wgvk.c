@@ -3405,7 +3405,28 @@ WGPURenderPipeline wgpuDeviceCreateRenderPipeline(WGPUDevice device, const WGPUR
     pipelineInfo.pColorBlendState = (descriptor->fragment) ? &colorBlending : NULL; // Only if frag shader exists
     pipelineInfo.pDynamicState = &dynamicState;
     pipelineInfo.layout = pl_layout->layout;
-
+    
+    RenderPassLayout renderPassLayout = {0};
+    for(uint32_t i = 0;i < descriptor->fragment->targetCount;i++){
+        const WGPUColorTargetState* ctarget = descriptor->fragment->targets + i;
+        renderPassLayout.colorAttachments[i] = (AttachmentDescriptor){
+            .sampleCount = multisampling.rasterizationSamples,
+            .format = toVulkanPixelFormat(ctarget->format),
+            .loadop = WGPULoadOp_Load,
+            .storeop = WGPUStoreOp_Store,
+        };
+    }
+    renderPassLayout.colorAttachmentCount = descriptor->fragment->targetCount;
+    if(descriptor->depthStencil){
+        renderPassLayout.depthAttachmentPresent = 1;
+        renderPassLayout.depthAttachment = (AttachmentDescriptor){
+            .format = toVulkanPixelFormat(descriptor->depthStencil->format),
+            .sampleCount = multisampling.rasterizationSamples,
+            .loadop = WGPULoadOp_Load,
+            .storeop = WGPUStoreOp_Store,
+        };
+    }
+    
     // RenderPass needs to be obtained from somewhere, usually associated with the command buffer recording.
     // WGPU API hides this detail? We might need to use dynamic rendering or query/cache render passes.
     // Placeholder: Assume renderPass is NULL and we rely on dynamic rendering or compatibility context.

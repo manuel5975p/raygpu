@@ -1,7 +1,7 @@
 #include <GLFW/glfw3.h>
 #include <wgvk.h>
-
-
+#include <external/incbin.h>
+INCBIN(simple_shader, "../resources/simple_shader.wgsl");
 #ifdef __EMSCRIPTEN__
 #  define GLFW_EXPOSE_NATIVE_EMSCRIPTEN
 #  ifndef GLFW_PLATFORM_EMSCRIPTEN // not defined in older versions of emscripten
@@ -139,7 +139,7 @@ int main(){
     WGPUQueue queue = wgpuDeviceGetQueue(device);
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    GLFWwindow* window = glfwCreateWindow(128, 128, "Binbow", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(1280, 720, "WGVK Window", NULL, NULL);
     glfwSetKeyCallback(window, keyfunc);
     
     
@@ -168,12 +168,92 @@ int main(){
     WGPUSurface surface = wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
     wgpuSurfaceConfigure(surface, &(const WGPUSurfaceConfiguration){
         .alphaMode = WGPUCompositeAlphaMode_Opaque,
-        .presentMode = WGPUPresentMode_Immediate,
+        .presentMode = WGPUPresentMode_Fifo,
         .device = device,
         .format = WGPUTextureFormat_BGRA8Unorm,
         .width = width,
         .height = height
     });
+    WGPUShaderSourceWGSL shaderSource = {
+        .chain = {
+            .sType = WGPUSType_ShaderSourceWGSL
+        },
+        .code = {
+            .data = (const char*)gsimple_shaderData,
+            .length = gsimple_shaderSize
+        }
+    };
+    WGPUShaderModuleDescriptor shaderModuleDesc = {
+        .nextInChain = &shaderSource.chain
+    };
+    WGPUShaderModule shaderModule = wgpuDeviceCreateShaderModule(device, &shaderModuleDesc);
+    WGPUVertexAttribute vbAttribute = {
+        .nextInChain = NULL,
+        .shaderLocation = 0,
+        .format = WGPUVertexFormat_Float32x2,
+        .offset = 0
+    };
+    WGPUVertexBufferLayout vbLayout = {
+        .nextInChain = NULL,
+        .arrayStride = sizeof(float) * 2,
+        .attributeCount = 1,
+        .attributes = &vbAttribute,
+        .stepMode = WGPUVertexStepMode_Vertex
+    };
+    WGPUBlendState blendState = {
+        .alpha = {
+            .operation = WGPUBlendOperation_Add,
+            .srcFactor = WGPUBlendFactor_Src,
+            .dstFactor = WGPUBlendFactor_OneMinusSrcAlpha
+        },
+        .color = {
+            .operation = WGPUBlendOperation_Add,
+            .srcFactor = WGPUBlendFactor_Src,
+            .dstFactor = WGPUBlendFactor_OneMinusSrcAlpha
+        }
+    };
+
+    WGPUColorTargetState colorTargetState = {
+        .format = WGPUTextureFormat_BGRA8Unorm,
+        .blend = &blendState
+    };
+
+    WGPUFragmentState fragmentState = {
+        .entryPoint = STRVIEW("fs_main"),
+        .module = shaderModule,
+        .targetCount = 1,
+        .targets = &colorTargetState
+    };
+    WGPUPipelineLayoutDescriptor pldesc = {0};
+    WGPUPipelineLayout pllayout = wgpuDeviceCreatePipelineLayout(device, &pldesc);
+
+    WGPURenderPipelineDescriptor rpdesc = {
+        .vertex = {
+            .bufferCount = 1,
+            .buffers = &vbLayout,
+            .module = shaderModule,
+            .entryPoint = STRVIEW("vs_main")
+        },
+        .fragment = &fragmentState,
+        .primitive = {
+            .cullMode = WGPUCullMode_None,
+            .frontFace = WGPUFrontFace_CCW,
+            .topology = WGPUPrimitiveTopology_TriangleList
+        },
+        .layout = pllayout,
+        .multisample = {
+            .count = 1,
+        }
+    };
+    WGPURenderPipeline rp = wgpuDeviceCreateRenderPipeline(device, &rpdesc);
+
+    const float vertices[6] = {0,0,1,0,1,1};
+    WGPUBufferDescriptor bufferDescriptor = {
+        .size = sizeof(vertices),
+        .usage = WGPUBufferUsage_Vertex
+    };
+    WGPUBuffer vertexBuffer = wgpuDeviceCreateBuffer(device, &bufferDescriptor);
+    wgpuQueueWriteBuffer(queue, vertexBuffer, 0, vertices, sizeof(vertices));
     WGPUSurfaceTexture surfaceTexture;
     uint64_t stamp = nanoTime();
     uint64_t frameCount = 0;
@@ -184,7 +264,7 @@ int main(){
             glfwGetWindowSize(window, &width, &height);
             wgpuSurfaceConfigure(surface, &(const WGPUSurfaceConfiguration){
                 .alphaMode = WGPUCompositeAlphaMode_Opaque,
-                .presentMode = WGPUPresentMode_Immediate,
+                .presentMode = WGPUPresentMode_Fifo,
                 .device = device,
                 .format = WGPUTextureFormat_BGRA8Unorm,
                 .width = width,
@@ -204,7 +284,7 @@ int main(){
         });
         WGPUCommandEncoder cenc = wgpuDeviceCreateCommandEncoder(device, NULL);
         WGPURenderPassColorAttachment colorAttachment = {
-            .clearValue = (WGPUColor){(double)(frameCount % 16384) / 16384.0,0,0,1},
+            .clearValue = (WGPUColor){(double)(frameCount % 256) / 255.0,0,0,1},
             .loadOp = WGPULoadOp_Clear,
             .storeOp = WGPUStoreOp_Store,
             .view = surfaceView
