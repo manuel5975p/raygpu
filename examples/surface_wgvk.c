@@ -1,5 +1,7 @@
 #include <GLFW/glfw3.h>
 #include <wgvk.h>
+
+
 #ifdef __EMSCRIPTEN__
 #  define GLFW_EXPOSE_NATIVE_EMSCRIPTEN
 #  ifndef GLFW_PLATFORM_EMSCRIPTEN // not defined in older versions of emscripten
@@ -29,6 +31,42 @@
 #  include <GLFW/glfw3native.h>
 #endif
 
+#include <stdint.h>
+
+/* ---------- POSIX / Unix-like ---------- */
+#if defined(__unix__) || defined(__APPLE__)
+  #include <time.h>
+
+  static inline uint64_t nanoTime(void)
+  {
+      struct timespec ts;
+  #if defined(CLOCK_MONOTONIC_RAW)        /* Linux, FreeBSD */
+      clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+  #else                                   /* macOS 10.12+, other POSIX */
+      clock_gettime(CLOCK_MONOTONIC, &ts);
+  #endif
+      return (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
+  }
+
+/* ---------- Windows ---------- */
+#elif defined(_WIN32)
+  #include <windows.h>
+
+  static inline uint64_t nanoTime(void)
+  {
+      static LARGE_INTEGER freq = { 0 };
+      if (freq.QuadPart == 0)               /* one-time init */
+          QueryPerformanceFrequency(&freq);
+
+      LARGE_INTEGER counter;
+      QueryPerformanceCounter(&counter);
+      /* scale ticks → ns: (ticks * 1e9) / freq */
+      return (uint64_t)((counter.QuadPart * 1000000000ULL) / freq.QuadPart);
+  }
+
+#else
+  #error "Platform not supported"
+#endif
 
 void adapterCallbackFunction(
         WGPURequestAdapterStatus status,
@@ -101,7 +139,7 @@ int main(){
     WGPUQueue queue = wgpuDeviceGetQueue(device);
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    GLFWwindow* window = glfwCreateWindow(500, 500, "Binbow", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(128, 128, "Binbow", NULL, NULL);
     glfwSetKeyCallback(window, keyfunc);
     
     
@@ -132,29 +170,41 @@ int main(){
         .alphaMode = WGPUCompositeAlphaMode_Opaque,
         .presentMode = WGPUPresentMode_Immediate,
         .device = device,
-        .format = WGPUTextureFormat_BGRA8UnormSrgb,
+        .format = WGPUTextureFormat_BGRA8Unorm,
         .width = width,
         .height = height
     });
     WGPUSurfaceTexture surfaceTexture;
-    int i = 0;
+    uint64_t stamp = nanoTime();
+    uint64_t frameCount = 0;
     while(!glfwWindowShouldClose(window)){
         glfwPollEvents();
         wgpuSurfaceGetCurrentTexture(surface, &surfaceTexture);
+        if(surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal){
+            glfwGetWindowSize(window, &width, &height);
+            wgpuSurfaceConfigure(surface, &(const WGPUSurfaceConfiguration){
+                .alphaMode = WGPUCompositeAlphaMode_Opaque,
+                .presentMode = WGPUPresentMode_Immediate,
+                .device = device,
+                .format = WGPUTextureFormat_BGRA8Unorm,
+                .width = width,
+                .height = height
+            });
+            wgpuSurfaceGetCurrentTexture(surface, &surfaceTexture);
+        }
         WGPUTextureView surfaceView = wgpuTextureCreateView(surfaceTexture.texture, &(const WGPUTextureViewDescriptor){
             .baseArrayLayer = 0,
             .arrayLayerCount = 1,
             .baseMipLevel = 0,
             .mipLevelCount = 1,
-            .format = WGPUTextureFormat_BGRA8UnormSrgb,
+            .format = WGPUTextureFormat_BGRA8Unorm,
             .dimension = WGPUTextureViewDimension_2D,
             .usage = WGPUTextureUsage_RenderAttachment,
             .aspect = WGPUTextureAspect_All,
         });
         WGPUCommandEncoder cenc = wgpuDeviceCreateCommandEncoder(device, NULL);
-        i++;
         WGPURenderPassColorAttachment colorAttachment = {
-            .clearValue = (WGPUColor){(i % 255) / 255.0,0,0,1},
+            .clearValue = (WGPUColor){(double)(frameCount % 16384) / 16384.0,0,0,1},
             .loadOp = WGPULoadOp_Clear,
             .storeOp = WGPUStoreOp_Store,
             .view = surfaceView
@@ -173,7 +223,13 @@ int main(){
         wgpuRenderPassEncoderRelease(rpenc);
         wgpuTextureViewRelease(surfaceView);
         wgpuSurfacePresent(surface);
-        //glfwSwapBuffers(window);
+        ++frameCount;
+        uint64_t nextStamp = nanoTime();
+        if(nextStamp - stamp > ((uint64_t)1000000000ULL)){
+            stamp = nextStamp;
+            printf("FPS: %llu\n", (unsigned long long)frameCount);
+            frameCount = 0;
+        }
     }
     wgpuSurfaceRelease(surface);
 }

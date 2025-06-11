@@ -2708,6 +2708,21 @@ void wgpuSurfaceConfigure(WGPUSurface surface, const WGPUSurfaceConfiguration* c
     surface->device = config->device;
     surface->lastConfig = *config;
     device->functions.vkDeviceWaitIdle(device->device);
+    uint32_t cacheIndex = surface->device->submittedFrames % framesInFlight;
+    if(surface->device->queue->syncState[cacheIndex].acquireImageSemaphoreSignalled){
+        VkPipelineStageFlags wm = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+        VkSubmitInfo sinfo = {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .pNext = NULL,
+            .pWaitDstStageMask = &wm,
+            .pWaitSemaphores = &surface->device->queue->syncState[cacheIndex].acquireImageSemaphore,
+            .waitSemaphoreCount = 1
+        };
+        surface->device->functions.vkQueueSubmit(surface->device->queue->graphicsQueue, 1, &sinfo, surface->device->frameCaches[cacheIndex].finalTransitionFence->fence);
+        surface->device->queue->syncState[cacheIndex].acquireImageSemaphoreSignalled = false;
+        surface->device->functions.vkWaitForFences(surface->device->device, 1, &surface->device->frameCaches[cacheIndex].finalTransitionFence->fence, VK_TRUE, UINT64_MAX);
+        surface->device->functions.vkResetFences(surface->device->device, 1, &surface->device->frameCaches[cacheIndex].finalTransitionFence->fence);
+    }
     if(surface->imageViews){
         for (uint32_t i = 0; i < surface->imagecount; i++) {
             wgpuTextureViewRelease(surface->imageViews[i]);
@@ -2746,7 +2761,7 @@ void wgpuSurfaceConfigure(WGPUSurface surface, const WGPUSurfaceConfiguration* c
     else{
         correctedHeight = config->height;
     }
-    TRACELOG(LOG_INFO, "Capabilities minImageCount: %d", (int)vkCapabilities.minImageCount);
+    //TRACELOG(LOG_INFO, "Capabilities minImageCount: %d", (int)vkCapabilities.minImageCount);
     
     createInfo.minImageCount = vkCapabilities.minImageCount + 1;
     createInfo.imageFormat = toVulkanPixelFormat(config->format);//swapchainImageFormat;
@@ -3875,6 +3890,7 @@ void resetFenceAndReleaseBuffers(void* fence_, WGPUCommandBufferVector* cBuffers
 void wgpuSurfaceGetCurrentTexture(WGPUSurface surface, WGPUSurfaceTexture* surfaceTexture){
     const size_t submittedframes = surface->device->submittedFrames;
     const uint32_t cacheIndex = surface->device->submittedFrames % framesInFlight;
+    surface->device->functions.vkDeviceWaitIdle(surface->device->device);
     if(surface->swapchain){
         VkResult acquireResult = surface->device->functions.vkAcquireNextImageKHR(
             surface->device->device,
@@ -3996,18 +4012,14 @@ void wgpuSurfacePresent(WGPUSurface surface){
     };
     VkResult presentRes = device->functions.vkQueuePresentKHR(surface->device->queue->presentQueue, &presentInfo);
 
-    if(presentRes != VK_SUCCESS && presentRes != VK_SUBOPTIMAL_KHR){
-        if(presentRes == VK_ERROR_OUT_OF_DATE_KHR){
-            TRACELOG(LOG_ERROR, "presentRes is VK_ERROR_OUT_OF_DATE_KHR");
-        }
-        else
-            TRACELOG(LOG_ERROR, "presentRes is %d", presentRes);
-    }
-    else if(presentRes == VK_SUBOPTIMAL_KHR){
-        TRACELOG(LOG_WARNING, "presentRes is VK_SUBOPTIMAL_KHR");
-    }
-    if(presentRes != VK_SUCCESS){
-        wgpuSurfaceConfigure(surface, &surface->lastConfig);
+
+    switch(presentRes){
+        case VK_SUCCESS:break;
+        case VK_SUBOPTIMAL_KHR:
+        TRACELOG(LOG_WARNING, "vkQueuePresentKHR() returned %s", vkErrorString(presentRes));
+        break;
+        default:
+        TRACELOG(LOG_ERROR, "vkQueuePresentKHR() returned %s", vkErrorString(presentRes));
     }
     wgpuDeviceTick(surface->device);
 }
