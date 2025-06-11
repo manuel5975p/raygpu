@@ -2677,7 +2677,7 @@ void wgpuSurfaceGetCapabilities(WGPUSurface wgpuSurface, WGPUAdapter adapter, WG
     // Present Modes
     uint32_t presentModeCount = 0;
     vkGetPhysicalDeviceSurfacePresentModesKHR(vk_physicalDevice, surface, &presentModeCount, NULL);
-    if (presentModeCount != 0) {
+    if (presentModeCount != 0 && wgpuSurface->presentModeCache == NULL) {
         wgpuSurface->presentModeCache = (WGPUPresentMode*)RL_CALLOC(presentModeCount, sizeof(WGPUPresentMode));
         VkPresentModeKHR presentModes[32] = {0};//(presentModeCount);
         vkGetPhysicalDeviceSurfacePresentModesKHR(vk_physicalDevice, surface, &presentModeCount, presentModes);
@@ -2687,17 +2687,19 @@ void wgpuSurfaceGetCapabilities(WGPUSurface wgpuSurface, WGPUAdapter adapter, WG
         wgpuSurface->presentModeCount = presentModeCount;
     }
     capabilities->presentModeCount = wgpuSurface->presentModeCount;
-    capabilities->formatCount = wgpuSurface->formatCount;
+    capabilities->formatCount = wgpuSurface->wgpuFormatCount;
 
-    WGPUPresentMode*   retpm = RL_CALLOC(presentModeCount, sizeof(WGPUPresentMode));
-    WGPUTextureFormat* retfm = RL_CALLOC(formatCount,      sizeof(WGPUTextureFormat));
+    //WGPUPresentMode*   retpm = RL_CALLOC(presentModeCount, sizeof(WGPUPresentMode));
+    //WGPUTextureFormat* retfm = RL_CALLOC(formatCount,      sizeof(WGPUTextureFormat));
 
-    for(uint32_t i = 0;i < wgpuSurface->presentModeCount;i++){
-        retpm[i] = wgpuSurface->presentModeCache[i];
-    }
-    for(uint32_t i = 0;i < wgpuSurface->formatCount;i++){
-        retfm[i] = fromVulkanPixelFormat(wgpuSurface->formatCache[i].format);
-    }
+    //for(uint32_t i = 0;i < wgpuSurface->presentModeCount;i++){
+    //    retpm[i] = wgpuSurface->presentModeCache[i];
+    //}
+    //for(uint32_t i = 0;i < wgpuSurface->formatCount;i++){
+    //    retfm[i] = fromVulkanPixelFormat(wgpuSurface->formatCache[i].format);
+    //}
+    capabilities->formats = wgpuSurface->wgpuFormatCache;
+    capabilities->presentModes = wgpuSurface->presentModeCache; 
     capabilities->usages = fromVulkanWGPUTextureUsage(scap.supportedUsageFlags);
 }
 
@@ -2830,6 +2832,7 @@ void wgpuSurfaceRelease(WGPUSurface surface){
             RL_FREE((void*)surface->imageViews);
             RL_FREE((void*)surface->images);
             RL_FREE(surface->formatCache);
+            RL_FREE(surface->wgpuFormatCache);
             RL_FREE(surface->presentModeCache);
             surface->device->functions.vkDestroySwapchainKHR(surface->device->device, surface->swapchain, NULL);
         }
@@ -3934,7 +3937,7 @@ void wgpuSurfacePresent(WGPUSurface surface){
         NULL,
         VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
         VK_ACCESS_MEMORY_READ_BIT,
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        surface->images[surface->activeImageIndex]->layout,
         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
         surface->device->adapter->queueIndices.graphicsIndex,
         surface->device->adapter->queueIndices.graphicsIndex,
