@@ -291,7 +291,7 @@ extern "C" Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t mipLevel){
     const size_t bufferSize = size * tex->width * tex->height;
     WGPUBufferDescriptor bdesc = {
         .usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead,
-        .size = bufferSize 
+        .size = bufferSize
     };
     WGPUBuffer stagingBuffer = wgpuDeviceCreateBuffer(g_vulkanstate.device, &bdesc);
     WGPUCommandEncoder commandEncoder = wgpuDeviceCreateCommandEncoder(g_vulkanstate.device, NULL);

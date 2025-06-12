@@ -251,7 +251,7 @@ int main(){
     const float vertices[6] = {-1,-1,-1,1,1,1};
     WGPUBufferDescriptor bufferDescriptor = {
         .size = sizeof(vertices),
-        .usage = WGPUBufferUsage_Vertex
+        .usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst
     };
     WGPUBuffer vertexBuffer = wgpuDeviceCreateBuffer(device, &bufferDescriptor);
     wgpuQueueWriteBuffer(queue, vertexBuffer, 0, vertices, sizeof(vertices));

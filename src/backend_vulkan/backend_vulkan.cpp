@@ -1379,34 +1379,29 @@ extern "C" void CopyTextureToTexture(Texture source, Texture dest){
     WGPUCommandEncoder encodingDest = reinterpret_cast<WGPUCommandEncoder>(g_renderstate.computepass.cmdEncoder);
     
     //wgpuCommandEncoderCopyTextureToTexture;
-    
-    //wgpuCommandEncoderCopyTextureToTexture(
-    //    encodingDest,
-    //    const WGPUTexelCopyTextureInfo *source,
-    //    const WGPUTexelCopyTextureInfo *destination, 
-    //    const WGPUExtent3D *copySize
-    //);
-    // These should be taken care of by  
-    // initializeOrTransition(encodingDest, sourceTexture, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    // initializeOrTransition(encodingDest, destTexture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-    
-    //vkCmdBlitImage(
-    //    encodingDest->buffer, 
-    //    sourceTexture->image,
-    //    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-    //    destTexture->image, 
-    //    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, VK_FILTER_NEAREST
-    //);
-    
-    //wgpuCommandEncoderTransitionTextureLayout(encodingDest, destTexture, destTexture->layout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    //if(!tttIntermediate){
-    //    BufferDescriptor desc zeroinit;
-    //    desc.size = source.width * source.height * GetPixelSizeInBytes(source.format);
-    //    desc.usage = BufferUsage_CopyDst | BufferUsage_CopySrc;
-    //    tttIntermediate = wgpuDeviceCreateBuffer(g_vulkanstate.device, &desc);
-    //}
-    //TRACELOG(LOG_FATAL, "Unimplemented function: %s", __FUNCTION__);
+    WGPUTexelCopyTextureInfo sourceinfo{
+        source.id,
+        0,
+        WGPUOrigin3D{},
+        WGPUTextureAspect_All
+    };
+    WGPUTexelCopyTextureInfo destinfo{
+        dest.id,
+        0,
+        WGPUOrigin3D{},
+        WGPUTextureAspect_All
+    };
+    WGPUExtent3D copySizeInfo{
+        .width = source.width,
+        .height = source.height,
+        .depthOrArrayLayers = 1
+    };
+    wgpuCommandEncoderCopyTextureToTexture(
+        encodingDest,
+        &sourceinfo,
+        &destinfo, 
+        &copySizeInfo
+    );
 }
 void ComputepassEndOnlyComputing(cwoid){
     WGPUComputePassEncoder computePassEncoder = (WGPUComputePassEncoder)g_renderstate.computepass.cpEncoder;

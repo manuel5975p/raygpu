@@ -2519,7 +2519,7 @@ void releaseCommandBuffersDependingOnFence(void* userdata){
     }
     WGPUCommandBufferVector_free(bufferVector);
 }
-const int use_single_submit = 1;
+const int use_single_submit = 0;
 
 void wgpuQueueSubmit(WGPUQueue queue, size_t commandCount, const WGPUCommandBuffer* buffers){
 
@@ -4330,33 +4330,6 @@ RGAPI void ce_trackTexture(WGPUCommandEncoder encoder, WGPUTexture texture, Imag
         alreadyThere->lastLayout = usage.layout;
     }
     else{
-
-        //Bogus barrier for debugging
-        VkImageMemoryBarrier imageBarrier = {
-            VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-            NULL,
-            VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_SHADER_WRITE_BIT,
-            usage.access,
-            texture->layout,
-            usage.layout,
-            encoder->device->adapter->queueIndices.graphicsIndex,
-            encoder->device->adapter->queueIndices.graphicsIndex,
-            texture->image,
-            (VkImageSubresourceRange){
-                .aspectMask = usage.subresource.aspectMask,
-                0, VK_REMAINING_MIP_LEVELS,
-                0, VK_REMAINING_ARRAY_LAYERS
-            }
-        };
-        encoder->device->functions.vkCmdPipelineBarrier(
-            encoder->buffer, 
-            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 
-            usage.stage,
-            0, 
-            0, NULL, 
-            0, NULL, 
-            1, &imageBarrier
-        );
         int newEntry = ImageUsageRecordMap_put(&encoder->resourceUsage.referencedTextures, texture, CLITERAL(ImageUsageRecord){
             usage.layout,
             usage.layout,
