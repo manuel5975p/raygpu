@@ -247,10 +247,10 @@ int main(){
     };
     WGPURenderPipeline rp = wgpuDeviceCreateRenderPipeline(device, &rpdesc);
 
-    const float vertices[6] = {0,0,1,0,1,1};
+    const float vertices[6] = {0,0,0,1,1,1};
     WGPUBufferDescriptor bufferDescriptor = {
         .size = sizeof(vertices),
-        .usage = WGPUBufferUsage_Vertex
+        .usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_MapWrite
     };
     WGPUBuffer vertexBuffer = wgpuDeviceCreateBuffer(device, &bufferDescriptor);
     wgpuQueueWriteBuffer(queue, vertexBuffer, 0, vertices, sizeof(vertices));
@@ -294,6 +294,10 @@ int main(){
             .colorAttachmentCount = 1,
             .colorAttachments = &colorAttachment,
         });
+    
+        wgpuRenderPassEncoderSetPipeline(rpenc, rp);
+        wgpuRenderPassEncoderSetVertexBuffer(rpenc, 0, vertexBuffer, 0);
+        wgpuRenderpassEncoderDraw(rpenc, 3, 1, 0, 0);
         wgpuRenderPassEncoderEnd(rpenc);
         
         WGPUCommandBuffer cBuffer = wgpuCommandEncoderFinish(cenc);

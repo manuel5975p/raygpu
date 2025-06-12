@@ -2329,8 +2329,8 @@ void recordVkCommand(CommandBufferAndSomeState* destination_, const RenderPassCo
             device->functions.vkCmdDraw(
                 destination, 
                 draw->vertexCount,
-                draw->instanceCount, 
-                draw->firstVertex, 
+                draw->instanceCount,
+                draw->firstVertex,
                 draw->firstInstance
             );
         }
@@ -2342,7 +2342,7 @@ void recordVkCommand(CommandBufferAndSomeState* destination_, const RenderPassCo
                 drawIndexed->indexCount,
                 drawIndexed->instanceCount,
                 drawIndexed->firstIndex,
-                drawIndexed->baseVertex, 
+                drawIndexed->baseVertex,
                 drawIndexed->firstInstance
             );
         }
@@ -3426,11 +3426,12 @@ WGPURenderPipeline wgpuDeviceCreateRenderPipeline(WGPUDevice device, const WGPUR
             .storeop = WGPUStoreOp_Store,
         };
     }
+    LayoutedRenderPass lrp = LoadRenderPassFromLayout(device, renderPassLayout);
     
     // RenderPass needs to be obtained from somewhere, usually associated with the command buffer recording.
     // WGPU API hides this detail? We might need to use dynamic rendering or query/cache render passes.
     // Placeholder: Assume renderPass is NULL and we rely on dynamic rendering or compatibility context.
-    pipelineInfo.renderPass = VK_NULL_HANDLE; // Needs a valid VkRenderPass unless VK_KHR_dynamic_rendering is used and enabled.
+    pipelineInfo.renderPass = lrp.renderPass; // Needs a valid VkRenderPass unless VK_KHR_dynamic_rendering is used and enabled.
     pipelineInfo.subpass = 0; // Assuming subpass 0
 
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
