@@ -268,94 +268,111 @@ extern "C" Texture2DArray LoadTextureArray(uint32_t width, uint32_t height, uint
     return ret;
 }
 extern "C" Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t mipLevel){
-    static VkCommandPool transientPool = [](){
-        VkCommandPool ret = nullptr;
-        VkCommandPoolCreateInfo pci zeroinit;
-        pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        pci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-        vkCreateCommandPool(g_vulkanstate.device->device, &pci, nullptr, &ret);
-        return ret;
-    }();
-    VkFenceCreateInfo fci = {
-        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-        .pNext = NULL, 
-        .flags = 0
-    };
-    static VkFence fence = VK_NULL_HANDLE;
-    if(fence == VK_NULL_HANDLE){
-        vkCreateFence(g_vulkanstate.device->device, &fci, nullptr, &fence);
-    }
+    //static VkCommandPool transientPool = [](){
+    //    VkCommandPool ret = nullptr;
+    //    VkCommandPoolCreateInfo pci zeroinit;
+    //    pci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    //    pci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+    //    vkCreateCommandPool(g_vulkanstate.device->device, &pci, nullptr, &ret);
+    //    return ret;
+    //}();
+    //VkFenceCreateInfo fci = {
+    //    .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+    //    .pNext = NULL, 
+    //    .flags = 0
+    //};
+    //static VkFence fence = VK_NULL_HANDLE;
+    //if(fence == VK_NULL_HANDLE){
+    //    vkCreateFence(g_vulkanstate.device->device, &fci, nullptr, &fence);
+    //}
     Image ret zeroinit;
-    VkBufferImageCopy region{};
 
-    size_t size = GetPixelSizeInBytes(fromWGPUPixelFormat(fromVulkanPixelFormat(tex->format)));
-    region.bufferOffset = 0;
-    region.bufferRowLength = 0;//size * tex->width; // Tightly packed
-    region.bufferImageHeight = 0;//tex->height;
-    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.imageSubresource.mipLevel = mipLevel;
-    region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = 1;
-    region.imageOffset = {0, 0, 0};
-    //TRACELOG(LOG_INFO, "Copying image with extent %u x %u", tex->width, tex->height);
-    region.imageExtent = VkExtent3D{tex->width, tex->height, 1u};
-    VkDeviceMemory bufferMemory{};
-    size_t bufferSize = size * tex->width * tex->height;
+    const size_t size = GetPixelSizeInBytes(fromWGPUPixelFormat(fromVulkanPixelFormat(tex->format)));
+    const size_t bufferSize = size * tex->width * tex->height;
     WGPUBufferDescriptor bdesc = {
-        .usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc | WGPUBufferUsage_MapWrite,
+        .usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead,
         .size = bufferSize 
     };
     WGPUBuffer stagingBuffer = wgpuDeviceCreateBuffer(g_vulkanstate.device, &bdesc);
-    VkCommandBuffer commandBuffer = BeginSingleTimeCommands(g_vulkanstate.device, transientPool);
+    WGPUCommandEncoder commandEncoder = wgpuDeviceCreateCommandEncoder(g_vulkanstate.device, NULL);
     VkImageLayout oldLayout = tex->layout;
     //if(oldLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
     //    EncodeTransitionImageLayout(commandBuffer, tex->layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, tex);
-    
-    vkCmdCopyImageToBuffer(
-        commandBuffer,
-        tex->image,
-        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        stagingBuffer->buffer,
-        1,
-        &region
-    );
-    //if(oldLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
-    //    EncodeTransitionImageLayout(commandBuffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, oldLayout, tex);
+    WGPUTexelCopyTextureInfo source = {
+        .texture = tex,
+        .mipLevel = 0,
+        .origin = {
+            .x = 0,
+            .y = 0,
+            .z = 0
+        },
+        .aspect = WGPUTextureAspect_All,
+    };
+    WGPUTexelCopyBufferInfo destination = {
+        .layout = {
+            .offset = 0,
+            .bytesPerRow = (uint32_t)(tex->width * size),
+            .rowsPerImage = tex->height
+        },
+        .buffer = stagingBuffer
+    };
 
-    EndSingleTimeCommands(g_vulkanstate.device, transientPool, commandBuffer);
-    VkSubmitInfo sinfo zeroinit;
-    sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    sinfo.commandBufferCount = 1;
-    sinfo.pCommandBuffers = &commandBuffer;
-    VkResult submitResult = vkQueueSubmit(g_vulkanstate.queue->graphicsQueue, 1, &sinfo, fence);
-    if(submitResult == VK_SUCCESS){
-        VkResult fenceWait = vkWaitForFences(g_vulkanstate.device->device, 1, &fence, VK_TRUE, UINT64_MAX);
-        //if(fenceWait != VK_SUCCESS){
-        //    TRACELOG(LOG_ERROR, "Waiting for fence not successful");
-        //}
-        //else{
-        //    TRACELOG(LOG_INFO, "Successfully waited for fence");
-        //}
-        vkResetFences(g_vulkanstate.device->device, 1, &fence);
+    WGPUExtent3D copySize{
+        tex->width,
+        tex->height,
+        tex->depthOrArrayLayers
+    };
 
-        vkFreeCommandBuffers(g_vulkanstate.device->device, transientPool, 1, &commandBuffer);
-        void* mapPtr = nullptr;
-        VkResult mapResult = vkMapMemory(g_vulkanstate.device->device, bufferMemory, 0, size * tex->width * tex->height, 0, &mapPtr);
-        if(mapResult == VK_SUCCESS){
-            ret.data = std::calloc(bufferSize, 1);
-            ret.width = tex->width;
-            ret.height = tex->height;
-            ret.format = fromWGPUPixelFormat(fromVulkanPixelFormat(tex->format));
-            ret.mipmaps = 0;
-            ret.rowStrideInBytes = ret.width * size;
-            std::memcpy(ret.data, mapPtr, bufferSize);
-        }
-        else{
-            TRACELOG(LOG_ERROR, "vkMapMemory failed with errorcode %d", mapResult);
-        }
+    wgpuCommandEncoderCopyTextureToBuffer(commandEncoder, &source, &destination, &copySize);
+    WGPUCommandBuffer cbuffer = wgpuCommandEncoderFinish(commandEncoder);
+    g_vulkanstate.device->functions.vkQueueWaitIdle (g_vulkanstate.queue->graphicsQueue);
+    g_vulkanstate.device->functions.vkDeviceWaitIdle(g_vulkanstate.device->device);
+    wgpuQueueSubmit(g_vulkanstate.queue, 1, &cbuffer);
+    g_vulkanstate.device->functions.vkQueueWaitIdle (g_vulkanstate.queue->graphicsQueue);
+    g_vulkanstate.device->functions.vkDeviceWaitIdle(g_vulkanstate.device->device);
+    void* mapPtr = nullptr;
+    wgpuBufferMap(stagingBuffer, WGPUMapMode_Read, 0, bdesc.size, &mapPtr);
+    g_vulkanstate.device->functions.vkQueueWaitIdle (g_vulkanstate.queue->graphicsQueue);
+    g_vulkanstate.device->functions.vkDeviceWaitIdle(g_vulkanstate.device->device);
+    const BGRA8Color* colors = (BGRA8Color*)mapPtr;
+    if(mapPtr){
+        ret.data = std::calloc(bufferSize, 1);
+        ret.width = tex->width;
+        ret.height = tex->height;
+        ret.format = fromWGPUPixelFormat(fromVulkanPixelFormat(tex->format));
+        ret.mipmaps = 0;
+        ret.rowStrideInBytes = ret.width * size;
+        std::memcpy(ret.data, mapPtr, bufferSize);
+        wgpuBufferUnmap(stagingBuffer);
     }
-    vkUnmapMemory(g_vulkanstate.device->device, bufferMemory);
-    vkFreeMemory(g_vulkanstate.device->device, bufferMemory, nullptr);
+
+    //if(submitResult == VK_SUCCESS){
+    //    VkResult fenceWait = vkWaitForFences(g_vulkanstate.device->device, 1, &fence, VK_TRUE, UINT64_MAX);
+    //    //if(fenceWait != VK_SUCCESS){
+    //    //    TRACELOG(LOG_ERROR, "Waiting for fence not successful");
+    //    //}
+    //    //else{
+    //    //    TRACELOG(LOG_INFO, "Successfully waited for fence");
+    //    //}
+    //    vkResetFences(g_vulkanstate.device->device, 1, &fence);
+    //    vkFreeCommandBuffers(g_vulkanstate.device->device, transientPool, 1, &commandEncoder);
+    //    void* mapPtr = nullptr;
+    //    VkResult mapResult = vkMapMemory(g_vulkanstate.device->device, bufferMemory, 0, size * tex->width * tex->height, 0, &mapPtr);
+    //    if(mapResult == VK_SUCCESS){
+    //        ret.data = std::calloc(bufferSize, 1);
+    //        ret.width = tex->width;
+    //        ret.height = tex->height;
+    //        ret.format = fromWGPUPixelFormat(fromVulkanPixelFormat(tex->format));
+    //        ret.mipmaps = 0;
+    //        ret.rowStrideInBytes = ret.width * size;
+    //        std::memcpy(ret.data, mapPtr, bufferSize);
+    //    }
+    //    else{
+    //        TRACELOG(LOG_ERROR, "vkMapMemory failed with errorcode %d", mapResult);
+    //    }
+    //}
+    //vkUnmapMemory(g_vulkanstate.device->device, bufferMemory);
+    //vkFreeMemory(g_vulkanstate.device->device, bufferMemory, nullptr);
     wgpuBufferRelease(stagingBuffer);
     return ret;
 } 

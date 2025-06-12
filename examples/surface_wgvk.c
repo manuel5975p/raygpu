@@ -168,7 +168,7 @@ int main(){
     WGPUSurface surface = wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
     wgpuSurfaceConfigure(surface, &(const WGPUSurfaceConfiguration){
         .alphaMode = WGPUCompositeAlphaMode_Opaque,
-        .presentMode = WGPUPresentMode_Fifo,
+        .presentMode = WGPUPresentMode_Immediate,
         .device = device,
         .format = WGPUTextureFormat_BGRA8Unorm,
         .width = width,
@@ -203,19 +203,19 @@ int main(){
     WGPUBlendState blendState = {
         .alpha = {
             .operation = WGPUBlendOperation_Add,
-            .srcFactor = WGPUBlendFactor_Src,
-            .dstFactor = WGPUBlendFactor_OneMinusSrcAlpha
+            .srcFactor = WGPUBlendFactor_One,
+            .dstFactor = WGPUBlendFactor_One
         },
         .color = {
             .operation = WGPUBlendOperation_Add,
-            .srcFactor = WGPUBlendFactor_Src,
-            .dstFactor = WGPUBlendFactor_OneMinusSrcAlpha
+            .srcFactor = WGPUBlendFactor_One,
+            .dstFactor = WGPUBlendFactor_One
         }
     };
 
     WGPUColorTargetState colorTargetState = {
         .format = WGPUTextureFormat_BGRA8Unorm,
-        .blend = &blendState
+        .blend = NULL
     };
 
     WGPUFragmentState fragmentState = {
@@ -243,14 +243,15 @@ int main(){
         .layout = pllayout,
         .multisample = {
             .count = 1,
-        }
+            .mask = 0xffffffff
+        },
     };
     WGPURenderPipeline rp = wgpuDeviceCreateRenderPipeline(device, &rpdesc);
 
-    const float vertices[6] = {0,0,0,1,1,1};
+    const float vertices[6] = {-1,-1,-1,1,1,1};
     WGPUBufferDescriptor bufferDescriptor = {
         .size = sizeof(vertices),
-        .usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_MapWrite
+        .usage = WGPUBufferUsage_Vertex
     };
     WGPUBuffer vertexBuffer = wgpuDeviceCreateBuffer(device, &bufferDescriptor);
     wgpuQueueWriteBuffer(queue, vertexBuffer, 0, vertices, sizeof(vertices));

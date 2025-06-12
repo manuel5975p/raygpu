@@ -4,26 +4,24 @@ endif()
 
 function(add_example target_name)
     if(ANDROID)
-    add_library(${target_name} SHARED "${target_name}.c" "${ANDROID_NDK_ROOT}/sources/android/native_app_glue/android_native_app_glue.c")
-    target_compile_definitions(${target_name} PUBLIC ANDROID PLATFORM_ANDROID __ANDROID_API__=35)
-    target_link_libraries(${target_name} PUBLIC android_glue raygpu log android EGL GLESv2 OpenSLES atomic c m dl)
-    set_target_properties(${target_name} PROPERTIES
-      LINK_FLAGS "-z noexecstack -z now -z relro"
-    )
+        add_library(${target_name} SHARED "${target_name}.c" "${ANDROID_NDK_ROOT}/sources/android/native_app_glue/android_native_app_glue.c")
+        target_compile_definitions(${target_name} PUBLIC ANDROID PLATFORM_ANDROID __ANDROID_API__=35)
+        target_link_libraries(${target_name} PUBLIC android_glue raygpu log android EGL GLESv2 OpenSLES atomic c m dl)
+        set_target_properties(${target_name} PROPERTIES LINK_FLAGS "-z noexecstack -z now -z relro")
     else()
-    add_executable(${target_name} "${target_name}.c")
-    target_link_libraries(${target_name} PUBLIC raygpu)
-    if(EMSCRIPTEN)
-    target_link_options(${target_name} PRIVATE
-        -sUSE_GLFW=3
-        -sASYNCIFY=2
-        -sSTACK_SIZE=16777216
-        -sINITIAL_MEMORY=256Mb
-        -sALLOW_MEMORY_GROWTH
-        --shell-file   ${CMAKE_SOURCE_DIR}/resources/minimal.html
-        --preload-file ${CMAKE_SOURCE_DIR}/resources/@resources/
-    )
-    endif()
+        add_executable(${target_name} "${target_name}.c")
+        target_link_libraries(${target_name} PUBLIC raygpu)
+        if(EMSCRIPTEN)
+            target_link_options(${target_name} PRIVATE
+                -sUSE_GLFW=3
+                -sASYNCIFY=2
+                -sSTACK_SIZE=16777216
+                -sINITIAL_MEMORY=256Mb
+                -sALLOW_MEMORY_GROWTH
+                --shell-file   ${CMAKE_SOURCE_DIR}/resources/minimal.html
+                --preload-file ${CMAKE_SOURCE_DIR}/resources/@resources/
+            )
+        endif()
     endif()
 endfunction()
 function(add_cpp_example target_name)

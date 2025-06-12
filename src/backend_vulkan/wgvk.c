@@ -1,3 +1,32 @@
+/*
+ * MIT License
+ * 
+ * wgvk.c - A single file WebGPU implementation in C99
+ * 
+ * Copyright (c) 2025 @manuel5975p
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+
+
+
 //#include "vulkan/vulkan_core.h"
 #include <inttypes.h>
 
@@ -174,8 +203,8 @@ static RenderPassLayout GetRenderPassLayout2(const RenderPassCommandBegin* rpdes
         ret.depthAttachment = CLITERAL(AttachmentDescriptor){
             .format = rpdesc->depthStencilAttachment.view->format, 
             .sampleCount = rpdesc->depthStencilAttachment.view->sampleCount,
-            .loadop = rpdesc->depthStencilAttachment.depthLoadOp,
-            .storeop = rpdesc->depthStencilAttachment.depthStoreOp
+            .loadop =  toVulkanLoadOperation(rpdesc->depthStencilAttachment.depthLoadOp),
+            .storeop = toVulkanStoreOperation(rpdesc->depthStencilAttachment.depthStoreOp)
         };
     }
 
@@ -185,8 +214,8 @@ static RenderPassLayout GetRenderPassLayout2(const RenderPassCommandBegin* rpdes
         ret.colorAttachments[i] = CLITERAL(AttachmentDescriptor){
             .format = rpdesc->colorAttachments[i].view->format, 
             .sampleCount = rpdesc->colorAttachments[i].view->sampleCount,
-            .loadop = rpdesc->colorAttachments[i].loadOp,
-            .storeop = rpdesc->colorAttachments[i].storeOp
+            .loadop =  toVulkanLoadOperation (rpdesc->colorAttachments[i].loadOp),
+            .storeop = toVulkanStoreOperation(rpdesc->colorAttachments[i].storeOp)
         };
         bool ihasresolve = rpdesc->colorAttachments[i].resolveTarget;
         if(i > 0){
@@ -197,8 +226,8 @@ static RenderPassLayout GetRenderPassLayout2(const RenderPassCommandBegin* rpdes
             ret.colorResolveAttachments[i] = CLITERAL(AttachmentDescriptor){
                 .format = rpdesc->colorAttachments[i].resolveTarget->format, 
                 .sampleCount = rpdesc->colorAttachments[i].resolveTarget->sampleCount,
-                .loadop = rpdesc->colorAttachments[i].loadOp,
-                .storeop = rpdesc->colorAttachments[i].storeOp
+                .loadop =  toVulkanLoadOperation (rpdesc->colorAttachments[i].loadOp),
+                .storeop = toVulkanStoreOperation(rpdesc->colorAttachments[i].storeOp)
             };
         }
     }
@@ -215,8 +244,8 @@ RenderPassLayout GetRenderPassLayout(const WGPURenderPassDescriptor* rpdesc){
         ret.depthAttachment = CLITERAL(AttachmentDescriptor){
             .format = rpdesc->depthStencilAttachment->view->format, 
             .sampleCount = rpdesc->depthStencilAttachment->view->sampleCount,
-            .loadop = rpdesc->depthStencilAttachment->depthLoadOp,
-            .storeop = rpdesc->depthStencilAttachment->depthStoreOp
+            .loadop =  toVulkanLoadOperation (rpdesc->depthStencilAttachment->depthLoadOp ),
+            .storeop = toVulkanStoreOperation(rpdesc->depthStencilAttachment->depthStoreOp)
         };
     }
     
@@ -228,8 +257,8 @@ RenderPassLayout GetRenderPassLayout(const WGPURenderPassDescriptor* rpdesc){
         ret.colorAttachments[i] = CLITERAL(AttachmentDescriptor){
             .format = rpdesc->colorAttachments[i].view->format, 
             .sampleCount = rpdesc->colorAttachments[i].view->sampleCount,
-            .loadop = rpdesc->colorAttachments[i].loadOp,
-            .storeop = rpdesc->colorAttachments[i].storeOp
+            .loadop =  toVulkanLoadOperation(rpdesc->colorAttachments[i].loadOp  ),
+            .storeop = toVulkanStoreOperation(rpdesc->colorAttachments[i].storeOp)
         };
         bool ihasresolve = rpdesc->colorAttachments[i].resolveTarget;
         if(i > 0){
@@ -240,8 +269,8 @@ RenderPassLayout GetRenderPassLayout(const WGPURenderPassDescriptor* rpdesc){
             ret.colorResolveAttachments[i] = CLITERAL(AttachmentDescriptor){
                 .format = rpdesc->colorAttachments[i].resolveTarget->format, 
                 .sampleCount = rpdesc->colorAttachments[i].resolveTarget->sampleCount,
-                .loadop = rpdesc->colorAttachments[i].loadOp,
-                .storeop = rpdesc->colorAttachments[i].storeOp
+                .loadop =  toVulkanLoadOperation(rpdesc->colorAttachments[i].loadOp),
+                .storeop = toVulkanStoreOperation(rpdesc->colorAttachments[i].storeOp)
             };
         }
     }
@@ -275,11 +304,11 @@ static VkAttachmentDescription atttransformFunction(AttachmentDescriptor att){
     VkAttachmentDescription ret zeroinit;
     ret.samples    = toVulkanSampleCount(att.sampleCount);
     ret.format     = att.format;
-    ret.loadOp     = toVulkanLoadOperation(att.loadop);
-    ret.storeOp    = toVulkanStoreOperation(att.storeop);
+    ret.loadOp     = att.loadop;
+    ret.storeOp    = att.storeop;
     ret.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     ret.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    ret.initialLayout  = (att.loadop == WGPULoadOp_Load ? (is__depthVk(att.format) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) : (VK_IMAGE_LAYOUT_UNDEFINED));
+    ret.initialLayout  = (att.loadop == VK_ATTACHMENT_LOAD_OP_LOAD ? (is__depthVk(att.format) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) : (VK_IMAGE_LAYOUT_UNDEFINED));
     if(is__depthVk(att.format)){
         ret.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     }else{
@@ -1041,17 +1070,19 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
 
         // TODO what? I don't remember
     }
-    VmaPoolCreateInfo vpci zeroinit;
-    vpci.minAllocationAlignment = 64;
+    
     vkGetPhysicalDeviceMemoryProperties(adapter->physicalDevice, &memoryProperties);
     uint32_t hostVisibleCoherentIndex = 0;
-    for(;hostVisibleCoherentIndex < memoryProperties.memoryTypeCount;hostVisibleCoherentIndex++){
+    for(hostVisibleCoherentIndex = 0;hostVisibleCoherentIndex < memoryProperties.memoryTypeCount;hostVisibleCoherentIndex++){
         if(memoryProperties.memoryTypes[hostVisibleCoherentIndex].propertyFlags & (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)){
             break;
         }
     }
-    vpci.memoryTypeIndex = hostVisibleCoherentIndex;
-    vpci.blockSize = (1 << 16);
+    const VmaPoolCreateInfo vpci = {
+        .minAllocationAlignment = 64,
+        .memoryTypeIndex = hostVisibleCoherentIndex,
+        .blockSize = (1 << 16)
+    };
     vmaCreatePool(retDevice->allocator, &vpci, &retDevice->aligned_hostVisiblePool);
 
     {
@@ -1108,8 +1139,8 @@ WGPUBuffer wgpuDeviceCreateBuffer(WGPUDevice device, const WGPUBufferDescriptor*
         propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
     }
     else{
-        //propertyToFind = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-        propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+        propertyToFind = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        //propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
     }
     VmaAllocationCreateInfo vallocInfo zeroinit;
     vallocInfo.preferredFlags = propertyToFind;
@@ -2106,12 +2137,14 @@ void wgpuRenderPassEncoderEnd(WGPURenderPassEncoder renderPassEncoder){
     const uint32_t vpHeight = beginInfo->colorAttachments[0].view->height;
     
     const VkViewport viewport = {
-        .x        =  ((float)0),
+        .x        = ((float)0),
         .y        =  ((float)vpHeight),
-        .width    =  ((float)vpWidth),
+        //.y        = ((float)0),
+        .width    = ((float)vpWidth),
+        //.height   = ((float)vpHeight),
         .height   = -((float)vpHeight),
-        .minDepth =  ((float)0),
-        .maxDepth =  ((float)1),
+        .minDepth = ((float)0),
+        .maxDepth = ((float)1),
     };
 
     const VkRect2D scissor = {
@@ -2486,11 +2519,9 @@ void releaseCommandBuffersDependingOnFence(void* userdata){
     }
     WGPUCommandBufferVector_free(bufferVector);
 }
+const int use_single_submit = 1;
 
 void wgpuQueueSubmit(WGPUQueue queue, size_t commandCount, const WGPUCommandBuffer* buffers){
-    VkSubmitInfo si zeroinit;
-    si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    si.commandBufferCount = commandCount + 1;
 
     VkCommandBufferVector submittable;
     WGPUCommandBufferVector submittableWGPU;
@@ -2523,9 +2554,6 @@ void wgpuQueueSubmit(WGPUQueue queue, size_t commandCount, const WGPUCommandBuff
     }
     
     WGPUFence fence = wgpuDeviceCreateFence(queue->device);
-        
-    si.commandBufferCount = submittable.size;
-    si.pCommandBuffers = submittable.data;
 
 
     const uint64_t frameCount = queue->device->submittedFrames;
@@ -2534,50 +2562,83 @@ void wgpuQueueSubmit(WGPUQueue queue, size_t commandCount, const WGPUCommandBuff
     PerframeCache* perFrameCache = &queue->device->frameCaches[cacheIndex];
     
     VkResult submitResult = 0;
-    
-    for(uint32_t i = 0;i < submittable.size;i++){
+    if(use_single_submit){
         VkSemaphoreVector waitSemaphores;
         VkSemaphoreVector_init(&waitSemaphores);
-
         if(queue->syncState[cacheIndex].acquireImageSemaphoreSignalled){
             VkSemaphoreVector_push_back(&waitSemaphores, queue->syncState[cacheIndex].acquireImageSemaphore);
-            //waitSemaphores.push_back(queue->syncState[cacheIndex].acquireImageSemaphore);   
             queue->syncState[cacheIndex].acquireImageSemaphoreSignalled = false;
         }
         if(queue->syncState[cacheIndex].submits > 0){
-            //waitSemaphores.push_back(queue->syncState[cacheIndex].semaphores[queue->syncState[cacheIndex].submits]);
             VkSemaphoreVector_push_back(&waitSemaphores, queue->syncState[cacheIndex].semaphores.data[queue->syncState[cacheIndex].submits]);
         }
-        else{
-            //std::cout << "";
-        }
-
-        si.commandBufferCount = 1;
         uint32_t submits = queue->syncState[cacheIndex].submits;
-        
         VkPipelineStageFlags* waitFlags = (VkPipelineStageFlags*)RL_CALLOC(waitSemaphores.size, sizeof(VkPipelineStageFlags));
         for(uint32_t i = 0;i < waitSemaphores.size;i++){
             waitFlags[i] = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
         }
-        si.waitSemaphoreCount = waitSemaphores.size;
-        si.pWaitSemaphores = waitSemaphores.data;
-        si.pWaitDstStageMask = waitFlags;
-
-        si.signalSemaphoreCount = 1;
-        si.pSignalSemaphores = queue->syncState[cacheIndex].semaphores.data + queue->syncState[cacheIndex].submits + 1;
-        //std::cout << "And signalling " << queue->syncState[cacheIndex].submits + 1 << std::endl;
-        si.pCommandBuffers = submittable.data + i;
-        
+        const VkSubmitInfo si = {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .commandBufferCount = submittable.size,
+            .waitSemaphoreCount = waitSemaphores.size,
+            .pWaitSemaphores = waitSemaphores.data,
+            .pWaitDstStageMask = waitFlags,
+            .signalSemaphoreCount = 1,
+            .pSignalSemaphores = queue->syncState[cacheIndex].semaphores.data + queue->syncState[cacheIndex].submits + 1,
+            .pCommandBuffers = submittable.data,
+        };
         ++queue->syncState[cacheIndex].submits;
-
-        WGPUFence submitFence = (i == (submittable.size - 1)) ? fence : NULL;
+        WGPUFence submitFence = fence;
         submitResult |= queue->device->functions.vkQueueSubmit(queue->graphicsQueue, 1, &si, submitFence ? submitFence->fence : VK_NULL_HANDLE);
         if(submitFence){
             submitFence->state = WGPUFenceState_InUse;
         }
-        
         VkSemaphoreVector_free(&waitSemaphores);
         RL_FREE(waitFlags);
+    }
+    else{
+        for(uint32_t i = 0;i < submittable.size;i++){
+            VkSemaphoreVector waitSemaphores;
+            VkSemaphoreVector_init(&waitSemaphores);
+
+            if(queue->syncState[cacheIndex].acquireImageSemaphoreSignalled){
+                VkSemaphoreVector_push_back(&waitSemaphores, queue->syncState[cacheIndex].acquireImageSemaphore);
+                queue->syncState[cacheIndex].acquireImageSemaphoreSignalled = false;
+            }
+            if(queue->syncState[cacheIndex].submits > 0){
+                VkSemaphoreVector_push_back(&waitSemaphores, queue->syncState[cacheIndex].semaphores.data[queue->syncState[cacheIndex].submits]);
+            }
+
+            uint32_t submits = queue->syncState[cacheIndex].submits;
+            
+            VkPipelineStageFlags* waitFlags = (VkPipelineStageFlags*)RL_CALLOC(waitSemaphores.size, sizeof(VkPipelineStageFlags));
+            for(uint32_t i = 0;i < waitSemaphores.size;i++){
+                waitFlags[i] = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+            }
+
+            const VkSubmitInfo si = {
+                .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                .commandBufferCount = 1,
+                .waitSemaphoreCount = waitSemaphores.size,
+                .pWaitSemaphores = waitSemaphores.data,
+                .pWaitDstStageMask = waitFlags,
+                .signalSemaphoreCount = 1,
+                .pSignalSemaphores = queue->syncState[cacheIndex].semaphores.data + queue->syncState[cacheIndex].submits + 1,
+                .pCommandBuffers = submittable.data + i
+            };
+            
+
+            ++queue->syncState[cacheIndex].submits;
+
+            WGPUFence submitFence = (i == (submittable.size - 1)) ? fence : NULL;
+            submitResult |= queue->device->functions.vkQueueSubmit(queue->graphicsQueue, 1, &si, submitFence ? submitFence->fence : VK_NULL_HANDLE);
+            if(submitFence){
+                submitFence->state = WGPUFenceState_InUse;
+            }
+
+            VkSemaphoreVector_free(&waitSemaphores);
+            RL_FREE(waitFlags);
+        }
     }
 
     if(submitResult == VK_SUCCESS){
@@ -3168,7 +3229,9 @@ WGPURenderPipeline wgpuDeviceCreateRenderPipeline(WGPUDevice device, const WGPUR
         (VkPipelineShaderStageCreateInfo){0}
     };
     uint32_t shaderStageInsertPos = 0;
+    char nullTerminatedEntryPoints[16][64] = {0};
 
+    const char* a = nullTerminatedEntryPoints[15];
     // Vertex Stage
     VkPipelineShaderStageCreateInfo vertShaderStageInfo zeroinit;
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -3239,7 +3302,7 @@ WGPURenderPipeline wgpuDeviceCreateRenderPipeline(WGPUDevice device, const WGPUR
     // Rasterization State
     VkPipelineRasterizationStateCreateInfo rasterizer zeroinit;
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    rasterizer.depthClampEnable = VK_FALSE; // Usually false unless specific features needed
+    rasterizer.depthClampEnable = VK_TRUE; // Usually false unless specific features needed
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL; // Default
     rasterizer.lineWidth = 1.0f;
@@ -3310,16 +3373,16 @@ WGPURenderPipeline wgpuDeviceCreateRenderPipeline(WGPUDevice device, const WGPUR
     colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     colorBlending.logicOpEnable = VK_FALSE;
     colorBlending.logicOp = VK_LOGIC_OP_COPY; // Optional
-    colorBlending.blendConstants[0] = 0.0f;
-    colorBlending.blendConstants[1] = 0.0f;
-    colorBlending.blendConstants[2] = 0.0f;
-    colorBlending.blendConstants[3] = 0.0f;
+    colorBlending.blendConstants[0] = 1.0f;
+    colorBlending.blendConstants[1] = 1.0f;
+    colorBlending.blendConstants[2] = 1.0f;
+    colorBlending.blendConstants[3] = 1.0f;
 
     if (descriptor->fragment) {
         for (size_t i = 0; i < descriptor->fragment->targetCount; ++i) {
             const WGPUColorTargetState* target = &descriptor->fragment->targets[i];
             // Defaults for no blending
-            colorBlendAttachments[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT; // TODO: Map WGPUColorWriteMask if exists
+            colorBlendAttachments[i].colorWriteMask =  VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT; // TODO: Map WGPUColorWriteMask if exists
             colorBlendAttachments[i].blendEnable = VK_FALSE;
             colorBlendAttachments[i].srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
             colorBlendAttachments[i].dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
@@ -3366,45 +3429,7 @@ WGPURenderPipeline wgpuDeviceCreateRenderPipeline(WGPUDevice device, const WGPUR
     VkPipelineDynamicStateCreateInfo dynamicState zeroinit;
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
     dynamicState.dynamicStateCount = dynamicStateCount;
-    dynamicState.pDynamicStates = dynamicStates;
-
-    // Pipeline Rendering Info (for dynamic rendering if used, otherwise NULL)
-    // Assuming traditional render passes for now based on WGPU structure.
-    VkPipelineRenderingCreateInfo pipelineRenderingCreateInfo zeroinit; // Zero initialize
-    pipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
-    // Check if dynamic rendering should be used based on descriptor or device capabilities?
-    // For simplicity, assuming we have a VkRenderPass (not provided here, usually comes from RenderPassEncoder Begin).
-    // If using dynamic rendering, fill format info here. Example:
-    /*
-    std::vector<VkFormat> colorFormats;
-    if (descriptor->fragment) {
-        for(size_t i=0; i < descriptor->fragment->targetCount; ++i) {
-            colorFormats.push_back(translate_PixelFormat_to_vk(descriptor->fragment->targets[i].format));
-        }
-    }
-    pipelineRenderingCreateInfo.colorAttachmentCount = colorFormats.size();
-    pipelineRenderingCreateInfo.pColorAttachmentFormats = colorFormats.data();
-    pipelineRenderingCreateInfo.depthAttachmentFormat = descriptor->depthStencil ? translate_PixelFormat_to_vk(descriptor->depthStencil->format) : VK_FORMAT_UNDEFINED;
-    pipelineRenderingCreateInfo.stencilAttachmentFormat = descriptor->depthStencil ? translate_PixelFormat_to_vk(descriptor->depthStencil->format) : VK_FORMAT_UNDEFINED; // Often same as depth
-    */
-    // We'll assume VkRenderPass is provided externally during vkCreateGraphicsPipelines call for non-dynamic rendering
-
-
-    // Graphics Pipeline Create Info
-    VkGraphicsPipelineCreateInfo pipelineInfo zeroinit;
-    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    // pipelineInfo.pNext = &pipelineRenderingCreateInfo; // Only if using dynamic rendering extension (VK_KHR_dynamic_rendering)
-    pipelineInfo.stageCount = shaderStageInsertPos;
-    pipelineInfo.pStages = shaderStages;
-    pipelineInfo.pVertexInputState = &vertexInputInfo;
-    pipelineInfo.pInputAssemblyState = &inputAssembly;
-    pipelineInfo.pViewportState = &viewportState;
-    pipelineInfo.pRasterizationState = &rasterizer;
-    pipelineInfo.pMultisampleState = &multisampling;
-    pipelineInfo.pDepthStencilState = (descriptor->depthStencil) ? &depthStencil : NULL;
-    pipelineInfo.pColorBlendState = (descriptor->fragment) ? &colorBlending : NULL; // Only if frag shader exists
-    pipelineInfo.pDynamicState = &dynamicState;
-    pipelineInfo.layout = pl_layout->layout;
+    dynamicState.pDynamicStates = dynamicStates;   
     
     RenderPassLayout renderPassLayout = {0};
     for(uint32_t i = 0;i < descriptor->fragment->targetCount;i++){
@@ -3412,8 +3437,8 @@ WGPURenderPipeline wgpuDeviceCreateRenderPipeline(WGPUDevice device, const WGPUR
         renderPassLayout.colorAttachments[i] = (AttachmentDescriptor){
             .sampleCount = multisampling.rasterizationSamples,
             .format = toVulkanPixelFormat(ctarget->format),
-            .loadop = WGPULoadOp_Load,
-            .storeop = WGPUStoreOp_Store,
+            .loadop = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .storeop = VK_ATTACHMENT_STORE_OP_DONT_CARE,
         };
     }
     renderPassLayout.colorAttachmentCount = descriptor->fragment->targetCount;
@@ -3422,23 +3447,35 @@ WGPURenderPipeline wgpuDeviceCreateRenderPipeline(WGPUDevice device, const WGPUR
         renderPassLayout.depthAttachment = (AttachmentDescriptor){
             .format = toVulkanPixelFormat(descriptor->depthStencil->format),
             .sampleCount = multisampling.rasterizationSamples,
-            .loadop = WGPULoadOp_Load,
-            .storeop = WGPUStoreOp_Store,
+            .loadop = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .storeop = VK_ATTACHMENT_STORE_OP_DONT_CARE,
         };
     }
     LayoutedRenderPass lrp = LoadRenderPassFromLayout(device, renderPassLayout);
+
+    const VkGraphicsPipelineCreateInfo pipelineInfo = {
+        .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+        .pNext = NULL,
+        .stageCount = shaderStageInsertPos,
+        .pStages = shaderStages,
+        .pVertexInputState = &vertexInputInfo,
+        .pInputAssemblyState = &inputAssembly,
+        .pViewportState = &viewportState,
+        .pRasterizationState = &rasterizer,
+        .pMultisampleState = &multisampling,
+        .pDepthStencilState = (descriptor->depthStencil) ? &depthStencil : NULL,
+        .pColorBlendState = (descriptor->fragment) ? &colorBlending : NULL,
+        .pDynamicState = &dynamicState,
+        .layout = pl_layout->layout,
+        .renderPass = lrp.renderPass, // Needs a valid VkRenderPass unless VK_KHR_dynamic_rendering is used and enabled.
+        .subpass = 0, // Assuming subpass 0
+        .basePipelineHandle = VK_NULL_HANDLE, // Optional
+        .basePipelineIndex = -1, // Optional
+    };
     
-    // RenderPass needs to be obtained from somewhere, usually associated with the command buffer recording.
-    // WGPU API hides this detail? We might need to use dynamic rendering or query/cache render passes.
-    // Placeholder: Assume renderPass is NULL and we rely on dynamic rendering or compatibility context.
-    pipelineInfo.renderPass = lrp.renderPass; // Needs a valid VkRenderPass unless VK_KHR_dynamic_rendering is used and enabled.
-    pipelineInfo.subpass = 0; // Assuming subpass 0
-
-    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
-    pipelineInfo.basePipelineIndex = -1; // Optional
 
 
-    WGPURenderPipelineImpl* pipelineImpl = (WGPURenderPipelineImpl*)malloc(sizeof(WGPURenderPipelineImpl));
+    WGPURenderPipeline pipelineImpl = (WGPURenderPipeline)RL_CALLOC(1, sizeof(WGPURenderPipelineImpl));
     if (!pipelineImpl) {
         // Handle allocation failure
         return NULL;
@@ -3591,8 +3628,8 @@ void wgpuCommandEncoderCopyTextureToBuffer (WGPUCommandEncoder commandEncoder, c
     
     VkBufferImageCopy region = {
         .bufferOffset = destination->layout.offset,
-        .bufferRowLength = destination->layout.bytesPerRow,
-        .bufferImageHeight = destination->layout.rowsPerImage,
+        //.bufferRowLength = destination->layout.bytesPerRow / 4,
+        //.bufferImageHeight = destination->layout.rowsPerImage,
         .imageSubresource = {
             .aspectMask = toVulkanAspectMask(source->aspect),
             .baseArrayLayer = source->origin.z, // ?
@@ -3610,7 +3647,7 @@ void wgpuCommandEncoderCopyTextureToBuffer (WGPUCommandEncoder commandEncoder, c
             .depth = copySize->depthOrArrayLayers
         }
     };
-
+    __builtin_dump_struct(&region, printf);
     commandEncoder->device->functions.vkCmdCopyImageToBuffer(
         commandEncoder->buffer,
         source->texture->image,
@@ -3618,7 +3655,6 @@ void wgpuCommandEncoderCopyTextureToBuffer (WGPUCommandEncoder commandEncoder, c
         destination->buffer->buffer,
         1, &region
     );
-    rg_unreachable();
 }
 void wgpuCommandEncoderCopyTextureToTexture(WGPUCommandEncoder commandEncoder, const WGPUTexelCopyTextureInfo* source, const WGPUTexelCopyTextureInfo* destination, const WGPUExtent3D* copySize){
     
@@ -4294,6 +4330,33 @@ RGAPI void ce_trackTexture(WGPUCommandEncoder encoder, WGPUTexture texture, Imag
         alreadyThere->lastLayout = usage.layout;
     }
     else{
+
+        //Bogus barrier for debugging
+        VkImageMemoryBarrier imageBarrier = {
+            VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+            NULL,
+            VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_SHADER_WRITE_BIT,
+            usage.access,
+            texture->layout,
+            usage.layout,
+            encoder->device->adapter->queueIndices.graphicsIndex,
+            encoder->device->adapter->queueIndices.graphicsIndex,
+            texture->image,
+            (VkImageSubresourceRange){
+                .aspectMask = usage.subresource.aspectMask,
+                0, VK_REMAINING_MIP_LEVELS,
+                0, VK_REMAINING_ARRAY_LAYERS
+            }
+        };
+        encoder->device->functions.vkCmdPipelineBarrier(
+            encoder->buffer, 
+            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 
+            usage.stage,
+            0, 
+            0, NULL, 
+            0, NULL, 
+            1, &imageBarrier
+        );
         int newEntry = ImageUsageRecordMap_put(&encoder->resourceUsage.referencedTextures, texture, CLITERAL(ImageUsageRecord){
             usage.layout,
             usage.layout,

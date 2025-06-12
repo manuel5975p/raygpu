@@ -279,8 +279,8 @@ constexpr uint32_t max_color_attachments = MAX_COLOR_ATTACHMENTS;
 typedef struct AttachmentDescriptor{
     VkFormat format;
     uint32_t sampleCount;
-    WGPULoadOp loadop;
-    WGPUStoreOp storeop;
+    VkAttachmentLoadOp loadop;
+    VkAttachmentStoreOp storeop;
 #ifdef __cplusplus
     bool operator==(const AttachmentDescriptor& other)const noexcept{
         return format == other.format
@@ -1523,7 +1523,7 @@ static inline VkCullModeFlags toVulkanCullMode(WGPUCullMode cm){
     switch(cm){
         case WGPUCullMode_Back: return VK_CULL_MODE_BACK_BIT;
         case WGPUCullMode_Front: return VK_CULL_MODE_FRONT_BIT;
-        case WGPUCullMode_None: return 0;
+        case WGPUCullMode_None: return VK_CULL_MODE_NONE;
         default: rg_unreachable();
     }
 }
