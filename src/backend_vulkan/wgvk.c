@@ -1245,7 +1245,7 @@ void wgpuQueueWriteTexture(WGPUQueue queue, const WGPUTexelCopyTextureInfo* dest
     source.layout = *dataLayout;
 
     wgpuCommandEncoderCopyBufferToTexture(enkoder, &source, destination, writeSize);
-    WGPUCommandBuffer puffer = wgpuCommandEncoderFinish(enkoder);
+    WGPUCommandBuffer puffer = wgpuCommandEncoderFinish(enkoder, NULL);
 
     wgpuQueueSubmit(queue, 1, &puffer);
     wgpuCommandEncoderRelease(enkoder);
@@ -2279,7 +2279,7 @@ void wgpuRenderPassEncoderEnd(WGPURenderPassEncoder renderPassEncoder){
  * The rest of this function just moves data from the Encoder struct into the buffer. 
  * 
  */
-WGPUCommandBuffer wgpuCommandEncoderFinish(WGPUCommandEncoder commandEncoder){
+WGPUCommandBuffer wgpuCommandEncoderFinish(WGPUCommandEncoder commandEncoder, const WGPUCommandBufferDescriptor* bufferdesc){
     
     WGPUCommandBuffer ret = callocnew(WGPUCommandBufferImpl);
     ret->refCount = 1;
@@ -2295,6 +2295,11 @@ WGPUCommandBuffer wgpuCommandEncoderFinish(WGPUCommandEncoder commandEncoder){
     ret->buffer = commandEncoder->buffer;
     ret->device = commandEncoder->device;
     commandEncoder->buffer = NULL;
+    
+    if(bufferdesc){
+        ret->label = WGPUStringFromView(bufferdesc->label);
+    }
+
     return ret;
 }
 
@@ -2537,7 +2542,7 @@ void wgpuQueueSubmit(WGPUQueue queue, size_t commandCount, const WGPUCommandBuff
     ImageUsageRecordMap_for_each(&sbuffer->resourceUsage.referencedTextures, registerTransitionCallback, pscache); 
     
     
-    WGPUCommandBuffer cachebuffer = wgpuCommandEncoderFinish(queue->presubmitCache);
+    WGPUCommandBuffer cachebuffer = wgpuCommandEncoderFinish(queue->presubmitCache, NULL);
     
     submittable.data[0] = cachebuffer->buffer;
     for(size_t i = 0;i < commandCount;i++){
@@ -2981,7 +2986,9 @@ void wgpuCommandBufferRelease(WGPUCommandBuffer commandBuffer) {
         
         PerframeCache* frameCache = &commandBuffer->device->frameCaches[commandBuffer->cacheIndex];
         VkCommandBufferVector_push_back(&frameCache->commandBuffers, commandBuffer->buffer);
-        
+        if(commandBuffer->label.data){
+            WGPUStringFree(commandBuffer->label);
+        }
         RL_FREE(commandBuffer);
     }
 }
@@ -3112,7 +3119,7 @@ void wgpuAdapterRelease(WGPUAdapter adapter){
 void resetFenceAndReleaseBuffers(void* fence_, WGPUCommandBufferVector* cBuffers, void* wgpudevice);
 void wgpuDeviceRelease(WGPUDevice device){
     if(--device->refCount == 0){
-        WGPUCommandBuffer cBuffer = wgpuCommandEncoderFinish(device->queue->presubmitCache);
+        WGPUCommandBuffer cBuffer = wgpuCommandEncoderFinish(device->queue->presubmitCache, NULL);
         wgpuCommandEncoderRelease(device->queue->presubmitCache);
         wgpuCommandBufferRelease(cBuffer);
 
@@ -3665,7 +3672,7 @@ void wgpuCommandEncoderCopyTextureToBuffer (WGPUCommandEncoder commandEncoder, c
             .depth = copySize->depthOrArrayLayers
         }
     };
-    __builtin_dump_struct(&region, printf);
+    //__builtin_dump_struct(&region, printf);
     commandEncoder->device->functions.vkCmdCopyImageToBuffer(
         commandEncoder->buffer,
         source->texture->image,
@@ -3958,6 +3965,9 @@ void resetFenceAndReleaseBuffers(void* fence_, WGPUCommandBufferVector* cBuffers
                 }
             }
         }
+        if(cBuffers->data[i]->label.data){
+            volatile int x = 3;
+        }
         wgpuCommandBufferRelease(cBuffers->data[i]);
     }
     WGPUCommandBufferVector_free(cBuffers);
@@ -4108,7 +4118,7 @@ void wgpuSurfacePresent(WGPUSurface surface){
 }
 void wgpuDeviceTick(WGPUDevice device){
     WGPUQueue queue = device->queue;
-    WGPUCommandBuffer buffer = wgpuCommandEncoderFinish(queue->presubmitCache);
+    WGPUCommandBuffer buffer = wgpuCommandEncoderFinish(queue->presubmitCache, NULL);
     wgpuCommandEncoderRelease(queue->presubmitCache);
     wgpuCommandBufferRelease(buffer);
     
@@ -4458,7 +4468,7 @@ static inline void bufferReleaseCallback(void* buffer, BufferUsageRecord* bu_rec
 }
 static inline void textureReleaseCallback(void* texture, ImageUsageRecord* iur, void* unused){
     (void)unused;
-    wgpuTextureRelease((WGPUTexture)texture);
+    wgpuTextureRelease(texture);
 }
 static inline void textureViewReleaseCallback(WGPUTextureView textureView, void* unused){
     (void)unused;

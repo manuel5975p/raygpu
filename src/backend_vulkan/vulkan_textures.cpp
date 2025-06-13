@@ -324,7 +324,7 @@ extern "C" Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t mipLevel){
     };
 
     wgpuCommandEncoderCopyTextureToBuffer(commandEncoder, &source, &destination, &copySize);
-    WGPUCommandBuffer cbuffer = wgpuCommandEncoderFinish(commandEncoder);
+    WGPUCommandBuffer cbuffer = wgpuCommandEncoderFinish(commandEncoder, NULL);
     g_vulkanstate.device->functions.vkQueueWaitIdle (g_vulkanstate.queue->graphicsQueue);
     g_vulkanstate.device->functions.vkDeviceWaitIdle(g_vulkanstate.device->device);
     wgpuQueueSubmit(g_vulkanstate.queue, 1, &cbuffer);

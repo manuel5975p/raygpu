@@ -46,5 +46,4 @@ int main(void){
     #else
     emscripten_set_main_loop(mainloop, 0, 0);
     #endif
-    
 }

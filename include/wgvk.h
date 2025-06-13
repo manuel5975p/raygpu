@@ -1048,11 +1048,13 @@ typedef struct WGPUTextureViewDescriptor{
     WGPUTextureUsage usage;
 }WGPUTextureViewDescriptor;
 
-typedef struct WGPUBufferDescriptor{
+typedef struct WGPUBufferDescriptor {
+    WGPUChainedStruct * nextInChain;
+    WGPUStringView label;
     WGPUBufferUsage usage;
     uint64_t size;
     WGPUBool mappedAtCreation;
-}WGPUBufferDescriptor;
+} WGPUBufferDescriptor;
 
 typedef void (*WGPUBufferMapCallback)(WGPUMapAsyncStatus status, WGPUStringView message, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2);
 
@@ -1219,6 +1221,10 @@ typedef struct WGPUFragmentState {
     size_t targetCount;
     const WGPUColorTargetState* targets;
 } WGPUFragmentState;
+typedef struct WGPUCommandBufferDescriptor {
+    WGPUChainedStruct * nextInChain;
+    WGPUStringView label;
+} WGPUCommandBufferDescriptor;
 
 typedef struct WGPUPrimitiveState {
     WGPUChainedStruct* nextInChain;
@@ -1480,7 +1486,7 @@ WGPUFuture          wgpuShaderModuleGetReflectionInfo(WGPUShaderModule shaderMod
 WGPUBindGroup wgpuDeviceCreateBindGroup              (WGPUDevice device, const WGPUBindGroupDescriptor* bgdesc);
 void wgpuWriteBindGroup                              (WGPUDevice device, WGPUBindGroup, const WGPUBindGroupDescriptor* bgdesc);
 WGPUCommandEncoder wgpuDeviceCreateCommandEncoder    (WGPUDevice device, const WGPUCommandEncoderDescriptor* cdesc);
-WGPUCommandBuffer wgpuCommandEncoderFinish           (WGPUCommandEncoder commandEncoder);
+WGPUCommandBuffer wgpuCommandEncoderFinish           (WGPUCommandEncoder commandEncoder, WGPU_NULLABLE WGPUCommandBufferDescriptor const * descriptor);
 void wgpuDeviceTick                                  (WGPUDevice device);
 void wgpuQueueSubmit                                 (WGPUQueue queue, size_t commandCount, const WGPUCommandBuffer* buffers);
 void wgpuCommandEncoderCopyBufferToBuffer            (WGPUCommandEncoder commandEncoder, WGPUBuffer source, uint64_t sourceOffset, WGPUBuffer destination, uint64_t destinationOffset, uint64_t size);

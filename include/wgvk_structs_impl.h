@@ -263,6 +263,25 @@ typedef struct SyncState{
     uint32_t submits;
     //VkFence renderFinishedFence;    
 }SyncState;
+typedef struct WGPUString{
+    char* data;
+    size_t length;
+}WGPUString;
+static inline WGPUString WGPUStringFromView(WGPUStringView view){
+    size_t length = view.length == WGPU_STRLEN ? strlen(view.data) : view.length;
+    if(length == 0){
+        return (WGPUString){0};
+    }
+    WGPUString ret = {
+        .data = (char*)RL_CALLOC(length, 1),
+        .length = length
+    };
+    memcpy(ret.data, view.data, length);
+    return ret;
+}
+static inline void WGPUStringFree(WGPUString string){
+    RL_FREE(string.data);
+}
 
 typedef struct MappableBufferMemory{
     VkBuffer buffer;
@@ -702,7 +721,7 @@ typedef struct WGPUCommandBufferImpl{
     WGPURaytracingPassEncoderSet referencedRTs;
     
     ResourceUsage resourceUsage;
-    
+    WGPUString label;
     WGPUDevice device;
     uint32_t cacheIndex;
 }WGPUCommandBufferImpl;

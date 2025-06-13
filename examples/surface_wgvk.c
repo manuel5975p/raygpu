@@ -140,34 +140,32 @@ int main(){
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     GLFWwindow* window = glfwCreateWindow(800, 600, "WGVK Window", NULL, NULL);
     glfwSetKeyCallback(window, keyfunc);
-    
-    
-    Display* x11_display = glfwGetX11Display();
-    Window x11_window = glfwGetX11Window(window);
-    WGPUSurfaceSourceXlibWindow surfaceChain;
-    surfaceChain.chain.sType = WGPUSType_SurfaceSourceXlibWindow;
-    surfaceChain.chain.next = NULL;
-    surfaceChain.display = x11_display;
-    surfaceChain.window = x11_window;
-
-    //struct wl_display* native_display = glfwGetX11Display();
-    //struct wl_surface* native_surface = glfwGetWaylandWindow(window);
-    //WGPUSurfaceSourceWaylandSurface surfaceChain;
-    //surfaceChain.chain.sType = WGPUSType_SurfaceSourceWaylandSurface;
+    //WGPUSurfaceSourceXlibWindow surfaceChain;
+    //Display* x11_display = glfwGetX11Display();
+    //Window x11_window = glfwGetX11Window(window);
+    //surfaceChain.chain.sType = WGPUSType_SurfaceSourceXlibWindow;
     //surfaceChain.chain.next = NULL;
-    //surfaceChain.display = native_display;
-    //surfaceChain.surface = native_surface;
+    //surfaceChain.display = x11_display;
+    //surfaceChain.window = x11_window;
+
+    struct wl_display* native_display = glfwGetWaylandDisplay();
+    struct wl_surface* native_surface = glfwGetWaylandWindow(window);
+    WGPUSurfaceSourceWaylandSurface surfaceChain;
+    surfaceChain.chain.sType = WGPUSType_SurfaceSourceWaylandSurface;
+    surfaceChain.chain.next = NULL;
+    surfaceChain.display = native_display;
+    surfaceChain.surface = native_surface;
 
     WGPUSurfaceDescriptor surfaceDescriptor;
     surfaceDescriptor.nextInChain = &surfaceChain.chain;
     surfaceDescriptor.label = (WGPUStringView){ NULL, WGPU_STRLEN };
     int width, height;
     glfwGetWindowSize(window, &width, &height);
-
+    WGPUPresentMode desiredPresentMode = WGPUPresentMode_Fifo;
     WGPUSurface surface = wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
     wgpuSurfaceConfigure(surface, &(const WGPUSurfaceConfiguration){
         .alphaMode = WGPUCompositeAlphaMode_Opaque,
-        .presentMode = WGPUPresentMode_Immediate,
+        .presentMode = desiredPresentMode,
         .device = device,
         .format = WGPUTextureFormat_BGRA8Unorm,
         .width = width,
@@ -262,10 +260,11 @@ int main(){
         glfwPollEvents();
         wgpuSurfaceGetCurrentTexture(surface, &surfaceTexture);
         if(surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal){
+            printf("Reconfiguring\n");
             glfwGetWindowSize(window, &width, &height);
             wgpuSurfaceConfigure(surface, &(const WGPUSurfaceConfiguration){
                 .alphaMode = WGPUCompositeAlphaMode_Opaque,
-                .presentMode = WGPUPresentMode_Fifo,
+                .presentMode = desiredPresentMode,
                 .device = device,
                 .format = WGPUTextureFormat_BGRA8Unorm,
                 .width = width,
@@ -302,7 +301,7 @@ int main(){
         wgpuRenderpassEncoderDraw(rpenc, 3, 1, 0, 0);
         wgpuRenderPassEncoderEnd(rpenc);
         
-        WGPUCommandBuffer cBuffer = wgpuCommandEncoderFinish(cenc);
+        WGPUCommandBuffer cBuffer = wgpuCommandEncoderFinish(cenc, NULL);
         wgpuQueueSubmit(queue, 1, &cBuffer);
         wgpuCommandEncoderRelease(cenc);
         wgpuCommandBufferRelease(cBuffer);

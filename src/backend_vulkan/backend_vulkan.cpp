@@ -115,8 +115,13 @@ extern "C" void EndComputepassEx(DescribedComputepass* computePass){
     
     //TODO
     g_renderstate.activeComputepass = nullptr;
-
-    WGPUCommandBuffer command = wgpuCommandEncoderFinish((WGPUCommandEncoder)computePass->cmdEncoder);
+    WGPUCommandBufferDescriptor cBufferD = {
+        .label = {
+            .data = "ComputeBuffer",
+            .length = WGPU_STRLEN
+        }
+    };
+    WGPUCommandBuffer command = wgpuCommandEncoderFinish((WGPUCommandEncoder)computePass->cmdEncoder, &cBufferD);
     wgpuQueueSubmit(g_vulkanstate.queue, 1, &command);
     wgpuCommandBufferRelease(command);
     wgpuCommandEncoderRelease((WGPUCommandEncoder)computePass->cmdEncoder);
@@ -385,8 +390,8 @@ VkInstance createInstance() {
     for (const auto &layer : availableLayers) {
         if (std::string(layer.layerName).find("valid") != std::string::npos) {
             #ifndef NDEBUG
-            TRACELOG(LOG_INFO, "Selecting Validation Layer %s",layer.layerName);
-            validationLayers.push_back(layer.layerName);
+            //TRACELOG(LOG_INFO, "Selecting Validation Layer %s",layer.layerName);
+            //validationLayers.push_back(layer.layerName);
             #else
             TRACELOG(LOG_INFO, "Validation Layer %s available but not selections since NDEBUG is defined",layer.layerName);
             //validationLayers.push_back(layer.layerName);
@@ -816,7 +821,7 @@ void GenTextureMipmaps(Texture2D* tex){
     }
     
     //ru_trackTexture(&enc->resourceUsage, wgpuTex);
-    WGPUCommandBuffer buffer = wgpuCommandEncoderFinish(enc);
+    WGPUCommandBuffer buffer = wgpuCommandEncoderFinish(enc, NULL);
     wgpuQueueSubmit(g_vulkanstate.queue, 1, &buffer);
     wgpuCommandBufferRelease(buffer);
     wgpuCommandEncoderRelease(enc);
@@ -1435,7 +1440,7 @@ extern "C" void EndRenderpassEx(DescribedRenderpass* rp){
     
 
 
-    WGPUCommandBuffer cbuffer = wgpuCommandEncoderFinish((WGPUCommandEncoder)rp->cmdEncoder);
+    WGPUCommandBuffer cbuffer = wgpuCommandEncoderFinish(rp->cmdEncoder, NULL);
     
     g_renderstate.activeRenderpass = nullptr;
     VkSubmitInfo sinfo{};
