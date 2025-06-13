@@ -1,6 +1,5 @@
 struct VertexInput {
-    @location(0) position: vec2f,
-    @builtin(vertex_index) vindex: u32
+    @location(0) position: vec2f
 };
 struct VertexOutput {
     @builtin(position) position: vec4f

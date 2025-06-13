@@ -261,18 +261,18 @@ int main(){
     while(!glfwWindowShouldClose(window)){
         glfwPollEvents();
         wgpuSurfaceGetCurrentTexture(surface, &surfaceTexture);
-        //if(surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal){
-        //    glfwGetWindowSize(window, &width, &height);
-        //    wgpuSurfaceConfigure(surface, &(const WGPUSurfaceConfiguration){
-        //        .alphaMode = WGPUCompositeAlphaMode_Opaque,
-        //        .presentMode = WGPUPresentMode_Fifo,
-        //        .device = device,
-        //        .format = WGPUTextureFormat_BGRA8Unorm,
-        //        .width = width,
-        //        .height = height
-        //    });
-        //    wgpuSurfaceGetCurrentTexture(surface, &surfaceTexture);
-        //}
+        if(surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal){
+            glfwGetWindowSize(window, &width, &height);
+            wgpuSurfaceConfigure(surface, &(const WGPUSurfaceConfiguration){
+                .alphaMode = WGPUCompositeAlphaMode_Opaque,
+                .presentMode = WGPUPresentMode_Fifo,
+                .device = device,
+                .format = WGPUTextureFormat_BGRA8Unorm,
+                .width = width,
+                .height = height
+            });
+            wgpuSurfaceGetCurrentTexture(surface, &surfaceTexture);
+        }
         WGPUTextureView surfaceView = wgpuSurfaceGetViewForTexture(surface, surfaceTexture.texture);
         //WGPUTextureView surfaceView = wgpuTextureCreateView(surfaceTexture.texture, &(const WGPUTextureViewDescriptor){
         //    .baseArrayLayer = 0,

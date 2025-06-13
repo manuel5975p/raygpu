@@ -629,6 +629,32 @@ typedef enum WGPUAddressMode {
     WGPUAddressMode_MirrorRepeat = 0x00000003,
     WGPUAddressMode_Force32 = 0x7FFFFFFF
 } WGPUAddressMode WGPU_ENUM_ATTRIBUTE;
+typedef enum WGPUBackendType {
+    WGPUBackendType_Undefined = 0x00000000,
+    WGPUBackendType_Null = 0x00000001,
+    WGPUBackendType_WebGPU = 0x00000002,
+    WGPUBackendType_D3D11 = 0x00000003,
+    WGPUBackendType_D3D12 = 0x00000004,
+    WGPUBackendType_Metal = 0x00000005,
+    WGPUBackendType_Vulkan = 0x00000006,
+    WGPUBackendType_OpenGL = 0x00000007,
+    WGPUBackendType_OpenGLES = 0x00000008,
+    WGPUBackendType_Force32 = 0x7FFFFFFF
+} WGPUBackendType WGPU_ENUM_ATTRIBUTE;
+
+typedef enum WGPUPowerPreference {
+    WGPUPowerPreference_Undefined = 0x00000000,
+    WGPUPowerPreference_LowPower = 0x00000001,
+    WGPUPowerPreference_HighPerformance = 0x00000002,
+    WGPUPowerPreference_Force32 = 0x7FFFFFFF
+} WGPUPowerPreference WGPU_ENUM_ATTRIBUTE;
+
+typedef enum WGPUFeatureLevel {
+    WGPUFeatureLevel_Undefined = 0x00000000,
+    WGPUFeatureLevel_Compatibility = 0x00000001,
+    WGPUFeatureLevel_Core = 0x00000002,
+    WGPUFeatureLevel_Force32 = 0x7FFFFFFF
+} WGPUFeatureLevel WGPU_ENUM_ATTRIBUTE;
 
 typedef struct WGPUTexelCopyBufferInfo {
     WGPUTexelCopyBufferLayout layout;
@@ -683,11 +709,11 @@ typedef struct WGPUSurfaceDescriptor{
 
 typedef struct WGPURequestAdapterOptions {
     WGPUChainedStruct * nextInChain;
-    int featureLevel;
-    int powerPreference;
-    Bool32 forceFallbackAdapter;
-    int backendType;
-    WGPUSurface compatibleSurface;
+    WGPUFeatureLevel featureLevel;
+    WGPUPowerPreference powerPreference;
+    WGPUBool forceFallbackAdapter;
+    WGPUBackendType backendType;
+    WGPU_NULLABLE WGPUSurface compatibleSurface;
 } WGPURequestAdapterOptions;
 
 typedef struct WGPUInstanceCapabilities {
@@ -783,12 +809,6 @@ typedef enum WGPUSurfaceGetCurrentTextureStatus {
     WGPUSurfaceGetCurrentTextureStatus_Force32 = 0x7FFFFFFF
 } WGPUSurfaceGetCurrentTextureStatus WGPU_ENUM_ATTRIBUTE;
 
-typedef enum WGPUFeatureLevel {
-    WGPUFeatureLevel_Undefined = 0x00000000,
-    WGPUFeatureLevel_Compatibility = 0x00000001,
-    WGPUFeatureLevel_Core = 0x00000002,
-    WGPUFeatureLevel_Force32 = 0x7FFFFFFF
-} WGPUFeatureLevel;
 typedef enum WGPUFeatureName {
     WGPUFeatureName_DepthClipControl = 0x00000001,
     WGPUFeatureName_Depth32FloatStencil8 = 0x00000002,

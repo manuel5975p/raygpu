@@ -2219,10 +2219,7 @@ void wgpuRenderPassEncoderEnd(WGPURenderPassEncoder renderPassEncoder){
     device->functions.vkCreateFramebuffer(renderPassEncoder->device->device, &fbci, NULL, &renderPassEncoder->frameBuffer);
     device->functions.vkCmdBeginRenderPass(destination, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
     #else
-    VkRenderingInfo info zeroinit;
-
-    info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-    info.colorAttachmentCount = beginInfo->colorAttachmentCount;
+    
     VkRenderingAttachmentInfo colorAttachments[max_color_attachments] zeroinit;
     for(uint32_t i = 0;i < beginInfo->colorAttachmentCount;i++){
         colorAttachments[i].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
@@ -2240,21 +2237,24 @@ void wgpuRenderPassEncoderEnd(WGPURenderPassEncoder renderPassEncoder){
         colorAttachments[i].loadOp = toVulkanLoadOperation(beginInfo->colorAttachments[i].loadOp);
         colorAttachments[i].storeOp = toVulkanStoreOperation(beginInfo->colorAttachments[i].storeOp);
     }
-    info.pColorAttachments = colorAttachments;
-    VkRenderingAttachmentInfo depthAttachment zeroinit;
-    if(beginInfo->depthAttachmentPresent){
-        depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-        depthAttachment.clearValue.depthStencil.depth = beginInfo->depthStencilAttachment.depthClearValue;
-        depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        depthAttachment.imageView = beginInfo->depthStencilAttachment.view->view;
-        depthAttachment.loadOp = toVulkanLoadOperation(beginInfo->depthStencilAttachment.depthLoadOp);
-        depthAttachment.storeOp = toVulkanStoreOperation(beginInfo->depthStencilAttachment.depthStoreOp);
-        info.pDepthAttachment = &depthAttachment;
-    }
-    info.layerCount = 1;
-    info.renderArea = CLITERAL(VkRect2D){
-        .offset = CLITERAL(VkOffset2D){0, 0},
-        .extent = CLITERAL(VkExtent2D){beginInfo->colorAttachments[0].view->width, beginInfo->colorAttachments[0].view->height}
+
+    const VkRenderingInfo info = {
+        .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+        .colorAttachmentCount = beginInfo->colorAttachmentCount,
+        .pColorAttachments = colorAttachments,
+        .pDepthAttachment = beginInfo->depthAttachmentPresent ? &(const VkRenderingAttachmentInfo){
+            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .clearValue.depthStencil.depth = beginInfo->depthStencilAttachment.depthClearValue,
+            .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+            .imageView = beginInfo->depthStencilAttachment.view->view,
+            .loadOp = toVulkanLoadOperation(beginInfo->depthStencilAttachment.depthLoadOp),
+            .storeOp = toVulkanStoreOperation(beginInfo->depthStencilAttachment.depthStoreOp),
+        } : NULL,
+        .layerCount = 1,
+        .renderArea = CLITERAL(VkRect2D){
+            .offset = CLITERAL(VkOffset2D){0, 0},
+            .extent = CLITERAL(VkExtent2D){beginInfo->colorAttachments[0].view->width, beginInfo->colorAttachments[0].view->height}
+        }
     };
     device->functions.vkCmdBeginRendering(destination, &info);
     #endif
