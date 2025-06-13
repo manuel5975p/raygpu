@@ -763,12 +763,15 @@ void wgpuCreateAdapter_impl(void* userdata_v){
     wgpuInstanceAddRef(userdata->instance);
     adapter->refCount = 1;
     adapter->physicalDevice = pds[i];
+    VkPhysicalDeviceProperties pdProperties = {0};
+    vkGetPhysicalDeviceProperties(adapter->physicalDevice, &pdProperties);
+    TRACELOG(LOG_INFO, "Using GPU %s", pdProperties.deviceName);
     vkGetPhysicalDeviceMemoryProperties(adapter->physicalDevice, &adapter->memProperties);
-    uint32_t QueueFamilyPropertyCount;
+    uint32_t queueFamilyPropertyCount;
 
-    vkGetPhysicalDeviceQueueFamilyProperties(adapter->physicalDevice, &QueueFamilyPropertyCount, NULL);
-    VkQueueFamilyProperties* props = (VkQueueFamilyProperties*)RL_CALLOC(QueueFamilyPropertyCount, sizeof(VkQueueFamilyProperties));
-    vkGetPhysicalDeviceQueueFamilyProperties(adapter->physicalDevice, &QueueFamilyPropertyCount, props);
+    vkGetPhysicalDeviceQueueFamilyProperties(adapter->physicalDevice, &queueFamilyPropertyCount, NULL);
+    VkQueueFamilyProperties* props = (VkQueueFamilyProperties*)RL_CALLOC(queueFamilyPropertyCount, sizeof(VkQueueFamilyProperties));
+    vkGetPhysicalDeviceQueueFamilyProperties(adapter->physicalDevice, &queueFamilyPropertyCount, props);
     adapter->queueIndices = CLITERAL(QueueIndices){
         VK_QUEUE_FAMILY_IGNORED,
         VK_QUEUE_FAMILY_IGNORED,
@@ -776,7 +779,7 @@ void wgpuCreateAdapter_impl(void* userdata_v){
         VK_QUEUE_FAMILY_IGNORED
     };
 
-    for(uint32_t i = 0;i < QueueFamilyPropertyCount;i++){
+    for(uint32_t i = 0;i < queueFamilyPropertyCount;i++){
         if(adapter->queueIndices.graphicsIndex == VK_QUEUE_FAMILY_IGNORED && (props[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) && (props[i].queueFlags & VK_QUEUE_COMPUTE_BIT)){
             adapter->queueIndices.graphicsIndex = i;
             adapter->queueIndices.computeIndex = i;
@@ -1888,49 +1891,48 @@ WGPURenderPassEncoder wgpuCommandEncoderBeginRenderPass(WGPUCommandEncoder enc, 
     
     ret->cmdEncoder = enc;
     #if VULKAN_USE_DYNAMIC_RENDERING == 1
-    VkRenderingInfo info zeroinit;
-    info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-    info.colorAttachmentCount = rpdesc->colorAttachmentCount;
-
-    VkRenderingAttachmentInfo colorAttachments[max_color_attachments] zeroinit;
-    for(uint32_t i = 0;i < rpdesc->colorAttachmentCount;i++){
-        colorAttachments[i].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-        colorAttachments[i].clearValue.color.float32[0] = (float)rpdesc->colorAttachments[i].clearValue.r;
-        colorAttachments[i].clearValue.color.float32[1] = (float)rpdesc->colorAttachments[i].clearValue.g;
-        colorAttachments[i].clearValue.color.float32[2] = (float)rpdesc->colorAttachments[i].clearValue.b;
-        colorAttachments[i].clearValue.color.float32[3] = (float)rpdesc->colorAttachments[i].clearValue.a;
-        colorAttachments[i].imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        colorAttachments[i].imageView = rpdesc->colorAttachments[i].view->view;
-        if(rpdesc->colorAttachments[i].resolveTarget){
-            colorAttachments[i].resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            colorAttachments[i].resolveImageView = rpdesc->colorAttachments[i].resolveTarget->view;
-            colorAttachments[i].resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
-            trackTextureView(&ret->resourceUsage, rpdesc->colorAttachments[i].resolveTarget, TextureUsage_RenderAttachment);
-        }
-        trackTextureView(&ret->resourceUsage, rpdesc->colorAttachments[i].view, TextureUsage_RenderAttachment);
-        colorAttachments[i].loadOp = toVulkanLoadOperation(rpdesc->colorAttachments[i].loadOp);
-        colorAttachments[i].storeOp = toVulkanStoreOperation(rpdesc->colorAttachments[i].storeOp);
-    }
-    info.pColorAttachments = colorAttachments;
-    VkRenderingAttachmentInfo depthAttachment zeroinit;
-    depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-    depthAttachment.clearValue.depthStencil.depth = rpdesc->depthStencilAttachment->depthClearValue;
-
-    depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    depthAttachment.imageView = rpdesc->depthStencilAttachment->view->view;
-    trackTextureView(&ret->resourceUsage, rpdesc->depthStencilAttachment->view, TextureUsage_RenderAttachment);
-    depthAttachment.loadOp = toVulkanLoadOperation(rpdesc->depthStencilAttachment->depthLoadOp);
-    depthAttachment.storeOp = toVulkanStoreOperation(rpdesc->depthStencilAttachment->depthStoreOp);
-    info.pDepthAttachment = &depthAttachment;
-    info.layerCount = 1;
-    info.renderArea = CLITERAL(VkRect2D){
-        .offset = CLITERAL(VkOffset2D){0, 0},
-        .extent = CLITERAL(VkExtent2D){rpdesc->colorAttachments[0].view->width, rpdesc->colorAttachments[0].view->height}
-    };
-    vkCmdBeginRendering(ret->cmdBuffer, &info);
+    //VkRenderingInfo info zeroinit;
+    //info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    //info.colorAttachmentCount = rpdesc->colorAttachmentCount;
+//
+    //VkRenderingAttachmentInfo colorAttachments[max_color_attachments] zeroinit;
+    //for(uint32_t i = 0;i < rpdesc->colorAttachmentCount;i++){
+    //    colorAttachments[i].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    //    colorAttachments[i].clearValue.color.float32[0] = (float)rpdesc->colorAttachments[i].clearValue.r;
+    //    colorAttachments[i].clearValue.color.float32[1] = (float)rpdesc->colorAttachments[i].clearValue.g;
+    //    colorAttachments[i].clearValue.color.float32[2] = (float)rpdesc->colorAttachments[i].clearValue.b;
+    //    colorAttachments[i].clearValue.color.float32[3] = (float)rpdesc->colorAttachments[i].clearValue.a;
+    //    colorAttachments[i].imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    //    colorAttachments[i].imageView = rpdesc->colorAttachments[i].view->view;
+    //    if(rpdesc->colorAttachments[i].resolveTarget){
+    //        colorAttachments[i].resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    //        colorAttachments[i].resolveImageView = rpdesc->colorAttachments[i].resolveTarget->view;
+    //        colorAttachments[i].resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+    //        ru_trackTextureView(&ret->resourceUsage, rpdesc->colorAttachments[i].resolveTarget);
+    //    }
+    //    ru_trackTextureView(&ret->resourceUsage, rpdesc->colorAttachments[i].view);
+    //    colorAttachments[i].loadOp = toVulkanLoadOperation(rpdesc->colorAttachments[i].loadOp);
+    //    colorAttachments[i].storeOp = toVulkanStoreOperation(rpdesc->colorAttachments[i].storeOp);
+    //}
+    //info.pColorAttachments = colorAttachments;
+    //VkRenderingAttachmentInfo depthAttachment zeroinit;
+    //depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    //depthAttachment.clearValue.depthStencil.depth = rpdesc->depthStencilAttachment->depthClearValue;
+//
+    //depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    //depthAttachment.imageView = rpdesc->depthStencilAttachment->view->view;
+    //ru_trackTextureView(&ret->resourceUsage, rpdesc->depthStencilAttachment->view, TextureUsage_RenderAttachment);
+    //depthAttachment.loadOp = toVulkanLoadOperation(rpdesc->depthStencilAttachment->depthLoadOp);
+    //depthAttachment.storeOp = toVulkanStoreOperation(rpdesc->depthStencilAttachment->depthStoreOp);
+    //info.pDepthAttachment = &depthAttachment;
+    //info.layerCount = 1;
+    //info.renderArea = CLITERAL(VkRect2D){
+    //    .offset = CLITERAL(VkOffset2D){0, 0},
+    //    .extent = CLITERAL(VkExtent2D){rpdesc->colorAttachments[0].view->width, rpdesc->colorAttachments[0].view->height}
+    //};
+    //vkCmdBeginRendering(ret->cmdBuffer, &info);
     #else
     RenderPassLayout rplayout = GetRenderPassLayout(rpdesc);
-    VkRenderPassBeginInfo rpbi zeroinit;
     rpbi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     LayoutedRenderPass frp = LoadRenderPassFromLayout(enc->device, rplayout);
     ret->renderPass = frp.renderPass;
@@ -1972,7 +1974,44 @@ WGPURenderPassEncoder wgpuCommandEncoderBeginRenderPass(WGPUCommandEncoder enc, 
     fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     fbci.pAttachments = attachmentViews;
     fbci.attachmentCount = frp.allAttachments.size;
+
+    fbci.width = rpdesc->colorAttachments[0].view->width;
+    fbci.height = rpdesc->colorAttachments[0].view->height;
+    fbci.layers = 1;
     
+    fbci.renderPass = ret->renderPass;
+    //VkResult fbresult = vkCreateFramebuffer(enc->device->device, &fbci, NULL, &ret->frameBuffer);
+    //if(fbresult != VK_SUCCESS){
+    //    TRACELOG(LOG_FATAL, "Error creating framebuffer: %d", (int)fbresult);
+    //}
+    
+    rpbi.renderPass = ret->renderPass;
+    rpbi.renderArea = CLITERAL(VkRect2D){
+        .offset = CLITERAL(VkOffset2D){0, 0},
+        .extent = CLITERAL(VkExtent2D){rpdesc->colorAttachments[0].view->width, rpdesc->colorAttachments[0].view->height}
+    };
+
+    rpbi.framebuffer = ret->frameBuffer;
+    
+    
+    rpbi.clearValueCount = frp.allAttachments.size;
+    rpbi.pClearValues = clearValues;
+    
+    ret->cmdEncoder = enc;
+    
+    //vkCmdBeginRenderPass(ret->secondaryCmdBuffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
+    #endif
+    ret->beginInfo = CLITERAL(RenderPassCommandBegin){
+        .colorAttachmentCount = rpdesc->colorAttachmentCount,
+        .depthAttachmentPresent = rpdesc->depthStencilAttachment != NULL
+    };
+    rassert(rpdesc->colorAttachmentCount <= max_color_attachments, "Too many colorattachments. supported=%d, provided=%d", ((int)MAX_COLOR_ATTACHMENTS), (int)rpdesc->colorAttachmentCount);
+    memcpy(ret->beginInfo.colorAttachments, rpdesc->colorAttachments,rpdesc->colorAttachmentCount * sizeof(WGPURenderPassColorAttachment));
+    if(rpdesc->depthStencilAttachment){
+        ret->beginInfo.depthStencilAttachment = *rpdesc->depthStencilAttachment;
+    }
+    RenderPassCommandGenericVector_init(&ret->bufferedCommands);
+
     const ImageUsageSnap iur_color = {
         .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         .access = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
@@ -2009,7 +2048,7 @@ WGPURenderPassEncoder wgpuCommandEncoderBeginRenderPass(WGPUCommandEncoder enc, 
 
     for(uint32_t i = 0;i < rpdesc->colorAttachmentCount;i++){
         if(rpdesc->colorAttachments[i].resolveTarget){
-            ce_trackTextureView(enc, rpdesc->colorAttachments[i].view, iur_resolve);
+            ce_trackTextureView(enc, rpdesc->colorAttachments[i].resolveTarget, iur_resolve);
         }
     }
 
@@ -2017,42 +2056,6 @@ WGPURenderPassEncoder wgpuCommandEncoderBeginRenderPass(WGPUCommandEncoder enc, 
         rassert(rpdesc->depthStencilAttachment->view, "depthStencilAttachment.view is null");
         ce_trackTextureView(enc, rpdesc->depthStencilAttachment->view, iur_depth);
     }
-
-    fbci.width = rpdesc->colorAttachments[0].view->width;
-    fbci.height = rpdesc->colorAttachments[0].view->height;
-    fbci.layers = 1;
-    
-    fbci.renderPass = ret->renderPass;
-    //VkResult fbresult = vkCreateFramebuffer(enc->device->device, &fbci, NULL, &ret->frameBuffer);
-    //if(fbresult != VK_SUCCESS){
-    //    TRACELOG(LOG_FATAL, "Error creating framebuffer: %d", (int)fbresult);
-    //}
-    
-    rpbi.renderPass = ret->renderPass;
-    rpbi.renderArea = CLITERAL(VkRect2D){
-        .offset = CLITERAL(VkOffset2D){0, 0},
-        .extent = CLITERAL(VkExtent2D){rpdesc->colorAttachments[0].view->width, rpdesc->colorAttachments[0].view->height}
-    };
-
-    rpbi.framebuffer = ret->frameBuffer;
-    
-    
-    rpbi.clearValueCount = frp.allAttachments.size;
-    rpbi.pClearValues = clearValues;
-    
-    ret->cmdEncoder = enc;
-    ret->beginInfo = CLITERAL(RenderPassCommandBegin){
-        .colorAttachmentCount = rpdesc->colorAttachmentCount,
-        .depthAttachmentPresent = rpdesc->depthStencilAttachment != NULL
-    };
-    rassert(rpdesc->colorAttachmentCount <= max_color_attachments, "Too many colorattachments. supported=%d, provided=%d", ((int)MAX_COLOR_ATTACHMENTS), (int)rpdesc->colorAttachmentCount);
-    memcpy(ret->beginInfo.colorAttachments, rpdesc->colorAttachments,rpdesc->colorAttachmentCount * sizeof(WGPURenderPassColorAttachment));
-    if(rpdesc->depthStencilAttachment){
-        ret->beginInfo.depthStencilAttachment = *rpdesc->depthStencilAttachment;
-    }
-    RenderPassCommandGenericVector_init(&ret->bufferedCommands);
-    //vkCmdBeginRenderPass(ret->secondaryCmdBuffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
-    #endif
     return ret;
 }
 
@@ -2099,7 +2102,6 @@ void wgpuRenderPassEncoderEnd(WGPURenderPassEncoder renderPassEncoder){
             attachmentViews[insertIndex++] =  beginInfo->colorAttachments[i].resolveTarget->view;
         }
     }
-
     const VkFramebufferCreateInfo fbci = {
         VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
         NULL,
@@ -2112,7 +2114,6 @@ void wgpuRenderPassEncoderEnd(WGPURenderPassEncoder renderPassEncoder){
         1
     };
 
-    device->functions.vkCreateFramebuffer(renderPassEncoder->device->device, &fbci, NULL, &renderPassEncoder->frameBuffer);
     
     VkRect2D renderPassRect = {
         .offset = {0, 0},
@@ -2253,7 +2254,7 @@ void wgpuRenderPassEncoderEnd(WGPURenderPassEncoder renderPassEncoder){
         }
     }
 
-
+    device->functions.vkCreateFramebuffer(renderPassEncoder->device->device, &fbci, NULL, &renderPassEncoder->frameBuffer);
     device->functions.vkCmdBeginRenderPass(destination, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
     for(uint32_t i = 0;i < beginInfo->colorAttachmentCount;i++){
         device->functions.vkCmdSetViewport(destination, i, 1, &viewport);
@@ -3944,7 +3945,14 @@ void resetFenceAndReleaseBuffers(void* fence_, WGPUCommandBufferVector* cBuffers
     }
     WGPUCommandBufferVector_free(cBuffers);
 }
-
+WGPUTextureView wgpuSurfaceGetViewForTexture(WGPUSurface surface, WGPUTexture texture){
+    for(uint32_t i = 0;i < surface->imagecount;i++){
+        if(surface->images[i] == texture){
+            return surface->imageViews[i];
+        }
+    }
+    return NULL;
+}
 void wgpuSurfaceGetCurrentTexture(WGPUSurface surface, WGPUSurfaceTexture* surfaceTexture){
     const size_t submittedframes = surface->device->submittedFrames;
     const uint32_t cacheIndex = surface->device->submittedFrames % framesInFlight;

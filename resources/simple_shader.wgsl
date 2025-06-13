@@ -15,5 +15,5 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    return vec4f(sin(in.position.x / 200.0f),sin(in.position.y / 20.0f),0,1);
+    return vec4f(1,0,0,1);
 }

@@ -108,7 +108,6 @@ int main(){
 
     WGPURequestAdapterOptions adapterOptions = {0};
     adapterOptions.featureLevel = WGPUFeatureLevel_Core;
-
     WGPURequestAdapterCallbackInfo adapterCallback = {0};
     adapterCallback.callback = adapterCallbackFunction;
     WGPUAdapter requestedAdapter;
@@ -139,7 +138,7 @@ int main(){
     WGPUQueue queue = wgpuDeviceGetQueue(device);
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    GLFWwindow* window = glfwCreateWindow(1280, 720, "WGVK Window", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(800, 600, "WGVK Window", NULL, NULL);
     glfwSetKeyCallback(window, keyfunc);
     
     
@@ -247,8 +246,9 @@ int main(){
         },
     };
     WGPURenderPipeline rp = wgpuDeviceCreateRenderPipeline(device, &rpdesc);
-
-    const float vertices[6] = {-1,-1,-1,1,1,1};
+    const float scale = 0.2f;
+    const float vertices[6] = {-scale,-scale,-scale,scale,scale,scale};
+    
     WGPUBufferDescriptor bufferDescriptor = {
         .size = sizeof(vertices),
         .usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst
@@ -261,31 +261,32 @@ int main(){
     while(!glfwWindowShouldClose(window)){
         glfwPollEvents();
         wgpuSurfaceGetCurrentTexture(surface, &surfaceTexture);
-        if(surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal){
-            glfwGetWindowSize(window, &width, &height);
-            wgpuSurfaceConfigure(surface, &(const WGPUSurfaceConfiguration){
-                .alphaMode = WGPUCompositeAlphaMode_Opaque,
-                .presentMode = WGPUPresentMode_Fifo,
-                .device = device,
-                .format = WGPUTextureFormat_BGRA8Unorm,
-                .width = width,
-                .height = height
-            });
-            wgpuSurfaceGetCurrentTexture(surface, &surfaceTexture);
-        }
-        WGPUTextureView surfaceView = wgpuTextureCreateView(surfaceTexture.texture, &(const WGPUTextureViewDescriptor){
-            .baseArrayLayer = 0,
-            .arrayLayerCount = 1,
-            .baseMipLevel = 0,
-            .mipLevelCount = 1,
-            .format = WGPUTextureFormat_BGRA8Unorm,
-            .dimension = WGPUTextureViewDimension_2D,
-            .usage = WGPUTextureUsage_RenderAttachment,
-            .aspect = WGPUTextureAspect_All,
-        });
+        //if(surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal){
+        //    glfwGetWindowSize(window, &width, &height);
+        //    wgpuSurfaceConfigure(surface, &(const WGPUSurfaceConfiguration){
+        //        .alphaMode = WGPUCompositeAlphaMode_Opaque,
+        //        .presentMode = WGPUPresentMode_Fifo,
+        //        .device = device,
+        //        .format = WGPUTextureFormat_BGRA8Unorm,
+        //        .width = width,
+        //        .height = height
+        //    });
+        //    wgpuSurfaceGetCurrentTexture(surface, &surfaceTexture);
+        //}
+        WGPUTextureView surfaceView = wgpuSurfaceGetViewForTexture(surface, surfaceTexture.texture);
+        //WGPUTextureView surfaceView = wgpuTextureCreateView(surfaceTexture.texture, &(const WGPUTextureViewDescriptor){
+        //    .baseArrayLayer = 0,
+        //    .arrayLayerCount = 1,
+        //    .baseMipLevel = 0,
+        //    .mipLevelCount = 1,
+        //    .format = WGPUTextureFormat_BGRA8Unorm,
+        //    .dimension = WGPUTextureViewDimension_2D,
+        //    .usage = WGPUTextureUsage_RenderAttachment,
+        //    .aspect = WGPUTextureAspect_All,
+        //});
         WGPUCommandEncoder cenc = wgpuDeviceCreateCommandEncoder(device, NULL);
         WGPURenderPassColorAttachment colorAttachment = {
-            .clearValue = (WGPUColor){(double)(frameCount % 256) / 255.0,0,0,1},
+            .clearValue = (WGPUColor){0.5,0.2,0,1},
             .loadOp = WGPULoadOp_Clear,
             .storeOp = WGPUStoreOp_Store,
             .view = surfaceView
@@ -306,7 +307,7 @@ int main(){
         wgpuCommandEncoderRelease(cenc);
         wgpuCommandBufferRelease(cBuffer);
         wgpuRenderPassEncoderRelease(rpenc);
-        wgpuTextureViewRelease(surfaceView);
+        //wgpuTextureViewRelease(surfaceView);
         wgpuSurfacePresent(surface);
         ++frameCount;
         uint64_t nextStamp = nanoTime();

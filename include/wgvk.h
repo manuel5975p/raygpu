@@ -1494,6 +1494,7 @@ void wgpuComputePassEncoderDispatchWorkgroups (WGPUComputePassEncoder cpe, uint3
 void wgpuComputePassEncoderRelease            (WGPUComputePassEncoder cpenc);
 
 void wgpuSurfaceGetCurrentTexture             (WGPUSurface surface, WGPUSurfaceTexture * surfaceTexture);
+WGPUTextureView wgpuSurfaceGetViewForTexture             (WGPUSurface surface, WGPUTexture surfaceRenderTarget);
 void wgpuSurfacePresent                       (WGPUSurface surface);
 
 WGPURaytracingPassEncoder wgpuCommandEncoderBeginRaytracingPass(WGPUCommandEncoder enc);
