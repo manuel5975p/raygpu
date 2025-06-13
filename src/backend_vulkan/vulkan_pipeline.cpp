@@ -281,7 +281,7 @@ extern "C" WGPURenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     rci.colorAttachmentCount = mst.colorAttachmentState.colorAttachmentCount;
     VkFormat colorAttachmentFormat[max_color_attachments];
     for(uint32_t i = 0;i < mst.colorAttachmentState.colorAttachmentCount;i++){
-        colorAttachmentFormat[i] = toVulkanPixelFormat(mst.colorAttachmentState.attachmentFormats[i]);
+        colorAttachmentFormat[i] = toVulkanPixelFormat(toWGPUPixelFormat(mst.colorAttachmentState.attachmentFormats[i]));
     }
 
     rci.pColorAttachmentFormats = colorAttachmentFormat;

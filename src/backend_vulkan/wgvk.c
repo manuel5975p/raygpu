@@ -1771,7 +1771,8 @@ WGPUPipelineLayout wgpuDeviceCreatePipelineLayout(WGPUDevice device, const WGPUP
     ret->device = device;
     ret->bindGroupLayoutCount = pldesc->bindGroupLayoutCount;
     ret->bindGroupLayouts = (WGPUBindGroupLayout*)RL_CALLOC(pldesc->bindGroupLayoutCount, sizeof(void*));
-    memcpy((void*)ret->bindGroupLayouts, (void*)pldesc->bindGroupLayouts, pldesc->bindGroupLayoutCount * sizeof(void*));
+    if(pldesc->bindGroupLayoutCount > 0)
+        memcpy((void*)ret->bindGroupLayouts, (void*)pldesc->bindGroupLayouts, pldesc->bindGroupLayoutCount * sizeof(void*));
     VkDescriptorSetLayout dslayouts[8] zeroinit;
     for(uint32_t i = 0;i < ret->bindGroupLayoutCount;i++){
         wgpuBindGroupLayoutAddRef(ret->bindGroupLayouts[i]);
@@ -1891,45 +1892,6 @@ WGPURenderPassEncoder wgpuCommandEncoderBeginRenderPass(WGPUCommandEncoder enc, 
     
     ret->cmdEncoder = enc;
     #if VULKAN_USE_DYNAMIC_RENDERING == 1
-    //VkRenderingInfo info zeroinit;
-    //info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-    //info.colorAttachmentCount = rpdesc->colorAttachmentCount;
-//
-    //VkRenderingAttachmentInfo colorAttachments[max_color_attachments] zeroinit;
-    //for(uint32_t i = 0;i < rpdesc->colorAttachmentCount;i++){
-    //    colorAttachments[i].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-    //    colorAttachments[i].clearValue.color.float32[0] = (float)rpdesc->colorAttachments[i].clearValue.r;
-    //    colorAttachments[i].clearValue.color.float32[1] = (float)rpdesc->colorAttachments[i].clearValue.g;
-    //    colorAttachments[i].clearValue.color.float32[2] = (float)rpdesc->colorAttachments[i].clearValue.b;
-    //    colorAttachments[i].clearValue.color.float32[3] = (float)rpdesc->colorAttachments[i].clearValue.a;
-    //    colorAttachments[i].imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    //    colorAttachments[i].imageView = rpdesc->colorAttachments[i].view->view;
-    //    if(rpdesc->colorAttachments[i].resolveTarget){
-    //        colorAttachments[i].resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    //        colorAttachments[i].resolveImageView = rpdesc->colorAttachments[i].resolveTarget->view;
-    //        colorAttachments[i].resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
-    //        ru_trackTextureView(&ret->resourceUsage, rpdesc->colorAttachments[i].resolveTarget);
-    //    }
-    //    ru_trackTextureView(&ret->resourceUsage, rpdesc->colorAttachments[i].view);
-    //    colorAttachments[i].loadOp = toVulkanLoadOperation(rpdesc->colorAttachments[i].loadOp);
-    //    colorAttachments[i].storeOp = toVulkanStoreOperation(rpdesc->colorAttachments[i].storeOp);
-    //}
-    //info.pColorAttachments = colorAttachments;
-    //VkRenderingAttachmentInfo depthAttachment zeroinit;
-    //depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-    //depthAttachment.clearValue.depthStencil.depth = rpdesc->depthStencilAttachment->depthClearValue;
-//
-    //depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    //depthAttachment.imageView = rpdesc->depthStencilAttachment->view->view;
-    //ru_trackTextureView(&ret->resourceUsage, rpdesc->depthStencilAttachment->view, TextureUsage_RenderAttachment);
-    //depthAttachment.loadOp = toVulkanLoadOperation(rpdesc->depthStencilAttachment->depthLoadOp);
-    //depthAttachment.storeOp = toVulkanStoreOperation(rpdesc->depthStencilAttachment->depthStoreOp);
-    //info.pDepthAttachment = &depthAttachment;
-    //info.layerCount = 1;
-    //info.renderArea = CLITERAL(VkRect2D){
-    //    .offset = CLITERAL(VkOffset2D){0, 0},
-    //    .extent = CLITERAL(VkExtent2D){rpdesc->colorAttachments[0].view->width, rpdesc->colorAttachments[0].view->height}
-    //};
     //vkCmdBeginRendering(ret->cmdBuffer, &info);
     #else
     RenderPassLayout rplayout = GetRenderPassLayout(rpdesc);
@@ -2253,21 +2215,58 @@ void wgpuRenderPassEncoderEnd(WGPURenderPassEncoder renderPassEncoder){
             }
         }
     }
-
+    #if VULKAN_USE_DYNAMIC_RENDERING == 0
     device->functions.vkCreateFramebuffer(renderPassEncoder->device->device, &fbci, NULL, &renderPassEncoder->frameBuffer);
     device->functions.vkCmdBeginRenderPass(destination, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
+    #else
+    VkRenderingInfo info zeroinit;
+
+    info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    info.colorAttachmentCount = beginInfo->colorAttachmentCount;
+    VkRenderingAttachmentInfo colorAttachments[max_color_attachments] zeroinit;
+    for(uint32_t i = 0;i < beginInfo->colorAttachmentCount;i++){
+        colorAttachments[i].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+        colorAttachments[i].clearValue.color.float32[0] = (float)beginInfo->colorAttachments[i].clearValue.r;
+        colorAttachments[i].clearValue.color.float32[1] = (float)beginInfo->colorAttachments[i].clearValue.g;
+        colorAttachments[i].clearValue.color.float32[2] = (float)beginInfo->colorAttachments[i].clearValue.b;
+        colorAttachments[i].clearValue.color.float32[3] = (float)beginInfo->colorAttachments[i].clearValue.a;
+        colorAttachments[i].imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        colorAttachments[i].imageView = beginInfo->colorAttachments[i].view->view;
+        if(beginInfo->colorAttachments[i].resolveTarget){
+            colorAttachments[i].resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            colorAttachments[i].resolveImageView = beginInfo->colorAttachments[i].resolveTarget->view;
+            colorAttachments[i].resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+        }
+        colorAttachments[i].loadOp = toVulkanLoadOperation(beginInfo->colorAttachments[i].loadOp);
+        colorAttachments[i].storeOp = toVulkanStoreOperation(beginInfo->colorAttachments[i].storeOp);
+    }
+    info.pColorAttachments = colorAttachments;
+    VkRenderingAttachmentInfo depthAttachment zeroinit;
+    if(beginInfo->depthAttachmentPresent){
+        depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+        depthAttachment.clearValue.depthStencil.depth = beginInfo->depthStencilAttachment.depthClearValue;
+        depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        depthAttachment.imageView = beginInfo->depthStencilAttachment.view->view;
+        depthAttachment.loadOp = toVulkanLoadOperation(beginInfo->depthStencilAttachment.depthLoadOp);
+        depthAttachment.storeOp = toVulkanStoreOperation(beginInfo->depthStencilAttachment.depthStoreOp);
+        info.pDepthAttachment = &depthAttachment;
+    }
+    info.layerCount = 1;
+    info.renderArea = CLITERAL(VkRect2D){
+        .offset = CLITERAL(VkOffset2D){0, 0},
+        .extent = CLITERAL(VkExtent2D){beginInfo->colorAttachments[0].view->width, beginInfo->colorAttachments[0].view->height}
+    };
+    device->functions.vkCmdBeginRendering(destination, &info);
+    #endif
+
     for(uint32_t i = 0;i < beginInfo->colorAttachmentCount;i++){
         device->functions.vkCmdSetViewport(destination, i, 1, &viewport);
         device->functions.vkCmdSetScissor (destination, i, 1, &scissor);
     }
-
     recordVkCommands(destination, renderPassEncoder->device, &renderPassEncoder->bufferedCommands, beginInfo);
-    
 
     #if VULKAN_USE_DYNAMIC_RENDERING == 1
-    #error VULKAN_USE_DYNAMIC_RENDERING is not implemented
-    //vkCmdResolveImage(VkCommandBuffer commandBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageResolve *pRegions)
-    //vkCmdEndRendering(renderPassEncoder->secondaryCmdBuffer);
+    device->functions.vkCmdEndRendering(destination);
     #else
     device->functions.vkCmdEndRenderPass(destination);
     #endif
@@ -3431,7 +3430,22 @@ WGPURenderPipeline wgpuDeviceCreateRenderPipeline(WGPUDevice device, const WGPUR
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
     dynamicState.dynamicStateCount = dynamicStateCount;
     dynamicState.pDynamicStates = dynamicStates;   
-    
+    #if VULKAN_USE_DYNAMIC_RENDERING == 1
+    VkRenderPass rprp = NULL;
+    VkFormat cAttachmentFormats[MAX_COLOR_ATTACHMENTS];
+    for(uint32_t i = 0;i < descriptor->fragment->targetCount;i++){
+        cAttachmentFormats[i] = toVulkanPixelFormat(descriptor->fragment->targets[i].format);
+    }
+    VkPipelineRenderingCreateInfo renderingCreateInfo = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+        .pNext = NULL,
+        .colorAttachmentCount = descriptor->fragment->targetCount,
+        .pColorAttachmentFormats = cAttachmentFormats,
+        .depthAttachmentFormat = descriptor->depthStencil ? toVulkanPixelFormat(descriptor->depthStencil->format) : VK_FORMAT_UNDEFINED,
+        .stencilAttachmentFormat = descriptor->depthStencil ? toVulkanPixelFormat(descriptor->depthStencil->format) : VK_FORMAT_UNDEFINED
+    };
+    VkPipelineRenderingCreateInfo* pRenderingCreateInfo = &renderingCreateInfo;
+    #else
     RenderPassLayout renderPassLayout = {0};
     for(uint32_t i = 0;i < descriptor->fragment->targetCount;i++){
         const WGPUColorTargetState* ctarget = descriptor->fragment->targets + i;
@@ -3453,10 +3467,12 @@ WGPURenderPipeline wgpuDeviceCreateRenderPipeline(WGPUDevice device, const WGPUR
         };
     }
     LayoutedRenderPass lrp = LoadRenderPassFromLayout(device, renderPassLayout);
-
+    VkRenderPass rprp = lrp.renderpass;
+    VkPipelineRenderingCreateInfo* pRenderingCreateInfo = NULL;
+    #endif
     const VkGraphicsPipelineCreateInfo pipelineInfo = {
         .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-        .pNext = NULL,
+        .pNext = pRenderingCreateInfo,
         .stageCount = shaderStageInsertPos,
         .pStages = shaderStages,
         .pVertexInputState = &vertexInputInfo,
@@ -3468,11 +3484,12 @@ WGPURenderPipeline wgpuDeviceCreateRenderPipeline(WGPUDevice device, const WGPUR
         .pColorBlendState = (descriptor->fragment) ? &colorBlending : NULL,
         .pDynamicState = &dynamicState,
         .layout = pl_layout->layout,
-        .renderPass = lrp.renderPass, // Needs a valid VkRenderPass unless VK_KHR_dynamic_rendering is used and enabled.
-        .subpass = 0, // Assuming subpass 0
+        .renderPass = rprp,
+        .subpass = 0,
         .basePipelineHandle = VK_NULL_HANDLE, // Optional
         .basePipelineIndex = -1, // Optional
     };
+    
     
 
 
