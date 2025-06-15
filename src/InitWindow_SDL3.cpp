@@ -20,7 +20,7 @@ constexpr uint32_t max_format_count = 16;
 typedef struct SurfaceAndSwapchainSupport{
     PixelFormat supportedFormats[max_format_count];
     uint32_t supportedFormatCount;
-    PresentMode supportedPresentModes[4];
+    WGPUPresentMode supportedPresentModes[4];
     uint32_t supportedPresentModeCount;
 
     uint32_t presentQueueIndex; // Vulkan only
@@ -59,8 +59,8 @@ void Initialize_SDL3(){
 
 extern "C" void* CreateSurfaceForWindow_SDL3(void* windowHandle){
     #if SUPPORT_VULKAN_BACKEND == 1
-    WGVKSurface retp = callocnew(WGVKSurfaceImpl);
-    SDL_Vulkan_CreateSurface((SDL_Window*)windowHandle, ((WGVKInstance)GetInstance())->instance, nullptr, &retp->surface);
+    WGPUSurface retp = callocnew(WGPUSurfaceImpl);
+    SDL_Vulkan_CreateSurface((SDL_Window*)windowHandle, ((WGPUInstance)GetInstance())->instance, nullptr, &retp->surface);
     return retp;
     #else
     return SDL3_GetWGPUSurface((WGPUInstance)GetInstance(), (SDL_Window*)windowHandle);
@@ -78,7 +78,7 @@ SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title)
     
     ret.handle = SDL_CreateWindow(title, width, height, windowFlags);
     #if SUPPORT_VULKAN_BACKEND == 1
-    //WGVKSurface vSurface = callocnew(WGVKSurfaceImpl);
+    //WGPUSurface vSurface = callocnew(WGPUSurfaceImpl);
     //bool surfaceCreated = SDL_Vulkan_CreateSurface((SDL_Window*)ret.handle, g_vulkanstate.instance, nullptr, &vSurface->surface);
     //SurfaceConfiguration config{};
     //config.width = width;
@@ -86,7 +86,7 @@ SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title)
     //config.format = BGRA8;
     //config.presentMode = PresentMode_Fifo;
     //config.device = g_vulkanstate.device;
-    //wgvkSurfaceConfigure(vSurface, &config);
+    //WGPUSurfaceConfigure(vSurface, &config);
     //FullSurface fsurface zeroinit;
     //fsurface.surfaceConfig = config;
     //fsurface.surface = vSurface;
@@ -154,7 +154,7 @@ SurfaceAndSwapchainSupport QuerySurfaceAndSwapchainSupport(void* instanceHandle,
         std::vector<VkSurfaceFormatKHR> formats(formatCount);
         vkGetPhysicalDeviceSurfaceFormatsKHR(adapter, surface, &formatCount, formats.data());
         for(uint32_t i = 0;i < formatCount;i++){
-            ret.supportedFormats[i] = fromVulkanPixelFormat(formats[i].format);
+            ret.supportedFormats[i] = fromWGPUPixelFormat(fromVulkanPixelFormat(formats[i].format));
         }
     }
 
@@ -508,7 +508,8 @@ void ToggleFullscreen_SDL3(cwoid){
         //SDL_SetWindowResizable((SDL_Window*)g_renderstate.window, SDL_FALSE);
         SDL_SetWindowFullscreen((SDL_Window*)g_renderstate.window, 0);
 
-        SDL_SetWindowSize((SDL_Window*)g_renderstate.window, g_renderstate.input_map[g_renderstate.window].windowPosition.width, g_renderstate.input_map[g_renderstate.window].windowPosition.height);
+        SDL_SetWindowSize((SDL_Window*)g_renderstate.window, (int)g_renderstate.input_map[g_renderstate.window].windowPosition.width, (int)g_renderstate.input_map[g_renderstate.window].windowPosition.height);
+        
         //SDL_SetWindowSize((SDL_Window*)g_renderstate.window, g_renderstate.input_map[g_renderstate.window].windowPosition.width, g_renderstate.input_map[g_renderstate.window].windowPosition.height);
         //SDL_SetWindowSize((SDL_Window*)g_renderstate.window, g_renderstate.input_map[g_renderstate.window].windowPosition.width, g_renderstate.input_map[g_renderstate.window].windowPosition.height);
         //SDL_SetWindowSize((SDL_Window*)g_renderstate.window, g_renderstate.input_map[g_renderstate.window].windowPosition.width, g_renderstate.input_map[g_renderstate.window].windowPosition.height);

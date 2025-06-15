@@ -1921,7 +1921,7 @@ DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sourcesSpirv){
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_FRAGMENT_BIT:
                         return WGPUShaderStageEnum_Fragment;
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT:
-                        return WGPUShaderStageEnum_Fragment;
+                        return WGPUShaderStageEnum_Compute;
                     #if SUPPORT_VULKAN_BACKEND == 1
                     case SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_GEOMETRY_BIT:
                         return WGPUShaderStageEnum_Vertex;

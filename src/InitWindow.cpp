@@ -353,7 +353,7 @@ RGAPICXX void* InitWindow(uint32_t width, uint32_t height, const char* title){
     defaultWGSLSource.sourceCount = 1;
     defaultWGSLSource.sources[0].data = shaderSource;
     defaultWGSLSource.sources[0].sizeInBytes = std::strlen(shaderSource);
-    defaultWGSLSource.sources[0].stageMask = ShaderStageMask(ShaderStageMask_Vertex | ShaderStageMask_Fragment);
+    defaultWGSLSource.sources[0].stageMask = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
     g_renderstate.defaultPipeline = LoadPipelineForVAOEx(defaultWGSLSource, renderBatchVAO, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), GetDefaultSettings());
     #else
     #error "Must support either glsl or wgsl"

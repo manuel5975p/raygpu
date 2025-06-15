@@ -10,6 +10,7 @@
 #include <src/tint/lang/wgsl/sem/function.h>
 #include <tint/tint.h>
 #include <tint_c_api.h>
+#include <raygpu.h>
 #undef TRACELOG
 
 #define TRACELOG(...)
@@ -22,6 +23,7 @@ static inline WGPUShaderStage toShaderStageMask(tint::ast::PipelineStage pstage)
     case tint::ast::PipelineStage::kCompute:
         return WGPUShaderStage_Compute;
     case tint::ast::PipelineStage::kNone:
+    default:
         return WGPUShaderStage(0);
     }
 }

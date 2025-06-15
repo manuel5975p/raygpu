@@ -798,7 +798,7 @@ typedef struct DescribedRaytracingPipeline{
 
 
 typedef struct FullSurface{
-    void* surface; //This is a VkSurfaceKHR or WGPUSurface handle, and NULL if headless==true
+    WGPUSurface surface;
     Bool32 headless;
     WGPUSurfaceConfiguration surfaceConfig;
     RenderTexture renderTarget;

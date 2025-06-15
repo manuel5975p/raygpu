@@ -855,7 +855,7 @@ static inline WGPUTextureUsage toWebGPUTextureUsage(WGPUTextureUsage usage) {
     WGPUTextureUsage wgpuUsage = 0;
 
     // Array of all possible WGPUTextureUsage flags
-    const WGPUTextureUsage allFlags[] = {WGPUTextureUsage_CopySrc, WGPUTextureUsage_CopyDst, WGPUTextureUsage_TextureBinding, WGPUTextureUsage_StorageBinding, WGPUTextureUsage_RenderAttachment, WGPUTextureUsage_TransientAttachment, WGPUTextureUsage_StorageAttachment};
+    const WGPUTextureUsage allFlags[] = {WGPUTextureUsage_CopySrc, WGPUTextureUsage_CopyDst, WGPUTextureUsage_TextureBinding, WGPUTextureUsage_StorageBinding, WGPUTextureUsage_RenderAttachment};//, WGPUTextureUsage_TransientAttachment};//, WGPUTextureUsage_StorageAttachment};
     // Iterate through each dflag and map accordingly
     uint32_t remainigFlags = usage;
     while (remainigFlags != 0) {

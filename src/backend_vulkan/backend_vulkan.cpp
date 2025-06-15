@@ -42,6 +42,7 @@ void PresentSurface(FullSurface* surface){
     WGPUSurface wgpusurf = (WGPUSurface)surface->surface;
 }
 void DummySubmitOnQueue(){
+    return;
     const uint32_t cacheIndex = g_vulkanstate.device->submittedFrames % framesInFlight;
     const uint32_t submits = g_vulkanstate.queue->syncState[cacheIndex].submits;
     if(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence == 0){
@@ -94,6 +95,8 @@ extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t width, uint32_t he
     fsurface->surfaceConfig.height = height;
 
     wgpuSurfaceConfigure((WGPUSurface)fsurface->surface, &fsurface->surfaceConfig);
+    width = fsurface->surface->images[0]->width;
+    height = fsurface->surface->images[0]->height;
     UnloadTexture(fsurface->renderTarget.depth);
     fsurface->renderTarget.depth = LoadTexturePro(width, height, Depth32, WGPUTextureUsage_RenderAttachment, GetDefaultSettings().sampleCount, 1);
     if(fsurface->renderTarget.depth.sampleCount > 1){
@@ -262,7 +265,20 @@ extern "C" void GetNewTexture(FullSurface* fsurface){
         VkCommandBuffer buf = ((WGPUSurface)fsurface->surface)->device->queue->presubmitCache->buffer;
         
         fsurface->renderTarget.texture.id = wgpusurf->images[imageIndex];
-        fsurface->renderTarget.texture.view = wgpusurf->imageViews[imageIndex];
+        
+        WGPUTextureViewDescriptor tvDesc = {
+            .nextInChain = {},
+            .label = {},
+            .format = WGPUTextureFormat_BGRA8Unorm,
+            .dimension = WGPUTextureViewDimension_2D,
+            .baseMipLevel = 0,
+            .mipLevelCount = 1,
+            .baseArrayLayer = 0,
+            .arrayLayerCount = 1,
+            .aspect = WGPUTextureAspect_All,
+            .usage = {},
+        };
+        fsurface->renderTarget.texture.view = wgpuTextureCreateView(wgpusurf->images[imageIndex], &tvDesc);
         fsurface->renderTarget.texture.width = wgpusurf->width;
         fsurface->renderTarget.texture.height = wgpusurf->height;
 

@@ -1,10 +1,9 @@
 #ifndef WGPU_STRUCTS_IMPL_H
 #define WGPU_STRUCTS_IMPL_H
 #include <wgvk.h>
-#include <raygpu.h>
 #include <external/VmaUsage.h>
-
 #include "../src/backend_vulkan/ptr_hash_map.h"
+#include <config.h>
 
 typedef struct ImageUsageRecord{
     VkImageLayout initialLayout;
@@ -589,6 +588,10 @@ typedef struct WGPUAdapterImpl{
 }WGPUAdapterImpl;
 
 #define framesInFlight 2
+typedef struct FenceCache{
+    WGPUDevice device;
+    VkFenceVector cachedFences;
+}FenceCache;
 
 typedef struct WGPUDeviceImpl{
     VkDevice device;
@@ -602,10 +605,127 @@ typedef struct WGPUDeviceImpl{
 
     RenderPassCache renderPassCache;
     WGPUUncapturedErrorCallbackInfo uncapturedErrorCallbackInfo;
-    
+    FenceCache fenceCache;
     struct VolkDeviceTable functions;
 }WGPUDeviceImpl;
 
+static inline void FenceCache_Init(WGPUDevice device, FenceCache* ptr){
+    ptr->device = device;
+    VkFenceVector_init(&ptr->cachedFences);
+}
+static inline VkFence FenceCache_GetFence(FenceCache* ptr){
+    if(ptr->cachedFences.size == 0){
+        VkFence ret = NULL;
+        VkFenceCreateInfo createInfo = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+        VkResult result = ptr->device->functions.vkCreateFence(
+            ptr->device->device, 
+            &createInfo,
+            NULL,
+            &ret
+        );
+        if(result != VK_SUCCESS)abort();
+        //rassert(result == VK_SUCCESS, "Could not create fence");
+        return ret;
+    }
+    else{
+        VkFence ret = ptr->cachedFences.data[ptr->cachedFences.size - 1];
+        VkFenceVector_pop_back(&ptr->cachedFences);
+        return ret;
+    }
+}
+static inline void FenceCache_PutFence(FenceCache* ptr, VkFence fence){
+    VkFenceVector_push_back(&ptr->cachedFences, fence);
+}
+static inline void FenceCache_Destroy(FenceCache* ptr){
+    for(size_t i = 0;i < ptr->cachedFences.size;i++){
+        ptr->device->functions.vkDestroyFence(
+            ptr->device->device,
+            ptr->cachedFences.data[i],
+            NULL
+        );
+    }
+    VkFenceVector_free(&ptr->cachedFences);
+}
+typedef uint8_t SlimComponentSwizzle;
+const static SlimComponentSwizzle SLIM_COMPONENT_SWIZZLE_IDENTITY = VK_COMPONENT_SWIZZLE_IDENTITY;
+const static SlimComponentSwizzle SLIM_COMPONENT_SWIZZLE_ZERO = VK_COMPONENT_SWIZZLE_ZERO;
+const static SlimComponentSwizzle SLIM_COMPONENT_SWIZZLE_ONE = VK_COMPONENT_SWIZZLE_ONE;
+const static SlimComponentSwizzle SLIM_COMPONENT_SWIZZLE_R = VK_COMPONENT_SWIZZLE_R;
+const static SlimComponentSwizzle SLIM_COMPONENT_SWIZZLE_G = VK_COMPONENT_SWIZZLE_G;
+const static SlimComponentSwizzle SLIM_COMPONENT_SWIZZLE_B = VK_COMPONENT_SWIZZLE_B;
+const static SlimComponentSwizzle SLIM_COMPONENT_SWIZZLE_A = VK_COMPONENT_SWIZZLE_A;
+
+typedef struct SlimComponentMapping{
+    SlimComponentSwizzle r;
+    SlimComponentSwizzle g;
+    SlimComponentSwizzle b;
+    SlimComponentSwizzle a;
+}SlimComponentMapping;
+
+typedef struct SlimViewCreateInfo{
+    VkFormat format;
+    VkImageSubresourceRange subresourceRange;
+    SlimComponentMapping cmap;
+    VkImageViewType viewType;
+}SlimViewCreateInfo;
+
+static inline bool Compare_FormatAspectAndSR(SlimViewCreateInfo obj, SlimViewCreateInfo obj2){
+    return obj.format == obj2.format &&
+           obj.subresourceRange.baseMipLevel   == obj2.subresourceRange.baseMipLevel &&
+           obj.subresourceRange.levelCount     == obj2.subresourceRange.levelCount &&
+           obj.subresourceRange.baseArrayLayer == obj2.subresourceRange.baseArrayLayer &&
+           obj.subresourceRange.layerCount     == obj2.subresourceRange.layerCount &&
+           obj.subresourceRange.aspectMask     == obj2.subresourceRange.aspectMask &&
+           obj.viewType     == obj2.viewType &&
+           obj.cmap.r     == obj2.cmap.r &&
+           obj.cmap.g     == obj2.cmap.g &&
+           obj.cmap.b     == obj2.cmap.b &&
+           obj.cmap.a     == obj2.cmap.a;
+}
+
+#define FNV_oFFSET_BASIS 14695981039346656037ULL
+#define FNV_pRIME 1099511628211ULL
+
+static inline size_t Hash_FormatAspectAndSR(SlimViewCreateInfo obj){
+    size_t hash = FNV_oFFSET_BASIS;
+
+    // Hash the 'format' field
+    hash ^= (size_t)obj.format;
+    hash *= FNV_pRIME;
+
+    // Hash VkImageSubresourceRange members individually
+    hash ^= (size_t)obj.subresourceRange.baseMipLevel;
+    hash *= FNV_pRIME;
+
+    hash ^= (size_t)obj.subresourceRange.levelCount;
+    hash *= FNV_pRIME;
+
+    hash ^= (size_t)obj.subresourceRange.baseArrayLayer;
+    hash *= FNV_pRIME;
+
+    hash ^= (size_t)obj.subresourceRange.layerCount;
+    hash *= FNV_pRIME;
+
+    hash ^= (size_t)obj.subresourceRange.aspectMask; // Add aspectMask, it's in the comparison but was missing from hash
+    hash *= FNV_pRIME;
+
+    hash ^= (size_t)obj.viewType;
+    hash *= FNV_pRIME;
+
+    // Hash SlimComponentMapping members portably and efficiently.
+    // Combine the four uint8_t into a single uint32_t.
+    // This is explicitly defined and consistent across different endian systems.
+    uint32_t cmap_combined = (((uint32_t)obj.cmap.r)) |
+                             (((uint32_t)obj.cmap.g) << 8) |
+                             (((uint32_t)obj.cmap.b) << 16) |
+                             (((uint32_t)obj.cmap.a) << 24);
+    hash ^= (size_t)cmap_combined;
+    hash *= FNV_pRIME;
+
+    return hash;
+}
+
+DEFINE_GENERIC_HASH_MAP(static inline, Texture_ViewCache, SlimViewCreateInfo, WGPUTextureView, Hash_FormatAspectAndSR, Compare_FormatAspectAndSR, (SlimViewCreateInfo){VK_FORMAT_UNDEFINED});
 typedef struct WGPUTextureImpl{
     VkImage image;
     VkFormat format;
@@ -616,6 +736,7 @@ typedef struct WGPUTextureImpl{
     uint32_t width, height, depthOrArrayLayers;
     uint32_t mipLevels;
     uint32_t sampleCount;
+    Texture_ViewCache viewCache;
 }WGPUTextureImpl;
 typedef struct WGPUShaderModuleImpl{
     refcount_type refCount;
@@ -759,7 +880,6 @@ typedef struct WGPUSurfaceImpl{
     VkFormat swapchainImageFormat;
     VkColorSpaceKHR swapchainColorSpace;
     WGPUTexture* images;
-    WGPUTextureView* imageViews;
     VkSemaphore* presentSemaphores;
 }WGPUSurfaceImpl;
 
@@ -1292,21 +1412,6 @@ static inline VkFormat toVulkanPixelFormat(WGPUTextureFormat format) {
     }
 }
 
-static inline PixelFormat fromWGPUPixelFormat(WGPUTextureFormat format) {
-    switch (format) {
-        case WGPUTextureFormat_RGBA8Unorm:      return RGBA8;
-        case WGPUTextureFormat_RGBA8UnormSrgb:  return RGBA8_Srgb;
-        case WGPUTextureFormat_BGRA8Unorm:      return BGRA8;
-        case WGPUTextureFormat_BGRA8UnormSrgb:  return BGRA8_Srgb;
-        case WGPUTextureFormat_RGBA16Float:     return RGBA16F;
-        case WGPUTextureFormat_RGBA32Float:     return RGBA32F;
-        case WGPUTextureFormat_Depth24Plus:     return Depth24;
-        case WGPUTextureFormat_Depth32Float:    return Depth32;
-        default:
-            rg_unreachable();
-    }
-    return (PixelFormat)(-1); // Unreachable but silences compiler warnings
-}
 static inline VkSamplerAddressMode toVulkanAddressMode(WGPUAddressMode mode){
     switch(mode){
         case WGPUAddressMode_ClampToEdge: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
@@ -1547,18 +1652,18 @@ static inline VkCullModeFlags toVulkanCullMode(WGPUCullMode cm){
     }
 }
 
-static inline VkPrimitiveTopology toVulkanPrimitive(PrimitiveType type){
-    switch(type){
-        case RL_TRIANGLE_STRIP: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
-        case RL_TRIANGLES: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-        case RL_LINES: return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-        case RL_POINTS: return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-        case RL_QUADS:
-            //rassert(false, "Quads are not a primitive type");
-        default:
-            rg_unreachable();
-    }
-}
+//static inline VkPrimitiveTopology toVulkanPrimitive(PrimitiveType type){
+//    switch(type){
+//        case RL_TRIANGLE_STRIP: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+//        case RL_TRIANGLES: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+//        case RL_LINES: return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+//        case RL_POINTS: return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+//        case RL_QUADS:
+//            //rassert(false, "Quads are not a primitive type");
+//        default:
+//            rg_unreachable();
+//    }
+//}
 static inline VkPrimitiveTopology toVulkanPrimitiveTopology(WGPUPrimitiveTopology type){
     switch(type){
         case WGPUPrimitiveTopology_PointList: return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
@@ -1672,39 +1777,39 @@ static inline VkFormat toVulkanVertexFormat(WGPUVertexFormat vf) {
         return VK_FORMAT_UNDEFINED; // Default fallback
     }
 }
-static inline VkDescriptorType toVulkanResourceType(uniform_type type) {
-    switch (type) {
-        case storage_texture2d:       [[fallthrough]];
-        case storage_texture2d_array: [[fallthrough]];
-        case storage_texture3d: 
-            return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        
-        case storage_buffer:
-            return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        case uniform_buffer:
-            return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-
-        
-        case texture2d:       [[fallthrough]];
-        case texture2d_array: [[fallthrough]];
-        case texture3d:
-            return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-
-
-        case texture_sampler:
-            return VK_DESCRIPTOR_TYPE_SAMPLER;
-        case acceleration_structure:
-            return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
-        case combined_image_sampler:
-            return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        case uniform_type_undefined: [[fallthrough]];
-        case uniform_type_force32:   [[fallthrough]];
-        case uniform_type_enumcount: [[fallthrough]];
-        default:
-            rg_unreachable();
-    }
-    rg_unreachable();
-}
+//static inline VkDescriptorType toVulkanResourceType(uniform_type type) {
+//    switch (type) {
+//        case storage_texture2d:       [[fallthrough]];
+//        case storage_texture2d_array: [[fallthrough]];
+//        case storage_texture3d: 
+//            return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+//        
+//        case storage_buffer:
+//            return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+//        case uniform_buffer:
+//            return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+//
+//        
+//        case texture2d:       [[fallthrough]];
+//        case texture2d_array: [[fallthrough]];
+//        case texture3d:
+//            return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+//
+//
+//        case texture_sampler:
+//            return VK_DESCRIPTOR_TYPE_SAMPLER;
+//        case acceleration_structure:
+//            return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+//        case combined_image_sampler:
+//            return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+//        case uniform_type_undefined: [[fallthrough]];
+//        case uniform_type_force32:   [[fallthrough]];
+//        case uniform_type_enumcount: [[fallthrough]];
+//        default:
+//            rg_unreachable();
+//    }
+//    rg_unreachable();
+//}
 
 static inline VkVertexInputRate toVulkanVertexStepMode(WGPUVertexStepMode vsm) {
     switch (vsm) {
@@ -1874,33 +1979,33 @@ static inline VkBlendOp toVulkanBlendOperation(WGPUBlendOperation bo) {
     }
 }
 
-static inline WGPUTextureFormat toWGPUPixelFormat(PixelFormat format) {
-    switch (format) {
-        case RGBA8:
-            return WGPUTextureFormat_RGBA8Unorm;
-        case RGBA8_Srgb:
-            return WGPUTextureFormat_RGBA8UnormSrgb;
-        case BGRA8:
-            return WGPUTextureFormat_BGRA8Unorm;
-        case BGRA8_Srgb:
-            return WGPUTextureFormat_BGRA8UnormSrgb;
-        case RGBA16F:
-            return WGPUTextureFormat_RGBA16Float;
-        case RGBA32F:
-            return WGPUTextureFormat_RGBA32Float;
-        case Depth24:
-            return WGPUTextureFormat_Depth24Plus;
-        case Depth32:
-            return WGPUTextureFormat_Depth32Float;
-        case GRAYSCALE:
-            assert(0 && "GRAYSCALE format not supported in Vulkan.");
-        case RGB8:
-            assert(0 && "RGB8 format not supported in Vulkan.");
-        default:
-            rg_unreachable();
-    }
-    return WGPUTextureFormat_Undefined;
-}
+//static inline WGPUTextureFormat toWGPUPixelFormat(PixelFormat format) {
+//    switch (format) {
+//        case RGBA8:
+//            return WGPUTextureFormat_RGBA8Unorm;
+//        case RGBA8_Srgb:
+//            return WGPUTextureFormat_RGBA8UnormSrgb;
+//        case BGRA8:
+//            return WGPUTextureFormat_BGRA8Unorm;
+//        case BGRA8_Srgb:
+//            return WGPUTextureFormat_BGRA8UnormSrgb;
+//        case RGBA16F:
+//            return WGPUTextureFormat_RGBA16Float;
+//        case RGBA32F:
+//            return WGPUTextureFormat_RGBA32Float;
+//        case Depth24:
+//            return WGPUTextureFormat_Depth24Plus;
+//        case Depth32:
+//            return WGPUTextureFormat_Depth32Float;
+//        case GRAYSCALE:
+//            assert(0 && "GRAYSCALE format not supported in Vulkan.");
+//        case RGB8:
+//            assert(0 && "RGB8 format not supported in Vulkan.");
+//        default:
+//            rg_unreachable();
+//    }
+//    return WGPUTextureFormat_Undefined;
+//}
 
 static inline VkDescriptorType extractVkDescriptorType(const WGPUBindGroupLayoutEntry* entry){
     if(entry->buffer.type == WGPUBufferBindingType_Storage){

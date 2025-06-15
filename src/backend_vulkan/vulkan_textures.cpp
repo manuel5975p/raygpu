@@ -325,15 +325,17 @@ extern "C" Image LoadImageFromTextureEx(WGPUTexture tex, uint32_t mipLevel){
 
     wgpuCommandEncoderCopyTextureToBuffer(commandEncoder, &source, &destination, &copySize);
     WGPUCommandBuffer cbuffer = wgpuCommandEncoderFinish(commandEncoder, NULL);
-    g_vulkanstate.device->functions.vkQueueWaitIdle (g_vulkanstate.queue->graphicsQueue);
-    g_vulkanstate.device->functions.vkDeviceWaitIdle(g_vulkanstate.device->device);
+    wgpuCommandEncoderRelease(commandEncoder);
+    //g_vulkanstate.device->functions.vkQueueWaitIdle (g_vulkanstate.queue->graphicsQueue);
+    //g_vulkanstate.device->functions.vkDeviceWaitIdle(g_vulkanstate.device->device);
     wgpuQueueSubmit(g_vulkanstate.queue, 1, &cbuffer);
-    g_vulkanstate.device->functions.vkQueueWaitIdle (g_vulkanstate.queue->graphicsQueue);
-    g_vulkanstate.device->functions.vkDeviceWaitIdle(g_vulkanstate.device->device);
+    wgpuCommandBufferRelease(cbuffer);
+    //g_vulkanstate.device->functions.vkQueueWaitIdle (g_vulkanstate.queue->graphicsQueue);
+    //g_vulkanstate.device->functions.vkDeviceWaitIdle(g_vulkanstate.device->device);
     void* mapPtr = nullptr;
     wgpuBufferMap(stagingBuffer, WGPUMapMode_Read, 0, bdesc.size, &mapPtr);
-    g_vulkanstate.device->functions.vkQueueWaitIdle (g_vulkanstate.queue->graphicsQueue);
-    g_vulkanstate.device->functions.vkDeviceWaitIdle(g_vulkanstate.device->device);
+    //g_vulkanstate.device->functions.vkQueueWaitIdle (g_vulkanstate.queue->graphicsQueue);
+    //g_vulkanstate.device->functions.vkDeviceWaitIdle(g_vulkanstate.device->device);
     const BGRA8Color* colors = (BGRA8Color*)mapPtr;
     if(mapPtr){
         ret.data = std::calloc(bufferSize, 1);

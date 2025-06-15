@@ -701,6 +701,12 @@ typedef struct WGPUSurfaceSourceWaylandSurface {
     void* surface;
 } WGPUSurfaceSourceWaylandSurface;
 
+typedef struct WGPUSurfaceSourceWindowsHWND {
+    WGPUChainedStruct chain;
+    void * hinstance;
+    void * hwnd;
+} WGPUSurfaceSourceWindowsHWND;
+
 typedef struct WGPUSurfaceDescriptor{
     WGPUChainedStruct* nextInChain;
     WGPUStringView label;
@@ -1408,11 +1414,18 @@ typedef struct WGPUSurfaceConfiguration {
     WGPUCompositeAlphaMode alphaMode; // Composite alpha mode
     WGPUPresentMode presentMode;          // Present mode for image presentation
 } WGPUSurfaceConfiguration;
+typedef enum WGPUAdapterType {
+    WGPUAdapterType_DiscreteGPU = 0x00000001,
+    WGPUAdapterType_IntegratedGPU = 0x00000002,
+    WGPUAdapterType_CPU = 0x00000003,
+    WGPUAdapterType_Unknown = 0x00000004,
+    WGPUAdapterType_Force32 = 0x7FFFFFFF
+} WGPUAdapterType;
 
 typedef void (*WGPURequestAdapterCallback)(WGPURequestAdapterStatus status, WGPUAdapter adapter, struct WGPUStringView message, void* userdata1, void* userdata2);
 typedef struct WGPURequestAdapterCallbackInfo {
     WGPUChainedStruct * nextInChain;
-    int mode;
+    WGPUCallbackMode mode;
     WGPURequestAdapterCallback callback;
     void* userdata1;
     void* userdata2;
@@ -1520,7 +1533,6 @@ void wgpuComputePassEncoderDispatchWorkgroups (WGPUComputePassEncoder cpe, uint3
 void wgpuComputePassEncoderRelease            (WGPUComputePassEncoder cpenc);
 
 void wgpuSurfaceGetCurrentTexture             (WGPUSurface surface, WGPUSurfaceTexture * surfaceTexture);
-WGPUTextureView wgpuSurfaceGetViewForTexture             (WGPUSurface surface, WGPUTexture surfaceRenderTarget);
 void wgpuSurfacePresent                       (WGPUSurface surface);
 
 WGPURaytracingPassEncoder wgpuCommandEncoderBeginRaytracingPass(WGPUCommandEncoder enc);

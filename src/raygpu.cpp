@@ -1200,33 +1200,7 @@ Shader LoadShader(const char *vsFileName, const char *fsFileName){
 
     return shader;
 }
-static inline WGPUTextureFormat toWGPUPixelFormat(PixelFormat format) {
-    switch (format) {
-        case RGBA8:
-            return WGPUTextureFormat_RGBA8Unorm;
-        case RGBA8_Srgb:
-            return WGPUTextureFormat_RGBA8UnormSrgb;
-        case BGRA8:
-            return WGPUTextureFormat_BGRA8Unorm;
-        case BGRA8_Srgb:
-            return WGPUTextureFormat_BGRA8UnormSrgb;
-        case RGBA16F:
-            return WGPUTextureFormat_RGBA16Float;
-        case RGBA32F:
-            return WGPUTextureFormat_RGBA32Float;
-        case Depth24:
-            return WGPUTextureFormat_Depth24Plus;
-        case Depth32:
-            return WGPUTextureFormat_Depth32Float;
-        case GRAYSCALE:
-            assert(0 && "GRAYSCALE format not supported in Vulkan.");
-        case RGB8:
-            assert(0 && "RGB8 format not supported in Vulkan.");
-        default:
-            rg_unreachable();
-    }
-    return WGPUTextureFormat_Undefined;
-}
+
 extern "C" FullSurface CreateHeadlessSurface(uint32_t width, uint32_t height, PixelFormat format){
     FullSurface ret zeroinit;
     ret.headless = 1;

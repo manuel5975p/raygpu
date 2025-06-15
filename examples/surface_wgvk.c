@@ -17,7 +17,7 @@ INCBIN(simple_shader, "../resources/simple_shader.wgsl");
 #  ifdef _GLFW_COCOA
 #    define GLFW_EXPOSE_NATIVE_COCOA
 #  endif
-#  ifdef _GLFW_WIN32
+#  ifdef _WIN32
 #    define GLFW_EXPOSE_NATIVE_WIN32
 #  endif
 #endif // __EMSCRIPTEN__
@@ -98,7 +98,7 @@ int main(){
         #ifdef NDEBUG
         NULL
         #else
-        &lsel.chain
+        NULL//&lsel.chain
         #endif
         ,
         .capabilities = {0}
@@ -140,6 +140,16 @@ int main(){
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     GLFWwindow* window = glfwCreateWindow(800, 600, "WGVK Window", NULL, NULL);
     glfwSetKeyCallback(window, keyfunc);
+    #ifdef _WIN32
+    WGPUSurfaceSourceWindowsHWND surfaceChain = {
+        .chain = {
+            .sType = WGPUSType_SurfaceSourceWindowsHWND,
+            .next = NULL
+        },
+        .hwnd = glfwGetWin32Window(window),
+        .hinstance = GetModuleHandle(nullptr)
+    };
+    #else    
     //WGPUSurfaceSourceXlibWindow surfaceChain;
     //Display* x11_display = glfwGetX11Display();
     //Window x11_window = glfwGetX11Window(window);
@@ -155,14 +165,21 @@ int main(){
     surfaceChain.chain.next = NULL;
     surfaceChain.display = native_display;
     surfaceChain.surface = native_surface;
-
+    #endif
     WGPUSurfaceDescriptor surfaceDescriptor;
     surfaceDescriptor.nextInChain = &surfaceChain.chain;
     surfaceDescriptor.label = (WGPUStringView){ NULL, WGPU_STRLEN };
     int width, height;
     glfwGetWindowSize(window, &width, &height);
-    WGPUPresentMode desiredPresentMode = WGPUPresentMode_Fifo;
+    WGPUSurfaceCapabilities caps = {0};
+    WGPUPresentMode desiredPresentMode = WGPUPresentMode_Mailbox;
     WGPUSurface surface = wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
+
+    wgpuSurfaceGetCapabilities(surface, requestedAdapter, &caps);
+    for(uint32_t i = 0;i < caps.presentModeCount;i++){
+        printf("Supports present mode: %d, ", caps.presentModes[i]);
+    }
+    printf("\n");
     wgpuSurfaceConfigure(surface, &(const WGPUSurfaceConfiguration){
         .alphaMode = WGPUCompositeAlphaMode_Opaque,
         .presentMode = desiredPresentMode,
@@ -272,17 +289,16 @@ int main(){
             });
             wgpuSurfaceGetCurrentTexture(surface, &surfaceTexture);
         }
-        WGPUTextureView surfaceView = wgpuSurfaceGetViewForTexture(surface, surfaceTexture.texture);
-        //WGPUTextureView surfaceView = wgpuTextureCreateView(surfaceTexture.texture, &(const WGPUTextureViewDescriptor){
-        //    .baseArrayLayer = 0,
-        //    .arrayLayerCount = 1,
-        //    .baseMipLevel = 0,
-        //    .mipLevelCount = 1,
-        //    .format = WGPUTextureFormat_BGRA8Unorm,
-        //    .dimension = WGPUTextureViewDimension_2D,
-        //    .usage = WGPUTextureUsage_RenderAttachment,
-        //    .aspect = WGPUTextureAspect_All,
-        //});
+        WGPUTextureView surfaceView = wgpuTextureCreateView(surfaceTexture.texture, &(const WGPUTextureViewDescriptor){
+            .baseArrayLayer = 0,
+            .arrayLayerCount = 1,
+            .baseMipLevel = 0,
+            .mipLevelCount = 1,
+            .format = WGPUTextureFormat_BGRA8Unorm,
+            .dimension = WGPUTextureViewDimension_2D,
+            .usage = WGPUTextureUsage_RenderAttachment,
+            .aspect = WGPUTextureAspect_All,
+        });
         WGPUCommandEncoder cenc = wgpuDeviceCreateCommandEncoder(device, NULL);
         WGPURenderPassColorAttachment colorAttachment = {
             .clearValue = (WGPUColor){0.5,0.2,0,1},
@@ -306,7 +322,7 @@ int main(){
         wgpuCommandEncoderRelease(cenc);
         wgpuCommandBufferRelease(cBuffer);
         wgpuRenderPassEncoderRelease(rpenc);
-        //wgpuTextureViewRelease(surfaceView);
+        wgpuTextureViewRelease(surfaceView);
         wgpuSurfacePresent(surface);
         ++frameCount;
         uint64_t nextStamp = nanoTime();
