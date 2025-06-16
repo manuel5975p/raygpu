@@ -19,7 +19,7 @@ void BufferData(DescribedBuffer* buffer, void* data, size_t size){
         void* udata = 0;
         VmaAllocationInfo info zeroinit;
 
-        vmaGetAllocationInfo(handle->device->allocator, handle->allocation, &info);
+        vmaGetAllocationInfo(handle->device->allocator, handle->vmaAllocation, &info);
 
         VkDeviceMemory baseMemory = info.deviceMemory;
         uint64_t baseOffset = info.offset;
@@ -1017,7 +1017,7 @@ extern "C" void PrepareFrameGlobals(){
         WGPUBufferVector_pop_back(&cache.unusedBatchBuffers);
         WGPUBufferVector_push_back(&cache.usedBatchBuffers, vbo_buf);
         VmaAllocationInfo allocationInfo zeroinit;
-        vmaGetAllocationInfo(g_vulkanstate.device->allocator, vbo_buf->allocation, &allocationInfo);
+        vmaGetAllocationInfo(g_vulkanstate.device->allocator, vbo_buf->vmaAllocation, &allocationInfo);
         wgpuBufferMap(vbo_buf, WGPUMapMode_Write, 0, allocationInfo.size, (void**)&vboptr_base);
         vboptr = vboptr_base;
         wgpuBufferAddRef(vbo_buf);
@@ -1051,7 +1051,7 @@ extern "C" DescribedBuffer* UpdateVulkanRenderbatch(){
         WGPUBufferVector_pop_back(&cache.unusedBatchBuffers);
         WGPUBufferVector_push_back(&cache.usedBatchBuffers, vbo_buf);
         VmaAllocationInfo allocationInfo zeroinit;
-        vmaGetAllocationInfo(g_vulkanstate.device->allocator,vbo_buf->allocation, &allocationInfo);
+        vmaGetAllocationInfo(g_vulkanstate.device->allocator,vbo_buf->vmaAllocation, &allocationInfo);
         wgpuBufferMap(vbo_buf, WGPUMapMode_Write, 0, allocationInfo.size, (void**)&vboptr_base);
         vboptr = vboptr_base;
         wgpuBufferAddRef(vbo_buf);

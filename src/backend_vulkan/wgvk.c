@@ -1210,7 +1210,7 @@ WGPUBuffer wgpuDeviceCreateBuffer(WGPUDevice device, const WGPUBufferDescriptor*
         RL_FREE(wgpuBuffer);
         return NULL;
     }
-    wgpuBuffer->allocation = allocation;
+    wgpuBuffer->vmaAllocation = allocation;
     
     wgpuBuffer->memoryProperties = propertyToFind;
 
@@ -1231,12 +1231,12 @@ void wgpuBufferMap(WGPUBuffer buffer, WGPUMapMode mapmode, size_t offset, size_t
         wgpuFenceRelease(buffer->latestFence);
         buffer->latestFence = NULL;    
     }
-    vmaMapMemory(buffer->device->allocator, buffer->allocation, data);
+    vmaMapMemory(buffer->device->allocator, buffer->vmaAllocation, data);
 }
 
 void wgpuBufferUnmap(WGPUBuffer buffer){
     
-    vmaUnmapMemory(buffer->device->allocator, buffer->allocation);
+    vmaUnmapMemory(buffer->device->allocator, buffer->vmaAllocation);
     //VmaAllocationInfo allocationInfo zeroinit;
     //vmaGetAllocationInfo(buffer->device->allocator, buffer->allocation, &allocationInfo);
     //vkUnmapMemory(buffer->device->device, allocationInfo.deviceMemory);
@@ -1249,7 +1249,7 @@ WGPUFuture wgpuBufferMapAsync(WGPUBuffer buffer, WGPUMapMode mode, size_t offset
 
 size_t wgpuBufferGetSize(WGPUBuffer buffer){
     VmaAllocationInfo info zeroinit;
-    vmaGetAllocationInfo(buffer->device->allocator, buffer->allocation, &info);
+    vmaGetAllocationInfo(buffer->device->allocator, buffer->vmaAllocation, &info);
     return info.size;
 }
 
@@ -3065,7 +3065,7 @@ void wgpuBufferRelease(WGPUBuffer buffer) {
             wgpuFenceRelease(buffer->latestFence);
             buffer->latestFence = NULL;
         }
-        vmaDestroyBuffer(buffer->device->allocator, buffer->buffer, buffer->allocation);
+        vmaDestroyBuffer(buffer->device->allocator, buffer->buffer, buffer->vmaAllocation);
         RL_FREE(buffer);
     }
 }
@@ -4894,10 +4894,120 @@ WGPUFuture wgpuShaderModuleGetReflectionInfo(WGPUShaderModule shaderModule, WGPU
 }
 
 
+// =============================================================================
+// Public API Implementations
+// =============================================================================
 
+void allocator_init(wgvkAllocator* allocator) {
+    // A '0' bit means "free", so zeroing out the entire structure marks all
+    // space as available.
+    memset(allocator, 0, sizeof(wgvkAllocator));
+}
 
+size_t allocator_alloc(wgvkAllocator* allocator, size_t size) {
+    if (size == 0) {
+        return 0;
+    }
+    if (size > TOTAL_VIRTUAL_SIZE) {
+        return OUT_OF_SPACE;
+    }
 
+    // Calculate how many contiguous blocks (bits) we need.
+    const size_t num_blocks = (size + ALLOCATOR_GRANULARITY - 1) / ALLOCATOR_GRANULARITY;
 
+    size_t consecutive_free_blocks = 0;
+    size_t start_block_index = 0;
+
+    // First-fit search: Linearly scan the level2 bitmap for enough contiguous free blocks.
+    for (size_t i = 0; i < TOTAL_BLOCKS; ++i) {
+        size_t l2_word_idx = i / BITS_PER_WORD;
+        size_t bit_idx = i % BITS_PER_WORD;
+
+        // Check if the bit is free ('0')
+        if (!((allocator->level2[l2_word_idx] >> bit_idx) & 1ULL)) {
+            if (consecutive_free_blocks == 0) {
+                start_block_index = i; // Mark the beginning of a potential free chunk
+            }
+            consecutive_free_blocks++;
+        } else {
+            // This block is taken, so reset our counter
+            consecutive_free_blocks = 0;
+        }
+
+        // If we have found enough contiguous blocks, we're done searching.
+        if (consecutive_free_blocks >= num_blocks) {
+            // Mark the blocks as allocated in level2 bitmap
+            for (size_t j = 0; j < num_blocks; ++j) {
+                size_t current_block = start_block_index + j;
+                size_t current_l2_word_idx = current_block / BITS_PER_WORD;
+                size_t current_bit_idx = current_block % BITS_PER_WORD;
+                allocator->level2[current_l2_word_idx] |= (1ULL << current_bit_idx);
+            }
+
+            // Propagate the "in-use" status up the tree.
+            // We only need to do this for each L2 word we touched.
+            size_t first_touched_l2_word = start_block_index / BITS_PER_WORD;
+            size_t last_touched_l2_word = (start_block_index + num_blocks - 1) / BITS_PER_WORD;
+
+            for (size_t l2_idx = first_touched_l2_word; l2_idx <= last_touched_l2_word; ++l2_idx) {
+                size_t l1_idx = l2_idx / L1_SIZE;
+                size_t l1_bit = l2_idx % L1_SIZE;
+                size_t l0_bit = l1_idx % L1_SIZE;
+
+                allocator->level1[l1_idx] |= (1ULL << l1_bit);
+                allocator->level0 |= (1ULL << l0_bit);
+            }
+
+            // Return the virtual address (offset)
+            return start_block_index * ALLOCATOR_GRANULARITY;
+        }
+    }
+
+    // If we get here, we scanned the whole bitmap and found no space.
+    return OUT_OF_SPACE;
+}
+
+void allocator_free(wgvkAllocator* allocator, size_t offset, size_t size) {
+    if (size == 0 || offset % ALLOCATOR_GRANULARITY != 0) {
+        // Invalid free operation (zero size or misaligned offset)
+        return;
+    }
+
+    const size_t num_blocks = (size + ALLOCATOR_GRANULARITY - 1) / ALLOCATOR_GRANULARITY;
+    const size_t start_block_index = offset / ALLOCATOR_GRANULARITY;
+    
+    // Clear the bits in the level2 bitmap
+    for (size_t i = 0; i < num_blocks; ++i) {
+        size_t current_block = start_block_index + i;
+        if (current_block >= TOTAL_BLOCKS) break; // Bounds check
+
+        size_t l2_word_idx = current_block / BITS_PER_WORD;
+        size_t bit_idx = current_block % BITS_PER_WORD;
+        allocator->level2[l2_word_idx] &= ~(1ULL << bit_idx);
+    }
+    
+    // Update summary tree. If a word at a lower level becomes all-zero,
+    // we can clear the corresponding summary bit in the level above.
+    size_t first_touched_l2_word = start_block_index / BITS_PER_WORD;
+    size_t last_touched_l2_word = (start_block_index + num_blocks - 1) / BITS_PER_WORD;
+    
+    for (size_t l2_idx = first_touched_l2_word; l2_idx <= last_touched_l2_word; ++l2_idx) {
+        if (l2_idx >= L2_SIZE) continue;
+
+        // If this level2 word is now empty...
+        if (allocator->level2[l2_idx] == 0) {
+            size_t l1_idx = l2_idx / L1_SIZE;
+            size_t l1_bit = l2_idx % L1_SIZE;
+            allocator->level1[l1_idx] &= ~(1ULL << l1_bit);
+
+            // ...check if its parent level1 word is now empty.
+            if (allocator->level1[l1_idx] == 0) {
+                size_t l0_bit = l1_idx % L1_SIZE;
+                allocator->level0 &= ~(1ULL << l0_bit);
+            }
+        }
+    }
+}
 
 
 RGAPI void releaseAllAndClear(ResourceUsage* resourceUsage){
