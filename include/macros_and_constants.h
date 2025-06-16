@@ -115,11 +115,17 @@ constexpr float RAD2DEG = 180.0 / M_PI;
     #define RGAPICXX extern "C"
 #elif defined(_WIN32)
     #if defined(RG_EXPORTS) && RG_EXPORTS != 0
-        #define RGAPI __declspec(dllexport)
-        #define RGAPICXX extern "C" __declspec(dllexport)
+        #ifdef __cplusplus
+            #define RGAPI __declspec(dllexport)
+        #else
+            #define RGAPI extern "C" __declspec(dllexport)
+        #endif
     #else
-        #define RGAPI __declspec(dllimport)
-        #define RGAPICXX extern "C" __declspec(dllimport)
+        #ifdef __cplusplus
+            #define RGAPI __declspec(dllimport)
+        #else
+            #define RGAPI extern "C" __declspec(dllimport)
+        #endif
     #endif
 #else
     #ifdef __cplusplus
@@ -127,7 +133,6 @@ constexpr float RAD2DEG = 180.0 / M_PI;
     #else
         #define RGAPI __attribute__((visibility("default")))
     #endif
-    #define RGAPICXX extern "C" __attribute__((visibility("default")))
 #endif
 
 

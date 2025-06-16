@@ -1064,18 +1064,6 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
     for(uint32_t i = 0;i < memoryProperties.memoryHeapCount;i++){
         heapsizes[i] = limit;
     }
-    VmaAllocatorCreateInfo aci = {
-        .instance = adapter->instance->instance,
-        .physicalDevice = adapter->physicalDevice,
-        .device = retDevice->device,
-        .preferredLargeHeapBlockSize = 1 << 15,
-        .pHeapSizeLimit = heapsizes
-        #if VULKAN_ENABLE_RAYTRACING == 1
-       ,.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
-        #endif
-    };
-
-    
 
 
     VmaDeviceMemoryCallbacks callbacks = {
@@ -1088,23 +1076,19 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
         //    TRACELOG(WGPU_LOG_WARNING, "Freeing %llu of memory type %u", size, type);
         //}
     };
-    aci.pDeviceMemoryCallbacks = &callbacks;
-    VmaVulkanFunctions vmaVulkanFunctions
-    // = {
-    //    .vkAllocateMemory                    = retDevice->functions.vkAllocateMemory,
-    //    .vkFreeMemory                        = retDevice->functions.vkFreeMemory,
-    //    .vkCreateBuffer                      = retDevice->functions.vkCreateBuffer,
-    //    .vkCreateImage                       = retDevice->functions.vkCreateImage,
-    //    .vkDestroyBuffer                     = retDevice->functions.vkDestroyBuffer,
-    //    .vkDestroyImage                      = retDevice->functions.vkDestroyImage,
-    //    .vkGetDeviceBufferMemoryRequirements = retDevice->functions.vkGetDeviceBufferMemoryRequirements,
-    //    .vkGetDeviceImageMemoryRequirements  = retDevice->functions.vkGetDeviceImageMemoryRequirements,
-    //    .vkBindBufferMemory                  = retDevice->functions.vkBindBufferMemory,
-    //    .vkCmdCopyBuffer                     = retDevice->functions.vkCmdCopyBuffer,
-    //    .vkGetInstanceProcAddr               = vkGetInstanceProcAddr,
-    //    .vkGetDeviceProcAddr                 = vkGetDeviceProcAddr
-    //}
-     = {0};
+    VmaVulkanFunctions vmaVulkanFunctions = {0};
+    
+    VmaAllocatorCreateInfo aci = {
+        .instance = adapter->instance->instance,
+        .physicalDevice = adapter->physicalDevice,
+        .device = retDevice->device,
+        .preferredLargeHeapBlockSize = 1 << 15,
+        .pHeapSizeLimit = heapsizes,
+        .pDeviceMemoryCallbacks = &callbacks
+        #if VULKAN_ENABLE_RAYTRACING == 1
+       ,.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
+        #endif
+    };
     vmaImportVulkanFunctionsFromVolk(&aci, &vmaVulkanFunctions);
     aci.pVulkanFunctions = &vmaVulkanFunctions;
     VkResult allocatorCreateResult = vmaCreateAllocator(&aci, &retDevice->allocator);
@@ -1195,18 +1179,26 @@ WGPUBuffer wgpuDeviceCreateBuffer(WGPUDevice device, const WGPUBufferDescriptor*
         //propertyToFind = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
         propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
     }
-    VmaAllocationCreateInfo vallocInfo zeroinit;
-    vallocInfo.preferredFlags = propertyToFind;
 
+
+    if(false){
+        wgvkAllocation allocation;
+        VkMemoryRequirements requirements = {0};
+        device->functions.vkGetBufferMemoryRequirements(device->device, wgpuBuffer->buffer, &requirements);
+        wgvkAllocator_alloc(&device->builtinAllocator, &requirements, propertyToFind, &allocation);
+    }
+
+
+    VmaAllocationCreateInfo vallocInfo = {
+        .preferredFlags = propertyToFind,
+    };
     VmaAllocation allocation zeroinit;
     VmaAllocationInfo allocationInfo zeroinit;
-
     VkResult vmabufferCreateResult = vmaCreateBuffer(device->allocator, &bufferDesc, &vallocInfo, &wgpuBuffer->buffer, &allocation, &allocationInfo);
 
     
     if(vmabufferCreateResult != VK_SUCCESS){
         TRACELOG(WGPU_LOG_ERROR, "Could not allocate buffer: %s", vkErrorString(vmabufferCreateResult));
-        //wgpuBuffer->~WGPUBufferImpl();
         RL_FREE(wgpuBuffer);
         return NULL;
     }
@@ -4876,8 +4868,6 @@ static void wgpuShaderModuleGetReflectionInfo_sync(void* userdata_){
     
 }
 
-
-
 WGPUFuture wgpuShaderModuleGetReflectionInfo(WGPUShaderModule shaderModule, WGPUReflectionInfoCallbackInfo callbackInfo){
     struct wgpuShaderModuleGetReflectionInfo_sync_userdata* udff = RL_CALLOC(1, sizeof(struct wgpuShaderModuleGetReflectionInfo_sync_userdata));
     WGPUInstance instance = shaderModule->device->adapter->instance;
@@ -4895,119 +4885,300 @@ WGPUFuture wgpuShaderModuleGetReflectionInfo(WGPUShaderModule shaderModule, WGPU
 
 
 // =============================================================================
-// Public API Implementations
+// Allocator implementation
 // =============================================================================
 
-void allocator_init(wgvkAllocator* allocator) {
-    // A '0' bit means "free", so zeroing out the entire structure marks all
-    // space as available.
-    memset(allocator, 0, sizeof(wgvkAllocator));
+
+
+
+
+static void allocator_destroy(VirtualAllocator* allocator) {
+    if (!allocator) return;
+    free(allocator->level0);
+    free(allocator->level1);
+    free(allocator->level2);
+    memset(allocator, 0, sizeof(VirtualAllocator));
 }
 
-size_t allocator_alloc(wgvkAllocator* allocator, size_t size) {
-    if (size == 0) {
-        return 0;
-    }
-    if (size > TOTAL_VIRTUAL_SIZE) {
-        return OUT_OF_SPACE;
-    }
+static bool allocator_create(VirtualAllocator* allocator, size_t size) {
+    memset(allocator, 0, sizeof(VirtualAllocator));
+    allocator->size_in_bytes = size;
+    allocator->total_blocks = size / ALLOCATOR_GRANULARITY;
+    allocator->l2_word_count = (allocator->total_blocks + BITS_PER_WORD - 1) / BITS_PER_WORD;
+    allocator->l1_word_count = (allocator->l2_word_count + BITS_PER_WORD - 1) / BITS_PER_WORD;
+    allocator->l0_word_count = (allocator->l1_word_count + BITS_PER_WORD - 1) / BITS_PER_WORD;
 
-    // Calculate how many contiguous blocks (bits) we need.
+    allocator->level2 = calloc(allocator->l2_word_count, sizeof(uint64_t));
+    allocator->level1 = calloc(allocator->l1_word_count, sizeof(uint64_t));
+    allocator->level0 = calloc(allocator->l0_word_count, sizeof(uint64_t));
+
+    if (!allocator->level2 || !allocator->level1 || !allocator->level0) {
+        allocator_destroy(allocator);
+        return false;
+    }
+    return true;
+}
+
+static size_t allocator_alloc(VirtualAllocator* allocator, size_t size, size_t alignment) {
+    if (size == 0) return 0;
+    if (size > allocator->size_in_bytes) return OUT_OF_SPACE;
+
     const size_t num_blocks = (size + ALLOCATOR_GRANULARITY - 1) / ALLOCATOR_GRANULARITY;
 
-    size_t consecutive_free_blocks = 0;
-    size_t start_block_index = 0;
-
-    // First-fit search: Linearly scan the level2 bitmap for enough contiguous free blocks.
-    for (size_t i = 0; i < TOTAL_BLOCKS; ++i) {
+    for (size_t i = 0; i < allocator->total_blocks;) {
         size_t l2_word_idx = i / BITS_PER_WORD;
         size_t bit_idx = i % BITS_PER_WORD;
-
-        // Check if the bit is free ('0')
-        if (!((allocator->level2[l2_word_idx] >> bit_idx) & 1ULL)) {
-            if (consecutive_free_blocks == 0) {
-                start_block_index = i; // Mark the beginning of a potential free chunk
-            }
-            consecutive_free_blocks++;
-        } else {
-            // This block is taken, so reset our counter
-            consecutive_free_blocks = 0;
+        
+        if (((allocator->level2[l2_word_idx] >> bit_idx) & 1ULL)) {
+            i++;
+            continue;
         }
 
-        // If we have found enough contiguous blocks, we're done searching.
-        if (consecutive_free_blocks >= num_blocks) {
-            // Mark the blocks as allocated in level2 bitmap
+        size_t offset = i * ALLOCATOR_GRANULARITY;
+        size_t aligned_offset = (offset + alignment - 1) & ~(alignment - 1);
+        if (aligned_offset != offset) {
+            i = aligned_offset / ALLOCATOR_GRANULARITY;
+            continue;
+        }
+
+        bool possible = true;
+        for (size_t j = 0; j < num_blocks; j++) {
+            size_t block_to_check = i + j;
+            if (block_to_check >= allocator->total_blocks) {
+                possible = false;
+                break;
+            }
+            size_t check_l2_word = block_to_check / BITS_PER_WORD;
+            size_t check_bit_idx = block_to_check % BITS_PER_WORD;
+            if ((allocator->level2[check_l2_word] >> check_bit_idx) & 1ULL) {
+                i = block_to_check + 1;
+                possible = false;
+                break;
+            }
+        }
+
+        if (possible) {
+            size_t start_block_index = i;
             for (size_t j = 0; j < num_blocks; ++j) {
                 size_t current_block = start_block_index + j;
                 size_t current_l2_word_idx = current_block / BITS_PER_WORD;
                 size_t current_bit_idx = current_block % BITS_PER_WORD;
                 allocator->level2[current_l2_word_idx] |= (1ULL << current_bit_idx);
             }
+             size_t first_l2 = start_block_index / BITS_PER_WORD;
+             size_t last_l2 = (start_block_index + num_blocks - 1) / BITS_PER_WORD;
+             for(size_t l2_idx = first_l2; l2_idx <= last_l2; ++l2_idx) {
+                if(allocator->level2[l2_idx] != 0) {
+                    size_t l1_idx = l2_idx / BITS_PER_WORD;
+                    size_t l1_bit = l2_idx % BITS_PER_WORD;
+                    allocator->level1[l1_idx] |= (1ULL << l1_bit);
 
-            // Propagate the "in-use" status up the tree.
-            // We only need to do this for each L2 word we touched.
-            size_t first_touched_l2_word = start_block_index / BITS_PER_WORD;
-            size_t last_touched_l2_word = (start_block_index + num_blocks - 1) / BITS_PER_WORD;
-
-            for (size_t l2_idx = first_touched_l2_word; l2_idx <= last_touched_l2_word; ++l2_idx) {
-                size_t l1_idx = l2_idx / L1_SIZE;
-                size_t l1_bit = l2_idx % L1_SIZE;
-                size_t l0_bit = l1_idx % L1_SIZE;
-
-                allocator->level1[l1_idx] |= (1ULL << l1_bit);
-                allocator->level0 |= (1ULL << l0_bit);
-            }
-
-            // Return the virtual address (offset)
+                    if(allocator->level1[l1_idx] != 0) {
+                         size_t l0_idx = l1_idx / BITS_PER_WORD;
+                         size_t l0_bit = l1_idx % BITS_PER_WORD;
+                         allocator->level0[l0_idx] |= (1ULL << l0_bit);
+                    }
+                }
+             }
             return start_block_index * ALLOCATOR_GRANULARITY;
         }
     }
-
-    // If we get here, we scanned the whole bitmap and found no space.
     return OUT_OF_SPACE;
 }
 
-void allocator_free(wgvkAllocator* allocator, size_t offset, size_t size) {
-    if (size == 0 || offset % ALLOCATOR_GRANULARITY != 0) {
-        // Invalid free operation (zero size or misaligned offset)
-        return;
-    }
+
+static void allocator_free(VirtualAllocator* allocator, size_t offset, size_t size) {
+    if (size == 0) return;
 
     const size_t num_blocks = (size + ALLOCATOR_GRANULARITY - 1) / ALLOCATOR_GRANULARITY;
     const size_t start_block_index = offset / ALLOCATOR_GRANULARITY;
-    
-    // Clear the bits in the level2 bitmap
+
+    size_t first_l2_word = start_block_index / BITS_PER_WORD;
+    size_t last_l2_word = (start_block_index + num_blocks - 1) / BITS_PER_WORD;
+
     for (size_t i = 0; i < num_blocks; ++i) {
         size_t current_block = start_block_index + i;
-        if (current_block >= TOTAL_BLOCKS) break; // Bounds check
-
+        if (current_block >= allocator->total_blocks) break;
         size_t l2_word_idx = current_block / BITS_PER_WORD;
         size_t bit_idx = current_block % BITS_PER_WORD;
         allocator->level2[l2_word_idx] &= ~(1ULL << bit_idx);
     }
-    
-    // Update summary tree. If a word at a lower level becomes all-zero,
-    // we can clear the corresponding summary bit in the level above.
-    size_t first_touched_l2_word = start_block_index / BITS_PER_WORD;
-    size_t last_touched_l2_word = (start_block_index + num_blocks - 1) / BITS_PER_WORD;
-    
-    for (size_t l2_idx = first_touched_l2_word; l2_idx <= last_touched_l2_word; ++l2_idx) {
-        if (l2_idx >= L2_SIZE) continue;
 
-        // If this level2 word is now empty...
+    for (size_t l2_idx = first_l2_word; l2_idx <= last_l2_word; ++l2_idx) {
+        if (l2_idx >= allocator->l2_word_count) continue;
         if (allocator->level2[l2_idx] == 0) {
-            size_t l1_idx = l2_idx / L1_SIZE;
-            size_t l1_bit = l2_idx % L1_SIZE;
+            size_t l1_idx = l2_idx / BITS_PER_WORD;
+            size_t l1_bit = l2_idx % BITS_PER_WORD;
             allocator->level1[l1_idx] &= ~(1ULL << l1_bit);
 
-            // ...check if its parent level1 word is now empty.
             if (allocator->level1[l1_idx] == 0) {
-                size_t l0_bit = l1_idx % L1_SIZE;
-                allocator->level0 &= ~(1ULL << l0_bit);
+                size_t l0_idx = l1_idx / BITS_PER_WORD;
+                size_t l0_bit = l1_idx % BITS_PER_WORD;
+                allocator->level0[l0_idx] &= ~(1ULL << l0_bit);
             }
         }
     }
 }
+
+static VkResult wgvkDeviceMemoryPool_create_chunk(WgvkDeviceMemoryPool* pool, size_t size) {
+    if (pool->chunk_count == pool->chunk_capacity) {
+        uint32_t new_capacity = pool->chunk_capacity == 0 ? 4 : pool->chunk_capacity * 2;
+        WgvkMemoryChunk* new_chunks = realloc(pool->chunks, new_capacity * sizeof(WgvkMemoryChunk));
+        if (!new_chunks) return VK_ERROR_OUT_OF_HOST_MEMORY;
+        pool->chunks = new_chunks;
+        pool->chunk_capacity = new_capacity;
+    }
+
+    WgvkMemoryChunk* new_chunk = &pool->chunks[pool->chunk_count];
+    if (!allocator_create(&new_chunk->allocator, size)) {
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
+    }
+
+    VkMemoryAllocateInfo allocInfo = {
+        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+        .pNext = NULL,
+        .allocationSize = size,
+        .memoryTypeIndex = pool->memoryTypeIndex,
+    };
+
+    VkResult result = vkAllocateMemory(pool->device, &allocInfo, NULL, &new_chunk->memory);
+    if (result != VK_SUCCESS) {
+        allocator_destroy(&new_chunk->allocator);
+        return result;
+    }
+
+    pool->chunk_count++;
+    return VK_SUCCESS;
+}
+
+static bool wgvkDeviceMemoryPool_alloc(WgvkDeviceMemoryPool* pool, size_t size, size_t alignment, wgvkAllocation* out_allocation) {
+    for (uint32_t i = 0; i < pool->chunk_count; ++i) {
+        WgvkMemoryChunk* chunk = &pool->chunks[i];
+        size_t offset = allocator_alloc(&chunk->allocator, size, alignment);
+        if (offset != OUT_OF_SPACE) {
+            out_allocation->pool = pool;
+            out_allocation->offset = offset;
+            out_allocation->size = size;
+            out_allocation->chunk_index = i;
+            out_allocation->memory = chunk->memory;
+            return true;
+        }
+    }
+
+    size_t last_chunk_size = pool->chunk_count > 0 ? pool->chunks[pool->chunk_count - 1].allocator.size_in_bytes : MIN_CHUNK_SIZE / 2;
+    size_t new_chunk_size = last_chunk_size * 2;
+    if (size > new_chunk_size) new_chunk_size = size;
+    if (new_chunk_size < MIN_CHUNK_SIZE) new_chunk_size = MIN_CHUNK_SIZE;
+
+    VkResult result = wgvkDeviceMemoryPool_create_chunk(pool, new_chunk_size);
+    if (result != VK_SUCCESS) return false;
+
+    uint32_t new_chunk_index = pool->chunk_count - 1;
+    WgvkMemoryChunk* new_chunk = &pool->chunks[new_chunk_index];
+    size_t offset = allocator_alloc(&new_chunk->allocator, size, alignment);
+
+    if (offset != OUT_OF_SPACE) {
+        out_allocation->pool = pool;
+        out_allocation->offset = offset;
+        out_allocation->size = size;
+        out_allocation->chunk_index = new_chunk_index;
+        out_allocation->memory = new_chunk->memory;
+        return true;
+    }
+    return false;
+}
+
+static void wgvkDeviceMemoryPool_free(const wgvkAllocation* allocation) {
+    if (!allocation || !allocation->pool || allocation->chunk_index >= allocation->pool->chunk_count) {
+        return;
+    }
+    WgvkMemoryChunk* chunk = &allocation->pool->chunks[allocation->chunk_index];
+    allocator_free(&chunk->allocator, allocation->offset, allocation->size);
+}
+
+static void wgvkDeviceMemoryPool_destroy(WgvkDeviceMemoryPool* pool) {
+    if (!pool) return;
+    for (uint32_t i = 0; i < pool->chunk_count; ++i) {
+        WgvkMemoryChunk* chunk = &pool->chunks[i];
+        vkFreeMemory(pool->device, chunk->memory, NULL);
+        allocator_destroy(&chunk->allocator);
+    }
+    free(pool->chunks);
+}
+
+RGAPI VkResult wgvkAllocator_init(WgvkAllocator* allocator, VkPhysicalDevice physicalDevice, VkDevice device) {
+    memset(allocator, 0, sizeof(WgvkAllocator));
+    allocator->device = device;
+    allocator->physicalDevice = physicalDevice;
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &allocator->memoryProperties);
+    return VK_SUCCESS;
+}
+
+RGAPI void wgvkAllocator_destroy(WgvkAllocator* allocator) {
+    if (!allocator) return;
+    for (uint32_t i = 0; i < allocator->pool_count; ++i) {
+        wgvkDeviceMemoryPool_destroy(&allocator->pools[i]);
+    }
+    free(allocator->pools);
+    memset(allocator, 0, sizeof(WgvkAllocator));
+}
+
+RGAPI bool wgvkAllocator_alloc(WgvkAllocator* allocator, const VkMemoryRequirements* requirements, VkMemoryPropertyFlags propertyFlags, wgvkAllocation* out_allocation) {
+    for (uint32_t i = 0; i < allocator->memoryProperties.memoryTypeCount; ++i) {
+        if (!((requirements->memoryTypeBits >> i) & 1)) continue;
+        if ((allocator->memoryProperties.memoryTypes[i].propertyFlags & propertyFlags) != propertyFlags) continue;
+        
+        WgvkDeviceMemoryPool* found_pool = NULL;
+        for (uint32_t j = 0; j < allocator->pool_count; ++j) {
+            if (allocator->pools[j].memoryTypeIndex == i) {
+                found_pool = &allocator->pools[j];
+                break;
+            }
+        }
+        
+        if (found_pool) {
+            if (wgvkDeviceMemoryPool_alloc(found_pool, requirements->size, requirements->alignment, out_allocation)) {
+                return true;
+            }
+        }
+    }
+
+    for (uint32_t i = 0; i < allocator->memoryProperties.memoryTypeCount; ++i) {
+        if (!((requirements->memoryTypeBits >> i) & 1)) continue;
+        if ((allocator->memoryProperties.memoryTypes[i].propertyFlags & propertyFlags) != propertyFlags) continue;
+        
+        if (allocator->pool_count == allocator->pool_capacity) {
+            uint32_t new_capacity = allocator->pool_capacity == 0 ? 4 : allocator->pool_capacity * 2;
+            WgvkDeviceMemoryPool* new_pools = realloc(allocator->pools, new_capacity * sizeof(WgvkDeviceMemoryPool));
+            if (!new_pools) return false;
+            allocator->pools = new_pools;
+            allocator->pool_capacity = new_capacity;
+        }
+
+        WgvkDeviceMemoryPool* new_pool = &allocator->pools[allocator->pool_count];
+        memset(new_pool, 0, sizeof(WgvkDeviceMemoryPool));
+        new_pool->device = allocator->device;
+        new_pool->physicalDevice = allocator->physicalDevice;
+        new_pool->memoryTypeIndex = i;
+
+        allocator->pool_count++;
+        
+        if (wgvkDeviceMemoryPool_alloc(new_pool, requirements->size, requirements->alignment, out_allocation)) {
+            return true;
+        } else {
+             allocator->pool_count--; 
+        }
+    }
+
+    return false;
+}
+
+RGAPI void wgvkAllocator_free(const wgvkAllocation* allocation) {
+    wgvkDeviceMemoryPool_free(allocation);
+}
+
+
+
 
 
 RGAPI void releaseAllAndClear(ResourceUsage* resourceUsage){

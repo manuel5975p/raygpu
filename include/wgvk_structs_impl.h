@@ -5,238 +5,65 @@
 #include "../src/backend_vulkan/ptr_hash_map.h"
 #include <config.h>
 
+// Forward declarations
+typedef struct WgvkDeviceMemoryPool WgvkDeviceMemoryPool;
+typedef struct WgvkAllocator WgvkAllocator;
 
-
-#include <stdint.h>
-#include <stddef.h>
-#include <stdbool.h>
-#include <string.h>
-
-// =============================================================================
-// Constants and Type Definitions
-// =============================================================================
-
-// Level sizes for the allocator tree
-#define L1_SIZE 64
-#define L2_SIZE (L1_SIZE * L1_SIZE) // 4096
-
-// The smallest unit of allocation, in bytes.
-#define ALLOCATOR_GRANULARITY 64
-#define BITS_PER_WORD 64
-
-// Total number of blocks (and total bits in the level2 bitmap)
-#define TOTAL_BLOCKS (L2_SIZE * BITS_PER_WORD)
-// Total virtual address space size in bytes
-#define TOTAL_VIRTUAL_SIZE (TOTAL_BLOCKS * ALLOCATOR_GRANULARITY) // 16 MiB
-
-// The error value for allocation failure.
-#define OUT_OF_SPACE ((size_t)-1)
-
-/**
- * @brief A 3-level bitmap allocator managing a 16 MiB virtual address space.
- * 
- * The structure is a tree where each bit in a level acts as a summary for a
- * block in the level below it. A '1' indicates the block below is at least
- * partially used, and a '0' indicates it is completely free.
- * 
- * - level0 (1 uint64_t): Summarizes the 64 entries of level1.
- * - level1 (64 uint64_t): Each summarizes 64 entries of level2.
- * - level2 (4096 uint64_t): The actual bitmap. Each bit represents a
- *   64-byte block of virtual memory. '1' is allocated, '0' is free.
- */
-typedef struct wgvkAllocator{
-    uint64_t level0;
-    uint64_t level1[L1_SIZE];
-    uint64_t level2[L2_SIZE];
-} wgvkAllocator;
-
-// =============================================================================
-// Public API Declarations
-// =============================================================================
-
-/**
- * @brief Initializes the allocator, marking all memory as free.
- * 
- * @param allocator A pointer to the Allocator struct.
- */
-void allocator_init(wgvkAllocator* allocator);
-
-/**
- * @brief Allocates a block of a given size.
- *
- * This function finds the first contiguous free space that is large enough.
- * It returns the offset (virtual address) of the allocated block.
- *
- * @param allocator A pointer to the Allocator struct.
- * @param size The number of bytes to allocate.
- * @return The offset of the allocated block, or (size_t)-1 if no space is found.
- */
-size_t allocator_alloc(wgvkAllocator* allocator, size_t size);
-
-/**
- * @brief Frees a previously allocated block.
- *
- * The caller MUST provide the correct original offset and size of the block.
- *
- * @param allocator A pointer to the Allocator struct.
- * @param offset The offset of the block to free, as returned by allocator_alloc.
- * @param size The original size of the block that was allocated.
- */
-void allocator_free(wgvkAllocator* allocator, size_t offset, size_t size);
-
-/**
- * @brief Initializes a device memory pool.
- * 
- * Allocates a 16 MiB block of VkDeviceMemory and initializes the
- * bitmap allocator to manage it.
- * 
- * @param pool A pointer to the WgvkDeviceMemoryPool to initialize.
- * @param createInfo Parameters for creation, including device handles and memory properties.
- * @return VK_SUCCESS on success, or a Vulkan error code on failure.
- */
-VkResult wgvkDeviceMemoryPool_init(WgvkDeviceMemoryPool* pool, const WgvkDeviceMemoryPoolCreateInfo* createInfo) {
-    pool->device = createInfo->device;
-
-    // 1. Find a suitable memory type index
-    VkPhysicalDeviceMemoryProperties memoryProperties = {0};
-    vkGetPhysicalDeviceMemoryProperties(createInfo->physicalDevice, &memoryProperties);
-    
-    uint32_t typeIndex = UINT32_MAX;
-    for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++) {
-        if ((memoryProperties.memoryTypes[i].propertyFlags & createInfo->memoryPropertyFlags) == createInfo->memoryPropertyFlags) {
-            typeIndex = i;
-            break;
-        }
-    }
-
-    if (typeIndex == UINT32_MAX) {
-        // Could not find a matching memory type
-        return VK_ERROR_INITIALIZATION_FAILED;
-    }
-
-    // 2. Allocate the internal bitmap allocator struct
-    pool->allocator = (wgvkAllocator*)calloc(1, sizeof(wgvkAllocator));
-    if (!pool->allocator) {
-        return VK_ERROR_OUT_OF_HOST_MEMORY;
-    }
-    allocator_init(pool->allocator);
-
-    // 3. Allocate the single large block of device memory
-    VkMemoryAllocateInfo allocInfo = {
-        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-        .pNext = NULL,
-        .allocationSize = TOTAL_VIRTUAL_SIZE,
-        .memoryTypeIndex = typeIndex,
-    };
-
-    VkResult result = vkAllocateMemory(createInfo->device, &allocInfo, NULL, &pool->memory);
-    if (result != VK_SUCCESS) {
-        free(pool->allocator);
-        pool->allocator = NULL;
-        return result;
-    }
-
-    return VK_SUCCESS;
-}
-
-/**
- * @brief Destroys a device memory pool and frees all associated resources.
- * 
- * @param pool The pool to destroy.
- */
-void wgvkDeviceMemoryPool_destroy(WgvkDeviceMemoryPool* pool) {
-    if (!pool) return;
-    
-    if (pool->memory != VK_NULL_HANDLE) {
-        vkFreeMemory(pool->device, pool->memory, NULL);
-    }
-    if (pool->allocator) {
-        free(pool->allocator);
-    }
-    // Note: The caller should free the 'pool' struct itself if it was heap allocated.
-}
-
-/**
- * @brief Sub-allocates a block of memory from the pool.
- * 
- * @param pool The pool to allocate from.
- * @param size The requested size in bytes.
- * @param out_allocation Pointer to a wgvkAllocation struct to be filled with allocation details.
- * @return bool true on success, false if no suitable space is found.
- */
-bool wgvkDeviceMemoryPool_alloc(WgvkDeviceMemoryPool* pool, size_t size, wgvkAllocation* out_allocation) {
-    size_t offset = allocator_alloc(pool->allocator, size);
-
-    if (offset == OUT_OF_SPACE) {
-        return false;
-    }
-
-    out_allocation->pool = pool;
-    out_allocation->offset = offset;
-    out_allocation->size = size;
-    return true;
-}
-
-/**
- * @brief Frees a sub-allocated block back to the pool.
- * 
- * @param allocation A pointer to the wgvkAllocation struct representing the block to free.
- */
-void wgvkDeviceMemoryPool_free(const wgvkAllocation* allocation) {
-    if (!allocation || !allocation->pool) return;
-    
-    allocator_free(allocation->pool->allocator, allocation->offset, allocation->size);
-}
-typedef struct wgvkDeviceMemoryPool{
-    wgvkAllocator* allocator;
-    VkDeviceMemory memory;
-}WgvkDeviceMemoryPool;
-
-typedef struct WgvkDeviceMemoryPoolCreateInfo{
-    VkPhysicalDevice physicalDevice;
-    VkDevice device;
-    VkMemoryPropertyFlagBits memoryPropertyFlags;
-}WgvkDeviceMemoryPoolCreateInfo;
-
-void wgvkDeviceMemoryAllocator_init(WgvkDeviceMemoryPool* alloc, const WgvkDeviceMemoryPoolCreateInfo* createInfo){
-    VkPhysicalDeviceMemoryProperties memoryProperties = {0};
-    vkGetPhysicalDeviceMemoryProperties(createInfo->physicalDevice, &memoryProperties);
-    uint32_t typeIndex;
-    for(typeIndex = 0;typeIndex < memoryProperties.memoryTypeCount;typeIndex++){
-        if((memoryProperties.memoryTypes[typeIndex].propertyFlags & createInfo->memoryPropertyFlags) == createInfo->memoryPropertyFlags){
-            break;
-        }
-    }
-    alloc->allocator = RL_CALLOC(1, sizeof(wgvkAllocator));
-    VkMemoryAllocateInfo allocateInfo = {
-        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-        .pNext = NULL,
-        .allocationSize = TOTAL_VIRTUAL_SIZE,
-        .memoryTypeIndex = typeIndex
-    };
-}
-/**
- * @brief Represents a single sub-allocation within a WgvkDeviceMemoryPool.
- * 
- * It holds a pointer back to the pool it came from, and the specific
- * offset and size of the allocated block within that pool's VkDeviceMemory.
- */
 typedef struct wgvkAllocation {
     WgvkDeviceMemoryPool* pool;
     size_t offset;
     size_t size;
+    uint32_t chunk_index;
+    VkDeviceMemory memory;
 } wgvkAllocation;
 
-/**
- * @brief A memory pool that holds a single large VkDeviceMemory allocation
- * and a wgvkAllocator to manage sub-allocations from it.
- */
-typedef struct wgvkDeviceMemoryPool {
-    wgvkAllocator* allocator;
-    VkDeviceMemory memory;
-    VkDevice device; // Keep a handle to the device for freeing memory
-} WgvkDeviceMemoryPool;
+RGAPI VkResult wgvkAllocator_init(WgvkAllocator* allocator, VkPhysicalDevice physicalDevice, VkDevice device);
+RGAPI void wgvkAllocator_destroy(WgvkAllocator* allocator);
+RGAPI bool wgvkAllocator_alloc(WgvkAllocator* allocator, const VkMemoryRequirements* requirements, VkMemoryPropertyFlags propertyFlags, wgvkAllocation* out_allocation);
+RGAPI void wgvkAllocator_free(const wgvkAllocation* allocation);
 
+// =======================================================================
+//  Internal Definitions
+// =======================================================================
+
+#define ALLOCATOR_GRANULARITY ((size_t)64)
+#define BITS_PER_WORD         ((size_t)64)
+#define MIN_CHUNK_SIZE        ((size_t)16 * 1024 * 1024)
+#define OUT_OF_SPACE          ((size_t)-1)
+
+typedef struct VirtualAllocator {
+    uint64_t* level0;
+    uint64_t* level1;
+    uint64_t* level2;
+    size_t size_in_bytes;
+    size_t l0_word_count;
+    size_t l1_word_count;
+    size_t l2_word_count;
+    size_t total_blocks;
+} VirtualAllocator;
+
+typedef struct WgvkMemoryChunk {
+    VkDeviceMemory memory;
+    VirtualAllocator allocator;
+} WgvkMemoryChunk;
+
+struct WgvkDeviceMemoryPool {
+    WgvkMemoryChunk* chunks;
+    uint32_t chunk_count;
+    uint32_t chunk_capacity;
+    VkDevice device;
+    VkPhysicalDevice physicalDevice;
+    uint32_t memoryTypeIndex;
+};
+
+struct WgvkAllocator {
+    WgvkDeviceMemoryPool* pools;
+    uint32_t pool_count;
+    uint32_t pool_capacity;
+    VkDevice device;
+    VkPhysicalDevice physicalDevice;
+    VkPhysicalDeviceMemoryProperties memoryProperties;
+};
 
 typedef struct ImageUsageRecord{
     VkImageLayout initialLayout;
@@ -845,7 +672,11 @@ typedef struct WGPUDeviceImpl{
     WGPUAdapter adapter;
     WGPUQueue queue;
     size_t submittedFrames;
+    #if USE_BUILTIN_ALLOCATOR == 1
+    WgvkAllocator builtinAllocator;
+    #endif
     VmaAllocator allocator;
+
     VmaPool aligned_hostVisiblePool;
     PerframeCache frameCaches[framesInFlight];
 
