@@ -6,6 +6,7 @@
 INCBIN(default_vert, "../resources/default.vert.spv");
 INCBIN(default_frag, "../resources/default.frag.spv");
 INCBIN(compute_wgsl, "../resources/simple_compute.wgsl");
+INCBIN(compute_spv, "../resources/simple_compute.spv");
 void adapterCallbackFunction(
         enum WGPURequestAdapterStatus status,
         WGPUAdapter adapter,
@@ -68,7 +69,7 @@ int main(){
         #ifdef NDEBUG
         NULL
         #else
-        &lsel.chain
+        NULL//&lsel.chain
         #endif
         ,
         .capabilities = {0}
@@ -150,8 +151,16 @@ int main(){
             .length = gcompute_wgslSize,
         }
     };
+    WGPUShaderSourceSPIRV computeSourceSpirv = {
+        .chain = {
+            .next = NULL,
+            .sType = WGPUSType_ShaderSourceSPIRV
+        },
+        .code = (const uint32_t*)gcompute_spvData,
+        .codeSize = gcompute_spvSize
+    };
     WGPUShaderModuleDescriptor computeModuleDesc = {
-        .nextInChain = &computeSource.chain,
+        .nextInChain = &computeSourceSpirv.chain,
         .label = {
             .data   = "Compute Modul",
             .length = sizeof("Compute Modul"),

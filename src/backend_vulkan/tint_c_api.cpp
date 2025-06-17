@@ -272,7 +272,7 @@ RGAPI tc_SpirvBlob wgslToSpirv(const WGPUShaderSourceWGSL *source) {
     tint::Result<tint::core::ir::Module> maybeModule = tint::wgsl::reader::ProgramToLoweredIR(prog);
     if(maybeModule == tint::Success){
         tint::core::ir::Module module(std::move(maybeModule.Get()));
-        tint::spirv::writer::Options options zeroinit;
+        tint::spirv::writer::Options options{};
         tint::Result<tint::spirv::writer::Output> spirvMaybe = tint::spirv::writer::Generate(module, options);
         tint::spirv::writer::Output output(spirvMaybe.Get());
         tc_SpirvBlob ret{(output.spirv.size() * sizeof(uint32_t)), (uint32_t *)RL_CALLOC(output.spirv.size(), sizeof(uint32_t))};

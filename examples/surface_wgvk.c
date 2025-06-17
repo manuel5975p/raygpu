@@ -139,6 +139,7 @@ int main(){
     WGPUDevice device = wgpuAdapterCreateDevice(requestedAdapter, &ddesc);
     WGPUQueue queue = wgpuDeviceGetQueue(device);
     glfwInit();
+    
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     GLFWwindow* window = glfwCreateWindow(800, 600, "WGVK Window", NULL, NULL);
     glfwSetKeyCallback(window, keyfunc);
@@ -149,7 +150,7 @@ int main(){
             .next = NULL
         },
         .hwnd = glfwGetWin32Window(window),
-        .hinstance = GetModuleHandle(nullptr)
+        .hinstance = GetModuleHandle(NULL)
     };
     #else    
     WGPUSurfaceSourceXlibWindow surfaceChain;
@@ -174,14 +175,10 @@ int main(){
     int width, height;
     glfwGetWindowSize(window, &width, &height);
     WGPUSurfaceCapabilities caps = {0};
-    WGPUPresentMode desiredPresentMode = WGPUPresentMode_Mailbox;
+    WGPUPresentMode desiredPresentMode = WGPUPresentMode_Immediate;
     WGPUSurface surface = wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
 
     wgpuSurfaceGetCapabilities(surface, requestedAdapter, &caps);
-    for(uint32_t i = 0;i < caps.presentModeCount;i++){
-        printf("Supports present mode: %d, ", caps.presentModes[i]);
-    }
-    printf("\n");
     wgpuSurfaceConfigure(surface, &(const WGPUSurfaceConfiguration){
         .alphaMode = WGPUCompositeAlphaMode_Opaque,
         .presentMode = desiredPresentMode,

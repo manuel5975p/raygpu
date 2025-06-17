@@ -92,7 +92,6 @@
     //#include <raygpu.h>
 #undef Font
 #undef Matrix
-#define wgvk_assert(X, ...) do{if(!(X))abort();}while(0)
 
 
 
@@ -551,29 +550,25 @@ WGPUInstance wgpuCreateInstance(const WGPUInstanceDescriptor* descriptor) {
     ret->instance = VK_NULL_HANDLE;
     ret->debugMessenger = VK_NULL_HANDLE;
 
-    // 1. Define Application Info
-    VkApplicationInfo appInfo zeroinit;
-    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = "WGPU Application";
-    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.pEngineName = "WGPU Engine";
-    appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_3; // Request Vulkan 1.3
+    const VkApplicationInfo appInfo = {
+        .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+        .pApplicationName = "WGPU Application",
+        .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
+        .pEngineName = "WGPU Engine",
+        .engineVersion = VK_MAKE_VERSION(1, 0, 0),
+        #if VULKAN_USE_DYNAMIC_RENDERING == 1 || VULKAN_ENABLE_RAYTRACING == 1
+        .apiVersion = VK_API_VERSION_1_3,
+        #else
+        .apiVersion = VK_API_VERSION_1_1,
+        #endif
+    };
 
-    // 2. Define Instance Create Info
-    VkInstanceCreateInfo ici zeroinit;
-    ici.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    ici.flags = 0; // May be updated for portability
-    ici.pApplicationInfo = &appInfo;
-
-    // 3. --- Query Available Extensions and Select Required Surface/Debug Extensions ---
     uint32_t availableExtensionCount = 0;
     VkResult enumResult = vkEnumerateInstanceExtensionProperties(NULL, &availableExtensionCount, NULL);
     VkExtensionProperties* availableExtensions = NULL;
     const char** enabledExtensions = NULL; // Array of pointers to enabled names
     const uint32_t maxEnabledExtensions = 16;
 
-    // Define the list of extensions we *want* to enable if availabl
 
     if (enumResult != VK_SUCCESS || availableExtensionCount == 0) {
         fprintf(stderr, "Warning: Failed to query instance extensions or none found (Error: %d). Proceeding without optional extensions.\n", (int)enumResult);
@@ -611,16 +606,15 @@ WGPUInstance wgpuCreateInstance(const WGPUInstanceDescriptor* descriptor) {
         const char* currentExtName = availableExtensions[i].extensionName;
         if(endswith_(currentExtName, "surface") || strstr(currentExtName, "debug") != NULL){
             enabledExtensions[enabledExtensionCount++] = currentExtName;
-            TRACELOG(WGPU_LOG_WARNING, "Enabling: %s", currentExtName);
         }
         int desired = 0;
     }
-
+    VkInstanceCreateFlags instanceCreateFlags = 0;
     // Handle portability enumeration: Enable it *if* needed and available
     if (needsPortabilityEnumeration) {
         if (portabilityEnumerationAvailable && enabledExtensionCount < maxEnabledExtensions) {
             enabledExtensions[enabledExtensionCount++] = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
-            ici.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+            instanceCreateFlags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
         } else if (!portabilityEnumerationAvailable) {
             fprintf(stderr, "Error: An enabled surface extension requires '%s', but it is not available! Instance creation may fail.\n", VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
             // Proceed anyway, vkCreateInstance will likely fail.
@@ -628,17 +622,17 @@ WGPUInstance wgpuCreateInstance(const WGPUInstanceDescriptor* descriptor) {
             // fprintf(stderr, "Warning: Portability enumeration needed but exceeded max enabled count (%u).\n", maxEnabledExtensions);
         }
     }
+    // 2. Define Instance Create Info
+
+    
 
 
     // --- End Extension Handling ---
-    ici.enabledExtensionCount = enabledExtensionCount;
-    ici.ppEnabledExtensionNames = enabledExtensions;
-
 
     // 4. Specify Layers (if requested)
     const char* const* requestedLayers = NULL;
     uint32_t requestedLayerCount = 0;
-    VkValidationFeaturesEXT validationFeatures zeroinit;
+    
     WGPUInstanceLayerSelection* ils = NULL;
     int debugUtilsAvailable = 0; // Check if debug utils was actually enabled
 
@@ -657,34 +651,40 @@ WGPUInstance wgpuCreateInstance(const WGPUInstanceDescriptor* descriptor) {
         }
         // TODO: Handle other potential structs in nextInChain if necessary
     }
-
-    ici.enabledLayerCount = requestedLayerCount;
-    ici.ppEnabledLayerNames = requestedLayers;
+    VkValidationFeaturesEXT validationFeatures zeroinit;
     VkValidationFeatureEnableEXT enables[] = {
         VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
     };
     // If layers are enabled, configure specific validation features, BUT only if debug utils is available
     if (requestedLayerCount > 0) {
         if(debugUtilsAvailable) {
-            
             validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
             validationFeatures.enabledValidationFeatureCount = sizeof(enables) / sizeof(enables[0]);
             validationFeatures.pEnabledValidationFeatures = enables;
-            validationFeatures.pNext = ici.pNext; // Chain it
-            ici.pNext = &validationFeatures;      // Point ici.pNext to this struct
+            validationFeatures.pNext = NULL; // For now ok. what would required non-null here is if ici already had a non-null pNext
             //fprintf(stdout, "Enabling synchronization validation feature.\n");
         } else {
             //fprintf(stderr, "Warning: Requested validation layers but VK_EXT_debug_utils extension was not found/enabled. Debug messenger and specific validation features cannot be enabled.\n");
-            ici.enabledLayerCount = 0; // Disable layers if debug utils isn't there
-            ici.ppEnabledLayerNames = NULL;
-            requestedLayerCount = 0; // Update count for subsequent checks
-            fprintf(stdout, "Disabling requested layers due to missing VK_EXT_debug_utils.\n");
+            //ici.enabledLayerCount = 0; // Disable layers if debug utils isn't there
+            //ici.ppEnabledLayerNames = NULL;
+            //requestedLayerCount = 0; // Update count for subsequent checks
+            //fprintf(stdout, "Disabling requested layers due to missing VK_EXT_debug_utils.\n");
         }
     } else {
         //fprintf(stdout, "Validation layers not requested or not found in descriptor chain.\n");
     }
 
     // 5. Create the Vulkan Instance
+    VkInstanceCreateInfo ici = {
+        .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+        .pNext = (validationFeatures.sType == VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT) ? &validationFeatures : NULL,
+        .flags = instanceCreateFlags,
+        .pApplicationInfo = &appInfo,
+        .enabledExtensionCount = enabledExtensionCount,
+        .ppEnabledExtensionNames = enabledExtensions,
+        .enabledLayerCount   = (validationFeatures.sType == VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT) ? requestedLayerCount : 0,
+        .ppEnabledLayerNames = (validationFeatures.sType == VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT) ? requestedLayers : NULL,
+    };
     VkResult result = vkCreateInstance(&ici, NULL, &ret->instance);
 
 
@@ -958,9 +958,10 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
         .dynamicPrimitiveTopologyUnrestricted = VK_TRUE
     };
     
-    VkPhysicalDeviceFeatures2 deviceFeatures zeroinit;
-    deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    vkGetPhysicalDeviceFeatures2(adapter->physicalDevice, &deviceFeatures);
+    VkPhysicalDeviceFeatures deviceFeatures zeroinit;
+    //deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    //vkGetPhysicalDeviceFeatures2(adapter->physicalDevice, &deviceFeatures);
+    vkGetPhysicalDeviceFeatures(adapter->physicalDevice, &deviceFeatures);
 
     VkDeviceCreateInfo createInfo zeroinit;
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -980,7 +981,7 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
     createInfo.enabledExtensionCount = extInsertIndex;
     createInfo.ppEnabledExtensionNames = deviceExtensionsFound;
 
-    createInfo.pEnabledFeatures = &deviceFeatures.features;
+    createInfo.pEnabledFeatures = &deviceFeatures;
     #if VULKAN_ENABLE_RAYTRACING == 1
     VkPhysicalDeviceBufferDeviceAddressFeaturesKHR deviceFeaturesAddressKhr zeroinit;
     VkPhysicalDeviceAccelerationStructureFeaturesKHR accelerationrStructureFeatures zeroinit;
@@ -1107,7 +1108,7 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
     
     vmaCreatePool(retDevice->allocator, &vpci, &retDevice->aligned_hostVisiblePool);
     #endif
-    wgvkAllocator_init(&retDevice->builtinAllocator, adapter->physicalDevice, retDevice->device);
+    wgvkAllocator_init(&retDevice->builtinAllocator, adapter->physicalDevice, retDevice->device, &retDevice->functions);
 
     
     for(uint32_t i = 0;i < framesInFlight;i++){
@@ -1852,7 +1853,7 @@ WGPUShaderModule wgpuDeviceCreateShaderModule(WGPUDevice device, const WGPUShade
         #endif
         default: {
             RL_FREE(ret);
-            rg_trap();
+            wgvk_assert(false, "Invalid shader source type");
         }
     }
 
@@ -1899,11 +1900,13 @@ WGPUCommandEncoder wgpuDeviceCreateCommandEncoder(WGPUDevice device, const WGPUC
     ret->movedFrom = 0;
     //vkCreateCommandPool(device->device, &pci, NULL, &cache.commandPool);
     if(VkCommandBufferVector_empty(&device->frameCaches[ret->cacheIndex].commandBuffers)){
-        VkCommandBufferAllocateInfo bai zeroinit;
-        bai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        bai.commandPool = cache->commandPool;
-        bai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        bai.commandBufferCount = 1;
+        VkCommandBufferAllocateInfo bai = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .commandPool = cache->commandPool,
+            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            .commandBufferCount = 1,
+        };
+
         device->functions.vkAllocateCommandBuffers(device->device, &bai, &ret->buffer);
         TRACELOG(WGPU_LOG_INFO, "Allocating new command buffer");
     }
@@ -3081,7 +3084,7 @@ void wgpuShaderModuleRelease(WGPUShaderModule module){
         module->device->functions.vkDestroyShaderModule(module->device->device, module->vulkanModule, NULL);
         
         if(module->source->sType == WGPUSType_ShaderSourceSPIRV){
-            RL_FREE(((WGPUShaderSourceSPIRV*)module->source)->code);
+            RL_FREE((void*)((WGPUShaderSourceSPIRV*)module->source)->code);
         }
         if(module->source->sType == WGPUSType_ShaderSourceWGSL){
             RL_FREE((void*)((WGPUShaderSourceWGSL*)module->source)->code.data);
@@ -4939,6 +4942,10 @@ static void wgpuShaderModuleGetReflectionInfo_sync(void* userdata_){
             );
             reflectionInfo_wgsl_free(&reflectionInfo);
         }break;
+        #else
+        case WGPUSType_ShaderSourceWGSL:{
+            wgvk_assert(false, "Passed WGSL source without support, recompile with -DSUPPORT_WGSL_PARSER=1");
+        }break;
         #endif
         default:
         wgvk_assert(false, "Invalid sType for source");
@@ -5120,8 +5127,7 @@ static VkResult wgvkDeviceMemoryPool_create_chunk(WgvkDeviceMemoryPool* pool, si
         .allocationSize = size,
         .memoryTypeIndex = pool->memoryTypeIndex,
     };
-    fprintf(stderr, "allocating memori\n");
-    VkResult result = vkAllocateMemory(pool->device, &allocInfo, NULL, &new_chunk->memory);
+    VkResult result = pool->pFunctions->vkAllocateMemory(pool->device, &allocInfo, NULL, &new_chunk->memory);
     if (result != VK_SUCCESS) {
         allocator_destroy(&new_chunk->allocator);
         return result;
@@ -5186,10 +5192,11 @@ static void wgvkDeviceMemoryPool_destroy(WgvkDeviceMemoryPool* pool) {
     free(pool->chunks);
 }
 
-RGAPI VkResult wgvkAllocator_init(WgvkAllocator* allocator, VkPhysicalDevice physicalDevice, VkDevice device) {
+RGAPI VkResult wgvkAllocator_init(WgvkAllocator* allocator, VkPhysicalDevice physicalDevice, VkDevice device, struct VolkDeviceTable* dtable) {
     memset(allocator, 0, sizeof(WgvkAllocator));
     allocator->device = device;
     allocator->physicalDevice = physicalDevice;
+    allocator->pFunctions = dtable;
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &allocator->memoryProperties);
     return VK_SUCCESS;
 }
@@ -5229,7 +5236,7 @@ RGAPI bool wgvkAllocator_alloc(WgvkAllocator* allocator, const VkMemoryRequireme
         
         if (allocator->pool_count == allocator->pool_capacity) {
             uint32_t new_capacity = allocator->pool_capacity == 0 ? 4 : allocator->pool_capacity * 2;
-            WgvkDeviceMemoryPool* new_pools = realloc(allocator->pools, new_capacity * sizeof(WgvkDeviceMemoryPool));
+            WgvkDeviceMemoryPool* new_pools = RL_REALLOC(allocator->pools, new_capacity * sizeof(WgvkDeviceMemoryPool));
             if (!new_pools) return false;
             allocator->pools = new_pools;
             allocator->pool_capacity = new_capacity;
@@ -5240,6 +5247,7 @@ RGAPI bool wgvkAllocator_alloc(WgvkAllocator* allocator, const VkMemoryRequireme
         new_pool->device = allocator->device;
         new_pool->physicalDevice = allocator->physicalDevice;
         new_pool->memoryTypeIndex = i;
+        new_pool->pFunctions = allocator->pFunctions;
 
         allocator->pool_count++;
         

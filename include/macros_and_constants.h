@@ -45,7 +45,7 @@ constexpr float RAD2DEG = 180.0 / M_PI;
 #define DEG2RAD (M_PI / 180.0)
 #define RAD2DEG (180.0 / M_PI)
 #endif
-#if defined(_MSC_VER) // || defined (__EMSCRIPTEN__)
+#if defined(_MSC_VER) || defined(_WIN32) // || defined (__EMSCRIPTEN__)
 #define TERMCTL_RESET   ""
 #define TERMCTL_RED     ""
 #define TERMCTL_GREEN   ""
@@ -112,7 +112,6 @@ constexpr float RAD2DEG = 180.0 / M_PI;
     #else
     #define RGAPI
     #endif
-    #define RGAPICXX extern "C"
 #elif defined(_WIN32)
     #if defined(RG_EXPORTS) && RG_EXPORTS != 0
         #ifdef __cplusplus

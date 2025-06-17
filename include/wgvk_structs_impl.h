@@ -17,7 +17,7 @@ typedef struct wgvkAllocation {
     VkDeviceMemory memory;
 } wgvkAllocation;
 
-RGAPI VkResult wgvkAllocator_init(WgvkAllocator* allocator, VkPhysicalDevice physicalDevice, VkDevice device);
+RGAPI VkResult wgvkAllocator_init(WgvkAllocator* allocator, VkPhysicalDevice physicalDevice, VkDevice device, struct VolkDeviceTable* pFunctions);
 RGAPI void wgvkAllocator_destroy(WgvkAllocator* allocator);
 RGAPI bool wgvkAllocator_alloc(WgvkAllocator* allocator, const VkMemoryRequirements* requirements, VkMemoryPropertyFlags propertyFlags, wgvkAllocation* out_allocation);
 RGAPI void wgvkAllocator_free(const wgvkAllocation* allocation);
@@ -54,6 +54,7 @@ struct WgvkDeviceMemoryPool {
     uint32_t chunk_count;
     uint32_t chunk_capacity;
     VkDevice device;
+    struct VolkDeviceTable* pFunctions;
     VkPhysicalDevice physicalDevice;
     uint32_t memoryTypeIndex;
 };
@@ -63,6 +64,7 @@ struct WgvkAllocator {
     uint32_t pool_count;
     uint32_t pool_capacity;
     VkDevice device;
+    struct VolkDeviceTable* pFunctions;
     VkPhysicalDevice physicalDevice;
     VkPhysicalDeviceMemoryProperties memoryProperties;
 };

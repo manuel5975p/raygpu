@@ -17,6 +17,23 @@ extern "C"{
 #define WGPU_FUNCTION_ATTRIBUTE
 #define VMA_MIN_ALIGNMENT 32
 
+#if WGVK_DISABLE_ASSERT == 1
+
+#define wgvk_assert(Condition, Message, ...) //__builtin_assume(Condition)
+
+#else
+#define wgvk_assert(Condition, Message, ...)                                                          \
+do {                                                                                              \
+    char buffer_for_snprintf_sdfsd[4096] = {0};                                                   \
+    snprintf(buffer_for_snprintf_sdfsd, 4096, "Internal bug: assertion failed: %s", Message);     \
+    if (!(Condition)) {                                                                           \
+        rg_trap();                                                                                \
+        abort();                                                                                  \
+    }                                                                                             \
+} while (0)
+
+#endif
+
 #if SUPPORT_WGPU_BACKEND == 1
 typedef struct WGPUBufferImpl WGPUBufferImpl;
 typedef struct WGPUTextureImpl WGPUTextureImpl;
@@ -1206,7 +1223,7 @@ typedef struct WGPUBlendState {
 typedef struct WGPUShaderSourceSPIRV {
     WGPUChainedStruct chain;
     uint32_t codeSize;
-    uint32_t* code;
+    const uint32_t* code;
 } WGPUShaderSourceSPIRV;
 
 typedef struct WGPUShaderSourceWGSL {
