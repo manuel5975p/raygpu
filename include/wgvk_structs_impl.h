@@ -45,6 +45,8 @@ typedef struct VirtualAllocator {
 typedef struct WgvkMemoryChunk {
     VkDeviceMemory memory;
     VirtualAllocator allocator;
+    void* mapped;
+    uint32_t mapCount;
 } WgvkMemoryChunk;
 
 struct WgvkDeviceMemoryPool {

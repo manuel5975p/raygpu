@@ -307,7 +307,10 @@ typedef enum WGPUSType {
     WGPUSType_SurfaceSourceAndroidNativeWindow = 0x00000008,
     WGPUSType_SurfaceSourceXCBWindow = 0x00000009,
     WGPUSType_SurfaceColorManagement = 0x0000000A,
-    WGPUSType_InstanceValidationLayerSelection = 0x10000001
+
+    // non-standard sTypes
+    WGPUSType_InstanceValidationLayerSelection = 0x10000001,
+    WGPUSType_BufferAllocatorSelector = 0x10000002,
 }WGPUSType;
 
 typedef enum WGPU_VK_ImageLayout {
@@ -1054,8 +1057,13 @@ typedef struct WGPUTextureViewDescriptor{
     WGPUTextureUsage usage;
 }WGPUTextureViewDescriptor;
 
+typedef struct WGPUBufferAllocatorSelector{
+    WGPUChainedStruct chain;
+    bool forceBuiltin;
+}WGPUBufferAllocatorSelector;
+
 typedef struct WGPUBufferDescriptor {
-    WGPUChainedStruct * nextInChain;
+    WGPUChainedStruct* nextInChain;
     WGPUStringView label;
     WGPUBufferUsage usage;
     uint64_t size;
