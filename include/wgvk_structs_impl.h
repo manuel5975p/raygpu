@@ -674,10 +674,10 @@ typedef struct WGPUDeviceImpl{
     WGPUAdapter adapter;
     WGPUQueue queue;
     size_t submittedFrames;
-    #if USE_BUILTIN_ALLOCATOR == 1
     WgvkAllocator builtinAllocator;
-    #endif
+    #if USE_VMA_ALLOCATOR == 1
     VmaAllocator allocator;
+    #endif
 
     VmaPool aligned_hostVisiblePool;
     PerframeCache frameCaches[framesInFlight];

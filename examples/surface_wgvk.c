@@ -1,7 +1,8 @@
 #include <GLFW/glfw3.h>
 #include <wgvk.h>
 #include <external/incbin.h>
-INCBIN(simple_shader, "../resources/simple_shader.wgsl");
+//INCBIN(simple_shader, "../resources/simple_shader.wgsl");
+INCBIN(simple_shaderSpirv, "../resources/simple_shader.spv");
 #ifdef __EMSCRIPTEN__
 #  define GLFW_EXPOSE_NATIVE_EMSCRIPTEN
 #  ifndef GLFW_PLATFORM_EMSCRIPTEN // not defined in older versions of emscripten
@@ -83,6 +84,7 @@ void keyfunc(GLFWwindow* window, int key, int scancode, int action, int mods){
     }
 }
 int main(){
+    
     WGPUInstanceLayerSelection lsel = {
         .chain = {
             .next = NULL,
@@ -98,7 +100,7 @@ int main(){
         #ifdef NDEBUG
         NULL
         #else
-        NULL//&lsel.chain
+        &lsel.chain
         #endif
         ,
         .capabilities = {0}
@@ -150,21 +152,21 @@ int main(){
         .hinstance = GetModuleHandle(nullptr)
     };
     #else    
-    //WGPUSurfaceSourceXlibWindow surfaceChain;
-    //Display* x11_display = glfwGetX11Display();
-    //Window x11_window = glfwGetX11Window(window);
-    //surfaceChain.chain.sType = WGPUSType_SurfaceSourceXlibWindow;
-    //surfaceChain.chain.next = NULL;
-    //surfaceChain.display = x11_display;
-    //surfaceChain.window = x11_window;
-
-    struct wl_display* native_display = glfwGetWaylandDisplay();
-    struct wl_surface* native_surface = glfwGetWaylandWindow(window);
-    WGPUSurfaceSourceWaylandSurface surfaceChain;
-    surfaceChain.chain.sType = WGPUSType_SurfaceSourceWaylandSurface;
+    WGPUSurfaceSourceXlibWindow surfaceChain;
+    Display* x11_display = glfwGetX11Display();
+    Window x11_window = glfwGetX11Window(window);
+    surfaceChain.chain.sType = WGPUSType_SurfaceSourceXlibWindow;
     surfaceChain.chain.next = NULL;
-    surfaceChain.display = native_display;
-    surfaceChain.surface = native_surface;
+    surfaceChain.display = x11_display;
+    surfaceChain.window = x11_window;
+
+    //struct wl_display* native_display = glfwGetWaylandDisplay();
+    //struct wl_surface* native_surface = glfwGetWaylandWindow(window);
+    //WGPUSurfaceSourceWaylandSurface surfaceChain;
+    //surfaceChain.chain.sType = WGPUSType_SurfaceSourceWaylandSurface;
+    //surfaceChain.chain.next = NULL;
+    //surfaceChain.display = native_display;
+    //surfaceChain.surface = native_surface;
     #endif
     WGPUSurfaceDescriptor surfaceDescriptor;
     surfaceDescriptor.nextInChain = &surfaceChain.chain;
@@ -188,17 +190,26 @@ int main(){
         .width = width,
         .height = height
     });
-    WGPUShaderSourceWGSL shaderSource = {
+    //WGPUShaderSourceWGSL shaderSourceWgsl = {
+    //    .chain = {
+    //        .sType = WGPUSType_ShaderSourceWGSL
+    //    },
+    //    .code = {
+    //        .data = (const char*)gsimple_shaderData,
+    //        .length = gsimple_shaderSize
+    //    }
+    //};
+    
+    WGPUShaderSourceSPIRV shaderSourceSpirv = {
         .chain = {
-            .sType = WGPUSType_ShaderSourceWGSL
+            .sType = WGPUSType_ShaderSourceSPIRV
         },
-        .code = {
-            .data = (const char*)gsimple_shaderData,
-            .length = gsimple_shaderSize
-        }
+        .code = (uint32_t*)gsimple_shaderSpirvData,
+        .codeSize = gsimple_shaderSpirvSize,
     };
+
     WGPUShaderModuleDescriptor shaderModuleDesc = {
-        .nextInChain = &shaderSource.chain
+        .nextInChain = &shaderSourceSpirv.chain
     };
     WGPUShaderModule shaderModule = wgpuDeviceCreateShaderModule(device, &shaderModuleDesc);
     WGPUVertexAttribute vbAttribute = {

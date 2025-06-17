@@ -25,7 +25,7 @@
  */
 
 
-
+#define VOLK_IMPLEMENTATION
 
 //#include "vulkan/vulkan_core.h"
 #include <inttypes.h>
@@ -1064,8 +1064,19 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
     for(uint32_t i = 0;i < memoryProperties.memoryHeapCount;i++){
         heapsizes[i] = limit;
     }
-
-
+    vkGetPhysicalDeviceMemoryProperties(adapter->physicalDevice, &memoryProperties);
+    uint32_t hostVisibleCoherentIndex = 0;
+    for(hostVisibleCoherentIndex = 0;hostVisibleCoherentIndex < memoryProperties.memoryTypeCount;hostVisibleCoherentIndex++){
+        if(memoryProperties.memoryTypes[hostVisibleCoherentIndex].propertyFlags & (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)){
+            break;
+        }
+    }
+    const VmaPoolCreateInfo vpci = {
+        .minAllocationAlignment = 64,
+        .memoryTypeIndex = hostVisibleCoherentIndex,
+        .blockSize = (1 << 16)
+    };
+    #if USE_VMA_ALLOCATOR == 1
     VmaDeviceMemoryCallbacks callbacks = {
         0
         //.pfnAllocate = [](VmaAllocator allocator, uint32_t type, VkDeviceMemory, VkDeviceSize size, void * _Nullable){
@@ -1075,11 +1086,7 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
         //    TRACELOG(WGPU_LOG_WARNING, "Freeing %llu of memory type %u", size, type);
         //}
     };
-    #if USE_BUILTIN_ALLOCATOR == 1
-    wgvkAllocator_init(&retDevice->builtinAllocator, adapter->physicalDevice, retDevice->device);
-    #endif
     VmaVulkanFunctions vmaVulkanFunctions = {0};
-    
     VmaAllocatorCreateInfo aci = {
         .instance = adapter->instance->instance,
         .physicalDevice = adapter->physicalDevice,
@@ -1094,10 +1101,15 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
     vmaImportVulkanFunctionsFromVolk(&aci, &vmaVulkanFunctions);
     aci.pVulkanFunctions = &vmaVulkanFunctions;
     VkResult allocatorCreateResult = vmaCreateAllocator(&aci, &retDevice->allocator);
-
     if(allocatorCreateResult != VK_SUCCESS){
         TRACELOG(WGPU_LOG_FATAL, "Error creating the allocator: %d", (int)allocatorCreateResult);
     }
+    
+    vmaCreatePool(retDevice->allocator, &vpci, &retDevice->aligned_hostVisiblePool);
+    #endif
+    wgvkAllocator_init(&retDevice->builtinAllocator, adapter->physicalDevice, retDevice->device);
+
+    
     for(uint32_t i = 0;i < framesInFlight;i++){
         VkSemaphoreVector* semvec = &retQueue->syncState[i].semaphores;
         VkSemaphoreVector_reserve(semvec, 100);
@@ -1110,19 +1122,7 @@ WGPUDevice wgpuAdapterCreateDevice(WGPUAdapter adapter, const WGPUDeviceDescript
         // TODO what? I don't remember
     }
     
-    vkGetPhysicalDeviceMemoryProperties(adapter->physicalDevice, &memoryProperties);
-    uint32_t hostVisibleCoherentIndex = 0;
-    for(hostVisibleCoherentIndex = 0;hostVisibleCoherentIndex < memoryProperties.memoryTypeCount;hostVisibleCoherentIndex++){
-        if(memoryProperties.memoryTypes[hostVisibleCoherentIndex].propertyFlags & (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)){
-            break;
-        }
-    }
-    const VmaPoolCreateInfo vpci = {
-        .minAllocationAlignment = 64,
-        .memoryTypeIndex = hostVisibleCoherentIndex,
-        .blockSize = (1 << 16)
-    };
-    vmaCreatePool(retDevice->allocator, &vpci, &retDevice->aligned_hostVisiblePool);
+    
 
     {
 
@@ -1182,18 +1182,7 @@ WGPUBuffer wgpuDeviceCreateBuffer(WGPUDevice device, const WGPUBufferDescriptor*
         propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
     }
 
-    #if USE_BUILTIN_ALLOCATOR == 1
-    {
-        device->functions.vkCreateBuffer(device->device, &bufferDesc, NULL, &wgpuBuffer->buffer);
-        wgvkAllocation allocation = {0};
-        VkMemoryRequirements requirements = {0};
-        device->functions.vkGetBufferMemoryRequirements(device->device, wgpuBuffer->buffer, &requirements);
-        bool ret = wgvkAllocator_alloc(&device->builtinAllocator, &requirements, propertyToFind, &allocation);
-        wgpuBuffer->allocationType = AllocationTypeBuiltin;
-        wgpuBuffer->builtinAllocation = allocation;
-        device->functions.vkBindBufferMemory(device->device, wgpuBuffer->buffer, allocation.pool->chunks[allocation.chunk_index].memory, allocation.offset);
-    }
-    #else
+    #if USE_VMA_ALLOCATOR == 1
     VmaAllocationCreateInfo vallocInfo = {
         .preferredFlags = propertyToFind,
     };
@@ -1201,15 +1190,22 @@ WGPUBuffer wgpuDeviceCreateBuffer(WGPUDevice device, const WGPUBufferDescriptor*
     VmaAllocationInfo allocationInfo zeroinit;
     VkResult vmabufferCreateResult = vmaCreateBuffer(device->allocator, &bufferDesc, &vallocInfo, &wgpuBuffer->buffer, &allocation, &allocationInfo);
 
-    
     if(vmabufferCreateResult != VK_SUCCESS){
         TRACELOG(WGPU_LOG_ERROR, "Could not allocate buffer: %s", vkErrorString(vmabufferCreateResult));
         RL_FREE(wgpuBuffer);
         return NULL;
     }
-
     wgpuBuffer->vmaAllocation = allocation;
     wgpuBuffer->allocationType = AllocationTypeVMA;
+    #else
+    device->functions.vkCreateBuffer(device->device, &bufferDesc, NULL, &wgpuBuffer->buffer);
+    wgvkAllocation allocation = {0};
+    VkMemoryRequirements requirements = {0};
+    device->functions.vkGetBufferMemoryRequirements(device->device, wgpuBuffer->buffer, &requirements);
+    bool ret = wgvkAllocator_alloc(&device->builtinAllocator, &requirements, propertyToFind, &allocation);
+    wgpuBuffer->allocationType = AllocationTypeBuiltin;
+    wgpuBuffer->builtinAllocation = allocation;
+    device->functions.vkBindBufferMemory(device->device, wgpuBuffer->buffer, allocation.pool->chunks[allocation.chunk_index].memory, allocation.offset);
     #endif
     wgpuBuffer->memoryProperties = propertyToFind;
 
@@ -1224,6 +1220,9 @@ WGPUBuffer wgpuDeviceCreateBuffer(WGPUDevice device, const WGPUBufferDescriptor*
 
 void wgpuBufferMap(WGPUBuffer buffer, WGPUMapMode mapmode, size_t offset, size_t size, void** data){
     WGPUDevice device = buffer->device;
+    if(size == WGPU_WHOLE_SIZE){
+        size = wgpuBufferGetSize(buffer);
+    }
     if(buffer->latestFence){
         if(buffer->latestFence->state == WGPUFenceState_InUse){
             wgpuFenceWait(buffer->latestFence, ((uint64_t)1) << 40);
@@ -1241,9 +1240,11 @@ void wgpuBufferMap(WGPUBuffer buffer, WGPUMapMode mapmode, size_t offset, size_t
             }
             *data = (void*)(((uint8_t*)chunk->mapped) + allocation->offset);
         }break;
+        #if USE_VMA_ALLOCATOR == 1
         case AllocationTypeVMA: {
             vmaMapMemory(buffer->device->allocator, buffer->vmaAllocation, data);
         }break;
+        #endif
         case AllocationTypeJustMemory: {
             
         }break;
@@ -1264,9 +1265,11 @@ void wgpuBufferUnmap(WGPUBuffer buffer){
                 device->functions.vkUnmapMemory(device->device, chunk->memory);
             }
         }break;
+        #if USE_VMA_ALLOCATOR
         case AllocationTypeVMA: {
             vmaUnmapMemory(buffer->device->allocator, buffer->vmaAllocation);
         }break;
+        #endif
         case AllocationTypeJustMemory: {
             
         }break;
@@ -1280,9 +1283,26 @@ WGPUFuture wgpuBufferMapAsync(WGPUBuffer buffer, WGPUMapMode mode, size_t offset
 }
 
 size_t wgpuBufferGetSize(WGPUBuffer buffer){
-    VmaAllocationInfo info zeroinit;
-    vmaGetAllocationInfo(buffer->device->allocator, buffer->vmaAllocation, &info);
-    return info.size;
+    WGPUDevice device = buffer->device;
+    switch(buffer->allocationType){
+        case AllocationTypeBuiltin:{
+            return buffer->builtinAllocation.size;
+        }break;
+
+        #if USE_VMA_ALLOCATOR
+        case AllocationTypeVMA: {
+            VmaAllocationInfo info zeroinit;
+            vmaGetAllocationInfo(buffer->device->allocator, buffer->vmaAllocation, &info);
+            return info.size;
+        }break;
+        #endif
+        case AllocationTypeJustMemory: {
+            rg_unreachable();
+        }break;
+        default:
+        rg_unreachable();
+        
+    }
 }
 
 void wgpuQueueWriteBuffer(WGPUQueue cSelf, WGPUBuffer buffer, uint64_t bufferOffset, const void* data, size_t size){
@@ -1802,6 +1822,7 @@ WGPUShaderModule wgpuDeviceCreateShaderModule(WGPUDevice device, const WGPUShade
             ret->source = (WGPUChainedStruct*)copySource;
             return ret;
         }
+        #if SUPPORT_WGSL_PARSER == 1
         case WGPUSType_ShaderSourceWGSL: {
             const WGPUShaderSourceWGSL* source = (WGPUShaderSourceWGSL*)descriptor->nextInChain;
             size_t length = (source->code.length == WGPU_STRLEN) ? strlen(source->code.data) : source->code.length;
@@ -1828,6 +1849,7 @@ WGPUShaderModule wgpuDeviceCreateShaderModule(WGPUDevice device, const WGPUShade
             ret->source = (WGPUChainedStruct*)depot;
             return ret;
         }
+        #endif
         default: {
             RL_FREE(ret);
             rg_trap();
@@ -3097,7 +3119,19 @@ void wgpuBufferRelease(WGPUBuffer buffer) {
             wgpuFenceRelease(buffer->latestFence);
             buffer->latestFence = NULL;
         }
-        vmaDestroyBuffer(buffer->device->allocator, buffer->buffer, buffer->vmaAllocation);
+        switch(buffer->allocationType){
+            #if USE_VMA_ALLOCATOR
+            case AllocationTypeVMA:
+                vmaDestroyBuffer(buffer->device->allocator, buffer->buffer, buffer->vmaAllocation);
+            break;
+            #endif
+            case AllocationTypeBuiltin:{
+                buffer->device->functions.vkDestroyBuffer(buffer->device->device, buffer->buffer, NULL);
+                wgvkAllocator_free(&buffer->builtinAllocation);
+            }break;
+            default:
+            rg_unreachable();
+        }
         RL_FREE(buffer);
     }
 }
@@ -3217,8 +3251,10 @@ void wgpuDeviceRelease(WGPUDevice device){
                 BindGroupCacheMap_free(&cache->bindGroupCache);
                 device->functions.vkDestroyCommandPool(device->device, cache->commandPool, NULL);
             }
+            #if USE_VMA_ALLOCATOR == 1
             vmaDestroyPool(device->allocator, device->aligned_hostVisiblePool);
             vmaDestroyAllocator(device->allocator);
+            #endif
         }
         
         
@@ -4145,8 +4181,9 @@ void wgpuDeviceTick(WGPUDevice device){
     wgpuCommandBufferRelease(buffer);
     
     ++device->submittedFrames;
+    #if USE_VMA_ALLOCATOR == 1
     vmaSetCurrentFrameIndex(device->allocator, device->submittedFrames % framesInFlight);
-    
+    #endif
     
     
 
@@ -4890,6 +4927,7 @@ static void wgpuShaderModuleGetReflectionInfo_sync(void* userdata_){
             }
         }
         break;
+        #if SUPPORT_WGSL_PARSER == 1
         case WGPUSType_ShaderSourceWGSL:{
             WGPUShaderSourceWGSL* wgslSource = (WGPUShaderSourceWGSL*)module->source;
             WGPUReflectionInfo reflectionInfo = reflectionInfo_wgsl_sync(wgslSource->code);
@@ -4901,6 +4939,7 @@ static void wgpuShaderModuleGetReflectionInfo_sync(void* userdata_){
             );
             reflectionInfo_wgsl_free(&reflectionInfo);
         }break;
+        #endif
         default:
         wgvk_assert(false, "Invalid sType for source");
         rg_unreachable();
@@ -5081,7 +5120,7 @@ static VkResult wgvkDeviceMemoryPool_create_chunk(WgvkDeviceMemoryPool* pool, si
         .allocationSize = size,
         .memoryTypeIndex = pool->memoryTypeIndex,
     };
-
+    fprintf(stderr, "allocating memori\n");
     VkResult result = vkAllocateMemory(pool->device, &allocInfo, NULL, &new_chunk->memory);
     if (result != VK_SUCCESS) {
         allocator_destroy(&new_chunk->allocator);

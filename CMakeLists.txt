@@ -247,7 +247,11 @@ set(RG_SOURCES
     "include/enum_translation.h"
 )
 if(SUPPORT_VULKAN_BACKEND)
-    add_library(wgvk_standalone STATIC "src/backend_vulkan/wgvk.c" "src/backend_vulkan/vma_impl.cpp" "src/backend_vulkan/volk.c")
+    add_library(wgvk_standalone STATIC 
+        "src/backend_vulkan/wgvk.c"
+        #"src/backend_vulkan/volk.c"
+        #"src/backend_vulkan/vma_impl.cpp"
+    )
     add_library(tint_c_api STATIC "src/backend_vulkan/tint_c_api.cpp")
     target_include_directories(tint_c_api PRIVATE "include" "amalgamation/vulkan_headers/include")
     target_compile_features(tint_c_api PRIVATE cxx_std_23)
@@ -273,8 +277,8 @@ if(SUPPORT_VULKAN_BACKEND)
     list(APPEND RG_SOURCES "src/backend_vulkan/vulkan_pipeline.cpp")
     list(APPEND RG_SOURCES "src/backend_vulkan/vulkan_raytracing.cpp")
     list(APPEND RG_SOURCES "src/backend_vulkan/backend_vulkan.cpp")
-    list(APPEND RG_SOURCES "src/backend_vulkan/vma_impl.cpp")
-    list(APPEND RG_SOURCES "src/backend_vulkan/volk.c")
+    #list(APPEND RG_SOURCES "src/backend_vulkan/vma_impl.cpp")
+    #list(APPEND RG_SOURCES "src/backend_vulkan/volk.c")
     
     
     

@@ -13,30 +13,6 @@
 #endif
 VulkanState g_vulkanstate{};
 
-void BufferData(DescribedBuffer* buffer, void* data, size_t size){
-    if(buffer->size >= size){
-        WGPUBuffer handle = (WGPUBuffer)buffer->buffer;
-        void* udata = 0;
-        VmaAllocationInfo info zeroinit;
-
-        vmaGetAllocationInfo(handle->device->allocator, handle->vmaAllocation, &info);
-
-        VkDeviceMemory baseMemory = info.deviceMemory;
-        uint64_t baseOffset = info.offset;
-
-        VkResult mapresult = vkMapMemory(g_vulkanstate.device->device, baseMemory, baseOffset, size, 0, &udata);
-        if(mapresult == VK_SUCCESS){
-            std::memcpy(data, udata, size);
-            vkUnmapMemory(g_vulkanstate.device->device, baseMemory);
-        }
-        else{
-            abort();
-        }
-        
-        //vkBindBufferMemory()
-    }
-}
-
 void PresentSurface(FullSurface* surface){
     wgpuSurfacePresent((WGPUSurface)surface->surface);
     WGPUSurface wgpusurf = (WGPUSurface)surface->surface;
@@ -1016,9 +992,7 @@ extern "C" void PrepareFrameGlobals(){
         vbo_buf = cache.unusedBatchBuffers.data[cache.unusedBatchBuffers.size - 1];
         WGPUBufferVector_pop_back(&cache.unusedBatchBuffers);
         WGPUBufferVector_push_back(&cache.usedBatchBuffers, vbo_buf);
-        VmaAllocationInfo allocationInfo zeroinit;
-        vmaGetAllocationInfo(g_vulkanstate.device->allocator, vbo_buf->vmaAllocation, &allocationInfo);
-        wgpuBufferMap(vbo_buf, WGPUMapMode_Write, 0, allocationInfo.size, (void**)&vboptr_base);
+        wgpuBufferMap(vbo_buf, WGPUMapMode_Write, 0, wgpuBufferGetSize(vbo_buf), (void**)&vboptr_base);
         vboptr = vboptr_base;
         wgpuBufferAddRef(vbo_buf);
     }
@@ -1050,9 +1024,8 @@ extern "C" DescribedBuffer* UpdateVulkanRenderbatch(){
 
         WGPUBufferVector_pop_back(&cache.unusedBatchBuffers);
         WGPUBufferVector_push_back(&cache.usedBatchBuffers, vbo_buf);
-        VmaAllocationInfo allocationInfo zeroinit;
-        vmaGetAllocationInfo(g_vulkanstate.device->allocator,vbo_buf->vmaAllocation, &allocationInfo);
-        wgpuBufferMap(vbo_buf, WGPUMapMode_Write, 0, allocationInfo.size, (void**)&vboptr_base);
+        
+        wgpuBufferMap(vbo_buf, WGPUMapMode_Write, 0, WGPU_WHOLE_SIZE, (void**)&vboptr_base);
         vboptr = vboptr_base;
         wgpuBufferAddRef(vbo_buf);
     }
