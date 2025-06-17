@@ -2619,7 +2619,7 @@ extern PFN_vkAcquireNextImage2KHR vkAcquireNextImage2KHR;
 #ifdef VOLK_IMPLEMENTATION
 #undef VOLK_IMPLEMENTATION
 /* Prevent tools like dependency checkers from detecting a cyclic dependency */
-#define VOLK_SOURCE "volk.c"
+#define VOLK_SOURCE "../../src/backend_vulkan/volk.c"
 #include VOLK_SOURCE
 #endif
 

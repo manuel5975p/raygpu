@@ -13,7 +13,7 @@ SubWindow sdlwin;
 void mainloop(void){
     BeginDrawing();
     //ClearBackground((Color){230, 230, 230, 0});
-    ClearBackground(GREEN);
+    ClearBackground(DARKGRAY);
     int fontsize = GetScreenWidth() < GetScreenHeight() ? GetScreenWidth() : GetScreenHeight();
     fontsize /= 20;
     DrawText(text, GetScreenWidth() / 2 - MeasureText(text, fontsize) / 2, 300, fontsize, (Color){190, 190, 190,255});
