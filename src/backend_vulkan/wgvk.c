@@ -1180,15 +1180,16 @@ WGPUBuffer wgpuDeviceCreateBuffer(WGPUDevice device, const WGPUBufferDescriptor*
         propertyToFind = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
     }
 
-
-    if(false){
-        wgvkAllocation allocation;
+    #if USE_BUILTIN_ALLOCATOR == 1
+    {
+        device->functions.vkCreateBuffer(device->device, &bufferDesc, NULL, &wgpuBuffer->buffer);
+        wgvkAllocation allocation = {0};
         VkMemoryRequirements requirements = {0};
         device->functions.vkGetBufferMemoryRequirements(device->device, wgpuBuffer->buffer, &requirements);
+        requirements.memoryTypeBits = requirements.memoryTypeBits;
         wgvkAllocator_alloc(&device->builtinAllocator, &requirements, propertyToFind, &allocation);
     }
-
-
+    #else
     VmaAllocationCreateInfo vallocInfo = {
         .preferredFlags = propertyToFind,
     };
@@ -1202,8 +1203,10 @@ WGPUBuffer wgpuDeviceCreateBuffer(WGPUDevice device, const WGPUBufferDescriptor*
         RL_FREE(wgpuBuffer);
         return NULL;
     }
+
     wgpuBuffer->vmaAllocation = allocation;
-    
+    wgpuBuffer->allocationType = AllocationTypeVMA;
+    #endif
     wgpuBuffer->memoryProperties = propertyToFind;
 
     if(desc->usage & WGPUBufferUsage_ShaderDeviceAddress){
