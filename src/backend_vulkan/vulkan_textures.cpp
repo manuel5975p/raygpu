@@ -149,7 +149,7 @@ extern "C" Texture LoadTexturePro_Data(uint32_t width, uint32_t height, PixelFor
     bool hasData = data != nullptr;
     
     WGPUTextureDescriptor tdesc zeroinit;
-    tdesc.dimension = TextureDimension_2D;
+    tdesc.dimension = WGPUTextureDimension_2D;
     tdesc.size = Extent3D{width, height, 1};
     tdesc.format = format;
     tdesc.viewFormatCount = 1;
@@ -244,7 +244,7 @@ extern "C" Texture2DArray LoadTextureArray(uint32_t width, uint32_t height, uint
     WGPUTextureDescriptor tDesc zeroinit;
     tDesc.format = toWGPUPixelFormat(format_);
     tDesc.size = Extent3D{width, height, layerCount};
-    tDesc.dimension = TextureDimension_2D;
+    tDesc.dimension = WGPUTextureDimension_2D;
     tDesc.sampleCount = 1;
     tDesc.mipLevelCount = 1;
     tDesc.usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_CopySrc | WGPUTextureUsage_CopyDst;
@@ -412,7 +412,7 @@ Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, Pixe
     Texture3D ret zeroinit;
     WGPUTextureFormat format = toWGPUPixelFormat(format_);
     WGPUTextureDescriptor tDesc{};
-    tDesc.dimension = TextureDimension_3D;
+    tDesc.dimension = WGPUTextureDimension_3D;
     tDesc.size = Extent3D{width, height, depth};
     tDesc.mipLevelCount = 1;
     tDesc.sampleCount = sampleCount;

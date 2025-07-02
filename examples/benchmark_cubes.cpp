@@ -47,7 +47,7 @@ void mainloop(){
     UseNoTexture();
     BeginMode3D(cam);
     BindPipelineVertexArray(pl, cubeMesh.vao);
-    DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, *cubeMesh.ibo, 36, instancetransforms.size());
+    DrawArraysIndexedInstanced(RL_TRIANGLES, *cubeMesh.ibo, 36, instancetransforms.size());
     //DrawMeshInstanced(cubeMesh, Material{}, instancetransforms.data(), instancetransforms.size());
     EndMode3D();
     EndPipelineMode();
@@ -65,9 +65,9 @@ void mainloop(){
 }
 
 int main(){
-    SetConfigFlags(FLAG_MSAA_4X_HINT);
+    //SetConfigFlags(FLAG_MSAA_4X_HINT);
     //SetConfigFlags(FLAG_FULLSCREEN_MODE);
-    InitWindow(1200, 800, "Cube Benchmark");
+    InitWindow(2560, 1440, "Cube Benchmark");
     SetTargetFPS(0);
     float scale = 1.0f;
     cubeMesh = GenMeshCube(scale, scale, scale);
@@ -75,10 +75,10 @@ int main(){
         .position = Vector3{0,70,0},
         .target = Vector3{100,0,100},
         .up = Vector3{0,1,0},
-        .fovy = 50.0f
+        .fovy = 60.0f
     };
-    pl = LoadPipelineForVAO(shaderSource, cubeMesh.vao);
-    auto smp = LoadSampler(repeat, nearest);
+    pl = LoadPipeline(shaderSource);
+    auto smp = LoadSampler(repeat, filter_nearest);
     SetPipelineSampler(pl, 2, smp);
     for(int i = -0;i < 2000;i++){
         for(int j = 0;j < 2000;j++){

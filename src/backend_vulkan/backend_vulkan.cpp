@@ -1,3 +1,4 @@
+#include <wgvk.h>
 #include <config.h>
 #define Font rlFont
 #include <raygpu.h>
@@ -948,11 +949,11 @@ void createRenderPass() {
     }
 }
 extern "C" void RenderPassSetIndexBuffer(DescribedRenderpass* drp, DescribedBuffer* buffer, WGPUIndexFormat format, uint64_t offset){
-    wgpuRenderPassEncoderSetIndexBuffer((WGPURenderPassEncoder)drp->rpEncoder, (WGPUBuffer)buffer->buffer, 0, format);
+    wgpuRenderPassEncoderSetIndexBuffer(drp->rpEncoder, (WGPUBuffer)buffer->buffer, format, 0, WGPU_WHOLE_SIZE);
     //wgpuRenderPassEncoderSetIndexBuffer((WGPURenderPassEncoder)drp->rpEncoder, (WGPUBuffer)buffer->buffer, format, offset, buffer->size);
 }
 extern "C" void RenderPassSetVertexBuffer(DescribedRenderpass* drp, uint32_t slot, DescribedBuffer* buffer, uint64_t offset){
-    wgpuRenderPassEncoderSetVertexBuffer((WGPURenderPassEncoder)drp->rpEncoder, slot, (WGPUBuffer)buffer->buffer, offset);
+    wgpuRenderPassEncoderSetVertexBuffer((WGPURenderPassEncoder)drp->rpEncoder, slot, (WGPUBuffer)buffer->buffer, offset, WGPU_WHOLE_SIZE);
     //wgpuRenderPassEncoderSetVertexBuffer((WGPURenderPassEncoder)drp->rpEncoder, slot, (WGPUBuffer)buffer->buffer, offset, buffer->size);
 }
 extern "C" void RenderPassSetBindGroup(DescribedRenderpass* drp, uint32_t group, DescribedBindGroup* bindgroup){
@@ -960,11 +961,11 @@ extern "C" void RenderPassSetBindGroup(DescribedRenderpass* drp, uint32_t group,
     //wgpuRenderPassEncoderSetBindGroup((WGPURenderPassEncoder)drp->rpEncoder, group, (WGPUBindGroup)UpdateAndGetNativeBindGroup(bindgroup), 0, nullptr);
 }
 extern "C" void RenderPassDraw        (DescribedRenderpass* drp, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance){
-    wgpuRenderpassEncoderDraw((WGPURenderPassEncoder)drp->rpEncoder, vertexCount, instanceCount, firstVertex, firstInstance);
+    wgpuRenderPassEncoderDraw((WGPURenderPassEncoder)drp->rpEncoder, vertexCount, instanceCount, firstVertex, firstInstance);
     //wgpuRenderPassEncoderDraw((WGPURenderPassEncoder)drp->rpEncoder, vertexCount, instanceCount, firstVertex, firstInstance);
 }
 extern "C" void RenderPassDrawIndexed (DescribedRenderpass* drp, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t baseVertex, uint32_t firstInstance){
-    wgpuRenderpassEncoderDrawIndexed((WGPURenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
+    wgpuRenderPassEncoderDrawIndexed((WGPURenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
     //wgpuRenderPassEncoderDrawIndexed((WGPURenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
 }
 extern "C" void PrepareFrameGlobals(){
@@ -976,7 +977,7 @@ extern "C" void PrepareFrameGlobals(){
     if(cache.unusedBatchBuffers.size == 0){
         WGPUBufferDescriptor bdesc{
             .usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapWrite | WGPUBufferUsage_Vertex,
-            .size = (RENDERBATCH_SIZE * sizeof(vertex))
+            .size = (((size_t)RENDERBATCH_SIZE) * sizeof(vertex))
         };
 
         vbo_buf = wgpuDeviceCreateBuffer(g_vulkanstate.device,  &bdesc);
@@ -1148,8 +1149,22 @@ void InitBackend(){
     vkGetPhysicalDeviceMemoryProperties(g_vulkanstate.physicalDevice->physicalDevice, &g_vulkanstate.memProperties);
 
     WGPUDeviceDescriptor ddescriptor zeroinit;
-    WGPUDevice device = wgpuAdapterCreateDevice(g_vulkanstate.physicalDevice, &ddescriptor);
+    WGPUDevice device = NULL;
+    WGPURequestDeviceCallbackInfo rdci = {
+        .mode = WGPUCallbackMode_WaitAnyOnly,
+        .callback = [](WGPURequestDeviceStatus, WGPUDevice device, WGPUStringView, void* ud1, void *){
+            *reinterpret_cast<WGPUDevice*>(ud1) = device;
+        },
+        .userdata1 = reinterpret_cast<void*>(&device),
+        .userdata2 = NULL,
+    };
+    WGPUFuture future = wgpuAdapterRequestDevice(g_vulkanstate.physicalDevice, &ddescriptor, rdci);
+    WGPUFutureWaitInfo info{
+        future, 0
+    };
+    wgpuInstanceWaitAny(g_vulkanstate.instance, 1, &info, 1000000000);
     g_vulkanstate.device = device;
+
     g_vulkanstate.queue = device->queue;
     //auto device_and_queues = createLogicalDevice(g_vulkanstate.physicalDevice, queues);
 #if VULKAN_ENABLE_RAYTRACING == 1

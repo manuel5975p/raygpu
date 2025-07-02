@@ -187,7 +187,7 @@ extern "C" Texture2D texShapes;
 
 extern "C" DescribedPipeline* LoadPipelineForVAO_Vk(const char* vsSource, const char* fsSource, const VertexArray* vao, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
 
-RGAPICXX void* InitWindow(uint32_t width, uint32_t height, const char* title){
+RGAPI void* InitWindow(uint32_t width, uint32_t height, const char* title){
     #if FORCE_HEADLESS == 1
     g_renderstate.windowFlags |= FLAG_HEADLESS;
     #endif

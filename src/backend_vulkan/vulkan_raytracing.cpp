@@ -4,15 +4,6 @@
 #include <wgvk.h>
 #include <wgvk_structs_impl.h>
 
-#define X(A) PFN_vk##A fulk##A;
-RTFunctions
-#undef X
-    extern "C" void
-    raytracing_LoadDeviceFunctions(VkDevice device) {
-#define X(A) fulk##A = (PFN_vk##A)vkGetDeviceProcAddr(device, "vk" #A);
-    RTFunctions
-#undef X
-}
 
 struct triangle {
     vertex v1, v2, v3;
@@ -40,7 +31,7 @@ static inline uint32_t findMemoryType(WGPUAdapter adapter, uint32_t typeFilter, 
  */
 extern "C" WGPUTopLevelAccelerationStructure wgpuDeviceCreateTopLevelAccelerationStructure(WGPUDevice device, const WGPUTopLevelAccelerationStructureDescriptor *descriptor) {
     WGPUTopLevelAccelerationStructureImpl *impl = callocnewpp(WGPUTopLevelAccelerationStructureImpl);
-    impl->device = device->device;
+    impl->device = device;
 
     const size_t cacheIndex = device->submittedFrames % framesInFlight;
     // Get acceleration structure properties
@@ -90,7 +81,7 @@ extern "C" WGPUTopLevelAccelerationStructure wgpuDeviceCreateTopLevelAcceleratio
         VkAccelerationStructureDeviceAddressInfoKHR addressInfo zeroinit;
         addressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
         addressInfo.accelerationStructure = descriptor->bottomLevelAS[i]->accelerationStructure;
-        uint64_t blasAddress = fulkGetAccelerationStructureDeviceAddressKHR(device->device, &addressInfo);
+        uint64_t blasAddress = device->functions.vkGetAccelerationStructureDeviceAddressKHR(device->device, &addressInfo);
 
         VkAccelerationStructureInstanceKHR &instance = instanceData[i];
         // Set transform matrix (identity if not provided)
@@ -153,7 +144,7 @@ extern "C" WGPUTopLevelAccelerationStructure wgpuDeviceCreateTopLevelAcceleratio
     VkAccelerationStructureBuildSizesInfoKHR buildSizesInfo = {};
     buildSizesInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
 
-    fulkGetAccelerationStructureBuildSizesKHR(device->device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildGeometryInfo, &buildRangeInfo.primitiveCount, &buildSizesInfo);
+    device->functions.vkGetAccelerationStructureBuildSizesKHR(device->device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildGeometryInfo, &buildRangeInfo.primitiveCount, &buildSizesInfo);
 
     // Create buffer for acceleration structure
     VkBufferCreateInfo bufferCreateInfo = {};
@@ -186,7 +177,7 @@ extern "C" WGPUTopLevelAccelerationStructure wgpuDeviceCreateTopLevelAcceleratio
     createInfo.size = buildSizesInfo.accelerationStructureSize;
     createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
 
-    fulkCreateAccelerationStructureKHR(device->device, &createInfo, nullptr, &impl->accelerationStructure);
+    device->functions.vkCreateAccelerationStructureKHR(device->device, &createInfo, nullptr, &impl->accelerationStructure);
 
     // Create scratch buffer
     VkBufferCreateInfo scratchBufferCreateInfo = {};
@@ -238,7 +229,7 @@ extern "C" WGPUTopLevelAccelerationStructure wgpuDeviceCreateTopLevelAcceleratio
     const VkAccelerationStructureBuildRangeInfoKHR *pBuildRangeInfo = &buildRangeInfo;
     vkGetDeviceProcAddr(device->device, "vkCmdBuildAccelerationStructuresKHR");
 
-    fulkCmdBuildAccelerationStructuresKHR(commandBuffer, 1, &buildGeometryInfo, &pBuildRangeInfo);
+    device->functions.vkCmdBuildAccelerationStructuresKHR(commandBuffer, 1, &buildGeometryInfo, &pBuildRangeInfo);
 
     vkEndCommandBuffer(commandBuffer);
 
@@ -261,13 +252,13 @@ void wgpuDestroyTopLevelAccelerationStructure(WGPUTopLevelAccelerationStructureI
     if (!impl)
         return;
 
-    fulkDestroyAccelerationStructureKHR(impl->device, impl->accelerationStructure, nullptr);
-    vkDestroyBuffer(impl->device, impl->accelerationStructureBuffer, nullptr);
-    vkFreeMemory(impl->device, impl->accelerationStructureBufferMemory, nullptr);
-    vkDestroyBuffer(impl->device, impl->scratchBuffer, nullptr);
-    vkFreeMemory(impl->device, impl->scratchBufferMemory, nullptr);
-    vkDestroyBuffer(impl->device, impl->instancesBuffer, nullptr);
-    vkFreeMemory(impl->device, impl->instancesBufferMemory, nullptr);
+    impl->device->functions.vkDestroyAccelerationStructureKHR(impl->device->device, impl->accelerationStructure, nullptr);
+    vkDestroyBuffer(impl->device->device, impl->accelerationStructureBuffer, nullptr);
+    vkFreeMemory(impl->device->device, impl->accelerationStructureBufferMemory, nullptr);
+    vkDestroyBuffer(impl->device->device, impl->scratchBuffer, nullptr);
+    vkFreeMemory(impl->device->device, impl->scratchBufferMemory, nullptr);
+    vkDestroyBuffer(impl->device->device, impl->instancesBuffer, nullptr);
+    vkFreeMemory(impl->device->device, impl->instancesBufferMemory, nullptr);
 
     std::free(impl);
 }
@@ -277,12 +268,12 @@ void wgpuDestroyTopLevelAccelerationStructure(WGPUTopLevelAccelerationStructureI
  *
  * Required for shader table binding to reference the acceleration structure
  */
-uint64_t wgpuGetAccelerationStructureDeviceAddress(VkDevice device, VkAccelerationStructureKHR accelerationStructure) {
+uint64_t wgpuGetAccelerationStructureDeviceAddress(WGPUDevice device, VkAccelerationStructureKHR accelerationStructure) {
     VkAccelerationStructureDeviceAddressInfoKHR addressInfo = {};
     addressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
     addressInfo.accelerationStructure = accelerationStructure;
 
-    return fulkGetAccelerationStructureDeviceAddressKHR(device, &addressInfo);
+    return device->functions.vkGetAccelerationStructureDeviceAddressKHR(device->device, &addressInfo);
 }
 
 /**
@@ -293,7 +284,7 @@ uint64_t wgpuGetAccelerationStructureDeviceAddress(VkDevice device, VkAccelerati
 
 extern "C" WGPUBottomLevelAccelerationStructure wgpuDeviceCreateBottomLevelAccelerationStructure(WGPUDevice device, const WGPUBottomLevelAccelerationStructureDescriptor *descriptor) {
     WGPUBottomLevelAccelerationStructureImpl *impl = callocnewpp(WGPUBottomLevelAccelerationStructureImpl);
-    impl->device = device->device;
+    impl->device = device;
 
     const size_t cacheIndex = device->submittedFrames % framesInFlight;
     // Get acceleration structure properties
@@ -356,7 +347,7 @@ extern "C" WGPUBottomLevelAccelerationStructure wgpuDeviceCreateBottomLevelAccel
     VkAccelerationStructureBuildSizesInfoKHR buildSizesInfo = {};
     buildSizesInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
 
-    fulkGetAccelerationStructureBuildSizesKHR(device->device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildGeometryInfo, &buildRangeInfo.primitiveCount, &buildSizesInfo);
+    device->functions.vkGetAccelerationStructureBuildSizesKHR(device->device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildGeometryInfo, &buildRangeInfo.primitiveCount, &buildSizesInfo);
     // Create buffer for acceleration structure
     VkBufferCreateInfo bufferCreateInfo = {};
     bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -387,7 +378,7 @@ extern "C" WGPUBottomLevelAccelerationStructure wgpuDeviceCreateBottomLevelAccel
     createInfo.size = buildSizesInfo.accelerationStructureSize;
     createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
 
-    fulkCreateAccelerationStructureKHR(device->device, &createInfo, nullptr, &impl->accelerationStructure);
+    device->functions.vkCreateAccelerationStructureKHR(device->device, &createInfo, nullptr, &impl->accelerationStructure);
 
     // Create scratch buffer
     VkBufferCreateInfo scratchBufferCreateInfo = {};
@@ -435,7 +426,7 @@ extern "C" WGPUBottomLevelAccelerationStructure wgpuDeviceCreateBottomLevelAccel
     vkBeginCommandBuffer(commandBuffer, &beginInfo);
 
     const VkAccelerationStructureBuildRangeInfoKHR *pBuildRangeInfo = &buildRangeInfo;
-    fulkCmdBuildAccelerationStructuresKHR(commandBuffer, 1, &buildGeometryInfo, &pBuildRangeInfo);
+    device->functions.vkCmdBuildAccelerationStructuresKHR(commandBuffer, 1, &buildGeometryInfo, &pBuildRangeInfo);
 
     vkEndCommandBuffer(commandBuffer);
 
@@ -456,11 +447,12 @@ void wgpuDestroyAccelerationStructure(WGPUBottomLevelAccelerationStructure impl)
     if (!impl)
         return;
 
-    fulkDestroyAccelerationStructureKHR(impl->device, impl->accelerationStructure, nullptr);
-    vkDestroyBuffer(impl->device, impl->accelerationStructureBuffer, nullptr);
-    vkFreeMemory(impl->device, impl->accelerationStructureBufferMemory, nullptr);
-    vkDestroyBuffer(impl->device, impl->scratchBuffer, nullptr);
-    vkFreeMemory(impl->device, impl->scratchBufferMemory, nullptr);
+    impl->device->functions.vkDestroyAccelerationStructureKHR
+                   (impl->device->device, impl->accelerationStructure, nullptr);
+    vkDestroyBuffer(impl->device->device, impl->accelerationStructureBuffer, nullptr);
+    vkFreeMemory   (impl->device->device, impl->accelerationStructureBufferMemory, nullptr);
+    vkDestroyBuffer(impl->device->device, impl->scratchBuffer, nullptr);
+    vkFreeMemory   (impl->device->device, impl->scratchBufferMemory, nullptr);
 
     std::free(impl);
 }
@@ -587,7 +579,7 @@ WGPURaytracingPipeline LoadRTPipeline(const DescribedShaderModule *module) {
     pipelineInfo.pDynamicState = &dynamicState;
 
     // Create the ray tracing pipeline
-    VkResult result = fulkCreateRayTracingPipelinesKHR(g_vulkanstate.device->device, // Need to get this from elsewhere
+    VkResult result = device->functions.vkCreateRayTracingPipelinesKHR(g_vulkanstate.device->device, // Need to get this from elsewhere
                                                        VK_NULL_HANDLE,               // Deferred operation handle
                                                        VK_NULL_HANDLE,               // Pipeline cache (optional)
                                                        1,                            // Create info count
@@ -605,7 +597,7 @@ WGPURaytracingPipeline LoadRTPipeline(const DescribedShaderModule *module) {
     const size_t sgHandleSize = device->adapter->rayTracingPipelineProperties.shaderGroupHandleSize;
 
     std::vector<char> shaderGroupHandles_Buffer(shaderGroups.size() * sgHandleSize);
-    fulkGetRayTracingShaderGroupHandlesKHR(device->device, pipeline->raytracingPipeline, 0, shaderGroups.size(), shaderGroups.size() * sgHandleSize, shaderGroupHandles_Buffer.data());
+    device->functions.vkGetRayTracingShaderGroupHandlesKHR(device->device, pipeline->raytracingPipeline, 0, shaderGroups.size(), shaderGroups.size() * sgHandleSize, shaderGroupHandles_Buffer.data());
     WGPUBufferDescriptor bdesc zeroinit;
     bdesc.usage = WGPUBufferUsage_MapWrite | WGPUBufferUsage_ShaderDeviceAddress | WGPUBufferUsage_ShaderBindingTable;
     bdesc.size = sgHandleSize;
@@ -678,5 +670,5 @@ void wgpuRaytracingPassEncoderTraceRays(WGPURaytracingPassEncoder cpe, uint32_t 
     rhR.stride = 32;
     rhR.size = 32;
     VkStridedDeviceAddressRegionKHR callableShaderSbtEntry zeroinit;
-    fulkCmdTraceRaysKHR(cpe->cmdBuffer, &rgR, &rmR, &rhR, &callableShaderSbtEntry, width, height, depth);
+    cpe->device->functions.vkCmdTraceRaysKHR(cpe->cmdBuffer, &rgR, &rmR, &rhR, &callableShaderSbtEntry, width, height, depth);
 }

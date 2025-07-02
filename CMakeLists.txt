@@ -247,102 +247,50 @@ set(RG_SOURCES
     "include/enum_translation.h"
 )
 if(SUPPORT_VULKAN_BACKEND)
-    add_library(wgvk_standalone STATIC 
-        "src/backend_vulkan/wgvk.c"
-        #"src/backend_vulkan/volk.c"
-        #"src/backend_vulkan/vma_impl.cpp"
+    FetchContent_Declare(
+        wgvk
+        GIT_REPOSITORY "https://github.com/manuel5975p/WGVK"
+        GIT_TAG master
+        GIT_SHALLOW True
     )
+    FetchContent_MakeAvailable(wgvk)
     
-    target_compile_features(wgvk_standalone PRIVATE c_std_23)
+    #target_compile_features(wgvk_standalone PRIVATE c_std_23)
     if(SUPPORT_WGSL_PARSER)
-        add_library(tint_c_api STATIC "src/backend_vulkan/tint_c_api.cpp")
-        target_include_directories(tint_c_api PRIVATE "include" "amalgamation/vulkan_headers/include")
-        target_compile_features(tint_c_api PRIVATE cxx_std_23)
-        target_link_libraries(tint_c_api PUBLIC tint_lang_wgsl_reader tint_lang_wgsl_inspector)
+        set(WGVK_BUILD_WGSL_SUPPORT ON)
+        #add_library(tint_c_api STATIC "src/backend_vulkan/tint_c_api.cpp")
+        #target_include_directories(tint_c_api PRIVATE "include" "amalgamation/vulkan_headers/include")
+        
+        #target_compile_features(tint_c_api PRIVATE cxx_std_23)
+        #target_link_libraries(tint_c_api PUBLIC tint_lang_wgsl_reader tint_lang_wgsl_inspector)
     endif()
     if(RAYGPU_BUILD_SHARED_LIBRARY)
-        target_compile_definitions(wgvk_standalone PRIVATE RG_EXPORTS=1)
+        #target_compile_definitions(wgvk_standalone PRIVATE RG_EXPORTS=1)
         if(SUPPORT_WGSL_PARSER)
-            target_compile_definitions(tint_c_api PRIVATE RG_EXPORTS=1)
+            #target_compile_definitions(tint_c_api PRIVATE RG_EXPORTS=1)
         endif()
     else()
-        target_compile_definitions(wgvk_standalone PRIVATE RG_STATIC=1)
+        #target_compile_definitions(wgvk_standalone PRIVATE RG_STATIC=1)
         if(SUPPORT_WGSL_PARSER)
-            target_compile_definitions(tint_c_api PRIVATE RG_STATIC=1)
+            #target_compile_definitions(tint_c_api PRIVATE RG_STATIC=1)
         endif()
     endif()
     
     if(SUPPORT_WGSL_PARSER)
-        cst_bundle_libraries(wgvk_full wgvk_standalone tint_lang_wgsl_reader tint_lang_spirv_writer tint_c_api)
+        #cst_bundle_libraries(wgvk_full wgvk_standalone tint_lang_wgsl_reader tint_lang_spirv_writer tint_c_api)
         add_executable(wgsl_compiler "src/wgsl_compiler.c")
-        target_link_libraries(wgsl_compiler PUBLIC wgvk_standalone tint_lang_wgsl_inspector tint_c_api tint_lang_wgsl_reader tint_lang_spirv_writer)
+        target_link_libraries(wgsl_compiler PUBLIC tint_lang_wgsl_inspector tint_c_api tint_lang_wgsl_reader tint_lang_spirv_writer)
     else()
-        cst_bundle_libraries(wgvk_full wgvk_standalone)
+        #cst_bundle_libraries(wgvk_full wgvk_standalone)
     endif()
-    target_include_directories(wgvk_standalone PUBLIC "include" "amalgamation/vulkan_headers/include")
-    target_compile_definitions(wgvk_standalone PUBLIC SUPPORT_VULKAN_BACKEND=1)
+    #target_include_directories(wgvk_standalone PUBLIC "include" "amalgamation/vulkan_headers/include")
+    #target_compile_definitions(wgvk_standalone PUBLIC SUPPORT_VULKAN_BACKEND=1)
 
     list(APPEND RG_SOURCES "src/backend_vulkan/vulkan_textures.cpp")
     list(APPEND RG_SOURCES "src/backend_vulkan/vulkan_pipeline.cpp")
     list(APPEND RG_SOURCES "src/backend_vulkan/vulkan_raytracing.cpp")
     list(APPEND RG_SOURCES "src/backend_vulkan/backend_vulkan.cpp")
-    #list(APPEND RG_SOURCES "src/backend_vulkan/vma_impl.cpp")
-    #list(APPEND RG_SOURCES "src/backend_vulkan/volk.c")
-    
-    
-    
-    
-    # Target source file to potentially add definitions to
-    set(TARGET_SOURCE_FILE src/backend_vulkan/volk.c src/backend_vulkan/wgvk.cpp)
-    
-    # Windows Surface (Win32)
-    if(WIN32)
-        set_property(SOURCE ${TARGET_SOURCE_FILE} APPEND PROPERTY COMPILE_DEFINITIONS SUPPORT_WIN32_SURFACE=1)
-        target_compile_definitions(wgvk_standalone PUBLIC SUPPORT_WIN32_SURFACE=1)
-        # Note: No extra find_package needed; headers are part of Windows SDK
-    endif()
-    
-    # Apple Surface (Metal/MoltenVK via CAMetalLayer)
-    if(APPLE)
-        # Metal.framework is usually implicitly available on Apple platforms
-        set_property(SOURCE ${TARGET_SOURCE_FILE} APPEND PROPERTY COMPILE_DEFINITIONS SUPPORT_METAL_SURFACE=1)
-        target_compile_definitions(wgvk_standalone PUBLIC SUPPORT_METAL_SURFACE=1)
-        # You might need: find_library(METAL_LIBRARY Metal) and link it later
-    endif()
-    
-    # Android Surface
-    if(ANDROID)
-        set_property(SOURCE ${TARGET_SOURCE_FILE} APPEND PROPERTY COMPILE_DEFINITIONS SUPPORT_ANDROID_SURFACE=1)
-        target_compile_definitions(wgvk_standalone PUBLIC SUPPORT_ANDROID_SURFACE=1)
-        # Note: No extra find_package needed; headers are part of Android NDK
-    endif()
-    
-    # Linux/Unix Display Server Surfaces (Wayland and/or X11)
-    if(UNIX AND NOT APPLE AND NOT ANDROID)
-        # Find pkg-config quietly (needed for Wayland/X11 checks)
-        find_package(PkgConfig QUIET)
-        
-        # Wayland Check
-        pkg_check_modules(WAYLAND_CLIENT QUIET wayland-client)
-        if(WAYLAND_CLIENT_FOUND)
-            set_property(SOURCE ${TARGET_SOURCE_FILE} APPEND PROPERTY COMPILE_DEFINITIONS SUPPORT_WAYLAND_SURFACE=1)
-            target_compile_definitions(wgvk_standalone PUBLIC SUPPORT_WAYLAND_SURFACE=1)
-            set(GLFW_BUILD_WAYLAND ON)
-            # Ensure WAYLAND_CLIENT_INCLUDE_DIRS and WAYLAND_CLIENT_LIBRARIES are used later
-            # target_include_directories(YourTarget PRIVATE ${WAYLAND_CLIENT_INCLUDE_DIRS})
-            # target_link_libraries(YourTarget PRIVATE ${WAYLAND_CLIENT_LIBRARIES})
-        endif()
-    
-        # X11 Check (Xlib)
-        find_package(X11 QUIET)
-        if(X11_FOUND)
-            set_property(SOURCE ${TARGET_SOURCE_FILE} APPEND PROPERTY COMPILE_DEFINITIONS SUPPORT_XLIB_SURFACE=1)
-            target_compile_definitions(wgvk_standalone PUBLIC SUPPORT_XLIB_SURFACE=1)
-            # Ensure X11_INCLUDE_DIR and X11_LIBRARIES are used later
-            # target_include_directories(YourTarget PRIVATE ${X11_INCLUDE_DIR})
-            # target_link_libraries(YourTarget PRIVATE ${X11_LIBRARIES})
-        endif()
-    endif()
+
     
 endif()
 if(SUPPORT_WGPU_BACKEND)
@@ -481,7 +429,7 @@ else()
     endif()
     if(SUPPORT_VULKAN_BACKEND)
         target_include_directories(raygpu PUBLIC "amalgamation/vulkan_headers/include")
-        target_link_libraries(raygpu PUBLIC wgvk_full)
+        target_link_libraries(raygpu PUBLIC wgvk)
     else()
         target_link_libraries(raygpu PUBLIC webgpu_dawn)
     endif()
@@ -569,24 +517,24 @@ if(RAYGPU_GENERATE_PYTHON_BINDINGS)
     )
     target_link_libraries(pyraygpu PUBLIC raygpu)
 endif()
-if(SUPPORT_VULKAN_BACKEND)
-    get_target_property(_inc_dirs wgvk_standalone INTERFACE_INCLUDE_DIRECTORIES)
-    if(_inc_dirs AND NOT _inc_dirs STREQUAL "NOTFOUND")
-      target_include_directories(wgvk_full PUBLIC ${_inc_dirs})
-    endif()
-    
-    # 2) copy all INTERFACE_COMPILE_DEFINITIONS
-    get_target_property(_defs wgvk_standalone INTERFACE_COMPILE_DEFINITIONS)
-    if(_defs AND NOT _defs STREQUAL "NOTFOUND")
-      target_compile_definitions(wgvk_full PUBLIC ${_defs})
-    endif()
-    
-    # 3) copy all INTERFACE_COMPILE_OPTIONS
-    get_target_property(_opts wgvk_standalone INTERFACE_COMPILE_OPTIONS)
-    if(_opts AND NOT _opts STREQUAL "NOTFOUND")
-      target_compile_options(wgvk_full PUBLIC ${_opts})
-    endif()
-endif()
+#if(SUPPORT_VULKAN_BACKEND)
+#    get_target_property(_inc_dirs wgvk_standalone INTERFACE_INCLUDE_DIRECTORIES)
+#    if(_inc_dirs AND NOT _inc_dirs STREQUAL "NOTFOUND")
+#      target_include_directories(wgvk_full PUBLIC ${_inc_dirs})
+#    endif()
+#    
+#    # 2) copy all INTERFACE_COMPILE_DEFINITIONS
+#    get_target_property(_defs wgvk_standalone INTERFACE_COMPILE_DEFINITIONS)
+#    if(_defs AND NOT _defs STREQUAL "NOTFOUND")
+#      target_compile_definitions(wgvk_full PUBLIC ${_defs})
+#    endif()
+#    
+#    # 3) copy all INTERFACE_COMPILE_OPTIONS
+#    get_target_property(_opts wgvk_standalone INTERFACE_COMPILE_OPTIONS)
+#    if(_opts AND NOT _opts STREQUAL "NOTFOUND")
+#      target_compile_options(wgvk_full PUBLIC ${_opts})
+#    endif()
+#endif()
 message(STATUS "")
 message(STATUS "------ CONFIGURATION OVERVIEW -------")
 message(STATUS "")
