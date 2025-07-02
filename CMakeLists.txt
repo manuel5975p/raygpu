@@ -247,14 +247,17 @@ set(RG_SOURCES
     "include/enum_translation.h"
 )
 if(SUPPORT_VULKAN_BACKEND)
-    FetchContent_Declare(
-        wgvk
-        GIT_REPOSITORY "https://github.com/manuel5975p/WGVK"
-        GIT_TAG master
-        GIT_SHALLOW True
-    )
-    FetchContent_MakeAvailable(wgvk)
-    
+    if(NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/../WGVK")
+        FetchContent_Declare(
+            wgvk
+            GIT_REPOSITORY "https://github.com/manuel5975p/WGVK"
+            GIT_TAG master
+            GIT_SHALLOW True
+        )
+        FetchContent_MakeAvailable(wgvk)
+    else()
+        add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../WGVK" ${CMAKE_CURRENT_BINARY_DIR}/wgvk-build)
+    endif()
     #target_compile_features(wgvk_standalone PRIVATE c_std_23)
     if(SUPPORT_WGSL_PARSER)
         set(WGVK_BUILD_WGSL_SUPPORT ON)

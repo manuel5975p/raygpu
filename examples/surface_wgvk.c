@@ -1,8 +1,12 @@
 #include <GLFW/glfw3.h>
 #include <wgvk.h>
+#include <stdio.h>
 #include <external/incbin.h>
 //INCBIN(simple_shader, "../resources/simple_shader.wgsl");
 INCBIN(simple_shaderSpirv, "../resources/simple_shader.spv");
+#ifndef STRVIEW
+    #define STRVIEW(X) (WGPUStringView){X, sizeof(X) - 1}
+#endif
 #ifdef __EMSCRIPTEN__
 #  define GLFW_EXPOSE_NATIVE_EMSCRIPTEN
 #  ifndef GLFW_PLATFORM_EMSCRIPTEN // not defined in older versions of emscripten
@@ -69,7 +73,7 @@ INCBIN(simple_shaderSpirv, "../resources/simple_shader.spv");
   #error "Platform not supported"
 #endif
 
-void adapterCallbackFunction(
+static void adapterCallbackFunction(
         WGPURequestAdapterStatus status,
         WGPUAdapter adapter,
         WGPUStringView label,
@@ -77,6 +81,15 @@ void adapterCallbackFunction(
         void* userdata2
     ){
     *((WGPUAdapter*)userdata1) = adapter;
+}
+static void deviceCallbackFunction(
+        WGPURequestDeviceStatus status,
+        WGPUDevice device,
+        WGPUStringView label,
+        void* userdata1,
+        void* userdata2
+    ){
+    *((WGPUDevice*)userdata1) = device;
 }
 void keyfunc(GLFWwindow* window, int key, int scancode, int action, int mods){
     if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
@@ -135,8 +148,21 @@ int main(){
         .deviceLostCallbackInfo = {0},
         .uncapturedErrorCallbackInfo = {0},
     };
+    WGPUDevice device;
     
-    WGPUDevice device = wgpuAdapterCreateDevice(requestedAdapter, &ddesc);
+    WGPURequestDeviceCallbackInfo dcinfo = {
+        .callback = deviceCallbackFunction,
+        .mode = WGPUCallbackMode_WaitAnyOnly,
+        .userdata1 = (void*)&device,
+    };
+    
+    WGPUFuture future = wgpuAdapterRequestDevice(requestedAdapter, &ddesc, dcinfo);
+    WGPUFutureWaitInfo waitInfo = {
+        .future = future,
+        .completed = 0
+    };
+    
+    wgpuInstanceWaitAny(instance, 1, &waitInfo, UINT32_MAX);
     WGPUQueue queue = wgpuDeviceGetQueue(device);
     glfwInit();
     
@@ -175,7 +201,7 @@ int main(){
     int width, height;
     glfwGetWindowSize(window, &width, &height);
     WGPUSurfaceCapabilities caps = {0};
-    WGPUPresentMode desiredPresentMode = WGPUPresentMode_Immediate;
+    WGPUPresentMode desiredPresentMode = WGPUPresentMode_Fifo;
     WGPUSurface surface = wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
 
     wgpuSurfaceGetCapabilities(surface, requestedAdapter, &caps);
@@ -237,6 +263,7 @@ int main(){
 
     WGPUColorTargetState colorTargetState = {
         .format = WGPUTextureFormat_BGRA8Unorm,
+        .writeMask = WGPUColorWriteMask_All,
         .blend = NULL
     };
 
@@ -244,7 +271,7 @@ int main(){
         .entryPoint = STRVIEW("fs_main"),
         .module = shaderModule,
         .targetCount = 1,
-        .targets = &colorTargetState
+        .targets = &colorTargetState,
     };
     WGPUPipelineLayoutDescriptor pldesc = {0};
     WGPUPipelineLayout pllayout = wgpuDeviceCreatePipelineLayout(device, &pldesc);
@@ -278,6 +305,7 @@ int main(){
     };
     WGPUBuffer vertexBuffer = wgpuDeviceCreateBuffer(device, &bufferDescriptor);
     wgpuQueueWriteBuffer(queue, vertexBuffer, 0, vertices, sizeof(vertices));
+    //wgpuDeviceTick(device);
     WGPUSurfaceTexture surfaceTexture;
     uint64_t stamp = nanoTime();
     uint64_t frameCount = 0;
@@ -321,8 +349,9 @@ int main(){
         });
     
         wgpuRenderPassEncoderSetPipeline(rpenc, rp);
-        wgpuRenderPassEncoderSetVertexBuffer(rpenc, 0, vertexBuffer, 0);
-        wgpuRenderpassEncoderDraw(rpenc, 3, 1, 0, 0);
+        wgpuRenderPassEncoderSetScissorRect(rpenc, 0,0, 800, 600);
+        wgpuRenderPassEncoderSetVertexBuffer(rpenc, 0, vertexBuffer, 0, WGPU_WHOLE_SIZE);
+        wgpuRenderPassEncoderDraw(rpenc, 6, 1, 0, 0);
         wgpuRenderPassEncoderEnd(rpenc);
         
         WGPUCommandBuffer cBuffer = wgpuCommandEncoderFinish(cenc, NULL);
