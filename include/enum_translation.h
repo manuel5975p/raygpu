@@ -947,49 +947,7 @@ static inline WGPUBufferUsage toWebGPUBufferUsage(WGPUBufferUsage busg) {
 
     return usage;
 }
-static inline WGPUTextureFormat toWGPUPixelFormat(PixelFormat format) {
-    switch (format) {
-        case RGBA8:
-            return WGPUTextureFormat_RGBA8Unorm;
-        case RGBA8_Srgb:
-            return WGPUTextureFormat_RGBA8UnormSrgb;
-        case BGRA8:
-            return WGPUTextureFormat_BGRA8Unorm;
-        case BGRA8_Srgb:
-            return WGPUTextureFormat_BGRA8UnormSrgb;
-        case RGBA16F:
-            return WGPUTextureFormat_RGBA16Float;
-        case RGBA32F:
-            return WGPUTextureFormat_RGBA32Float;
-        case Depth24:
-            return WGPUTextureFormat_Depth24Plus;
-        case Depth32:
-            return WGPUTextureFormat_Depth32Float;
-        case GRAYSCALE:
-            assert(0 && "GRAYSCALE format not supported in Vulkan.");
-        case RGB8:
-            assert(0 && "RGB8 format not supported in Vulkan.");
-        default:
-            rg_unreachable();
-    }
-    return WGPUTextureFormat_Undefined;
-}
 
-static inline PixelFormat fromWGPUPixelFormat(WGPUTextureFormat format) {
-    switch (format) {
-        case WGPUTextureFormat_RGBA8Unorm:      return RGBA8;
-        case WGPUTextureFormat_RGBA8UnormSrgb:  return RGBA8_Srgb;
-        case WGPUTextureFormat_BGRA8Unorm:      return BGRA8;
-        case WGPUTextureFormat_BGRA8UnormSrgb:  return BGRA8_Srgb;
-        case WGPUTextureFormat_RGBA16Float:     return RGBA16F;
-        case WGPUTextureFormat_RGBA32Float:     return RGBA32F;
-        case WGPUTextureFormat_Depth24Plus:     return Depth24;
-        case WGPUTextureFormat_Depth32Float:    return Depth32;
-        default:
-            rg_unreachable();
-    }
-    return (PixelFormat)(-1); // Unreachable but silences compiler warnings
-}
 
 // Translation function for filterMode to WGPUFilterMode
 static inline WGPUFilterMode toWebGPUFilterMode(filterMode fm) {
