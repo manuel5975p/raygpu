@@ -179,24 +179,25 @@ int main(){
         .hinstance = GetModuleHandle(NULL)
     };
     #else    
-    WGPUSurfaceSourceXlibWindow surfaceChain;
+    WGPUSurfaceSourceXlibWindow surfaceChainX11;
     Display* x11_display = glfwGetX11Display();
     Window x11_window = glfwGetX11Window(window);
-    surfaceChain.chain.sType = WGPUSType_SurfaceSourceXlibWindow;
-    surfaceChain.chain.next = NULL;
-    surfaceChain.display = x11_display;
-    surfaceChain.window = x11_window;
+    surfaceChainX11.chain.sType = WGPUSType_SurfaceSourceXlibWindow;
+    surfaceChainX11.chain.next = NULL;
+    surfaceChainX11.display = x11_display;
+    surfaceChainX11.window = x11_window;
 
-    //struct wl_display* native_display = glfwGetWaylandDisplay();
-    //struct wl_surface* native_surface = glfwGetWaylandWindow(window);
-    //WGPUSurfaceSourceWaylandSurface surfaceChain;
-    //surfaceChain.chain.sType = WGPUSType_SurfaceSourceWaylandSurface;
-    //surfaceChain.chain.next = NULL;
-    //surfaceChain.display = native_display;
-    //surfaceChain.surface = native_surface;
+    struct wl_display* native_display = glfwGetWaylandDisplay();
+    struct wl_surface* native_surface = glfwGetWaylandWindow(window);
+    WGPUSurfaceSourceWaylandSurface surfaceChainWayland;
+    surfaceChainWayland.chain.sType = WGPUSType_SurfaceSourceWaylandSurface;
+    surfaceChainWayland.chain.next = NULL;
+    surfaceChainWayland.display = native_display;
+    surfaceChainWayland.surface = native_surface;
     #endif
+    WGPUChainedStruct* surfaceChain = native_surface ? &surfaceChainWayland.chain : &surfaceChainX11.chain;
     WGPUSurfaceDescriptor surfaceDescriptor;
-    surfaceDescriptor.nextInChain = &surfaceChain.chain;
+    surfaceDescriptor.nextInChain = surfaceChain;
     surfaceDescriptor.label = (WGPUStringView){ NULL, WGPU_STRLEN };
     int width, height;
     glfwGetWindowSize(window, &width, &height);
@@ -349,7 +350,6 @@ int main(){
         });
     
         wgpuRenderPassEncoderSetPipeline(rpenc, rp);
-        wgpuRenderPassEncoderSetScissorRect(rpenc, 0,0, 800, 600);
         wgpuRenderPassEncoderSetVertexBuffer(rpenc, 0, vertexBuffer, 0, WGPU_WHOLE_SIZE);
         wgpuRenderPassEncoderDraw(rpenc, 6, 1, 0, 0);
         wgpuRenderPassEncoderEnd(rpenc);
