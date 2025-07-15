@@ -1,9 +1,13 @@
 #include <raygpu.h>
 #define GLFW_INCLUDE_NONE
-#include <external/volk.h>
-#include <GLFW/glfw3.h>
-//#include <wgpustate.inc>
-#include <renderstate.hpp>
+#if SUPPORT_VULKAN_BACKEND == 1
+    #include <external/volk.h>
+    #include <renderstate.hpp>
+#endif
+#if SUPPORT_WGPU_BACKEND == 1
+    #include "wgpustate.inc"
+#endif
+
 #include <internals.hpp>
 #include "GLFW/glfw3.h"
 #if SUPPORT_WGPU_BACKEND == 1
@@ -374,6 +378,13 @@ extern "C" void* CreateSurfaceForWindow_GLFW(void* windowHandle){
     
     glfwCreateWindowSurface(((WGPUInstance)GetInstance())->instance, (GLFWwindow*)windowHandle, nullptr, &retp->surface);
     return retp;
+    #elif defined(__EMSCRIPTEN__)
+    WGPUEmscriptenSurfaceSourceCanvasHTMLSelector fromCanvasHTMLSelector;
+    fromCanvasHTMLSelector.chain.sType = WGPUSType_EmscriptenSurfaceSourceCanvasHTMLSelector;
+    fromCanvasHTMLSelector.selector = (WGPUStringView){ "canvas", WGPU_STRLEN };
+    WGPUSurfaceDescriptor surfaceDesc = {0};
+    surfaceDesc.nextInChain = &fromCanvasHTMLSelector.chain;
+    return wgpuInstanceCreateSurface((WGPUInstance)GetInstance(), &surfaceDesc);
     #else
     wgpu::Surface rs = wgpu::glfw::CreateSurfaceForWindow((WGPUInstance)GetInstance(), (GLFWwindow*)windowHandle);
     WGPUSurface wsurfaceHandle = rs.MoveToCHandle();
@@ -413,41 +424,47 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
             //abort();
         }
     #endif
-        
+    
     #ifndef __EMSCRIPTEN__
         window = (void*)glfwCreateWindow(width, height, title, mon, nullptr);
-        //glfwSetWindowPos((GLFWwindow*)window, 200, 1900);
-        if (!window) {
-            abort();
-        }
-        
+        glfwSetWindowPos((GLFWwindow*)window, 200, 1900);
+    //#endif
 
-        // Create the surface.
-        #if SUPPORT_WGPU_BACKEND == 1
-        wgpu::Surface rs = wgpu::glfw::CreateSurfaceForWindow((WGPUInstance)GetInstance(), (GLFWwindow*)window);
-        WGPUSurface wsurfaceHandle = rs.MoveToCHandle();
-        //ret.surface = CreateSurface(wsurfaceHandle, width, height);
-        #elif SUPPORT_VULKAN_BACKEND == 1
-        WGPUSurfaceConfiguration config{};
-        config.format = WGPUTextureFormat_BGRA8Unorm;
-        config.presentMode = WGPUPresentMode_Fifo;
-        config.width = width;
-        config.height = height;
-        //ret.surface = LoadSurface((GLFWwindow*)window, config);
-        #endif
-        //negotiateSurfaceFormatAndPresentMode(wsurfaceHandle);
+    //#ifndef __EMSCRIPTEN__
+    //    window = (void*)glfwCreateWindow(width, height, title, mon, nullptr);
+    //    //glfwSetWindowPos((GLFWwindow*)window, 200, 1900);
+    //    if (!window) {
+    //        abort();
+    //    }
+    //    
+//
+    //    // Create the surface.
+    //    #if SUPPORT_WGPU_BACKEND == 1
+    //    wgpu::Surface rs = wgpu::glfw::CreateSurfaceForWindow((WGPUInstance)GetInstance(), (GLFWwindow*)window);
+    //    WGPUSurface wsurfaceHandle = rs.MoveToCHandle();
+    //    //ret.surface = CreateSurface(wsurfaceHandle, width, height);
+    //    #elif SUPPORT_VULKAN_BACKEND == 1
+    //    WGPUSurfaceConfiguration config{};
+    //    config.format = WGPUTextureFormat_BGRA8Unorm;
+    //    config.presentMode = WGPUPresentMode_Fifo;
+    //    config.width = width;
+    //    config.height = height;
+    //    //ret.surface = LoadSurface((GLFWwindow*)window, config);
+    //    #endif
+    //    //negotiateSurfaceFormatAndPresentMode(wsurfaceHandle);
     #else
         // Create the surface.
-        wgpu::SurfaceDescriptorFromCanvasHTMLSelector canvasDesc{};
-        canvasDesc.selector = "#canvas";
-
-        wgpu::SurfaceDescriptor surfaceDesc = {};
-        surfaceDesc.nextInChain = &canvasDesc;
-        g_renderstate.surface = g_wgpustate.instance.CreateSurface(&surfaceDesc);
-        negotiateSurfaceFormatAndPresentMode(g_wgpustate.surface);
-        ret.surface.surface = g_wgpustate.surface.Get();
-        window = glfwCreateWindow(width, height, title, mon, nullptr);
-        g_renderstate.window = (GLFWwindow*)window;
+        
+        //wgpu::EmscriptenSurfaceSourceCanvasHTMLSelector fromCanvasHTMLSelector;
+        //fromCanvasHTMLSelector.sType = wgpu::SType::EmscriptenSurfaceSourceCanvasHTMLSelector;
+        //fromCanvasHTMLSelector.selector = (WGPUStringView){ "canvas", WGPU_STRLEN };
+        //wgpu::SurfaceDescriptor surfaceDesc = {};
+        //surfaceDesc.nextInChain = &fromCanvasHTMLSelector;
+        //g_renderstate.surface = g_wgpustate.instance.CreateSurface(&surfaceDesc);
+        //negotiateSurfaceFormatAndPresentMode(g_wgpustate.surface);
+        //ret.surface.surface = g_wgpustate.surface.Get();
+        //window = glfwCreateWindow(width, height, title, mon, nullptr);
+        //g_renderstate.window = (GLFWwindow*)window;
     #endif
     
 

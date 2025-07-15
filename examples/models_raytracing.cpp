@@ -233,7 +233,7 @@ int main(){
     wgpuRaytracingPassEncoderSetPipeline(rtEncoder, rtpl);
     wgpuRaytracingPassEncoderSetBindGroup(rtEncoder, 0, (WGPUBindGroup)rtbg.bindGroup);
     wgpuRaytracingPassEncoderTraceRays(rtEncoder, 50, 50, 1);
-    WGPUCommandBuffer cmdBuffer = wgpuCommandEncoderFinish(cmdEncoder);
+    WGPUCommandBuffer cmdBuffer = wgpuCommandEncoderFinish(cmdEncoder, nullptr);
     
     //vkCmdBindPipeline(cmdEncoder->buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, rtpl->raytracingPipeline);
     //vkCmdBindDescriptorSets(cmdEncoder->buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, (VkPipelineLayout)drtpl->layout, 0, 1, &reinterpret_cast<WGPUBindGroup>(rtbg.bindGroup)->set, 0, nullptr);

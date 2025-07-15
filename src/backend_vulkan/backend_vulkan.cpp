@@ -21,34 +21,6 @@ void PresentSurface(FullSurface* surface){
 void DummySubmitOnQueue(){
     wgpuDeviceTick(GetDevice());
     return;
-    const uint32_t cacheIndex = g_vulkanstate.device->submittedFrames % framesInFlight;
-    const uint32_t submits = g_vulkanstate.queue->syncState[cacheIndex].submits;
-    if(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence == 0){
-        abort();
-        //VkFenceCreateInfo vci = {
-        //    .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-        //    .pNext = NULL,
-        //    .flags = 0,
-        //};
-        //vkCreateFence(g_vulkanstate.device->device, &vci, nullptr, &g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence);
-    }
-    VkSubmitInfo emptySubmit zeroinit;
-    emptySubmit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    emptySubmit.waitSemaphoreCount = 1;
-    rassert(g_vulkanstate.queue->syncState[cacheIndex].semaphores.size > submits, "Too many submits (more than semaphores). This is an internal bug");
-    emptySubmit.pWaitSemaphores = g_vulkanstate.queue->syncState[cacheIndex].semaphores.data + submits;
-    VkPipelineStageFlags waitmask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    emptySubmit.pWaitDstStageMask = &waitmask;
-    g_vulkanstate.device->functions.vkQueueSubmit(g_vulkanstate.device->queue->graphicsQueue, 1, &emptySubmit, g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence->fence);
-    g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence->state = WGPUFenceState_InUse;
-    WGPUCommandBufferVector insert{};
-
-    PendingCommandBufferMap* pcmap = &g_vulkanstate.queue->pendingCommandBuffers[cacheIndex];
-    WGPUFence ftf = g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence;
-    PendingCommandBufferMap_put(pcmap, ftf, insert);
-    WGPUCommandBufferVector* inserted = PendingCommandBufferMap_get(pcmap, ftf);
-    WGPUCommandBufferVector_init(inserted);
-    //g_vulkanstate.queue->pendingCommandBuffers[cacheIndex].emplace(g_vulkanstate.queue->device->frameCaches[cacheIndex].finalTransitionFence, std::unordered_set<WGPUCommandBuffer>{});
 }
 
 extern "C" DescribedBuffer* GenBufferEx(const void* data, size_t size, WGPUBufferUsage usage){
@@ -66,8 +38,8 @@ extern "C" DescribedBuffer* GenBufferEx(const void* data, size_t size, WGPUBuffe
 }
 
 extern "C" void ResizeSurface(FullSurface* fsurface, uint32_t width, uint32_t height){
-    vkQueueWaitIdle(reinterpret_cast<WGPUSurface>(fsurface->surface)->device->queue->graphicsQueue);
-    vkQueueWaitIdle(reinterpret_cast<WGPUSurface>(fsurface->surface)->device->queue->presentQueue);
+    reinterpret_cast<WGPUSurface>(fsurface->surface)->device->functions.vkQueueWaitIdle(reinterpret_cast<WGPUSurface>(fsurface->surface)->device->queue->graphicsQueue);
+    reinterpret_cast<WGPUSurface>(fsurface->surface)->device->functions.vkQueueWaitIdle(reinterpret_cast<WGPUSurface>(fsurface->surface)->device->queue->presentQueue);
     VkSemaphoreWaitInfo info;
     fsurface->surfaceConfig.width = width;
     fsurface->surfaceConfig.height = height;
