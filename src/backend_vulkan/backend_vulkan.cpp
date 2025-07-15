@@ -19,6 +19,7 @@ void PresentSurface(FullSurface* surface){
     WGPUSurface wgpusurf = (WGPUSurface)surface->surface;
 }
 void DummySubmitOnQueue(){
+    wgpuDeviceTick(GetDevice());
     return;
     const uint32_t cacheIndex = g_vulkanstate.device->submittedFrames % framesInFlight;
     const uint32_t submits = g_vulkanstate.queue->syncState[cacheIndex].submits;

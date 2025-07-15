@@ -16,6 +16,9 @@ void adapterCallbackFunction(
     ){
     *((WGPUAdapter*)userdata1) = adapter;
 }
+#ifndef STRVIEW
+    #define STRVIEW(X) (WGPUStringView){(X), (sizeof(X) - 1)};
+#endif
 
 void reflectionCallback(WGPUReflectionInfoRequestStatus status, const WGPUReflectionInfo* reflectionInfo, void* userdata1, void* userdata2){
     for(uint32_t i = 0;i < reflectionInfo->globalCount;i++){
