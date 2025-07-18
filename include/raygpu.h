@@ -594,10 +594,7 @@ typedef enum LimitType{
     maxComputeWorkgroupSizeY,
     maxComputeWorkgroupSizeZ,
     maxComputeWorkgroupsPerDimension,
-    maxStorageBuffersInVertexStage,
-    maxStorageTexturesInVertexStage,
-    maxStorageBuffersInFragmentStage,
-    maxStorageTexturesInFragmentStage
+    maxImmediateSize,
 }LimitType;
 
 typedef enum {

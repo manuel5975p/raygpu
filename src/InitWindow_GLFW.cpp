@@ -343,13 +343,13 @@ void ToggleFullscreen_GLFW(){
         );
         g_renderstate.windowFlags |= FLAG_FULLSCREEN_MODE;
     }
-    TRACELOG(LOG_DEBUG, "Tagu fullscreen");
+    //TRACELOG(LOG_DEBUG, "Tagu fullscreen");
     #else //Other than emscripten
     GLFWmonitor* monitor = glfwGetWindowMonitor(g_renderstate.window);
     if(monitor){
         //We need to exit fullscreen
         g_renderstate.windowFlags &= ~FLAG_FULLSCREEN_MODE;
-        glfwSetWindowMonitor(g_renderstate.window, NULL, g_renderstate.input_map[g_renderstate.window].windowPosition.x, g_renderstate.input_map[g_renderstate.window].windowPosition.y, g_renderstate.input_map[g_renderstate.window].windowPosition.width, g_renderstate.input_map[g_renderstate.window].windowPosition.height, GLFW_DONT_CARE);
+        glfwSetWindowMonitor(g_renderstate.window, NULL, (int)g_renderstate.input_map[g_renderstate.window].windowPosition.x, (int)g_renderstate.input_map[g_renderstate.window].windowPosition.y, g_renderstate.input_map[g_renderstate.window].windowPosition.width, g_renderstate.input_map[g_renderstate.window].windowPosition.height, GLFW_DONT_CARE);
     }
     else{
         //We need to enter fullscreen

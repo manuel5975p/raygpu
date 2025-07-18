@@ -75,6 +75,7 @@ WGPUSurface SDL3_GetWGPUSurface(WGPUInstance instance, SDL_Window* window) {
         struct wl_surface *surface = (struct wl_surface *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WAYLAND_SURFACE_POINTER, NULL);
         if (display && surface) {
             WGPUSurfaceSourceWaylandSurface fromWl{};
+            fromWl.chain.sType = WGPUSType_SurfaceSourceWaylandSurface;
             fromWl.chain.next = NULL;
             fromWl.display = display;
             fromWl.surface = surface;

@@ -12,8 +12,8 @@
 #include <SDL3/SDL_vulkan.h>
 #include <wgvk_structs_impl.h>
 #elif SUPPORT_WGPU_BACKEND == 1 || defined(__EMSCRIPTEN__)
-#include "sdl3webgpu.h"
 #endif
+#include "sdl3webgpu.h"
 
 constexpr uint32_t max_format_count = 16;
 
@@ -58,63 +58,30 @@ void Initialize_SDL3(){
 }
 
 extern "C" void* CreateSurfaceForWindow_SDL3(void* windowHandle){
-    #if SUPPORT_VULKAN_BACKEND == 1
-    WGPUSurface retp = callocnew(WGPUSurfaceImpl);
-    SDL_Vulkan_CreateSurface((SDL_Window*)windowHandle, ((WGPUInstance)GetInstance())->instance, nullptr, &retp->surface);
-    return retp;
-    #else
     return SDL3_GetWGPUSurface((WGPUInstance)GetInstance(), (SDL_Window*)windowHandle);
-    #endif
 }
-SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title){
+
+extern "C" SubWindow OpenSubWindow_SDL3(uint32_t width, uint32_t height, const char* title){
     SubWindow ret zeroinit;
     ret.type = windowType_sdl3;
-    //WGPUInstance inst = (WGPUInstance)GetInstance();
-    //WGPUSurfaceCapabilities capabilities zeroinit;
-    SDL_WindowFlags windowFlags = 0;
-    #if SUPPORT_VULKAN_BACKEND == 1
-    windowFlags |= SDL_WINDOW_VULKAN;
-    #endif
-    
-    ret.handle = SDL_CreateWindow(title, width, height, windowFlags);
-    #if SUPPORT_VULKAN_BACKEND == 1
-    //WGPUSurface vSurface = callocnew(WGPUSurfaceImpl);
-    //bool surfaceCreated = SDL_Vulkan_CreateSurface((SDL_Window*)ret.handle, g_vulkanstate.instance, nullptr, &vSurface->surface);
-    //SurfaceConfiguration config{};
-    //config.width = width;
-    //config.height = height;
-    //config.format = BGRA8;
-    //config.presentMode = PresentMode_Fifo;
-    //config.device = g_vulkanstate.device;
-    //WGPUSurfaceConfigure(vSurface, &config);
-    //FullSurface fsurface zeroinit;
-    //fsurface.surfaceConfig = config;
-    //fsurface.surface = vSurface;
-    //fsurface.renderTarget.depth = LoadDepthTexture(width, height);
-    //ret.surface = fsurface;
-    //g_renderstate.createdSubwindows[ret.handle] = ret;
-    //#else
-    //WGPUSurface surface = SDL3_GetWGPUSurface(inst, (SDL_Window*)ret.handle);
-    //
-    //ret.surface = CreateSurface(surface, width, height);
-    #endif
+    ret.handle = SDL_CreateWindow(title, width, height, 0);
+
     g_renderstate.createdSubwindows[ret.handle] = ret;
     g_renderstate.input_map[(GLFWwindow*)ret.handle];
-    //setup((GLFWwindow*)ret.handle);
     return ret;
 }
 
 
 extern "C" SubWindow InitWindow_SDL3(uint32_t width, uint32_t height, const char *title) {
     Initialize_SDL3();
-    TRACELOG(LOG_INFO, "INITED SDL3!!!!!!!!!!!!!!!!!");
-    SubWindow ret{};
+    TRACELOG(LOG_INFO, "INITED SDL3!");
+    SubWindow ret zeroinit;
     ret.type = windowType_sdl3;
     //SDL_SetHint(SDL_HINT_TRACKPAD_IS_TOUCH_ONLY, "1");
-    SDL_WindowFlags windowFlags zeroinit;
-    #if SUPPORT_VULKAN_BACKEND == 1 && !defined(__EMSCRIPTEN__)
-    windowFlags |= SDL_WINDOW_VULKAN;
-    #endif
+    SDL_WindowFlags windowFlags = 0;
+    //#if SUPPORT_VULKAN_BACKEND == 1 && !defined(__EMSCRIPTEN__)
+    //windowFlags |= SDL_WINDOW_VULKAN;
+    //#endif
     SDL_Window *window = SDL_CreateWindow(title, width, height, windowFlags);
     SDL_SetWindowResizable(window, (g_renderstate.windowFlags & FLAG_WINDOW_RESIZABLE));
     if(g_renderstate.windowFlags & FLAG_FULLSCREEN_MODE)

@@ -831,41 +831,38 @@ WGPUBackendType requestedBackend = DEFAULT_BACKEND;
 WGPUAdapterType requestedAdapterType = WGPUAdapterType_Unknown;
 void setlimit(wgpu::Limits& limits, LimitType limit, uint64_t value){
     switch(limit){
-        case maxTextureDimension1D:limits.maxTextureDimension1D = value;break;
-        case maxTextureDimension2D:limits.maxTextureDimension2D = value;break;
-        case maxTextureDimension3D:limits.maxTextureDimension3D = value;break;
-        case maxTextureArrayLayers:limits.maxTextureArrayLayers = value;break;
-        case maxBindGroups:limits.maxBindGroups = value;break;
-        case maxBindGroupsPlusVertexBuffers:limits.maxBindGroupsPlusVertexBuffers = value;break;
-        case maxBindingsPerBindGroup:limits.maxBindingsPerBindGroup = value;break;
-        case maxDynamicUniformBuffersPerPipelineLayout:limits.maxDynamicUniformBuffersPerPipelineLayout = value;break;
-        case maxDynamicStorageBuffersPerPipelineLayout:limits.maxDynamicStorageBuffersPerPipelineLayout = value;break;
-        case maxSampledTexturesPerShaderStage:limits.maxSampledTexturesPerShaderStage = value;break;
-        case maxSamplersPerShaderStage:limits.maxSamplersPerShaderStage = value;break;
-        case maxStorageBuffersPerShaderStage:limits.maxStorageBuffersPerShaderStage = value;break;
-        case maxStorageTexturesPerShaderStage:limits.maxStorageTexturesPerShaderStage = value;break;
-        case maxUniformBuffersPerShaderStage:limits.maxUniformBuffersPerShaderStage = value;break;
-        case maxUniformBufferBindingSize:limits.maxUniformBufferBindingSize = value;break;
-        case maxStorageBufferBindingSize:limits.maxStorageBufferBindingSize = value;break;
-        case minUniformBufferOffsetAlignment:limits.minUniformBufferOffsetAlignment = value;break;
-        case minStorageBufferOffsetAlignment:limits.minStorageBufferOffsetAlignment = value;break;
-        case maxVertexBuffers:limits.maxVertexBuffers = value;break;
-        case maxBufferSize:limits.maxBufferSize = value;break;
-        case maxVertexAttributes:limits.maxVertexAttributes = value;break;
-        case maxVertexBufferArrayStride:limits.maxVertexBufferArrayStride = value;break;
-        case maxInterStageShaderVariables:limits.maxInterStageShaderVariables = value;break;
-        case maxColorAttachments:limits.maxColorAttachments = value;break;
-        case maxColorAttachmentBytesPerSample:limits.maxColorAttachmentBytesPerSample = value;break;
-        case maxComputeWorkgroupStorageSize:limits.maxComputeWorkgroupStorageSize = value;break;
-        case maxComputeInvocationsPerWorkgroup:limits.maxComputeInvocationsPerWorkgroup = value;break;
-        case maxComputeWorkgroupSizeX:limits.maxComputeWorkgroupSizeX = value;break;
-        case maxComputeWorkgroupSizeY:limits.maxComputeWorkgroupSizeY = value;break;
-        case maxComputeWorkgroupSizeZ:limits.maxComputeWorkgroupSizeZ = value;break;
-        case maxComputeWorkgroupsPerDimension:limits.maxComputeWorkgroupsPerDimension = value;break;
-        case maxStorageBuffersInVertexStage:limits.maxStorageBuffersInVertexStage = value;break;
-        case maxStorageTexturesInVertexStage:limits.maxStorageTexturesInVertexStage = value;break;
-        case maxStorageBuffersInFragmentStage:limits.maxStorageBuffersInFragmentStage = value;break;
-        case maxStorageTexturesInFragmentStage:limits.maxStorageTexturesInFragmentStage = value;break;
+        case maxTextureDimension1D: limits.maxTextureDimension1D = value;
+        case maxTextureDimension2D: limits.maxTextureDimension2D = value;
+        case maxTextureDimension3D: limits.maxTextureDimension3D = value;
+        case maxTextureArrayLayers: limits.maxTextureArrayLayers = value;
+        case maxBindGroups: limits.maxBindGroups = value;
+        case maxBindGroupsPlusVertexBuffers: limits.maxBindGroupsPlusVertexBuffers = value;
+        case maxBindingsPerBindGroup: limits.maxBindingsPerBindGroup = value;
+        case maxDynamicUniformBuffersPerPipelineLayout: limits.maxDynamicUniformBuffersPerPipelineLayout = value;
+        case maxDynamicStorageBuffersPerPipelineLayout: limits.maxDynamicStorageBuffersPerPipelineLayout = value;
+        case maxSampledTexturesPerShaderStage: limits.maxSampledTexturesPerShaderStage = value;
+        case maxSamplersPerShaderStage: limits.maxSamplersPerShaderStage = value;
+        case maxStorageBuffersPerShaderStage: limits.maxStorageBuffersPerShaderStage = value;
+        case maxStorageTexturesPerShaderStage: limits.maxStorageTexturesPerShaderStage = value;
+        case maxUniformBuffersPerShaderStage: limits.maxUniformBuffersPerShaderStage = value;
+        case maxUniformBufferBindingSize: limits.maxUniformBufferBindingSize = value;
+        case maxStorageBufferBindingSize: limits.maxStorageBufferBindingSize = value;
+        case minUniformBufferOffsetAlignment: limits.minUniformBufferOffsetAlignment = value;
+        case minStorageBufferOffsetAlignment: limits.minStorageBufferOffsetAlignment = value;
+        case maxVertexBuffers: limits.maxVertexBuffers = value;
+        case maxBufferSize: limits.maxBufferSize = value;
+        case maxVertexAttributes: limits.maxVertexAttributes = value;
+        case maxVertexBufferArrayStride: limits.maxVertexBufferArrayStride = value;
+        case maxInterStageShaderVariables: limits.maxInterStageShaderVariables = value;
+        case maxColorAttachments: limits.maxColorAttachments = value;
+        case maxColorAttachmentBytesPerSample: limits.maxColorAttachmentBytesPerSample = value;
+        case maxComputeWorkgroupStorageSize: limits.maxComputeWorkgroupStorageSize = value;
+        case maxComputeInvocationsPerWorkgroup: limits.maxComputeInvocationsPerWorkgroup = value;
+        case maxComputeWorkgroupSizeX: limits.maxComputeWorkgroupSizeX = value;
+        case maxComputeWorkgroupSizeY: limits.maxComputeWorkgroupSizeY = value;
+        case maxComputeWorkgroupSizeZ: limits.maxComputeWorkgroupSizeZ = value;
+        case maxComputeWorkgroupsPerDimension: limits.maxComputeWorkgroupsPerDimension = value;
+        case maxImmediateSize: limits.maxImmediateSize = value;
     }
 }
 extern "C" void RequestLimit(LimitType limit, uint64_t value){
@@ -965,7 +962,10 @@ void InitBackend(){
     // Create the instance with the toggles
     wgpu::InstanceDescriptor instanceDescriptor = {};
     instanceDescriptor.nextInChain = togglesChain;
-    instanceDescriptor.capabilities.timedWaitAnyEnable = true;
+
+    const wgpu::InstanceFeatureName timedWaitAny = wgpu::InstanceFeatureName::TimedWaitAny;
+    instanceDescriptor.requiredFeatures = &timedWaitAny;
+    instanceDescriptor.requiredFeatureCount = 1;
 
     sample->instance = wgpu::CreateInstance(&instanceDescriptor);
     #else
@@ -1109,9 +1109,8 @@ void InitBackend(){
 
 
     if(limitsToBeRequested.has_value()){
-        limitsToBeRequested->maxStorageBuffersInVertexStage = adapterLimits.maxStorageBuffersInVertexStage;
-        limitsToBeRequested->maxStorageBuffersInFragmentStage = adapterLimits.maxStorageBuffersInFragmentStage;
         limitsToBeRequested->maxStorageBuffersPerShaderStage = adapterLimits.maxStorageBuffersPerShaderStage;
+        limitsToBeRequested->maxStorageTexturesPerShaderStage = adapterLimits.maxStorageTexturesPerShaderStage;
 
         reqLimits = limitsToBeRequested.value();
         deviceDesc.requiredLimits = &reqLimits;
