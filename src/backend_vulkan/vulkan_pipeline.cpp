@@ -27,7 +27,7 @@ extern "C" DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sources){
         WGPUShaderModule insert = (WGPUShaderModule)RL_CALLOC(1, sizeof(WGPUShaderModuleImpl));
         VkShaderModule insert_ zeroinit;
         vkCreateShaderModule(g_vulkanstate.device->device, &csCreateInfo, nullptr, &insert_);
-        insert->vulkanModule = insert_;
+        insert->vulkanModuleMultiEP = insert_;
         spv_reflect::ShaderModule module(csCreateInfo.codeSize, csCreateInfo.pCode);
         uint32_t epCount = module.GetEntryPointCount();
         for(uint32_t i = 0;i < epCount;i++){
@@ -86,18 +86,25 @@ extern "C" WGPURenderPipeline createSingleRenderPipe(const ModifiablePipelineSta
     ret->refCount = 1;
     ret->device = bglayout.layout->device;
     auto& settings = mst;
-    VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
-    vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    VkPipelineShaderStageCreateInfo vertShaderStageInfo = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        .stage = VK_SHADER_STAGE_VERTEX_BIT,
+        .pName = shaderModule.reflectionInfo.ep[WGPUShaderStageEnum_Vertex].name,
+    };
+    if(shaderModule.stages[WGPUShaderStageEnum_Vertex].module->vulkanModuleMultiEP)
+        vertShaderStageInfo.module = shaderModule.stages[WGPUShaderStageEnum_Vertex].module->vulkanModuleMultiEP;
+    else
+        vertShaderStageInfo.module = shaderModule.stages[WGPUShaderStageEnum_Vertex].module->modules[WGPUShaderStageEnum_Vertex].module;
 
-    vertShaderStageInfo.module = shaderModule.stages[WGPUShaderStageEnum_Vertex].module->vulkanModule;
-    vertShaderStageInfo.pName = shaderModule.reflectionInfo.ep[WGPUShaderStageEnum_Vertex].name;
-
-    VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
-    fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragShaderStageInfo.module = shaderModule.stages[WGPUShaderStageEnum_Fragment].module->vulkanModule;
-    fragShaderStageInfo.pName = shaderModule.reflectionInfo.ep[WGPUShaderStageEnum_Fragment].name;
+    VkPipelineShaderStageCreateInfo fragShaderStageInfo = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+        .pName = shaderModule.reflectionInfo.ep[WGPUShaderStageEnum_Fragment].name,
+    };
+    if(shaderModule.stages[WGPUShaderStageEnum_Fragment].module->vulkanModuleMultiEP)
+        fragShaderStageInfo.module = shaderModule.stages[WGPUShaderStageEnum_Fragment].module->vulkanModuleMultiEP;
+    else
+        fragShaderStageInfo.module = shaderModule.stages[WGPUShaderStageEnum_Fragment].module->modules[WGPUShaderStageEnum_Fragment].module;
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
@@ -847,10 +854,11 @@ extern "C" DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCod
     lci.pSetLayouts = &(reinterpret_cast<WGPUBindGroupLayout>(bgl.layout)->layout);
     VkPipelineLayout layout zeroinit;
     VkResult pipelineCreationResult = vkCreatePipelineLayout(g_vulkanstate.device->device, &lci, nullptr, &layout);
-    VkPipelineShaderStageCreateInfo computeStage zeroinit;
-    computeStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    computeStage.module = computeShaderModule.stages[WGPUShaderStageEnum_Compute].module->vulkanModule;
-    
+    VkPipelineShaderStageCreateInfo computeStage {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
+    if(computeShaderModule.stages[WGPUShaderStageEnum_Compute].module->vulkanModuleMultiEP)
+        computeStage.module = computeShaderModule.stages[WGPUShaderStageEnum_Compute].module->vulkanModuleMultiEP;
+    else
+        computeStage.module = computeShaderModule.stages[WGPUShaderStageEnum_Compute].module->modules[WGPUShaderStageEnum_Compute].module;
     
     computeStage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     computeStage.pName = computeShaderModule.reflectionInfo.ep[WGPUShaderStageEnum_Compute].name;

@@ -61,6 +61,7 @@ typedef enum PixelFormat {
     RGB8 = 0x100001,      // No WGPU_ equivalent
     PixelFormat_Force32 = 0x7FFFFFFF
 } PixelFormat;
+
 typedef enum TFilterMode { TFilterMode_Undefined = 0x00000000, TFilterMode_Nearest = 0x00000001, TFilterMode_Linear = 0x00000002, TFilterMode_Force32 = 0x7FFFFFFF } TFilterMode;
 
 typedef enum FrontFace { FrontFace_Undefined = 0x00000000, FrontFace_CCW = 0x00000001, FrontFace_CW = 0x00000002, FrontFace_Force32 = 0x7FFFFFFF } FrontFace;
@@ -209,10 +210,9 @@ typedef struct ResourceDescriptor {
     /*NULLABLE*/ WGPUSampler sampler;
     /*NULLABLE*/ WGPUTextureView textureView;
     #if SUPPORT_VULKAN_BACKEND == 1
-    /*NULLABLE*/ WGPUTopLevelAccelerationStructure accelerationStructure;
+    /*NULLABLE*/ WGPURayTracingAccelerationContainer accelerationStructure;
     #endif
 } ResourceDescriptor;
-
 
 typedef struct DescribedBuffer{
     WGPUBufferUsage usage;

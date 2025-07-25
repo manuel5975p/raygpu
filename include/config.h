@@ -80,11 +80,14 @@
 #ifndef MAX_COLOR_ATTACHMENTS
     #define MAX_COLOR_ATTACHMENTS 4
 #endif
-#ifndef USE_VMA_ALLOCATOR
-    #define USE_VMA_ALLOCATOR 0
-#endif
-#define VULKAN_USE_DYNAMIC_RENDERING 1
-#define VULKAN_ENABLE_RAYTRACING 0
+
+//#ifndef VULKAN_USE_DYNAMIC_RENDERING
+//    #define VULKAN_USE_DYNAMIC_RENDERING 1
+//#endif
+//#ifndef VULKAN_ENABLE_RAYTRACING
+//    #define VULKAN_ENABLE_RAYTRACING 0
+//#endif
+
 #define RAYGPU_NO_INLINE_FUNCTIONS 1
 
 #if !defined(RL_MALLOC) && !defined(RL_CALLOC) && !defined(RL_REALLOC) && !defined(RL_FREE)

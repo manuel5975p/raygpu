@@ -264,9 +264,8 @@ void negotiateSurfaceFormatAndPresentMode(WGPUAdapter adapter, const void* Surfa
     vkGetPhysicalDeviceSurfaceFormatsKHR(adapter->physicalDevice, surface->surface, &surfaceFormatCount, surfaceFormats.data());
     for(uint32_t i = 0;i < surfaceFormats.size();i++){
         VkSurfaceFormatKHR fmt = surfaceFormats[i];
-        TRACELOG(LOG_INFO, "Supported surface formats: %d, %d, ", fmt.format, fmt.colorSpace);
+        //TRACELOG(LOG_INFO, "Supported surface formats: %d, %d, ", fmt.format, fmt.colorSpace);
     }
-    TRACELOG(LOG_INFO, "\n");
     
     g_renderstate.frameBufferFormat = BGRA8;
 }
@@ -1080,7 +1079,6 @@ memory_types discoverMemoryTypes(VkPhysicalDevice physicalDevice) {
     return ret;
 }
 
-extern "C" void raytracing_LoadDeviceFunctions(VkDevice device);
 void InitBackend(){
     #if SUPPORT_SDL2 == 1 || SUPPORT_SDL3 == 1
     SDL_Init(SDL_INIT_VIDEO);
@@ -1137,18 +1135,7 @@ void InitBackend(){
     };
     wgpuInstanceWaitAny(g_vulkanstate.instance, 1, &info, 1000000000);
     g_vulkanstate.device = device;
-
     g_vulkanstate.queue = device->queue;
-    //auto device_and_queues = createLogicalDevice(g_vulkanstate.physicalDevice, queues);
-#if VULKAN_ENABLE_RAYTRACING == 1
-    raytracing_LoadDeviceFunctions(device->device);
-#endif
-    //g_vulkanstate.device = device_and_queues.first;
-    //g_vulkanstate.queue = device_and_queues.second;
-    //for(uint32_t fif = 0;fif < framesInFlight;fif++){
-    //    g_vulkanstate.queue->syncState[fif].renderFinishedFence = CreateFence(0);
-    //}
-
     
     createRenderPass();
 }
