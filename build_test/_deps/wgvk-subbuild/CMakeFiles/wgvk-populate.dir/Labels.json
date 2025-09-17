@@ -1,0 +1,46 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/home/runner/work/raygpu/raygpu/build_test/_deps/wgvk-subbuild/CMakeFiles/wgvk-populate"
+		},
+		{
+			"file" : "/home/runner/work/raygpu/raygpu/build_test/_deps/wgvk-subbuild/CMakeFiles/wgvk-populate.rule"
+		},
+		{
+			"file" : "/home/runner/work/raygpu/raygpu/build_test/_deps/wgvk-subbuild/CMakeFiles/wgvk-populate-complete.rule"
+		},
+		{
+			"file" : "/home/runner/work/raygpu/raygpu/build_test/_deps/wgvk-subbuild/wgvk-populate-prefix/src/wgvk-populate-stamp/wgvk-populate-build.rule"
+		},
+		{
+			"file" : "/home/runner/work/raygpu/raygpu/build_test/_deps/wgvk-subbuild/wgvk-populate-prefix/src/wgvk-populate-stamp/wgvk-populate-configure.rule"
+		},
+		{
+			"file" : "/home/runner/work/raygpu/raygpu/build_test/_deps/wgvk-subbuild/wgvk-populate-prefix/src/wgvk-populate-stamp/wgvk-populate-download.rule"
+		},
+		{
+			"file" : "/home/runner/work/raygpu/raygpu/build_test/_deps/wgvk-subbuild/wgvk-populate-prefix/src/wgvk-populate-stamp/wgvk-populate-install.rule"
+		},
+		{
+			"file" : "/home/runner/work/raygpu/raygpu/build_test/_deps/wgvk-subbuild/wgvk-populate-prefix/src/wgvk-populate-stamp/wgvk-populate-mkdir.rule"
+		},
+		{
+			"file" : "/home/runner/work/raygpu/raygpu/build_test/_deps/wgvk-subbuild/wgvk-populate-prefix/src/wgvk-populate-stamp/wgvk-populate-patch.rule"
+		},
+		{
+			"file" : "/home/runner/work/raygpu/raygpu/build_test/_deps/wgvk-subbuild/wgvk-populate-prefix/src/wgvk-populate-stamp/wgvk-populate-test.rule"
+		},
+		{
+			"file" : "/home/runner/work/raygpu/raygpu/build_test/_deps/wgvk-subbuild/wgvk-populate-prefix/src/wgvk-populate-stamp/wgvk-populate-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"wgvk-populate"
+		],
+		"name" : "wgvk-populate"
+	}
+}

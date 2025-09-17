@@ -1,0 +1,1 @@
+/usr/bin/c++  -fPIC -Wl,--dependency-file=CMakeFiles/compute.dir/link.d CMakeFiles/compute.dir/compute.cpp.o -o compute  ../libraygpu_core.a ../_deps/wgvk-build/libwgvk.a ../amalgamation/SPIRV-Reflect/libspirv-reflect-static.a

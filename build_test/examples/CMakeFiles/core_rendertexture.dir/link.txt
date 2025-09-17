@@ -1,0 +1,1 @@
+/usr/bin/c++  -fPIC -Wl,--dependency-file=CMakeFiles/core_rendertexture.dir/link.d CMakeFiles/core_rendertexture.dir/core_rendertexture.c.o -o core_rendertexture  ../libraygpu_core.a ../_deps/wgvk-build/libwgvk.a ../amalgamation/SPIRV-Reflect/libspirv-reflect-static.a
