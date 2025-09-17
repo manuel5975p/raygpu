@@ -1,2 +1,0 @@
-/usr/bin/ar qc libwgvk.a CMakeFiles/wgvk.dir/src/wgvk.c.o
-/usr/bin/ranlib libwgvk.a

@@ -1,2 +1,0 @@
-/usr/bin/ar qc libspirv-reflect-static.a "CMakeFiles/spirv-reflect-static.dir/spirv_reflect.c.o"
-/usr/bin/ranlib libspirv-reflect-static.a

@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
 include(FetchContent)
-project(webgpu_standalone)
+project(webgpu_standalone VERSION 1.0.0)
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 if(APPLE)
     enable_language(OBJC)
     enable_language(OBJCXX)
@@ -226,6 +228,8 @@ function(download_file_if_not_exists url filename)
 endfunction()
 if(NOT EMSCRIPTEN AND SUPPORT_GLSL_PARSER AND NOT TARGET glslang)
     option(ENABLE_OPT "Enable glslang spirv optimizations (requires spirv-tools)" OFF)
+    # Disable glslang installation since we bundle it
+    set(GLSLANG_ENABLE_INSTALL OFF CACHE BOOL "Disable glslang install" FORCE)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/amalgamation/glslang)  
 endif()
 
@@ -233,6 +237,8 @@ option(SPIRV_REFLECT_STATIC_LIB "" ON)
 option(SPIRV_REFLECT_EXECUTABLE "" OFF)
 option(SPIRV_REFLECT_EXAMPLES "" OFF)
 option(SPIRV_REFLECT_BUILD_TESTS "" OFF)
+# Disable SPIRV-Reflect installation since we bundle it
+set(SPIRV_REFLECT_INSTALL OFF CACHE BOOL "Disable SPIRV-Reflect install" FORCE)
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/amalgamation/SPIRV-Reflect")
 if(SUPPORT_SDL2)
     FetchContent_Declare(
@@ -367,6 +373,10 @@ if(SUPPORT_VULKAN_BACKEND)
     if(SUPPORT_WGSL_PARSER)
         set(WGVK_BUILD_WGSL_SUPPORT ON)
     endif()
+    
+    # Disable WGVK installation since we bundle it into our library
+    set(WGVK_ENABLE_INSTALL OFF CACHE BOOL "Disable WGVK install" FORCE)
+    
     if(NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/../WGVK")
         FetchContent_Declare(
             wgvk
@@ -559,7 +569,7 @@ else()
         list(APPEND raygpu_linked_deps glslang)
     endif()
     if(SUPPORT_VULKAN_BACKEND)
-        target_include_directories(${raygpu_core_library_name} PUBLIC "amalgamation/vulkan_headers/include")
+        target_include_directories(${raygpu_core_library_name} PRIVATE "amalgamation/vulkan_headers/include")
         list(APPEND raygpu_linked_deps wgvk)
     else()
         list(APPEND raygpu_linked_deps webgpu_dawn)
@@ -638,6 +648,25 @@ endif()
 
 cst_bundle_libraries(raygpu ${raygpu_core_library_name} ${raygpu_linked_deps})
 
+# Copy interface properties from core library to bundled library for installation
+get_target_property(core_include_dirs ${raygpu_core_library_name} INTERFACE_INCLUDE_DIRECTORIES)
+get_target_property(core_compile_defs ${raygpu_core_library_name} INTERFACE_COMPILE_DEFINITIONS)
+get_target_property(core_compile_features ${raygpu_core_library_name} INTERFACE_COMPILE_FEATURES)
+get_target_property(core_compile_options ${raygpu_core_library_name} INTERFACE_COMPILE_OPTIONS)
+
+if(core_include_dirs)
+    target_include_directories(raygpu INTERFACE ${core_include_dirs})
+endif()
+if(core_compile_defs)
+    target_compile_definitions(raygpu INTERFACE ${core_compile_defs})
+endif()
+if(core_compile_features)
+    target_compile_features(raygpu INTERFACE ${core_compile_features})
+endif()
+if(core_compile_options)
+    target_compile_options(raygpu INTERFACE ${core_compile_options})
+endif()
+
 if(DEFINED ENV{HOMEBREW_PREFIX})
     # Construct the RPATH using the environment variable
     set(HOMEBREW_LIB_RPATH "$ENV{HOMEBREW_PREFIX}/lib")
@@ -664,6 +693,69 @@ if(RAYGPU_GENERATE_PYTHON_BINDINGS)
     target_link_libraries(pyraygpu PUBLIC raygpu)
 endif()
 
+# Install targets when RAYGPU_ENABLE_INSTALL is ON
+if(RAYGPU_ENABLE_INSTALL)
+    # Install the bundled library target (contains all dependencies)
+    install(TARGETS raygpu
+        EXPORT raygpuTargets
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
+    
+    # Install public headers from include/ to include/raygpu
+    install(DIRECTORY include/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/raygpu
+        FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
+    )
+    
+    # Install WGVK headers alongside raygpu headers since raygpu.h includes wgvk.h
+    if(SUPPORT_VULKAN_BACKEND)
+        if(TARGET wgvk)
+            get_target_property(WGVK_SOURCE_DIR wgvk SOURCE_DIR)
+            if(WGVK_SOURCE_DIR)
+                install(FILES "${WGVK_SOURCE_DIR}/include/wgvk.h"
+                    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/raygpu
+                )
+                install(FILES "${WGVK_SOURCE_DIR}/include/wgvk_structs_impl.h"
+                    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/raygpu
+                )
+                install(FILES "${WGVK_SOURCE_DIR}/include/wgvk_config.h"
+                    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/raygpu
+                )
+            endif()
+        endif()
+    endif()
+    
+    # Generate and install package config files
+    set(RAYGPU_CONFIG_PATH "${CMAKE_INSTALL_LIBDIR}/cmake/raygpu")
+    
+    configure_package_config_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/raygpuConfig.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/raygpuConfig.cmake"
+        INSTALL_DESTINATION "${RAYGPU_CONFIG_PATH}"
+    )
+    
+    write_basic_package_version_file(
+        "${CMAKE_CURRENT_BINARY_DIR}/raygpuConfigVersion.cmake"
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion
+    )
+    
+    # Install the targets export
+    install(EXPORT raygpuTargets
+        FILE raygpuTargets.cmake
+        NAMESPACE raygpu::
+        DESTINATION "${RAYGPU_CONFIG_PATH}"
+    )
+    
+    # Install config and version files
+    install(FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/raygpuConfig.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/raygpuConfigVersion.cmake"
+        DESTINATION "${RAYGPU_CONFIG_PATH}"
+    )
+endif()
 
 
 message(STATUS "")
