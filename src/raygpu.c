@@ -499,6 +499,59 @@ void adaptRenderPass(DescribedRenderpass* drp, const ModifiablePipelineState* se
 void FillReflectionInfo(DescribedShaderModule* module){
 
 }
+DescribedShaderModule LoadShaderModuleWGSL(ShaderSources sources) {
+    
+    DescribedShaderModule ret = {0};
+    #if SUPPORT_WGPU_BACKEND == 1
+
+    rassert(sources.language == sourceTypeWGSL, "Source language must be wgsl for this function");
+    
+    for(uint32_t i = 0;i < sources.sourceCount;i++){
+        
+        WGPUShaderSourceWGSL source = {
+            .chain = {.sType = WGPUSType_ShaderSourceWGSL},
+            .code = {
+                .data = (const char*)sources.sources[i].data,
+                .length = sources.sources[i].sizeInBytes
+            }
+        };
+
+        
+        
+        WGPUShaderModuleDescriptor mDesc = {
+            .nextInChain = &source.chain
+        };
+        WGPUShaderModule module = wgpuDeviceCreateShaderModule((WGPUDevice)GetDevice(), &mDesc);
+        WGPUShaderStage sourceStageMask = sources.sources[i].stageMask;
+        
+        for(uint32_t i = 0;i < WGPUShaderStageEnum_EnumCount;++i){
+            if(((uint32_t)(sourceStageMask)) & (1u << i)){
+                ret.stages[i].module = module;
+            }
+        }
+        
+        EntryPointSet entryPoints = getEntryPointsWGSL((const char*)sources.sources[i].data);
+        for(uint32_t i = 0;i < 16;i++){
+            //rassert(entryPoints[i].second.size() < 15, "Entrypoint name must be shorter than 15 characters");
+            if(entryPoints.names[i][0] == '\0'){
+                continue;
+            }
+            char* dest = ret.reflectionInfo.ep[i].name;
+            memcpy(dest, entryPoints.names[i], MAX_SHADER_ENTRYPOINT_NAME_LENGTH + 1);
+        }
+    }
+    #elif SUPPORT_TINT_WGSL_PARSER == 1
+    ShaderSources spirvSources = wgsl_to_spirv(sources);
+    ret = LoadShaderModuleSPIRV(spirvSources);
+    
+    ret.reflectionInfo.uniforms = callocnew(StringToUniformMap);
+    ret.reflectionInfo.attributes = CLITERAL(InOutAttributeInfo){0};
+    ret.reflectionInfo.uniforms = getBindings(sources);
+    ret.reflectionInfo.attributes = getAttributesWGSL(sources);
+    #endif
+    return ret;
+}
+
 
 DescribedShaderModule LoadShaderModule(ShaderSources sources){
     

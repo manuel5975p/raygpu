@@ -27,7 +27,7 @@ WGPUSurface glfwCreateWindowWGPUSurface(WGPUInstance instance, GLFWwindow* windo
     switch (glfwGetPlatform()) {
 #else
     // glfwGetPlatform is not available in older versions of emscripten
-    switch (GLFW_PLATFORM_EMSCRIPTEN) {
+    switch (-1) {
 #endif
 
 #ifdef GLFW_EXPOSE_NATIVE_X11

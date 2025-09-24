@@ -18,9 +18,9 @@ int emscripten_to_glfw_key(const char* emsc);
 #include <emscripten/html5.h>
 #include <emscripten/emscripten.h>
 // Configurable scaling factors
-constexpr float PIXEL_SCALE = 1.0f;
-constexpr float LINE_SCALE = 20.0f;  // Adjust based on typical line height
-constexpr float PAGE_SCALE = 800.0f; // Adjust based on typical page height
+const float PIXEL_SCALE = 1.0f;
+const float LINE_SCALE = 20.0f;  // Adjust based on typical line height
+const float PAGE_SCALE = 800.0f; // Adjust based on typical page height
 // Function to calculate scaling based on deltaMode
 float calculateScrollScale(int deltaMode) {
     switch(deltaMode) {
@@ -76,7 +76,7 @@ EM_BOOL EmscriptenWheelCallback(int eventType, const EmscriptenWheelEvent* wheel
     
     // Invoke the original scroll callback with scaled deltas
     //auto originalCallback = reinterpret_cast<decltype(scrollCallback)*>(userData);
-    ScrollCallback(nullptr, deltaX, deltaY);
+    ScrollCallback(NULL, deltaX, deltaY);
     
     return EM_TRUE; // Indicate that the event was handled
 };
@@ -89,7 +89,7 @@ void cpcallback(GLFWwindow* window, double x, double y){
 
 #ifdef __EMSCRIPTEN__
 EM_BOOL EmscriptenMouseCallback(int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
-    cpcallback(nullptr, mouseEvent->targetX, mouseEvent->targetY);
+    cpcallback(NULL, mouseEvent->targetX, mouseEvent->targetY);
     return true;
 };
 #endif
@@ -103,11 +103,11 @@ void clickcallback(GLFWwindow* window, int button, int action, int mods){
 }
 #ifdef __EMSCRIPTEN__
 EM_BOOL EmscriptenMousedownClickCallback(int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
-    clickcallback(nullptr, mouseEvent->button, GLFW_PRESS, 0);
+    clickcallback(NULL, mouseEvent->button, GLFW_PRESS, 0);
     return true;
 };
 EM_BOOL EmscriptenMouseupClickCallback(int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData){
-    clickcallback(nullptr, mouseEvent->button, GLFW_RELEASE, 0);
+    clickcallback(NULL, mouseEvent->button, GLFW_RELEASE, 0);
     return true;
 };
 #endif
@@ -180,12 +180,12 @@ void setupGLFWCallbacks(GLFWwindow* window){
     glfwSetScrollCallback(window, ScrollCallback);
     glfwSetMouseButtonCallback(window, clickcallback);
     #ifdef __EMSCRIPTEN__
-    emscripten_set_mousedown_callback("#canvas", nullptr, 1, EmscriptenMousedownClickCallback);
-    emscripten_set_mouseup_callback("#canvas",   nullptr, 1, EmscriptenMouseupClickCallback);
-    emscripten_set_mousemove_callback("#canvas", nullptr, 1, EmscriptenMouseCallback);
-    emscripten_set_wheel_callback("#canvas",     nullptr, 1, EmscriptenWheelCallback);
-    emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, 1, EmscriptenKeydownCallback);
-    emscripten_set_keyup_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, 1, EmscriptenKeyupCallback);
+    emscripten_set_mousedown_callback("#canvas", NULL, 1, EmscriptenMousedownClickCallback);
+    emscripten_set_mouseup_callback("#canvas",   NULL, 1, EmscriptenMouseupClickCallback);
+    emscripten_set_mousemove_callback("#canvas", NULL, 1, EmscriptenMouseCallback);
+    emscripten_set_wheel_callback("#canvas",     NULL, 1, EmscriptenWheelCallback);
+    emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, 1, EmscriptenKeydownCallback);
+    emscripten_set_keyup_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, 1, EmscriptenKeyupCallback);
     #endif
 }
 
@@ -395,11 +395,14 @@ WGPUSurface CreateSurfaceForWindow_GLFW(void* windowHandle){
     CreatedWindowMap_get(&g_renderstate.createdSubwindows, windowHandle)->scaleFactor = xscale;
     return retp;
     #elif defined(__EMSCRIPTEN__)
-    WGPUEmscriptenSurfaceSourceCanvasHTMLSelector fromCanvasHTMLSelector{};
-    fromCanvasHTMLSelector.chain.sType = WGPUSType_EmscriptenSurfaceSourceCanvasHTMLSelector;
-    fromCanvasHTMLSelector.selector = (WGPUStringView){ "#canvas", WGPU_STRLEN };
-    WGPUSurfaceDescriptor surfaceDesc = {0};
-    surfaceDesc.nextInChain = &fromCanvasHTMLSelector.chain;
+    WGPUEmscriptenSurfaceSourceCanvasHTMLSelector fromCanvasHTMLSelector = {
+        .chain = {
+            .sType = WGPUSType_EmscriptenSurfaceSourceCanvasHTMLSelector
+        },
+        .selector = (WGPUStringView){ "#canvas", WGPU_STRLEN }
+    };
+    WGPUSurfaceDescriptor surfaceDesc = {.nextInChain = &fromCanvasHTMLSelector.chain};
+    
     WGPUInstance instance = (WGPUInstance)GetInstance();
     if(instance == NULL){
         abort();
