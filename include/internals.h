@@ -40,20 +40,204 @@
 
 
 
-//template<typename T>
-//struct rl_free_deleter{
-//    void operator()(T* t)const noexcept{
-//        RL_FREE(t);
-//    }
-//};
-//
-//template<typename T, typename... Args>
-//std::unique_ptr<T, rl_free_deleter<T>> rl_make_unique(Args&&... args) {
-//    void* ptr = RL_MALLOC(sizeof(T));
-//    if (!ptr) return std::unique_ptr<T, rl_free_deleter<T>>(nullptr);
-//    new (ptr) T(std::forward<Args>(args)...);
-//    return std::unique_ptr<T, rl_free_deleter<T>>(reinterpret_cast<T*>(ptr));
-//}
+
+
+
+
+
+
+
+
+
+
+
+
+
+#include <webgpu/webgpu.h>
+
+// Note: Flag enums like RGBufferUsage are defined with values matching WGPU, so a direct cast is sufficient.
+// The functions are provided for consistency and type safety.
+
+static inline WGPUBlendFactor RG_to_WGPU_BlendFactor(RGBlendFactor factor) {
+    switch (factor) {
+        case RGBlendFactor_Zero: return WGPUBlendFactor_Zero;
+        case RGBlendFactor_One: return WGPUBlendFactor_One;
+        case RGBlendFactor_Src: return WGPUBlendFactor_Src;
+        case RGBlendFactor_OneMinusSrc: return WGPUBlendFactor_OneMinusSrc;
+        case RGBlendFactor_SrcAlpha: return WGPUBlendFactor_SrcAlpha;
+        case RGBlendFactor_OneMinusSrcAlpha: return WGPUBlendFactor_OneMinusSrcAlpha;
+        case RGBlendFactor_Dst: return WGPUBlendFactor_Dst;
+        case RGBlendFactor_OneMinusDst: return WGPUBlendFactor_OneMinusDst;
+        case RGBlendFactor_DstAlpha: return WGPUBlendFactor_DstAlpha;
+        case RGBlendFactor_OneMinusDstAlpha: return WGPUBlendFactor_OneMinusDstAlpha;
+        case RGBlendFactor_SrcAlphaSaturated: return WGPUBlendFactor_SrcAlphaSaturated;
+        case RGBlendFactor_Constant: return WGPUBlendFactor_Constant;
+        case RGBlendFactor_OneMinusConstant: return WGPUBlendFactor_OneMinusConstant;
+        case RGBlendFactor_Src1: return WGPUBlendFactor_Src1;
+        case RGBlendFactor_OneMinusSrc1: return WGPUBlendFactor_OneMinusSrc1;
+        case RGBlendFactor_Src1Alpha: return WGPUBlendFactor_Src1Alpha;
+        case RGBlendFactor_OneMinusSrc1Alpha: return WGPUBlendFactor_OneMinusSrc1Alpha;
+        default: return WGPUBlendFactor_Undefined;
+    }
+}
+
+static inline WGPUBlendOperation RG_to_WGPU_BlendOperation(RGBlendOperation op) {
+    switch (op) {
+        case RGBlendOperation_Add: return WGPUBlendOperation_Add;
+        case RGBlendOperation_Subtract: return WGPUBlendOperation_Subtract;
+        case RGBlendOperation_ReverseSubtract: return WGPUBlendOperation_ReverseSubtract;
+        case RGBlendOperation_Min: return WGPUBlendOperation_Min;
+        case RGBlendOperation_Max: return WGPUBlendOperation_Max;
+        default: return WGPUBlendOperation_Undefined;
+    }
+}
+
+static inline WGPUCompareFunction RG_to_WGPU_CompareFunction(RGCompareFunction func) {
+    switch (func) {
+        case RGCompareFunction_Never: return WGPUCompareFunction_Never;
+        case RGCompareFunction_Less: return WGPUCompareFunction_Less;
+        case RGCompareFunction_Equal: return WGPUCompareFunction_Equal;
+        case RGCompareFunction_LessEqual: return WGPUCompareFunction_LessEqual;
+        case RGCompareFunction_Greater: return WGPUCompareFunction_Greater;
+        case RGCompareFunction_NotEqual: return WGPUCompareFunction_NotEqual;
+        case RGCompareFunction_GreaterEqual: return WGPUCompareFunction_GreaterEqual;
+        case RGCompareFunction_Always: return WGPUCompareFunction_Always;
+        default: return WGPUCompareFunction_Undefined;
+    }
+}
+
+static inline WGPUFrontFace RG_to_WGPU_FrontFace(RGFrontFace face) {
+    switch (face) {
+        case RGFrontFace_CCW: return WGPUFrontFace_CCW;
+        case RGFrontFace_CW: return WGPUFrontFace_CW;
+        default: return WGPUFrontFace_Undefined;
+    }
+}
+
+static inline WGPUIndexFormat RG_to_WGPU_IndexFormat(IndexFormat format) {
+    switch (format) {
+        case IndexFormat_Uint16: return WGPUIndexFormat_Uint16;
+        case IndexFormat_Uint32: return WGPUIndexFormat_Uint32;
+        default: return WGPUIndexFormat_Undefined;
+    }
+}
+
+static inline WGPULoadOp RG_to_WGPU_LoadOp(RGLoadOp op) {
+    switch (op) {
+        case RGLoadOp_Clear: return WGPULoadOp_Clear;
+        case RGLoadOp_Load: return WGPULoadOp_Load;
+        default: return WGPULoadOp_Undefined;
+    }
+}
+
+static inline WGPUStoreOp RG_to_WGPU_StoreOp(RGStoreOp op) {
+    switch (op) {
+        case RGStoreOp_Store: return WGPUStoreOp_Store;
+        case RGStoreOp_Discard: return WGPUStoreOp_Discard;
+        default: return WGPUStoreOp_Undefined;
+    }
+}
+
+static inline WGPUVertexStepMode RG_to_WGPU_VertexStepMode(RGVertexStepMode mode) {
+    switch (mode) {
+        case RGVertexStepMode_Vertex: return WGPUVertexStepMode_Vertex;
+        case RGVertexStepMode_Instance: return WGPUVertexStepMode_Instance;
+        case RGVertexStepMode_VertexBufferNotUsed: return WGPUVertexStepMode_Undefined;
+        default: return (WGPUVertexStepMode)0; // Or some other default
+    }
+}
+
+static inline WGPUBufferUsage RG_to_WGPU_BufferUsage(RGBufferUsage usage) {
+    WGPUBufferUsage wgpu_usage = WGPUBufferUsage_None;
+    if (usage & RGBufferUsage_MapRead)       wgpu_usage |= WGPUBufferUsage_MapRead;
+    if (usage & RGBufferUsage_MapWrite)      wgpu_usage |= WGPUBufferUsage_MapWrite;
+    if (usage & RGBufferUsage_CopySrc)       wgpu_usage |= WGPUBufferUsage_CopySrc;
+    if (usage & RGBufferUsage_CopyDst)       wgpu_usage |= WGPUBufferUsage_CopyDst;
+    if (usage & RGBufferUsage_Index)         wgpu_usage |= WGPUBufferUsage_Index;
+    if (usage & RGBufferUsage_Vertex)        wgpu_usage |= WGPUBufferUsage_Vertex;
+    if (usage & RGBufferUsage_Uniform)       wgpu_usage |= WGPUBufferUsage_Uniform;
+    if (usage & RGBufferUsage_Storage)       wgpu_usage |= WGPUBufferUsage_Storage;
+    if (usage & RGBufferUsage_Indirect)      wgpu_usage |= WGPUBufferUsage_Indirect;
+    if (usage & RGBufferUsage_QueryResolve)  wgpu_usage |= WGPUBufferUsage_QueryResolve;
+    return wgpu_usage;
+}
+
+static inline WGPUTextureUsage RG_to_WGPU_TextureUsage(RGTextureUsage usage) {
+    WGPUTextureUsage wgpu_usage = WGPUTextureUsage_None;
+    if (usage & RGTextureUsage_CopySrc)          wgpu_usage |= WGPUTextureUsage_CopySrc;
+    if (usage & RGTextureUsage_CopyDst)          wgpu_usage |= WGPUTextureUsage_CopyDst;
+    if (usage & RGTextureUsage_TextureBinding)   wgpu_usage |= WGPUTextureUsage_TextureBinding;
+    if (usage & RGTextureUsage_StorageBinding)   wgpu_usage |= WGPUTextureUsage_StorageBinding;
+    if (usage & RGTextureUsage_RenderAttachment) wgpu_usage |= WGPUTextureUsage_RenderAttachment;
+    return wgpu_usage;
+}
+
+static inline WGPUShaderStage RG_to_WGPU_ShaderStage(RGShaderStage stage) {
+    WGPUShaderStage wgpu_stage = WGPUShaderStage_None;
+    if (stage & RGShaderStage_Vertex)   wgpu_stage |= WGPUShaderStage_Vertex;
+    if (stage & RGShaderStage_Fragment) wgpu_stage |= WGPUShaderStage_Fragment;
+    if (stage & RGShaderStage_Compute)  wgpu_stage |= WGPUShaderStage_Compute;
+    return wgpu_stage;
+}
+
+static inline WGPUVertexFormat RG_to_WGPU_VertexFormat(RGVertexFormat format) {
+    switch(format) {
+        case RGVertexFormat_Uint8x2: return WGPUVertexFormat_Uint8x2;
+        case RGVertexFormat_Uint8x4: return WGPUVertexFormat_Uint8x4;
+        case RGVertexFormat_Sint8x2: return WGPUVertexFormat_Sint8x2;
+        case RGVertexFormat_Sint8x4: return WGPUVertexFormat_Sint8x4;
+        case RGVertexFormat_Unorm8x2: return WGPUVertexFormat_Unorm8x2;
+        case RGVertexFormat_Unorm8x4: return WGPUVertexFormat_Unorm8x4;
+        case RGVertexFormat_Snorm8x2: return WGPUVertexFormat_Snorm8x2;
+        case RGVertexFormat_Snorm8x4: return WGPUVertexFormat_Snorm8x4;
+        case RGVertexFormat_Uint16x2: return WGPUVertexFormat_Uint16x2;
+        case RGVertexFormat_Uint16x4: return WGPUVertexFormat_Uint16x4;
+        case RGVertexFormat_Sint16x2: return WGPUVertexFormat_Sint16x2;
+        case RGVertexFormat_Sint16x4: return WGPUVertexFormat_Sint16x4;
+        case RGVertexFormat_Unorm16x2: return WGPUVertexFormat_Unorm16x2;
+        case RGVertexFormat_Unorm16x4: return WGPUVertexFormat_Unorm16x4;
+        case RGVertexFormat_Snorm16x2: return WGPUVertexFormat_Snorm16x2;
+        case RGVertexFormat_Snorm16x4: return WGPUVertexFormat_Snorm16x4;
+        case RGVertexFormat_Float16x2: return WGPUVertexFormat_Float16x2;
+        case RGVertexFormat_Float16x4: return WGPUVertexFormat_Float16x4;
+        case RGVertexFormat_Float32: return WGPUVertexFormat_Float32;
+        case RGVertexFormat_Float32x2: return WGPUVertexFormat_Float32x2;
+        case RGVertexFormat_Float32x3: return WGPUVertexFormat_Float32x3;
+        case RGVertexFormat_Float32x4: return WGPUVertexFormat_Float32x4;
+        case RGVertexFormat_Uint32: return WGPUVertexFormat_Uint32;
+        case RGVertexFormat_Uint32x2: return WGPUVertexFormat_Uint32x2;
+        case RGVertexFormat_Uint32x3: return WGPUVertexFormat_Uint32x3;
+        case RGVertexFormat_Uint32x4: return WGPUVertexFormat_Uint32x4;
+        case RGVertexFormat_Sint32: return WGPUVertexFormat_Sint32;
+        case RGVertexFormat_Sint32x2: return WGPUVertexFormat_Sint32x2;
+        case RGVertexFormat_Sint32x3: return WGPUVertexFormat_Sint32x3;
+        case RGVertexFormat_Sint32x4: return WGPUVertexFormat_Sint32x4;
+        default: return (WGPUVertexFormat)~0;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 static inline uint32_t bitcount32(uint32_t x){
@@ -379,6 +563,31 @@ static inline bool vertexArCompare(const AttributeAndResidence* a, uint32_t aCou
     }
     return true;
 }
+
+static inline bool WGPUBlendState_eq(const WGPUBlendState* a, const WGPUBlendState* b){
+    return 
+    
+    a->alpha.dstFactor == b->alpha.dstFactor &&
+    a->alpha.srcFactor == b->alpha.srcFactor &&
+    a->alpha.operation == b->alpha.operation &&
+    a->color.operation == b->color.operation &&
+    a->color.operation == b->color.operation &&
+    a->color.operation == b->color.operation &&
+    true;
+}
+
+static inline bool RenderSettings_eq(const RenderSettings* a, const RenderSettings* b){
+    return
+        a->depthTest    == b->depthTest     && 
+        a->faceCull     == b->faceCull      && 
+        a->sampleCount  == b->sampleCount   && 
+        a->lineWidth    == b->lineWidth     && 
+        WGPUBlendState_eq(&a->blendState, &b->blendState)    && 
+        a->frontFace    == b->frontFace     && 
+        a->depthCompare == b->depthCompare  &&
+    true;
+}
+
 static inline bool ModifiablePipelineState_eq(const ModifiablePipelineState msp1_, const ModifiablePipelineState msp2_){
     const ModifiablePipelineState* msp1 = &msp1_;
     const ModifiablePipelineState* msp2 = &msp2_;
