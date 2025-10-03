@@ -160,7 +160,7 @@ void UpdateTexture(Texture tex, void *data) {
                           &writeSize);
 }
 RGAPI Texture3D LoadTexture3DPro(
-    uint32_t width, uint32_t height, uint32_t depth, PixelFormat format, WGPUTextureUsage usage, uint32_t sampleCount) {
+    uint32_t width, uint32_t height, uint32_t depth, PixelFormat format, RGTextureUsage usage, uint32_t sampleCount) {
     Texture3D ret zeroinit;
     ret.width = width;
     ret.height = height;
@@ -529,7 +529,7 @@ RGAPI FullSurface CompleteSurface(void *nsurface, int width, int height) {
     return ret;
 }
 
-StagingBuffer GenStagingBuffer(size_t size, WGPUBufferUsage usage) {
+StagingBuffer GenStagingBuffer(size_t size, RGBufferUsage usage) {
     StagingBuffer ret = {0};
     WGPUBufferDescriptor descriptor1 = {
         .nextInChain = NULL,
@@ -1378,7 +1378,7 @@ found:
     // presentModeSpellingTable.at((WGPUPresentMode)g_renderstate.throttled_PresentMode).c_str());
 }
 
-DescribedBuffer *GenBufferEx(const void *data, size_t size, WGPUBufferUsage usage) {
+DescribedBuffer *GenBufferEx(const void *data, size_t size, RGBufferUsage usage) {
     DescribedBuffer *ret = callocnew(DescribedBuffer);
     WGPUBufferDescriptor descriptor = {0};
     descriptor.size = size;
@@ -1434,8 +1434,7 @@ Texture2DArray LoadTextureArray(uint32_t width, uint32_t height, uint32_t layerC
     Texture2DArray ret = {.id = id, .view = view, .layerCount = layerCount, .format = format, .sampleCount = 1};
     return ret;
 }
-Texture LoadTexturePro(
-    uint32_t width, uint32_t height, PixelFormat format, WGPUTextureUsage usage, uint32_t sampleCount, uint32_t mipmaps) {
+Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat format, RGTextureUsage usage, uint32_t sampleCount, uint32_t mipmaps) {
     WGPUTextureDescriptor tDesc = {
         .usage = usage,
         .dimension = WGPUTextureDimension_2D,
@@ -1820,30 +1819,20 @@ void BufferData(DescribedBuffer *buffer, const void *data, size_t size) {
 void ResetSyncState() {}
 
 void
-RenderPassSetIndexBuffer(DescribedRenderpass *drp, DescribedBuffer *buffer, WGPUIndexFormat format, uint64_t offset) {
-    wgpuRenderPassEncoderSetIndexBuffer(
-        (WGPURenderPassEncoder)drp->rpEncoder, (WGPUBuffer)buffer->buffer, (WGPUIndexFormat)format, offset, buffer->size);
+RenderPassSetIndexBuffer(DescribedRenderpass *drp, DescribedBuffer *buffer, IndexFormat format, uint64_t offset) {
+    wgpuRenderPassEncoderSetIndexBuffer((WGPURenderPassEncoder)drp->rpEncoder, (WGPUBuffer)buffer->buffer, RG_to_WGPU_IndexFormat(format), offset, buffer->size);
 }
 void RenderPassSetVertexBuffer(DescribedRenderpass *drp, uint32_t slot, DescribedBuffer *buffer, uint64_t offset) {
-    wgpuRenderPassEncoderSetVertexBuffer(
-        (WGPURenderPassEncoder)drp->rpEncoder, slot, (WGPUBuffer)buffer->buffer, offset, buffer->size);
+    wgpuRenderPassEncoderSetVertexBuffer((WGPURenderPassEncoder)drp->rpEncoder, slot, (WGPUBuffer)buffer->buffer, offset, buffer->size);
 }
 void RenderPassSetBindGroup(DescribedRenderpass *drp, uint32_t group, DescribedBindGroup *bindgroup) {
-    wgpuRenderPassEncoderSetBindGroup(
-        (WGPURenderPassEncoder)drp->rpEncoder, group, (WGPUBindGroup)UpdateAndGetNativeBindGroup(bindgroup), 0, NULL);
+    wgpuRenderPassEncoderSetBindGroup((WGPURenderPassEncoder)drp->rpEncoder, group, (WGPUBindGroup)UpdateAndGetNativeBindGroup(bindgroup), 0, NULL);
 }
-void RenderPassDraw(
-    DescribedRenderpass *drp, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) {
+void RenderPassDraw(DescribedRenderpass *drp, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) {
     wgpuRenderPassEncoderDraw((WGPURenderPassEncoder)drp->rpEncoder, vertexCount, instanceCount, firstVertex, firstInstance);
 }
-void RenderPassDrawIndexed(DescribedRenderpass *drp,
-                                      uint32_t indexCount,
-                                      uint32_t instanceCount,
-                                      uint32_t firstIndex,
-                                      int32_t baseVertex,
-                                      uint32_t firstInstance) {
-    wgpuRenderPassEncoderDrawIndexed(
-        (WGPURenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
+void RenderPassDrawIndexed(DescribedRenderpass *drp, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t baseVertex, uint32_t firstInstance) {
+    wgpuRenderPassEncoderDrawIndexed((WGPURenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
 }
 void EndRenderpassEx(DescribedRenderpass *renderPass) {
     drawCurrentBatch();
@@ -1932,10 +1921,10 @@ DescribedShaderModule LoadShaderModuleSPIRV(ShaderSources sourcesSpirv) {
 }
 
 void UnloadShaderModule(DescribedShaderModule mod) {
-    WGPUShaderModule freed[WGPUShaderStageEnum_EnumCount + 1];
+    WGPUShaderModule freed[RGShaderStageEnum_EnumCount + 1];
     int freedCount = 0;
 
-    for (size_t i = 0; i < WGPUShaderStageEnum_EnumCount; i++) {
+    for (size_t i = 0; i < RGShaderStageEnum_EnumCount; i++) {
         WGPUShaderModule m = (WGPUShaderModule)mod.stages[i].module;
         if (!m) continue;
 
@@ -1969,9 +1958,10 @@ WGPURenderPipeline createSingleRenderPipe(const ModifiablePipelineState* mst,
     WGPUFragmentState fragmentState zeroinit;
     WGPUBlendState blendState zeroinit;
 
-    vertexState.module = (WGPUShaderModule)shaderModule->stages[WGPUShaderStageEnum_Vertex].module;
+    vertexState.module = (WGPUShaderModule)shaderModule->stages[RGShaderStageEnum_Vertex].module;
 
     VertexBufferLayoutSet vlayout_complete = getBufferLayoutRepresentation(mst->vertexAttributes, mst->vertexAttributeCount);
+
     vertexState.bufferCount = vlayout_complete.number_of_buffers;
 
     WGPUVertexBufferLayout layouts_converted[16] = {0};
@@ -1980,7 +1970,7 @@ WGPURenderPipeline createSingleRenderPipe(const ModifiablePipelineState* mst,
     for (uint32_t i = 0; i < vlayout_complete.number_of_buffers; i++) {
         layouts_converted[insertIndex++] = (WGPUVertexBufferLayout){
             .nextInChain = NULL,
-            .stepMode = vlayout_complete.layouts[i].stepMode,
+            .stepMode = RG_to_WGPU_VertexStepMode(vlayout_complete.layouts[i].stepMode),
             .arrayStride = vlayout_complete.layouts[i].arrayStride,
             .attributeCount = vlayout_complete.layouts[i].attributeCount,
             .attributes = vlayout_complete.layouts[i].attributes,
@@ -1996,12 +1986,12 @@ WGPURenderPipeline createSingleRenderPipe(const ModifiablePipelineState* mst,
     fragmentState.constantCount = 0;
     fragmentState.constants = NULL;
 
-    blendState.color.srcFactor = settings->blendState.color.srcFactor;
-    blendState.color.dstFactor = settings->blendState.color.dstFactor;
-    blendState.color.operation = settings->blendState.color.operation;
-    blendState.alpha.srcFactor = settings->blendState.alpha.srcFactor;
-    blendState.alpha.dstFactor = settings->blendState.alpha.dstFactor;
-    blendState.alpha.operation = settings->blendState.alpha.operation;
+    blendState.color.srcFactor = RG_to_WGPU_BlendFactor(settings->blendState.color.srcFactor);
+    blendState.color.dstFactor = RG_to_WGPU_BlendFactor(settings->blendState.color.dstFactor);
+    blendState.color.operation = RG_to_WGPU_BlendOperation(settings->blendState.color.operation);
+    blendState.alpha.srcFactor = RG_to_WGPU_BlendFactor(settings->blendState.alpha.srcFactor);
+    blendState.alpha.dstFactor = RG_to_WGPU_BlendFactor(settings->blendState.alpha.dstFactor);
+    blendState.alpha.operation = RG_to_WGPU_BlendOperation(settings->blendState.alpha.operation);
 
     const WGPUColorTargetState colorTarget = {
         .format = toWGPUPixelFormat(g_renderstate.frameBufferFormat),

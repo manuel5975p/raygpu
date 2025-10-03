@@ -287,8 +287,8 @@ RGAPI VertexArray* LoadVertexArray(){
     VertexArray* ret = callocnew(VertexArray);
     return ret;
 }
-RGAPI void VertexAttribPointer(VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, WGPUVertexFormat format, uint32_t offset, WGPUVertexStepMode stepmode){
-    VertexArray_add(array, buffer, attribLocation, format, offset, stepmode);
+RGAPI void VertexAttribPointer(VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, RGVertexFormat format, uint32_t offset, RGVertexStepMode stepmode){
+    VertexArray_add(array, buffer, attribLocation, RG_to_WGPU_VertexFormat(format), offset, RG_to_WGPU_VertexStepMode(stepmode));
 }
 RGAPI void BindVertexArray(VertexArray* va){
     BindShaderVertexArray(GetActiveShader(), va);
@@ -522,14 +522,14 @@ DescribedShaderModule LoadShaderModuleWGSL(ShaderSources sources) {
         WGPUShaderModule module = wgpuDeviceCreateShaderModule((WGPUDevice)GetDevice(), &mDesc);
         WGPUShaderStage sourceStageMask = sources.sources[i].stageMask;
         
-        for(uint32_t i = 0;i < WGPUShaderStageEnum_EnumCount;++i){
+        for(uint32_t i = 0;i < RGShaderStageEnum_EnumCount;++i){
             if(((uint32_t)(sourceStageMask)) & (1u << i)){
                 ret.stages[i].module = module;
             }
         }
         
         EntryPointSet entryPoints = getEntryPointsWGSL((const char*)sources.sources[i].data);
-        for(uint32_t i = 0;i < WGPUShaderStageEnum_EnumCount;i++){
+        for(uint32_t i = 0;i < RGShaderStageEnum_EnumCount;i++){
             //rassert(entryPoints[i].second.size() < 15, "Entrypoint name must be shorter than 15 characters");
             if(entryPoints.names[i][0] == '\0'){
                 continue;
@@ -1649,13 +1649,19 @@ RGAPI Shader LoadShaderFromMemorySPIRV(ShaderSources sources){
     const uint32_t attributeCount = attribs.vertexAttributeCount;
     uint32_t offset = 0;
     for (uint32_t attribIndex = 0; attribIndex < attribs.vertexAttributeCount; attribIndex++) {
-        const WGPUVertexFormat format = attribs.vertexAttributes[attribIndex].format;
+        const RGVertexFormat format = attribs.vertexAttributes[attribIndex].format;
         const uint32_t location = attribs.vertexAttributes[attribIndex].location;
         allAttribsInOneBuffer[attribIndex] = CLITERAL(AttributeAndResidence){
-            .attr = {.nextInChain = NULL, .format = format, .offset = offset, .shaderLocation = location},
+            .attr = {
+                //.nextInChain = NULL,
+                .format = format,
+                .offset = offset,
+                .shaderLocation = location
+            },
             .bufferSlot = 0,
-            .stepMode = WGPUVertexStepMode_Vertex,
-            .enabled = true};
+            .stepMode = RGVertexStepMode_Vertex,
+            .enabled = true
+        };
         offset += attributeSize(format);
     }
     ResourceTypeDescriptor *values = (ResourceTypeDescriptor *)RL_CALLOC(bindings->current_size, sizeof(ResourceTypeDescriptor));
@@ -1692,17 +1698,17 @@ Shader LoadShaderSingleSource(const char* shaderSource){
     const uint32_t attributeCount = attribs.vertexAttributeCount;
     uint32_t offset = 0;
     for(uint32_t attribIndex = 0;attribIndex < attribs.vertexAttributeCount;attribIndex++){
-        const WGPUVertexFormat format = attribs.vertexAttributes[attribIndex].format;
+        const RGVertexFormat format = attribs.vertexAttributes[attribIndex].format;
         const uint32_t location = attribs.vertexAttributes[attribIndex].location;
         allAttribsInOneBuffer[attribIndex] = CLITERAL(AttributeAndResidence){
             .attr = {
-                .nextInChain = NULL,
+                //.nextInChain = NULL,
                 .format = format,
                 .offset = offset,
                 .shaderLocation = location
             },
             .bufferSlot = 0,
-            .stepMode = WGPUVertexStepMode_Vertex,
+            .stepMode = RGVertexStepMode_Vertex,
             .enabled = true
         };
         offset += attributeSize(format);

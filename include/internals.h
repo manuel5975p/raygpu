@@ -302,17 +302,18 @@ RGAPI InOutAttributeInfo getAttributes    (ShaderSources sources);
 
 RGAPI DescribedBuffer* UpdateVulkanRenderbatch();
 void PushUsedBuffer(void* nativeBuffer);
+
 typedef struct VertexBufferLayout{
     uint64_t arrayStride;
-    WGPUVertexStepMode stepMode;
+    RGVertexStepMode stepMode;
     size_t attributeCount;
-    WGPUVertexAttribute* attributes; //NOT owned, points into data owned by VertexBufferLayoutSet::attributePool with an offset
+    RGVertexAttribute* attributes; //NOT owned, points into data owned by VertexBufferLayoutSet::attributePool with an offset
 }VertexBufferLayout;
 
 typedef struct VertexBufferLayoutSet{
     uint32_t number_of_buffers;
     VertexBufferLayout* layouts;    
-    WGPUVertexAttribute* attributePool;
+    RGVertexAttribute* attributePool;
 }VertexBufferLayoutSet;
 
 static inline PixelFormat fromWGPUPixelFormat(WGPUTextureFormat format) {
@@ -992,7 +993,7 @@ static inline uint32_t getReflectionAttributeLocation(const InOutAttributeInfo* 
     return LOCATION_NOT_FOUND;
 }
 
-static inline ShaderSources singleStage(const char* code, ShaderSourceType language, WGPUShaderStageEnum stage){
+static inline ShaderSources singleStage(const char* code, ShaderSourceType language, RGShaderStageEnum stage){
     ShaderSources sources zeroinit;
     sources.language = language;
     sources.sourceCount = 1;
@@ -1002,7 +1003,7 @@ static inline ShaderSources singleStage(const char* code, ShaderSourceType langu
     return sources;
 }
 
-static inline ShaderSources dualStage(const char* code, ShaderSourceType language, WGPUShaderStageEnum stage1, WGPUShaderStageEnum stage2){
+static inline ShaderSources dualStage(const char* code, ShaderSourceType language, RGShaderStageEnum stage1, RGShaderStageEnum stage2){
     ShaderSources sources zeroinit;
     sources.language = language;
     sources.sourceCount = 1;
@@ -1013,7 +1014,7 @@ static inline ShaderSources dualStage(const char* code, ShaderSourceType languag
 }
 
 
-static inline ShaderSources dualStageDualSource(const char* code1, const char* code2, ShaderSourceType language, WGPUShaderStageEnum stage1, WGPUShaderStageEnum stage2){
+static inline ShaderSources dualStageDualSource(const char* code1, const char* code2, ShaderSourceType language, RGShaderStageEnum stage1, RGShaderStageEnum stage2){
     ShaderSources sources zeroinit;
     sources.language = language;
     sources.sourceCount = 2;
@@ -1032,7 +1033,7 @@ void detectShaderLanguage(ShaderSources* sources);
 RGAPI ShaderSourceType detectShaderLanguageSingle(const void* sourceptr, size_t size);
 StringToUniformMap* getBindingsGLSL(ShaderSources source);
 typedef struct EntryPointSet{
-    char names[WGPUShaderStageEnum_EnumCount][MAX_SHADER_ENTRYPOINT_NAME_LENGTH + 1];
+    char names[RGShaderStageEnum_EnumCount][MAX_SHADER_ENTRYPOINT_NAME_LENGTH + 1];
 }EntryPointSet;
 DescribedShaderModule LoadShaderModule(ShaderSources source);
 
