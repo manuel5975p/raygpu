@@ -762,6 +762,60 @@ RGAPI void EndMode3D(){
     SetUniformBufferData(0, GetMatrixPtr(), sizeof(Matrix));
 }
 
+RGAPI void SetShaderValue(Shader shader, int uniformLoc, const void *value, int uniformType)
+{
+    if (uniformLoc == -1) return;
+
+    // Determine the size of the uniform data based on its type
+    size_t size = 0;
+    switch (uniformType) {
+        case SHADER_UNIFORM_FLOAT: size = sizeof(float); break;
+        case SHADER_UNIFORM_VEC2: size = sizeof(float)*2; break;
+        case SHADER_UNIFORM_VEC3: size = sizeof(float)*3; break;
+        case SHADER_UNIFORM_VEC4: size = sizeof(float)*4; break;
+        case SHADER_UNIFORM_INT: size = sizeof(int); break;
+        case SHADER_UNIFORM_IVEC2: size = sizeof(int)*2; break;
+        case SHADER_UNIFORM_IVEC3: size = sizeof(int)*3; break;
+        case SHADER_UNIFORM_IVEC4: size = sizeof(int)*4; break;
+        case SHADER_UNIFORM_SAMPLER2D: size = sizeof(int); break; // Special case for textures
+        default: TRACELOG(LOG_WARNING, "SHADER: Unsupported uniform type for SetShaderValue"); return;
+    }
+
+    if (uniformType == SHADER_UNIFORM_SAMPLER2D)
+    {
+        // For texture samplers, the value is a pointer to the Texture
+        SetShaderTexture(shader, uniformLoc, *(Texture *)value);
+    }
+    else
+    {
+        // For other data types, update the uniform buffer
+        SetShaderUniformBufferData(shader, uniformLoc, value, size);
+    }
+}
+
+RGAPI void SetShaderValueV(Shader shader, int uniformLoc, const void *value, int uniformType, int count)
+{
+    if (uniformLoc == -1) return;
+
+    // Determine the size of a single element of the uniform data
+    size_t size = 0;
+    switch (uniformType) {
+        case SHADER_UNIFORM_FLOAT: size = sizeof(float); break;
+        case SHADER_UNIFORM_VEC2: size = sizeof(float)*2; break;
+        case SHADER_UNIFORM_VEC3: size = sizeof(float)*3; break;
+        case SHADER_UNIFORM_VEC4: size = sizeof(float)*4; break;
+        case SHADER_UNIFORM_INT: size = sizeof(int); break;
+        case SHADER_UNIFORM_IVEC2: size = sizeof(int)*2; break;
+        case SHADER_UNIFORM_IVEC3: size = sizeof(int)*3; break;
+        case SHADER_UNIFORM_IVEC4: size = sizeof(int)*4; break;
+        default: TRACELOG(LOG_WARNING, "SHADER: Unsupported uniform type for SetShaderValueV"); return;
+    }
+
+    // Update the uniform buffer with the array of values
+    SetShaderUniformBufferData(shader, uniformLoc, value, size*count);
+}
+
+
 RGAPI void rlSetLineWidth(float lineWidth){
     g_renderstate.currentSettings.lineWidth = (uint32_t)(lineWidth <= 0.0f ? 0.0f : lineWidth);
 }

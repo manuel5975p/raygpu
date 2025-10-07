@@ -219,6 +219,19 @@ typedef enum FrontFace {
     FrontFace_Force32 = 0x7FFFFFFF
 } FrontFace;
 
+
+typedef enum {
+    SHADER_UNIFORM_FLOAT = 0,
+    SHADER_UNIFORM_VEC2,
+    SHADER_UNIFORM_VEC3,
+    SHADER_UNIFORM_VEC4,
+    SHADER_UNIFORM_INT,
+    SHADER_UNIFORM_IVEC2,
+    SHADER_UNIFORM_IVEC3,
+    SHADER_UNIFORM_IVEC4,
+    SHADER_UNIFORM_SAMPLER2D
+} ShaderUniformDataType;
+
 typedef enum IndexFormat {
     IndexFormat_Undefined = 0x00000000,
     IndexFormat_Uint16 = 0x00000001,
@@ -1289,6 +1302,10 @@ RGAPI void ToggleFullscreen_SDL3(cwoid);
 RGAPI SubWindow OpenSubWindow_GLFW(int width, int height, const char* title);
 RGAPI SubWindow OpenSubWindow_SDL2(int width, int height, const char* title);
 RGAPI SubWindow OpenSubWindow_SDL3(int width, int height, const char* title);
+
+RGAPI void SetShaderValue(Shader shader, int uniformLoc, const void *value, int uniformType);
+RGAPI void SetShaderValueV(Shader shader, int uniformLoc, const void *value, int uniformType, int count);
+RGAPI void DrawModel(Model model, Vector3 position, float scale, Color tint);
 
 /**
  * @brief Get the time elapsed since InitWindow() in seconds since

@@ -148,6 +148,15 @@ RGAPI Model LoadModelFromMesh(Mesh mesh)
     return model;
 }
 
+RGAPI void DrawModel(Model model, Vector3 position, float scale, Color tint)
+{
+    Vector3 vScale = { scale, scale, scale };
+    Vector3 rotationAxis = { 0.0f, 1.0f, 0.0f };
+    float rotationAngle = 0.0f;
+
+    DrawModelEx(model, position, rotationAxis, rotationAngle, vScale, tint);
+}
+
 RGAPI void DrawModelEx(Model model, Vector3 position, Vector3 rotationAxis, float rotationAngle, Vector3 scale, Color tint)
 {
     // Calculate transformation matrix from function parameters
