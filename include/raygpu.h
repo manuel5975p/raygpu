@@ -2,9 +2,9 @@
 #define RAYGPU_H
 #include <config.h>
 #if SUPPORT_WGPU_BACKEND == 1
-    #include <webgpu/webgpu.h>
+    //#include <webgpu/webgpu.h>
 #else
-    #include <webgpu/webgpu.h>
+    //#include <webgpu/webgpu.h>
 #endif
 #include <stdbool.h>
 #include <stdio.h>
@@ -113,6 +113,13 @@ typedef enum RGStoreOp {
     RGStoreOp_Discard = 0x00000002,
     RGStoreOp_Force32 = 0x7FFFFFFF
 } RGStoreOp;
+typedef enum RGPresentMode {
+    RGPresentMode_Undefined = 0,
+    RGPresentMode_Fifo,
+    RGPresentMode_FifoRelaxed,
+    RGPresentMode_Immediate,
+    RGPresentMode_Mailbox,
+} RGPresentMode;
 
 typedef enum RGVertexStepMode {
     RGVertexStepMode_Vertex = 0x00000000,
@@ -220,7 +227,7 @@ typedef enum FrontFace {
 } FrontFace;
 
 
-typedef enum {
+typedef enum ShaderUniformDataType{
     SHADER_UNIFORM_FLOAT = 0,
     SHADER_UNIFORM_VEC2,
     SHADER_UNIFORM_VEC3,
@@ -398,6 +405,9 @@ typedef struct RGBlendState{
     RGBlendComponent color;
     RGBlendComponent alpha;
 }RGBlendState;
+typedef struct RGColor{
+    double r,g,b,a;
+}RGColor;
 
 /**
  * @brief This struct handles the settings that GL handles with global functions
@@ -415,64 +425,6 @@ typedef struct RenderSettings{
     RGFrontFace frontFace;
     RGCompareFunction depthCompare;
 }RenderSettings;
-
-typedef struct DescribedBindGroupLayout{
-    WGPUBindGroupLayout layout;
-    uint32_t entryCount;
-    WGPUBindGroupLayoutEntry* entries;
-}DescribedBindGroupLayout;
-
-typedef struct DescribedBindGroup{
-    //Cached handles
-    WGPUBindGroup bindGroup;
-    const DescribedBindGroupLayout* layout;
-    int needsUpdate; //Cached handles valid?
-
-    //Description: entryCount and actual entries
-    uint32_t entryCount;
-    WGPUBindGroupEntry* entries;
-    uint64_t descriptorHash; //currently unused
-}DescribedBindGroup;
-
-typedef struct RGVertexAttribute {
-    RGVertexFormat format;
-    uint64_t offset;
-    uint32_t shaderLocation;
-} RGVertexAttribute;
-
-
-typedef struct AttributeAndResidence{
-    RGVertexAttribute attr;
-    uint32_t bufferSlot; //Describes the actual buffer it will reside in
-    RGVertexStepMode stepMode;
-    uint32_t enabled;
-}AttributeAndResidence;
-
-typedef struct DescribedPipelineLayout{
-    WGPUPipelineLayout layout;
-    uint32_t bindgroupCount;
-    DescribedBindGroupLayout bindgroupLayouts[4]; //4 is a reasonable max
-}DescribedPipelineLayout;
-
-typedef struct DescribedRenderpass{
-    RenderSettings settings;
-    RGLoadOp colorLoadOp;
-    RGStoreOp colorStoreOp;
-    RGLoadOp depthLoadOp;
-    RGStoreOp depthStoreOp;
-    WGPUColor colorClear;
-    float depthClear;
-    RenderTexture renderTarget;
-    WGPUCommandEncoder cmdEncoder;
-    WGPURenderPassEncoder rpEncoder;
-    void* VkRenderPass;
-}DescribedRenderpass;
-
-typedef struct DescribedComputePass{
-    WGPUCommandEncoder cmdEncoder;
-    WGPUComputePassEncoder cpEncoder;
-    //WGPUComputePassDescriptor desc; <-- By omitting this we lose timestampwrites
-}DescribedComputepass;
 
 typedef enum uniform_type {
     uniform_type_undefined,
@@ -529,6 +481,67 @@ typedef struct ResourceDescriptor {
     /*NULLABLE*/ WGPURayTracingAccelerationContainer accelerationStructure;
 #endif
 } ResourceDescriptor;
+
+
+typedef struct DescribedBindGroupLayout{
+    void* layout;
+    uint32_t entryCount;
+    ResourceTypeDescriptor* entries;
+}DescribedBindGroupLayout;
+
+typedef struct DescribedBindGroup{
+    //Cached handles
+    WGPUBindGroup bindGroup;
+    const DescribedBindGroupLayout* layout;
+    int needsUpdate; //Cached handles valid?
+
+    //Description: entryCount and actual entries
+    uint32_t entryCount;
+    ResourceDescriptor* entries;
+    uint64_t descriptorHash; //currently unused
+}DescribedBindGroup;
+
+typedef struct RGVertexAttribute {
+    RGVertexFormat format;
+    uint64_t offset;
+    uint32_t shaderLocation;
+} RGVertexAttribute;
+
+
+typedef struct AttributeAndResidence{
+    RGVertexAttribute attr;
+    uint32_t bufferSlot; //Describes the actual buffer it will reside in
+    RGVertexStepMode stepMode;
+    uint32_t enabled;
+}AttributeAndResidence;
+
+typedef struct DescribedPipelineLayout{
+    WGPUPipelineLayout layout;
+    uint32_t bindgroupCount;
+    DescribedBindGroupLayout bindgroupLayouts[4]; //4 is a reasonable max
+}DescribedPipelineLayout;
+
+typedef struct DescribedRenderpass{
+    RenderSettings settings;
+    RGLoadOp colorLoadOp;
+    RGStoreOp colorStoreOp;
+    RGLoadOp depthLoadOp;
+    RGStoreOp depthStoreOp;
+    RGColor colorClear;
+    float depthClear;
+    RenderTexture renderTarget;
+    WGPUCommandEncoder cmdEncoder;
+    WGPURenderPassEncoder rpEncoder;
+    void* VkRenderPass;
+}DescribedRenderpass;
+
+typedef struct DescribedComputePass{
+    WGPUCommandEncoder cmdEncoder;
+    WGPUComputePassEncoder cpEncoder;
+    //WGPUComputePassDescriptor desc; <-- By omitting this we lose timestampwrites
+}DescribedComputepass;
+
+
 
 typedef struct DescribedBuffer{
     RGBufferUsage usage;
@@ -1147,7 +1160,10 @@ typedef struct DescribedRaytracingPipeline{
 typedef struct FullSurface{
     WGPUSurface surface;
     Bool32 headless;
-    WGPUSurfaceConfiguration surfaceConfig;
+    RGPresentMode presentMode;
+    PixelFormat format;
+    uint32_t width;
+    uint32_t height;
     RenderTexture renderTarget;
 }FullSurface;
 
@@ -1367,7 +1383,7 @@ RGAPI void EndGIFRecording(cwoid);
 
 RGAPI Texture GetDepthTexture(cwoid);
 RGAPI Texture GetMultisampleColorTarget(cwoid);
-RGAPI DescribedRenderpass LoadRenderpassEx(RenderSettings settings, bool colorClear, WGPUColor colorClearValue, bool depthClear, float depthClearValue);
+RGAPI DescribedRenderpass LoadRenderpassEx(RenderSettings settings, bool colorClear, RGColor colorClearValue, bool depthClear, float depthClearValue);
 RGAPI void UnloadRenderpass(DescribedRenderpass rp);
 RGAPI void BeginRenderpass(cwoid);
 RGAPI void EndRenderpass(cwoid);
@@ -1562,9 +1578,9 @@ RGAPI Shader ClonePipelineWithSettings(const DescribedPipeline* pl, RenderSettin
 RGAPI Shader LoadPipelineFromModule(DescribedShaderModule mod, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
 RGAPI Shader DefaultPipeline(cwoid);
 RGAPI void UnloadBindGroupLayout(DescribedBindGroupLayout* bglayout);
-RGAPI DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const WGPUBindGroupEntry* entries, size_t entryCount);
+RGAPI DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const ResourceDescriptor* entries, size_t entryCount);
 RGAPI WGPUBindGroup UpdateAndGetNativeBindGroup(DescribedBindGroup* bg);
-RGAPI void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, WGPUBindGroupEntry entry);
+RGAPI void UpdateBindGroupEntry(DescribedBindGroup* bg, size_t index, ResourceDescriptor entry);
 RGAPI void UpdateBindGroup(DescribedBindGroup* bg);
 RGAPI void UnloadBindGroup(DescribedBindGroup* bg);
 RGAPI DescribedPipeline* Relayout(DescribedPipeline* pl, VertexArray* vao);

@@ -215,9 +215,25 @@ static inline WGPUVertexFormat RG_to_WGPU_VertexFormat(RGVertexFormat format) {
         default: return (WGPUVertexFormat)~0;
     }
 }
+static inline RGPresentMode WGPU_to_RG_PresentMode(WGPUPresentMode pm){
+    switch(pm){
+        case WGPUPresentMode_Undefined: return RGPresentMode_Undefined;
+        case WGPUPresentMode_Fifo: return RGPresentMode_Fifo;
+        case WGPUPresentMode_FifoRelaxed: return RGPresentMode_FifoRelaxed;
+        case WGPUPresentMode_Immediate: return RGPresentMode_Immediate;
+        case WGPUPresentMode_Mailbox: return RGPresentMode_Mailbox;
+    }
+}
 
-
-
+static inline WGPUPresentMode RG_to_WGPU_PresentMode(RGPresentMode pm){
+    switch(pm){
+        case RGPresentMode_Undefined: return WGPUPresentMode_Undefined;
+        case RGPresentMode_Fifo: return WGPUPresentMode_Fifo;
+        case RGPresentMode_FifoRelaxed: return WGPUPresentMode_FifoRelaxed;
+        case RGPresentMode_Immediate: return WGPUPresentMode_Immediate;
+        case RGPresentMode_Mailbox: return WGPUPresentMode_Mailbox;
+    }
+}
 
 
 

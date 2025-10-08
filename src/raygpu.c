@@ -24,12 +24,10 @@
  */
 
 #include <config.h>
-#include <webgpu/webgpu.h>
 
 #include <stdint.h>
 #include <stdio.h>
 #include <stdarg.h>
-#include <webgpu/webgpu.h>
 #include <macros_and_constants.h>
 #include <c_fs_utils.h>
 #include <stddef.h>
@@ -847,7 +845,7 @@ RGAPI void ClearBackground(Color clearColor){
         EndRenderpassEx(g_renderstate.activeRenderpass);
     }
     
-    g_renderstate.clearPass.colorClear = CLITERAL(WGPUColor){
+    g_renderstate.clearPass.colorClear = CLITERAL(RGColor){
         clearColor.r / 255.0,
         clearColor.g / 255.0,
         clearColor.b / 255.0,
@@ -1788,17 +1786,13 @@ Shader LoadShaderSingleSource(const char* shaderSource){
 }
 
 FullSurface CreateHeadlessSurface(int width, int height, PixelFormat format){
-    FullSurface ret zeroinit;
-    ret.headless = 1;
-    ret.surfaceConfig.device = GetDevice();
-    ret.surfaceConfig.width = width;
-    ret.surfaceConfig.width = height;
-    #if SUPPORT_VULKAN_BACKEND == 1
-    ret.surfaceConfig.format = toWGPUPixelFormat(format);
-    #else
-    ret.surfaceConfig.format = toWGPUPixelFormat(format);
-    #endif
-    ret.renderTarget = LoadRenderTextureEx(width, height, format, 1, 1);
+    FullSurface ret = {
+        .headless = 1,
+        .width = width,
+        .height = height,
+        .format = format,
+        .renderTarget = LoadRenderTextureEx(width, height, format, 1, 1),
+    };
     return ret;
 }
 
@@ -2039,7 +2033,7 @@ void SetStorageBufferData         (uint32_t index, const void* data, size_t size
 }
 
 void SetBindgroupUniformBuffer (DescribedBindGroup* bg, uint32_t index, DescribedBuffer* buffer){
-    WGPUBindGroupEntry entry = {0};
+    ResourceDescriptor entry = {0};
     entry.binding = index;
     entry.buffer = buffer->buffer;
     entry.size = buffer->size;
@@ -2047,7 +2041,7 @@ void SetBindgroupUniformBuffer (DescribedBindGroup* bg, uint32_t index, Describe
 }
 
 void SetBindgroupStorageBuffer (DescribedBindGroup* bg, uint32_t index, DescribedBuffer* buffer){
-    WGPUBindGroupEntry entry = {0};
+    ResourceDescriptor entry = {0};
     entry.binding = index;
     entry.buffer = buffer->buffer;
     entry.size = buffer->size;
@@ -2055,21 +2049,21 @@ void SetBindgroupStorageBuffer (DescribedBindGroup* bg, uint32_t index, Describe
 }
 
 void SetBindgroupTexture3D(DescribedBindGroup* bg, uint32_t index, Texture3D tex){
-    WGPUBindGroupEntry entry = {0};
+    ResourceDescriptor entry = {0};
     entry.binding = index;
     entry.textureView = tex.view;
     
     UpdateBindGroupEntry(bg, index, entry);
 }
 void SetBindgroupTextureView(DescribedBindGroup* bg, uint32_t index, WGPUTextureView texView){
-    WGPUBindGroupEntry entry = {0};
+    ResourceDescriptor entry = {0};
     entry.binding = index;
     entry.textureView = texView;
     
     UpdateBindGroupEntry(bg, index, entry);
 }
 void SetBindgroupTexture(DescribedBindGroup* bg, uint32_t index, Texture tex){
-    WGPUBindGroupEntry entry = {0};
+    ResourceDescriptor entry = {0};
     entry.binding = index;
     entry.textureView = tex.view;
     
@@ -2077,7 +2071,7 @@ void SetBindgroupTexture(DescribedBindGroup* bg, uint32_t index, Texture tex){
 }
 
 void SetBindgroupSampler(DescribedBindGroup* bg, uint32_t index, DescribedSampler sampler){
-    WGPUBindGroupEntry entry = {0};
+    ResourceDescriptor entry = {0};
     entry.binding = index;
     entry.sampler = sampler.sampler;
     UpdateBindGroupEntry(bg, index, entry);
@@ -2130,11 +2124,10 @@ static inline uint64_t bgEntryHashBGE(const WGPUBindGroupEntry bge){
     return value;
 }
 
-DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const WGPUBindGroupEntry* entries, size_t entryCount){
+DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const ResourceDescriptor* entries, size_t entryCount){
     DescribedBindGroup ret zeroinit;
     if(entryCount > 0){
-
-        ret.entries = (WGPUBindGroupEntry*)RL_CALLOC(entryCount, sizeof(ResourceDescriptor));
+        ret.entries = (ResourceDescriptor*)RL_CALLOC(entryCount, sizeof(ResourceDescriptor));
         memcpy(ret.entries, entries, entryCount * sizeof(ResourceDescriptor));
     }
     ret.entryCount = entryCount;
@@ -2145,7 +2138,7 @@ DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const
 
 
     for(uint32_t i = 0;i < ret.entryCount;i++){
-        ret.descriptorHash ^= bgEntryHashBGE(ret.entries[i]);
+        ret.descriptorHash ^= bgEntryHash(ret.entries[i]);
     }
     //ret.bindGroup = wgpuDeviceCreateBindGroup((WGPUDevice)GetDevice(), &ret.desc);
     return ret;
@@ -2787,21 +2780,27 @@ uint32_t GetFPS(void) {
 
 
 RenderSettings GetDefaultSettings(){
-    RenderSettings ret zeroinit;
-    ret.lineWidth = 1;
-    ret.faceCull = 1;
-    ret.frontFace = WGPUFrontFace_CCW;
-    ret.depthTest = 1;
-    ret.depthCompare = WGPUCompareFunction_LessEqual;
-    ret.sampleCount = (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1;
+    RenderSettings ret = {
+        .lineWidth = 1,
+        .faceCull = 1,
+        .frontFace = RGFrontFace_CCW,
+        .depthTest = 1,
+        .depthCompare = RGCompareFunction_LessEqual,
+        .sampleCount = (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
+        .blendState = {
+            .alpha = {
+                .srcFactor = RGBlendFactor_One,
+                .dstFactor = RGBlendFactor_OneMinusSrcAlpha,
+                .operation = RGBlendOperation_Add,
+            },
+            .color = {
+                .srcFactor = RGBlendFactor_SrcAlpha,
+                .dstFactor = RGBlendFactor_OneMinusSrcAlpha,
+                .operation = RGBlendOperation_Add,
+            }
+        }
+    };
 
-    ret.blendState.alpha.srcFactor = (WGPUBlendFactor_One);
-    ret.blendState.alpha.dstFactor = (WGPUBlendFactor_OneMinusSrcAlpha);
-    ret.blendState.alpha.operation = (WGPUBlendOperation_Add);
-    ret.blendState.color.srcFactor = (WGPUBlendFactor_SrcAlpha);
-    ret.blendState.color.dstFactor = (WGPUBlendFactor_OneMinusSrcAlpha);
-    ret.blendState.color.operation = (WGPUBlendOperation_Add);
-    
     return ret;
 }
 FILE* tracelogFile = NULL;

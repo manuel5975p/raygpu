@@ -506,9 +506,11 @@ RGAPI FullSurface CompleteSurface(void *nsurface, int width, int height) {
         break;
     }
     TRACELOG(LOG_INFO, "Initialized surface with %s", presentModeName);
+
+    const PixelFormat format = g_renderstate.frameBufferFormat;
     WGPUSurfaceConfiguration config = {
         .device = (WGPUDevice)GetDevice(),
-        .format = toWGPUPixelFormat(g_renderstate.frameBufferFormat),
+        .format = toWGPUPixelFormat(format),
         .usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc,
         .width = (uint32_t)width,
         .height = (uint32_t)height,
@@ -518,11 +520,10 @@ RGAPI FullSurface CompleteSurface(void *nsurface, int width, int height) {
         .presentMode = presentMode,
     };
 
-    ret.surfaceConfig.presentMode = config.presentMode;
-    ret.surfaceConfig.device = config.device;
-    ret.surfaceConfig.width = config.width;
-    ret.surfaceConfig.height = config.height;
-    ret.surfaceConfig.format = config.format;
+    ret.presentMode = WGPU_to_RG_PresentMode(config.presentMode);
+    ret.width = config.width;
+    ret.height = config.height;
+    ret.format = format;
 
     ret.renderTarget = LoadRenderTexture(width, height);
     wgpuSurfaceConfigure((WGPUSurface)ret.surface, &config);
@@ -660,7 +661,7 @@ static inline uint64_t bgEntryHashRD(const ResourceDescriptor bge) {
     return value;
 }
 
-void UpdateBindGroupEntry(DescribedBindGroup *bg, size_t index, WGPUBindGroupEntry entry) {
+void UpdateBindGroupEntry(DescribedBindGroup *bg, size_t index, ResourceDescriptor entry) {
     if (index >= bg->entryCount) {
         TRACELOG(LOG_WARNING, "Trying to set entry %d on a BindGroup with only %d entries", (int)index, (int)bg->entryCount);
         // return;
@@ -671,6 +672,7 @@ void UpdateBindGroupEntry(DescribedBindGroup *bg, size_t index, WGPUBindGroupEnt
         // return;
     }
     uint64_t oldHash = bg->descriptorHash;
+    
     bg->descriptorHash ^= bgEntryHash(bg->entries[index]);
     if (entry.buffer) {
         wgpuBufferAddRef((WGPUBuffer)entry.buffer);
@@ -724,7 +726,20 @@ void GetNewTexture(FullSurface *fsurface) {
         }
         // TODO: some better surface recovery handling, doesn't seem to be an issue for now however
         if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal) {
-            wgpuSurfaceConfigure((WGPUSurface)fsurface->surface, &fsurface->surfaceConfig);
+            WGPUTextureFormat viewFormat = toWGPUPixelFormat(fsurface->format);
+            WGPUSurfaceConfiguration sconf = {
+                .nextInChain = NULL,
+                .device = GetDevice(),
+                .format = toWGPUPixelFormat(fsurface->format),
+                .usage = WGPUTextureUsage_CopySrc | WGPUTextureUsage_RenderAttachment,
+                .width = fsurface->width,
+                .height = fsurface->height,
+                .viewFormatCount = 1,
+                .viewFormats = &viewFormat,
+                .alphaMode = NULL,
+                .presentMode = NULL,
+            };
+            wgpuSurfaceConfigure((WGPUSurface)fsurface->surface, &sconf);
             wgpuSurfaceGetCurrentTexture((WGPUSurface)fsurface->surface, &surfaceTexture);
         }
         // rassert(surfaceTexture.status == WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal, "WGPUSurface did not return
@@ -757,7 +772,8 @@ void GetNewTexture(FullSurface *fsurface) {
             .baseArrayLayer = 0,
             .arrayLayerCount = 1,
             .aspect = WGPUTextureAspect_All,
-            .usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc};
+            .usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc
+        };
         fsurface->renderTarget.texture.view = wgpuTextureCreateView(surfaceTexture.texture, NULL);
     }
 }
@@ -1513,35 +1529,38 @@ DescribedSampler LoadSamplerEx(TextureWrap amode, TextureFilter fmode, TextureFi
     return ret;
 }
 void SetBindgroupUniformBufferData(DescribedBindGroup *bg, uint32_t index, const void *data, size_t size) {
-    WGPUBindGroupEntry entry        = {0};
-    WGPUBufferDescriptor bufferDesc = {0};
-
-    bufferDesc.size = size;
-    bufferDesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
-    bufferDesc.mappedAtCreation = false;
+    
+    const WGPUBufferDescriptor bufferDesc = {
+        .size = size,
+        .usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform,
+        .mappedAtCreation = false,
+    };
     WGPUBuffer uniformBuffer = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &bufferDesc);
     wgpuQueueWriteBuffer((WGPUQueue)GetQueue(), uniformBuffer, 0, data, size);
-    entry.binding = index;
-    entry.buffer = uniformBuffer;
-    entry.size = size;
+    const ResourceDescriptor entry = {
+        .binding = index,
+        .buffer = uniformBuffer,
+        .size = size,
+    };
+
     UpdateBindGroupEntry(bg, index, entry);
     wgpuBufferRelease(uniformBuffer);
     // bg->releaseOnClear |= (1 << index);
 }
 
 void SetBindgroupStorageBufferData(DescribedBindGroup *bg, uint32_t index, const void *data, size_t size) {
-    WGPUBindGroupEntry entry        = {0};
-    WGPUBufferDescriptor bufferDesc = {0};
-
-    bufferDesc.size = size;
-    bufferDesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
-    bufferDesc.mappedAtCreation = false;
-
+    const WGPUBufferDescriptor bufferDesc = {
+        .size = size,
+        .usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage,
+        .mappedAtCreation = false,
+    };
     WGPUBuffer storageBuffer = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &bufferDesc);
     wgpuQueueWriteBuffer((WGPUQueue)GetQueue(), storageBuffer, 0, data, size);
-    entry.binding = index;
-    entry.buffer = storageBuffer;
-    entry.size = size;
+    const ResourceDescriptor entry = {
+        .binding = index,
+        .buffer = storageBuffer,
+        .size = size,
+    };
 
     UpdateBindGroupEntry(bg, index, entry);
 
@@ -1556,8 +1575,8 @@ Texture LoadTextureFromImage(Image img) {
     ret.sampleCount = 1;
     Color *altdata = NULL;
     if (img.format == GRAYSCALE) {
-        altdata = (Color *)calloc(img.width * img.height, sizeof(Color));
-        for (size_t i = 0; i < img.width * img.height; i++) {
+        altdata = (Color *)calloc(((size_t)img.width) * img.height, sizeof(Color));
+        for (size_t i = 0; i < ((size_t)img.width) * img.height; i++) {
             uint16_t gscv = ((uint16_t *)img.data)[i];
             ((Color *)altdata)[i].r = gscv & 255;
             ((Color *)altdata)[i].g = gscv & 255;
@@ -1618,17 +1637,16 @@ Texture LoadTextureFromImage(Image img) {
     return ret;
 }
 void ResizeSurface(FullSurface *fsurface, int newWidth, int newHeight) {
-    fsurface->surfaceConfig.width = newWidth;
-    fsurface->surfaceConfig.height = newHeight;
     fsurface->renderTarget.colorMultisample.width = newWidth;
     fsurface->renderTarget.colorMultisample.height = newHeight;
     fsurface->renderTarget.texture.width = newWidth;
     fsurface->renderTarget.texture.height = newHeight;
     fsurface->renderTarget.depth.width = newWidth;
     fsurface->renderTarget.depth.height = newHeight;
-    WGPUTextureFormat format = fsurface->surfaceConfig.format;
+    WGPUTextureFormat format = toWGPUPixelFormat(fsurface->format);
+    
     const WGPUSurfaceConfiguration wsconfig = {
-        .device = fsurface->surfaceConfig.device,
+        .device = GetDevice(),
         .format = format,
         .usage = WGPUTextureUsage_CopySrc | WGPUTextureUsage_RenderAttachment,
         .width = (uint32_t)newWidth,
@@ -1636,8 +1654,9 @@ void ResizeSurface(FullSurface *fsurface, int newWidth, int newHeight) {
         .viewFormatCount = 1,
         .viewFormats = &format,
         .alphaMode = WGPUCompositeAlphaMode_Opaque,
-        .presentMode = (WGPUPresentMode)fsurface->surfaceConfig.presentMode,
+        .presentMode = RG_to_WGPU_PresentMode(fsurface->presentMode),
     };
+
     wgpuSurfaceConfigure(fsurface->surface, &wsconfig);
     fsurface->surfaceConfig.width = newWidth;
     fsurface->surfaceConfig.height = newHeight;
