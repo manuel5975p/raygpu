@@ -99,6 +99,7 @@ void ToggleFullscreenImpl(cwoid);
 #endif  // __EMSCRIPTEN__
 #include <renderstate.h>
 
+VLAStack g_vlastack = {0};
 renderstate g_renderstate = {0};
 
 #define swap_uint32(val) (((((((uint32_t)(val)) << 8) & 0xFF00FF00 ) | ((((uint32_t)(val)) >> 8) & 0xFF00FF)) << 16) | ((((((uint32_t)(val)) << 8) & 0xFF00FF00 ) | ((((uint32_t)(val)) >> 8) & 0xFF00FF)) >> 16))
@@ -286,7 +287,7 @@ RGAPI VertexArray* LoadVertexArray(){
     return ret;
 }
 RGAPI void VertexAttribPointer(VertexArray* array, DescribedBuffer* buffer, uint32_t attribLocation, RGVertexFormat format, uint32_t offset, RGVertexStepMode stepmode){
-    VertexArray_add(array, buffer, attribLocation, RG_to_WGPU_VertexFormat(format), offset, RG_to_WGPU_VertexStepMode(stepmode));
+    VertexArray_add(array, buffer, attribLocation, format, offset, stepmode);
 }
 RGAPI void BindVertexArray(VertexArray* va){
     BindShaderVertexArray(GetActiveShader(), va);
@@ -346,7 +347,7 @@ RGAPI void DrawArraysIndexed(PrimitiveType drawMode, DescribedBuffer indexBuffer
     if(activeShaderImpl->bindGroup.needsUpdate){
         RenderPassSetBindGroup(GetActiveRenderPass(), 0, &activeShaderImpl->bindGroup);
     }
-    RenderPassSetIndexBuffer(GetActiveRenderPass(), &indexBuffer, WGPUIndexFormat_Uint32, 0);
+    RenderPassSetIndexBuffer(GetActiveRenderPass(), &indexBuffer, IndexFormat_Uint32, 0);
     RenderPassDrawIndexed(GetActiveRenderPass(), vertexCount, 1, 0, 0, 0);
 }
 RGAPI void DrawArraysIndexedInstanced(PrimitiveType drawMode, DescribedBuffer indexBuffer, uint32_t vertexCount, uint32_t instanceCount){
@@ -355,7 +356,7 @@ RGAPI void DrawArraysIndexedInstanced(PrimitiveType drawMode, DescribedBuffer in
     BindShader(activeShader, drawMode);
     
     RenderPassSetBindGroup(GetActiveRenderPass(), 0, &activeShaderImpl->bindGroup);
-    RenderPassSetIndexBuffer(GetActiveRenderPass(), &indexBuffer, WGPUIndexFormat_Uint32, 0);
+    RenderPassSetIndexBuffer(GetActiveRenderPass(), &indexBuffer, IndexFormat_Uint32, 0);
     RenderPassDrawIndexed(GetActiveRenderPass(), vertexCount, instanceCount, 0, 0, 0);
 }
 
@@ -638,20 +639,20 @@ RGAPI void DisableDepthTest(cwoid){
 }
 RGAPI void BeginBlendMode(rlBlendMode blendMode) {
     // Get a reference to the blend state part of the current settings
-    WGPUBlendState* blendState = &g_renderstate.currentSettings.blendState;
+    RGBlendState* blendState = &g_renderstate.currentSettings.blendState;
     
     // Default common operation
-    blendState->color.operation = (WGPUBlendOperation_Add);
-    blendState->alpha.operation = (WGPUBlendOperation_Add);
+    blendState->color.operation = (RGBlendOperation_Add);
+    blendState->alpha.operation = (RGBlendOperation_Add);
 
     switch (blendMode) {
         case BLEND_ALPHA:
             // Alpha blend: SrcColor * SrcAlpha + DstColor * (1 - SrcAlpha)
             // Alpha blend: SrcAlpha * 1 + DstAlpha * (1 - SrcAlpha)
-            blendState->color.srcFactor = (WGPUBlendFactor_SrcAlpha);
-            blendState->color.dstFactor = (WGPUBlendFactor_OneMinusSrcAlpha);
-            blendState->alpha.srcFactor = (WGPUBlendFactor_One); // Often One or SrcAlpha
-            blendState->alpha.dstFactor = (WGPUBlendFactor_OneMinusSrcAlpha);
+            blendState->color.srcFactor = (RGBlendFactor_SrcAlpha);
+            blendState->color.dstFactor = (RGBlendFactor_OneMinusSrcAlpha);
+            blendState->alpha.srcFactor = (RGBlendFactor_One); // Often One or SrcAlpha
+            blendState->alpha.dstFactor = (RGBlendFactor_OneMinusSrcAlpha);
             // Operation is already BlendOperation_Add
             break;
 
@@ -661,10 +662,10 @@ RGAPI void BeginBlendMode(rlBlendMode blendMode) {
             // This matches glBlendFunc(GL_SRC_ALPHA, GL_ONE) and glBlendEquation(GL_FUNC_ADD)
             // Often, additive alpha is just (One, One) or preserves dest alpha (Zero, One)
             // Let's assume (SrcAlpha, One) for color and (One, One) for alpha for brightness.
-            blendState->color.srcFactor = (WGPUBlendFactor_SrcAlpha);
-            blendState->color.dstFactor = (WGPUBlendFactor_One);
-            blendState->alpha.srcFactor = (WGPUBlendFactor_One); // Could be SrcAlpha or Zero depending on desired alpha result
-            blendState->alpha.dstFactor = (WGPUBlendFactor_One); // Could be One or Zero
+            blendState->color.srcFactor = (RGBlendFactor_SrcAlpha);
+            blendState->color.dstFactor = (RGBlendFactor_One);
+            blendState->alpha.srcFactor = (RGBlendFactor_One); // Could be SrcAlpha or Zero depending on desired alpha result
+            blendState->alpha.dstFactor = (RGBlendFactor_One); // Could be One or Zero
             // Operation is already BlendOperation_Add
             break;
 
@@ -674,10 +675,10 @@ RGAPI void BeginBlendMode(rlBlendMode blendMode) {
             // Matches glBlendFuncSeparate(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE) commonly used for multiply
             // The original code used glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA) which would affect alpha too.
             // Let's implement the common separate logic for better results.
-            blendState->color.srcFactor = (WGPUBlendFactor_Dst);
-            blendState->color.dstFactor = (WGPUBlendFactor_OneMinusSrcAlpha);
-            blendState->alpha.srcFactor = (WGPUBlendFactor_Zero); // Keeps destination alpha
-            blendState->alpha.dstFactor = (WGPUBlendFactor_One);
+            blendState->color.srcFactor = (RGBlendFactor_Dst);
+            blendState->color.dstFactor = (RGBlendFactor_OneMinusSrcAlpha);
+            blendState->alpha.srcFactor = (RGBlendFactor_Zero); // Keeps destination alpha
+            blendState->alpha.dstFactor = (RGBlendFactor_One);
             // Operation is already BlendOperation_Add
             break;
 
@@ -685,10 +686,10 @@ RGAPI void BeginBlendMode(rlBlendMode blendMode) {
             // Add colors blend: SrcColor * 1 + DstColor * 1
             // Alpha blend: SrcAlpha * 1 + DstAlpha * 1
             // Matches glBlendFunc(GL_ONE, GL_ONE) and glBlendEquation(GL_FUNC_ADD)
-            blendState->color.srcFactor = (WGPUBlendFactor_One);
-            blendState->color.dstFactor = (WGPUBlendFactor_One);
-            blendState->alpha.srcFactor = (WGPUBlendFactor_One);
-            blendState->alpha.dstFactor = (WGPUBlendFactor_One);
+            blendState->color.srcFactor = (RGBlendFactor_One);
+            blendState->color.dstFactor = (RGBlendFactor_One);
+            blendState->alpha.srcFactor = (RGBlendFactor_One);
+            blendState->alpha.dstFactor = (RGBlendFactor_One);
             // Operation is already BlendOperation_Add
             break;
 
@@ -699,22 +700,22 @@ RGAPI void BeginBlendMode(rlBlendMode blendMode) {
             // Alpha blend: DstAlpha * 1 - SrcAlpha * 1 (or Add alpha?)
             // Matches glBlendFunc(GL_ONE, GL_ONE) and glBlendEquation(GL_FUNC_SUBTRACT)
             // Applying SUBTRACT operation to both color and alpha based on glBlendEquation.
-            blendState->color.srcFactor = (WGPUBlendFactor_One);
-            blendState->color.dstFactor = (WGPUBlendFactor_One);
-            blendState->color.operation = (WGPUBlendOperation_Subtract); // Or ReverseSubtract depending on desired outcome
-            blendState->alpha.srcFactor = (WGPUBlendFactor_One);
-            blendState->alpha.dstFactor = (WGPUBlendFactor_One);
-            blendState->alpha.operation = (WGPUBlendOperation_Subtract); // Apply to alpha too, mimicking glBlendEquation
+            blendState->color.srcFactor = (RGBlendFactor_One);
+            blendState->color.dstFactor = (RGBlendFactor_One);
+            blendState->color.operation = (RGBlendOperation_Subtract); // Or ReverseSubtract depending on desired outcome
+            blendState->alpha.srcFactor = (RGBlendFactor_One);
+            blendState->alpha.dstFactor = (RGBlendFactor_One);
+            blendState->alpha.operation = (RGBlendOperation_Subtract); // Apply to alpha too, mimicking glBlendEquation
             break;
 
         case BLEND_ALPHA_PREMULTIPLY:
             // Premultiplied alpha blend: SrcColor * 1 + DstColor * (1 - SrcAlpha)
             // Alpha blend: SrcAlpha * 1 + DstAlpha * (1 - SrcAlpha)
             // Matches glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA) and glBlendEquation(GL_FUNC_ADD)
-            blendState->color.srcFactor = (WGPUBlendFactor_One);
-            blendState->color.dstFactor = (WGPUBlendFactor_OneMinusSrcAlpha);
-            blendState->alpha.srcFactor = (WGPUBlendFactor_One);
-            blendState->alpha.dstFactor = (WGPUBlendFactor_OneMinusSrcAlpha);
+            blendState->color.srcFactor = (RGBlendFactor_One);
+            blendState->color.dstFactor = (RGBlendFactor_OneMinusSrcAlpha);
+            blendState->alpha.srcFactor = (RGBlendFactor_One);
+            blendState->alpha.dstFactor = (RGBlendFactor_OneMinusSrcAlpha);
             // Operation is already BlendOperation_Add
             break;
 

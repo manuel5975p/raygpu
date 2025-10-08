@@ -12,7 +12,6 @@ const char title[] = "WebGPU Window";
 SubWindow sdlwin;
 void mainloop(void){
     BeginDrawing();
-    //ClearBackground((Color){230, 230, 230, 0});
     ClearBackground(DARKGRAY);
     int fontsize = GetScreenWidth() < GetScreenHeight() ? GetScreenWidth() : GetScreenHeight();
     fontsize /= 20;

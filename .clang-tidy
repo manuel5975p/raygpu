@@ -1,1 +1,1 @@
-Checks: bugprone-*, performance-*, -performance-enum-size, -bugprone-easily-swappable-parameters,, -bugprone-macro-parentheses, -bugprone-branch-clone
+Checks: bugprone-*, performance-*, -performance-enum-size, -bugprone-easily-swappable-parameters,, -bugprone-macro-parentheses, -bugprone-branch-clone, -performance-avoid-endl

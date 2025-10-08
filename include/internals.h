@@ -592,6 +592,17 @@ static inline bool WGPUBlendState_eq(const WGPUBlendState* a, const WGPUBlendSta
     a->color.operation == b->color.operation &&
     true;
 }
+static inline bool RGBlendState_eq(const RGBlendState* a, const RGBlendState* b){
+    return 
+    
+    a->alpha.dstFactor == b->alpha.dstFactor &&
+    a->alpha.srcFactor == b->alpha.srcFactor &&
+    a->alpha.operation == b->alpha.operation &&
+    a->color.operation == b->color.operation &&
+    a->color.operation == b->color.operation &&
+    a->color.operation == b->color.operation &&
+    true;
+}
 
 static inline bool RenderSettings_eq(const RenderSettings* a, const RenderSettings* b){
     return
@@ -599,7 +610,7 @@ static inline bool RenderSettings_eq(const RenderSettings* a, const RenderSettin
         a->faceCull     == b->faceCull      && 
         a->sampleCount  == b->sampleCount   && 
         a->lineWidth    == b->lineWidth     && 
-        WGPUBlendState_eq(&a->blendState, &b->blendState)    && 
+        RGBlendState_eq(&a->blendState, &b->blendState)    && 
         a->frontFace    == b->frontFace     && 
         a->depthCompare == b->depthCompare  &&
     true;
@@ -919,7 +930,7 @@ static inline VertexBufferLayoutSet getBufferLayoutRepresentation2(const Attribu
         result.layouts = (VertexBufferLayout*)RL_CALLOC(number_of_buffers, sizeof(VertexBufferLayout));
     }
     if (number_of_attribs > 0) {
-        result.attributePool = (WGPUVertexAttribute*)RL_CALLOC(number_of_attribs, sizeof(WGPUVertexAttribute));
+        result.attributePool = (RGVertexAttribute*)RL_CALLOC(number_of_attribs, sizeof(RGVertexAttribute));
     }
 
     if ((number_of_buffers > 0 && result.layouts == NULL) || (number_of_attribs > 0 && result.attributePool == NULL)) {
@@ -947,11 +958,11 @@ static inline VertexBufferLayoutSet getBufferLayoutRepresentation2(const Attribu
         }
     }
 
-    WGPUVertexAttribute* current_pool_pointer = result.attributePool;
+    RGVertexAttribute* current_pool_pointer = result.attributePool;
     for (uint32_t i = 0; i < number_of_buffers; ++i) {
         result.layouts[i].attributeCount = attribute_counts[i];
         result.layouts[i].attributes = current_pool_pointer;
-        result.layouts[i].stepMode = WGPUVertexStepMode_Undefined;
+        result.layouts[i].stepMode = RGVertexStepMode_VertexBufferNotUsed;
         current_pool_pointer += attribute_counts[i];
     }
 
@@ -968,7 +979,7 @@ static inline VertexBufferLayoutSet getBufferLayoutRepresentation2(const Attribu
 
             layout->arrayStride += attributeSize(attributes[i].attr.format);
 
-            if (layout->stepMode != WGPUVertexStepMode_Undefined && layout->stepMode != attributes[i].stepMode) {
+            if (layout->stepMode != RGVertexStepMode_VertexBufferNotUsed && layout->stepMode != attributes[i].stepMode) {
             }
             layout->stepMode = attributes[i].stepMode;
         }
@@ -1015,7 +1026,7 @@ static inline ShaderSources singleStage(const char* code, ShaderSourceType langu
     sources.sourceCount = 1;
     sources.sources[0].data = code;
     sources.sources[0].sizeInBytes = strlen(code);
-    sources.sources[0].stageMask = (1u << stage);
+    sources.sources[0].stageMask = (RGShaderStage)(1u << stage);
     return sources;
 }
 
@@ -1025,7 +1036,7 @@ static inline ShaderSources dualStage(const char* code, ShaderSourceType languag
     sources.sourceCount = 1;
     sources.sources[0].data = code;
     sources.sources[0].sizeInBytes = strlen(code);
-    sources.sources[0].stageMask = ((WGPUShaderStage)(1u << (uint32_t)(stage1)) | (1u << (uint32_t)(stage2)));
+    sources.sources[0].stageMask = ((RGShaderStage)((1u << (uint32_t)(stage1)) | (1u << (uint32_t)(stage2))));
     return sources;
 }
 
@@ -1036,14 +1047,41 @@ static inline ShaderSources dualStageDualSource(const char* code1, const char* c
     sources.sourceCount = 2;
     sources.sources[0].data = code1;
     sources.sources[0].sizeInBytes = strlen(code1);
-    sources.sources[0].stageMask = ((WGPUShaderStage)(1ull << (uint32_t)(+stage1)));
+    sources.sources[0].stageMask = ((RGShaderStage)(1ull << (uint32_t)(+stage1)));
 
     sources.sources[1].data = code2;
     sources.sources[1].sizeInBytes = strlen(code2);
-    sources.sources[1].stageMask = ((WGPUShaderStage)(1ull << (uint32_t)(+stage2)));
+    sources.sources[1].stageMask = ((RGShaderStage)((1ull << (uint32_t)(+stage2))));
  
     return sources;
 }
+
+#define VLA_STACK_SIZE (1 << 20)
+#define VLA_ALLOCATION_COUNT (64)
+typedef struct VLAStack{
+    uint32_t currentAllocationIndex;
+    uint32_t currentDataOffset;
+    uint32_t allocationSizes[VLA_ALLOCATION_COUNT];
+    char data[VLA_STACK_SIZE];
+}VLAStack;
+
+static inline void* VLAStack_alloc(VLAStack* stack, uint32_t size){
+    rassert(stack->currentDataOffset + size < VLA_STACK_SIZE, "VLAStack is out of memory");
+    rassert(stack->currentAllocationIndex < VLA_STACK_SIZE - 1, "VLAStack has too many allocations");
+    void* ret = (void*)(stack->data + stack->currentDataOffset);
+    stack->currentDataOffset += size;
+    stack->allocationSizes[stack->currentAllocationIndex++] = size;
+    return ret;
+}
+
+static inline void VLAStack_free(VLAStack* stack, void* data){
+    uint32_t size = stack->allocationSizes[stack->currentAllocationIndex - 1];
+    rassert(stack->data + (stack->currentDataOffset - size) == data, "Corrupted");
+    stack->currentDataOffset -= size;
+    stack->currentAllocationIndex--;
+}
+
+extern VLAStack g_vlastack;
 
 void detectShaderLanguage(ShaderSources* sources);
 RGAPI ShaderSourceType detectShaderLanguageSingle(const void* sourceptr, size_t size);
@@ -1068,7 +1106,7 @@ static inline VertexBufferLayoutSet getBufferLayoutRepresentation(const Attribut
 }
 typedef struct BufferEntry{
     DescribedBuffer* buffer;
-    WGPUVertexStepMode stepMode;
+    RGVertexStepMode stepMode;
 } BufferEntry;
 
 typedef struct VertexArray{
@@ -1117,7 +1155,7 @@ static int compareAttributes(const void* a, const void* b) {
 }
 
 static void VertexArray_add(VertexArray* vao, DescribedBuffer* buffer, uint32_t shaderLocation,
-                            WGPUVertexFormat fmt, uint32_t offset, WGPUVertexStepMode stepmode) {
+                            RGVertexFormat fmt, uint32_t offset, RGVertexStepMode stepmode) {
     // Search for existing attribute by shaderLocation
     AttributeAndResidence* it = NULL;
     for (size_t i = 0; i < vao->attributes_count; ++i) {
@@ -1139,7 +1177,7 @@ static void VertexArray_add(VertexArray* vao, DescribedBuffer* buffer, uint32_t 
             int bufferIt_idx = -1;
             for (size_t i = 0; i < vao->buffers_count; ++i) {
                 if (vao->buffers[i].buffer->buffer == buffer->buffer && vao->buffers[i].stepMode == stepmode) {
-                    bufferIt_idx = i;
+                    bufferIt_idx = (int)i;
                     break;
                 }
             }
@@ -1185,7 +1223,7 @@ static void VertexArray_add(VertexArray* vao, DescribedBuffer* buffer, uint32_t 
         TRACELOG(LOG_DEBUG, "Attribute at shader location %u updated.", shaderLocation);
     } else {
         // Attribute does not exist, add as new
-        AttributeAndResidence insert = {0};
+        AttributeAndResidence insert = {};
         insert.enabled = true;
         bool bufferFound = false;
 

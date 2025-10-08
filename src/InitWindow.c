@@ -267,35 +267,34 @@ void* InitWindowEx_ContinuationPoint(InitContext_Impl _ctx){
 
 
     const ResourceTypeDescriptor uniforms[4] = {
-        {uniform_buffer , 64, 0, readonly, we_dont_know, (WGPUShaderStage)(WGPUShaderStage_Vertex | WGPUShaderStage_Fragment)},
-        {texture2d,        0, 1, readonly, sample_f32,   (WGPUShaderStage)(WGPUShaderStage_Vertex | WGPUShaderStage_Fragment)},
-        {texture_sampler,  0, 2, readonly, we_dont_know, (WGPUShaderStage)(WGPUShaderStage_Vertex | WGPUShaderStage_Fragment)},
-        {storage_buffer , 64, 3, readonly, we_dont_know, (WGPUShaderStage)(WGPUShaderStage_Vertex | WGPUShaderStage_Fragment)}
+        {uniform_buffer , 64, 0, readonly, we_dont_know, (RGShaderStage)(RGShaderStage_Vertex | RGShaderStage_Fragment)},
+        {texture2d,        0, 1, readonly, sample_f32,   (RGShaderStage)(RGShaderStage_Vertex | RGShaderStage_Fragment)},
+        {texture_sampler,  0, 2, readonly, we_dont_know, (RGShaderStage)(RGShaderStage_Vertex | RGShaderStage_Fragment)},
+        {storage_buffer , 64, 3, readonly, we_dont_know, (RGShaderStage)(RGShaderStage_Vertex | RGShaderStage_Fragment)}
     };
 
     const AttributeAndResidence attrs[4] = {
-        {CLITERAL(WGPUVertexAttribute){NULL, WGPUVertexFormat_Float32x3, 0 * sizeof(float), 0}, 0, WGPUVertexStepMode_Vertex, true},
-        {CLITERAL(WGPUVertexAttribute){NULL, WGPUVertexFormat_Float32x2, 3 * sizeof(float), 1}, 0, WGPUVertexStepMode_Vertex, true},
-        {CLITERAL(WGPUVertexAttribute){NULL, WGPUVertexFormat_Float32x3, 5 * sizeof(float), 2}, 0, WGPUVertexStepMode_Vertex, true},
-        {CLITERAL(WGPUVertexAttribute){NULL, WGPUVertexFormat_Float32x4, 8 * sizeof(float), 3}, 0, WGPUVertexStepMode_Vertex, true},
+        {CLITERAL(RGVertexAttribute){RGVertexFormat_Float32x3, 0 * sizeof(float), 0}, 0, RGVertexStepMode_Vertex, true},
+        {CLITERAL(RGVertexAttribute){RGVertexFormat_Float32x2, 3 * sizeof(float), 1}, 0, RGVertexStepMode_Vertex, true},
+        {CLITERAL(RGVertexAttribute){RGVertexFormat_Float32x3, 5 * sizeof(float), 2}, 0, RGVertexStepMode_Vertex, true},
+        {CLITERAL(RGVertexAttribute){RGVertexFormat_Float32x4, 8 * sizeof(float), 3}, 0, RGVertexStepMode_Vertex, true},
     };
     
-    //arraySetter(shaderInputs.per_vertex_sizes, {3,2,4});
-    //arraySetter(shaderInputs.uniform_minsizes, {64, 0, 0, 0});
-    //uarraySetter(shaderInputs.uniform_types, {uniform_buffer, texture2d, sampler, storage_buffer});
+    const RGTextureUsage renderAttachmentUsage = RGTextureUsage_RenderAttachment | RGTextureUsage_TextureBinding | RGTextureUsage_CopySrc;
+
     Texture2D colorTexture = LoadTextureEx(ctx->windowWidth, ctx->windowHeight, g_renderstate.frameBufferFormat, true);
     //g_wgpustate.mainWindowRenderTarget.texture = colorTexture;
     if(g_renderstate.windowFlags & FLAG_MSAA_4X_HINT)
-        g_renderstate.mainWindowRenderTarget.colorMultisample = LoadTexturePro(ctx->windowWidth, ctx->windowHeight, g_renderstate.frameBufferFormat, WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc, 4, 1);
+        g_renderstate.mainWindowRenderTarget.colorMultisample = LoadTexturePro(ctx->windowWidth, ctx->windowHeight, g_renderstate.frameBufferFormat, renderAttachmentUsage, 4, 1);
     Texture2D depthTexture = LoadTexturePro(ctx->windowWidth,
                                   ctx->windowHeight,
                                   PIXELFORMAT_DEPTH_32_FLOAT,
-                                  WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc,
+                                  renderAttachmentUsage,
                                   (g_renderstate.windowFlags & FLAG_MSAA_4X_HINT) ? 4 : 1,
                                   1
     );
     g_renderstate.mainWindowRenderTarget.depth = depthTexture;
-    //init_full_renderstate(g_renderstate.rstate, shaderSource, attrs, 4, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), (WGPUTextureView)colorTexture.view, (WGPUTextureView)g_renderstate.mainWindowRenderTarget.depth.view);
+    
     TRACELOG(LOG_INFO, "Renderstate inited");
     g_renderstate.renderExtentX = ctx->windowWidth;
     g_renderstate.renderExtentY = ctx->windowHeight;
@@ -311,12 +310,12 @@ void* InitWindowEx_ContinuationPoint(InitContext_Impl _ctx){
     renderBatchVBO = GenVertexBuffer(NULL, ((size_t)(RENDERBATCH_SIZE) * sizeof(vertex)));
     
     renderBatchVAO = LoadVertexArray();
-    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 0, WGPUVertexFormat_Float32x3, 0 * sizeof(float), WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 1, WGPUVertexFormat_Float32x2, 3 * sizeof(float), WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 2, WGPUVertexFormat_Float32x3, 5 * sizeof(float), WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 3, WGPUVertexFormat_Float32x4, 8 * sizeof(float), WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 0, RGVertexFormat_Float32x3, 0 * sizeof(float), RGVertexStepMode_Vertex);
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 1, RGVertexFormat_Float32x2, 3 * sizeof(float), RGVertexStepMode_Vertex);
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 2, RGVertexFormat_Float32x3, 5 * sizeof(float), RGVertexStepMode_Vertex);
+    VertexAttribPointer(renderBatchVAO, renderBatchVBO, 3, RGVertexFormat_Float32x4, 8 * sizeof(float), RGVertexStepMode_Vertex);
 
-    const WGPUColor opaqueBlack = {
+    const RGColor opaqueBlack = {
         .r = 0.0,
         .g = 0.0,
         .b = 0.0,
@@ -331,10 +330,10 @@ void* InitWindowEx_ContinuationPoint(InitContext_Impl _ctx){
     defaultGLSLSource.sourceCount = 2;
     defaultGLSLSource.sources[0].data = vertexSourceGLSL;
     defaultGLSLSource.sources[0].sizeInBytes = strlen(vertexSourceGLSL);
-    defaultGLSLSource.sources[0].stageMask = WGPUShaderStage_Vertex;
+    defaultGLSLSource.sources[0].stageMask = RGShaderStage_Vertex;
     defaultGLSLSource.sources[1].data = fragmentSourceGLSL;
     defaultGLSLSource.sources[1].sizeInBytes = strlen(fragmentSourceGLSL);
-    defaultGLSLSource.sources[1].stageMask = WGPUShaderStage_Fragment;
+    defaultGLSLSource.sources[1].stageMask = RGShaderStage_Fragment;
     //g_renderstate.defaultShader = LoadPipelineForVAOEx(defaultGLSLSource, renderBatchVAO, uniforms, sizeof(uniforms) / sizeof(ResourceTypeDescriptor), GetDefaultSettings());
     g_renderstate.defaultShader = LoadShaderFromMemory(vertexSourceGLSL, fragmentSourceGLSL);
     #elif SUPPORT_WGSL_PARSER == 1
@@ -429,8 +428,12 @@ static void InitProgram_continuationPoint(SetupFunction x, RenderFunction y){
 }
 
 RGAPI void InitProgram(ProgramInfo program){
+    const char* titleSanitized = program.windowTitle; 
+    if(titleSanitized == NULL){
+        titleSanitized = "RayGPU Window";
+    }
     InitContext_Impl ctx = {
-        .windowTitle  = program.windowTitle,
+        .windowTitle  = titleSanitized,
         .windowWidth  = program.windowWidth,
         .windowHeight = program.windowHeight,
         .setupFunction = program.setupFunction,

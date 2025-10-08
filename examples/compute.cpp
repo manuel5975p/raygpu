@@ -149,11 +149,11 @@ void setup(){
     for(int i = 0;i < 8;i++){
         quadpos[i] *= 0.004f;
     }
-    quad = GenBufferEx(quadpos, sizeof(quadpos), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst);
+    quad = GenBufferEx(quadpos, sizeof(quadpos), RGBufferUsage_Vertex | RGBufferUsage_CopyDst);
 
     // GenBufferEx is required for Vertex and Storage Buffer Usage
-    positions = GenBufferEx(pos.data(), pos.size() * sizeof(Vector2),  WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
-    velocities = GenBufferEx(vel.data(), vel.size() * sizeof(Vector2), WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst);
+    positions = GenBufferEx(pos.data(), pos.size() * sizeof(Vector2),  RGBufferUsage_Vertex | RGBufferUsage_Storage | RGBufferUsage_CopyDst);
+    velocities = GenBufferEx(vel.data(), vel.size() * sizeof(Vector2), RGBufferUsage_Vertex | RGBufferUsage_Storage | RGBufferUsage_CopySrc | RGBufferUsage_CopyDst);
 
     firstPassPipeline = LoadComputePipeline(computeSource);
     SetBindgroupStorageBuffer(&firstPassPipeline->bindGroup, GetComputeShaderLocation(firstPassPipeline, "posBuffer"), positions);
@@ -163,8 +163,8 @@ void setup(){
     //SetBindgroupStorageBuffer(&cpl->bindGroup, GetUniformLocationCompute(cpl, "velBuffer"), velocities);
 
     vao = LoadVertexArray();
-    VertexAttribPointer(vao, quad, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(vao, positions, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Instance);
+    VertexAttribPointer(vao, quad, 0, RGVertexFormat_Float32x2, 0, RGVertexStepMode_Vertex);
+    VertexAttribPointer(vao, positions, 1, RGVertexFormat_Float32x2, 0, RGVertexStepMode_Instance);
     #if SUPPORT_GLSL_PARSER == 0
     rpl = LoadShaderSingleSource(wgsl);
     #elif SUPPORT_GLSL_PARSER == 1

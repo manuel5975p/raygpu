@@ -91,7 +91,10 @@ static inline uint64_t ROT_BYTES(uint64_t V, uint8_t C) {
  return ((V << C) | ((V) >> ((64 - C) & 63)));
 }
 
+typedef uint64_t RGFlags;
+
 // RG Enums, replacing WGPU equivalents for the API
+
 typedef enum RGShaderStageEnum{
     RGShaderStageEnum_Vertex,
     RGShaderStageEnum_Fragment,
@@ -166,38 +169,37 @@ typedef enum RGVertexFormat {
     RGVertexFormat_Force32 = 0x7FFFFFFF
 } RGVertexFormat;
 
-typedef enum RGBufferUsage {
-    RGBufferUsage_None = 0x00000000,
-    RGBufferUsage_MapRead = 0x00000001,
-    RGBufferUsage_MapWrite = 0x00000002,
-    RGBufferUsage_CopySrc = 0x00000004,
-    RGBufferUsage_CopyDst = 0x00000008,
-    RGBufferUsage_Index = 0x00000010,
-    RGBufferUsage_Vertex = 0x00000020,
-    RGBufferUsage_Uniform = 0x00000040,
-    RGBufferUsage_Storage = 0x00000080,
-    RGBufferUsage_Indirect = 0x00000100,
-    RGBufferUsage_QueryResolve = 0x00000200,
-    RGBufferUsage_Force32 = 0x7FFFFFFF
-} RGBufferUsage;
 
-typedef enum RGTextureUsage {
-    RGTextureUsage_None = 0x00000000,
-    RGTextureUsage_CopySrc = 0x00000001,
-    RGTextureUsage_CopyDst = 0x00000002,
-    RGTextureUsage_TextureBinding = 0x00000004,
-    RGTextureUsage_StorageBinding = 0x00000008,
-    RGTextureUsage_RenderAttachment = 0x00000010,
-    RGTextureUsage_Force32 = 0x7FFFFFFF
-} RGTextureUsage;
+/// Yes, those need to be macros, otherwise they 
+/// can't be used as `case` expressions in `switch` statements 
+typedef RGFlags RGBufferUsage;
+#define RGBufferUsage_None 0x00000000
+#define RGBufferUsage_MapRead 0x00000001
+#define RGBufferUsage_MapWrite 0x00000002
+#define RGBufferUsage_CopySrc 0x00000004
+#define RGBufferUsage_CopyDst 0x00000008
+#define RGBufferUsage_Index 0x00000010
+#define RGBufferUsage_Vertex 0x00000020
+#define RGBufferUsage_Uniform 0x00000040
+#define RGBufferUsage_Storage 0x00000080
+#define RGBufferUsage_Indirect 0x00000100
+#define RGBufferUsage_QueryResolve 0x00000200
 
-typedef enum RGShaderStage {
-    RGShaderStage_None = 0x00000000,
-    RGShaderStage_Vertex = 0x00000001,
-    RGShaderStage_Fragment = 0x00000002,
-    RGShaderStage_Compute = 0x00000004,
-    RGShaderStage_Force32 = 0x7FFFFFFF
-} RGShaderStage;
+typedef RGFlags RGTextureUsage;
+
+#define RGTextureUsage_None 0x00000000
+#define RGTextureUsage_CopySrc 0x00000001
+#define RGTextureUsage_CopyDst 0x00000002
+#define RGTextureUsage_TextureBinding 0x00000004
+#define RGTextureUsage_StorageBinding 0x00000008
+#define RGTextureUsage_RenderAttachment 0x00000010
+
+typedef RGFlags RGShaderStage;
+
+#define RGShaderStage_None 0x00000000
+#define RGShaderStage_Vertex 0x00000001
+#define RGShaderStage_Fragment 0x00000002
+#define RGShaderStage_Compute 0x00000004
 
 typedef enum PixelFormat {
     PIXELFORMAT_UNCOMPRESSED_R8G8B8A8,

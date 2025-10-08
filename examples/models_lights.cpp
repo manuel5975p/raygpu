@@ -88,7 +88,7 @@ int main(){
     RenderSettings settings zeroinit;
     settings.depthTest = 1;
     settings.sampleCount = msaa ? 4 : 1;
-    settings.depthCompare = WGPUCompareFunction_LessEqual;
+    settings.depthCompare = RGCompareFunction_LessEqual;
     Shader pl = LoadShaderSingleSource(shaderSource);
     Camera3D cam = CLITERAL(Camera3D){
         .position = CLITERAL(Vector3){20,20,30},

@@ -32,56 +32,56 @@ static inline bool sw_starts_with(const char* s, const char* prefix) {
     return strncmp(s, prefix, n) == 0;
 }
 
-static inline WGPUShaderStageEnum sw_to_stage_enum(WgslStage st) {
+static inline RGShaderStageEnum sw_to_stage_enum(WgslStage st) {
     switch (st) {
-        case WGSL_STAGE_VERTEX:   return WGPUShaderStageEnum_Vertex;
-        case WGSL_STAGE_FRAGMENT: return WGPUShaderStageEnum_Fragment;
-        case WGSL_STAGE_COMPUTE:  return WGPUShaderStageEnum_Compute;
-        default:                  return WGPUShaderStageEnum_Vertex;
+        case WGSL_STAGE_VERTEX:   return RGShaderStageEnum_Vertex;
+        case WGSL_STAGE_FRAGMENT: return RGShaderStageEnum_Fragment;
+        case WGSL_STAGE_COMPUTE:  return RGShaderStageEnum_Compute;
+        default:                  return RGShaderStageEnum_Vertex;
     }
 }
 
-static inline WGPUVertexFormat sw_vf_from_numeric(int comps, WgslNumericType nt) {
+static inline RGVertexFormat sw_vf_from_numeric(int comps, WgslNumericType nt) {
     switch (nt) {
         case WGSL_NUM_F32:
             switch (comps) {
-                case 1: return WGPUVertexFormat_Float32;
-                case 2: return WGPUVertexFormat_Float32x2;
-                case 3: return WGPUVertexFormat_Float32x3;
-                case 4: return WGPUVertexFormat_Float32x4;
-                default: return (WGPUVertexFormat)0;
+                case 1: return RGVertexFormat_Float32;
+                case 2: return RGVertexFormat_Float32x2;
+                case 3: return RGVertexFormat_Float32x3;
+                case 4: return RGVertexFormat_Float32x4;
+                default: return (RGVertexFormat)0;
             } break;
         case WGSL_NUM_I32:
             switch (comps) {
-                case 1: return WGPUVertexFormat_Sint32;
-                case 2: return WGPUVertexFormat_Sint32x2;
-                case 3: return WGPUVertexFormat_Sint32x3;
-                case 4: return WGPUVertexFormat_Sint32x4;
-                default: return (WGPUVertexFormat)0;
+                case 1: return RGVertexFormat_Sint32;
+                case 2: return RGVertexFormat_Sint32x2;
+                case 3: return RGVertexFormat_Sint32x3;
+                case 4: return RGVertexFormat_Sint32x4;
+                default: return (RGVertexFormat)0;
             } break;
         case WGSL_NUM_U32:
         case WGSL_NUM_BOOL:
             switch (comps) {
-                case 1: return WGPUVertexFormat_Uint32;
-                case 2: return WGPUVertexFormat_Uint32x2;
-                case 3: return WGPUVertexFormat_Uint32x3;
-                case 4: return WGPUVertexFormat_Uint32x4;
-                default: return (WGPUVertexFormat)0;
+                case 1: return RGVertexFormat_Uint32;
+                case 2: return RGVertexFormat_Uint32x2;
+                case 3: return RGVertexFormat_Uint32x3;
+                case 4: return RGVertexFormat_Uint32x4;
+                default: return (RGVertexFormat)0;
             } break;
         case WGSL_NUM_F16:
             switch (comps) {
-                case 1: return WGPUVertexFormat_Float16;
-                case 2: return WGPUVertexFormat_Float16x2;
+                case 1: return RGVertexFormat_Float16;
+                case 2: return RGVertexFormat_Float16x2;
                 // vec3<f16> is not valid for vertex formats
-                case 4: return WGPUVertexFormat_Float16x4;
-                default: return (WGPUVertexFormat)0;
+                case 4: return RGVertexFormat_Float16x4;
+                default: return (RGVertexFormat)0;
             } break;
         default: break;
     }
 #ifdef WGPUVertexFormat_Undefined
     return WGPUVertexFormat_Undefined;
 #else
-    return WGPUVertexFormat_Float32;
+    return RGVertexFormat_Float32;
 #endif
 }
 

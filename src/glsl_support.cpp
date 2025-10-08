@@ -253,25 +253,25 @@ EShLanguage ShaderStageToGlslanguage(WGPUShaderStageEnum stage){
         default: rg_unreachable();     
     }
 }
-WGPUVertexFormat fromGLVertexFormat(uint32_t glType){
+RGVertexFormat fromGLVertexFormat(uint32_t glType){
     switch(glType){
         default: 
             rassert(false, "unsupported gl vertex format");
-            return WGPUVertexFormat(~0);
-        case GL_INT:      return WGPUVertexFormat_Sint32;
-        case GL_INT_VEC2: return WGPUVertexFormat_Sint32x2;
-        case GL_INT_VEC3: return WGPUVertexFormat_Sint32x3;
-        case GL_INT_VEC4: return WGPUVertexFormat_Sint32x4;
+            return RGVertexFormat(~0);
+        case GL_INT:      return RGVertexFormat_Sint32;
+        case GL_INT_VEC2: return RGVertexFormat_Sint32x2;
+        case GL_INT_VEC3: return RGVertexFormat_Sint32x3;
+        case GL_INT_VEC4: return RGVertexFormat_Sint32x4;
 
-        case GL_UNSIGNED_INT:      return WGPUVertexFormat_Uint32;
-        case GL_UNSIGNED_INT_VEC2: return WGPUVertexFormat_Uint32x2;
-        case GL_UNSIGNED_INT_VEC3: return WGPUVertexFormat_Uint32x3;
-        case GL_UNSIGNED_INT_VEC4: return WGPUVertexFormat_Uint32x4;
+        case GL_UNSIGNED_INT:      return RGVertexFormat_Uint32;
+        case GL_UNSIGNED_INT_VEC2: return RGVertexFormat_Uint32x2;
+        case GL_UNSIGNED_INT_VEC3: return RGVertexFormat_Uint32x3;
+        case GL_UNSIGNED_INT_VEC4: return RGVertexFormat_Uint32x4;
 
-        case GL_FLOAT:      return WGPUVertexFormat_Float32;
-        case GL_FLOAT_VEC2: return WGPUVertexFormat_Float32x2;
-        case GL_FLOAT_VEC3: return WGPUVertexFormat_Float32x3;
-        case GL_FLOAT_VEC4: return WGPUVertexFormat_Float32x4;
+        case GL_FLOAT:      return RGVertexFormat_Float32;
+        case GL_FLOAT_VEC2: return RGVertexFormat_Float32x2;
+        case GL_FLOAT_VEC3: return RGVertexFormat_Float32x3;
+        case GL_FLOAT_VEC4: return RGVertexFormat_Float32x4;
     }
     rg_unreachable();
 };
@@ -363,7 +363,7 @@ InOutAttributeInfo getAttributesGLSL(ShaderSources sources){
         {
             uint32_t location = program.getAttributeTType(i)->getQualifier().layoutLocation;
             
-            WGPUVertexFormat format = fromGLVertexFormat(glattrib);
+            RGVertexFormat format = fromGLVertexFormat(glattrib);
             rassert(attribname.size() <= MAX_VERTEX_ATTRIBUTE_NAME_LENGTH, "Vertex attribute name longer than MAX_VERTEX_ATTRIBUTE_NAME_LENGTH: %s", attribname.c_str());
 
             if(!(attribname.find("gl_") != std::string::npos) && attribname.size() <= MAX_VERTEX_ATTRIBUTE_NAME_LENGTH){
@@ -547,7 +547,7 @@ StringToUniformMap* getBindingsGLSL(ShaderSources sources){
 
                     // TODO review this
                     insert.location = set->bindings[i]->binding;
-                    insert.visibility = WGPUShaderStage(insert.visibility | WGPUShaderStage(1u << lang));
+                    insert.visibility = RGShaderStage(insert.visibility | RGShaderStage(1u << lang));
                     BindingIdentifier identifier = {
                         .length = (uint32_t)strlen(set->bindings[i]->name),
                     };
@@ -580,7 +580,7 @@ StringToUniformMap* getBindingsGLSL(ShaderSources sources){
         StringToUniformMap_put(ret, id, insert);
         ResourceTypeDescriptor* inserted = StringToUniformMap_get(ret, id);
         if(inserted){
-            inserted->visibility = WGPUShaderStage(inserted->visibility | WGPUShaderStage(program.getUniformBlock(i).stages));
+            inserted->visibility = RGShaderStage(inserted->visibility | RGShaderStage(program.getUniformBlock(i).stages));
         }
     }
     return ret;
@@ -620,11 +620,11 @@ Shader LoadShaderGLSL(const char* vs, const char* fs){
     glslSources.sourceCount = 2;
     glslSources.sources[0].data = vs ? vs : vertexSourceGLSL;
     glslSources.sources[0].sizeInBytes = std::strlen((const char*)glslSources.sources[0].data);
-    glslSources.sources[0].stageMask = WGPUShaderStage_Vertex;
+    glslSources.sources[0].stageMask = RGShaderStage_Vertex;
 
     glslSources.sources[1].data = fs ? fs : fragmentSourceGLSL;
     glslSources.sources[1].sizeInBytes = std::strlen((const char*)glslSources.sources[1].data);
-    glslSources.sources[1].stageMask = WGPUShaderStage_Fragment;
+    glslSources.sources[1].stageMask = RGShaderStage_Fragment;
 
     DescribedShaderModule shaderModule = LoadShaderModuleGLSL(glslSources);
 
@@ -668,17 +668,16 @@ Shader LoadShaderGLSL(const char* vs, const char* fs){
     uint32_t offset = 0;
     
     for(uint32_t i = 0;i < acount;i++){
-        WGPUVertexFormat format = flatAttributes[i].format;
+        RGVertexFormat format = flatAttributes[i].format;
         uint32_t location = flatAttributes[i].location;
         allAttribsInOneBuffer.push_back(AttributeAndResidence{
-            .attr = WGPUVertexAttribute{
-                .nextInChain = nullptr,
+            .attr = RGVertexAttribute{
                 .format = format,
                 .offset = offset,
                 .shaderLocation = location
             },
             .bufferSlot = 0,
-            .stepMode = WGPUVertexStepMode_Vertex,
+            .stepMode = RGVertexStepMode_Vertex,
             .enabled = true
         });
         offset += attributeSize(format);
