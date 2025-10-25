@@ -152,6 +152,7 @@ jobs:
         -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
         -DSUPPORT_SDL3=ON
+        -DRAYGPU_BUILD_SHARED_LIBRARY=ON
         -S ${{ steps.msys2_strings.outputs.source-dir }}
 
     - name: Configure CMake (Regular)
@@ -162,6 +163,7 @@ jobs:
         -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
         -DSUPPORT_SDL3=ON
+        -DRAYGPU_BUILD_SHARED_LIBRARY=ON
         -S ${{ github.workspace }}
 
     - name: Build (MSYS2)
