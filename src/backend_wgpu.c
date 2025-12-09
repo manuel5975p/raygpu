@@ -1410,18 +1410,18 @@ void negotiateSurfaceFormatAndPresentMode(const void *SurfaceHandle) {
 
     WGPUTextureFormat selectedFormat = capabilities.formats[0];
     int format_index = 0;
-    for (format_index = 0; format_index < capabilities.formatCount; format_index++) {
-        if (capabilities.formats[format_index] == WGPUTextureFormat_RGBA16Float) {
-            selectedFormat = (capabilities.formats[format_index]);
-            goto found;
-        }
-    }
-    for (format_index = 0; format_index < capabilities.formatCount; format_index++) {
-        if (capabilities.formats[format_index] == WGPUTextureFormat_BGRA8Unorm /*|| capabilities.formats[format_index] == WGPUTextureFormat_RGBA8Unorm*/) {
-            selectedFormat = (capabilities.formats[format_index]);
-            goto found;
-        }
-    }
+    //for (format_index = 0; format_index < capabilities.formatCount; format_index++) {
+    //    if (capabilities.formats[format_index] == WGPUTextureFormat_RGBA16Float) {
+    //        selectedFormat = (capabilities.formats[format_index]);
+    //        goto found;
+    //    }
+    //}
+    //for (format_index = 0; format_index < capabilities.formatCount; format_index++) {
+    //    if (capabilities.formats[format_index] == WGPUTextureFormat_BGRA8Unorm /*|| capabilities.formats[format_index] == WGPUTextureFormat_RGBA8Unorm*/) {
+    //        selectedFormat = (capabilities.formats[format_index]);
+    //        goto found;
+    //    }
+    //}
 found:
     #ifdef __EMSCRIPTEN__
     selectedFormat = WGPUTextureFormat_BGRA8Unorm;
