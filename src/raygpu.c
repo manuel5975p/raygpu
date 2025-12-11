@@ -2339,7 +2339,21 @@ DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const
     DescribedBindGroup ret  = {0};
     if(entryCount > 0){
         ret.entries = (ResourceDescriptor*)RL_CALLOC(entryCount, sizeof(ResourceDescriptor));
-        memcpy(ret.entries, entries, entryCount * sizeof(ResourceDescriptor));
+        // memcpy(ret.entries, entries, entryCount * sizeof(ResourceDescriptor));
+
+        for(size_t i = 0; i < entryCount; ++i) {
+            ret.entries[i] = entries[i];
+            
+            if(ret.entries[i].buffer) {
+                wgpuBufferAddRef((WGPUBuffer)ret.entries[i].buffer);
+            }
+            if(ret.entries[i].textureView) {
+                wgpuTextureViewAddRef((WGPUTextureView)ret.entries[i].textureView);
+            }
+            if(ret.entries[i].sampler) {
+                wgpuSamplerAddRef((WGPUSampler)ret.entries[i].sampler);
+            }
+        }
     }
     ret.entryCount = entryCount;
     ret.layout = bglayout;
@@ -2347,11 +2361,9 @@ DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const
     ret.needsUpdate = true;
     ret.descriptorHash = 0;
 
-
     for(uint32_t i = 0;i < ret.entryCount;i++){
         ret.descriptorHash ^= bgEntryHash(ret.entries[i]);
     }
-    //ret.bindGroup = wgpuDeviceCreateBindGroup((WGPUDevice)GetDevice(), &ret.desc);
     return ret;
 }
 
