@@ -146,9 +146,6 @@ struct full_renderstate;
 
 
 void PollEvents(){
-    #if SUPPORT_SDL2 != 0
-    PollEvents_SDL2();
-    #endif
     #if SUPPORT_SDL3 != 0
     PollEvents_SDL3();
     #endif
@@ -169,9 +166,7 @@ bool WindowShouldClose(cwoid){
     if(g_renderstate.window == NULL){ //headless
         return false;
     }
-    #ifdef MAIN_WINDOW_SDL2
-    return g_renderstate.closeFlag;
-    #elif defined(MAIN_WINDOW_GLFW)
+    #ifdef MAIN_WINDOW_GLFW
     return WindowShouldClose_GLFW(g_renderstate.window);
     #elif defined(MAIN_WINDOW_SDL3)
     return g_renderstate.closeFlag;
@@ -237,16 +232,13 @@ void* InitWindowEx_ContinuationPoint(InitContext_Impl _ctx){
     
     //void* window = nullptr;
     if(!(g_renderstate.windowFlags & FLAG_HEADLESS)){
-        #if SUPPORT_GLFW == 1 || SUPPORT_SDL2 == 1 || SUPPORT_SDL3 == 1 || SUPPORT_RGFW == 1
+        #if SUPPORT_GLFW == 1 || SUPPORT_SDL3 == 1 || SUPPORT_RGFW == 1
         #ifdef MAIN_WINDOW_GLFW
         SubWindow createdWindow = InitWindow_GLFW((int)ctx->windowWidth, (int)ctx->windowHeight, ctx->windowTitle);
         #elif defined(MAIN_WINDOW_SDL3)
         SubWindow createdWindow = InitWindow_SDL3((int)ctx->windowWidth, (int)ctx->windowHeight, ctx->windowTitle);
         #elif defined(MAIN_WINDOW_RGFW)
         SubWindow createdWindow = InitWindow_RGFW((int)ctx->windowWidth, (int)ctx->windowHeight, ctx->windowTitle);
-        #else
-        Initialize_SDL2();
-        SubWindow createdWindow = InitWindow_SDL2((int)ctx->windowWidth, (int)ctx->windowHeight, ctx->windowTitle);
         #endif
         
         WGPUSurface wSurface = (WGPUSurface)CreateSurfaceForWindow(createdWindow);
@@ -461,12 +453,6 @@ RGAPI WGPUSurface CreateSurfaceForWindow(SubWindow window){
         rg_trap();
         #endif
         break;
-        case windowType_sdl2:
-        #if SUPPORT_SDL2 == 1
-        surfacePtr = CreateSurfaceForWindow_SDL2(window->handle);
-        #else
-        rg_trap();
-        #endif
         case windowType_rgfw:
         #if SUPPORT_RGFW == 1
         surfacePtr = CreateSurfaceForWindow_RGFW(window->handle);
@@ -496,8 +482,6 @@ SubWindow OpenSubWindow(int width, int height, const char* title){
     SubWindow createdWindow = NULL;
     #ifdef MAIN_WINDOW_GLFW
     createdWindow = OpenSubWindow_GLFW(width, height, title);
-    #elif defined(MAIN_WINDOW_SDL2)
-    createdWindow = OpenSubWindow_SDL2(width, height, title);
     #elif defined(MAIN_WINDOW_SDL3)
     createdWindow = OpenSubWindow_SDL3(width, height, title);
     rassert(createdWindow != NULL && createdWindow->handle != NULL, "Returned window can't have null handle");
@@ -537,8 +521,6 @@ SubWindow OpenSubWindow(int width, int height, const char* title){
 void ToggleFullscreenImpl(){
     #ifdef MAIN_WINDOW_GLFW
     ToggleFullscreen_GLFW();
-    #elif defined(MAIN_WINDOW_SDL2)
-    ToggleFullscreen_SDL2();
     #elif defined(MAIN_WINDOW_SDL3)
     ToggleFullscreen_SDL3();
     #endif
@@ -549,8 +531,6 @@ void ToggleFullscreen(){
 Vector2 GetTouchPosition(int index){
     #ifdef MAIN_WINDOW_GLFW
     return CLITERAL(Vector2){0,0};//GetTouchPointCount_GLFW(index);
-    #elif defined(MAIN_WINDOW_SDL2)
-    return GetTouchPosition_SDL2(index);
     #else
     return CLITERAL(Vector2){0, 0};
     #endif
@@ -561,8 +541,6 @@ int GetTouchPointCount(cwoid){
 int GetMonitorWidth(cwoid){
     #ifdef MAIN_WINDOW_GLFW
     return GetMonitorWidth_GLFW();
-    #elif defined(MAIN_WINDOW_SDL2)
-    return GetMonitorWidth_SDL2();
     #elif defined (MAIN_WINDOW_SDL3)
     return GetMonitorWidth_SDL3();
     #endif
@@ -571,8 +549,6 @@ int GetMonitorWidth(cwoid){
 int GetMonitorHeight(cwoid){
     #ifdef MAIN_WINDOW_GLFW
     return GetMonitorHeight_GLFW();
-    #elif defined(MAIN_WINDOW_SDL2)
-    return GetMonitorHeight_SDL2();
     #elif defined (MAIN_WINDOW_SDL3)
     return GetMonitorHeight_SDL3();
     #endif
@@ -581,7 +557,7 @@ int GetMonitorHeight(cwoid){
 void SetWindowShouldClose(){
     #ifdef MAIN_WINDOW_GLFW
     return SetWindowShouldClose_GLFW(g_renderstate.window);
-    #elif defined(MAIN_WINDOW_SDL2)
+    #else
     g_renderstate.closeFlag = true;
     #endif
 }
@@ -616,11 +592,6 @@ size_t GetPixelSizeInBytes(PixelFormat format) {
 #if SUPPORT_GLFW == 1
 #include "platform/InitWindow_GLFW.c"
 #include "platform/glfw3webgpu.c"
-#endif
-
-#if SUPPORT_SDL2 == 1
-#include "platform/InitWindow_SDL2.c"
-#include "platform/sdl2webgpu.c"
 #endif
 
 #if SUPPORT_SDL3 == 1

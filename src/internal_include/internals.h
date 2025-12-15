@@ -1585,7 +1585,6 @@ struct RGFW_window;
 
 RGAPI WGPUSurface RGFW_GetWGPUSurface(void* instance, struct RGFW_window* window);
 RGAPI WGPUSurface CreateSurfaceForWindow(SubWindow window);
-RGAPI WGPUSurface CreateSurfaceForWindow_SDL2(void* windowHandle);
 RGAPI WGPUSurface CreateSurfaceForWindow_SDL3(void* windowHandle);
 RGAPI WGPUSurface CreateSurfaceForWindow_GLFW(void* windowHandle);
 RGAPI WGPUSurface CreateSurfaceForWindow_RGFW(void* windowHandle);

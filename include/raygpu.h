@@ -1207,7 +1207,6 @@ typedef struct FullSurface{
 typedef enum windowType {
     windowType_glfw,
     windowType_rgfw,
-    windowType_sdl2,
     windowType_sdl3
 }windowType;
 
@@ -1289,7 +1288,6 @@ RGAPI void requestAnimationFrameLoopWithJSPIArg(void (*callback)(void*), void* u
 RGAPI void SetWindowShouldClose(cwoid);
 RGAPI bool WindowShouldClose(cwoid);
 RGAPI SubWindow OpenSubWindow (int width, int height, const char* title);
-RGAPI SubWindow InitWindow_SDL2 (int width, int height, const char* title);
 RGAPI SubWindow InitWindow_SDL3 (int width, int height, const char* title);
 RGAPI void CloseSubWindow (SubWindow subWindow);
 RGAPI FullSurface CompleteSurface (void* nsurface, int width, int height);
@@ -1332,29 +1330,21 @@ RGAPI void EnableCursor(cwoid);                 // Enables cursor (unlock cursor
 RGAPI void DisableCursor(cwoid);                // Disables cursor (lock cursor)
 RGAPI bool IsCursorOnScreen(cwoid);             // Check if cursor is on the screen
 RGAPI void PollEvents(cwoid);
-RGAPI void PollEvents_SDL2(cwoid);
 RGAPI void PollEvents_SDL3(cwoid);
 RGAPI void PollEvents_GLFW(cwoid);
 RGAPI void PollEvents_RGFW(cwoid);
 RGAPI int GetMonitorWidth_GLFW(cwoid);
-RGAPI int GetMonitorWidth_SDL2(cwoid);
 RGAPI int GetMonitorWidth_SDL3(cwoid);
 RGAPI int GetMonitorHeight_SDL3(cwoid);
 RGAPI int GetMonitorHeight_GLFW(cwoid);
-RGAPI int GetMonitorHeight_SDL2(cwoid);
-RGAPI int GetTouchPointCount_SDL2(cwoid);
-RGAPI Vector2 GetTouchPosition_SDL2(int);
 RGAPI void SetWindowShouldClose_GLFW(GLFWwindow* win);
-RGAPI void Initialize_SDL2(cwoid);
 RGAPI void Initialize_SDL3(cwoid);
 RGAPI bool WindowShouldClose_GLFW(GLFWwindow* win);
 RGAPI SubWindow InitWindow_GLFW(int width, int height, const char* title);
 RGAPI SubWindow InitWindow_RGFW(int width, int height, const char* title);
 RGAPI void ToggleFullscreen_GLFW(cwoid);
-RGAPI void ToggleFullscreen_SDL2(cwoid);
 RGAPI void ToggleFullscreen_SDL3(cwoid);
 RGAPI SubWindow OpenSubWindow_GLFW(int width, int height, const char* title);
-RGAPI SubWindow OpenSubWindow_SDL2(int width, int height, const char* title);
 RGAPI SubWindow OpenSubWindow_SDL3(int width, int height, const char* title);
 
 RGAPI void SetShaderValue(Shader shader, int uniformLoc, const void *value, int uniformType);
