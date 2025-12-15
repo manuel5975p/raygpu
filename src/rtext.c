@@ -1038,7 +1038,7 @@ void UnloadFont(Font font)
         if (isGpuReady) UnloadTexture(font.texture);
         free(font.recs);
 
-        //TRACELOGD("FONT: Unloaded font data from RAM and VRAM");
+        TRACELOG(LOG_INFO, "FONT: Unloaded font data from RAM and VRAM");
     }
 }
 
