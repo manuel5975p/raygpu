@@ -654,6 +654,10 @@ void UpdateBindGroup(DescribedBindGroup *bg) {
     // std::cout << "Updating bindgroup with " << bg->desc.entryCount << " entries" << std::endl;
     // std::cout << "Updating bindgroup with " << bg->desc.entries[1].binding << " entries" << std::endl;
     if (bg->needsUpdate) {
+        if (bg->bindGroup) {
+            wgpuBindGroupRelease((WGPUBindGroup)bg->bindGroup);
+            bg->bindGroup = NULL;
+        }
         WGPUBindGroupDescriptor desc  = {0};
         WGPUBindGroupEntry* aswgpu = (WGPUBindGroupEntry*)RL_CALLOC(bg->entryCount, sizeof(WGPUBindGroupEntry));
         for (uint32_t i = 0; i < bg->entryCount; i++) {
