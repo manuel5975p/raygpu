@@ -21,32 +21,23 @@
 #ifndef SUPPORT_GLSL_PARSER
     #define SUPPORT_GLSL_PARSER 0
 #endif
-#ifndef SUPPORT_SDL2
-    #define SUPPORT_SDL2 0
-#endif
 #ifndef SUPPORT_GLFW
     #define SUPPORT_GLFW 0
 #endif
-#if SUPPORT_SDL3 == 0 && SUPPORT_SDL2 == 0 && SUPPORT_GLFW == 0 && SUPPORT_RGFW == 0
+#if SUPPORT_SDL3 == 0 && SUPPORT_GLFW == 0 && SUPPORT_RGFW == 0
     #define FORCE_HEADLESS 1
 #endif
-#if SUPPORT_SDL3 == 1// && SUPPORT_SDL2 == 0 && SUPPORT_GLFW == 0
+#if SUPPORT_SDL3 == 1
     #define MAIN_WINDOW_SDL3
-#elif SUPPORT_GLFW == 0 && SUPPORT_SDL2 == 1
-    #define MAIN_WINDOW_SDL2
-#elif SUPPORT_GLFW == 1 && SUPPORT_SDL2 == 0
+#elif SUPPORT_GLFW == 1
     #define MAIN_WINDOW_GLFW
-#elif SUPPORT_GLFW == 1 && SUPPORT_SDL2 == 1
-    #define MAIN_WINDOW_SDL2
 #elif SUPPORT_RGFW == 1
     #define MAIN_WINDOW_RGFW
 #else
 
 #endif
-//#if !defined(MAIN_WINDOW_SDL2) && !defined(MAIN_WINDOW_GLFW)
-//    #define MAIN_WINDOW_GLFW
-//#endif
-#if defined(MAIN_WINDOW_SDL2) && defined(MAIN_WINDOW_GLFW)
+
+#if defined(MAIN_WINDOW_SDL3) && defined(MAIN_WINDOW_GLFW)
 #error only_one_main_window_type_is_supported
 #endif
 
