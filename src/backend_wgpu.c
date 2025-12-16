@@ -669,6 +669,11 @@ void UpdateBindGroup(DescribedBindGroup *bg) {
 
         desc.entries = aswgpu;
         desc.entryCount = bg->entryCount;
+        if (bg->layout == NULL) {
+            TRACELOG(LOG_ERROR, "UpdateBindGroup: bind group layout is NULL. Skipping bind group creation.");
+            RL_FREE(aswgpu);
+            return;
+        }
         desc.layout = bg->layout->layout;
         bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &desc);
         bg->needsUpdate = false;
