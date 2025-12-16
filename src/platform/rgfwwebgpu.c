@@ -104,9 +104,13 @@ WGPUSurface RGFW_GetWGPUSurface(void* instance, RGFW_window* window) {
             fromWl.surface = window->src.surface;   // Get wl_surface from RGFW
 
             surfaceDesc.nextInChain = (WGPUChainedStruct*)&fromWl.chain;
-            return wgpuInstanceCreateSurface(instance, &surfaceDesc);
+            WGPUSurface surface = wgpuInstanceCreateSurface(instance, &surfaceDesc);
+            if(surface){
+                TRACELOG(LOG_INFO, "RGFW: Successfully created wayland surface");
+            }
+            return surface;
         }
-        fprintf(stderr, "RGFW Info: Using Wayland, but wl_display or wl_surface is NULL.\n");
+        TRACELOG(LOG_ERROR, "RGFW: Using Wayland, but wl_display or wl_surface is NULL");
         return NULL; // Cannot create Wayland surface without handles
     }
     #endif // RGFW_WAYLAND
@@ -115,22 +119,27 @@ WGPUSurface RGFW_GetWGPUSurface(void* instance, RGFW_window* window) {
     // Fallback to X11 if Wayland isn't used or not compiled
     // (or if RGFW_usingWayland() returned false)
     {
-        if (window->src.display && window->src.window) {
+        Display* x11Display = RGFW_getDisplay_X11();
+        if (x11Display && window->src.window) {
             WGPUSurfaceSourceXlibWindow fromXlib = {0};
             fromXlib.chain.sType = WGPUSType_SurfaceSourceXlibWindow;
-            fromXlib.display = window->src.display; // Get Display* from RGFW
+            fromXlib.display = x11Display; // Get Display* from RGFW
             fromXlib.window = window->src.window;   // Get Window from RGFW
 
             surfaceDesc.nextInChain = (WGPUChainedStruct*)&fromXlib.chain;
-            return wgpuInstanceCreateSurface(instance, &surfaceDesc);
+            WGPUSurface surface = wgpuInstanceCreateSurface(instance, &surfaceDesc);
+            if(surface){
+                TRACELOG(LOG_INFO, "RGFW: Successfully created X11 surface");
+            }
+            return surface;
         }
-        fprintf(stderr, "RGFW Info: Using X11 (or fallback), but Display* or Window is NULL.\n");
+        TRACELOG(LOG_ERROR, "RGFW Info: Using X11 (or fallback), but Display* or Window is NULL");
         return NULL; // Cannot create X11 surface without handles
     }
     #endif // RGFW_X11
 
     // If RGFW_UNIX is defined but neither RGFW_WAYLAND nor RGFW_X11 resulted in a surface
-    fprintf(stderr, "RGFW Error: RGFW_UNIX defined, but no Wayland or X11 surface could be created.\n");
+    TRACELOG(LOG_ERROR, "RGFW Error: RGFW_UNIX defined, but no Wayland or X11 surface could be created");
     return NULL;
 
 #elif defined(__EMSCRIPTEN__)
