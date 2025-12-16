@@ -710,6 +710,9 @@ void UpdateBindGroupEntry(DescribedBindGroup *bg, size_t index, ResourceDescript
     if (entry.textureView) {
         wgpuTextureViewAddRef((WGPUTextureView)entry.textureView);
     }
+    if (entry.sampler) {
+        wgpuSamplerAddRef((WGPUSampler)entry.sampler);
+    }
 
     if (bg->entries[index].buffer) {
         wgpuBufferRelease((WGPUBuffer)bg->entries[index].buffer);
@@ -718,6 +721,10 @@ void UpdateBindGroupEntry(DescribedBindGroup *bg, size_t index, ResourceDescript
     if (bg->entries[index].textureView) {
         wgpuTextureViewRelease((WGPUTextureView)bg->entries[index].textureView);
         bg->entries[index].textureView = 0;
+    }
+    if (bg->entries[index].sampler) {
+        wgpuSamplerRelease((WGPUSampler)bg->entries[index].sampler);
+        bg->entries[index].sampler = 0;
     }
 
     bg->entries[index] = entry;
@@ -2846,8 +2853,26 @@ EntryPointSet getEntryPointsSPIRV(const uint32_t *shaderSourceSPIRV, uint32_t wo
 }
 
 void UnloadBindGroup(DescribedBindGroup *bg) {
-    free(bg->entries);
-    wgpuBindGroupRelease((WGPUBindGroup)bg->bindGroup);
+    if (bg->entries) {
+        for (uint32_t i = 0; i < bg->entryCount; i++) {
+            if (bg->entries[i].buffer) {
+                wgpuBufferRelease((WGPUBuffer)bg->entries[i].buffer);
+            }
+            if (bg->entries[i].textureView) {
+                wgpuTextureViewRelease((WGPUTextureView)bg->entries[i].textureView);
+            }
+            if (bg->entries[i].sampler) {
+                wgpuSamplerRelease((WGPUSampler)bg->entries[i].sampler);
+            }
+        }
+        free(bg->entries);
+    }
+    if (bg->bindGroup) {
+        wgpuBindGroupRelease((WGPUBindGroup)bg->bindGroup);
+    }
+    bg->bindGroup = NULL;
+    bg->entries = NULL;
+    bg->entryCount = 0;
 }
 void UnloadBindGroupLayout(DescribedBindGroupLayout *bglayout) {
     free(bglayout->entries);

@@ -2453,7 +2453,18 @@ DescribedBindGroup LoadBindGroup(const DescribedBindGroupLayout* bglayout, const
     DescribedBindGroup ret  = {0};
     if(entryCount > 0){
         ret.entries = (ResourceDescriptor*)RL_CALLOC(entryCount, sizeof(ResourceDescriptor));
-        memcpy(ret.entries, entries, entryCount * sizeof(ResourceDescriptor));
+        for (uint32_t i = 0; i < entryCount; i++) {
+            ret.entries[i] = entries[i];
+            if (entries[i].buffer) {
+                wgpuBufferAddRef((WGPUBuffer)entries[i].buffer);
+            }
+            if (entries[i].textureView) {
+                wgpuTextureViewAddRef((WGPUTextureView)entries[i].textureView);
+            }
+            if (entries[i].sampler) {
+                wgpuSamplerAddRef((WGPUSampler)entries[i].sampler);
+            }
+        }
     }
     ret.entryCount = entryCount;
     ret.layout = bglayout;
