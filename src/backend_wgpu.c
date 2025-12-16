@@ -1619,11 +1619,11 @@ void SetBindgroupUniformBufferData(DescribedBindGroup *bg, uint32_t index, const
     };
     WGPUBuffer uniformBuffer = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &bufferDesc);
     wgpuQueueWriteBuffer((WGPUQueue)GetQueue(), uniformBuffer, 0, data, size);
+    // Use the existing binding index from the bind group layout if available
+    uint32_t bindingIdx = (bg->entries && index < bg->entryCount) ? bg->entries[index].binding : index;
+
     const ResourceDescriptor entry = {
-        .binding = index,
-        .buffer = uniformBuffer,
-        .size = size,
-    };
+        .binding = bindingIdx, .buffer = uniformBuffer, .size = size, .offset = 0, .sampler = 0, .textureView = 0};
 
     UpdateBindGroupEntry(bg, index, entry);
     wgpuBufferRelease(uniformBuffer);
@@ -1638,11 +1638,10 @@ void SetBindgroupStorageBufferData(DescribedBindGroup *bg, uint32_t index, const
     };
     WGPUBuffer storageBuffer = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &bufferDesc);
     wgpuQueueWriteBuffer((WGPUQueue)GetQueue(), storageBuffer, 0, data, size);
+    uint32_t bindingIdx = (bg->entries && index < bg->entryCount) ? bg->entries[index].binding : index;
+
     const ResourceDescriptor entry = {
-        .binding = index,
-        .buffer = storageBuffer,
-        .size = size,
-    };
+        .binding = bindingIdx, .buffer = storageBuffer, .size = size, .offset = 0, .sampler = 0, .textureView = 0};
 
     UpdateBindGroupEntry(bg, index, entry);
 

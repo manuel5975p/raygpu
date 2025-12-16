@@ -3671,18 +3671,28 @@ RGAPI ShaderImpl* GetShaderImplByID(uint32_t id){
 RGAPI ShaderImpl* GetShaderImpl(Shader shader){
     return GetShaderImplByID(shader.id);
 }
+
 RGAPI uint32_t getNextShaderID_shc(){
     if(nextShaderID_shc >= capacity_shc){
         uint32_t newCapacity = capacity_shc * 2 + (capacity_shc == 0) * 8;
         ShaderImpl* newAllocatedShaderIDs_shc = (ShaderImpl*)RL_CALLOC(newCapacity, sizeof(ShaderImpl));
         if(capacity_shc){
             memcpy(newAllocatedShaderIDs_shc, allocatedShaderIDs_shc, capacity_shc * sizeof(ShaderImpl));
+
+            // Fixup self-referential pointers after move
+            for (uint32_t i = 0; i < capacity_shc; i++) {
+                ShaderImpl* oldPtr = allocatedShaderIDs_shc + i;
+                ShaderImpl* newPtr = newAllocatedShaderIDs_shc + i;
+                if (newPtr->bindGroup.layout == &oldPtr->bglayout) {
+                    newPtr->bindGroup.layout = &newPtr->bglayout;
+                }
+            }
         }
         if(allocatedShaderIDs_shc){
             RL_FREE(allocatedShaderIDs_shc);
         }
         capacity_shc = newCapacity;
-        allocatedShaderIDs_shc = newAllocatedShaderIDs_shc; 
+        allocatedShaderIDs_shc = newAllocatedShaderIDs_shc;
     }
     return nextShaderID_shc++;
 }
