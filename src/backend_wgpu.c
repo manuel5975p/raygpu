@@ -671,6 +671,20 @@ void UpdateBindGroup(DescribedBindGroup *bg) {
             to->size = from->size;
             to->sampler = from->sampler;
             to->textureView = from->textureView;
+
+            if(bg->layout && bg->layout->entries){
+                if(to->sampler == NULL && bg->layout->entries[i].type == texture_sampler){
+                    to->sampler = (WGPUSampler)g_renderstate.defaultSampler.sampler;
+                }
+                if(to->textureView == NULL && bg->layout->entries[i].type == texture2d){
+                    to->textureView = (WGPUTextureView)g_renderstate.whitePixel.view;
+                }
+                if(to->buffer == NULL && (bg->layout->entries[i].type == uniform_buffer || bg->layout->entries[i].type == storage_buffer)){
+                    to->buffer = (WGPUBuffer)g_renderstate.identityMatrix->buffer;
+                    to->offset = 0;
+                    to->size = 64; // sizeof(Matrix)
+                }
+            }
         }
 
         desc.entries = aswgpu;
