@@ -166,13 +166,12 @@ bool WindowShouldClose(cwoid){
     if(g_renderstate.window == NULL){ //headless
         return false;
     }
-    #ifdef MAIN_WINDOW_GLFW
-    return WindowShouldClose_GLFW(g_renderstate.window);
-    #elif defined(MAIN_WINDOW_SDL3)
-    return g_renderstate.closeFlag;
-    #else
-    return g_renderstate.closeFlag;
-    #endif
+    const RGWindowImpl* w = CreatedWindowMap_get(&g_renderstate.createdSubwindows, g_renderstate.window);
+    if(w){
+        return w->closeRequestedFlag;
+    }
+    TRACELOG(LOG_ERROR, "g_renderstate.window not found in g_renderstate.createdSubwindows");
+    return true;
 }
 
 extern Texture2D texShapes;
@@ -390,9 +389,9 @@ void* InitWindowEx_ContinuationPoint(InitContext_Impl _ctx){
     return NULL;
 }
 #if defined(__EMSCRIPTEN__) && !defined(ASSUME_EM_ASYNCIFY)
-    void PLEASE_READ_THE_BUILD_INSTRUCTIONS_FOR_WEB_ON_GITHUB___YOU_CANT_USE_REGULAR_InitWindow_WITHOUT_ASYNCIFY___USE_INITPROGRAM_OR_ASYNCIFY(SetupFunction x, RenderFunction y);
+    void PLEASE_READ_THE_BUILD_INSTRUCTIONS_FOR_WEB_ON_GITHUB____YOU_CANT_USE_REGULAR_InitWindow_WITHOUT_ASYNCIFY____USE_InitProgram_OR_ASYNCIFY(SetupFunction x, RenderFunction y);
 #else
-    static void PLEASE_READ_THE_BUILD_INSTRUCTIONS_FOR_WEB_ON_GITHUB___YOU_CANT_USE_REGULAR_InitWindow_WITHOUT_ASYNCIFY___USE_INITPROGRAM_OR_ASYNCIFY(SetupFunction x, RenderFunction y){(void)x;(void)y;}
+    static void PLEASE_READ_THE_BUILD_INSTRUCTIONS_FOR_WEB_ON_GITHUB____YOU_CANT_USE_REGULAR_InitWindow_WITHOUT_ASYNCIFY____USE_InitProgram_OR_ASYNCIFY(SetupFunction x, RenderFunction y){(void)x;(void)y;}
 #endif
 
 
@@ -402,7 +401,7 @@ RGAPI void InitWindow(int width, int height, const char* title){
         .windowTitle = title,
         .windowWidth = width,
         .windowHeight = height,
-        .finalContinuationPoint = PLEASE_READ_THE_BUILD_INSTRUCTIONS_FOR_WEB_ON_GITHUB___YOU_CANT_USE_REGULAR_InitWindow_WITHOUT_ASYNCIFY___USE_INITPROGRAM_OR_ASYNCIFY,
+        .finalContinuationPoint = PLEASE_READ_THE_BUILD_INSTRUCTIONS_FOR_WEB_ON_GITHUB____YOU_CANT_USE_REGULAR_InitWindow_WITHOUT_ASYNCIFY____USE_InitProgram_OR_ASYNCIFY,
     };
 
     InitWindowEx(ctx);
@@ -569,7 +568,7 @@ void SetWindowShouldClose(){
     #ifdef MAIN_WINDOW_GLFW
     return SetWindowShouldClose_GLFW(g_renderstate.window);
     #else
-    g_renderstate.closeFlag = true;
+    CreatedWindowMap_get(&g_renderstate.createdSubwindows, GetActiveWindowHandle())->closeRequestedFlag = true;
     #endif
 }
 

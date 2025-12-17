@@ -272,6 +272,10 @@ void keyfunc_rgfw(RGFW_window* window, u8 key, u8 keyChar, RGFW_keymod keyMod, R
     }
     KeyboardKey kii = keyMappingRGFW_(key);
     CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.keydown[kii] = pressed ? 1 : 0;
+    
+    if(key == alt_RGFW_escape && pressed){
+        CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->closeRequestedFlag = true;
+    }
 }
 
 void mouseMotionfunc_rgfw(RGFW_window* win, i32 x, i32 y, float vecX, float vecY){
@@ -279,7 +283,7 @@ void mouseMotionfunc_rgfw(RGFW_window* win, i32 x, i32 y, float vecX, float vecY
 }
 
 void windowQuitfunc_rgfw(RGFW_window* window){
-    g_renderstate.closeFlag = true;
+    CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->closeRequestedFlag = true;
 }
 
 void windowResizedfunc_rgfw(RGFW_window* window, i32 w, i32 h){

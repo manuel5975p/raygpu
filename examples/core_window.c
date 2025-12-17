@@ -26,6 +26,9 @@ void render(void){
         TRACELOG(LOG_INFO, "Key U pressed");
         ToggleFullscreen();
     }
+    if(IsKeyPressed(KEY_ESCAPE)){
+        TRACELOG(LOG_INFO, "Escape pressed");
+    }
     if(IsKeyPressed(KEY_E)){
         DisableDepthTest();
     }

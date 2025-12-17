@@ -1277,6 +1277,7 @@ typedef struct RGWindowImpl{
     double width, height;
     double scaleFactor;
     window_input_state input_state; // width/height in pixels are obtained by width * scaleFactor
+    bool closeRequestedFlag;
 }RGWindowImpl;
 
 typedef struct RGWindowImpl* SubWindow;

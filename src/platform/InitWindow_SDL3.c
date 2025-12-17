@@ -374,14 +374,16 @@ RGAPI void PollEvents_SDL3() {
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
         case SDL_EVENT_QUIT:{
-            SDL_Window *window = SDL_GetWindowFromID(event.window.windowID);
-            g_renderstate.closeFlag = true;
+            SDL_Window* window = SDL_GetWindowFromID(event.window.windowID);
+            RGWindowImpl* rgWindow = CreatedWindowMap_get(&g_renderstate.createdSubwindows, window);
+            rgWindow->closeRequestedFlag = true;
         }break;
         case SDL_EVENT_KEY_DOWN:{
             SDL_Window *window = SDL_GetWindowFromID(event.key.windowID);
+            RGWindowImpl* rgWindow = CreatedWindowMap_get(&g_renderstate.createdSubwindows, window);
             KeyDownCallback(window, ConvertScancodeToKey(event.key.scancode), event.key.scancode, event.key.mod);
             if(event.key.scancode == SDL_SCANCODE_ESCAPE){
-                g_renderstate.closeFlag = true;
+                rgWindow->closeRequestedFlag= true;
             }
         }break;
         case SDL_EVENT_KEY_UP:{

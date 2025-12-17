@@ -268,7 +268,7 @@ if(SUPPORT_SDL3)
             set(SDL_COCOA OFF)
         endif()
         if(NOT SDL3_URL)
-            set(SDL3_URL "https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.2.22.tar.gz")
+            set(SDL3_URL "https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.2.28.tar.gz")
         endif()
         message(STATUS "Fetching SDL3 from ${SDL3_URL}")
         FetchContent_Declare(

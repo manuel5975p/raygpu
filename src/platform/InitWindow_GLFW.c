@@ -149,13 +149,11 @@ void CursorEnterCallback(GLFWwindow* window, int entered){
 void glfwKeyCallback (GLFWwindow* window, int key, int scancode, int action, int mods){
     if(action == GLFW_PRESS){
         CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.keydown[key] = 1;
+        if(key == GLFW_KEY_ESCAPE){
+            CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->closeRequestedFlag = 1;
+        }
     }else if(action == GLFW_RELEASE){
         CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.keydown[key] = 0;
-    }
-    if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
-        EndGIFRecording();
-        
-        glfwSetWindowShouldClose(window, true);
     }
 }
 #ifdef __EMSCRIPTEN__
