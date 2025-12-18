@@ -315,6 +315,10 @@ else()
     list(APPEND RG_SOURCES "src/wgsl_parse_lite.c")
 endif()
 
+if(SUPPORT_WGPU_BACKEND)
+    list(APPEND RG_SOURCES "src/dawn_stuff.cpp")
+endif()
+
 if(SUPPORT_VULKAN_BACKEND)
     set(WGVK_BUILD_WGSL_SUPPORT ${SUPPORT_WGSL_PARSER})
     
