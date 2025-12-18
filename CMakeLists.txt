@@ -250,7 +250,6 @@ if(SUPPORT_SDL3)
             RPI SNDIO SNDIO_SHARED SYSTEM_ICONV TESTS
             TESTS_LINK_SHARED UNINSTALL VIRTUAL_JOYSTICK VIVANTE VULKAN WASAPI
         )
-
         # Disable all features in the list.
         foreach(FEATURE ${SDL_DISABLED_FEATURES})
             set(SDL_${FEATURE} OFF)
@@ -470,6 +469,14 @@ if(NOT SUPPORT_WGPU_BACKEND)
     target_link_libraries(${raygpu_core_library_name} PUBLIC wgvk)
 endif()
 
+# Abseil's symbolize library requires linking dbghelp on windows, needing an
+# explicit -ldbghelp because mingw toolchains can't link libraries in #pragmas.
+# Unfortunately, the way we consume it through our bundler loses any flags they
+# applied, so we need to reapply them ourselves.
+# HACK. But I think CMake leaves us no choice...
+if(MINGW AND SUPPORT_WGPU_BACKEND)
+  target_link_libraries(${raygpu_core_library_name} PUBLIC dbghelp)
+endif()
 
 if(NOT MSVC)
     target_compile_options(${raygpu_core_library_name} PUBLIC "-Wno-gnu-anonymous-struct" "-Wno-nested-anon-types")
