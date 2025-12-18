@@ -712,9 +712,9 @@ static inline uint64_t bgEntryHashRD(const ResourceDescriptor bge) {
 }
 
 void UpdateBindGroupEntry(DescribedBindGroup *bg, size_t index, ResourceDescriptor entry) {
-    if (index >= bg->entryCount) {
+    if (bg->entries == NULL || index >= bg->entryCount) {
         TRACELOG(LOG_WARNING, "Trying to set entry %d on a BindGroup with only %d entries", (int)index, (int)bg->entryCount);
-        // return;
+        return;
     }
     WGPUBuffer newpuffer = entry.buffer;
     WGPUTextureView newtexture = entry.textureView;
