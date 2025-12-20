@@ -1,3 +1,4 @@
+#include "wgvk.h"
 #ifndef RAYGPU_H
 #define RAYGPU_H 1
 
@@ -97,6 +98,17 @@ typedef enum RGShaderStageEnum{
     RGShaderStageEnum_Vertex,
     RGShaderStageEnum_Fragment,
     RGShaderStageEnum_Compute,
+    RGShaderStageEnum_TessControl = WGPUShaderStageEnum_TessControl,
+    RGShaderStageEnum_TessEvaluation = WGPUShaderStageEnum_TessEvaluation,
+    RGShaderStageEnum_Geometry = WGPUShaderStageEnum_Geometry,
+    RGShaderStageEnum_RayGen =  WGPUShaderStageEnum_RayGen,
+    RGShaderStageEnum_Intersect = WGPUShaderStageEnum_Intersect,
+    RGShaderStageEnum_AnyHit = WGPUShaderStageEnum_AnyHit,
+    RGShaderStageEnum_ClosestHit = WGPUShaderStageEnum_ClosestHit,
+    RGShaderStageEnum_Miss = WGPUShaderStageEnum_Miss,
+    RGShaderStageEnum_Callable = WGPUShaderStageEnum_Callable,
+    RGShaderStageEnum_Task = WGPUShaderStageEnum_Task,
+    RGShaderStageEnum_Mesh = WGPUShaderStageEnum_Mesh,
     RGShaderStageEnum_EnumCount,
     RGShaderStageEnum_Force32 = 0x7FFFFFFF
 } RGShaderStageEnum;
@@ -1481,6 +1493,7 @@ RGAPI bool IsTextureValid(Texture tex);
 RGAPI Image LoadImageFromMemory(const char* extension, const void* data, size_t dataSize);
 RGAPI Image GenImageColor(int width, int height, Color a);
 RGAPI Image GenImageChecker(Color a, Color b, uint32_t width, uint32_t height, uint32_t checkerCount);
+RGAPI void ExportImage(Image img, const char* filepath);
 RGAPI void SaveImage(Image img, const char* filepath);
 RGAPI unsigned char *DecodeDataBase64(const unsigned char *data, int *outputSize);
 RGAPI char *EncodeDataBase64(const unsigned char *data, int dataSize, int *outputSize);

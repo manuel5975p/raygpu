@@ -2670,6 +2670,9 @@ static int ends_with_cstr(const char* s, const char* suf) {
     size_t lf = suf ? strlen(suf) : 0;
     return (ls >= lf) && (memcmp(s + ls - lf, suf, lf) == 0);
 }
+void ExportImage(Image img, const char* filepath){
+    SaveImage(img, filepath);
+}
 
 void SaveImage(Image img_in, const char* filepath){
     if (!filepath) {
