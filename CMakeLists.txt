@@ -201,7 +201,7 @@ if((SUPPORT_WGPU_BACKEND OR SUPPORT_WGSL_PARSER) AND NOT EMSCRIPTEN)
         set(FETCHCONTENT_QUIET FALSE)
         FetchContent_Declare(
             dawn
-            URL https://github.com/manuel5975p/dawn_monorepo/archive/refs/tags/v7562.tar.gz
+            URL https://github.com/manuel5975p/dawn_monorepo/archive/refs/tags/v7562-gl.tar.gz
             DOWNLOAD_EXTRACT_TIMESTAMP True
         )
         FetchContent_MakeAvailable(dawn)
