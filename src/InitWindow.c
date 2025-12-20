@@ -479,6 +479,9 @@ void CharCallback(void* window, unsigned int codePoint) {
 }
 
 SubWindow OpenSubWindow(int width, int height, const char* title){
+    void* mainWindowHandle = g_renderstate.mainWindow ? g_renderstate.mainWindow->handle : NULL;
+    void* activeSubWindowHandle = g_renderstate.activeSubWindow ? g_renderstate.activeSubWindow->handle : NULL;
+
     SubWindow createdWindow = NULL;
     #ifdef MAIN_WINDOW_GLFW
     createdWindow = OpenSubWindow_GLFW(width, height, title);
@@ -486,6 +489,14 @@ SubWindow OpenSubWindow(int width, int height, const char* title){
     createdWindow = OpenSubWindow_SDL3(width, height, title);
     rassert(createdWindow != NULL && createdWindow->handle != NULL, "Returned window can't have null handle");
     #endif
+
+    if(mainWindowHandle){
+        g_renderstate.mainWindow = CreatedWindowMap_get(&g_renderstate.createdSubwindows, mainWindowHandle);
+    }
+    if(activeSubWindowHandle){
+        g_renderstate.activeSubWindow = CreatedWindowMap_get(&g_renderstate.createdSubwindows, activeSubWindowHandle);
+    }
+    
     void* wgpu_or_wgpu_surface = CreateSurfaceForWindow(createdWindow);
     #if SUPPORT_WGPU_BACKEND == 1 || SUPPORT_VULKAN_BACKEND == 1
     WGPUSurface wSurface = (WGPUSurface)wgpu_or_wgpu_surface;
