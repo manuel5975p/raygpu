@@ -2232,7 +2232,8 @@ RGAPI Shader LoadPipelineFromModule(DescribedShaderModule mod, const AttributeAn
     Shader retS = {.id = getNextShaderID_shc()};
     ShaderImpl *ret = GetShaderImpl(retS);
     ret->state.settings = settings;
-    ret->state.vertexAttributes = (AttributeAndResidence *)attribs;
+    ret->state.vertexAttributes = (AttributeAndResidence *)RL_CALLOC(attribCount, sizeof(AttributeAndResidence));
+    memcpy(ret->state.vertexAttributes, attribs, attribCount * sizeof(AttributeAndResidence));
     ret->state.vertexAttributeCount = attribCount;
     ret->bglayout = LoadBindGroupLayout(uniforms, uniformCount, false);
     ret->shaderModule = mod;
