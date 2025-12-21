@@ -294,7 +294,7 @@ VkBool32 RGFW_getVKPresentationSupport_noinline(VkInstance instance, VkPhysicalD
 #endif
 
 void keyfunc_rgfw(RGFW_window* window, u8 key, u8 keyChar, RGFW_keymod keyMod, RGFW_bool repeat, RGFW_bool pressed) {
-    if(repeat){
+    if(repeat && pressed){
         return;
     }
     KeyboardKey kii = keyMappingRGFW_(key);
