@@ -1,14 +1,17 @@
-// begin file src/InitWindow_RGFW.cpp
+// begin file src/InitWindow_RGFW.c
 #define RGFW_IMPLEMENTATION
 #define RGFW_USE_XDL
-#ifndef VK_KHR_xlib_surface
-    #define VK_KHR_xlib_surface 1
-#endif
+
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
-#include <X11/Xlib.h>
-#include <vulkan/vulkan_xlib.h>
-#define RGFW_IMPLEMENTATION
+#if RAYGPU_USE_X11 == 1 
+    #ifndef VK_KHR_xlib_surface
+        #define VK_KHR_xlib_surface 1
+    #endif
+    #include <X11/Xlib.h>
+    #include <vulkan/vulkan_xlib.h>
+#endif
+
 #define Font rlFont
     #include <raygpu.h>
 #undef Font
@@ -243,7 +246,34 @@ const int keyMappingRGFW_(int RGFWKey){
         case alt_RGFW_scrollLock:return KEY_SCROLL_LOCK;
     }
 };
+#define RGFWDEF
+#if RAYGPU_USE_X11 == 1
+    #define RGFW_USE_XDL
+#endif
+#define RGFW_NO_DPI
 #if SUPPORT_VULKAN_BACKEND == 1
+
+#ifdef _WIN32
+#define Rectangle w__Rectangle
+#define LoadImage w__LoadImage
+#define DrawText w__DrawText
+#define DrawTextEx w__DrawTextEx
+#define ShowCursor w__ShowCursor
+#define AdapterType w__AdapterType
+#include <windows.h>
+#define VK_KHR_win32_surface 1
+#include <vulkan/vulkan_win32.h>
+#endif
+#include <external/RGFW.h>
+#ifdef _WIN32
+#undef AdapterType
+#undef ShowCursor
+#undef LoadImage
+#undef DrawTextEx
+#undef DrawText
+#undef Rectangle
+#endif
+
     #define RGFW_VULKAN
     #include <external/volk.h>
 #else
@@ -251,10 +281,8 @@ const int keyMappingRGFW_(int RGFWKey){
         #define RGFW_WASM
     #endif
 #endif
-#define RGFWDEF
-#define RGFW_USE_XDL
-#define RGFW_NO_DPI
-#include <external/RGFW.h>
+
+
 #include <internals.h>
 #include <renderstate.h>
 #if SUPPORT_VULKAN_BACKEND == 1
