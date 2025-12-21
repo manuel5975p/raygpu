@@ -332,12 +332,17 @@ void PollEvents_RGFW(){
         }
     }
 }
-
+void mouseNotifyfunc_rgfw(RGFW_window* win, i32 x, i32 y, RGFW_bool entered){
+    (void)x;
+    (void)y;
+    CreatedWindowMap_get(&g_renderstate.createdSubwindows, win)->input_state.cursorInWindow = entered;
+} 
 void setupRGFWCallbacks(RGFW_window* window){
     RGFW_setKeyCallback(keyfunc_rgfw);
     RGFW_setWindowResizedCallback(windowResizedfunc_rgfw);
     RGFW_setMousePosCallback(mouseMotionfunc_rgfw);
     RGFW_setWindowQuitCallback(windowQuitfunc_rgfw);
+    RGFW_setMouseNotifyCallback(mouseNotifyfunc_rgfw);
 }
 
 RGAPI WGPUSurface CreateSurfaceForWindow_RGFW(void* windowHandle){
