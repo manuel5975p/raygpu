@@ -264,6 +264,8 @@ const int keyMappingRGFW_(int RGFWKey){
 #define VK_KHR_win32_surface 1
 #include <vulkan/vulkan_win32.h>
 #endif
+#include <external/volk.h>
+#define RGFW_VULKAN
 #include <external/RGFW.h>
 #ifdef _WIN32
 #undef AdapterType
@@ -273,9 +275,6 @@ const int keyMappingRGFW_(int RGFWKey){
 #undef DrawText
 #undef Rectangle
 #endif
-
-    #define RGFW_VULKAN
-    #include <external/volk.h>
 #else
     #ifdef __EMSCRIPTEN__
         #define RGFW_WASM
@@ -366,11 +365,14 @@ void ShowCursor_RGFW(void* window) {
 void HideCursor_RGFW(void* window) {
     RGFW_window_showMouse((RGFW_window*)window, false);
 }
+bool IsCursorHidden_RGFW(void* window) {
+    return RGFW_window_isMouseHidden((RGFW_window*)window);
+}
 void EnableCursor_RGFW(void* window) {
-    RGFW_window_mouseUnhold((RGFW_window*)window);
+    RGFW_window_unholdMouse((RGFW_window*)window);
 }
 void DisableCursor_RGFW(void* window) {
-    RGFW_window_mouseHold((RGFW_window*)window, RGFW_AREA(0, 0));
+    RGFW_window_holdMouse((RGFW_window*)window);
     HideCursor_RGFW((RGFW_window*)window);
 }
 
