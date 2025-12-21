@@ -102,7 +102,7 @@ void cpcallback(GLFWwindow* window, double x, double y){
     RGWindowImpl* associatedWindow = CreatedWindowMap_get(&g_renderstate.createdSubwindows, window);
     //fprintf(stderr, "GLFWwindow is %p\n", window);
     assert(associatedWindow);
-    #ifdef __EMSCRIPTEN__
+    #if defined(__EMSCRIPTEN__) || defined(_WIN32)
     associatedWindow->input_state.mousePos = CLITERAL(Vector2){(float)x, (float)y};
     #else
     associatedWindow->input_state.mousePos = CLITERAL(Vector2){(float)(x * associatedWindow->scaleFactor), (float)(y * associatedWindow->scaleFactor)};
@@ -453,7 +453,7 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
     if (!glfwInit()) {
         abort();
     }
-    glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
+    //glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
 
     GLFWmonitor* mon = NULL;
     glfwSetErrorCallback(glfw_e_c_);
@@ -493,7 +493,7 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
     #ifndef __EMSCRIPTEN__
     float xscale, yscale;
     glfwGetWindowContentScale(window, &xscale, &yscale);
-    printf("Setting %f\n", xscale);
+    
     const char* platform = NULL;
     switch(glfwGetPlatform()){
         case GLFW_PLATFORM_WAYLAND: 
@@ -511,8 +511,8 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
         default:
         platform = "? unknown platform ?";
     }
-    printf("On platform %s\n", platform);
     ret->scaleFactor = xscale;
+    TRACELOG(LOG_DEBUG, "Setting scale %f for glfw window on platform %s\n", xscale, platform);
     #endif
     return ret;
 }
