@@ -374,6 +374,9 @@ RGAPI void PollEvents_SDL3() {
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
         case SDL_EVENT_QUIT:{
+        // TODO: Something IDK
+        }break;
+        case SDL_EVENT_WINDOW_CLOSE_REQUESTED:{
             SDL_Window *window = SDL_GetWindowFromID(event.window.windowID);
             g_renderstate.closeFlag = true;
         }break;
