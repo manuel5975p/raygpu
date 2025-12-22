@@ -379,7 +379,8 @@ RGAPI void PollEvents_SDL3() {
         case SDL_EVENT_WINDOW_CLOSE_REQUESTED:{
             // TODO: Implement this properly for subwindows
             SDL_Window *window = SDL_GetWindowFromID(event.window.windowID);
-            g_renderstate.closeFlag = true;
+            RGWindowImpl* rgWindow = CreatedWindowMap_get(&g_renderstate.createdSubwindows, window);
+            if(rgWindow) rgWindow->closeRequestedFlag = true;
         }break;
         case SDL_EVENT_KEY_DOWN:{
             SDL_Window *window = SDL_GetWindowFromID(event.key.windowID);
