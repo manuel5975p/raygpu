@@ -19,6 +19,7 @@ endif
 
 # Include paths
 INCLUDEFLAGS  = -Iinclude \
+                -Isrc/internal_include \
                 -Iamalgamation/glfw-3.4/include \
                 -Iamalgamation/ \
                 -Iamalgamation/vulkan_headers/include \
@@ -190,7 +191,6 @@ SRC_GLSL = amalgamation/glslang/glslang/MachineIndependent/parseConst.cpp \
            amalgamation/glslang/SPIRV/Logger.cpp \
            amalgamation/glslang/SPIRV/SpvBuilder.cpp \
            amalgamation/glslang/SPIRV/SpvPostProcess.cpp \
-           amalgamation/glslang/SPIRV/SPVRemapper.cpp \
            amalgamation/glslang/SPIRV/SpvTools.cpp
 
 SRC_GLFW = amalgamation/glfw-3.4/src/context.c \
