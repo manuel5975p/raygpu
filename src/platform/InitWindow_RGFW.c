@@ -12,6 +12,13 @@
     #include <vulkan/vulkan_xlib.h>
 #endif
 
+#if defined(__APPLE__)
+
+    //#define VK_KHR_mvk_surface 1
+    #define VK_MVK_macos_surface 1
+    #include <vulkan/vulkan_macos.h>
+#endif
+
 #define Font rlFont
     #include <raygpu.h>
 #undef Font

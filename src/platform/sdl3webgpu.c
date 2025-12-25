@@ -22,9 +22,12 @@
 #include <X11/Xlib.h>
 #endif
 #if defined(SDL_VIDEO_DRIVER_COCOA)
-    #include <Cocoa/Cocoa.h>
-    #include <Foundation/Foundation.h>
-    #include <QuartzCore/CAMetalLayer.h>
+    #ifndef APPLE_PLATFORM_HEADERS_INCLUDED
+    #define APPLE_PLATFORM_HEADERS_INCLUDED
+        #include <Cocoa/Cocoa.h>
+        #include <Foundation/Foundation.h>
+        #include <QuartzCore/CAMetalLayer.h>
+    #endif
 #elif defined(SDL_VIDEO_DRIVER_UIKIT)
     #include <UIKit/UIKit.h>
     #include <Foundation/Foundation.h>

@@ -353,20 +353,20 @@ void MouseButtonCallback(SDL_Window* window, int button, int action){
         CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.mouseButtonDown[button] = 0;
     }
 }
-void MousePositionCallback(SDL_Window* window, double x, double y){
+void MousePositionCallback_SDL3(SDL_Window* window, double x, double y){
     double scale = CreatedWindowMap_get(&g_renderstate.createdSubwindows,window)->scaleFactor;
     CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.mousePos = CLITERAL(Vector2){(float)(x * scale), (float)(y * scale)};
 }
 
-void ScrollCallback(SDL_Window* window, double xoffset, double yoffset){
+void ScrollCallback_SDL3(SDL_Window* window, double xoffset, double yoffset){
     CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.scrollThisFrame.x += (float)xoffset;
     CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.scrollThisFrame.y += (float)yoffset;
 }
 
-void KeyUpCallback (SDL_Window* window, int key, int scancode, int mods){
+void KeyUpCallback_SDL3(SDL_Window* window, int key, int scancode, int mods){
     CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.keydown[key] = 0;
 }
-void KeyDownCallback (SDL_Window* window, int key, int scancode, int mods){
+void KeyDownCallback_SDL3(SDL_Window* window, int key, int scancode, int mods){
     CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.keydown[key] = 1;
 }
 RGAPI void PollEvents_SDL3() {
@@ -385,14 +385,14 @@ RGAPI void PollEvents_SDL3() {
         case SDL_EVENT_KEY_DOWN:{
             SDL_Window *window = SDL_GetWindowFromID(event.key.windowID);
             RGWindowImpl* rgWindow = CreatedWindowMap_get(&g_renderstate.createdSubwindows, window);
-            KeyDownCallback(window, ConvertScancodeToKey(event.key.scancode), event.key.scancode, event.key.mod);
+            KeyDownCallback_SDL3(window, ConvertScancodeToKey(event.key.scancode), event.key.scancode, event.key.mod);
             if(event.key.scancode == SDL_SCANCODE_ESCAPE){
                 rgWindow->closeRequestedFlag= true;
             }
         }break;
         case SDL_EVENT_KEY_UP:{
             SDL_Window *window = SDL_GetWindowFromID(event.key.windowID);
-            KeyUpCallback(window, ConvertScancodeToKey(event.key.scancode), event.key.scancode, event.key.mod);
+            KeyUpCallback_SDL3(window, ConvertScancodeToKey(event.key.scancode), event.key.scancode, event.key.mod);
         }break;
         case SDL_EVENT_WINDOW_RESIZED: {
             SDL_Window *window = SDL_GetWindowFromID(event.window.windowID);
@@ -409,7 +409,7 @@ RGAPI void PollEvents_SDL3() {
         case SDL_EVENT_MOUSE_WHEEL: {
             SDL_Window *window = SDL_GetWindowFromID(event.wheel.windowID);
             // Note: SDL's yoffset is positive when scrolling up, negative when scrolling down
-            ScrollCallback(window, event.wheel.x, event.wheel.y);
+            ScrollCallback_SDL3(window, event.wheel.x, event.wheel.y);
         } break;
         case SDL_EVENT_MOUSE_MOTION: {
             SDL_Window* window = SDL_GetWindowFromID(event.motion.windowID);
@@ -419,7 +419,7 @@ RGAPI void PollEvents_SDL3() {
                 rgwindow->input_state.mousePos.y += event.motion.yrel;
             } else {
                 double scale = rgwindow->scaleFactor;
-                MousePositionCallback(window, event.motion.x, event.motion.y);
+                MousePositionCallback_SDL3(window, event.motion.x, event.motion.y);
             }
         } break;
 
