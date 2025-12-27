@@ -78,7 +78,7 @@ RGAPI WGPUSurface CreateSurfaceForWindow_SDL3(void* windowHandle){
 SubWindow OpenSubWindow_SDL3_NoSurface(int width, int height, const char* title){
     SubWindow ret = callocnew(RGWindowImpl);
     ret->type = windowType_sdl3;
-    ret->handle = SDL_CreateWindow(title, width, height, 0);
+    ret->handle = SDL_CreateWindow(title, width, height, SDL_WINDOW_HIGH_PIXEL_DENSITY);
     SDL_SetWindowResizable((SDL_Window*)ret->handle, (g_renderstate.windowFlags & FLAG_WINDOW_RESIZABLE));
     int ret_width, ret_height;
     SDL_GetWindowSize(ret->handle, &ret_width, &ret_height);
