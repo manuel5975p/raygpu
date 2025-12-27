@@ -424,15 +424,12 @@ WGPUSurface CreateSurfaceForWindow_GLFW(void* windowHandle){
     printf("Created WGPUSurface %p\n", value);
     return value;
     #else
+    WGPUSurface wsurfaceHandle = glfwCreateWindowWGPUSurface((WGPUInstance)GetInstance(), (GLFWwindow*)windowHandle);
+    TRACELOG(LOG_INFO, "Created WGPUSurface for GLFW window: %lu", (uint64_t)wsurfaceHandle);
     float xscale, yscale;
     glfwGetWindowContentScale((GLFWwindow*)windowHandle, &xscale, &yscale);
-    TRACELOG(LOG_INFO, "GLFW reports scale factor %f for window", xscale);
-    
-    WGPUSurface wsurfaceHandle = glfwCreateWindowWGPUSurface((WGPUInstance)GetInstance(), (GLFWwindow*)windowHandle);
-
-    
     CreatedWindowMap_get(&g_renderstate.createdSubwindows, windowHandle)->scaleFactor = xscale;
-    
+
     return wsurfaceHandle;
     #endif
 }

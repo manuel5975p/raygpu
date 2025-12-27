@@ -25,7 +25,6 @@ INCLUDEFLAGS  = -Iinclude \
                 -Iamalgamation/vulkan_headers/include \
                 -Iamalgamation/glslang \
                 -Iamalgamation/SPIRV-Reflect \
-                -I/home/manuel/Documents/raygpu/relbuild/_deps/dawn-src/third_party/vulkan-headers/src/include/ \
                 -Idl
 
 # Platform detection
@@ -222,6 +221,7 @@ SRC_GLFW += amalgamation/glfw-3.4/src/glx_context.c \
             amalgamation/glfw-3.4/src/xkb_unicode.c \
             amalgamation/glfw-3.4/src/posix_module.c
 GLFW_BUILD_FLAGS += -D_GLFW_WAYLAND=1 -D_GLFW_X11=1
+WGVK_FLAGS += -DSUPPORT_WAYLAND_SURFACE=1 -DSUPPORT_XLIB_SURFACE=1
 endif
 
 ifeq ($(PLATFORM_OS), WINDOWS)
@@ -234,6 +234,7 @@ SRC_GLFW += amalgamation/glfw-3.4/src/win32_init.c \
             amalgamation/glfw-3.4/src/win32_window.c \
             amalgamation/glfw-3.4/src/wgl_context.c
 GLFW_BUILD_FLAGS += -D_GLFW_WIN32=1
+WGVK_FLAGS += -DSUPPORT_WIN32_SURFACE=1
 endif
 
 SRC_C = src/sinfl_impl.c \
@@ -316,8 +317,10 @@ glsl_objs: $(OBJ_GLSL)
 cpp_objs:  $(OBJ_CPP)
 c_objs:    $(OBJ_C)
 
-# Ensure C objs wait for downloaded headers too
-$(OBJ_DIR)/$(DL_DIR)/wgvk.o: $(DL_WGVK_H) $(DL_WGVK_STRUCTS) $(DL_WGVK_CONFIG)
+# Ensure C objs wait for downloaded headers too, add special WGVK_FLAGS mainly for WSI macros (SUPPORT_XLIB_SURFACE, etc.)
+$(OBJ_DIR)/$(DL_DIR)/wgvk.o: $(DL_DIR)/wgvk.c $(DL_WGVK_H) $(DL_WGVK_STRUCTS) $(DL_WGVK_CONFIG) $(DL_ALL)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(WGVK_FLAGS) $(INCLUDEFLAGS) -c $< -o $@
 
 ###############################################################################
 # Compile Rules
