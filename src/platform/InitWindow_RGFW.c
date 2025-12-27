@@ -332,6 +332,13 @@ void windowResizedfunc_rgfw(RGFW_window* window, i32 w, i32 h){
 void PollEvents_RGFW(){
     if(_rgfwGlobal.windowCount){
         RGFW_pollEvents();
+        // for(size_t i = 0;i < g_renderstate.createdSubwindows.current_capacity;i++){
+        //     RGWindowImpl* pptr = &g_renderstate.createdSubwindows.table[i].value;
+        //     if(pptr->type == windowType_rgfw){
+        //         RGFW_event event;
+        //         while(RGFW_window_checkEvent((RGFW_window*)pptr->handle, &event)); 
+        //     }
+        // }
     }
 }
 void mouseNotifyfunc_rgfw(RGFW_window* win, i32 x, i32 y, RGFW_bool entered){
@@ -365,6 +372,7 @@ SubWindow OpenSubWindow_RGFW_NoSurface(int width, int height, const char* title)
     ret->scaleFactor = 1;
     CreatedWindowMap_put(&g_renderstate.createdSubwindows, ret->handle, *ret);
     ret = CreatedWindowMap_get(&g_renderstate.createdSubwindows, ret->handle);
+    setupRGFWCallbacks((RGFW_window*)ret->handle);
     return ret;
 }
 
