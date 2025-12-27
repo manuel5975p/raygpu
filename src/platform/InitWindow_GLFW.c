@@ -514,23 +514,34 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
     #endif
     return ret;
 }
-SubWindow OpenSubWindow_GLFW(int width, int height, const char* title){
+SubWindow OpenSubWindow_GLFW_NoSurface(int width, int height, const char* title){
     SubWindow ret = (SubWindow)callocnew(RGWindowImpl);
     #ifndef __EMSCRIPTEN__
-    glfwInit();
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
-    ret->handle = glfwCreateWindow(width, height, title, NULL, NULL);
-    CreatedWindowMap_put(&g_renderstate.createdSubwindows, ret->handle, *ret);
-    ret = CreatedWindowMap_get(&g_renderstate.createdSubwindows, ret->handle);
-    CreatedWindowMap_get(&g_renderstate.createdSubwindows,ret->handle)->input_state = CLITERAL(window_input_state){0};
-    setupGLFWCallbacks((GLFWwindow*)ret->handle);
+        glfwInit();
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+        glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
+        ret->handle = glfwCreateWindow(width, height, title, NULL, NULL);
+        CreatedWindowMap_put(&g_renderstate.createdSubwindows, ret->handle, *ret);
+        ret = CreatedWindowMap_get(&g_renderstate.createdSubwindows, ret->handle);
+        CreatedWindowMap_get(&g_renderstate.createdSubwindows,ret->handle)->input_state = CLITERAL(window_input_state){0};
+        setupGLFWCallbacks((GLFWwindow*)ret->handle);
     #endif
     float xscale, yscale;
+    int ret_width, ret_height;
     glfwGetWindowContentScale(ret->handle, &xscale, &yscale);
+    glfwGetWindowSize(ret->handle, &ret_width, &ret_height);
+    ret->width = ret_width;
+    ret->height = ret_height;
     ret->scaleFactor = xscale;
     return ret;
 }
+
+SubWindow OpenSubWindow_GLFW(int width, int height, const char* title){
+    SubWindow sw = OpenSubWindow_GLFW_NoSurface(width, height, title);
+    CreateAndSetSurfaceForWindow(sw);
+    return sw;
+}
+
 bool WindowShouldClose_GLFW(GLFWwindow* win){
     return glfwWindowShouldClose(win);
 }

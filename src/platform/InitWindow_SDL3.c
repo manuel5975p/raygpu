@@ -75,17 +75,25 @@ RGAPI WGPUSurface CreateSurfaceForWindow_SDL3(void* windowHandle){
     return surface;
 }
 
-RGAPI SubWindow OpenSubWindow_SDL3(int width, int height, const char* title){
+SubWindow OpenSubWindow_SDL3_NoSurface(int width, int height, const char* title){
     SubWindow ret = callocnew(RGWindowImpl);
     ret->type = windowType_sdl3;
     ret->handle = SDL_CreateWindow(title, width, height, 0);
     SDL_SetWindowResizable((SDL_Window*)ret->handle, (g_renderstate.windowFlags & FLAG_WINDOW_RESIZABLE));
-    
+    int ret_width, ret_height;
+    SDL_GetWindowSize(ret->handle, &ret_width, &ret_height);
+    ret->width = ret_width;
+    ret->height = ret_height;
     CreatedWindowMap_put(&g_renderstate.createdSubwindows, ret->handle, *ret);
     ret = CreatedWindowMap_get(&g_renderstate.createdSubwindows, ret->handle);
     return ret;
 }
 
+SubWindow OpenSubWindow_SDL3(int width, int height, const char* title){
+    SubWindow sw = OpenSubWindow_SDL3_NoSurface(width, height, title);
+    CreateAndSetSurfaceForWindow(sw);
+    return sw;
+}
 
 RGAPI SubWindow InitWindow_SDL3(int width, int height, const char *title) {
     #if RAYGPU_USE_WAYLAND == 1

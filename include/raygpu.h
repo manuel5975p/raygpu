@@ -1301,6 +1301,9 @@ RGAPI void requestAnimationFrameLoopWithJSPIArg(void (*callback)(void*), void* u
 RGAPI void SetWindowShouldClose(cwoid);
 RGAPI bool WindowShouldClose(cwoid);
 RGAPI SubWindow OpenSubWindow (int width, int height, const char* title);
+RGAPI SubWindow OpenSubWindow_SDL3(int width, int height, const char* title);
+RGAPI SubWindow OpenSubWindow_GLFW(int width, int height, const char* title);
+RGAPI SubWindow OpenSubWindow_RGFW(int width, int height, const char* title);
 RGAPI SubWindow InitWindow_SDL3 (int width, int height, const char* title);
 RGAPI void CloseSubWindow (SubWindow subWindow);
 RGAPI FullSurface CompleteSurface (void* nsurface, int width, int height);
@@ -1357,8 +1360,6 @@ RGAPI SubWindow InitWindow_GLFW(int width, int height, const char* title);
 RGAPI SubWindow InitWindow_RGFW(int width, int height, const char* title);
 RGAPI void ToggleFullscreen_GLFW(cwoid);
 RGAPI void ToggleFullscreen_SDL3(cwoid);
-RGAPI SubWindow OpenSubWindow_GLFW(int width, int height, const char* title);
-RGAPI SubWindow OpenSubWindow_SDL3(int width, int height, const char* title);
 
 RGAPI void SetShaderValue(Shader shader, int uniformLoc, const void *value, int uniformType);
 RGAPI void SetShaderValueV(Shader shader, int uniformLoc, const void *value, int uniformType, int count);

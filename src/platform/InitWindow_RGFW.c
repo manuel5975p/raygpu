@@ -330,7 +330,9 @@ void windowResizedfunc_rgfw(RGFW_window* window, i32 w, i32 h){
 }
 
 void PollEvents_RGFW(){
-    RGFW_pollEvents();
+    if(_rgfwGlobal.windowCount){
+        RGFW_pollEvents();
+    }
 }
 void mouseNotifyfunc_rgfw(RGFW_window* win, i32 x, i32 y, RGFW_bool entered){
     (void)x;
@@ -350,6 +352,26 @@ RGAPI WGPUSurface CreateSurfaceForWindow_RGFW(void* windowHandle){
     WGPUSurface surf = (WGPUSurface)RGFW_GetWGPUSurface(instance, (RGFW_window*)windowHandle);
     CreatedWindowMap_get(&g_renderstate.createdSubwindows, windowHandle)->scaleFactor = 1;
     return surf;
+}
+
+SubWindow OpenSubWindow_RGFW_NoSurface(int width, int height, const char* title){
+    SubWindow ret = callocnew(RGWindowImpl);
+    ret->type = windowType_rgfw;
+    ret->handle = RGFW_createWindow(title,0, 0, width, height, (g_renderstate.windowFlags & FLAG_WINDOW_RESIZABLE) ? 0 : RGFW_windowNoResize);
+    int ret_width, ret_height;
+    RGFW_window_getSize(ret->handle, &ret_width, &ret_height);
+    ret->width = ret_width;
+    ret->height = ret_height;
+    ret->scaleFactor = 1;
+    CreatedWindowMap_put(&g_renderstate.createdSubwindows, ret->handle, *ret);
+    ret = CreatedWindowMap_get(&g_renderstate.createdSubwindows, ret->handle);
+    return ret;
+}
+
+SubWindow OpenSubWindow_RGFW(int width, int height, const char* title){
+    SubWindow sw = OpenSubWindow_RGFW_NoSurface(width, height, title);
+    CreateAndSetSurfaceForWindow(sw);
+    return sw;
 }
 
 SubWindow InitWindow_RGFW(int width, int height, const char* title){

@@ -1584,7 +1584,13 @@ RGAPI void CharCallback(void* window, unsigned int codePoint);
 struct RGFW_window;
 
 RGAPI WGPUSurface RGFW_GetWGPUSurface(void* instance, struct RGFW_window* window);
+
+RGAPI SubWindow OpenSubWindow_GLFW_NoSurface(int width, int height, const char* title);
+RGAPI SubWindow OpenSubWindow_RGFW_NoSurface(int width, int height, const char* title);
+RGAPI SubWindow OpenSubWindow_SDL3_NoSurface(int width, int height, const char* title);
+
 RGAPI WGPUSurface CreateSurfaceForWindow(SubWindow window);
+RGAPI void CreateAndSetSurfaceForWindow(SubWindow window);
 RGAPI WGPUSurface CreateSurfaceForWindow_SDL3(void* windowHandle);
 RGAPI WGPUSurface CreateSurfaceForWindow_GLFW(void* windowHandle);
 RGAPI WGPUSurface CreateSurfaceForWindow_RGFW(void* windowHandle);

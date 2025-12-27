@@ -1,4 +1,5 @@
 // begin file src/InitWindow.c
+#include "wgvk.h"
 #define Font rlFont
 #include <raygpu.h>
 #undef Font
@@ -143,6 +144,7 @@ const size_t default_frag_spv_data_len = 912;
 
 struct full_renderstate;
 #include "internal_include/renderstate.h"
+#include "internal_include/internals.h"
 
 
 void PollEvents(){
@@ -463,6 +465,12 @@ RGAPI WGPUSurface CreateSurfaceForWindow(SubWindow window){
     TRACELOG(LOG_INFO, "Created surface: %p", surfacePtr);
     return surfacePtr;
 }
+RGAPI void CreateAndSetSurfaceForWindow(SubWindow window){
+    rassert(window->surface.surface == NULL, "window already has a surface");
+    WGPUSurface surface = CreateSurfaceForWindow(window);
+    FullSurface fsurface = CompleteSurface(surface, (int)(window->width * window->scaleFactor), (int)(window->height * window->scaleFactor));
+    window->surface = fsurface;
+}
 static inline void CharQueue_Push(window_input_state* s, int codePoint) {
     s->charQueue[s->charQueueTail] = codePoint;
     s->charQueueTail = (s->charQueueTail + 1) % CHARQ_MAX;
@@ -485,7 +493,7 @@ SubWindow OpenSubWindow(int width, int height, const char* title){
     #ifdef MAIN_WINDOW_GLFW
     createdWindow = OpenSubWindow_GLFW(width, height, title);
     #elif defined(MAIN_WINDOW_SDL3)
-    createdWindow = OpenSubWindow_SDL3(width, height, title);
+    createdWindow = OpenSubWindow_SDL3_NoSurface(width, height, title);
     rassert(createdWindow != NULL && createdWindow->handle != NULL, "Returned window can't have null handle");
     #endif
 
@@ -599,6 +607,13 @@ size_t GetPixelSizeInBytes(PixelFormat format) {
     }
     return 0;
 }
+
+
+#if SUPPORT_RGFW == 1
+#include "platform/InitWindow_RGFW.c"
+#include "platform/rgfwwebgpu.c"
+#endif
+
 #if SUPPORT_GLFW == 1
 #include "platform/InitWindow_GLFW.c"
 #include "platform/glfw3webgpu.c"
@@ -609,10 +624,6 @@ size_t GetPixelSizeInBytes(PixelFormat format) {
 #include "platform/sdl3webgpu.c"
 #endif
 
-#if SUPPORT_RGFW == 1
-#include "platform/InitWindow_RGFW.c"
-#include "platform/rgfwwebgpu.c"
-#endif
 
 
 
