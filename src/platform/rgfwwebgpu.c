@@ -47,45 +47,30 @@ WGPUSurface RGFW_GetWGPUSurface(void* instance, RGFW_window* window) {
     return wgpuInstanceCreateSurface(instance, &surfaceDesc);
 
 #elif defined(RGFW_MACOS) && !defined(RGFW_MACOS_X11) // Exclude X11 on Mac builds
-    // --- macOS (Cocoa) Implementation ---
-    NSView* nsView = (NSView*)window->src.view;
+    id* nsView = (id*)window->src.view;
     if (!nsView) {
         fprintf(stderr, "RGFW Error: NSView is NULL for macOS window.\n");
         return NULL;
     }
 
-    // Ensure the view is layer-backed before trying to get/set the layer
-    // Note: RGFW might already do this depending on its configuration.
-    // This call is generally safe to make even if already layer-backed.
-    ((void (*)(id, SEL, BOOL))objc_msgSend)((id)nsView, sel_registerName("setWantsLayer:"), YES);
+    ((void (*)(id, SEL, BOOL))objc_msgSend)(nsView, sel_registerName("setWantsLayer:"), YES);
+    id layer = ((id (*)(id, SEL))objc_msgSend)(nsView, sel_registerName("layer"));
 
-    id layer = ((id (*)(id, SEL))objc_msgSend)((id)nsView, sel_registerName("layer"));
+	void* metalLayer = RGFW_getLayer_OSX();
+	if (metalLayer == NULL) {
+		 return NULL;
+	}
+	((void (*)(id, SEL, id))objc_msgSend)((id)nsView, sel_registerName("setLayer:"), metalLayer);
+	layer = metalLayer; /* Use the newly created layer */
 
-    // Check if the layer exists and is already a CAMetalLayer
-    if (layer && [layer isKindOfClass:[CAMetalLayer class]]) {
-        // Layer exists and is the correct type, proceed
-    } else if (!layer) {
-        // Layer doesn't exist, create a CAMetalLayer and set it
-        CAMetalLayer* metalLayer = [CAMetalLayer layer];
-        if (!metalLayer) {
-             fprintf(stderr, "RGFW Error: Failed to create CAMetalLayer.\n");
-             return NULL;
-        }
-        ((void (*)(id, SEL, id))objc_msgSend)((id)nsView, sel_registerName("setLayer:"), metalLayer);
-        layer = metalLayer; // Use the newly created layer
-        // printf("Info: Created and assigned CAMetalLayer for NSView.\n");
-    } else {
-        // Layer exists but is NOT a CAMetalLayer - this is an issue.
-        // The view's layer needs to be explicitly set to CAMetalLayer for WebGPU.
-        // This might require changes in how RGFW initializes the view when WebGPU is intended.
-        fprintf(stderr, "RGFW Error: NSView's existing layer is not a CAMetalLayer. Cannot create WebGPU surface.\n");
-        return NULL;
-    }
-
-    // At this point, 'layer' should be a valid CAMetalLayer*
+    /* At this point, 'layer' should be a valid CAMetalLayer* */
     WGPUSurfaceSourceMetalLayer fromMetal = {0};
     fromMetal.chain.sType = WGPUSType_SurfaceSourceMetalLayer;
-    fromMetal.layer = (__bridge CAMetalLayer*)layer; // Use __bridge for ARC compatibility if mixing C/Obj-C
+#ifdef  __OBJC__
+	fromMetal.layer = (__bridge CAMetalLayer*)layer; /* Use __bridge for ARC compatibility if mixing C/Obj-C */
+#else
+	fromMetal.layer = layer;
+#endif
 
     surfaceDesc.nextInChain = (WGPUChainedStruct*)&fromMetal.chain;
     return wgpuInstanceCreateSurface(instance, &surfaceDesc);
