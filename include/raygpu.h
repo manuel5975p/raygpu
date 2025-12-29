@@ -1,4 +1,3 @@
-#include "wgvk.h"
 #ifndef RAYGPU_H
 #define RAYGPU_H 1
 
@@ -98,17 +97,19 @@ typedef enum RGShaderStageEnum{
     RGShaderStageEnum_Vertex,
     RGShaderStageEnum_Fragment,
     RGShaderStageEnum_Compute,
-    RGShaderStageEnum_TessControl = WGPUShaderStageEnum_TessControl,
-    RGShaderStageEnum_TessEvaluation = WGPUShaderStageEnum_TessEvaluation,
-    RGShaderStageEnum_Geometry = WGPUShaderStageEnum_Geometry,
-    RGShaderStageEnum_RayGen =  WGPUShaderStageEnum_RayGen,
-    RGShaderStageEnum_Intersect = WGPUShaderStageEnum_Intersect,
-    RGShaderStageEnum_AnyHit = WGPUShaderStageEnum_AnyHit,
-    RGShaderStageEnum_ClosestHit = WGPUShaderStageEnum_ClosestHit,
-    RGShaderStageEnum_Miss = WGPUShaderStageEnum_Miss,
-    RGShaderStageEnum_Callable = WGPUShaderStageEnum_Callable,
-    RGShaderStageEnum_Task = WGPUShaderStageEnum_Task,
-    RGShaderStageEnum_Mesh = WGPUShaderStageEnum_Mesh,
+    #if SUPPORT_VULKAN_BACKEND == 1
+    RGShaderStageEnum_TessControl,
+    RGShaderStageEnum_TessEvaluation,
+    RGShaderStageEnum_Geometry,
+    RGShaderStageEnum_RayGen,
+    RGShaderStageEnum_Intersect,
+    RGShaderStageEnum_AnyHit,
+    RGShaderStageEnum_ClosestHit,
+    RGShaderStageEnum_Miss,
+    RGShaderStageEnum_Callable,
+    RGShaderStageEnum_Task,
+    RGShaderStageEnum_Mesh,
+    #endif
     RGShaderStageEnum_EnumCount,
     RGShaderStageEnum_Force32 = 0x7FFFFFFF
 } RGShaderStageEnum;

@@ -6,12 +6,18 @@ void mainloop(void){
     uint64_t now = NanoTime();
     while(NanoTime() - now < 15000000);
     BeginDrawing();
-    angle += RAD2DEG * GetGesturePinchAngle();
-    zoom *= GetGesturePinchZoom();
-    DrawRectanglePro((Rectangle){400, 400, zoom, zoom}, (Vector2){zoom / 2,zoom / 2}, angle, WHITE);
+    ClearBackground(BLACK);
+    //angle += RAD2DEG * GetGesturePinchAngle();
+    //zoom *= GetGesturePinchZoom();
+    //DrawRectanglePro((Rectangle){400, 400, zoom, zoom}, (Vector2){zoom / 2,zoom / 2}, angle, WHITE);
     for(int i = 0;i < GetTouchPointCount();i++){
         DrawCircleV(GetTouchPosition(i), 40.0f, WHITE);
     }
+    DrawLine(GetMouseX(), GetMouseY() - 20, GetMouseX(), GetMouseY() - 5, GREEN);
+    DrawLine(GetMouseX(), GetMouseY() + 5, GetMouseX(), GetMouseY() + 20, GREEN);
+    DrawLine(GetMouseX() - 20, GetMouseY(), GetMouseX() - 5, GetMouseY(), GREEN);
+    DrawLine(GetMouseX() + 5, GetMouseY(), GetMouseX() + 20, GetMouseY(), GREEN);
+
     EndDrawing();
 }
 int main(void){

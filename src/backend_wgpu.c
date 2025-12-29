@@ -1270,7 +1270,7 @@ static bool initResumeEntry(InitContext_Impl _ctx){
 #endif
 }
 
-#if SUPPORT_WGPU_BACKEND == 1
+#if SUPPORT_WGPU_BACKEND == 1 && !defined(__EMSCRIPTEN__)
 WGPUChainedStruct* chainDawnStuff();
 #endif
 
@@ -1285,7 +1285,7 @@ void InitBackend(InitContext_Impl _ctx) {
 
     WGPUChainedStruct* chainHead = NULL;
 
-    #if SUPPORT_WGPU_BACKEND == 1
+    #if SUPPORT_WGPU_BACKEND == 1&& !defined(__EMSCRIPTEN__)
     chainHead = chainDawnStuff();
     #endif
 

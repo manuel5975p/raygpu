@@ -48,18 +48,26 @@ uint32_t GetPresentQueueIndex(void* instanceHandle, void* adapterHandle){
     return ~0;
 }
 bool alreadyInited = false;
-void Initialize_SDL3(){
-    if(!alreadyInited){
+
+void Initialize_SDL3() {
+    if (!alreadyInited) {
         #ifdef __EMSCRIPTEN__
         SDL_SetHint(SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT, "#canvas");
         #endif
-        alreadyInited = true;
+
         SDL_InitFlags initFlags = SDL_INIT_VIDEO | SDL_INIT_EVENTS;
-        SDL_Init(initFlags);
-        TRACELOG(LOG_INFO, "SDL_Init() called");
+        
+        // CHECK THE RETURN VALUE HERE
+        if (!SDL_Init(initFlags)) {
+            TRACELOG(LOG_ERROR, "SDL_Init FAILED: %s", SDL_GetError());
+            // Do not set alreadyInited = true if it failed, so we can try again or exit
+            return; 
+        }
+
+        alreadyInited = true;
+        TRACELOG(LOG_INFO, "SDL_Init() succeeded");
     }
 }
-
 RGAPI WGPUSurface CreateSurfaceForWindow_SDL3(void* windowHandle){
     WGPUSurface surface = SDL3_GetWGPUSurface((WGPUInstance)GetInstance(), (SDL_Window*)windowHandle);
     int px, py;
@@ -96,14 +104,26 @@ SubWindow OpenSubWindow_SDL3(int width, int height, const char* title){
 }
 
 RGAPI SubWindow InitWindow_SDL3(int width, int height, const char *title) {
-    #if RAYGPU_USE_WAYLAND == 1
-    if (!SDL_SetHintWithPriority(SDL_HINT_VIDEO_DRIVER, "wayland", SDL_HINT_OVERRIDE)) {
-        TRACELOG(LOG_DEBUG, "Failed to set Wayland video driver hint.");
-    }
-    else{
-        TRACELOG(LOG_DEBUG, "Successfully set Wayland video driver hint.");
-    }
+    const char *driverHint = NULL;
+    
+    #if RAYGPU_USE_WAYLAND == 1 && RAYGPU_USE_X11 == 1
+        // Both enabled: Try Wayland first, fallback to X11
+        driverHint = "wayland,x11";
+    #elif RAYGPU_USE_WAYLAND == 1
+        // Only Wayland enabled: Force Wayland (will fail if not available)
+        driverHint = "wayland";
+    #elif RAYGPU_USE_X11 == 1
+        // Only X11 enabled: Force X11
+        driverHint = "x11";
     #endif
+
+    if (driverHint) {
+        if (!SDL_SetHintWithPriority(SDL_HINT_VIDEO_DRIVER, driverHint, SDL_HINT_OVERRIDE)) {
+            TRACELOG(LOG_DEBUG, "Failed to set video driver hint to: %s", driverHint);
+        } else {
+            TRACELOG(LOG_DEBUG, "Successfully set video driver hint to: %s", driverHint);
+        }
+    }
     Initialize_SDL3();
     TRACELOG(LOG_INFO, "SDL Successfully inited. Some info:");
     int numDrivers = SDL_GetNumVideoDrivers();
@@ -350,8 +370,14 @@ void PenMotionCallback(SDL_Window* window, SDL_PenID penID, float x, float y){
     CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.penStates[penID].value.position = CLITERAL(Vector2){x,y };
 }
 void FingerMotionCallback(SDL_Window* window, SDL_FingerID finger, float x, float y){
-    
-    //std::cout << std::format("Finger {}: {},{}", finger, x, y) << std::endl;
+    window_input_state* ips = &CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state;
+    if(ips->touchPointsCount < TOUCH_MAX - 1){
+        TouchPoint insrt = {
+            .pos = {x, y},
+            .id = (int64_t)finger
+        };
+        ips->touchPoints[ips->touchPointsCount++] = insrt;
+    }
 }
 void MouseButtonCallback(SDL_Window* window, int button, int action){
     if(action == 1){

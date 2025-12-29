@@ -1,5 +1,4 @@
 // begin file src/InitWindow.c
-#include "wgvk.h"
 #define Font rlFont
 #include <raygpu.h>
 #undef Font
@@ -551,6 +550,7 @@ Vector2 GetTouchPosition(int index){
     RGWindowImpl* rgHandle = CreatedWindowMap_get(&g_renderstate.createdSubwindows, GetActiveWindowHandle());
     if(rgHandle && index < TOUCH_MAX){
         Vector2 ret = rgHandle->input_state.touchPoints[index].pos;
+        return ret;
     }
     Vector2 zero = {0, 0};
     return zero;
