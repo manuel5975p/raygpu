@@ -1,31 +1,33 @@
 // begin file include/macros_and_constants.h
 #ifndef MACROS_AND_CONSTANTS
 #define MACROS_AND_CONSTANTS
+
 #ifdef __cplusplus
-#define STRVIEW(X) WGPUStringView{X, sizeof(X) - 1}
+    #define STRVIEW(X) WGPUStringView{X, sizeof(X) - 1}
 #else
-#define STRVIEW(X) (WGPUStringView){X, sizeof(X) - 1}
+    #define STRVIEW(X) (WGPUStringView){X, sizeof(X) - 1}
 #endif
+
 #define callocnew(X) ((X*)calloc(1, (sizeof(X))))
 #define callocnewpp(X) new (std::calloc(1, sizeof(X))) X
 #ifdef __cplusplus
-#define CLITERAL(X) X
-#define EXTERN_C_BEGIN extern "C" {
-#define EXTERN_C_END }
-#define cwoid
-#ifndef M_PI
-#define M_PI 3.14159265358979323
-#endif
-constexpr float DEG2RAD = 3.14159265358979323 / 180.0;
-constexpr float RAD2DEG = 180.0 / 3.14159265358979323;
-#else
-#define CLITERAL(X) (X)
+    #define CLITERAL(X) X
+    #define EXTERN_C_BEGIN extern "C" {
+    #define EXTERN_C_END }
+    #define cwoid
 
-#define EXTERN_C_BEGIN
-#define EXTERN_C_END
-#define cwoid void
-#define DEG2RAD (3.14159265358979323 / 180.0)
-#define RAD2DEG (180.0 / 3.14159265358979323)
+    #ifndef M_PI
+        #define M_PI 3.14159265358979323
+    #endif
+    constexpr float DEG2RAD = 3.14159265358979323 / 180.0;
+    constexpr float RAD2DEG = 180.0 / 3.14159265358979323;
+#else
+    #define CLITERAL(X) (X)
+    #define EXTERN_C_BEGIN
+    #define EXTERN_C_END
+    #define cwoid void
+    #define DEG2RAD (3.14159265358979323 / 180.0)
+    #define RAD2DEG (180.0 / 3.14159265358979323)
 #endif
 #if defined(_MSC_VER) || defined(_WIN32) // || defined (__EMSCRIPTEN__)
 #define TERMCTL_RESET   ""

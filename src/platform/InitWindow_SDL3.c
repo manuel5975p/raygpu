@@ -48,18 +48,26 @@ uint32_t GetPresentQueueIndex(void* instanceHandle, void* adapterHandle){
     return ~0;
 }
 bool alreadyInited = false;
-void Initialize_SDL3(){
-    if(!alreadyInited){
+
+void Initialize_SDL3() {
+    if (!alreadyInited) {
         #ifdef __EMSCRIPTEN__
         SDL_SetHint(SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT, "#canvas");
         #endif
-        alreadyInited = true;
+
         SDL_InitFlags initFlags = SDL_INIT_VIDEO | SDL_INIT_EVENTS;
-        SDL_Init(initFlags);
-        TRACELOG(LOG_INFO, "SDL_Init() called");
+        
+        // CHECK THE RETURN VALUE HERE
+        if (!SDL_Init(initFlags)) {
+            TRACELOG(LOG_ERROR, "SDL_Init FAILED: %s", SDL_GetError());
+            // Do not set alreadyInited = true if it failed, so we can try again or exit
+            return; 
+        }
+
+        alreadyInited = true;
+        TRACELOG(LOG_INFO, "SDL_Init() succeeded");
     }
 }
-
 RGAPI WGPUSurface CreateSurfaceForWindow_SDL3(void* windowHandle){
     WGPUSurface surface = SDL3_GetWGPUSurface((WGPUInstance)GetInstance(), (SDL_Window*)windowHandle);
     int px, py;
@@ -75,27 +83,47 @@ RGAPI WGPUSurface CreateSurfaceForWindow_SDL3(void* windowHandle){
     return surface;
 }
 
-RGAPI SubWindow OpenSubWindow_SDL3(int width, int height, const char* title){
+SubWindow OpenSubWindow_SDL3_NoSurface(int width, int height, const char* title){
     SubWindow ret = callocnew(RGWindowImpl);
     ret->type = windowType_sdl3;
-    ret->handle = SDL_CreateWindow(title, width, height, 0);
+    ret->handle = SDL_CreateWindow(title, width, height, SDL_WINDOW_HIGH_PIXEL_DENSITY);
     SDL_SetWindowResizable((SDL_Window*)ret->handle, (g_renderstate.windowFlags & FLAG_WINDOW_RESIZABLE));
-    
+    int ret_width, ret_height;
+    SDL_GetWindowSize(ret->handle, &ret_width, &ret_height);
+    ret->width = ret_width;
+    ret->height = ret_height;
     CreatedWindowMap_put(&g_renderstate.createdSubwindows, ret->handle, *ret);
     ret = CreatedWindowMap_get(&g_renderstate.createdSubwindows, ret->handle);
     return ret;
 }
 
+SubWindow OpenSubWindow_SDL3(int width, int height, const char* title){
+    SubWindow sw = OpenSubWindow_SDL3_NoSurface(width, height, title);
+    CreateAndSetSurfaceForWindow(sw);
+    return sw;
+}
 
 RGAPI SubWindow InitWindow_SDL3(int width, int height, const char *title) {
-    #if RAYGPU_USE_WAYLAND == 1
-    if (!SDL_SetHintWithPriority(SDL_HINT_VIDEO_DRIVER, "wayland", SDL_HINT_OVERRIDE)) {
-        TRACELOG(LOG_DEBUG, "Failed to set Wayland video driver hint.");
-    }
-    else{
-        TRACELOG(LOG_DEBUG, "Successfully set Wayland video driver hint.");
-    }
+    const char *driverHint = NULL;
+    
+    #if RAYGPU_USE_WAYLAND == 1 && RAYGPU_USE_X11 == 1
+        // Both enabled: Try Wayland first, fallback to X11
+        driverHint = "wayland,x11";
+    #elif RAYGPU_USE_WAYLAND == 1
+        // Only Wayland enabled: Force Wayland (will fail if not available)
+        driverHint = "wayland";
+    #elif RAYGPU_USE_X11 == 1
+        // Only X11 enabled: Force X11
+        driverHint = "x11";
     #endif
+
+    if (driverHint) {
+        if (!SDL_SetHintWithPriority(SDL_HINT_VIDEO_DRIVER, driverHint, SDL_HINT_OVERRIDE)) {
+            TRACELOG(LOG_DEBUG, "Failed to set video driver hint to: %s", driverHint);
+        } else {
+            TRACELOG(LOG_DEBUG, "Successfully set video driver hint to: %s", driverHint);
+        }
+    }
     Initialize_SDL3();
     TRACELOG(LOG_INFO, "SDL Successfully inited. Some info:");
     int numDrivers = SDL_GetNumVideoDrivers();
@@ -342,8 +370,14 @@ void PenMotionCallback(SDL_Window* window, SDL_PenID penID, float x, float y){
     CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.penStates[penID].value.position = CLITERAL(Vector2){x,y };
 }
 void FingerMotionCallback(SDL_Window* window, SDL_FingerID finger, float x, float y){
-    
-    //std::cout << std::format("Finger {}: {},{}", finger, x, y) << std::endl;
+    window_input_state* ips = &CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state;
+    if(ips->touchPointsCount < TOUCH_MAX - 1){
+        TouchPoint insrt = {
+            .pos = {x, y},
+            .id = (int64_t)finger
+        };
+        ips->touchPoints[ips->touchPointsCount++] = insrt;
+    }
 }
 void MouseButtonCallback(SDL_Window* window, int button, int action){
     if(action == 1){
@@ -353,21 +387,24 @@ void MouseButtonCallback(SDL_Window* window, int button, int action){
         CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.mouseButtonDown[button] = 0;
     }
 }
-void MousePositionCallback(SDL_Window* window, double x, double y){
+void MousePositionCallback_SDL3(SDL_Window* window, double x, double y){
     double scale = CreatedWindowMap_get(&g_renderstate.createdSubwindows,window)->scaleFactor;
     CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.mousePos = CLITERAL(Vector2){(float)(x * scale), (float)(y * scale)};
 }
 
-void ScrollCallback(SDL_Window* window, double xoffset, double yoffset){
+void ScrollCallback_SDL3(SDL_Window* window, double xoffset, double yoffset){
     CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.scrollThisFrame.x += (float)xoffset;
     CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.scrollThisFrame.y += (float)yoffset;
 }
 
-void KeyUpCallback (SDL_Window* window, int key, int scancode, int mods){
+void KeyUpCallback_SDL3(SDL_Window* window, int key, int scancode, int mods){
     CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.keydown[key] = 0;
 }
-void KeyDownCallback (SDL_Window* window, int key, int scancode, int mods){
-    CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.keydown[key] = 1;
+void KeyDownCallback_SDL3(SDL_Window* window, int key, int scancode, int mods){
+    if(window){
+        CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.keydown[key] = 1;
+    }
+    TRACELOG(LOG_WARNING, "keyevent received on stray window");
 }
 RGAPI void PollEvents_SDL3() {
     SDL_Event event = {0};
@@ -377,19 +414,32 @@ RGAPI void PollEvents_SDL3() {
         // TODO: Something IDK
         }break;
         case SDL_EVENT_WINDOW_CLOSE_REQUESTED:{
+            // TODO: Implement this properly for subwindows
             SDL_Window *window = SDL_GetWindowFromID(event.window.windowID);
-            g_renderstate.closeFlag = true;
+            RGWindowImpl* rgWindow = CreatedWindowMap_get(&g_renderstate.createdSubwindows, window);
+            rgWindow->closeRequestedFlag = true;
         }break;
         case SDL_EVENT_KEY_DOWN:{
             SDL_Window *window = SDL_GetWindowFromID(event.key.windowID);
-            KeyDownCallback(window, ConvertScancodeToKey(event.key.scancode), event.key.scancode, event.key.mod);
-            if(event.key.scancode == SDL_SCANCODE_ESCAPE){
-                g_renderstate.closeFlag = true;
+            if(window){
+                RGWindowImpl* rgWindow = CreatedWindowMap_get(&g_renderstate.createdSubwindows, window);
+                KeyDownCallback_SDL3(window, ConvertScancodeToKey(event.key.scancode), event.key.scancode, event.key.mod);
+                if(event.key.scancode == SDL_SCANCODE_ESCAPE){
+                    rgWindow->closeRequestedFlag= true;
+                }
+            }
+            else{
+                TRACELOG(LOG_WARNING, "SDL3 Keydown event on nullptr window");
             }
         }break;
         case SDL_EVENT_KEY_UP:{
             SDL_Window *window = SDL_GetWindowFromID(event.key.windowID);
-            KeyUpCallback(window, ConvertScancodeToKey(event.key.scancode), event.key.scancode, event.key.mod);
+            if(window){
+                KeyUpCallback_SDL3(window, ConvertScancodeToKey(event.key.scancode), event.key.scancode, event.key.mod);
+            }
+            else{
+                TRACELOG(LOG_WARNING, "SDL3 Keydown event on nullptr window");
+            }
         }break;
         case SDL_EVENT_WINDOW_RESIZED: {
             SDL_Window *window = SDL_GetWindowFromID(event.window.windowID);
@@ -406,7 +456,7 @@ RGAPI void PollEvents_SDL3() {
         case SDL_EVENT_MOUSE_WHEEL: {
             SDL_Window *window = SDL_GetWindowFromID(event.wheel.windowID);
             // Note: SDL's yoffset is positive when scrolling up, negative when scrolling down
-            ScrollCallback(window, event.wheel.x, event.wheel.y);
+            ScrollCallback_SDL3(window, event.wheel.x, event.wheel.y);
         } break;
         case SDL_EVENT_MOUSE_MOTION: {
             SDL_Window* window = SDL_GetWindowFromID(event.motion.windowID);
@@ -416,7 +466,7 @@ RGAPI void PollEvents_SDL3() {
                 rgwindow->input_state.mousePos.y += event.motion.yrel;
             } else {
                 double scale = rgwindow->scaleFactor;
-                MousePositionCallback(window, event.motion.x, event.motion.y);
+                MousePositionCallback_SDL3(window, event.motion.x, event.motion.y);
             }
         } break;
 

@@ -1222,6 +1222,8 @@ RGAPI void EndDrawing(){
             ipstate_->gestureZoomThisFrame = 1;
         }
     }
+    memset(ipstate->touchPoints, 0, sizeof(ipstate->touchPoints));
+    ipstate->touchPointsCount = 0;
 
     PollEvents();
     

@@ -149,13 +149,11 @@ void CursorEnterCallback(GLFWwindow* window, int entered){
 void glfwKeyCallback (GLFWwindow* window, int key, int scancode, int action, int mods){
     if(action == GLFW_PRESS){
         CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.keydown[key] = 1;
+        if(key == GLFW_KEY_ESCAPE){
+            CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->closeRequestedFlag = 1;
+        }
     }else if(action == GLFW_RELEASE){
         CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.keydown[key] = 0;
-    }
-    if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
-        EndGIFRecording();
-        
-        glfwSetWindowShouldClose(window, true);
     }
 }
 #ifdef __EMSCRIPTEN__
@@ -428,7 +426,7 @@ WGPUSurface CreateSurfaceForWindow_GLFW(void* windowHandle){
     #else
     float xscale, yscale;
     glfwGetWindowContentScale((GLFWwindow*)windowHandle, &xscale, &yscale);
-    TRACELOG(LOG_WARNING, "%f", xscale);
+    TRACELOG(LOG_INFO, "GLFW reports scale factor %f for window", xscale);
     
     WGPUSurface wsurfaceHandle = glfwCreateWindowWGPUSurface((WGPUInstance)GetInstance(), (GLFWwindow*)windowHandle);
 
@@ -516,23 +514,34 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
     #endif
     return ret;
 }
-SubWindow OpenSubWindow_GLFW(int width, int height, const char* title){
+SubWindow OpenSubWindow_GLFW_NoSurface(int width, int height, const char* title){
     SubWindow ret = (SubWindow)callocnew(RGWindowImpl);
     #ifndef __EMSCRIPTEN__
-    glfwInit();
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
-    ret->handle = glfwCreateWindow(width, height, title, NULL, NULL);
-    CreatedWindowMap_put(&g_renderstate.createdSubwindows, ret->handle, *ret);
-    ret = CreatedWindowMap_get(&g_renderstate.createdSubwindows, ret->handle);
-    CreatedWindowMap_get(&g_renderstate.createdSubwindows,ret->handle)->input_state = CLITERAL(window_input_state){0};
-    setupGLFWCallbacks((GLFWwindow*)ret->handle);
+        glfwInit();
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+        glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
+        ret->handle = glfwCreateWindow(width, height, title, NULL, NULL);
+        CreatedWindowMap_put(&g_renderstate.createdSubwindows, ret->handle, *ret);
+        ret = CreatedWindowMap_get(&g_renderstate.createdSubwindows, ret->handle);
+        CreatedWindowMap_get(&g_renderstate.createdSubwindows,ret->handle)->input_state = CLITERAL(window_input_state){0};
+        setupGLFWCallbacks((GLFWwindow*)ret->handle);
     #endif
     float xscale, yscale;
+    int ret_width, ret_height;
     glfwGetWindowContentScale(ret->handle, &xscale, &yscale);
+    glfwGetWindowSize(ret->handle, &ret_width, &ret_height);
+    ret->width = ret_width;
+    ret->height = ret_height;
     ret->scaleFactor = xscale;
     return ret;
 }
+
+SubWindow OpenSubWindow_GLFW(int width, int height, const char* title){
+    SubWindow sw = OpenSubWindow_GLFW_NoSurface(width, height, title);
+    CreateAndSetSurfaceForWindow(sw);
+    return sw;
+}
+
 bool WindowShouldClose_GLFW(GLFWwindow* win){
     return glfwWindowShouldClose(win);
 }

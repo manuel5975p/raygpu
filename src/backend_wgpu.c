@@ -488,6 +488,22 @@ DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor *unifo
     return ret;
 }
 
+static inline WGPUPresentMode thatOrNextBest(WGPUPresentMode mode, const WGPUPresentMode* supported, uint32_t supportedCount){
+    for(uint32_t i = 0;i < supportedCount;i++){
+        if(supported[i] == mode){
+            return mode;
+        }
+    }
+    if(mode == WGPUPresentMode_Mailbox){
+        for(uint32_t i = 0;i < supportedCount;i++){
+            if(supported[i] == WGPUPresentMode_Immediate){
+                return WGPUPresentMode_Immediate;
+            }
+        }
+    }
+    return WGPUPresentMode_Fifo;
+}
+
 RGAPI FullSurface CompleteSurface(void *nsurface, int widthInPixels, int heightInPixels) {
     FullSurface ret = {0};
     ret.surface = (WGPUSurface)nsurface;
@@ -506,6 +522,7 @@ RGAPI FullSurface CompleteSurface(void *nsurface, int widthInPixels, int heightI
     } else {
         presentMode = um;
     }
+    presentMode = thatOrNextBest(presentMode, capa.presentModes, capa.presentModeCount);
     const char *presentModeName;
     switch (presentMode) {
     case WGPUPresentMode_Undefined:
@@ -529,7 +546,8 @@ RGAPI FullSurface CompleteSurface(void *nsurface, int widthInPixels, int heightI
     }
     TRACELOG(LOG_INFO, "Initialized surface with %s", presentModeName);
 
-    const PixelFormat format = g_renderstate.frameBufferFormat;
+    const PixelFormat format = fromWGPUPixelFormat(capa.formats[0]);
+
     WGPUSurfaceConfiguration config = {
         .device = (WGPUDevice)GetDevice(),
         .format = toWGPUPixelFormat(format),
@@ -547,7 +565,7 @@ RGAPI FullSurface CompleteSurface(void *nsurface, int widthInPixels, int heightI
     ret.height = config.height;
     ret.format = format;
 
-    ret.renderTarget = LoadRenderTexture(widthInPixels, heightInPixels);
+    ret.renderTarget = LoadRenderTextureEx(widthInPixels, heightInPixels, format, 1, 1);
     wgpuSurfaceConfigure((WGPUSurface)ret.surface, &config);
     return ret;
 }
@@ -1252,7 +1270,7 @@ static bool initResumeEntry(InitContext_Impl _ctx){
 #endif
 }
 
-#if SUPPORT_WGPU_BACKEND == 1
+#if SUPPORT_WGPU_BACKEND == 1 && !defined(__EMSCRIPTEN__)
 WGPUChainedStruct* chainDawnStuff();
 #endif
 
@@ -1267,7 +1285,7 @@ void InitBackend(InitContext_Impl _ctx) {
 
     WGPUChainedStruct* chainHead = NULL;
 
-    #if SUPPORT_WGPU_BACKEND == 1
+    #if SUPPORT_WGPU_BACKEND == 1&& !defined(__EMSCRIPTEN__)
     chainHead = chainDawnStuff();
     #endif
 

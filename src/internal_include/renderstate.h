@@ -394,8 +394,6 @@ typedef struct renderstate {
     SubWindow mainWindow;
     CreatedWindowMap createdSubwindows;
     SubWindow activeSubWindow;
-
-    bool closeFlag;
 } renderstate;
 #endif
 

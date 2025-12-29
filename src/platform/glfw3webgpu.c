@@ -21,8 +21,12 @@
 #endif
 
 #ifdef GLFW_EXPOSE_NATIVE_COCOA
-#  include <Foundation/Foundation.h>
-#  include <QuartzCore/CAMetalLayer.h>
+#ifndef APPLE_PLATFORM_HEADERS_INCLUDED
+    #define APPLE_PLATFORM_HEADERS_INCLUDED
+    #include <Cocoa/Cocoa.h>
+    #include <Foundation/Foundation.h>
+    #include <QuartzCore/CAMetalLayer.h>
+#endif
 #endif
 
 WGPUSurface glfwCreateWindowWGPUSurface(WGPUInstance instance, GLFWwindow* window) {

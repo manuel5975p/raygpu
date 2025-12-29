@@ -143,6 +143,7 @@ const size_t default_frag_spv_data_len = 912;
 
 struct full_renderstate;
 #include "internal_include/renderstate.h"
+#include "internal_include/internals.h"
 
 
 void PollEvents(){
@@ -166,13 +167,12 @@ bool WindowShouldClose(cwoid){
     if(g_renderstate.window == NULL){ //headless
         return false;
     }
-    #ifdef MAIN_WINDOW_GLFW
-    return WindowShouldClose_GLFW(g_renderstate.window);
-    #elif defined(MAIN_WINDOW_SDL3)
-    return g_renderstate.closeFlag;
-    #else
-    return g_renderstate.closeFlag;
-    #endif
+    const RGWindowImpl* w = CreatedWindowMap_get(&g_renderstate.createdSubwindows, g_renderstate.window);
+    if(w){
+        return w->closeRequestedFlag;
+    }
+    TRACELOG(LOG_ERROR, "g_renderstate.window not found in g_renderstate.createdSubwindows");
+    return true;
 }
 
 extern Texture2D texShapes;
@@ -390,9 +390,9 @@ void* InitWindowEx_ContinuationPoint(InitContext_Impl _ctx){
     return NULL;
 }
 #if defined(__EMSCRIPTEN__) && !defined(ASSUME_EM_ASYNCIFY)
-    void PLEASE_READ_THE_BUILD_INSTRUCTIONS_FOR_WEB_ON_GITHUB___YOU_CANT_USE_REGULAR_InitWindow_WITHOUT_ASYNCIFY___USE_INITPROGRAM_OR_ASYNCIFY(SetupFunction x, RenderFunction y);
+    void PLEASE_READ_THE_BUILD_INSTRUCTIONS_FOR_WEB_ON_GITHUB____YOU_CANT_USE_REGULAR_InitWindow_WITHOUT_ASYNCIFY____USE_InitProgram_OR_ASYNCIFY(SetupFunction x, RenderFunction y);
 #else
-    static void PLEASE_READ_THE_BUILD_INSTRUCTIONS_FOR_WEB_ON_GITHUB___YOU_CANT_USE_REGULAR_InitWindow_WITHOUT_ASYNCIFY___USE_INITPROGRAM_OR_ASYNCIFY(SetupFunction x, RenderFunction y){(void)x;(void)y;}
+    static void PLEASE_READ_THE_BUILD_INSTRUCTIONS_FOR_WEB_ON_GITHUB____YOU_CANT_USE_REGULAR_InitWindow_WITHOUT_ASYNCIFY____USE_InitProgram_OR_ASYNCIFY(SetupFunction x, RenderFunction y){(void)x;(void)y;}
 #endif
 
 
@@ -402,14 +402,16 @@ RGAPI void InitWindow(int width, int height, const char* title){
         .windowTitle = title,
         .windowWidth = width,
         .windowHeight = height,
-        .finalContinuationPoint = PLEASE_READ_THE_BUILD_INSTRUCTIONS_FOR_WEB_ON_GITHUB___YOU_CANT_USE_REGULAR_InitWindow_WITHOUT_ASYNCIFY___USE_INITPROGRAM_OR_ASYNCIFY,
+        .finalContinuationPoint = PLEASE_READ_THE_BUILD_INSTRUCTIONS_FOR_WEB_ON_GITHUB____YOU_CANT_USE_REGULAR_InitWindow_WITHOUT_ASYNCIFY____USE_InitProgram_OR_ASYNCIFY,
     };
 
     InitWindowEx(ctx);
 }
 
 static void InitProgram_continuationPoint(SetupFunction x, RenderFunction y){
-    x();
+    if(x != NULL){
+        x();
+    }
     #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(y, 0, 0);
     #else
@@ -437,7 +439,6 @@ RGAPI void InitProgram(ProgramInfo program){
 
 RGAPI WGPUSurface CreateSurfaceForWindow(SubWindow window){
     WGPUSurface surfacePtr = NULL;
-    window->scaleFactor = 1; // default
     switch (window->type){
         case windowType_sdl3:
         #if SUPPORT_SDL3 == 1
@@ -464,6 +465,12 @@ RGAPI WGPUSurface CreateSurfaceForWindow(SubWindow window){
     TRACELOG(LOG_INFO, "Created surface: %p", surfacePtr);
     return surfacePtr;
 }
+RGAPI void CreateAndSetSurfaceForWindow(SubWindow window){
+    rassert(window->surface.surface == NULL, "window already has a surface");
+    WGPUSurface surface = CreateSurfaceForWindow(window);
+    FullSurface fsurface = CompleteSurface(surface, (int)(window->width * window->scaleFactor), (int)(window->height * window->scaleFactor));
+    window->surface = fsurface;
+}
 static inline void CharQueue_Push(window_input_state* s, int codePoint) {
     s->charQueue[s->charQueueTail] = codePoint;
     s->charQueueTail = (s->charQueueTail + 1) % CHARQ_MAX;
@@ -486,7 +493,7 @@ SubWindow OpenSubWindow(int width, int height, const char* title){
     #ifdef MAIN_WINDOW_GLFW
     createdWindow = OpenSubWindow_GLFW(width, height, title);
     #elif defined(MAIN_WINDOW_SDL3)
-    createdWindow = OpenSubWindow_SDL3(width, height, title);
+    createdWindow = OpenSubWindow_SDL3_NoSurface(width, height, title);
     rassert(createdWindow != NULL && createdWindow->handle != NULL, "Returned window can't have null handle");
     #endif
 
@@ -540,14 +547,17 @@ void ToggleFullscreen(){
     g_renderstate.wantsToggleFullscreen = true;
 }
 Vector2 GetTouchPosition(int index){
-    #ifdef MAIN_WINDOW_GLFW
-    return CLITERAL(Vector2){0,0};//GetTouchPointCount_GLFW(index);
-    #else
-    return CLITERAL(Vector2){0, 0};
-    #endif
+    RGWindowImpl* rgHandle = CreatedWindowMap_get(&g_renderstate.createdSubwindows, GetActiveWindowHandle());
+    if(rgHandle && index < TOUCH_MAX){
+        Vector2 ret = rgHandle->input_state.touchPoints[index].pos;
+        return ret;
+    }
+    Vector2 zero = {0, 0};
+    return zero;
 }
 int GetTouchPointCount(cwoid){
-    return (int)(CreatedWindowMap_get(&g_renderstate.createdSubwindows, g_renderstate.activeSubWindow->handle)->input_state.touchPointsCount);
+    RGWindowImpl* rgHandle = CreatedWindowMap_get(&g_renderstate.createdSubwindows, GetActiveWindowHandle());
+    return (int)(rgHandle->input_state.touchPointsCount);
 }
 int GetMonitorWidth(cwoid){
     #ifdef MAIN_WINDOW_GLFW
@@ -569,7 +579,7 @@ void SetWindowShouldClose(){
     #ifdef MAIN_WINDOW_GLFW
     return SetWindowShouldClose_GLFW(g_renderstate.window);
     #else
-    g_renderstate.closeFlag = true;
+    CreatedWindowMap_get(&g_renderstate.createdSubwindows, GetActiveWindowHandle())->closeRequestedFlag = true;
     #endif
 }
 
@@ -600,6 +610,13 @@ size_t GetPixelSizeInBytes(PixelFormat format) {
     }
     return 0;
 }
+
+
+#if SUPPORT_RGFW == 1
+#include "platform/InitWindow_RGFW.c"
+#include "platform/rgfwwebgpu.c"
+#endif
+
 #if SUPPORT_GLFW == 1
 #include "platform/InitWindow_GLFW.c"
 #include "platform/glfw3webgpu.c"
@@ -610,10 +627,6 @@ size_t GetPixelSizeInBytes(PixelFormat format) {
 #include "platform/sdl3webgpu.c"
 #endif
 
-#if SUPPORT_RGFW == 1
-#include "platform/InitWindow_RGFW.c"
-#include "platform/rgfwwebgpu.c"
-#endif
 
 
 
