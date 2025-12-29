@@ -3,9 +3,9 @@
 int main(){
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(800, 600, "Main Window");
-    SubWindow sdl3Window = OpenSubWindow_SDL3(800, 600, "SDL3 SubWindow");
-    SubWindow glfwWindow = OpenSubWindow_GLFW(800, 600, "GLFW SubWindow");
-    SubWindow rgfwWindow = OpenSubWindow_RGFW(800, 600, "RGFW SubWindow");
+    SubWindow sdl3Window = OpenSubWindow_SDL3(320, 180, "SDL3 SubWindow");
+    SubWindow glfwWindow = OpenSubWindow_GLFW(320, 180, "GLFW SubWindow");
+    SubWindow rgfwWindow = OpenSubWindow_RGFW(320, 180, "RGFW SubWindow");
     while(!WindowShouldClose()){
         BeginWindowMode(sdl3Window);
         ClearBackground(RAYWHITE);

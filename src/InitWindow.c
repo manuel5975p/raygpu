@@ -438,7 +438,6 @@ RGAPI void InitProgram(ProgramInfo program){
 
 RGAPI WGPUSurface CreateSurfaceForWindow(SubWindow window){
     WGPUSurface surfacePtr = NULL;
-    window->scaleFactor = 1; // default
     switch (window->type){
         case windowType_sdl3:
         #if SUPPORT_SDL3 == 1

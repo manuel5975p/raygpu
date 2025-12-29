@@ -375,7 +375,10 @@ void KeyUpCallback_SDL3(SDL_Window* window, int key, int scancode, int mods){
     CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.keydown[key] = 0;
 }
 void KeyDownCallback_SDL3(SDL_Window* window, int key, int scancode, int mods){
-    CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.keydown[key] = 1;
+    if(window){
+        CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.keydown[key] = 1;
+    }
+    TRACELOG(LOG_WARNING, "keyevent received on stray window");
 }
 RGAPI void PollEvents_SDL3() {
     SDL_Event event = {0};
@@ -392,15 +395,25 @@ RGAPI void PollEvents_SDL3() {
         }break;
         case SDL_EVENT_KEY_DOWN:{
             SDL_Window *window = SDL_GetWindowFromID(event.key.windowID);
-            RGWindowImpl* rgWindow = CreatedWindowMap_get(&g_renderstate.createdSubwindows, window);
-            KeyDownCallback_SDL3(window, ConvertScancodeToKey(event.key.scancode), event.key.scancode, event.key.mod);
-            if(event.key.scancode == SDL_SCANCODE_ESCAPE){
-                rgWindow->closeRequestedFlag= true;
+            if(window){
+                RGWindowImpl* rgWindow = CreatedWindowMap_get(&g_renderstate.createdSubwindows, window);
+                KeyDownCallback_SDL3(window, ConvertScancodeToKey(event.key.scancode), event.key.scancode, event.key.mod);
+                if(event.key.scancode == SDL_SCANCODE_ESCAPE){
+                    rgWindow->closeRequestedFlag= true;
+                }
+            }
+            else{
+                TRACELOG(LOG_WARNING, "SDL3 Keydown event on nullptr window");
             }
         }break;
         case SDL_EVENT_KEY_UP:{
             SDL_Window *window = SDL_GetWindowFromID(event.key.windowID);
-            KeyUpCallback_SDL3(window, ConvertScancodeToKey(event.key.scancode), event.key.scancode, event.key.mod);
+            if(window){
+                KeyUpCallback_SDL3(window, ConvertScancodeToKey(event.key.scancode), event.key.scancode, event.key.mod);
+            }
+            else{
+                TRACELOG(LOG_WARNING, "SDL3 Keydown event on nullptr window");
+            }
         }break;
         case SDL_EVENT_WINDOW_RESIZED: {
             SDL_Window *window = SDL_GetWindowFromID(event.window.windowID);

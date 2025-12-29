@@ -426,7 +426,7 @@ WGPUSurface CreateSurfaceForWindow_GLFW(void* windowHandle){
     #else
     float xscale, yscale;
     glfwGetWindowContentScale((GLFWwindow*)windowHandle, &xscale, &yscale);
-    TRACELOG(LOG_WARNING, "%f", xscale);
+    TRACELOG(LOG_INFO, "GLFW reports scale factor %f for window", xscale);
     
     WGPUSurface wsurfaceHandle = glfwCreateWindowWGPUSurface((WGPUInstance)GetInstance(), (GLFWwindow*)windowHandle);
 

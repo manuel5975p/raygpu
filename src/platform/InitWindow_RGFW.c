@@ -257,9 +257,8 @@ const int keyMappingRGFW_(int RGFWKey){
 #if RAYGPU_USE_X11 == 1
     #define RGFW_USE_XDL
 #endif
-#define RGFW_NO_DPI
+//#define RGFW_NO_DPI
 #if SUPPORT_VULKAN_BACKEND == 1
-
 #ifdef _WIN32
 #define Rectangle w__Rectangle
 #define LoadImage w__LoadImage
@@ -313,7 +312,8 @@ void keyfunc_rgfw(RGFW_window* window, u8 key, u8 keyChar, RGFW_keymod keyMod, R
 }
 
 void mouseMotionfunc_rgfw(RGFW_window* win, i32 x, i32 y, float vecX, float vecY){
-    CreatedWindowMap_get(&g_renderstate.createdSubwindows, win)->input_state.mousePos = CLITERAL(Vector2){(float)x, (float)y};
+    float scaleFactor = CreatedWindowMap_get(&g_renderstate.createdSubwindows, win)->scaleFactor;
+    CreatedWindowMap_get(&g_renderstate.createdSubwindows, win)->input_state.mousePos = CLITERAL(Vector2){(float)x * scaleFactor, (float)y * scaleFactor};
 }
 
 void windowQuitfunc_rgfw(RGFW_window* window){
@@ -357,19 +357,22 @@ void setupRGFWCallbacks(RGFW_window* window){
 RGAPI WGPUSurface CreateSurfaceForWindow_RGFW(void* windowHandle){
     WGPUInstance instance = GetInstance();
     WGPUSurface surf = (WGPUSurface)RGFW_GetWGPUSurface(instance, (RGFW_window*)windowHandle);
-    CreatedWindowMap_get(&g_renderstate.createdSubwindows, windowHandle)->scaleFactor = 1;
+    // The following line is not required because OpenSubwindow and InitWindow for RGFW both initialize it to something.
+    // CreatedWindowMap_get(&g_renderstate.createdSubwindows, windowHandle)->scaleFactor = 1;
     return surf;
 }
 
 SubWindow OpenSubWindow_RGFW_NoSurface(int width, int height, const char* title){
     SubWindow ret = callocnew(RGWindowImpl);
     ret->type = windowType_rgfw;
+    
     ret->handle = RGFW_createWindow(title,0, 0, width, height, (g_renderstate.windowFlags & FLAG_WINDOW_RESIZABLE) ? 0 : RGFW_windowNoResize);
     int ret_width, ret_height;
     RGFW_window_getSize(ret->handle, &ret_width, &ret_height);
     ret->width = ret_width;
     ret->height = ret_height;
-    ret->scaleFactor = 1;
+    RGFW_monitor monitor = RGFW_window_getMonitor(ret->handle);
+    ret->scaleFactor = monitor.pixelRatio;
     CreatedWindowMap_put(&g_renderstate.createdSubwindows, ret->handle, *ret);
     ret = CreatedWindowMap_get(&g_renderstate.createdSubwindows, ret->handle);
     setupRGFWCallbacks((RGFW_window*)ret->handle);
@@ -387,7 +390,8 @@ SubWindow InitWindow_RGFW(int width, int height, const char* title){
     /* Unpacked rect into x, y, w, h. Removed RGFW_windowNoInitAPI (not needed/deprecated) */
     ret->handle = RGFW_createWindow(title, 0, 0, width, height, RGFW_windowNoResize);
     ret->type = windowType_rgfw;
-    ret->scaleFactor = 1.0f;
+    RGFW_monitor monitor = RGFW_window_getMonitor(ret->handle);
+    ret->scaleFactor = monitor.pixelRatio;
     CreatedWindowMap_put(&g_renderstate.createdSubwindows, ret->handle, *ret);
     ret = CreatedWindowMap_get(&g_renderstate.createdSubwindows, ret->handle);
     setupRGFWCallbacks((RGFW_window*)ret->handle);
