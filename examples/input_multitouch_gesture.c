@@ -16,14 +16,13 @@ void mainloop(void){
 }
 int main(void){
     SetConfigFlags(FLAG_VSYNC_LOWLATENCY_HINT);
-    InitWindow(800, 800, "Touch and Gestures Input");
-    #ifndef __EMSCRIPTEN__
-    while(!WindowShouldClose()){
-        mainloop();
-    }
-    #else
-    emscripten_set_main_loop(mainloop, 0, 0);
-    #endif
+    ProgramInfo program = {
+        .windowTitle = "Touch Gestures",
+        .windowWidth = 800, 
+        .windowHeight = 800,
+        .renderFunction = mainloop,
+    };
+    InitProgram(program);
 }
 #else
 int main(void) { return 0; }

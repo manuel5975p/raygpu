@@ -410,7 +410,9 @@ RGAPI void InitWindow(int width, int height, const char* title){
 }
 
 static void InitProgram_continuationPoint(SetupFunction x, RenderFunction y){
-    x();
+    if(x != NULL){
+        x();
+    }
     #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(y, 0, 0);
     #else
@@ -546,14 +548,16 @@ void ToggleFullscreen(){
     g_renderstate.wantsToggleFullscreen = true;
 }
 Vector2 GetTouchPosition(int index){
-    #ifdef MAIN_WINDOW_GLFW
-    return CLITERAL(Vector2){0,0};//GetTouchPointCount_GLFW(index);
-    #else
-    return CLITERAL(Vector2){0, 0};
-    #endif
+    RGWindowImpl* rgHandle = CreatedWindowMap_get(&g_renderstate.createdSubwindows, GetActiveWindowHandle());
+    if(rgHandle && index < TOUCH_MAX){
+        Vector2 ret = rgHandle->input_state.touchPoints[index].pos;
+    }
+    Vector2 zero = {0, 0};
+    return zero;
 }
 int GetTouchPointCount(cwoid){
-    return (int)(CreatedWindowMap_get(&g_renderstate.createdSubwindows, g_renderstate.activeSubWindow->handle)->input_state.touchPointsCount);
+    RGWindowImpl* rgHandle = CreatedWindowMap_get(&g_renderstate.createdSubwindows, GetActiveWindowHandle());
+    return (int)(rgHandle->input_state.touchPointsCount);
 }
 int GetMonitorWidth(cwoid){
     #ifdef MAIN_WINDOW_GLFW
