@@ -408,10 +408,13 @@ bool IsCursorHidden_RGFW(void* window) {
     return RGFW_window_isMouseHidden((RGFW_window*)window);
 }
 void EnableCursor_RGFW(void* window) {
-    RGFW_window_unholdMouse((RGFW_window*)window);
+    RGFW_window_captureMouse((RGFW_window*)window, false);
+    RGFW_window_setRawMouseMode((RGFW_window*)window, false);
+    ShowCursor_RGFW((RGFW_window*)window);
 }
 void DisableCursor_RGFW(void* window) {
-    RGFW_window_holdMouse((RGFW_window*)window);
+    RGFW_window_captureMouse((RGFW_window*)window, true);
+    RGFW_window_setRawMouseMode((RGFW_window*)window, true);
     HideCursor_RGFW((RGFW_window*)window);
 }
 
