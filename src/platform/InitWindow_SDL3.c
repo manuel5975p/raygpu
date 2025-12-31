@@ -403,8 +403,9 @@ void KeyUpCallback_SDL3(SDL_Window* window, int key, int scancode, int mods){
 void KeyDownCallback_SDL3(SDL_Window* window, int key, int scancode, int mods){
     if(window){
         CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.keydown[key] = 1;
+    } else {
+        TRACELOG(LOG_WARNING, "keyevent received on stray window");
     }
-    TRACELOG(LOG_WARNING, "keyevent received on stray window");
 }
 RGAPI void PollEvents_SDL3() {
     SDL_Event event = {0};
