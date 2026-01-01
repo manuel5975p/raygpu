@@ -1937,6 +1937,18 @@ void BufferData(DescribedBuffer *buffer, const void *data, size_t size) {
         wgpuQueueWriteBuffer(GetQueue(), buffer->buffer, 0, data, size);
     }
 }
+
+void BufferSubData(DescribedBuffer *buffer, size_t offset, const void *data, size_t size) {
+    if (!buffer || !buffer->buffer) return;
+
+    if (offset + size > buffer->size) {
+        TRACELOG(LOG_ERROR, "BufferSubData attempt to write out of bounds");
+        return;
+    }
+
+    wgpuQueueWriteBuffer(GetQueue(), buffer->buffer, offset, data, size);
+}
+
 void ResetSyncState() {}
 
 void

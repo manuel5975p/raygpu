@@ -1681,6 +1681,7 @@ RGAPI DescribedBuffer* GenVertexBuffer(const void* data, size_t size);
 RGAPI DescribedBuffer* GenBufferEx(const void* data, size_t size, RGBufferUsage usage);
 RGAPI void UnloadBuffer(DescribedBuffer* buffer);
 RGAPI void BufferData(DescribedBuffer* buffer, const void* data, size_t size);
+RGAPI void BufferSubData(DescribedBuffer *buffer, size_t offset, const void *data, size_t size);
 RGAPI void ResizeBuffer(DescribedBuffer* buffer, size_t newSize);
 RGAPI void ResizeBufferAndConserve(DescribedBuffer* buffer, size_t newSize);
 RGAPI void BindVertexBuffer(const DescribedBuffer* buffer);
