@@ -1735,6 +1735,10 @@ Texture LoadTextureFromImage(Image img) {
     return ret;
 }
 void ResizeSurface(FullSurface *fsurface, int newWidth, int newHeight) {
+    if(fsurface->surface == NULL){
+        TraceLog(LOG_WARNING, "Trying to resize surface that is not yet created");
+        return;
+    }
     fsurface->renderTarget.colorMultisample.width = newWidth;
     fsurface->renderTarget.colorMultisample.height = newHeight;
     fsurface->renderTarget.texture.width = newWidth;

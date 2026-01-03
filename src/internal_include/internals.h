@@ -353,6 +353,8 @@ static inline WGPUTextureFormat toWGPUPixelFormat(PixelFormat format) {
             rassert(false, "GRAYSCALE format not supported in Vulkan.");
         case RGB8:
             rassert(false, "RGB8 format not supported in Vulkan.");
+        case PIXELFORMAT_INVALID:
+            rassert(false, "Invalid format.");
         default:
             rg_unreachable();
     }

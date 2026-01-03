@@ -447,7 +447,7 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
     ret->scaleFactor = 1.0f;
     ret->type = windowType_glfw;
     
-    void* window = NULL;
+    GLFWwindow* window = NULL;
     if (!glfwInit()) {
         abort();
     }
@@ -458,13 +458,17 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     #ifndef __EMSCRIPTEN__        // Create the test window with no client API.
         glfwWindowHint(GLFW_RESIZABLE, (g_renderstate.windowFlags & FLAG_WINDOW_RESIZABLE) ? GLFW_TRUE : GLFW_FALSE);
-
+        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+        glfwWindowHint(GLFW_WAYLAND_LIBDECOR, GLFW_WAYLAND_DISABLE_LIBDECOR);
         if(g_renderstate.windowFlags & FLAG_FULLSCREEN_MODE){
             mon = glfwGetPrimaryMonitor();
         }
     #endif
     
-    window = (void*)glfwCreateWindow(width, height, title, mon, NULL);
+    window = glfwCreateWindow(width, height, title, mon, NULL);
+    
+    // Does not fix the problem of weird tiling on hyprland
+    // glfwSetWindowSizeLimits((GLFWwindow*)window, width, height, width, height);
     
     int wposx = 0, wposy = 0;
     #ifndef __EMSCRIPTEN__
@@ -511,6 +515,7 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
     }
     ret->scaleFactor = xscale;
     TRACELOG(LOG_DEBUG, "Setting scale %f for glfw window on platform %s\n", xscale, platform);
+    glfwShowWindow(window);
     #endif
     return ret;
 }

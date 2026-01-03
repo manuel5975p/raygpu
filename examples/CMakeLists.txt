@@ -49,6 +49,7 @@ function(add_cpp_example target_name)
 endfunction()
 
 
+add_example(bugrepro)
 add_example(core_window)
 add_example(core_resizable)
 add_example(core_shapes)
