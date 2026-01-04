@@ -189,6 +189,30 @@ typedef unsigned Bool32;
     #define COUNTR_ZERO_BUILTIN_U8(x)  countr_zero_fallback_u8 ((uint8_t)(x))
 #endif
 
+#ifndef FALLTHROUGH
+    #if defined(__STDC_VERSION__) && defined(__has_c_attribute)
+        #if __has_c_attribute(fallthrough)
+            #define FALLTHROUGH [[fallthrough]]
+        #endif
+    #endif
+    #if !defined(FALLTHROUGH) && defined(__cplusplus) && defined(__has_cpp_attribute)
+        #if __has_cpp_attribute(fallthrough)
+            #define FALLTHROUGH [[fallthrough]]
+        #endif
+    #endif
+    #if !defined(FALLTHROUGH) && defined(__has_attribute)
+        #if __has_attribute(__fallthrough__)
+            #define FALLTHROUGH __attribute__((__fallthrough__))
+        #endif
+    #endif
+    #if !defined(FALLTHROUGH) && defined(__GNUC__) && __GNUC__ >= 7
+        #define FALLTHROUGH __attribute__((__fallthrough__))
+    #endif
+    #if !defined(FALLTHROUGH)
+        #define FALLTHROUGH ((void)0)
+    #endif
+#endif
+
 // Fallback portable implementation with short names
 #define DEFINE_COUNTR_ZERO_FALLBACK_IMPL(SHORT, TYPE, WIDTH) \
 static inline int countr_zero_fallback_##SHORT(TYPE x) { \

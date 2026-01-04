@@ -1233,6 +1233,9 @@ typedef struct PenInputState{
 #define TOUCH_MAX 32
 #define CHARQ_MAX 256
 #define PEN_MAX 16
+#define GAMEPAD_MAX 4
+#define GAMEPAD_AXIS_MAX 6     // LeftX, LeftY, RightX, RightY, TriggerL, TriggerR
+#define GAMEPAD_BUTTON_MAX 32  // Covers standard SDL gamepad buttons
 
 typedef struct TouchPoint {
     int64_t id;
@@ -1244,6 +1247,14 @@ typedef struct PenState{
     PenInputState value;
     int used;
 }PenState;
+
+typedef struct GamepadState{
+    void* handle;              // Always SDL_Gamepad* under the hood, no other platform supports gamepads at the moment
+    bool connected;
+    float axis[GAMEPAD_AXIS_MAX];
+    uint8_t buttons[GAMEPAD_BUTTON_MAX];
+} GamepadState;
+
 typedef struct window_input_state{
     Rectangle windowPosition;
 
@@ -1269,6 +1280,7 @@ typedef struct window_input_state{
 
     PenState penStates[PEN_MAX];
     size_t penStatesCount;
+    GamepadState gamepads[GAMEPAD_MAX];
 } window_input_state;
 
 typedef struct RGWindowImpl{

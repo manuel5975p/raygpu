@@ -1,4 +1,6 @@
 // begin file src/InitWindow_SDL3.c
+#include "SDL3/SDL_init.h"
+#include "SDL3/SDL_log.h"
 #include "SDL3/SDL_video.h"
 #define VK_NO_PROTOTYPES
 #include <SDL3/SDL.h>
@@ -55,7 +57,7 @@ void Initialize_SDL3() {
         SDL_SetHint(SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT, "#canvas");
         #endif
 
-        SDL_InitFlags initFlags = SDL_INIT_VIDEO | SDL_INIT_EVENTS;
+        SDL_InitFlags initFlags = SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD;
         
         // CHECK THE RETURN VALUE HERE
         if (!SDL_Init(initFlags)) {
@@ -105,7 +107,7 @@ SubWindow OpenSubWindow_SDL3(int width, int height, const char* title){
 
 RGAPI SubWindow InitWindow_SDL3(int width, int height, const char *title) {
     const char *driverHint = NULL;
-    
+
     #if RAYGPU_USE_WAYLAND == 1 && RAYGPU_USE_X11 == 1
         // Both enabled: Try Wayland first, fallback to X11
         driverHint = "wayland,x11";
@@ -345,14 +347,17 @@ int GetMonitorHeight_SDL3(cwoid){
 }
 
 void ResizeCallback_SDL3(SDL_Window* window, int width, int height){
-    RGWindowImpl* rgwindow = CreatedWindowMap_get(&g_renderstate.createdSubwindows, window);
-
     //TRACELOG(LOG_INFO, "SDL3's ResizeCallback called with %d x %d", width, height);
-    ResizeSurface(&rgwindow->surface, (int)(width * rgwindow->scaleFactor), (int)(height * rgwindow->scaleFactor));
-    if((void*)window == (void*)g_renderstate.window){
-        g_renderstate.mainWindowRenderTarget = rgwindow->surface.renderTarget;
+    RGWindowImpl* rgwindow = CreatedWindowMap_get(&g_renderstate.createdSubwindows, window);
+    if(rgwindow){
+        rgwindow->width = width;
+        rgwindow->height = height;
+        ResizeSurface(&rgwindow->surface, (int)(width * rgwindow->scaleFactor), (int)(height * rgwindow->scaleFactor));
+        if((void*)window == (void*)g_renderstate.window){
+            g_renderstate.mainWindowRenderTarget = rgwindow->surface.renderTarget;
+        }
+        Matrix newcamera = ScreenMatrix((int)(width * rgwindow->scaleFactor), (int)(height * rgwindow->scaleFactor));
     }
-    Matrix newcamera = ScreenMatrix((int)(width * rgwindow->scaleFactor), (int)(height * rgwindow->scaleFactor));
 }
 
 static KeyboardKey ConvertScancodeToKey(SDL_Scancode sdlScancode){
@@ -447,18 +452,18 @@ RGAPI void PollEvents_SDL3() {
             int newWidth = event.window.data1;
             int newHeight = event.window.data2;
             ResizeCallback_SDL3(window, newWidth, newHeight);
-        } break;
+        }break;
         case SDL_EVENT_FINGER_MOTION:{
             SDL_Window* lastTouched = SDL_GetWindowFromID(event.tfinger.windowID);
             int w, h;
             SDL_GetWindowSize(lastTouched, &w, &h);
-            FingerMotionCallback(lastTouched, event.tfinger.fingerID, event.tfinger.x * w, event.tfinger.y * h);
+            FingerMotionCallback(lastTouched, event.tfinger.fingerID, event.tfinger.x * (float)w, event.tfinger.y * (float)h);
         }break;
         case SDL_EVENT_MOUSE_WHEEL: {
             SDL_Window *window = SDL_GetWindowFromID(event.wheel.windowID);
             // Note: SDL's yoffset is positive when scrolling up, negative when scrolling down
             ScrollCallback_SDL3(window, event.wheel.x, event.wheel.y);
-        } break;
+        }break;
         case SDL_EVENT_MOUSE_MOTION: {
             SDL_Window* window = SDL_GetWindowFromID(event.motion.windowID);
             RGWindowImpl* rgwindow = CreatedWindowMap_get(&g_renderstate.createdSubwindows, window);
@@ -469,9 +474,9 @@ RGAPI void PollEvents_SDL3() {
                 double scale = rgwindow->scaleFactor;
                 MousePositionCallback_SDL3(window, event.motion.x, event.motion.y);
             }
-        } break;
+        }break;
 
-        case SDL_EVENT_MOUSE_BUTTON_DOWN:
+        case SDL_EVENT_MOUSE_BUTTON_DOWN: // [[fallthrough]];
         case SDL_EVENT_MOUSE_BUTTON_UP: {
             SDL_Window *window = SDL_GetWindowFromID(event.button.windowID);
             Uint8 state = (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) ? 1 : 0;
@@ -481,8 +486,7 @@ RGAPI void PollEvents_SDL3() {
             else if (btn == 1) btn = 2;
 
             MouseButtonCallback(window, btn, state);
-        }
-        break;
+        }break;
         case SDL_EVENT_PEN_AXIS:{
             SDL_Window *window = SDL_GetWindowFromID(event.paxis.windowID);
             PenAxisCallback(window, event.paxis.which, event.paxis.axis, event.paxis.value);
@@ -492,13 +496,6 @@ RGAPI void PollEvents_SDL3() {
             PenMotionCallback(window, event.pmotion.which, event.pmotion.x, event.pmotion.y);
             //std::cout << event.pmotion.x << "\n";
         }break;
-//
-        //    uint8_t forGLFW = event.button.button - 1;
-        //    if(forGLFW == 2) forGLFW = 1;
-        //    else if(forGLFW == 1) forGLFW = 2;
-        //    MouseButtonCallback(window, forGLFW, state);
-        //} break;
-//
         case SDL_EVENT_TEXT_INPUT: {
             SDL_Window *window = SDL_GetWindowFromID(event.text.windowID);
             int cpsize = 0;
@@ -520,7 +517,73 @@ RGAPI void PollEvents_SDL3() {
             SDL_Window* window = SDL_GetWindowFromID(event.window.windowID);
             CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.cursorInWindow = false;
         } break;
-            // Handle other events as needed
+        case SDL_EVENT_JOYSTICK_ADDED:{
+        }break;
+        case SDL_EVENT_GAMEPAD_ADDED:{
+            if(g_renderstate.mainWindow){
+                window_input_state* input = &g_renderstate.mainWindow->input_state;
+                for(int i = 0; i < GAMEPAD_MAX; i++) {
+                    if(!input->gamepads[i].connected) {
+                        SDL_Gamepad* gp = SDL_OpenGamepad(event.gdevice.which);
+                        if(gp) {
+                            input->gamepads[i].handle = gp;
+                            input->gamepads[i].connected = true;
+                            memset(input->gamepads[i].axis, 0, sizeof(input->gamepads[i].axis));
+                            memset(input->gamepads[i].buttons, 0, sizeof(input->gamepads[i].buttons));
+                            TRACELOG(LOG_INFO, "Gamepad added at index %d: %s", i, SDL_GetGamepadName(gp));
+                        }
+                        break;
+                    }
+                }
+            }
+        }break;
+        case SDL_EVENT_GAMEPAD_REMOVED:{
+            if(g_renderstate.mainWindow){
+                window_input_state* input = &g_renderstate.mainWindow->input_state;
+                SDL_JoystickID id = event.gdevice.which;
+                for(int i = 0; i < GAMEPAD_MAX; i++) {
+                    if(input->gamepads[i].connected && 
+                        SDL_GetGamepadID((SDL_Gamepad*)input->gamepads[i].handle) == id) {
+                        SDL_CloseGamepad((SDL_Gamepad*)input->gamepads[i].handle);
+                        input->gamepads[i].connected = false;
+                        input->gamepads[i].handle = NULL;
+                        TRACELOG(LOG_INFO, "Gamepad removed from index %d", i);
+                        break;
+                    }
+                }
+            }
+        }break;
+        case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+        case SDL_EVENT_GAMEPAD_BUTTON_UP:{
+            if(g_renderstate.mainWindow){
+                window_input_state* input = &g_renderstate.mainWindow->input_state;
+                SDL_JoystickID id = event.gbutton.which;
+                for(int i = 0; i < GAMEPAD_MAX; i++) {
+                    if(input->gamepads[i].connected && 
+                        SDL_GetGamepadID((SDL_Gamepad*)input->gamepads[i].handle) == id) {
+                        if(event.gbutton.button < GAMEPAD_BUTTON_MAX) {
+                            input->gamepads[i].buttons[event.gbutton.button] = (event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN) ? 1 : 0;
+                        }
+                        break;
+                    }
+                }
+            }
+        }break;
+        case SDL_EVENT_GAMEPAD_AXIS_MOTION:{
+            if(g_renderstate.mainWindow){
+                window_input_state* input = &g_renderstate.mainWindow->input_state;
+                SDL_JoystickID id = event.gaxis.which;
+                for(int i = 0; i < GAMEPAD_MAX; i++) {
+                    if(input->gamepads[i].connected && 
+                       SDL_GetGamepadID((SDL_Gamepad*)input->gamepads[i].handle) == id) {
+                        if(event.gaxis.axis < GAMEPAD_AXIS_MAX) {
+                            input->gamepads[i].axis[event.gaxis.axis] = (float)event.gaxis.value / 32768.0f;
+                        }
+                        break;
+                    }
+                }
+            }
+        }break;
 
         default:
             break;
