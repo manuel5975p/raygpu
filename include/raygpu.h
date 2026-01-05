@@ -86,7 +86,7 @@ typedef struct WGPURaytracingPipelineImpl* WGPURaytracingPipeline;
 typedef struct WGPURaytracingPassEncoderImpl* WGPURaytracingPassEncoder;
 
 static inline uint64_t ROT_BYTES(uint64_t V, uint8_t C) {
- return ((V << C) | ((V) >> ((64 - C) & 63)));
+    return ((V << C) | ((V) >> ((64 - C) & 63)));
 }
 
 typedef uint64_t RGFlags;
@@ -184,33 +184,38 @@ typedef enum RGVertexFormat {
 /// Yes, those need to be macros, otherwise they 
 /// can't be used as `case` expressions in `switch` statements 
 typedef RGFlags RGBufferUsage;
-#define RGBufferUsage_None 0x00000000
-#define RGBufferUsage_MapRead 0x00000001
-#define RGBufferUsage_MapWrite 0x00000002
-#define RGBufferUsage_CopySrc 0x00000004
-#define RGBufferUsage_CopyDst 0x00000008
-#define RGBufferUsage_Index 0x00000010
-#define RGBufferUsage_Vertex 0x00000020
-#define RGBufferUsage_Uniform 0x00000040
-#define RGBufferUsage_Storage 0x00000080
-#define RGBufferUsage_Indirect 0x00000100
-#define RGBufferUsage_QueryResolve 0x00000200
+
+typedef enum RGBufferUsageFlagBits{
+    RGBufferUsage_None = 0x00000000,
+    RGBufferUsage_MapRead = 0x00000001,
+    RGBufferUsage_MapWrite = 0x00000002,
+    RGBufferUsage_CopySrc = 0x00000004,
+    RGBufferUsage_CopyDst = 0x00000008,
+    RGBufferUsage_Index = 0x00000010,
+    RGBufferUsage_Vertex = 0x00000020,
+    RGBufferUsage_Uniform = 0x00000040,
+    RGBufferUsage_Storage = 0x00000080,
+    RGBufferUsage_Indirect = 0x00000100,
+    RGBufferUsage_QueryResolve = 0x00000200,
+}RGBufferUsageFlagBits;
 
 typedef RGFlags RGTextureUsage;
-
-#define RGTextureUsage_None 0x00000000
-#define RGTextureUsage_CopySrc 0x00000001
-#define RGTextureUsage_CopyDst 0x00000002
-#define RGTextureUsage_TextureBinding 0x00000004
-#define RGTextureUsage_StorageBinding 0x00000008
-#define RGTextureUsage_RenderAttachment 0x00000010
+typedef enum RGTextureUsageFlagBits{
+    RGTextureUsage_None = 0x00000000,
+    RGTextureUsage_CopySrc = 0x00000001,
+    RGTextureUsage_CopyDst = 0x00000002,
+    RGTextureUsage_TextureBinding = 0x00000004,
+    RGTextureUsage_StorageBinding = 0x00000008,
+    RGTextureUsage_RenderAttachment = 0x00000010,
+}RGTextureUsageFlagBits;
 
 typedef RGFlags RGShaderStage;
-
-#define RGShaderStage_None 0x00000000
-#define RGShaderStage_Vertex 0x00000001
-#define RGShaderStage_Fragment 0x00000002
-#define RGShaderStage_Compute 0x00000004
+typedef enum RGShaderStageFlagBits{
+    RGShaderStage_None = 0x00000000,
+    RGShaderStage_Vertex = 0x00000001,
+    RGShaderStage_Fragment = 0x00000002,
+    RGShaderStage_Compute = 0x00000004,
+}RGShaderStageFlagBits;
 
 typedef enum PixelFormat {
     PIXELFORMAT_INVALID,
@@ -310,10 +315,6 @@ typedef struct Image{
                              // One reason for this is the fact that Texture to Buffer copy commands
                              // Have to have a multiple of 256 bytes as row length
 }Image;
-
-#ifndef MAX_MIP_LEVELS
-#define MAX_MIP_LEVELS 8
-#endif
 
 typedef struct Texture2D{
     WGPUTexture id;
