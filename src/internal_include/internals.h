@@ -866,6 +866,10 @@ static WGPURenderPipeline PipelineHashMap_getOrCreate(PipelineHashMap* cacheMap,
     }
     else{
         WGPURenderPipeline toEmplace = createSingleRenderPipe(mst, shaderModule, bglayout, pllayout);
+        if (!toEmplace) {
+            TRACELOG(LOG_ERROR, "Failed to create render pipeline, likely due to a shader compilation/translation error.");
+            return NULL;
+        }
         PipelineHashMap_put(cacheMap, *mst, toEmplace);
         return toEmplace;
     }

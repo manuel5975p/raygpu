@@ -259,8 +259,10 @@ void BindShaderWithSettings(Shader shader, PrimitiveType drawMode, RenderSetting
     impl->state.settings = settings;
     impl->state.colorAttachmentState = GetActiveRenderPass()->colorAttachmentState;
     WGPURenderPipeline activePipeline = PipelineHashMap_getOrCreate(&impl->pipelineCache, &impl->state, &impl->shaderModule, &impl->bglayout, &impl->layout);
-    wgpuRenderPassEncoderSetPipeline(g_renderstate.activeRenderpass->rpEncoder, activePipeline);
-    wgpuRenderPassEncoderSetBindGroup(g_renderstate.activeRenderpass->rpEncoder, 0, UpdateAndGetNativeBindGroup(&impl->bindGroup), 0, NULL);
+    if (activePipeline) {
+        wgpuRenderPassEncoderSetPipeline(g_renderstate.activeRenderpass->rpEncoder, activePipeline);
+        wgpuRenderPassEncoderSetBindGroup(g_renderstate.activeRenderpass->rpEncoder, 0, UpdateAndGetNativeBindGroup(&impl->bindGroup), 0, NULL);
+    }
 }
 
 void BindShader(Shader shader, PrimitiveType drawMode) {
@@ -672,6 +674,10 @@ void UpdateBindGroup(DescribedBindGroup *bg) {
     // std::cout << "Updating bindgroup with " << bg->desc.entryCount << " entries" << std::endl;
     // std::cout << "Updating bindgroup with " << bg->desc.entries[1].binding << " entries" << std::endl;
     if (bg->needsUpdate) {
+        if (bg->bindGroup) {
+            wgpuBindGroupRelease((WGPUBindGroup)bg->bindGroup);
+            bg->bindGroup = NULL;
+        }
         WGPUBindGroupDescriptor desc  = {0};
         WGPUBindGroupEntry* aswgpu = (WGPUBindGroupEntry*)RL_CALLOC(bg->entryCount, sizeof(WGPUBindGroupEntry));
         for (uint32_t i = 0; i < bg->entryCount; i++) {
@@ -683,10 +689,29 @@ void UpdateBindGroup(DescribedBindGroup *bg) {
             to->size = from->size;
             to->sampler = from->sampler;
             to->textureView = from->textureView;
+
+            if(bg->layout && bg->layout->entries){
+                if(to->sampler == NULL && bg->layout->entries[i].type == texture_sampler){
+                    to->sampler = (WGPUSampler)g_renderstate.defaultSampler.sampler;
+                }
+                if(to->textureView == NULL && bg->layout->entries[i].type == texture2d){
+                    to->textureView = (WGPUTextureView)g_renderstate.whitePixel.view;
+                }
+                if(to->buffer == NULL && (bg->layout->entries[i].type == uniform_buffer || bg->layout->entries[i].type == storage_buffer)){
+                    to->buffer = (WGPUBuffer)g_renderstate.identityMatrix->buffer;
+                    to->offset = 0;
+                    to->size = 64; // sizeof(Matrix)
+                }
+            }
         }
 
         desc.entries = aswgpu;
         desc.entryCount = bg->entryCount;
+        if (bg->layout == NULL) {
+            TRACELOG(LOG_ERROR, "UpdateBindGroup: bind group layout is NULL. Skipping bind group creation.");
+            RL_FREE(aswgpu);
+            return;
+        }
         desc.layout = bg->layout->layout;
         bg->bindGroup = wgpuDeviceCreateBindGroup(GetDevice(), &desc);
         bg->needsUpdate = false;
@@ -705,9 +730,9 @@ static inline uint64_t bgEntryHashRD(const ResourceDescriptor bge) {
 }
 
 void UpdateBindGroupEntry(DescribedBindGroup *bg, size_t index, ResourceDescriptor entry) {
-    if (index >= bg->entryCount) {
+    if (bg->entries == NULL || index >= bg->entryCount) {
         TRACELOG(LOG_WARNING, "Trying to set entry %d on a BindGroup with only %d entries", (int)index, (int)bg->entryCount);
-        // return;
+        return;
     }
     WGPUBuffer newpuffer = entry.buffer;
     WGPUTextureView newtexture = entry.textureView;
@@ -723,6 +748,9 @@ void UpdateBindGroupEntry(DescribedBindGroup *bg, size_t index, ResourceDescript
     if (entry.textureView) {
         wgpuTextureViewAddRef((WGPUTextureView)entry.textureView);
     }
+    if (entry.sampler) {
+        wgpuSamplerAddRef((WGPUSampler)entry.sampler);
+    }
 
     if (bg->entries[index].buffer) {
         wgpuBufferRelease((WGPUBuffer)bg->entries[index].buffer);
@@ -731,6 +759,10 @@ void UpdateBindGroupEntry(DescribedBindGroup *bg, size_t index, ResourceDescript
     if (bg->entries[index].textureView) {
         wgpuTextureViewRelease((WGPUTextureView)bg->entries[index].textureView);
         bg->entries[index].textureView = 0;
+    }
+    if (bg->entries[index].sampler) {
+        wgpuSamplerRelease((WGPUSampler)bg->entries[index].sampler);
+        bg->entries[index].sampler = 0;
     }
 
     bg->entries[index] = entry;
@@ -1609,7 +1641,6 @@ DescribedSampler LoadSamplerEx(TextureWrap amode, TextureFilter fmode, TextureFi
     return ret;
 }
 void SetBindgroupUniformBufferData(DescribedBindGroup *bg, uint32_t index, const void *data, size_t size) {
-    
     const WGPUBufferDescriptor bufferDesc = {
         .size = size,
         .usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform,
@@ -1617,11 +1648,11 @@ void SetBindgroupUniformBufferData(DescribedBindGroup *bg, uint32_t index, const
     };
     WGPUBuffer uniformBuffer = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &bufferDesc);
     wgpuQueueWriteBuffer((WGPUQueue)GetQueue(), uniformBuffer, 0, data, size);
+    // Use the existing binding index from the bind group layout if available
+    uint32_t bindingIdx = (bg->entries && index < bg->entryCount) ? bg->entries[index].binding : index;
+
     const ResourceDescriptor entry = {
-        .binding = index,
-        .buffer = uniformBuffer,
-        .size = size,
-    };
+        .binding = bindingIdx, .buffer = uniformBuffer, .size = size, .offset = 0, .sampler = 0, .textureView = 0};
 
     UpdateBindGroupEntry(bg, index, entry);
     wgpuBufferRelease(uniformBuffer);
@@ -1636,11 +1667,10 @@ void SetBindgroupStorageBufferData(DescribedBindGroup *bg, uint32_t index, const
     };
     WGPUBuffer storageBuffer = wgpuDeviceCreateBuffer((WGPUDevice)GetDevice(), &bufferDesc);
     wgpuQueueWriteBuffer((WGPUQueue)GetQueue(), storageBuffer, 0, data, size);
+    uint32_t bindingIdx = (bg->entries && index < bg->entryCount) ? bg->entries[index].binding : index;
+
     const ResourceDescriptor entry = {
-        .binding = index,
-        .buffer = storageBuffer,
-        .size = size,
-    };
+        .binding = bindingIdx, .buffer = storageBuffer, .size = size, .offset = 0, .sampler = 0, .textureView = 0};
 
     UpdateBindGroupEntry(bg, index, entry);
 
@@ -2868,8 +2898,26 @@ EntryPointSet getEntryPointsSPIRV(const uint32_t *shaderSourceSPIRV, uint32_t wo
 }
 
 void UnloadBindGroup(DescribedBindGroup *bg) {
-    free(bg->entries);
-    wgpuBindGroupRelease((WGPUBindGroup)bg->bindGroup);
+    if (bg->entries) {
+        for (uint32_t i = 0; i < bg->entryCount; i++) {
+            if (bg->entries[i].buffer) {
+                wgpuBufferRelease((WGPUBuffer)bg->entries[i].buffer);
+            }
+            if (bg->entries[i].textureView) {
+                wgpuTextureViewRelease((WGPUTextureView)bg->entries[i].textureView);
+            }
+            if (bg->entries[i].sampler) {
+                wgpuSamplerRelease((WGPUSampler)bg->entries[i].sampler);
+            }
+        }
+        free(bg->entries);
+    }
+    if (bg->bindGroup) {
+        wgpuBindGroupRelease((WGPUBindGroup)bg->bindGroup);
+    }
+    bg->bindGroup = NULL;
+    bg->entries = NULL;
+    bg->entryCount = 0;
 }
 void UnloadBindGroupLayout(DescribedBindGroupLayout *bglayout) {
     free(bglayout->entries);
