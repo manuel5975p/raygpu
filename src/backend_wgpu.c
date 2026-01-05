@@ -1447,25 +1447,24 @@ void negotiateSurfaceFormatAndPresentMode(const void *SurfaceHandle) {
         }
         TRACELOG(LOG_INFO, "Supported surface formats: %s", formatsString);
     }
-
     WGPUTextureFormat selectedFormat = capabilities.formats[0];
     int format_index = 0;
-    //for (format_index = 0; format_index < capabilities.formatCount; format_index++) {
-    //    if (capabilities.formats[format_index] == WGPUTextureFormat_RGBA16Float) {
-    //        selectedFormat = (capabilities.formats[format_index]);
-    //        goto found;
-    //    }
-    //}
-    //for (format_index = 0; format_index < capabilities.formatCount; format_index++) {
-    //    if (capabilities.formats[format_index] == WGPUTextureFormat_BGRA8Unorm /*|| capabilities.formats[format_index] == WGPUTextureFormat_RGBA8Unorm*/) {
-    //        selectedFormat = (capabilities.formats[format_index]);
-    //        goto found;
-    //    }
-    //}
-found:
-    #ifdef __EMSCRIPTEN__
-    selectedFormat = WGPUTextureFormat_BGRA8Unorm;
+    #ifndef __EMSCRIPTEN__ // Avoid RGBA16Float because Firefox rejects it throughout
+    for (format_index = 0; format_index < capabilities.formatCount; format_index++) {
+        if (capabilities.formats[format_index] == WGPUTextureFormat_RGBA16Float) {
+            selectedFormat = (capabilities.formats[format_index]);
+            goto found;
+        }
+    }
     #endif
+    for (format_index = 0; format_index < capabilities.formatCount; format_index++) {
+        if (capabilities.formats[format_index] == WGPUTextureFormat_BGRA8Unorm) {
+            selectedFormat = (capabilities.formats[format_index]);
+            goto found;
+        }
+    }
+    
+found:
     g_renderstate.frameBufferFormat = fromWGPUPixelFormat(selectedFormat);
     if (format_index == capabilities.formatCount) {
         TRACELOG(LOG_WARNING, "No RGBA8 / BGRA8 Unorm framebuffer format found, colors might be off");
@@ -1473,9 +1472,6 @@ found:
     }
 
     TRACELOG(LOG_INFO, "Selected surface format %s", TextureFormatName(toWGPUPixelFormat(g_renderstate.frameBufferFormat)));
-
-    // TRACELOG(LOG_INFO, "Selected present mode %s",
-    // presentModeSpellingTable.at((WGPUPresentMode)g_renderstate.throttled_PresentMode).c_str());
 }
 
 DescribedBuffer *GenBufferEx(const void *data, size_t size, RGBufferUsage usage) {
