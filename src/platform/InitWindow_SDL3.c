@@ -615,6 +615,18 @@ void ToggleFullscreen_SDL3(cwoid){
     }
 }
 
+void SetWindowTitle_SDL3(void* window, const char *title){
+    SDL_SetWindowTitle((SDL_Window*)window, title);
+}
+
+void SetWindowPosition_SDL3(void* window,int x, int y){
+    SDL_SetWindowPosition((SDL_Window*)window, x, y);
+}
+
+void SetWindowSize_SDL3(void* window, int width, int height){
+    SDL_SetWindowSize((SDL_Window*)window, width, height);
+}
+
 void ShowCursor_SDL3(void* window){
     SDL_ShowCursor();
 }

@@ -1823,6 +1823,9 @@ bool IsCursorOnScreen(cwoid){
 }
 
 #if SUPPORT_GLFW == 1
+void SetWindowTitle_GLFW(void* window, const char *title);
+void SetWindowPosition_GLFW(void* window, int x, int y);
+void SetWindowSize_GLFW(void* window, int width, int height);
 void ShowCursor_GLFW(void* window);
 void HideCursor_GLFW(void* window);
 bool IsCursorHidden_GLFW(void* window);
@@ -1831,6 +1834,9 @@ void DisableCursor_GLFW(void* window);
 #endif
 
 #if SUPPORT_SDL3 == 1
+void SetWindowTitle_SDL3(void* window, const char *title);
+void SetWindowPosition_SDL3(void* window, int x, int y);
+void SetWindowSize_SDL3(void* window, int width, int height);
 void ShowCursor_SDL3(void* window);
 void HideCursor_SDL3(void* window);
 bool IsCursorHidden_SDL3(void* window);
@@ -1845,6 +1851,33 @@ bool IsCursorHidden_RGFW(void* window);
 void EnableCursor_RGFW(void* window);
 void DisableCursor_RGFW(void* window);
 #endif
+
+RGAPI void SetWindowTitle(const char* title) {SetWindowTitleEx(g_renderstate.window, title);}
+RGAPI void SetWindowTitleEx(void* window, const char *title) {
+    #ifdef MAIN_WINDOW_GLFW
+    return SetWindowTitle_GLFW(window, title);
+    #elif defined (MAIN_WINDOW_SDL3)
+    return SetWindowTitle_SDL3(window, title);
+    #endif
+}
+
+RGAPI void SetWindowPosition(int x, int y) {SetWindowPositionEx(g_renderstate.window, x, y);}
+RGAPI void SetWindowPositionEx(void* window, int x, int y) {
+    #ifdef MAIN_WINDOW_GLFW
+    return SetWindowPosition_GLFW(window, x, y);
+    #elif defined (MAIN_WINDOW_SDL3)
+    return SetWindowPosition_SDL3(window, x, y);
+    #endif
+}
+
+RGAPI void SetWindowSize(int width, int height) {SetWindowSizeEx(g_renderstate.window, width, height);}
+RGAPI void SetWindowSizeEx(void* window, int width, int height) {
+    #ifdef MAIN_WINDOW_GLFW
+    return SetWindowSize_GLFW(window, width, height);
+    #elif defined (MAIN_WINDOW_SDL3)
+    return SetWindowSize_SDL3(window, width, height);
+    #endif
+}
 
 RGAPI void ShowCursor(cwoid){
     RGWindowImpl* impl = CreatedWindowMap_get(&g_renderstate.createdSubwindows, GetActiveWindowHandle());

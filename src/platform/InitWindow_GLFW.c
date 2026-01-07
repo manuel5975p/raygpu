@@ -226,6 +226,19 @@ int GetMonitorHeight_GLFW(cwoid){
     }
     return mode->height;
 }
+
+void SetWindowTitle_GLFW(void* window, const char *title){
+    glfwSetWindowTitle((GLFWwindow*)window, title);
+}
+
+void SetWindowPosition_GLFW(void* window, int x, int y){
+    glfwSetWindowPos((GLFWwindow*)window, x, y);
+}
+
+void SetWindowSize_GLFW(void* window, int width, int height){
+    glfwSetWindowSize((GLFWwindow*)window, width, height);
+}
+
 void ShowCursor_GLFW(void* window){
     glfwSetInputMode((GLFWwindow*)window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 }
