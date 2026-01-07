@@ -622,6 +622,10 @@ endif()
 
 
 add_subdirectory("examples")
+if(BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 if(RAYGPU_GENERATE_PYTHON_BINDINGS)
     set(PYBIND11_FINDPYTHON ON)
     find_package(pybind11 CONFIG QUIET)

@@ -1,0 +1,33 @@
+name: Rendering tests
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        # Installs user-requested libs + software rasterizer (mesa-vulkan-drivers) for headless CI
+        sudo apt-get install -y g++ make cmake git wayland-protocols libwayland-dev libxkbcommon-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libvulkan-dev vulkan-utility-libraries-dev mesa-vulkan-drivers
+
+    - name: Configure CMake
+      # -B build creates the build folder
+      # -DBUILD_TESTING=ON enables your CMake if-block
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+
+    - name: Build
+      run: cmake --build build
+
+    - name: Run Tests
+      working-directory: build/
+      # --output-on-failure prints the error log if a test fails
+      run: ctest --output-on-failure

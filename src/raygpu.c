@@ -885,6 +885,7 @@ RGAPI void rlPopMatrix(void) {
     }
 }
 RGAPI void EndBlendMode(void){
+    drawCurrentBatch();
     g_renderstate.currentSettings.blendState = GetDefaultSettings().blendState;
 }
 RGAPI void BeginMode2D(Camera2D camera){
