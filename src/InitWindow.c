@@ -643,6 +643,15 @@ RGAPI void CloseSubWindow(SubWindow window) {
     CreatedWindowMap_erase(&g_renderstate.createdSubwindows, nativeHandle);
 }
 
+void SetWindowTitle(const char* title){
+    void* handle = GetActiveWindowHandle();
+    if(handle == NULL){
+        TRACELOG(LOG_WARNING, "SetWindowTitle: No active window");
+        return;
+    }
+    SetSubWindowTitle(CreatedWindowMap_get(&g_renderstate.createdSubwindows, handle), title);
+}
+
 
 
 size_t GetPixelSizeInBytes(PixelFormat format) {
@@ -688,7 +697,33 @@ size_t GetPixelSizeInBytes(PixelFormat format) {
 #endif
 
 
-
+void SetSubWindowTitle(SubWindow window, const char* title){
+    if(window == NULL || window->handle == NULL){
+        TRACELOG(LOG_WARNING, "SetSubWindowTitle: Invalid window");
+        return;
+    }
+    
+    switch(window->type){
+        #if SUPPORT_GLFW == 1
+        case windowType_glfw:
+            glfwSetWindowTitle((GLFWwindow*)window->handle, title);
+            break;
+        #endif
+        #if SUPPORT_SDL3 == 1
+        case windowType_sdl3:
+            SDL_SetWindowTitle((SDL_Window*)window->handle, title);
+            break;
+        #endif
+        #if SUPPORT_RGFW == 1
+        case windowType_rgfw:
+            RGFW_window_setName((RGFW_window*)window->handle, (char*)title);
+            break;
+        #endif
+        default:
+            TRACELOG(LOG_WARNING, "SetSubWindowTitle: Unsupported window type");
+            break;
+    }
+}
 
 
 // end file src/InitWindow.c

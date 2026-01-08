@@ -561,6 +561,9 @@ bool WindowShouldClose_GLFW(GLFWwindow* win){
     return glfwWindowShouldClose(win);
 }
 
+void SetWindowTitle_GLFW(GLFWwindow* window, const char* title) {
+    glfwSetWindowTitle(window, title);
+}
 
 int emscripten_to_glfw_key(const char *key_name) {
     if (!key_name) return GLFW_KEY_UNKNOWN;

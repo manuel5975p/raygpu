@@ -427,4 +427,8 @@ void DisableCursor_RGFW(void* window) {
     HideCursor_RGFW((RGFW_window*)window);
 }
 
+void SetWindowTitle_RGFW(RGFW_window* window, const char* title) {
+    RGFW_window_setName(window, (char*)title);
+}
+
 // end file src/InitWindow_RGFW.cpp

@@ -1357,6 +1357,8 @@ RGAPI void requestAnimationFrameLoopWithJSPIArg(void (*callback)(void*), void* u
 RGAPI void SetWindowShouldClose(cwoid);
 RGAPI void CloseProgram(cwoid);
 RGAPI bool WindowShouldClose(cwoid);
+RGAPI void SetWindowTitle(const char* title);
+RGAPI void SetSubWindowTitle(SubWindow window, const char* title);
 RGAPI SubWindow OpenSubWindow (int width, int height, const char* title);
 RGAPI SubWindow OpenSubWindow_SDL3(int width, int height, const char* title);
 RGAPI SubWindow OpenSubWindow_GLFW(int width, int height, const char* title);
