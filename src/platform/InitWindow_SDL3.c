@@ -696,4 +696,8 @@ float GetGamepadAxisMovement_SDL3(int gamepad, int axis) {
     return g_renderstate.mainWindow->input_state.gamepads[gamepad].axis[axis];
 }
 
+void SetWindowTitle_SDL3(SDL_Window* window, const char* title) {
+    SDL_SetWindowTitle(window, title);
+}
+
 // end file src/InitWindow_SDL3.c
