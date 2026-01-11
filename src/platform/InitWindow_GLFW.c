@@ -1,4 +1,5 @@
 // begin file src/InitWindow_GLFW.c
+#include "macros_and_constants.h"
 #include <raygpu.h>
 #define GLFW_INCLUDE_NONE
 #if SUPPORT_VULKAN_BACKEND == 1
@@ -139,6 +140,14 @@ EM_BOOL EmscriptenMouseupClickCallback(int eventType, const EmscriptenMouseEvent
 #else
 #endif
 
+void closeCallback_GLFW(GLFWwindow* win){
+    glfwSetWindowShouldClose(win, true);
+    RGWindowImpl* rgwin = CreatedWindowMap_get(&g_renderstate.createdSubwindows, win);
+    if(rgwin){
+        rgwin->closeRequestedFlag = true;
+    }
+    //TRACELOG(LOG_ERROR, "CLOSIN");
+}
 
 //#ifndef __EMSCRIPTEN__
 void CursorEnterCallback(GLFWwindow* window, int entered){
@@ -199,6 +208,7 @@ void setupGLFWCallbacks(GLFWwindow* window){
     glfwSetCursorEnterCallback(window, CursorEnterCallback);
     glfwSetScrollCallback(window, ScrollCallback);
     glfwSetMouseButtonCallback(window, clickcallback);
+    glfwSetWindowCloseCallback(window, closeCallback_GLFW);
     #ifdef __EMSCRIPTEN__
     emscripten_set_mousedown_callback("#canvas", NULL, 1, EmscriptenMousedownClickCallback);
     emscripten_set_mouseup_callback("#canvas",   NULL, 1, EmscriptenMouseupClickCallback);

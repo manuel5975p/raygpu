@@ -493,10 +493,12 @@ SubWindow OpenSubWindow(int width, int height, const char* title){
 
     SubWindow createdWindow = NULL;
     #ifdef MAIN_WINDOW_GLFW
-    createdWindow = OpenSubWindow_GLFW(width, height, title);
+    createdWindow = OpenSubWindow_GLFW_NoSurface(width, height, title);
     #elif defined(MAIN_WINDOW_SDL3)
     createdWindow = OpenSubWindow_SDL3_NoSurface(width, height, title);
     rassert(createdWindow != NULL && createdWindow->handle != NULL, "Returned window can't have null handle");
+    #elif defined(MAIN_WINDOW_RGFW)
+    createdWindow = OpenSubWindow_RGFW_NoSurface(width, height, title);
     #endif
 
     if(mainWindowHandle){
@@ -587,13 +589,9 @@ void SetWindowShouldClose(){
 
 RGAPI void CloseSubWindow(SubWindow window) {
     if (window == NULL) return;
-
-    // Cache handle and type before potential memory invalidation
     void* nativeHandle = window->handle;
     windowType wType = window->type;
 
-    // 1. Unload WebGPU resources (RenderTexture attachments and Surface)
-    // This releases depth buffers, multisample textures, and the current swapchain texture handle.
     UnloadRenderTexture(window->surface.renderTarget);
 
     if (window->surface.surface) {
