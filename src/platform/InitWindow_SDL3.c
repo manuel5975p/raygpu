@@ -2,6 +2,7 @@
 #include "SDL3/SDL_init.h"
 #include "SDL3/SDL_log.h"
 #include "SDL3/SDL_video.h"
+#include "macros_and_constants.h"
 #define VK_NO_PROTOTYPES
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_events.h>
@@ -590,6 +591,11 @@ RGAPI void PollEvents_SDL3() {
         }
     }
 }
+RGAPI void CloseSubWindow_SDL3(SubWindow subWindow){
+    rassert(subWindow->type == windowType_sdl3, "CloseSubWindow_SDL3 called on non-SDL3 window");
+    SDL_DestroyWindow((SDL_Window*)subWindow->handle);
+}
+
 void ToggleFullscreen_SDL3(cwoid){
     bool alreadyFullscreen = SDL_GetWindowFlags((SDL_Window*)g_renderstate.window) & SDL_WINDOW_FULLSCREEN;
     if(alreadyFullscreen){

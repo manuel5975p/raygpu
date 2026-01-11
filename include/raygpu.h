@@ -1313,13 +1313,17 @@ RGAPI void InitProgram(ProgramInfo program);
 RGAPI void requestAnimationFrameLoopWithJSPI(void (*callback)(void), int /* unused */, int/* unused */);
 RGAPI void requestAnimationFrameLoopWithJSPIArg(void (*callback)(void*), void* userData, int/* unused */, int/* unused */);
 RGAPI void SetWindowShouldClose(cwoid);
+RGAPI void CloseWindow(cwoid);
 RGAPI bool WindowShouldClose(cwoid);
 RGAPI SubWindow OpenSubWindow (int width, int height, const char* title);
 RGAPI SubWindow OpenSubWindow_SDL3(int width, int height, const char* title);
 RGAPI SubWindow OpenSubWindow_GLFW(int width, int height, const char* title);
 RGAPI SubWindow OpenSubWindow_RGFW(int width, int height, const char* title);
 RGAPI SubWindow InitWindow_SDL3 (int width, int height, const char* title);
-RGAPI void CloseSubWindow (SubWindow subWindow);
+RGAPI void CloseSubWindow(SubWindow subWindow);
+RGAPI void CloseSubWindow_SDL3(SubWindow subWindow);
+RGAPI void CloseSubWindow_GLFW(SubWindow subWindow);
+RGAPI void CloseSubWindow_RGFW(SubWindow subWindow);
 RGAPI FullSurface CompleteSurface (void* nsurface, int width, int height);
 RGAPI FullSurface CreateHeadlessSurface(int width, int height, PixelFormat format);
 RGAPI void ResizeSurface (FullSurface* fsurface, int width, int height);
@@ -1644,7 +1648,7 @@ RGAPI Shader LoadShader (const char *vsFileName, const char *fsFileName); // Ass
 RGAPI Shader LoadShaderSingleSource (const char* shaderSource); // Assumes WGSL
 RGAPI Shader LoadShaderFromMemory (const char *vsCode , const char *fsCode ); // Assumes GLSL
 RGAPI Shader LoadShaderFromMemorySPIRV(ShaderSources sources); // Obviously assumes SPIRV
-
+RGAPI void   UnloadShader(Shader shader);
 RGAPI DescribedBindGroupLayout LoadBindGroupLayout(const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, bool compute);
 RGAPI DescribedBindGroupLayout LoadBindGroupLayoutMod(const DescribedShaderModule* shaderModule);
 //RGAPI WGPURaytracingPipeline LoadRTPipeline(const DescribedShaderModule* module);
@@ -1661,6 +1665,7 @@ RGAPI void UnloadBindGroup(DescribedBindGroup* bg);
 RGAPI DescribedPipeline* Relayout(DescribedPipeline* pl, VertexArray* vao);
 RGAPI DescribedComputePipeline* LoadComputePipeline(const char* shaderCode);
 RGAPI DescribedComputePipeline* LoadComputePipelineEx(const char* shaderCode, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, const char* entryPoint);
+RGAPI void UnloadComputePipeline(DescribedComputePipeline* cpl);
 RGAPI DescribedRaytracingPipeline* LoadRaytracingPipeline(const DescribedShaderModule* shaderModule);
 RGAPI Shader DefaultShader(cwoid);
 RGAPI RenderSettings GetCurrentSettings(cwoid);

@@ -532,7 +532,15 @@ SubWindow OpenSubWindow_GLFW_NoSurface(int width, int height, const char* title)
     ret->scaleFactor = xscale;
     return ret;
 }
-
+void CloseSubWindow_GLFW(SubWindow subWindow){
+    rassert(subWindow->type == windowType_glfw, "CloseSubWindow_GLFW called on non-SDL3 window");
+    glfwDestroyWindow((GLFWwindow*)subWindow->handle);
+}
+//void CloseSubWindow_GLFW(SubWindow subWindow){
+//    CreatedWindowMap_erase(&g_renderstate.createdSubwindows, subWindow->handle);
+//    glfwWindowShouldClose((GLFWwindow*)subWindow->handle);
+//    glfwSetWindowShouldClose((GLFWwindow*)subWindow->handle, GLFW_TRUE);
+//}
 SubWindow OpenSubWindow_GLFW(int width, int height, const char* title){
     SubWindow sw = OpenSubWindow_GLFW_NoSurface(width, height, title);
     CreateAndSetSurfaceForWindow(sw);
@@ -542,11 +550,7 @@ SubWindow OpenSubWindow_GLFW(int width, int height, const char* title){
 bool WindowShouldClose_GLFW(GLFWwindow* win){
     return glfwWindowShouldClose(win);
 }
-void CloseSubWindow_GLFW(SubWindow subWindow){
-    CreatedWindowMap_erase(&g_renderstate.createdSubwindows, subWindow->handle);
-    glfwWindowShouldClose((GLFWwindow*)subWindow->handle);
-    glfwSetWindowShouldClose((GLFWwindow*)subWindow->handle, GLFW_TRUE);
-}
+
 
 int emscripten_to_glfw_key(const char *key_name) {
     if (!key_name) return GLFW_KEY_UNKNOWN;

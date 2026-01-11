@@ -52,6 +52,11 @@ void render(void){
     if((GetFrameCount() & 0x7ff) == 0){
         printf("FPS: %u\n", GetFPS());
     }
+    #ifndef __EMSCRIPTEN__
+    if(GetFrameCount() > 10000){
+        CloseWindow();
+    }
+    #endif
 }
 int main(void){
     ProgramInfo progInfo = {
@@ -62,4 +67,5 @@ int main(void){
         .renderFunction = render
     };
     InitProgram(progInfo);
+    
 }

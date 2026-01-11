@@ -585,6 +585,63 @@ void SetWindowShouldClose(){
     #endif
 }
 
+RGAPI void CloseSubWindow(SubWindow window) {
+    if (window == NULL) return;
+
+    // Cache handle and type before potential memory invalidation
+    void* nativeHandle = window->handle;
+    windowType wType = window->type;
+
+    // 1. Unload WebGPU resources (RenderTexture attachments and Surface)
+    // This releases depth buffers, multisample textures, and the current swapchain texture handle.
+    UnloadRenderTexture(window->surface.renderTarget);
+
+    if (window->surface.surface) {
+        wgpuSurfaceRelease(window->surface.surface);
+        window->surface.surface = NULL;
+    }
+
+    // 2. Destroy the platform-specific Native Window
+    switch (wType) {
+        #if SUPPORT_GLFW == 1
+        case windowType_glfw:
+            CloseSubWindow_GLFW(window);
+            break;
+        #endif
+        #if SUPPORT_SDL3 == 1
+        case windowType_sdl3:
+            CloseSubWindow_SDL3(window);
+            break;
+        #endif
+        #if SUPPORT_RGFW == 1
+        case windowType_rgfw:
+            CloseSubWindow_RGFW(window);
+            break;
+        #endif
+        default: break;
+    }
+
+    // 3. Update Global RenderState pointers if this window was tracked
+    if (g_renderstate.activeSubWindow == window) {
+        g_renderstate.activeSubWindow = NULL;
+        // Fallback to main window if it exists and is not the one being closed
+        if (g_renderstate.mainWindow && g_renderstate.mainWindow != window) {
+            g_renderstate.activeSubWindow = g_renderstate.mainWindow;
+        }
+    }
+
+    if (g_renderstate.mainWindow == window) {
+        g_renderstate.mainWindow = NULL;
+        // If this was the main window handle tracked globally, clear it to signal application termination checks
+        if (g_renderstate.window == nativeHandle) {
+            g_renderstate.window = NULL;
+        }
+    }
+
+    // 4. Remove from the global tracker map
+    CreatedWindowMap_erase(&g_renderstate.createdSubwindows, nativeHandle);
+}
+
 
 
 size_t GetPixelSizeInBytes(PixelFormat format) {

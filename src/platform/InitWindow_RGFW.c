@@ -384,6 +384,10 @@ SubWindow OpenSubWindow_RGFW(int width, int height, const char* title){
     CreateAndSetSurfaceForWindow(sw);
     return sw;
 }
+RGAPI void CloseSubWindow_RGFW(SubWindow subWindow){
+    rassert(subWindow->type == windowType_rgfw, "CloseSubWindow_RGFW called on non-SDL3 window");
+    RGFW_window_close((RGFW_window*)subWindow->handle);
+}
 
 SubWindow InitWindow_RGFW(int width, int height, const char* title){
     SubWindow ret = callocnew(RGWindowImpl);

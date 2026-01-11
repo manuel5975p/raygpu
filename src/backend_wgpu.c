@@ -15,6 +15,7 @@
 #else
     #include <spirv_reflect.h>
 #endif
+#include <internals.h>
 #undef Matrix
 wgpustate g_wgpustate = {0};
 
@@ -2408,7 +2409,55 @@ Shader LoadShaderFromMemoryOld(const char *vertexSource, const char *fragmentSou
 #endif
     return shader;
 }
+extern uint32_t nextShaderID_shc;
+void UnloadShader(Shader shader) {
+    if (shader.id >= getNextShaderID_shc()){
+        return;
+    }
 
+    ShaderImpl* impl = GetShaderImpl(shader);
+    if (!impl){
+        return;
+    }
+
+    if (impl->pipelineCache.table) {
+        for (size_t i = 0; i < impl->pipelineCache.current_capacity; i++) {
+            WGPURenderPipeline pipeline = impl->pipelineCache.table[i].value;
+            if (pipeline != NULL) {
+                wgpuRenderPipelineRelease(pipeline);
+            }
+        }
+        PipelineHashMap_free(&impl->pipelineCache);
+    }
+
+    if (impl->layout.layout) {
+        wgpuPipelineLayoutRelease(impl->layout.layout);
+        impl->layout.layout = NULL;
+    }
+
+    UnloadBindGroup(&impl->bindGroup);
+    UnloadBindGroupLayout(&impl->bglayout);
+
+    UnloadShaderModule(impl->shaderModule);
+
+    if (impl->shaderModule.reflectionInfo.uniforms) {
+        StringToUniformMap_free(impl->shaderModule.reflectionInfo.uniforms);
+        RL_FREE(impl->shaderModule.reflectionInfo.uniforms);
+        impl->shaderModule.reflectionInfo.uniforms = NULL;
+    }
+
+    if (impl->state.vertexAttributes) {
+        RL_FREE(impl->state.vertexAttributes);
+        impl->state.vertexAttributes = NULL;
+    }
+    impl->state.vertexAttributeCount = 0;
+    
+    if (shader.locs) {
+        RL_FREE(shader.locs);
+    }
+
+    memset(impl, 0, sizeof(ShaderImpl));
+}
 void UnloadPipeline(DescribedPipeline *pl) {
 
     // MASSIVE TODO
@@ -2874,6 +2923,165 @@ void UnloadBindGroup(DescribedBindGroup *bg) {
 void UnloadBindGroupLayout(DescribedBindGroupLayout *bglayout) {
     free(bglayout->entries);
     wgpuBindGroupLayoutRelease((WGPUBindGroupLayout)bglayout->layout);
+}
+
+void UnloadComputePipeline(DescribedComputePipeline* computePipeline){
+    if (computePipeline) {
+        if (computePipeline->bindGroup.bindGroup) {
+            wgpuBindGroupRelease(computePipeline->bindGroup.bindGroup);
+            RL_FREE(computePipeline->bindGroup.entries);
+        }
+        if (computePipeline->pipeline){
+            wgpuComputePipelineRelease(computePipeline->pipeline);
+        }
+        if (computePipeline->bglayout.layout) {
+            wgpuBindGroupLayoutRelease(computePipeline->bglayout.layout);
+            RL_FREE(computePipeline->bglayout.entries);
+        }
+        UnloadShaderModule(computePipeline->shaderModule);
+        RL_FREE(computePipeline);
+    }
+}
+extern Texture2D texShapes;
+extern ShaderImpl* allocatedShaderIDs_shc;
+extern uint32_t nextShaderID_shc;
+extern uint32_t capacity_shc;
+
+RGAPI void CloseWindow(void) {
+    // 1. Release default textures and buffers
+    if (IsTextureValid(g_renderstate.whitePixel)) {
+        UnloadTexture(g_renderstate.whitePixel);
+    }
+    // Reset the global alias for whitePixel
+    texShapes = (Texture2D){0};
+
+    if (g_renderstate.identityMatrix) {
+        UnloadBuffer(g_renderstate.identityMatrix);
+    }
+
+    // 2. Release Render Batch resources
+    if (renderBatchVBO) {
+        UnloadBuffer(renderBatchVBO);
+        renderBatchVBO = NULL;
+    }
+    if (renderBatchVAO) {
+        RL_FREE(renderBatchVAO);
+        renderBatchVAO = NULL;
+    }
+    if (vboptr_base) {
+        RL_FREE(vboptr_base);
+        vboptr_base = NULL;
+        vboptr = NULL;
+    }
+    if (g_renderstate.quadindicesCache) {
+        UnloadBuffer(g_renderstate.quadindicesCache);
+        g_renderstate.quadindicesCache = NULL;
+    }
+
+    // 3. Release Buffer Pools
+    if (g_renderstate.smallBufferPool.data) {
+        for(size_t i = 0; i < g_renderstate.smallBufferPool.size; i++) {
+            UnloadBuffer(g_renderstate.smallBufferPool.data[i]);
+        }
+        DescribedBufferVector_free(&g_renderstate.smallBufferPool);
+    }
+
+    if (g_renderstate.smallBufferRecyclingBin.data) {
+        for(size_t i = 0; i < g_renderstate.smallBufferRecyclingBin.size; i++) {
+            UnloadBuffer(g_renderstate.smallBufferRecyclingBin.data[i]);
+        }
+        DescribedBufferVector_free(&g_renderstate.smallBufferRecyclingBin);
+    }
+
+    // 4. Release Main Render Targets
+    UnloadRenderTexture(g_renderstate.mainWindowRenderTarget);
+    
+
+
+    // 5. Release Shaders
+    if (allocatedShaderIDs_shc) {
+        for (uint32_t i = 0; i < nextShaderID_shc; i++) {
+            ShaderImpl* impl = allocatedShaderIDs_shc + i;
+            
+            // Release WGPU objects associated with the shader
+            if (impl->bindGroup.bindGroup) {
+                wgpuBindGroupRelease(impl->bindGroup.bindGroup);
+                RL_FREE(impl->bindGroup.entries);
+            }
+            if (impl->layout.layout) wgpuPipelineLayoutRelease(impl->layout.layout);
+            if (impl->bglayout.layout) {
+                wgpuBindGroupLayoutRelease(impl->bglayout.layout);
+                RL_FREE(impl->bglayout.entries);
+            }
+            
+            UnloadShaderModule(impl->shaderModule);
+            
+            // Free reflection info
+            if (impl->shaderModule.reflectionInfo.uniforms) {
+                StringToUniformMap_free(impl->shaderModule.reflectionInfo.uniforms);
+                RL_FREE(impl->shaderModule.reflectionInfo.uniforms);
+            }
+            
+            if (impl->state.vertexAttributes){
+                RL_FREE(impl->state.vertexAttributes);
+                impl->state.vertexAttributes = NULL;
+            }
+            
+            ///TODO: pipelineCache cleanup
+        }
+        RL_FREE(allocatedShaderIDs_shc);
+        allocatedShaderIDs_shc = NULL;
+        nextShaderID_shc = 0;
+        capacity_shc = 0;
+    }
+    
+    UnloadComputePipeline(mipmap__cpl);
+
+    
+    ///TODO: Release GIF Recording State
+    if (g_renderstate.grst) {
+        RL_FREE(g_renderstate.grst);
+        g_renderstate.grst = NULL;
+    }
+
+    
+    // 9. Close Native Windows and Surfaces
+    if (g_renderstate.createdSubwindows.table) {
+        for(size_t i = 0; i < g_renderstate.createdSubwindows.current_capacity; i++){
+            if (g_renderstate.createdSubwindows.table[i].key != PHM_EMPTY_SLOT_KEY && 
+                g_renderstate.createdSubwindows.table[i].key != PHM_DELETED_SLOT_KEY) {
+                
+                RGWindowImpl* win = &g_renderstate.createdSubwindows.table[i].value;
+                
+                CloseSubWindow(win);
+            }
+        }
+        CreatedWindowMap_free(&g_renderstate.createdSubwindows);
+    }
+
+    // 10. Release WebGPU Instance/Device/Adapter
+    if (g_wgpustate.queue){
+        wgpuQueueRelease(g_wgpustate.queue);
+        g_wgpustate.queue = NULL;
+    }
+    if (g_wgpustate.device){
+        wgpuDeviceRelease(g_wgpustate.device);
+        g_wgpustate.device = NULL;
+    }
+    if (g_wgpustate.adapter){
+        wgpuAdapterRelease(g_wgpustate.adapter);
+        g_wgpustate.adapter = NULL;
+    }
+    if (g_wgpustate.instance){
+        wgpuInstanceRelease(g_wgpustate.instance);
+        g_wgpustate.instance = NULL;
+    }
+
+    // Zero out global states
+    memset(&g_renderstate, 0, sizeof(g_renderstate));
+    memset(&g_wgpustate, 0, sizeof(g_wgpustate));
+
+    TRACELOG(LOG_INFO, "Window closed and resources freed successfully.");
 }
 
 const char* WGPUFeatureToString (WGPUFeatureName feature) {
