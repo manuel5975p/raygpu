@@ -547,7 +547,7 @@ RGAPI FullSurface CompleteSurface(void *nsurface, int widthInPixels, int heightI
     }
     TRACELOG(LOG_INFO, "Initialized surface with %s", presentModeName);
 
-    const PixelFormat format = fromWGPUPixelFormat(capa.formats[0]);
+    const PixelFormat format = g_renderstate.frameBufferFormat;
 
     WGPUSurfaceConfiguration config = {
         .device = (WGPUDevice)GetDevice(),
@@ -2410,11 +2410,11 @@ Shader LoadShaderFromMemoryOld(const char *vertexSource, const char *fragmentSou
     return shader;
 }
 extern uint32_t nextShaderID_shc;
+
 void UnloadShader(Shader shader) {
-    if (shader.id >= getNextShaderID_shc()){
+    if (shader.id >= nextShaderID_shc){
         return;
     }
-
     ShaderImpl* impl = GetShaderImpl(shader);
     if (!impl){
         return;
@@ -2422,9 +2422,12 @@ void UnloadShader(Shader shader) {
 
     if (impl->pipelineCache.table) {
         for (size_t i = 0; i < impl->pipelineCache.current_capacity; i++) {
-            WGPURenderPipeline pipeline = impl->pipelineCache.table[i].value;
-            if (pipeline != NULL) {
-                wgpuRenderPipelineRelease(pipeline);
+            if (!ModifiablePipelineState_eq(impl->pipelineCache.table[i].key, impl->pipelineCache.empty_key_sentinel)) {
+                
+                WGPURenderPipeline pipeline = impl->pipelineCache.table[i].value;
+                if (pipeline != NULL) {
+                    wgpuRenderPipelineRelease(pipeline);
+                }
             }
         }
         PipelineHashMap_free(&impl->pipelineCache);
@@ -2917,12 +2920,24 @@ EntryPointSet getEntryPointsSPIRV(const uint32_t *shaderSourceSPIRV, uint32_t wo
 }
 
 void UnloadBindGroup(DescribedBindGroup *bg) {
-    free(bg->entries);
-    wgpuBindGroupRelease((WGPUBindGroup)bg->bindGroup);
+    if (bg->entries) {
+        free(bg->entries);
+        bg->entries = NULL;
+    }
+    if (bg->bindGroup) {
+        wgpuBindGroupRelease((WGPUBindGroup)bg->bindGroup);
+        bg->bindGroup = NULL;
+    }
 }
 void UnloadBindGroupLayout(DescribedBindGroupLayout *bglayout) {
-    free(bglayout->entries);
-    wgpuBindGroupLayoutRelease((WGPUBindGroupLayout)bglayout->layout);
+    if (bglayout->entries) {
+        free(bglayout->entries);
+        bglayout->entries = NULL;
+    }
+    if (bglayout->layout) {
+        wgpuBindGroupLayoutRelease((WGPUBindGroupLayout)bglayout->layout);
+        bglayout->layout = NULL;
+    }
 }
 
 void UnloadComputePipeline(DescribedComputePipeline* computePipeline){
@@ -2948,6 +2963,7 @@ extern uint32_t nextShaderID_shc;
 extern uint32_t capacity_shc;
 
 RGAPI void CloseWindow(void) {
+    TRACELOG(LOG_INFO, "CloseWindow: Starting cleanup...");
     // 1. Release default textures and buffers
     if (IsTextureValid(g_renderstate.whitePixel)) {
         UnloadTexture(g_renderstate.whitePixel);
@@ -2957,6 +2973,7 @@ RGAPI void CloseWindow(void) {
 
     if (g_renderstate.identityMatrix) {
         UnloadBuffer(g_renderstate.identityMatrix);
+        g_renderstate.identityMatrix = NULL;
     }
 
     // 2. Release Render Batch resources
@@ -2995,39 +3012,14 @@ RGAPI void CloseWindow(void) {
 
     // 4. Release Main Render Targets
     UnloadRenderTexture(g_renderstate.mainWindowRenderTarget);
+    TRACELOG(LOG_INFO, "CloseWindow: Render targets released.");
     
-
+    
 
     // 5. Release Shaders
     if (allocatedShaderIDs_shc) {
         for (uint32_t i = 0; i < nextShaderID_shc; i++) {
-            ShaderImpl* impl = allocatedShaderIDs_shc + i;
-            
-            // Release WGPU objects associated with the shader
-            if (impl->bindGroup.bindGroup) {
-                wgpuBindGroupRelease(impl->bindGroup.bindGroup);
-                RL_FREE(impl->bindGroup.entries);
-            }
-            if (impl->layout.layout) wgpuPipelineLayoutRelease(impl->layout.layout);
-            if (impl->bglayout.layout) {
-                wgpuBindGroupLayoutRelease(impl->bglayout.layout);
-                RL_FREE(impl->bglayout.entries);
-            }
-            
-            UnloadShaderModule(impl->shaderModule);
-            
-            // Free reflection info
-            if (impl->shaderModule.reflectionInfo.uniforms) {
-                StringToUniformMap_free(impl->shaderModule.reflectionInfo.uniforms);
-                RL_FREE(impl->shaderModule.reflectionInfo.uniforms);
-            }
-            
-            if (impl->state.vertexAttributes){
-                RL_FREE(impl->state.vertexAttributes);
-                impl->state.vertexAttributes = NULL;
-            }
-            
-            ///TODO: pipelineCache cleanup
+            UnloadShader((Shader){.id = i});
         }
         RL_FREE(allocatedShaderIDs_shc);
         allocatedShaderIDs_shc = NULL;
@@ -3036,30 +3028,42 @@ RGAPI void CloseWindow(void) {
     }
     
     UnloadComputePipeline(mipmap__cpl);
+    TRACELOG(LOG_INFO, "CloseWindow: Shaders and pipelines released.");
 
-    
-    ///TODO: Release GIF Recording State
+    // 6. Release GIF Recording State
     if (g_renderstate.grst) {
         RL_FREE(g_renderstate.grst);
         g_renderstate.grst = NULL;
     }
 
-    
-    // 9. Close Native Windows and Surfaces
+    // 7. Close Native Windows and Surfaces
     if (g_renderstate.createdSubwindows.table) {
-        for(size_t i = 0; i < g_renderstate.createdSubwindows.current_capacity; i++){
+        size_t cap = g_renderstate.createdSubwindows.current_capacity;
+        void** handles = (void**)RL_CALLOC(cap, sizeof(void*));
+        size_t count = 0;
+
+        for(size_t i = 0; i < cap; i++){
             if (g_renderstate.createdSubwindows.table[i].key != PHM_EMPTY_SLOT_KEY && 
                 g_renderstate.createdSubwindows.table[i].key != PHM_DELETED_SLOT_KEY) {
                 
-                RGWindowImpl* win = &g_renderstate.createdSubwindows.table[i].value;
-                
+                handles[count++] = g_renderstate.createdSubwindows.table[i].key;
+            }
+        }
+
+        for(size_t i = 0; i < count; i++){
+            RGWindowImpl* win = CreatedWindowMap_get(&g_renderstate.createdSubwindows, handles[i]);
+            if(win){
                 CloseSubWindow(win);
             }
         }
+        RL_FREE(handles);
         CreatedWindowMap_free(&g_renderstate.createdSubwindows);
     }
+    TRACELOG(LOG_INFO, "CloseWindow: Subwindows closed.");
 
-    // 10. Release WebGPU Instance/Device/Adapter
+    // 8. Release WebGPU Instance/Device/Adapter
+    // Commented out to prevent segfaults on shutdown. OS will reclaim resources.
+    /*
     if (g_wgpustate.queue){
         wgpuQueueRelease(g_wgpustate.queue);
         g_wgpustate.queue = NULL;
@@ -3076,6 +3080,7 @@ RGAPI void CloseWindow(void) {
         wgpuInstanceRelease(g_wgpustate.instance);
         g_wgpustate.instance = NULL;
     }
+    */
 
     // Zero out global states
     memset(&g_renderstate, 0, sizeof(g_renderstate));

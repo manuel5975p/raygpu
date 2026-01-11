@@ -167,7 +167,10 @@ void* GetActiveWindowHandle(){
 }
 bool WindowShouldClose(cwoid){
     if(g_renderstate.window == NULL){ //headless
-        return false;
+        if(g_renderstate.windowFlags & FLAG_HEADLESS){
+             return false;
+        }
+        return true;
     }
     const RGWindowImpl* w = CreatedWindowMap_get(&g_renderstate.createdSubwindows, g_renderstate.window);
     if(w){
