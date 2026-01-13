@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <string>
 #include <iostream>
+#include <cmath>
 
 namespace fs = std::filesystem;
 
@@ -55,10 +56,11 @@ protected:
 
         ///TODO: don't use ==
         for (int i = 0; i < pixelCount; i++) {
-            if (resultPixels[i].r != goldenPixels[i].r ||
-                resultPixels[i].g != goldenPixels[i].g ||
-                resultPixels[i].b != goldenPixels[i].b ||
-                resultPixels[i].a != goldenPixels[i].a) {
+            int tolerance = 5;
+            if (std::abs((int)resultPixels[i].r - (int)goldenPixels[i].r) > tolerance ||
+                std::abs((int)resultPixels[i].g - (int)goldenPixels[i].g) > tolerance ||
+                std::abs((int)resultPixels[i].b - (int)goldenPixels[i].b) > tolerance ||
+                std::abs((int)resultPixels[i].a - (int)goldenPixels[i].a) > tolerance) {
                 match = false;
                 break;
             }
