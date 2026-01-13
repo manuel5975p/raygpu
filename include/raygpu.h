@@ -1313,7 +1313,7 @@ RGAPI void InitProgram(ProgramInfo program);
 RGAPI void requestAnimationFrameLoopWithJSPI(void (*callback)(void), int /* unused */, int/* unused */);
 RGAPI void requestAnimationFrameLoopWithJSPIArg(void (*callback)(void*), void* userData, int/* unused */, int/* unused */);
 RGAPI void SetWindowShouldClose(cwoid);
-RGAPI void CloseWindow(cwoid);
+RGAPI void CloseProgram(cwoid);
 RGAPI bool WindowShouldClose(cwoid);
 RGAPI SubWindow OpenSubWindow (int width, int height, const char* title);
 RGAPI SubWindow OpenSubWindow_SDL3(int width, int height, const char* title);

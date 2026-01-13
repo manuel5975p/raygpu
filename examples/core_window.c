@@ -54,7 +54,7 @@ void render(void){
     }
     #ifndef __EMSCRIPTEN__
     if(GetFrameCount() > 10000){
-        CloseWindow();
+        CloseProgram();
     }
     #endif
 }

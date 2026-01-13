@@ -3052,7 +3052,7 @@ extern ShaderImpl* allocatedShaderIDs_shc;
 extern uint32_t nextShaderID_shc;
 extern uint32_t capacity_shc;
 
-RGAPI void CloseWindow(void) {
+RGAPI void CloseProgram(void) {
     TRACELOG(LOG_INFO, "CloseWindow: Starting cleanup...");
 #if defined(SUPPORT_VULKAN_BACKEND)
     extern void wgpuQueueWaitIdle(WGPUQueue queue);
