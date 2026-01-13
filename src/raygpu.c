@@ -1097,6 +1097,7 @@ RGAPI void BeginDrawing(){
         RenderTexture_stack_push(&g_renderstate.renderTargetStack, CreatedWindowMap_get(&g_renderstate.createdSubwindows, g_renderstate.window)->surface.renderTarget);
         g_renderstate.mainWindowRenderTarget = CreatedWindowMap_get(&g_renderstate.createdSubwindows, g_renderstate.window)->surface.renderTarget;
     }
+    BeginCommandBuffer(&g_renderstate.defaultCommandBuffer);
     BeginRenderpassEx(&g_renderstate.renderpass);
     //SetUniformBuffer(0, g_renderstate.defaultScreenMatrix);
     SetMatrix(ScreenMatrix(g_renderstate.renderExtentX, g_renderstate.renderExtentY));
@@ -1122,39 +1123,29 @@ RGAPI void EndDrawing(){
     if(g_renderstate.activeRenderpass){    
         EndRenderpassEx(g_renderstate.activeRenderpass);
     }
+    
+    EndCommandBuffer(&g_renderstate.defaultCommandBuffer);
+    SubmitCommandBuffer(&g_renderstate.defaultCommandBuffer);
+
     if(g_renderstate.windowFlags & FLAG_STDOUT_TO_FFMPEG){
         Image img = LoadImageFromTextureEx((WGPUTexture)GetActiveColorTarget(), 0);
         if (img.format != PIXELFORMAT_UNCOMPRESSED_B8G8R8A8 && img.format != PIXELFORMAT_UNCOMPRESSED_R8G8B8A8) {
-            // Handle unsupported formats or convert as necessary
             fprintf(stderr, "Unsupported pixel format for FFmpeg export.\n");
-            // You might want to convert the image to a supported format here
-            // For simplicity, we'll skip exporting in this case
             return;
         }
         ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
-
-        // Calculate the total size of the image data to write
         size_t totalSize = img.rowStrideInBytes * img.height;
-
-        // Write the image data to stdout (FFmpeg should be reading from stdin)
         size_t fmtsize = GetPixelSizeInBytes(img.format);
         char offset[1];
-        //fwrite(offset, 1, 1, stdout);
         for(size_t i = 0;i < img.height;i++){
             unsigned char* dptr = (unsigned char*)(img.data) + i * img.rowStrideInBytes;
-            //for(uint32_t r = 0;r < img.width;r++){
-            //    RGBA8Color c = reinterpret_cast<RGBA8Color*>(dptr)[r];
-            //    std::cerr << (int)c.a << "\n";
-            //    reinterpret_cast<RGBA8Color*>(dptr)[r] = RGBA8Color{c.a, c.b, c.g, c.r};
-            //}
             size_t bytesWritten = fwrite(dptr, 1, img.width * fmtsize, stdout);
         }
-
-        // Flush stdout to ensure all data is sent to FFmpeg promptly
         fflush(stdout);
         UnloadImage(img);
     }
     if(g_renderstate.grst->recording){
+        BeginCommandBuffer(&g_renderstate.defaultCommandBuffer);
         uint64_t stmp = NanoTime();
         if(stmp - g_renderstate.grst->lastFrameTimestamp > g_renderstate.grst->delayInCentiseconds * 10000000ull){
             RenderTexture_stack_peek(&g_renderstate.renderTargetStack)->texture.format = g_renderstate.frameBufferFormat;
@@ -1165,14 +1156,20 @@ RGAPI void EndDrawing(){
                 g_renderstate.frameBufferFormat,
                 false
             );
+            
             BeginComputepass();
             ComputepassEndOnlyComputing();
             CopyTextureToTexture(RenderTexture_stack_cpeek(&g_renderstate.renderTargetStack)->texture, fbCopy);
             EndComputepass();
+            
             BeginRenderpass();
             int recordingTextX = GetScreenWidth() - MeasureText("Recording", 30);
             DrawText("Recording", recordingTextX, 5, 30, CLITERAL(Color){255,40,40,255});
             EndRenderpass();
+            
+            EndCommandBuffer(&g_renderstate.defaultCommandBuffer);
+            SubmitCommandBuffer(&g_renderstate.defaultCommandBuffer);
+
             addScreenshot(g_renderstate.grst, (WGPUTexture)fbCopy.id);
             UnloadTexture(fbCopy);
             g_renderstate.grst->lastFrameTimestamp = stmp;
@@ -1182,9 +1179,10 @@ RGAPI void EndDrawing(){
             int recordingTextX = GetScreenWidth() - MeasureText("Recording", 30);
             DrawText("Recording", recordingTextX, 5, 30, CLITERAL(Color){255,40,40,255});
             EndRenderpass();
+            
+            EndCommandBuffer(&g_renderstate.defaultCommandBuffer);
+            SubmitCommandBuffer(&g_renderstate.defaultCommandBuffer);
         }
-        
-        
     }
     
     //WGPUSurfaceTexture surfaceTexture;

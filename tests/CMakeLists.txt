@@ -6,7 +6,7 @@ if(NOT TARGET gtest)
     )
     FetchContent_MakeAvailable(googletest)
 endif()
-add_executable(rg_tests "rg_tests.cpp" "rg_test_main.cpp")
+add_executable(rg_tests "rg_tests.cpp" "rg_test_main.cpp" "test_commandbuffer.cpp")
 target_link_libraries(rg_tests PRIVATE raygpu GTest::gtest)
 gtest_discover_tests(rg_tests 
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"

@@ -1475,6 +1475,18 @@ RGAPI void PushMatrix(cwoid);
 RGAPI void PopMatrix(cwoid);
 RGAPI Matrix GetMatrix(cwoid);
 
+typedef struct CommandBuffer{
+    WGPUCommandEncoder encoder;
+    WGPUCommandBuffer buffer; // Stores the finished buffer after EndCommandBuffer
+    int state; // 0=inactive, 1=active, 2=submitted?
+    int passState; // 0=none, 1=render, 2=compute
+    bool implicit; // Internal flag for auto-created buffers
+}CommandBuffer;
+
+RGAPI void BeginCommandBuffer(CommandBuffer* buffer);
+RGAPI void EndCommandBuffer(CommandBuffer* buffer);
+RGAPI void SubmitCommandBuffer(CommandBuffer* buffer);
+
 RGAPI char* LoadFileText(const char* fileName);
 RGAPI void UnloadFileText(char* content);
 RGAPI void* LoadFileData(const char* fileName, size_t* dataSize);

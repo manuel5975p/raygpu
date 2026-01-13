@@ -394,6 +394,9 @@ typedef struct renderstate {
     SubWindow mainWindow;
     CreatedWindowMap createdSubwindows;
     SubWindow activeSubWindow;
+
+    CommandBuffer* activeCommandBuffer;
+    CommandBuffer defaultCommandBuffer;
 } renderstate;
 #endif
 
