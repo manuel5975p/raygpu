@@ -960,6 +960,47 @@ typedef enum {
     KEY_VOLUME_DOWN     = 25        // Key: Android volume down button
 } KeyboardKey;
 
+// Gamepad buttons (matching SDL3 gamepad button layout)
+typedef enum {
+    GAMEPAD_BUTTON_UNKNOWN = -1,
+    GAMEPAD_BUTTON_SOUTH = 0,           // Xbox A, PlayStation Cross
+    GAMEPAD_BUTTON_EAST = 1,            // Xbox B, PlayStation Circle
+    GAMEPAD_BUTTON_WEST = 2,            // Xbox X, PlayStation Square
+    GAMEPAD_BUTTON_NORTH = 3,           // Xbox Y, PlayStation Triangle
+    GAMEPAD_BUTTON_BACK = 4,            // Xbox Back, PlayStation Select
+    GAMEPAD_BUTTON_GUIDE = 5,           // Xbox Guide, PlayStation PS
+    GAMEPAD_BUTTON_START = 6,           // Xbox Start, PlayStation Start
+    GAMEPAD_BUTTON_LEFT_STICK = 7,      // Left stick click
+    GAMEPAD_BUTTON_RIGHT_STICK = 8,     // Right stick click
+    GAMEPAD_BUTTON_LEFT_SHOULDER = 9,   // Left bumper/shoulder
+    GAMEPAD_BUTTON_RIGHT_SHOULDER = 10, // Right bumper/shoulder
+    GAMEPAD_BUTTON_DPAD_UP = 11,
+    GAMEPAD_BUTTON_DPAD_DOWN = 12,
+    GAMEPAD_BUTTON_DPAD_LEFT = 13,
+    GAMEPAD_BUTTON_DPAD_RIGHT = 14,
+    GAMEPAD_BUTTON_MISC1 = 15,          // Xbox Series X share, PS5 microphone
+    GAMEPAD_BUTTON_RIGHT_PADDLE1 = 16,
+    GAMEPAD_BUTTON_LEFT_PADDLE1 = 17,
+    GAMEPAD_BUTTON_RIGHT_PADDLE2 = 18,
+    GAMEPAD_BUTTON_LEFT_PADDLE2 = 19,
+    GAMEPAD_BUTTON_TOUCHPAD = 20,       // PlayStation touchpad button
+    GAMEPAD_BUTTON_MISC2 = 21,
+    GAMEPAD_BUTTON_MISC3 = 22,
+    GAMEPAD_BUTTON_MISC4 = 23,
+    GAMEPAD_BUTTON_MISC5 = 24,
+    GAMEPAD_BUTTON_MISC6 = 25,
+} GamepadButton;
+
+// Gamepad axes (matching SDL3 gamepad axis layout)
+typedef enum {
+    GAMEPAD_AXIS_INVALID = -1,
+    GAMEPAD_AXIS_LEFT_X = 0,            // Left stick X axis
+    GAMEPAD_AXIS_LEFT_Y = 1,            // Left stick Y axis
+    GAMEPAD_AXIS_RIGHT_X = 2,           // Right stick X axis
+    GAMEPAD_AXIS_RIGHT_Y = 3,           // Right stick Y axis
+    GAMEPAD_AXIS_LEFT_TRIGGER = 4,      // Left trigger
+    GAMEPAD_AXIS_RIGHT_TRIGGER = 5,     // Right trigger
+} GamepadAxis;
 
 /**
  * @brief Limit enum to describe WebGPU requested device limits
@@ -1254,6 +1295,7 @@ typedef struct GamepadState{
     bool connected;
     float axis[GAMEPAD_AXIS_MAX];
     uint8_t buttons[GAMEPAD_BUTTON_MAX];
+    uint8_t buttonsPrevious[GAMEPAD_BUTTON_MAX];
 } GamepadState;
 
 typedef struct window_input_state{
@@ -1357,6 +1399,24 @@ RGAPI Vector2 GetMouseWheelMoveV(void); // Get mouse wheel movement for both X a
 RGAPI bool IsMouseButtonPressed(int button);
 RGAPI bool IsMouseButtonDown(int button);
 RGAPI bool IsMouseButtonReleased(int button);
+// Gamepad input functions (generic - dispatch to platform backend)
+RGAPI bool IsGamepadAvailable(int gamepad);                              // Check if a gamepad is connected
+RGAPI const char *GetGamepadName(int gamepad);                           // Get gamepad internal name
+RGAPI bool IsGamepadButtonPressed(int gamepad, int button);              // Check if a gamepad button has been pressed once
+RGAPI bool IsGamepadButtonDown(int gamepad, int button);                 // Check if a gamepad button is being pressed
+RGAPI bool IsGamepadButtonReleased(int gamepad, int button);             // Check if a gamepad button has been released once
+RGAPI int GetGamepadButtonPressed(void);                                 // Get the last gamepad button pressed
+RGAPI int GetGamepadAxisCount(int gamepad);                              // Get gamepad axis count for a gamepad
+RGAPI float GetGamepadAxisMovement(int gamepad, int axis);               // Get axis movement value for a gamepad axis
+// Gamepad input functions (SDL3-specific)
+RGAPI bool IsGamepadAvailable_SDL3(int gamepad);
+RGAPI const char *GetGamepadName_SDL3(int gamepad);
+RGAPI bool IsGamepadButtonPressed_SDL3(int gamepad, int button);
+RGAPI bool IsGamepadButtonDown_SDL3(int gamepad, int button);
+RGAPI bool IsGamepadButtonReleased_SDL3(int gamepad, int button);
+RGAPI int GetGamepadButtonPressed_SDL3(void);
+RGAPI int GetGamepadAxisCount_SDL3(int gamepad);
+RGAPI float GetGamepadAxisMovement_SDL3(int gamepad, int axis);
 RGAPI void ShowCursor(cwoid);                   // Shows cursor
 RGAPI void HideCursor(cwoid);                   // Hides cursor
 RGAPI bool IsCursorHidden(cwoid);               // Check if cursor is not visible

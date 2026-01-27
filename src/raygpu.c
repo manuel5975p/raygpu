@@ -1212,6 +1212,9 @@ RGAPI void EndDrawing(){
     ipstate->scrollPreviousFrame = ipstate->scrollThisFrame;
     ipstate->scrollThisFrame = CLITERAL(Vector2){0, 0};
     memcpy(ipstate->mouseButtonDownPrevious, ipstate->mouseButtonDown, MOUSEBTN_MAX);
+    for (int gp = 0; gp < GAMEPAD_MAX; gp++) {
+        memcpy(ipstate->gamepads[gp].buttonsPrevious, ipstate->gamepads[gp].buttons, GAMEPAD_BUTTON_MAX);
+    }
     for(size_t i = 0;i < g_renderstate.createdSubwindows.current_capacity;i++){
         CreatedWindowMap_kv_pair* iter = g_renderstate.createdSubwindows.table + i;
         if(iter->key != PHM_EMPTY_SLOT_KEY && iter->key != PHM_DELETED_SLOT_KEY){
@@ -1817,6 +1820,95 @@ bool IsMouseButtonDown(int button){
 bool IsMouseButtonReleased(int button){
     return !CreatedWindowMap_get(&g_renderstate.createdSubwindows, GetActiveWindowHandle())->input_state.mouseButtonDown[button] && CreatedWindowMap_get(&g_renderstate.createdSubwindows, GetActiveWindowHandle())->input_state.mouseButtonDownPrevious[button];
 }
+bool IsGamepadAvailable_SDL3(int gamepad);
+const char *GetGamepadName_SDL3(int gamepad);
+bool IsGamepadButtonPressed_SDL3(int gamepad, int button);
+bool IsGamepadButtonDown_SDL3(int gamepad, int button);
+bool IsGamepadButtonReleased_SDL3(int gamepad, int button);
+int GetGamepadButtonPressed_SDL3(void);
+int GetGamepadAxisCount_SDL3(int gamepad);
+float GetGamepadAxisMovement_SDL3(int gamepad, int axis);
+// Generic gamepad functions with backend dispatch
+RGAPI bool IsGamepadAvailable(int gamepad) {
+    if (!g_renderstate.mainWindow) return false;
+    switch (g_renderstate.mainWindow->type) {
+        #if SUPPORT_SDL3 == 1
+        case windowType_sdl3: return IsGamepadAvailable_SDL3(gamepad);
+        #endif
+        default: return false;
+    }
+}
+
+RGAPI const char *GetGamepadName(int gamepad) {
+    if (!g_renderstate.mainWindow) return NULL;
+    switch (g_renderstate.mainWindow->type) {
+        #if SUPPORT_SDL3 == 1
+        case windowType_sdl3: return GetGamepadName_SDL3(gamepad);
+        #endif
+        default: return NULL;
+    }
+}
+
+RGAPI bool IsGamepadButtonPressed(int gamepad, int button) {
+    if (!g_renderstate.mainWindow) return false;
+    switch (g_renderstate.mainWindow->type) {
+        #if SUPPORT_SDL3 == 1
+        case windowType_sdl3: return IsGamepadButtonPressed_SDL3(gamepad, button);
+        #endif
+        default: return false;
+    }
+}
+
+RGAPI bool IsGamepadButtonDown(int gamepad, int button) {
+    if (!g_renderstate.mainWindow) return false;
+    switch (g_renderstate.mainWindow->type) {
+        #if SUPPORT_SDL3 == 1
+        case windowType_sdl3: return IsGamepadButtonDown_SDL3(gamepad, button);
+        #endif
+        default: return false;
+    }
+}
+
+RGAPI bool IsGamepadButtonReleased(int gamepad, int button) {
+    if (!g_renderstate.mainWindow) return false;
+    switch (g_renderstate.mainWindow->type) {
+        #if SUPPORT_SDL3 == 1
+        case windowType_sdl3: return IsGamepadButtonReleased_SDL3(gamepad, button);
+        #endif
+        default: return false;
+    }
+}
+
+RGAPI int GetGamepadButtonPressed(void) {
+    if (!g_renderstate.mainWindow) return GAMEPAD_BUTTON_UNKNOWN;
+    switch (g_renderstate.mainWindow->type) {
+        #if SUPPORT_SDL3 == 1
+        case windowType_sdl3: return GetGamepadButtonPressed_SDL3();
+        #endif
+        default: return GAMEPAD_BUTTON_UNKNOWN;
+    }
+}
+
+RGAPI int GetGamepadAxisCount(int gamepad) {
+    if (!g_renderstate.mainWindow) return 0;
+    switch (g_renderstate.mainWindow->type) {
+        #if SUPPORT_SDL3 == 1
+        case windowType_sdl3: return GetGamepadAxisCount_SDL3(gamepad);
+        #endif
+        default: return 0;
+    }
+}
+
+RGAPI float GetGamepadAxisMovement(int gamepad, int axis) {
+    if (!g_renderstate.mainWindow) return 0.0f;
+    switch (g_renderstate.mainWindow->type) {
+        #if SUPPORT_SDL3 == 1
+        case windowType_sdl3: return GetGamepadAxisMovement_SDL3(gamepad, axis);
+        #endif
+        default: return 0.0f;
+    }
+}
+
 bool IsCursorOnScreen(cwoid){
     return CreatedWindowMap_get(&g_renderstate.createdSubwindows, GetActiveWindowHandle())->input_state.cursorInWindow;
 }
@@ -2858,6 +2950,9 @@ RGAPI void EndWindowMode(){
     ipstate->scrollPreviousFrame = ipstate->scrollThisFrame;
     ipstate->scrollThisFrame = CLITERAL(Vector2){0, 0};
     memcpy(ipstate->mouseButtonDownPrevious, ipstate->mouseButtonDown, MOUSEBTN_MAX);
+    for (int gp = 0; gp < GAMEPAD_MAX; gp++) {
+        memcpy(ipstate->gamepads[gp].buttonsPrevious, ipstate->gamepads[gp].buttons, GAMEPAD_BUTTON_MAX);
+    }
     g_renderstate.activeSubWindow = NULL;
     return;
 }

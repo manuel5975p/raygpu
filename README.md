@@ -1,7 +1,7 @@
 # RayGPU
 
 [![Window/Linux/MacOS build](https://github.com/manuel5975p/raygpu/actions/workflows/cmake-multi-platform.yml/badge.svg)](https://github.com/manuel5975p/raygpu/actions/workflows/cmake-multi-platform.yml)
-
+[![Rendering tests](https://github.com/manuel5975p/raygpu/actions/workflows/unittests.yml/badge.svg)](https://github.com/manuel5975p/raygpu/actions/workflows/unittests.yml)
 
 RayGPU is a fast and simple Graphics Library written in C99, inspired by and based on [raylib](https://github.com/raysan5/raylib/). It targets Vulkan 1.1+ through [WGVK](https://github.com/manuel5975p/WGVK/), Metal, DirectX and OpenGL on Desktop through [Dawn](https://dawn.googlesource.com/dawn) and WebGPU through Emscripten.
 

@@ -638,4 +638,62 @@ void DisableCursor_SDL3(void* window){
     SDL_SetWindowRelativeMouseMode((SDL_Window*)window, true);
 }
 
+// Gamepad input functions
+bool IsGamepadAvailable_SDL3(int gamepad) {
+    if (gamepad < 0 || gamepad >= GAMEPAD_MAX) return false;
+    if (!g_renderstate.mainWindow) return false;
+    return g_renderstate.mainWindow->input_state.gamepads[gamepad].connected;
+}
+
+const char *GetGamepadName_SDL3(int gamepad) {
+    if (!IsGamepadAvailable_SDL3(gamepad)) return NULL;
+    SDL_Gamepad *gp = (SDL_Gamepad *)g_renderstate.mainWindow->input_state.gamepads[gamepad].handle;
+    return SDL_GetGamepadName(gp);
+}
+
+bool IsGamepadButtonPressed_SDL3(int gamepad, int button) {
+    if (!IsGamepadAvailable_SDL3(gamepad)) return false;
+    if (button < 0 || button >= GAMEPAD_BUTTON_MAX) return false;
+    GamepadState *state = &g_renderstate.mainWindow->input_state.gamepads[gamepad];
+    return state->buttons[button] && !state->buttonsPrevious[button];
+}
+
+bool IsGamepadButtonDown_SDL3(int gamepad, int button) {
+    if (!IsGamepadAvailable_SDL3(gamepad)) return false;
+    if (button < 0 || button >= GAMEPAD_BUTTON_MAX) return false;
+    return g_renderstate.mainWindow->input_state.gamepads[gamepad].buttons[button];
+}
+
+bool IsGamepadButtonReleased_SDL3(int gamepad, int button) {
+    if (!IsGamepadAvailable_SDL3(gamepad)) return false;
+    if (button < 0 || button >= GAMEPAD_BUTTON_MAX) return false;
+    GamepadState *state = &g_renderstate.mainWindow->input_state.gamepads[gamepad];
+    return !state->buttons[button] && state->buttonsPrevious[button];
+}
+
+int GetGamepadButtonPressed_SDL3(void) {
+    if (!g_renderstate.mainWindow) return GAMEPAD_BUTTON_UNKNOWN;
+    for (int gp = 0; gp < GAMEPAD_MAX; gp++) {
+        if (!g_renderstate.mainWindow->input_state.gamepads[gp].connected) continue;
+        GamepadState *state = &g_renderstate.mainWindow->input_state.gamepads[gp];
+        for (int btn = 0; btn < GAMEPAD_BUTTON_MAX; btn++) {
+            if (state->buttons[btn] && !state->buttonsPrevious[btn]) {
+                return btn;
+            }
+        }
+    }
+    return GAMEPAD_BUTTON_UNKNOWN;
+}
+
+int GetGamepadAxisCount_SDL3(int gamepad) {
+    if (!IsGamepadAvailable_SDL3(gamepad)) return 0;
+    return GAMEPAD_AXIS_MAX;
+}
+
+float GetGamepadAxisMovement_SDL3(int gamepad, int axis) {
+    if (!IsGamepadAvailable_SDL3(gamepad)) return 0.0f;
+    if (axis < 0 || axis >= GAMEPAD_AXIS_MAX) return 0.0f;
+    return g_renderstate.mainWindow->input_state.gamepads[gamepad].axis[axis];
+}
+
 // end file src/InitWindow_SDL3.c
