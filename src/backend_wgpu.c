@@ -1,5 +1,6 @@
 // begin file src/backend_wgpu.c
 
+#include <limits.h>
 #include <stdint.h>
 #include <raygpu.h>
 #ifdef SUPPORT_VULKAN_BACKEND
@@ -11,9 +12,9 @@
 #include "internal_include/wgpustate.inc"
 #define Matrix spvMatrix
 #if SUPPORT_WGPU_BACKEND == 1
-    #include <spirv_reflect.c>
+    #include "../amalgamation/SPIRV-Reflect/spirv_reflect.c"
 #else
-    #include <spirv_reflect.h>
+    #include "../amalgamation/SPIRV-Reflect/spirv_reflect.h"
 #endif
 #undef Matrix
 wgpustate g_wgpustate = {0};
@@ -57,7 +58,11 @@ void BindComputePipeline(DescribedComputePipeline *pipeline) {
                                       (WGPUComputePipeline)pipeline->pipeline);
 }
 void CopyBufferToBuffer(DescribedBuffer *source, DescribedBuffer *dest, size_t count) {
-    wgpuCommandEncoderCopyBufferToBuffer((WGPUCommandEncoder)g_renderstate.computepass.cmdEncoder,
+    if(!g_renderstate.activeCommandBuffer || g_renderstate.activeCommandBuffer->passState != 0){
+        TRACELOG(LOG_ERROR, "CopyBufferToBuffer invalid state");
+        return;
+    }
+    wgpuCommandEncoderCopyBufferToBuffer(g_renderstate.activeCommandBuffer->encoder,
                                          (WGPUBuffer)source->buffer,
                                          0,
                                          (WGPUBuffer)dest->buffer,
@@ -66,6 +71,11 @@ void CopyBufferToBuffer(DescribedBuffer *source, DescribedBuffer *dest, size_t c
 }
 WGPUBuffer intermediary = 0;
 void CopyTextureToTexture(Texture source, Texture dest) {
+    if(!g_renderstate.activeCommandBuffer || g_renderstate.activeCommandBuffer->passState != 0){
+        TRACELOG(LOG_ERROR, "CopyTextureToTexture invalid state");
+        return;
+    }
+
     size_t rowBytes = RoundUpToNextMultipleOf256(source.width) * GetPixelSizeInBytes(source.format);
     WGPUBufferDescriptor bdesc = {
         .size = rowBytes * source.height,
@@ -106,8 +116,8 @@ void CopyTextureToTexture(Texture source, Texture dest) {
         .depthOrArrayLayers = 1,
     };
 
-    wgpuCommandEncoderCopyTextureToBuffer((WGPUCommandEncoder)g_renderstate.computepass.cmdEncoder, &src, &bdst, &copySize);
-    wgpuCommandEncoderCopyBufferToTexture((WGPUCommandEncoder)g_renderstate.computepass.cmdEncoder, &bdst, &tdst, &copySize);
+    wgpuCommandEncoderCopyTextureToBuffer(g_renderstate.activeCommandBuffer->encoder, &src, &bdst, &copySize);
+    wgpuCommandEncoderCopyBufferToTexture(g_renderstate.activeCommandBuffer->encoder, &bdst, &tdst, &copySize);
 
     // Doesnt work unfortunately:
     // wgpuCommandEncoderCopyTextureToTexture(g_renderstate.computepass.cmdEncoder, &src, &dst, &copySize);
@@ -125,13 +135,28 @@ void ComputepassEndOnlyComputing(cwoid) {
     g_activeComputePipeline = NULL;
     wgpuComputePassEncoderEnd((WGPUComputePassEncoder)g_renderstate.computepass.cpEncoder);
     g_renderstate.computepass.cpEncoder = NULL;
+    if (g_renderstate.activeCommandBuffer) {
+        g_renderstate.activeCommandBuffer->passState = 0; // None
+    }
 }
 void BeginComputepassEx(DescribedComputepass *computePass) {
-    computePass->cmdEncoder = wgpuDeviceCreateCommandEncoder((WGPUDevice)GetDevice(), NULL);
+    if(!g_renderstate.activeCommandBuffer) {
+        BeginCommandBuffer(&g_renderstate.defaultCommandBuffer);
+        g_renderstate.defaultCommandBuffer.implicit = true;
+    }
+    if (g_renderstate.activeCommandBuffer->passState != 0) {
+        TRACELOG(LOG_ERROR, "BeginComputepassEx invalid state");
+        return;
+    }
+
+    computePass->cmdEncoder = g_renderstate.activeCommandBuffer->encoder;
     WGPUComputePassDescriptor desc = {0};
     desc.label = STRVIEW("ComputePass");
     g_renderstate.computepass.cpEncoder =
         wgpuCommandEncoderBeginComputePass((WGPUCommandEncoder)g_renderstate.computepass.cmdEncoder, &desc);
+    
+    g_renderstate.activeCommandBuffer->passState = 2; // Compute
+    g_renderstate.activeComputepass = computePass;
 }
 void UpdateTexture(Texture tex, void *data) {
     const WGPUTexelCopyTextureInfo destination = {
@@ -152,21 +177,10 @@ void UpdateTexture(Texture tex, void *data) {
         .width = tex.width,
         .height = tex.height,
     };
-    wgpuQueueWriteTexture(GetQueue(),
-                          &destination,
-                          data,
-                          (uint64_t)tex.width * (uint64_t)tex.height * (uint64_t)GetPixelSizeInBytes(tex.format),
-                          &source,
-                          &writeSize);
+    wgpuQueueWriteTexture(GetQueue(), &destination, data, (uint64_t)tex.width * (uint64_t)tex.height * (uint64_t)GetPixelSizeInBytes(tex.format), &source, &writeSize);
 }
-RGAPI Texture3D LoadTexture3DPro(
-    uint32_t width, uint32_t height, uint32_t depth, PixelFormat format, RGTextureUsage usage, uint32_t sampleCount) {
-    Texture3D ret  = {0};
-    ret.width = width;
-    ret.height = height;
-    ret.depth = depth;
-    ret.sampleCount = sampleCount;
-    ret.format = format;
+RGAPI Texture3D LoadTexture3DPro(uint32_t width, uint32_t height, uint32_t depth, PixelFormat format, RGTextureUsage usage, uint32_t sampleCount) {
+    
     WGPUTextureDescriptor tDesc = {
         .usage = usage,
         .dimension = WGPUTextureDimension_3D,
@@ -177,22 +191,36 @@ RGAPI Texture3D LoadTexture3DPro(
         .viewFormatCount = 1,
         .viewFormats = &tDesc.format,
     };
-    assert(tDesc.size.width > 0);
-    assert(tDesc.size.height > 0);
 
-    WGPUTextureViewDescriptor textureViewDesc  = {0};
-    textureViewDesc.aspect =
-        ((format == PIXELFORMAT_DEPTH_24_PLUS || format == PIXELFORMAT_DEPTH_32_FLOAT) ? WGPUTextureAspect_DepthOnly
-                                                                                       : WGPUTextureAspect_All);
-    textureViewDesc.baseArrayLayer = 0;
-    textureViewDesc.arrayLayerCount = 1;
-    textureViewDesc.baseMipLevel = 0;
-    textureViewDesc.mipLevelCount = 1;
-    textureViewDesc.dimension = WGPUTextureViewDimension_3D;
-    textureViewDesc.format = tDesc.format;
+    rassert(width > 0, "LoadTexturePro: width must be nonzero");
+    rassert(height > 0, "LoadTexturePro: height must be nonzero");
+    rassert(depth > 0, "LoadTexturePro: depth must be nonzero");
+    
+    rassert(width < 0xf0000000, "LoadTexturePro: width must be reasonably sized");
+    rassert(height < 0xf0000000, "LoadTexturePro: height must be reasonably sized");
+    rassert(depth < 0xf0000000, "LoadTexturePro: depth must be reasonably sized");
 
-    ret.id = wgpuDeviceCreateTexture((WGPUDevice)GetDevice(), &tDesc);
-    ret.view = wgpuTextureCreateView((WGPUTexture)ret.id, &textureViewDesc);
+    const WGPUTextureViewDescriptor textureViewDesc  = {
+        .aspect = ((format == PIXELFORMAT_DEPTH_24_PLUS || format == PIXELFORMAT_DEPTH_32_FLOAT) ? WGPUTextureAspect_DepthOnly : WGPUTextureAspect_All),
+        .baseArrayLayer = 0,
+        .arrayLayerCount = 1,
+        .baseMipLevel = 0,
+        .mipLevelCount = 1,
+        .dimension = WGPUTextureViewDimension_3D,
+        .format = tDesc.format
+    };
+
+    WGPUTexture retTexture = wgpuDeviceCreateTexture(GetDevice(), &tDesc);
+
+    const Texture3D ret  = {
+        .width = width,
+        .height = height,
+        .depth = depth,
+        .sampleCount = sampleCount,
+        .format = format,
+        .id = retTexture,
+        .view = wgpuTextureCreateView((WGPUTexture)ret.id, &textureViewDesc),
+    };
 
     return ret;
 }
@@ -203,16 +231,17 @@ void EndComputepassEx(DescribedComputepass *computePass) {
         wgpuComputePassEncoderRelease((WGPUComputePassEncoder)computePass->cpEncoder);
         computePass->cpEncoder = 0;
     }
-
-    // TODO
     g_renderstate.activeComputepass = NULL;
-
-    WGPUCommandBufferDescriptor cmdBufferDescriptor = {0};
-    cmdBufferDescriptor.label = STRVIEW("CB");
-    WGPUCommandBuffer command = wgpuCommandEncoderFinish((WGPUCommandEncoder)computePass->cmdEncoder, &cmdBufferDescriptor);
-    wgpuQueueSubmit(GetQueue(), 1, &command);
-    wgpuCommandBufferRelease(command);
-    wgpuCommandEncoderRelease((WGPUCommandEncoder)computePass->cmdEncoder);
+    if (g_renderstate.activeCommandBuffer) {
+        g_renderstate.activeCommandBuffer->passState = 0; // None
+        
+        if (g_renderstate.activeCommandBuffer->implicit) {
+            g_renderstate.activeCommandBuffer->implicit = false; // clear flag
+            CommandBuffer* cb = g_renderstate.activeCommandBuffer; // save ptr
+            EndCommandBuffer(cb);
+            SubmitCommandBuffer(cb);
+        }
+    }
 }
 
 void UnloadTexture(Texture tex) {
@@ -232,7 +261,6 @@ void UnloadTexture(Texture tex) {
     }
 }
 
-// Check if a texture is valid (texture data loaded)
 bool IsTextureValid(Texture tex) {
     return (tex.id != NULL) &&        // Validate texture handle exists
            (tex.view != NULL) &&      // Validate texture view exists
@@ -546,7 +574,7 @@ RGAPI FullSurface CompleteSurface(void *nsurface, int widthInPixels, int heightI
     }
     TRACELOG(LOG_INFO, "Initialized surface with %s", presentModeName);
 
-    const PixelFormat format = fromWGPUPixelFormat(capa.formats[0]);
+    const PixelFormat format = g_renderstate.frameBufferFormat;
 
     WGPUSurfaceConfiguration config = {
         .device = (WGPUDevice)GetDevice(),
@@ -1774,12 +1802,68 @@ DescribedRenderpass LoadRenderpassEx(RenderSettings settings, bool colorClear, R
     };
     return ret;
 }
-void BeginRenderpassEx(DescribedRenderpass *renderPass) {
-    WGPUCommandEncoderDescriptor desc = {
-        .label = STRVIEW("another cmdencoder")
-    };
 
-    renderPass->cmdEncoder = wgpuDeviceCreateCommandEncoder((WGPUDevice)GetDevice(), &desc);
+
+void BeginCommandBuffer(CommandBuffer* buffer){
+    if(buffer->state == 1){
+        TRACELOG(LOG_ERROR, "CommandBuffer already active");
+        return;
+    }
+    WGPUCommandEncoderDescriptor desc = { .label = STRVIEW("Global Command Encoder") };
+    buffer->encoder = wgpuDeviceCreateCommandEncoder((WGPUDevice)GetDevice(), &desc);
+    buffer->state = 1;
+    buffer->passState = 0; // None
+    buffer->implicit = false;
+    g_renderstate.activeCommandBuffer = buffer;
+}
+
+void EndCommandBuffer(CommandBuffer* buffer){
+    if(buffer->state != 1){
+        TRACELOG(LOG_ERROR, "CommandBuffer not active");
+        return;
+    }
+    if(buffer->passState != 0){
+        TRACELOG(LOG_ERROR, "Cannot end command buffer while a pass is active");
+        return;
+    }
+    
+    WGPUCommandBufferDescriptor desc = { .label = STRVIEW("Global Command Buffer") };
+    buffer->buffer = wgpuCommandEncoderFinish(buffer->encoder, &desc);
+    wgpuCommandEncoderRelease(buffer->encoder);
+    buffer->encoder = NULL;
+    buffer->state = 2; // ready to submit
+    if(g_renderstate.activeCommandBuffer == buffer){
+        g_renderstate.activeCommandBuffer = NULL;
+    }
+}
+
+void SubmitCommandBuffer(CommandBuffer* buffer){
+    if(buffer->state != 2){
+        TRACELOG(LOG_ERROR, "CommandBuffer not ready to submit");
+        return;
+    }
+    wgpuQueueSubmit(GetQueue(), 1, &buffer->buffer);
+    wgpuCommandBufferRelease(buffer->buffer);
+    buffer->buffer = NULL;
+    buffer->state = 0;
+}
+
+void BeginRenderpassEx(DescribedRenderpass *renderPass) {
+    if(!g_renderstate.activeCommandBuffer) {
+        BeginCommandBuffer(&g_renderstate.defaultCommandBuffer);
+        g_renderstate.defaultCommandBuffer.implicit = true;
+    }
+    if (g_renderstate.activeCommandBuffer->passState != 0) {
+        TRACELOG(LOG_ERROR, "BeginRenderpassEx called while another pass is active (interleaving denied).");
+        return;
+    }
+    if(g_renderstate.activeCommandBuffer->passState != 0){
+        TRACELOG(LOG_ERROR, "BeginRenderpassEx called while another pass is active (interleaving denied).");
+        return;
+    }
+
+    renderPass->cmdEncoder = g_renderstate.activeCommandBuffer->encoder;
+    //wgpuDeviceCreateCommandEncoder((WGPUDevice)GetDevice(), &desc);
 
     WGPURenderPassDescriptor renderPassDesc  = {0};
     renderPassDesc.colorAttachmentCount = 1;
@@ -1822,6 +1906,7 @@ void BeginRenderpassEx(DescribedRenderpass *renderPass) {
     renderPass->rpEncoder = wgpuCommandEncoderBeginRenderPass((WGPUCommandEncoder)renderPass->cmdEncoder, &renderPassDesc);
     renderPass->colorAttachmentState = GetAttachmentState(topOfStack);
     g_renderstate.activeRenderpass = renderPass;
+    g_renderstate.activeCommandBuffer->passState = 1; // Render Pass Active
 }
 
 // WGPUBuffer readtex = NULL;
@@ -1964,18 +2049,23 @@ void RenderPassDrawIndexed(DescribedRenderpass *drp, uint32_t indexCount, uint32
     wgpuRenderPassEncoderDrawIndexed((WGPURenderPassEncoder)drp->rpEncoder, indexCount, instanceCount, firstIndex, baseVertex, firstInstance);
 }
 void EndRenderpassEx(DescribedRenderpass *renderPass) {
-    drawCurrentBatch();
+    drawCurrentBatch(); // Flush batch before ending pass
     wgpuRenderPassEncoderEnd((WGPURenderPassEncoder)renderPass->rpEncoder);
     g_renderstate.activeRenderpass = NULL;
     WGPURenderPassEncoder re = renderPass->rpEncoder;
     renderPass->rpEncoder = 0;
-    WGPUCommandBufferDescriptor cmdBufferDescriptor  = {0};
-    cmdBufferDescriptor.label = STRVIEW("CB");
-    WGPUCommandBuffer command = wgpuCommandEncoderFinish((WGPUCommandEncoder)renderPass->cmdEncoder, &cmdBufferDescriptor);
-    wgpuQueueSubmit((WGPUQueue)GetQueue(), 1, &command);
     wgpuRenderPassEncoderRelease((WGPURenderPassEncoder)re);
-    wgpuCommandEncoderRelease((WGPUCommandEncoder)renderPass->cmdEncoder);
-    wgpuCommandBufferRelease(command);
+    
+    if (g_renderstate.activeCommandBuffer) {
+        g_renderstate.activeCommandBuffer->passState = 0; // None
+        
+        if (g_renderstate.activeCommandBuffer->implicit) {
+             g_renderstate.activeCommandBuffer->implicit = false; // clear flag
+             CommandBuffer* cb = g_renderstate.activeCommandBuffer; // save ptr
+             EndCommandBuffer(cb);
+             SubmitCommandBuffer(cb);
+        }
+    }
 }
 void EndRenderpassPro(DescribedRenderpass *rp, bool renderTexture) { EndRenderpassEx(rp); }
 
@@ -2408,7 +2498,58 @@ Shader LoadShaderFromMemoryOld(const char *vertexSource, const char *fragmentSou
 #endif
     return shader;
 }
+extern uint32_t nextShaderID_shc;
 
+void UnloadShader(Shader shader) {
+    if (shader.id >= nextShaderID_shc){
+        return;
+    }
+    ShaderImpl* impl = GetShaderImpl(shader);
+    if (!impl){
+        return;
+    }
+
+    if (impl->pipelineCache.table) {
+        for (size_t i = 0; i < impl->pipelineCache.current_capacity; i++) {
+            if (!ModifiablePipelineState_eq(impl->pipelineCache.table[i].key, impl->pipelineCache.empty_key_sentinel)) {
+                
+                WGPURenderPipeline pipeline = impl->pipelineCache.table[i].value;
+                if (pipeline != NULL) {
+                    wgpuRenderPipelineRelease(pipeline);
+                }
+            }
+        }
+        PipelineHashMap_free(&impl->pipelineCache);
+    }
+
+    if (impl->layout.layout) {
+        wgpuPipelineLayoutRelease(impl->layout.layout);
+        impl->layout.layout = NULL;
+    }
+
+    UnloadBindGroup(&impl->bindGroup);
+    UnloadBindGroupLayout(&impl->bglayout);
+
+    UnloadShaderModule(impl->shaderModule);
+
+    if (impl->shaderModule.reflectionInfo.uniforms) {
+        StringToUniformMap_free(impl->shaderModule.reflectionInfo.uniforms);
+        RL_FREE(impl->shaderModule.reflectionInfo.uniforms);
+        impl->shaderModule.reflectionInfo.uniforms = NULL;
+    }
+
+    if (impl->state.vertexAttributes) {
+        RL_FREE(impl->state.vertexAttributes);
+        impl->state.vertexAttributes = NULL;
+    }
+    impl->state.vertexAttributeCount = 0;
+    
+    if (shader.locs) {
+        RL_FREE(shader.locs);
+    }
+
+    memset(impl, 0, sizeof(ShaderImpl));
+}
 void UnloadPipeline(DescribedPipeline *pl) {
 
     // MASSIVE TODO
@@ -2868,12 +3009,177 @@ EntryPointSet getEntryPointsSPIRV(const uint32_t *shaderSourceSPIRV, uint32_t wo
 }
 
 void UnloadBindGroup(DescribedBindGroup *bg) {
-    free(bg->entries);
-    wgpuBindGroupRelease((WGPUBindGroup)bg->bindGroup);
+    if (bg->entries) {
+        free(bg->entries);
+        bg->entries = NULL;
+    }
+    if (bg->bindGroup) {
+        wgpuBindGroupRelease((WGPUBindGroup)bg->bindGroup);
+        bg->bindGroup = NULL;
+    }
 }
 void UnloadBindGroupLayout(DescribedBindGroupLayout *bglayout) {
-    free(bglayout->entries);
-    wgpuBindGroupLayoutRelease((WGPUBindGroupLayout)bglayout->layout);
+    if (bglayout->entries) {
+        free(bglayout->entries);
+        bglayout->entries = NULL;
+    }
+    if (bglayout->layout) {
+        wgpuBindGroupLayoutRelease((WGPUBindGroupLayout)bglayout->layout);
+        bglayout->layout = NULL;
+    }
+}
+
+void UnloadComputePipeline(DescribedComputePipeline* computePipeline){
+    if (computePipeline) {
+        if (computePipeline->bindGroup.bindGroup) {
+            wgpuBindGroupRelease(computePipeline->bindGroup.bindGroup);
+            RL_FREE(computePipeline->bindGroup.entries);
+        }
+        if (computePipeline->pipeline){
+            wgpuComputePipelineRelease(computePipeline->pipeline);
+        }
+        if (computePipeline->bglayout.layout) {
+            wgpuBindGroupLayoutRelease(computePipeline->bglayout.layout);
+            RL_FREE(computePipeline->bglayout.entries);
+        }
+        UnloadShaderModule(computePipeline->shaderModule);
+        RL_FREE(computePipeline);
+    }
+}
+extern Texture2D texShapes;
+extern ShaderImpl* allocatedShaderIDs_shc;
+extern uint32_t nextShaderID_shc;
+extern uint32_t capacity_shc;
+
+RGAPI void CloseProgram(void) {
+    TRACELOG(LOG_INFO, "CloseWindow: Starting cleanup...");
+#if defined(SUPPORT_VULKAN_BACKEND)
+    extern void wgpuQueueWaitIdle(WGPUQueue queue);
+    wgpuQueueWaitIdle(GetQueue());
+#endif
+    // 1. Release default textures and buffers
+    if (IsTextureValid(g_renderstate.whitePixel)) {
+        UnloadTexture(g_renderstate.whitePixel);
+    }
+    // Reset the global alias for whitePixel
+    texShapes = (Texture2D){0};
+
+    if (g_renderstate.identityMatrix) {
+        UnloadBuffer(g_renderstate.identityMatrix);
+        g_renderstate.identityMatrix = NULL;
+    }
+
+    // 2. Release Render Batch resources
+    if (renderBatchVBO) {
+        UnloadBuffer(renderBatchVBO);
+        renderBatchVBO = NULL;
+    }
+    if (renderBatchVAO) {
+        RL_FREE(renderBatchVAO);
+        renderBatchVAO = NULL;
+    }
+    if (vboptr_base) {
+        RL_FREE(vboptr_base);
+        vboptr_base = NULL;
+        vboptr = NULL;
+    }
+    if (g_renderstate.quadindicesCache) {
+        UnloadBuffer(g_renderstate.quadindicesCache);
+        g_renderstate.quadindicesCache = NULL;
+    }
+
+    // 3. Release Buffer Pools
+    if (g_renderstate.smallBufferPool.data) {
+        for(size_t i = 0; i < g_renderstate.smallBufferPool.size; i++) {
+            UnloadBuffer(g_renderstate.smallBufferPool.data[i]);
+        }
+        DescribedBufferVector_free(&g_renderstate.smallBufferPool);
+    }
+
+    if (g_renderstate.smallBufferRecyclingBin.data) {
+        for(size_t i = 0; i < g_renderstate.smallBufferRecyclingBin.size; i++) {
+            UnloadBuffer(g_renderstate.smallBufferRecyclingBin.data[i]);
+        }
+        DescribedBufferVector_free(&g_renderstate.smallBufferRecyclingBin);
+    }
+
+    // 4. Release Main Render Targets
+    UnloadRenderTexture(g_renderstate.mainWindowRenderTarget);
+    TRACELOG(LOG_INFO, "CloseWindow: Render targets released.");
+    
+    
+
+    // 5. Release Shaders
+    if (allocatedShaderIDs_shc) {
+        for (uint32_t i = 0; i < nextShaderID_shc; i++) {
+            UnloadShader((Shader){.id = i});
+        }
+        RL_FREE(allocatedShaderIDs_shc);
+        allocatedShaderIDs_shc = NULL;
+        nextShaderID_shc = 0;
+        capacity_shc = 0;
+    }
+    
+    UnloadComputePipeline(mipmap__cpl);
+    TRACELOG(LOG_INFO, "CloseWindow: Shaders and pipelines released.");
+
+    // 6. Release GIF Recording State
+    if (g_renderstate.grst) {
+        RL_FREE(g_renderstate.grst);
+        g_renderstate.grst = NULL;
+    }
+
+    // 7. Close Native Windows and Surfaces
+    if (g_renderstate.createdSubwindows.table) {
+        size_t cap = g_renderstate.createdSubwindows.current_capacity;
+        void** handles = (void**)RL_CALLOC(cap, sizeof(void*));
+        size_t count = 0;
+
+        for(size_t i = 0; i < cap; i++){
+            if (g_renderstate.createdSubwindows.table[i].key != PHM_EMPTY_SLOT_KEY && 
+                g_renderstate.createdSubwindows.table[i].key != PHM_DELETED_SLOT_KEY) {
+                
+                handles[count++] = g_renderstate.createdSubwindows.table[i].key;
+            }
+        }
+
+        for(size_t i = 0; i < count; i++){
+            RGWindowImpl* win = CreatedWindowMap_get(&g_renderstate.createdSubwindows, handles[i]);
+            if(win){
+                CloseSubWindow(win);
+            }
+        }
+        RL_FREE(handles);
+        CreatedWindowMap_free(&g_renderstate.createdSubwindows);
+    }
+    TRACELOG(LOG_INFO, "CloseWindow: Subwindows closed.");
+
+    // 8. Release WebGPU Instance/Device/Adapter
+    // Commented out to prevent segfaults on shutdown. OS will reclaim resources.
+    /*
+    if (g_wgpustate.queue){
+        wgpuQueueRelease(g_wgpustate.queue);
+        g_wgpustate.queue = NULL;
+    }
+    if (g_wgpustate.device){
+        wgpuDeviceRelease(g_wgpustate.device);
+        g_wgpustate.device = NULL;
+    }
+    if (g_wgpustate.adapter){
+        wgpuAdapterRelease(g_wgpustate.adapter);
+        g_wgpustate.adapter = NULL;
+    }
+    if (g_wgpustate.instance){
+        wgpuInstanceRelease(g_wgpustate.instance);
+        g_wgpustate.instance = NULL;
+    }
+    */
+
+    // Zero out global states
+    memset(&g_renderstate, 0, sizeof(g_renderstate));
+    memset(&g_wgpustate, 0, sizeof(g_wgpustate));
+
+    TRACELOG(LOG_INFO, "Window closed and resources freed successfully.");
 }
 
 const char* WGPUFeatureToString (WGPUFeatureName feature) {

@@ -321,6 +321,7 @@ endif()
 
 if(SUPPORT_VULKAN_BACKEND)
     set(WGVK_BUILD_WGSL_SUPPORT ${SUPPORT_WGSL_PARSER})
+    set(WGVK_BUILD_GLSL_SUPPORT ${SUPPORT_GLSL_PARSER})
     
     if(NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/../WGVK")
         FetchContent_Declare(
@@ -389,6 +390,7 @@ if(SUPPORT_RGFW)
 endif()
 if(SUPPORT_GLSL_PARSER)
     target_compile_definitions(${raygpu_core_library_name} PUBLIC SUPPORT_GLSL_PARSER=1)
+    set(WGVK_BUILD_GLSL_SUPPORT ON CACHE BOOL "" FORCE)
 endif()
 if(SUPPORT_WGSL_PARSER)
     if(EMSCRIPTEN)
@@ -622,6 +624,10 @@ endif()
 
 
 add_subdirectory("examples")
+if(BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 if(RAYGPU_GENERATE_PYTHON_BINDINGS)
     set(PYBIND11_FINDPYTHON ON)
     find_package(pybind11 CONFIG QUIET)

@@ -381,8 +381,17 @@ SubWindow OpenSubWindow_RGFW_NoSurface(int width, int height, const char* title)
 
 SubWindow OpenSubWindow_RGFW(int width, int height, const char* title){
     SubWindow sw = OpenSubWindow_RGFW_NoSurface(width, height, title);
-    CreateAndSetSurfaceForWindow(sw);
+    if(sw){
+        CreateAndSetSurfaceForWindow(sw);
+    }
+    else{
+        TRACELOG(LOG_ERROR, "OpenSubWindow_RGFW_NoSurface returned NULL (failed)");
+    }
     return sw;
+}
+RGAPI void CloseSubWindow_RGFW(SubWindow subWindow){
+    rassert(subWindow->type == windowType_rgfw, "CloseSubWindow_RGFW called on non-RGFW window");
+    RGFW_window_close((RGFW_window*)subWindow->handle);
 }
 
 SubWindow InitWindow_RGFW(int width, int height, const char* title){

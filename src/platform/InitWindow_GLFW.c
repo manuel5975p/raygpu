@@ -1,4 +1,5 @@
 // begin file src/InitWindow_GLFW.c
+#include "macros_and_constants.h"
 #include <raygpu.h>
 #define GLFW_INCLUDE_NONE
 #if SUPPORT_VULKAN_BACKEND == 1
@@ -139,6 +140,14 @@ EM_BOOL EmscriptenMouseupClickCallback(int eventType, const EmscriptenMouseEvent
 #else
 #endif
 
+void closeCallback_GLFW(GLFWwindow* win){
+    glfwSetWindowShouldClose(win, true);
+    RGWindowImpl* rgwin = CreatedWindowMap_get(&g_renderstate.createdSubwindows, win);
+    if(rgwin){
+        rgwin->closeRequestedFlag = true;
+    }
+    //TRACELOG(LOG_ERROR, "CLOSIN");
+}
 
 //#ifndef __EMSCRIPTEN__
 void CursorEnterCallback(GLFWwindow* window, int entered){
@@ -199,6 +208,7 @@ void setupGLFWCallbacks(GLFWwindow* window){
     glfwSetCursorEnterCallback(window, CursorEnterCallback);
     glfwSetScrollCallback(window, ScrollCallback);
     glfwSetMouseButtonCallback(window, clickcallback);
+    glfwSetWindowCloseCallback(window, closeCallback_GLFW);
     #ifdef __EMSCRIPTEN__
     emscripten_set_mousedown_callback("#canvas", NULL, 1, EmscriptenMousedownClickCallback);
     emscripten_set_mouseup_callback("#canvas",   NULL, 1, EmscriptenMouseupClickCallback);
@@ -532,7 +542,15 @@ SubWindow OpenSubWindow_GLFW_NoSurface(int width, int height, const char* title)
     ret->scaleFactor = xscale;
     return ret;
 }
-
+void CloseSubWindow_GLFW(SubWindow subWindow){
+    rassert(subWindow->type == windowType_glfw, "CloseSubWindow_GLFW called on non-SDL3 window");
+    glfwDestroyWindow((GLFWwindow*)subWindow->handle);
+}
+//void CloseSubWindow_GLFW(SubWindow subWindow){
+//    CreatedWindowMap_erase(&g_renderstate.createdSubwindows, subWindow->handle);
+//    glfwWindowShouldClose((GLFWwindow*)subWindow->handle);
+//    glfwSetWindowShouldClose((GLFWwindow*)subWindow->handle, GLFW_TRUE);
+//}
 SubWindow OpenSubWindow_GLFW(int width, int height, const char* title){
     SubWindow sw = OpenSubWindow_GLFW_NoSurface(width, height, title);
     CreateAndSetSurfaceForWindow(sw);
@@ -542,11 +560,7 @@ SubWindow OpenSubWindow_GLFW(int width, int height, const char* title){
 bool WindowShouldClose_GLFW(GLFWwindow* win){
     return glfwWindowShouldClose(win);
 }
-void CloseSubWindow_GLFW(SubWindow subWindow){
-    CreatedWindowMap_erase(&g_renderstate.createdSubwindows, subWindow->handle);
-    glfwWindowShouldClose((GLFWwindow*)subWindow->handle);
-    glfwSetWindowShouldClose((GLFWwindow*)subWindow->handle, GLFW_TRUE);
-}
+
 
 int emscripten_to_glfw_key(const char *key_name) {
     if (!key_name) return GLFW_KEY_UNKNOWN;

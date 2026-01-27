@@ -84,6 +84,8 @@ const char vertexSourceGLSL[] = "#version 450\n"
 const char fragmentSourceGLSL[] = "#version 450\n"
 "layout(location = 0) in vec2 frag_uv;\n"
 "layout(location = 1) in vec4 frag_color;\n"
+"layout(location = 2) in vec3 frag_normal;\n"
+"\n"
 "layout(location = 0) out vec4 outColor;\n"
 "layout(binding = 1) uniform texture2D texture0;  // Texture (binding = 1)\n"
 "layout(binding = 2) uniform sampler texSampler;    // Sampler (binding = 2)\n"
@@ -165,7 +167,10 @@ void* GetActiveWindowHandle(){
 }
 bool WindowShouldClose(cwoid){
     if(g_renderstate.window == NULL){ //headless
-        return false;
+        if(g_renderstate.windowFlags & FLAG_HEADLESS){
+             return false;
+        }
+        return true;
     }
     const RGWindowImpl* w = CreatedWindowMap_get(&g_renderstate.createdSubwindows, g_renderstate.window);
     if(w){
@@ -491,10 +496,12 @@ SubWindow OpenSubWindow(int width, int height, const char* title){
 
     SubWindow createdWindow = NULL;
     #ifdef MAIN_WINDOW_GLFW
-    createdWindow = OpenSubWindow_GLFW(width, height, title);
+    createdWindow = OpenSubWindow_GLFW_NoSurface(width, height, title);
     #elif defined(MAIN_WINDOW_SDL3)
     createdWindow = OpenSubWindow_SDL3_NoSurface(width, height, title);
     rassert(createdWindow != NULL && createdWindow->handle != NULL, "Returned window can't have null handle");
+    #elif defined(MAIN_WINDOW_RGFW)
+    createdWindow = OpenSubWindow_RGFW_NoSurface(width, height, title);
     #endif
 
     if(mainWindowHandle){
@@ -581,6 +588,59 @@ void SetWindowShouldClose(){
     #else
     CreatedWindowMap_get(&g_renderstate.createdSubwindows, GetActiveWindowHandle())->closeRequestedFlag = true;
     #endif
+}
+
+RGAPI void CloseSubWindow(SubWindow window) {
+    if (window == NULL) return;
+    void* nativeHandle = window->handle;
+    windowType wType = window->type;
+
+    UnloadRenderTexture(window->surface.renderTarget);
+
+    if (window->surface.surface) {
+        wgpuSurfaceRelease(window->surface.surface);
+        window->surface.surface = NULL;
+    }
+
+    // 2. Destroy the platform-specific Native Window
+    switch (wType) {
+        #if SUPPORT_GLFW == 1
+        case windowType_glfw:
+            CloseSubWindow_GLFW(window);
+            break;
+        #endif
+        #if SUPPORT_SDL3 == 1
+        case windowType_sdl3:
+            CloseSubWindow_SDL3(window);
+            break;
+        #endif
+        #if SUPPORT_RGFW == 1
+        case windowType_rgfw:
+            CloseSubWindow_RGFW(window);
+            break;
+        #endif
+        default: break;
+    }
+
+    // 3. Update Global RenderState pointers if this window was tracked
+    if (g_renderstate.activeSubWindow == window) {
+        g_renderstate.activeSubWindow = NULL;
+        // Fallback to main window if it exists and is not the one being closed
+        if (g_renderstate.mainWindow && g_renderstate.mainWindow != window) {
+            g_renderstate.activeSubWindow = g_renderstate.mainWindow;
+        }
+    }
+
+    if (g_renderstate.mainWindow == window) {
+        g_renderstate.mainWindow = NULL;
+        // If this was the main window handle tracked globally, clear it to signal application termination checks
+        if (g_renderstate.window == nativeHandle) {
+            g_renderstate.window = NULL;
+        }
+    }
+
+    // 4. Remove from the global tracker map
+    CreatedWindowMap_erase(&g_renderstate.createdSubwindows, nativeHandle);
 }
 
 
