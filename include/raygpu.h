@@ -1601,8 +1601,11 @@ RGAPI int *LoadCodepoints(const char *text, int *count);
 RGAPI int GetCodepoint(const char *text, int *codepointSize);
 RGAPI int GetCodepointPrevious(const char *text, int *codepointSize);
 RGAPI void DrawText(const char *text, int posX, int posY, int fontSize, Color color); // Draw text (using default font)
+RGAPI void DrawTextLen(const char *text, int length, int posX, int posY, int fontSize, Color color); // Draw text with length (using default font)
 RGAPI void DrawTextEx(Font font, const char *text, Vector2 position, float fontSize, float spacing, Color tint); // Draw text using font and additional parameters
+RGAPI void DrawTextExLen(Font font, const char *text, int length, Vector2 position, float fontSize, float spacing, Color tint); // Draw text using font with length
 RGAPI void DrawTextPro(Font font, const char *text, Vector2 position, Vector2 origin, float rotation, float fontSize, float spacing, Color tint); // Draw text using Font and pro parameters (rotation)
+RGAPI void DrawTextProLen(Font font, const char *text, int length, Vector2 position, Vector2 origin, float rotation, float fontSize, float spacing, Color tint); // Draw text using Font and pro parameters with length (rotation)
 RGAPI void DrawTextCodepoint(Font font, int codepoint, Vector2 position, float fontSize, Color tint); // Draw one character (codepoint)
 RGAPI void DrawTextCodepoints(Font font, const int *codepoints, int codepointCount, Vector2 position, float fontSize, float spacing, Color tint); // Draw multiple character (codepoint)
 RGAPI int GetCodepointNext(const char *text, int *codepointSize);
