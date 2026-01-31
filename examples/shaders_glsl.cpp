@@ -1,10 +1,5 @@
 #include <raygpu.h>
-#include <source_location>
 
-
-struct A{
-    int b;
-};
 const char vertexSourceGLSL[] = R"(
 #version 450
 layout(location = 1) in vec2 position;
@@ -36,27 +31,26 @@ int main(){
     Matrix identity = MatrixIdentity();
     DescribedBuffer* matrixbuffer = GenUniformBuffer(&matrix, sizeof(Matrix));
     DescribedBuffer* matrixbuffers = GenStorageBuffer(&identity, sizeof(Matrix));
-    
+
     Texture tex = LoadTexture(TextFormat("%s/tileset.png", FindDirectory("resources", 3)));
     DescribedSampler sampler = LoadSampler(TEXTURE_WRAP_REPEAT, TEXTURE_FILTER_BILINEAR);
 
     float vertices[6] = {0,-0.5,-0.5,0.5,0.5,0.5};
     DescribedBuffer* buffer = GenVertexBuffer(vertices, sizeof(vertices));
     VertexArray* vao = LoadVertexArray();
-    VertexAttribPointer(vao, buffer, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, buffer, 1, RGVertexFormat_Float32x2, 0, RGVertexStepMode_Vertex);
     EnableVertexAttribArray(vao, 0);
     float color[4] = {1,1,0,1};
-    SetPipelineUniformBufferData(colorInverter.id, 5, color, sizeof(color));
+    SetShaderUniformBufferData(colorInverter, 5, color, sizeof(color));
     while(!WindowShouldClose()){
         BeginDrawing();
         ClearBackground(BLACK);
-        BeginTextureAndPipelineMode(multi, colorInverter.id);
+        BeginTextureAndPipelineMode(multi, colorInverter);
         BindVertexArray(vao);
         DrawArrays(RL_TRIANGLES, 3);
         EndTextureAndPipelineMode();
 
-        //DrawTexturePro(multi.texture, Rectangle{0,0,800,800}, Rectangle{0,0,800,800}, Vector2{0,0}, 0.0f, WHITE);
-        DrawTexturePro(multi.moreColorAttachments[0], Rectangle{0,0,800,800}, Rectangle{0,0,800,800}, Vector2{0,0}, 0.0f, WHITE);
+        DrawTexturePro(multi.colorAttachments[1], Rectangle{0,0,800,800}, Rectangle{0,0,800,800}, Vector2{0,0}, 0.0f, WHITE);
         DrawFPS(5, 5);
         EndDrawing();
     }

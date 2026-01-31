@@ -5,7 +5,7 @@
 #include <emscripten.h>
 #endif
 
-const char source[] = 
+const char source[] =
 R"(struct VertexInput {
     @location(0) position: vec2<f32>,
     @location(1) offset: vec2f,
@@ -39,7 +39,7 @@ std::vector<Vector2> offsets;
 std::vector<Vector2> velocities;
 std::vector<uint32_t> colors;
 std::mt19937_64 gen(42);
-DescribedPipeline* pl;
+Shader pl;
 DescribedBuffer* ibo;
 DescribedBuffer* posb;
 DescribedBuffer* poso;
@@ -51,17 +51,14 @@ void mainloop(){
     }
     BufferData(poso, offsets.data(), offsets.size() * sizeof(Vector2));
     BeginDrawing();
-    //ClearBackground(BLUE);
-    BeginPipelineMode(pl);
+    BeginShaderMode(pl);
     BindShaderVertexArray(pl, vao);
     DrawArraysIndexedInstanced(RL_TRIANGLES, *ibo, 6, offsets.size());
-    EndPipelineMode();
+    EndShaderMode();
     DrawFPS(0, 0);
     EndDrawing();
 }
 int main(){
-    //SetConfigFlags(FLAG_VSYNC_LOWLATENCY_HINT);
-    //SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(1920, 1080, "VAO");
     std::mt19937_64 gen(42);
     std::uniform_real_distribution<float> dis(0,1);
@@ -76,17 +73,15 @@ int main(){
     poso = GenVertexBuffer(offsets.data(), offsets.size() * sizeof(Vector2));
     posc = GenVertexBuffer(colors.data(), colors.size() * sizeof(uint32_t));
     vao = LoadVertexArray();
-    
-    VertexAttribPointer(vao, posb, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(vao, poso, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Instance);
-    VertexAttribPointer(vao, posc, 2, WGPUVertexFormat_Uint32, 0, WGPUVertexStepMode_Instance);
 
-    
+    VertexAttribPointer(vao, posb, 0, RGVertexFormat_Float32x2, 0, RGVertexStepMode_Vertex);
+    VertexAttribPointer(vao, poso, 1, RGVertexFormat_Float32x2, 0, RGVertexStepMode_Instance);
+    VertexAttribPointer(vao, posc, 2, RGVertexFormat_Uint32, 0, RGVertexStepMode_Instance);
+
     uint32_t trifanIndices[6] = {0,1,2,0,2,3};
     ibo = GenIndexBuffer(trifanIndices, sizeof(trifanIndices));
     pl = LoadPipeline(source);
-    
-    
+
     #ifndef __EMSCRIPTEN__
     while(!WindowShouldClose()){
         mainloop();

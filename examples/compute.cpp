@@ -103,11 +103,12 @@ constexpr bool headless = false;
 
 constexpr size_t parts = (1 << 16);
 void mainloop(void){
-    BeginDrawing();
     BeginComputepass();
     BindComputePipeline(firstPassPipeline);
     DispatchCompute(parts / 64, 64, 1);
     EndComputepass();
+
+    BeginDrawing();
     ClearBackground(BLACK);
 
     BeginShaderMode(rpl);

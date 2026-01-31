@@ -15,7 +15,7 @@ fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
     let ldval = textureLoad(input, id.xy, 0);
     for(var i : i32 = 0;i < filtersize;i++){
         let dist: f32 = f32(i) - f32(filtersize) / 2.0f;
-        let scale = exp(-dist * dist / f32(filtersize * filtersize / 4.0f)); 
+        let scale = exp(-dist * dist / f32(filtersize * filtersize / 4.0f));
         accum += (2.0f / filtersize) * scale * textureLoad(input, vec2<i32>(i32(id.x) + (i - filtersize / 2), i32(id.y)), 0);
     }
     textureStore(output, id.xy, accum);
@@ -40,7 +40,6 @@ fn compute_main(@builtin(global_invocation_id) id: vec3<u32>) {
         accum += (2.0f / filtersize) * scale * textureLoad(input, vec2<i32>(i32(id.x), i32(id.y) + (i - filtersize / 2)), 0);
     }
     textureStore(output, id.xy, orig + accum);
-    //textureStore(output, id.xy, orig + vec4f(accum.xy, 0.f, 1.f));
 }
 )";
 DescribedComputePipeline* firstPassPipeline;
@@ -57,9 +56,9 @@ int main(){
     secondPassPipeline = LoadComputePipeline(secondPassSource);
     RenderTexture rtex = LoadRenderTexture(width, height);
 
-    Texture intermediary = LoadTexturePro(width, height, WGPUTextureFormat_RGBA32Float, WGPUTextureUsage_TextureBinding | WGPUTextureUsage_StorageBinding, 1, 1);
-    Texture output = LoadTexturePro(width, height, WGPUTextureFormat_RGBA8Unorm, WGPUTextureUsage_TextureBinding | WGPUTextureUsage_StorageBinding, 1, 1);
-    
+    Texture intermediary = LoadTexturePro(width, height, PIXELFORMAT_UNCOMPRESSED_R32G32B32A32, RGTextureUsage_TextureBinding | RGTextureUsage_StorageBinding, 1, 1);
+    Texture output = LoadTexturePro(width, height, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8, RGTextureUsage_TextureBinding | RGTextureUsage_StorageBinding, 1, 1);
+
     SetBindgroupTexture(&firstPassPipeline->bindGroup, 0, rtex.texture);
     SetBindgroupTexture(&firstPassPipeline->bindGroup, 1, intermediary);
     SetBindgroupTexture(&secondPassPipeline->bindGroup, 0, rtex.texture);

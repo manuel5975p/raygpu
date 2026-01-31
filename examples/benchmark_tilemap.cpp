@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <vector>
 #include <raygpu.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -41,7 +42,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 )";
 Texture tilemap;
 Camera2D cam;
-DescribedPipeline* shader;
+Shader shader;
 VertexArray* tileVAO;
 DescribedBuffer* tileVBO;
 DescribedBuffer* tileIBO;
@@ -51,14 +52,12 @@ int tileCount;
 
 void mainloop(){
     BeginDrawing();
-    //ClearBackground(BLACK);
-    BeginPipelineMode(shader);
+    BeginShaderMode(shader);
     BeginMode2D(cam);
-    BindPipelineVertexArray(shader, tileVAO);
-    DrawArraysIndexedInstanced(WGPUPrimitiveTopology_TriangleList, *tileIBO, 6, tileCount);
-    //DrawTexturePro(tilemap, Rectangle{0,0,(float)tilemap.width, (float)tilemap.height}, Rectangle{0,0,1000,1000}, Vector2{0,0}, 0.0f, WHITE);
+    BindShaderVertexArray(shader, tileVAO);
+    DrawArraysIndexedInstanced(RL_TRIANGLES, *tileIBO, 6, tileCount);
     EndMode2D();
-    EndPipelineMode();
+    EndShaderMode();
     DrawFPS(10,10);
     cam.zoom *= std::exp(GetMouseWheelMove() / 30.0f);
     const float speed = 200.0f;
@@ -77,25 +76,23 @@ void mainloop(){
     EndDrawing();
 }
 int main(){
-    //SetConfigFlags(FLAG_MSAA_4X_HINT);
     SetConfigFlags(FLAG_VSYNC_HINT);
     std::filesystem::path p(".");
     std::cout << std::filesystem::absolute(p) << "\n";
     InitWindow(640, 480, "Tilemap Benchmark");
     SetTargetFPS(0);
     Image img = LoadImage("../resources/tileset.png");
-    //Image img = GenImageColor(RED, 100, 100);
     tilemap = LoadTextureFromImage(img);
     cam = Camera2D{
-        .offset = Vector2{GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f}, 
+        .offset = Vector2{GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f},
         .target = Vector2{0,0},
-        .rotation = 0.0f, 
+        .rotation = 0.0f,
         .zoom = 100.0f
     };
     shader = LoadPipeline(wgsl);
 
-    SetPipelineTexture(shader, 1, tilemap);
-    SetPipelineSampler(shader, 2, LoadSampler(repeat, nearest));
+    SetShaderTexture(shader, 1, tilemap);
+    SetShaderSampler(shader, 2, LoadSampler(TEXTURE_WRAP_REPEAT, TEXTURE_FILTER_POINT));
     tileVAO = LoadVertexArray();
     float tileVertices [8] = {
         0, 0,
@@ -107,7 +104,7 @@ int main(){
         0,1,2,0,2,3
     };
     tileIBO = GenIndexBuffer(tileIndices, sizeof(tileIndices));
-    tileVBO = GenBuffer(tileVertices, sizeof(tileVertices));
+    tileVBO = GenVertexBuffer(tileVertices, sizeof(tileVertices));
     std::vector<Vector2> offsets;
     std::vector<uint32_t> tt;
     int w = 1000;
@@ -120,12 +117,11 @@ int main(){
             ++tileCount;
         }
     }
-    //std::cout << tileCount << "\n";
-    tileOffsets = GenBuffer(offsets.data(), offsets.size() * sizeof(Vector2));
+    tileOffsets = GenVertexBuffer(offsets.data(), offsets.size() * sizeof(Vector2));
     tileTypes = GenStorageBuffer(tt.data(), tt.size() * sizeof(uint32_t));
-    VertexAttribPointer(tileVAO, tileVBO, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(tileVAO, tileOffsets, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Instance);
-    SetPipelineStorageBuffer(shader, 3, tileTypes);
+    VertexAttribPointer(tileVAO, tileVBO, 0, RGVertexFormat_Float32x2, 0, RGVertexStepMode_Vertex);
+    VertexAttribPointer(tileVAO, tileOffsets, 1, RGVertexFormat_Float32x2, 0, RGVertexStepMode_Instance);
+    SetShaderStorageBuffer(shader, 3, tileTypes);
     #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainloop, 0, 0);
     #else

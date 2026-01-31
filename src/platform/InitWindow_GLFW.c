@@ -70,14 +70,18 @@ void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset){
 #ifdef __EMSCRIPTEN__
 
 EM_BOOL EmscriptenResizeCallback(int eventType, const EmscriptenUiEvent *uiEvent __attribute__((nonnull)), void *userData){
-    //printf("Emscripten resize callbacked:\n");
-    //printf("%d, %d\n", uiEvent->windowInnerWidth, uiEvent->windowInnerHeight);
-    //printf("%d, %d\n", uiEvent->documentBodyClientWidth, uiEvent->documentBodyClientHeight);
     int width, height;
-    emscripten_get_canvas_element_size("#canvas", &width, &height);
+    if(g_renderstate.windowFlags & FLAG_WINDOW_RESIZE_TO_BROWSER_EXTENT){
+        width = uiEvent->windowInnerWidth;
+        height = uiEvent->windowInnerHeight;
+        emscripten_set_canvas_element_size("#canvas", width, height);
+        glfwSetWindowSize(g_renderstate.window, width, height);
+    } else {
+        emscripten_get_canvas_element_size("#canvas", &width, &height);
+    }
     ResizeCallback_GLFW(g_renderstate.window, width, height);
     fflush(stdout);
-    
+
     return EM_TRUE;
 }
 EM_BOOL EmscriptenWheelCallback(int eventType, const EmscriptenWheelEvent* wheelEvent, void *userData) {
@@ -346,41 +350,15 @@ int GetCurrentMonitor_GLFW(GLFWwindow* window){
 }
 void ToggleFullscreen_GLFW(){
     #ifdef __EMSCRIPTEN__
-    //platform.ourFullscreen = true;
-
-    bool enterFullscreen = false;
-
-    const bool wasFullscreen = EM_ASM_INT( { if (document.fullscreenElement) return 1; }, 0);
-    if (wasFullscreen)
-    {
-        if (g_renderstate.windowFlags & FLAG_FULLSCREEN_MODE) enterFullscreen = false;
-        //else if (CORE.Window.flags & FLAG_BORDERLESS_WINDOWED_MODE) enterFullscreen = true;
-        else
-        {
-            const int canvasWidth = EM_ASM_INT( { return document.getElementById('canvas').width; }, 0);
-            const int canvasStyleWidth = EM_ASM_INT( { return parseInt(document.getElementById('canvas').style.width); }, 0);
-            if (canvasStyleWidth > canvasWidth) enterFullscreen = false;
-            else enterFullscreen = true;
-        }
-
-        EM_ASM(document.exitFullscreen(););
-
-        //CORE.Window.fullscreen = false;
+    EmscriptenFullscreenChangeEvent fsce;
+    emscripten_get_fullscreen_status(&fsce);
+    if(fsce.isFullscreen){
+        emscripten_exit_fullscreen();
         g_renderstate.windowFlags &= ~FLAG_FULLSCREEN_MODE;
-        //CORE.Window.flags &= ~FLAG_BORDERLESS_WINDOWED_MODE;
-    }
-    else enterFullscreen = true;
-
-    if (enterFullscreen){
-        EM_ASM(
-            setTimeout(function()
-            {
-                Module.requestFullscreen(false, false);
-            }, 100);
-        );
+    } else {
+        emscripten_request_fullscreen("#canvas", EM_TRUE);
         g_renderstate.windowFlags |= FLAG_FULLSCREEN_MODE;
     }
-    //TRACELOG(LOG_DEBUG, "Tagu fullscreen");
     #else //Other than emscripten
     GLFWmonitor* monitor = glfwGetWindowMonitor(g_renderstate.window);
     if(monitor){
@@ -518,6 +496,13 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
     }
     ret->scaleFactor = xscale;
     TRACELOG(LOG_DEBUG, "Setting scale %f for glfw window on platform %s\n", xscale, platform);
+    #else
+    if(g_renderstate.windowFlags & FLAG_WINDOW_RESIZE_TO_BROWSER_EXTENT){
+        int w = EM_ASM_INT({ return window.innerWidth; });
+        int h = EM_ASM_INT({ return window.innerHeight; });
+        emscripten_set_canvas_element_size("#canvas", w, h);
+        glfwSetWindowSize(window, w, h);
+    }
     #endif
     return ret;
 }

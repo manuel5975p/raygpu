@@ -18,6 +18,10 @@
 #elif SUPPORT_WGPU_BACKEND == 1 || defined(__EMSCRIPTEN__)
 
 #endif
+#ifdef __EMSCRIPTEN__
+#include <emscripten/html5.h>
+#include <emscripten/emscripten.h>
+#endif
 #include "sdl3webgpu.h"
 
 #define max_format_count 16
@@ -106,6 +110,18 @@ SubWindow OpenSubWindow_SDL3(int width, int height, const char* title){
     return sw;
 }
 
+#ifdef __EMSCRIPTEN__
+static EM_BOOL EmscriptenResizeCallback_SDL3(int eventType, const EmscriptenUiEvent *uiEvent, void *userData){
+    if(g_renderstate.windowFlags & FLAG_WINDOW_RESIZE_TO_BROWSER_EXTENT){
+        int w = uiEvent->windowInnerWidth;
+        int h = uiEvent->windowInnerHeight;
+        emscripten_set_canvas_element_size("#canvas", w, h);
+        SDL_SetWindowSize((SDL_Window*)g_renderstate.window, w, h);
+    }
+    return EM_TRUE;
+}
+#endif
+
 RGAPI SubWindow InitWindow_SDL3(int width, int height, const char *title) {
     const char *driverHint = NULL;
 
@@ -155,6 +171,15 @@ RGAPI SubWindow InitWindow_SDL3(int width, int height, const char *title) {
     g_renderstate.window = (GLFWwindow*)ret->handle;
     g_renderstate.mainWindow = CreatedWindowMap_get(&g_renderstate.createdSubwindows, ret->handle);
     SDL_StartTextInput((SDL_Window*)ret->handle);
+    #ifdef __EMSCRIPTEN__
+    emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, 1, EmscriptenResizeCallback_SDL3);
+    if(g_renderstate.windowFlags & FLAG_WINDOW_RESIZE_TO_BROWSER_EXTENT){
+        int w = EM_ASM_INT({ return window.innerWidth; });
+        int h = EM_ASM_INT({ return window.innerHeight; });
+        emscripten_set_canvas_element_size("#canvas", w, h);
+        SDL_SetWindowSize(window, w, h);
+    }
+    #endif
     return ret;
 }
 
@@ -597,6 +622,17 @@ RGAPI void CloseSubWindow_SDL3(SubWindow subWindow){
 }
 
 void ToggleFullscreen_SDL3(cwoid){
+    #ifdef __EMSCRIPTEN__
+    EmscriptenFullscreenChangeEvent fsce;
+    emscripten_get_fullscreen_status(&fsce);
+    if(fsce.isFullscreen){
+        emscripten_exit_fullscreen();
+        g_renderstate.windowFlags &= ~FLAG_FULLSCREEN_MODE;
+    } else {
+        emscripten_request_fullscreen("#canvas", EM_TRUE);
+        g_renderstate.windowFlags |= FLAG_FULLSCREEN_MODE;
+    }
+    #else
     bool alreadyFullscreen = SDL_GetWindowFlags((SDL_Window*)g_renderstate.window) & SDL_WINDOW_FULLSCREEN;
     if(alreadyFullscreen){
         //We need to exit fullscreen
@@ -619,6 +655,7 @@ void ToggleFullscreen_SDL3(cwoid){
         SDL_SetWindowSize((SDL_Window*)g_renderstate.window, GetMonitorWidth_SDL3(), GetMonitorHeight_SDL3());
         SDL_SetWindowFullscreen((SDL_Window*)g_renderstate.window, SDL_WINDOW_FULLSCREEN);
     }
+    #endif
 }
 
 void ShowCursor_SDL3(void* window){

@@ -1,5 +1,5 @@
 #include <raygpu.h>
-const char source[] = 
+const char source[] =
 R"(struct VertexInput {
     @location(0) position: vec2f,
     @location(1) uv: vec2f,
@@ -26,12 +26,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 )";
 int main(){
     InitWindow(1200, 800, "VAO");
-    //UniformDescriptor uniforms[1] = {
-    //    (UniformDescriptor){
-    //        .minBindingSize = 16,
-    //        .type = uniform_buffer
-    //    }
-    //};
     float positions[6] = {
         0,0,
         1,0,
@@ -73,39 +67,26 @@ int main(){
     DescribedBuffer* posc2 = GenVertexBuffer(colors, sizeof(colors));
     VertexArray* vao = LoadVertexArray();
 
-    VertexAttribPointer(vao, posb,  0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(vao, posu,  1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(vao, posn,  2, WGPUVertexFormat_Float32x3, 0, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(vao, posc,  3, WGPUVertexFormat_Float32x4, 0, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(vao, posb2, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(vao, posu2, 1, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(vao, posn,  2, WGPUVertexFormat_Float32x3, 0, WGPUVertexStepMode_Vertex);
-    VertexAttribPointer(vao, posc2, 3, WGPUVertexFormat_Float32x4, 0, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, posb,  0, RGVertexFormat_Float32x2, 0, RGVertexStepMode_Vertex);
+    VertexAttribPointer(vao, posu,  1, RGVertexFormat_Float32x2, 0, RGVertexStepMode_Vertex);
+    VertexAttribPointer(vao, posn,  2, RGVertexFormat_Float32x3, 0, RGVertexStepMode_Vertex);
+    VertexAttribPointer(vao, posc,  3, RGVertexFormat_Float32x4, 0, RGVertexStepMode_Vertex);
+    VertexAttribPointer(vao, posb2, 0, RGVertexFormat_Float32x2, 0, RGVertexStepMode_Vertex);
+    VertexAttribPointer(vao, posu2, 1, RGVertexFormat_Float32x2, 0, RGVertexStepMode_Vertex);
+    VertexAttribPointer(vao, posn,  2, RGVertexFormat_Float32x3, 0, RGVertexStepMode_Vertex);
+    VertexAttribPointer(vao, posc2, 3, RGVertexFormat_Float32x4, 0, RGVertexStepMode_Vertex);
 
-    RenderSettings settings zeroinit;
-
-    settings.depthTest = 1;
-    settings.depthCompare = WGPUCompareFunction_LessEqual;
-    AttributeAndResidence attributes[4] = {
-        AttributeAndResidence{.attr = WGPUVertexAttribute{.nextInChain = 0, .format = WGPUVertexFormat_Float32x2, .offset = 0, .shaderLocation = 0}, .bufferSlot = 0, .enabled = true},
-        AttributeAndResidence{.attr = WGPUVertexAttribute{.nextInChain = 0, .format = WGPUVertexFormat_Float32x2, .offset = 0, .shaderLocation = 1}, .bufferSlot = 1, .enabled = true},
-        AttributeAndResidence{.attr = WGPUVertexAttribute{.nextInChain = 0, .format = WGPUVertexFormat_Float32x3, .offset = 0, .shaderLocation = 2}, .bufferSlot = 2, .enabled = true},
-        AttributeAndResidence{.attr = WGPUVertexAttribute{.nextInChain = 0, .format = WGPUVertexFormat_Float32x4, .offset = 0, .shaderLocation = 3}, .bufferSlot = 3, .enabled = true}
-    };
-    DescribedPipeline* pl = LoadPipeline(source);
-    //DescribedPipeline* pl = LoadPipelineEx(source, attributes, 4, nullptr, 0, settings);
-    //DescribedPipeline* pl = DefaultPipeline();
-    //DescribedPipeline* pl = LoadPipelinePro(/*source, vao, nullptr, 0, settings*/);
+    Shader pl = LoadPipeline(source);
     PrepareShader(pl, vao);
     while(!WindowShouldClose()){
         BeginDrawing();
         ClearBackground(BLANK);
         UseNoTexture();
         BeginMode3D(cam);
-        BeginPipelineMode(pl);
+        BeginShaderMode(pl);
         BindShaderVertexArray(pl, vao);
         DrawArrays(RL_TRIANGLES, 3);
-        EndPipelineMode();
+        EndShaderMode();
         EndMode3D();
         DrawFPS(0, 0);
         EndDrawing();

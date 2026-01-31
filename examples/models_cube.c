@@ -1,5 +1,6 @@
 #include <raygpu.h>
 #include <stdio.h>
+#include <string.h>
 #include <assert.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -7,7 +8,7 @@
 
 Camera3D cam;
 Mesh cube;
-DescribedPipeline* pl;
+Shader pl;
 Texture checkers;
 Texture checkersHDR;
 float angle;
@@ -70,15 +71,13 @@ void mainloop(void){
     angle += GetFrameTime();
     cam.position = (Vector3){sinf(angle) * 10.f, 5.0f, cosf(angle) * 10.f};
     ClearBackground(BLACK);
-    //TODO: Swapping the next two causes a problem since the BindGroup is lazily updated only at BindPipeline
-    //EDIT: It's not due to lazy update; DrawArrays and DrawArraysIndexed did not check for a pending Bindgroup Update
-    BeginPipelineMode(pl);
+    BeginShaderMode(pl);
     UseTexture(checkersHDR);
     BeginMode3D(cam);
     BindVertexArray(cube.vao);
     DrawArraysIndexed(RL_TRIANGLES, *cube.ibo, 36);
     EndMode3D();
-    EndPipelineMode();
+    EndShaderMode();
     DrawFPS(0, 0);
     if(IsKeyPressed(KEY_U)){
         ToggleFullscreen();
@@ -87,9 +86,7 @@ void mainloop(void){
 }
 int main(cwoid){
     SetConfigFlags(FLAG_VSYNC_HINT);
-    //SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(1200, 800, "VAO");
-    //SetTargetFPS(300);
     cam = CLITERAL(Camera3D){
         .position = CLITERAL(Vector3){0,0,10},
         .target = CLITERAL(Vector3){0,0,0},
@@ -97,8 +94,8 @@ int main(cwoid){
         .fovy = 45.0f
     };
     cube = GenMeshCube(3.f,3.f,3.f);
-    //assert(cube.ibo.buffer == 0);
-    pl = Relayout(DefaultPipeline(), cube.vao);
+    pl = DefaultShader();
+    PrepareShader(pl, cube.vao);
     checkersHDR = LoadTextureEx(9, 9, PIXELFORMAT_UNCOMPRESSED_R16G16B16A16, false);
 
     checkers = LoadTextureFromImage(GenImageChecker(RED, DARKBLUE, 9, 9, 4));
@@ -116,7 +113,7 @@ int main(cwoid){
         checkersData[4 * i + 2] = (i & 1) ? 255 : 0;
         checkersData[4 * i + 3] = 255;
     }
-    
+
     UpdateTexture(checkersHDR, checkersHDRData);
     UpdateTexture(checkers, checkersData);
     angle = 0.0f;

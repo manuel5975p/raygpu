@@ -56,7 +56,7 @@ void calculate_tx2_90_fk_mu(const float q[6], Matrix T_out[7]) {
     const float d[]     = {0.478f, 0.0f, 0.0f, 0.425f, 0.0f, 0.100f};
     // theta_i uses q[i]
 
-    Matrix T_prev_curr zeroinit; // Transform {i-1} to {i}
+    Matrix T_prev_curr = {}; // Transform {i-1} to {i}
 
     // T_out[0] is Base Frame relative to Base (Identity)
     T_out[0] = MatrixIdentity();

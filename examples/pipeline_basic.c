@@ -4,14 +4,14 @@
 #endif
 VertexArray* vao;
 DescribedBuffer* vbo;
-DescribedPipeline* pipeline;
+Shader pipeline;
 void mainloop(cwoid){
     BeginDrawing();
     ClearBackground(BLACK);
-    BeginPipelineMode(pipeline);
+    BeginShaderMode(pipeline);
     BindShaderVertexArray(pipeline, vao);
     DrawArrays(RL_TRIANGLES, 3);
-    EndPipelineMode();
+    EndShaderMode();
     DrawFPS(0,0);
     EndDrawing();
 }
@@ -19,21 +19,20 @@ int main(void){
     InitWindow(800, 600, "The Render Pipeline");
     const char* resourceDirectoryPath = FindDirectory("resources", 3);
     char* shaderSource = LoadFileText(TextFormat("%s/simple_shader.wgsl", resourceDirectoryPath));
-    
+
     float vertices[6] = {
         0,0,
         1,0,
         0,1
     };
-    vbo = GenVertexBuffer(vertices, sizeof(vertices)); 
+    vbo = GenVertexBuffer(vertices, sizeof(vertices));
     vao = LoadVertexArray();
-    VertexAttribPointer(vao, vbo, 0, WGPUVertexFormat_Float32x2, 0, WGPUVertexStepMode_Vertex);
+    VertexAttribPointer(vao, vbo, 0, RGVertexFormat_Float32x2, 0, RGVertexStepMode_Vertex);
     EnableVertexAttribArray(vao, 0);
     pipeline = LoadPipeline(shaderSource);
 
-    float uniformData[4] = {0,0,0,0};
     SetTargetFPS(0);
-    
+
     #ifndef __EMSCRIPTEN__
     while(!WindowShouldClose()){
         mainloop();

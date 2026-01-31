@@ -831,16 +831,14 @@ typedef enum {
     FLAG_WINDOW_TOPMOST     = 0x00001000,       // Set to window always on top
     FLAG_WINDOW_ALWAYS_RUN  = 0x00000100,       // Set to allow windows running while minimized
     FLAG_WINDOW_TRANSPARENT = 0x00000010,       // Set to allow transparent framebuffer
-    FLAG_WINDOW_HIGHDPI     = 0x00002000,       // Set to support HighDPI
-    FLAG_WINDOW_MOUSE_PASSTHROUGH = 0x00004000, // Set to support mouse passthrough, only supported when FLAG_WINDOW_UNDECORATED
     FLAG_BORDERLESS_WINDOWED_MODE = 0x00008000, // Set to run program in borderless windowed mode
     FLAG_MSAA_4X_HINT       = 0x00000020,       // Set to try enabling MSAA 4X
-    FLAG_INTERLACED_HINT    = 0x00010000,       // Set to try enabling interlaced video format (for V3D)
 
     FLAG_STDOUT_TO_FFMPEG = 0x02000000,         // Redirect tracelog to stderr and dump frames into stdout
                                                 // Made for <program> | ffmpeg -f rawvideo -pix_fmt bgra -s 1920x1080 -i - output.mp4
     FLAG_HEADLESS = 0x01000000,                 // Disable ALL windowing stuff (Runnable without Desktop Server)
     FLAG_VSYNC_LOWLATENCY_HINT = 0x00100000,    // Set to try enabling Lowlatency tearless mailbox mode
+    FLAG_WINDOW_RESIZE_TO_BROWSER_EXTENT = 0x00200000, // Auto-resize canvas to browser window extent (web only)
 } ConfigFlags;
 
 typedef enum {
@@ -1728,6 +1726,8 @@ RGAPI DescribedBindGroupLayout LoadBindGroupLayoutMod(const DescribedShaderModul
 //RGAPI WGPURaytracingPipeline LoadRTPipeline(const DescribedShaderModule* module);
 RGAPI Shader ClonePipeline(const DescribedPipeline* pl);
 RGAPI Shader ClonePipelineWithSettings(const DescribedPipeline* pl, RenderSettings settings);
+RGAPI Shader LoadPipeline(const char *shaderSource);
+RGAPI Shader LoadPipelineEx(const char *shaderSource, const AttributeAndResidence *attribs, uint32_t attribCount, const ResourceTypeDescriptor *uniforms, uint32_t uniformCount, RenderSettings settings);
 RGAPI Shader LoadPipelineFromModule(DescribedShaderModule mod, const AttributeAndResidence* attribs, uint32_t attribCount, const ResourceTypeDescriptor* uniforms, uint32_t uniformCount, RenderSettings settings);
 RGAPI Shader DefaultPipeline(cwoid);
 RGAPI void UnloadBindGroupLayout(DescribedBindGroupLayout* bglayout);

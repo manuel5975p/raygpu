@@ -87,18 +87,17 @@ void mainloop(){
     EndComputepass();
     BeginDrawing();
     ClearBackground(BLACK);
-    DrawTexturePro(tex, Rectangle(0,0,width,height), Rectangle(0,0,width,height), Vector2{0,0}, 0.0f, WHITE);
+    DrawTexturePro(tex, Rectangle{0,0,(float)width,(float)height}, Rectangle{0,0,(float)width,(float)height}, Vector2{0,0}, 0.0f, WHITE);
     DrawFPS(5, 5);
     EndDrawing();
 }
 
 
 int main(){
-    //SetConfigFlags();
     InitWindow(width, height, "Storage Texture");
     SetTargetFPS(0);
-    storageTex = LoadTexturePro(width, height, RGBA8, TextureUsage_CopySrc | TextureUsage_StorageBinding | TextureUsage_TextureBinding, 1, 1);
-    tex = LoadTexturePro(width, height, BGRA8, TextureUsage_TextureBinding | TextureUsage_CopyDst, 1, 1);
+    storageTex = LoadTexturePro(width, height, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8, RGTextureUsage_CopySrc | RGTextureUsage_StorageBinding | RGTextureUsage_TextureBinding, 1, 1);
+    tex = LoadTexturePro(width, height, PIXELFORMAT_UNCOMPRESSED_B8G8R8A8, RGTextureUsage_TextureBinding | RGTextureUsage_CopyDst, 1, 1);
     pl = LoadComputePipeline(shaderCode);
 
     SetBindgroupTexture(&pl->bindGroup, 0, storageTex);
@@ -110,5 +109,5 @@ int main(){
     #else
     emscripten_set_main_loop(mainloop, 0, 0);
     #endif
-    
+
 }
