@@ -1349,6 +1349,9 @@ typedef struct ProgramInfo{
 EXTERN_C_BEGIN
 
 RGAPI void InitWindow(int width, int height, const char* title);
+RGAPI SubWindow InitWindow_SDL3 (int width, int height, const char* title);
+RGAPI SubWindow InitWindow_GLFW(int width, int height, const char* title);
+RGAPI SubWindow InitWindow_RGFW(int width, int height, const char* title);
 RGAPI void InitProgram(ProgramInfo program);
 RGAPI void requestAnimationFrameLoopWithJSPI(void (*callback)(void), int /* unused */, int/* unused */);
 RGAPI void requestAnimationFrameLoopWithJSPIArg(void (*callback)(void*), void* userData, int/* unused */, int/* unused */);
@@ -1361,7 +1364,6 @@ RGAPI SubWindow OpenSubWindow (int width, int height, const char* title);
 RGAPI SubWindow OpenSubWindow_SDL3(int width, int height, const char* title);
 RGAPI SubWindow OpenSubWindow_GLFW(int width, int height, const char* title);
 RGAPI SubWindow OpenSubWindow_RGFW(int width, int height, const char* title);
-RGAPI SubWindow InitWindow_SDL3 (int width, int height, const char* title);
 RGAPI void CloseSubWindow(SubWindow subWindow);
 RGAPI void CloseSubWindow_SDL3(SubWindow subWindow);
 RGAPI void CloseSubWindow_GLFW(SubWindow subWindow);
@@ -1434,8 +1436,6 @@ RGAPI int GetMonitorHeight_GLFW(cwoid);
 RGAPI void SetWindowShouldClose_GLFW(GLFWwindow* win);
 RGAPI void Initialize_SDL3(cwoid);
 RGAPI bool WindowShouldClose_GLFW(GLFWwindow* win);
-RGAPI SubWindow InitWindow_GLFW(int width, int height, const char* title);
-RGAPI SubWindow InitWindow_RGFW(int width, int height, const char* title);
 RGAPI void ToggleFullscreen_GLFW(cwoid);
 RGAPI void ToggleFullscreen_SDL3(cwoid);
 

@@ -2485,9 +2485,10 @@ void DrawTexturePro(Texture texture, Rectangle source, Rectangle dest, Vector2 o
         float height = (float)texture.height;
 
         bool flipX = false;
+        bool flipY = false;
 
         if (source.width < 0) { flipX = true; source.width *= -1; }
-        if (source.height < 0) source.y -= source.height;
+        if (source.height < 0) { flipY = true; source.height *= -1; }
 
         Vector2 topLeft = {0};
         Vector2 topRight = {0};
@@ -2539,23 +2540,31 @@ void DrawTexturePro(Texture texture, Rectangle source, Rectangle dest, Vector2 o
             //rlNormal3f(0.0f, 0.0f, 1.0f);                          // Normal vector pointing towards viewer
 
             // Top-left corner for texture and quad
-            if (flipX) rlTexCoord2f((source.x + source.width)/width, source.y/height);
-            else rlTexCoord2f(source.x/width, source.y/height);
+            rlTexCoord2f(
+                flipX ? (source.x + source.width)/width : source.x/width,
+                flipY ? (source.y + source.height)/height : source.y/height
+            );
             rlVertex2f(topLeft.x, topLeft.y);
 
             // Bottom-left corner for texture and quad
-            if (flipX) rlTexCoord2f((source.x + source.width)/width, (source.y + source.height)/height);
-            else rlTexCoord2f(source.x/width, (source.y + source.height)/height);
+            rlTexCoord2f(
+                flipX ? (source.x + source.width)/width : source.x/width,
+                flipY ? source.y/height : (source.y + source.height)/height
+            );
             rlVertex2f(bottomLeft.x, bottomLeft.y);
 
             // Bottom-right corner for texture and quad
-            if (flipX) rlTexCoord2f(source.x/width, (source.y + source.height)/height);
-            else rlTexCoord2f((source.x + source.width)/width, (source.y + source.height)/height);
+            rlTexCoord2f(
+                flipX ? source.x/width : (source.x + source.width)/width,
+                flipY ? source.y/height : (source.y + source.height)/height
+            );
             rlVertex2f(bottomRight.x, bottomRight.y);
 
             // Top-right corner for texture and quad
-            if (flipX) rlTexCoord2f(source.x/width, source.y/height);
-            else rlTexCoord2f((source.x + source.width)/width, source.y/height);
+            rlTexCoord2f(
+                flipX ? source.x/width : (source.x + source.width)/width,
+                flipY ? (source.y + source.height)/height : source.y/height
+            );
             rlVertex2f(topRight.x, topRight.y);
 
         rlEnd();
