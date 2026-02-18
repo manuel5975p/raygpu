@@ -46,6 +46,7 @@
 **********************************************************************************************/
 
 #include <raygpu.h>     // Declares module functions
+#include <stdbool.h>
 //#include <webgpu/webgpu_cpp.h>
 // Check if config flags have been externally provided on compilation line
 //#if !defined(EXTERNAL_CONFIG_FLAGS)
@@ -2451,165 +2452,347 @@ static float EaseCubicInOut(float t, float b, float c, float d)
 
 void DrawTexture(Texture texture, int posX, int posY, Color tint)
 {
-    DrawTextureEx(texture, CLITERAL(Vector2){ (float)posX, (float)posY }, 0.0f, 1.0f, tint);
+    DrawTextureV(texture, CLITERAL(Vector2){ (float)posX, (float)posY }, tint);
 }
 
 // Draw a texture with position defined as Vector2
 void DrawTextureV(Texture texture, Vector2 position, Color tint)
 {
-    DrawTextureEx(texture, position, 0, 1.0f, tint);
+    // Check if texture is valid
+    if (texture.id == NULL){
+        return;
+    }
+    float width = (float)texture.width;
+    float height = (float)texture.height;
+    
+    float x = position.x;
+    float y = position.x;
+
+    Vector2 topLeft = CLITERAL(Vector2){ x, y };
+    Vector2 topRight = CLITERAL(Vector2){ x + width, y };
+    Vector2 bottomLeft = CLITERAL(Vector2){ x, y + height };
+    Vector2 bottomRight = CLITERAL(Vector2){ x + width, y + height };
+    
+
+    UseTexture(texture);
+    rlBegin(RL_QUADS);
+
+        rlColor4f(((float)(tint.r)) / 255.0f,
+                  ((float)(tint.g)) / 255.0f,
+                  ((float)(tint.b)) / 255.0f,
+                  ((float)(tint.a)) / 255.0f
+                );
+
+        //TODO: Handle normal
+        //rlNormal3f(0.0f, 0.0f, 1.0f);                          // Normal vector pointing towards viewer
+
+        // Top-left corner for texture and quad
+        rlTexCoord2f(0.0f, 0.0f);
+        rlVertex2f(topLeft.x, topLeft.y);
+
+        // Bottom-left corner for texture and quad
+        rlTexCoord2f(0.0f, 1.0f);
+        rlVertex2f(bottomLeft.x, bottomLeft.y);
+
+        // Bottom-right corner for texture and quad
+        
+        rlTexCoord2f(1.0f, 1.0f);
+        rlVertex2f(bottomRight.x, bottomRight.y);
+
+        // Top-right corner for texture and quad
+        
+        rlTexCoord2f(1.0f, 0.0f);
+        rlVertex2f(topRight.x, topRight.y);
+
+    rlEnd();
 }
 
 // Draw a texture with extended parameters
 void DrawTextureEx(Texture texture, Vector2 position, float rotation, float scale, Color tint)
 {
-    Rectangle source = { 0.0f, 0.0f, (float)texture.width, (float)texture.height };
-    Rectangle dest = { position.x, position.y, (float)texture.width*scale, (float)texture.height*scale };
-    Vector2 origin = { 0.0f, 0.0f };
+    // Check if texture is valid
+    if (texture.id == NULL){
+        return;
+    }
+    float width = (float)texture.width * scale;
+    float height = (float)texture.height * scale;
+    
+    float x = position.x;
+    float y = position.x;
 
-    DrawTexturePro(texture, source, dest, origin, rotation, tint);
+    bool flipX = false;
+    bool flipY = false;
+
+   Vector2 topLeft = {0};
+    Vector2 topRight = {0};
+    Vector2 bottomLeft = {0};
+    Vector2 bottomRight = {0};
+
+    // Only calculate rotation if needed
+    if (rotation == 0.0f)
+    {
+        float x = position.x;
+        float y = position.y;
+        topLeft = CLITERAL(Vector2){ x, y };
+        topRight = CLITERAL(Vector2){ x + width, y };
+        bottomLeft = CLITERAL(Vector2){ x, y + height };
+        bottomRight = CLITERAL(Vector2){ x + width, y + height };
+    }
+    else
+    {
+        float sinRotation = sinf(rotation * (float)DEG2RAD);
+        float cosRotation = cosf(rotation * (float)DEG2RAD);
+        float x = position.x;
+        float y = position.y;
+
+        topLeft.x = 0;
+        topLeft.y = 0;
+
+        topRight.x = x + width*cosRotation;
+        topRight.y = y + width*sinRotation;
+
+        bottomLeft.x = x + height*sinRotation;
+        bottomLeft.y = y + height*cosRotation;
+
+        bottomRight.x = x + width*cosRotation - height*sinRotation;
+        bottomRight.y = y + width*sinRotation + height*cosRotation;
+    }
+    
+
+    UseTexture(texture);
+    rlBegin(RL_QUADS);
+
+        rlColor4f(((float)(tint.r)) / 255.0f,
+                  ((float)(tint.g)) / 255.0f,
+                  ((float)(tint.b)) / 255.0f,
+                  ((float)(tint.a)) / 255.0f
+                );
+
+        //TODO: Handle normal
+        //rlNormal3f(0.0f, 0.0f, 1.0f);                          // Normal vector pointing towards viewer
+
+        // Top-left corner for texture and quad
+        rlTexCoord2f(0.0f, 0.0f);
+        rlVertex2f(topLeft.x, topLeft.y);
+
+        // Bottom-left corner for texture and quad
+        rlTexCoord2f(0.0f, 1.0f);
+        rlVertex2f(bottomLeft.x, bottomLeft.y);
+
+        // Bottom-right corner for texture and quad
+        
+        rlTexCoord2f(1.0f, 1.0f);
+        rlVertex2f(bottomRight.x, bottomRight.y);
+
+        // Top-right corner for texture and quad
+        
+        rlTexCoord2f(1.0f, 0.0f);
+        rlVertex2f(topRight.x, topRight.y);
+
+    rlEnd();
 }
 
 // Draw a part of a texture (defined by a rectangle)
 void DrawTextureRec(Texture texture, Rectangle source, Vector2 position, Color tint)
 {
     Rectangle dest = { position.x, position.y, fabsf(source.width), fabsf(source.height) };
-    Vector2 origin = { 0.0f, 0.0f };
+    // Check if texture is valid
+    if (texture.id == NULL){
+        return;
+    }
+    float width = (float)texture.width;
+    float height = (float)texture.height;
+    
+    float x = position.x;
+    float y = position.x;
 
-    DrawTexturePro(texture, source, dest, origin, 0.0f, tint);
+    bool flipX = false;
+    bool flipY = false;
+
+    if (source.width < 0) { flipX = true; source.width *= -1; }
+    if (source.height < 0) { flipY = true; source.height *= -1; }
+
+    Vector2 topLeft = CLITERAL(Vector2){ x, y };
+    Vector2 topRight = CLITERAL(Vector2){ x + width, y };
+    Vector2 bottomLeft = CLITERAL(Vector2){ x, y + height };
+    Vector2 bottomRight = CLITERAL(Vector2){ x + width, y + height };
+    
+
+    UseTexture(texture);
+    rlBegin(RL_QUADS);
+
+        rlColor4f(((float)(tint.r)) / 255.0f,
+                  ((float)(tint.g)) / 255.0f,
+                  ((float)(tint.b)) / 255.0f,
+                  ((float)(tint.a)) / 255.0f
+                );
+
+        //TODO: Handle normal
+        //rlNormal3f(0.0f, 0.0f, 1.0f);                          // Normal vector pointing towards viewer
+
+         // Top-left corner for texture and quad
+        rlTexCoord2f(
+            flipX ? (source.x + source.width)/width : source.x/width,
+            flipY ? (source.y + source.height)/height : source.y/height
+        );
+        rlVertex2f(topLeft.x, topLeft.y);
+
+        // Bottom-left corner for texture and quad
+        rlTexCoord2f(
+            flipX ? (source.x + source.width)/width : source.x/width,
+            flipY ? source.y/height : (source.y + source.height)/height
+        );
+        rlVertex2f(bottomLeft.x, bottomLeft.y);
+
+        // Bottom-right corner for texture and quad
+        rlTexCoord2f(
+            flipX ? source.x/width : (source.x + source.width)/width,
+            flipY ? source.y/height : (source.y + source.height)/height
+        );
+        rlVertex2f(bottomRight.x, bottomRight.y);
+
+        // Top-right corner for texture and quad
+        rlTexCoord2f(
+            flipX ? source.x/width : (source.x + source.width)/width,
+            flipY ? (source.y + source.height)/height : source.y/height
+        );
+        rlVertex2f(topRight.x, topRight.y);
+
+    rlEnd();
 }
 void DrawTexturePro(Texture texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint){
     // Check if texture is valid
-    if (texture.id != NULL){
-        float width = (float)texture.width;
-        float height = (float)texture.height;
+    if (texture.id == NULL){
+        return;
+    }
+    float width = (float)texture.width;
+    float height = (float)texture.height;
 
-        bool flipX = false;
-        bool flipY = false;
+    bool flipX = false;
+    bool flipY = false;
 
-        if (source.width < 0) { flipX = true; source.width *= -1; }
-        if (source.height < 0) { flipY = true; source.height *= -1; }
+    if (source.width < 0) { flipX = true; source.width *= -1; }
+    if (source.height < 0) { flipY = true; source.height *= -1; }
 
-        Vector2 topLeft = {0};
-        Vector2 topRight = {0};
-        Vector2 bottomLeft = {0};
-        Vector2 bottomRight = {0};
+    Vector2 topLeft = {0};
+    Vector2 topRight = {0};
+    Vector2 bottomLeft = {0};
+    Vector2 bottomRight = {0};
 
-        // Only calculate rotation if needed
-        if (rotation == 0.0f)
-        {
-            float x = dest.x - origin.x;
-            float y = dest.y - origin.y;
-            topLeft = CLITERAL(Vector2){ x, y };
-            topRight = CLITERAL(Vector2){ x + dest.width, y };
-            bottomLeft = CLITERAL(Vector2){ x, y + dest.height };
-            bottomRight = CLITERAL(Vector2){ x + dest.width, y + dest.height };
-        }
-        else
-        {
-            float sinRotation = sinf(rotation * (float)DEG2RAD);
-            float cosRotation = cosf(rotation * (float)DEG2RAD);
-            float x = dest.x;
-            float y = dest.y;
-            float dx = -origin.x;
-            float dy = -origin.y;
+    // Only calculate rotation if needed
+    if (rotation == 0.0f)
+    {
+        float x = dest.x - origin.x;
+        float y = dest.y - origin.y;
+        topLeft = CLITERAL(Vector2){ x, y };
+        topRight = CLITERAL(Vector2){ x + dest.width, y };
+        bottomLeft = CLITERAL(Vector2){ x, y + dest.height };
+        bottomRight = CLITERAL(Vector2){ x + dest.width, y + dest.height };
+    }
+    else
+    {
+        float sinRotation = sinf(rotation * (float)DEG2RAD);
+        float cosRotation = cosf(rotation * (float)DEG2RAD);
+        float x = dest.x;
+        float y = dest.y;
+        float dx = -origin.x;
+        float dy = -origin.y;
 
-            topLeft.x = x + dx*cosRotation - dy*sinRotation;
-            topLeft.y = y + dx*sinRotation + dy*cosRotation;
+        topLeft.x = x + dx*cosRotation - dy*sinRotation;
+        topLeft.y = y + dx*sinRotation + dy*cosRotation;
 
-            topRight.x = x + (dx + dest.width)*cosRotation - dy*sinRotation;
-            topRight.y = y + (dx + dest.width)*sinRotation + dy*cosRotation;
+        topRight.x = x + (dx + dest.width)*cosRotation - dy*sinRotation;
+        topRight.y = y + (dx + dest.width)*sinRotation + dy*cosRotation;
 
-            bottomLeft.x = x + dx*cosRotation - (dy + dest.height)*sinRotation;
-            bottomLeft.y = y + dx*sinRotation + (dy + dest.height)*cosRotation;
+        bottomLeft.x = x + dx*cosRotation - (dy + dest.height)*sinRotation;
+        bottomLeft.y = y + dx*sinRotation + (dy + dest.height)*cosRotation;
 
-            bottomRight.x = x + (dx + dest.width)*cosRotation - (dy + dest.height)*sinRotation;
-            bottomRight.y = y + (dx + dest.width)*sinRotation + (dy + dest.height)*cosRotation;
-        }
+        bottomRight.x = x + (dx + dest.width)*cosRotation - (dy + dest.height)*sinRotation;
+        bottomRight.y = y + (dx + dest.width)*sinRotation + (dy + dest.height)*cosRotation;
+    }
 
-        UseTexture(texture);
+    UseTexture(texture);
+    rlBegin(RL_QUADS);
+
+        rlColor4f(((float)(tint.r)) / 255.0f,
+                  ((float)(tint.g)) / 255.0f,
+                  ((float)(tint.b)) / 255.0f,
+                  ((float)(tint.a)) / 255.0f
+                );
+
+        //TODO: Handle normal
+        //rlNormal3f(0.0f, 0.0f, 1.0f);                          // Normal vector pointing towards viewer
+
+        // Top-left corner for texture and quad
+        rlTexCoord2f(
+            flipX ? (source.x + source.width)/width : source.x/width,
+            flipY ? (source.y + source.height)/height : source.y/height
+        );
+        rlVertex2f(topLeft.x, topLeft.y);
+
+        // Bottom-left corner for texture and quad
+        rlTexCoord2f(
+            flipX ? (source.x + source.width)/width : source.x/width,
+            flipY ? source.y/height : (source.y + source.height)/height
+        );
+        rlVertex2f(bottomLeft.x, bottomLeft.y);
+
+        // Bottom-right corner for texture and quad
+        rlTexCoord2f(
+            flipX ? source.x/width : (source.x + source.width)/width,
+            flipY ? source.y/height : (source.y + source.height)/height
+        );
+        rlVertex2f(bottomRight.x, bottomRight.y);
+
+        // Top-right corner for texture and quad
+        rlTexCoord2f(
+            flipX ? source.x/width : (source.x + source.width)/width,
+            flipY ? (source.y + source.height)/height : source.y/height
+        );
+        rlVertex2f(topRight.x, topRight.y);
+
+    rlEnd();
+    //rlSetTexture(0);
+
+    // NOTE: Vertex position can be transformed using matrices
+    // but the process is way more costly than just calculating
+    // the vertex positions manually, like done above
+    // I leave here the old implementation for educational purposes,
+    // just in case someone wants to do some performance test
+    /*
+    rlSetTexture(texture.id);
+    rlPushMatrix();
+        rlTranslatef(dest.x, dest.y, 0.0f);
+        if (rotation != 0.0f) rlRotatef(rotation, 0.0f, 0.0f, 1.0f);
+        rlTranslatef(-origin.x, -origin.y, 0.0f);
+
         rlBegin(RL_QUADS);
-
-            rlColor4f(((float)(tint.r)) / 255.0f,
-                      ((float)(tint.g)) / 255.0f,
-                      ((float)(tint.b)) / 255.0f,
-                      ((float)(tint.a)) / 255.0f
-                    );
-
-            //TODO: Handle normal
-            //rlNormal3f(0.0f, 0.0f, 1.0f);                          // Normal vector pointing towards viewer
-
-            // Top-left corner for texture and quad
-            rlTexCoord2f(
-                flipX ? (source.x + source.width)/width : source.x/width,
-                flipY ? (source.y + source.height)/height : source.y/height
-            );
-            rlVertex2f(topLeft.x, topLeft.y);
+            rlColor4ub(tint.r, tint.g, tint.b, tint.a);
+            rlNormal3f(0.0f, 0.0f, 1.0f);                          // Normal vector pointing towards viewer
 
             // Bottom-left corner for texture and quad
-            rlTexCoord2f(
-                flipX ? (source.x + source.width)/width : source.x/width,
-                flipY ? source.y/height : (source.y + source.height)/height
-            );
-            rlVertex2f(bottomLeft.x, bottomLeft.y);
+            if (flipX) rlTexCoord2f((source.x + source.width)/width, source.y/height);
+            else rlTexCoord2f(source.x/width, source.y/height);
+            rlVertex2f(0.0f, 0.0f);
 
             // Bottom-right corner for texture and quad
-            rlTexCoord2f(
-                flipX ? source.x/width : (source.x + source.width)/width,
-                flipY ? source.y/height : (source.y + source.height)/height
-            );
-            rlVertex2f(bottomRight.x, bottomRight.y);
+            if (flipX) rlTexCoord2f((source.x + source.width)/width, (source.y + source.height)/height);
+            else rlTexCoord2f(source.x/width, (source.y + source.height)/height);
+            rlVertex2f(0.0f, dest.height);
 
             // Top-right corner for texture and quad
-            rlTexCoord2f(
-                flipX ? source.x/width : (source.x + source.width)/width,
-                flipY ? (source.y + source.height)/height : source.y/height
-            );
-            rlVertex2f(topRight.x, topRight.y);
+            if (flipX) rlTexCoord2f(source.x/width, (source.y + source.height)/height);
+            else rlTexCoord2f((source.x + source.width)/width, (source.y + source.height)/height);
+            rlVertex2f(dest.width, dest.height);
 
+            // Top-left corner for texture and quad
+            if (flipX) rlTexCoord2f(source.x/width, source.y/height);
+            else rlTexCoord2f((source.x + source.width)/width, source.y/height);
+            rlVertex2f(dest.width, 0.0f);
         rlEnd();
-        //rlSetTexture(0);
-
-        // NOTE: Vertex position can be transformed using matrices
-        // but the process is way more costly than just calculating
-        // the vertex positions manually, like done above
-        // I leave here the old implementation for educational purposes,
-        // just in case someone wants to do some performance test
-        /*
-        rlSetTexture(texture.id);
-        rlPushMatrix();
-            rlTranslatef(dest.x, dest.y, 0.0f);
-            if (rotation != 0.0f) rlRotatef(rotation, 0.0f, 0.0f, 1.0f);
-            rlTranslatef(-origin.x, -origin.y, 0.0f);
-
-            rlBegin(RL_QUADS);
-                rlColor4ub(tint.r, tint.g, tint.b, tint.a);
-                rlNormal3f(0.0f, 0.0f, 1.0f);                          // Normal vector pointing towards viewer
-
-                // Bottom-left corner for texture and quad
-                if (flipX) rlTexCoord2f((source.x + source.width)/width, source.y/height);
-                else rlTexCoord2f(source.x/width, source.y/height);
-                rlVertex2f(0.0f, 0.0f);
-
-                // Bottom-right corner for texture and quad
-                if (flipX) rlTexCoord2f((source.x + source.width)/width, (source.y + source.height)/height);
-                else rlTexCoord2f(source.x/width, (source.y + source.height)/height);
-                rlVertex2f(0.0f, dest.height);
-
-                // Top-right corner for texture and quad
-                if (flipX) rlTexCoord2f(source.x/width, (source.y + source.height)/height);
-                else rlTexCoord2f((source.x + source.width)/width, (source.y + source.height)/height);
-                rlVertex2f(dest.width, dest.height);
-
-                // Top-left corner for texture and quad
-                if (flipX) rlTexCoord2f(source.x/width, source.y/height);
-                else rlTexCoord2f((source.x + source.width)/width, source.y/height);
-                rlVertex2f(dest.width, 0.0f);
-            rlEnd();
-        rlPopMatrix();
-        rlSetTexture(0);
-        */
-    }
+    rlPopMatrix();
+    rlSetTexture(0);
+    */
 }
 
 
