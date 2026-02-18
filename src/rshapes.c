@@ -46,7 +46,6 @@
 **********************************************************************************************/
 
 #include <raygpu.h>     // Declares module functions
-#include <stdbool.h>
 //#include <webgpu/webgpu_cpp.h>
 // Check if config flags have been externally provided on compilation line
 //#if !defined(EXTERNAL_CONFIG_FLAGS)
