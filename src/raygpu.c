@@ -1205,8 +1205,12 @@ RGAPI void EndDrawing(){
     DescribedBufferVector_clear(from);
 
     window_input_state* ipstate = &CreatedWindowMap_get(&g_renderstate.createdSubwindows, g_renderstate.window)->input_state;
-    
+
     memcpy(ipstate->keydownPrevious, ipstate->keydown, KEYS_MAX);
+    ipstate->keyPressedQueueCount = 0;
+    ipstate->keyPressedQueueHead = 0;
+    ipstate->keyPressedQueueTail = 0;
+    ipstate->windowResizedThisFrame = false;
 
     ipstate->mousePosPrevious = ipstate->mousePos;
     ipstate->scrollPreviousFrame = ipstate->scrollThisFrame;
@@ -1769,6 +1773,16 @@ RGAPI bool IsKeyDown(int key){
 RGAPI bool IsKeyPressed(int key){
     return CreatedWindowMap_get(&g_renderstate.createdSubwindows, GetActiveWindowHandle())->input_state.keydown[key] && !CreatedWindowMap_get(&g_renderstate.createdSubwindows, GetActiveWindowHandle())->input_state.keydownPrevious[key];
 }
+RGAPI int GetKeyPressed(void){
+    window_input_state* ipstate = &CreatedWindowMap_get(&g_renderstate.createdSubwindows, GetActiveWindowHandle())->input_state;
+    if(ipstate->keyPressedQueueCount == 0){
+        return 0;
+    }
+    int ret = ipstate->keyPressedQueue[ipstate->keyPressedQueueHead];
+    ipstate->keyPressedQueueHead = (ipstate->keyPressedQueueHead + 1) % KEYPRESSQ_MAX;
+    ipstate->keyPressedQueueCount--;
+    return ret;
+}
 RGAPI int GetCharPressed(void) {
     window_input_state* ipstate = &CreatedWindowMap_get(&g_renderstate.createdSubwindows, GetActiveWindowHandle())->input_state;
     if (ipstate->charQueueCount == 0){
@@ -2026,6 +2040,79 @@ RGAPI void DisableCursor(cwoid) {
         case windowType_rgfw: DisableCursor_RGFW(impl->handle); break;
         #endif
         default: TRACELOG(LOG_WARNING, "DisableCursor not implemented for this backend"); break;
+    }
+}
+
+#if SUPPORT_GLFW == 1
+void SetMouseCursor_GLFW(void* window, int cursor);
+void SetClipboardText_GLFW(void* window, const char* text);
+const char* GetClipboardText_GLFW(void* window);
+#endif
+#if SUPPORT_SDL3 == 1
+void SetMouseCursor_SDL3(void* window, int cursor);
+void SetClipboardText_SDL3(const char* text);
+const char* GetClipboardText_SDL3(void);
+#endif
+#if SUPPORT_RGFW == 1
+void SetMouseCursor_RGFW(void* window, int cursor);
+void SetClipboardText_RGFW(const char* text);
+const char* GetClipboardText_RGFW(void);
+#endif
+
+RGAPI void SetMouseCursor(int cursor){
+    RGWindowImpl* impl = CreatedWindowMap_get(&g_renderstate.createdSubwindows, GetActiveWindowHandle());
+    if(!impl){
+        return;
+    }
+    switch(impl->type){
+        #if SUPPORT_GLFW == 1
+        case windowType_glfw: SetMouseCursor_GLFW(impl->handle, cursor); break;
+        #endif
+        #if SUPPORT_SDL3 == 1
+        case windowType_sdl3: SetMouseCursor_SDL3(impl->handle, cursor); break;
+        #endif
+        #if SUPPORT_RGFW == 1
+        case windowType_rgfw: SetMouseCursor_RGFW(impl->handle, cursor); break;
+        #endif
+        default: break;
+    }
+}
+
+RGAPI void SetClipboardText(const char *text){
+    RGWindowImpl* impl = CreatedWindowMap_get(&g_renderstate.createdSubwindows, GetActiveWindowHandle());
+    if(!impl){
+        return;
+    }
+    switch(impl->type){
+        #if SUPPORT_GLFW == 1
+        case windowType_glfw: SetClipboardText_GLFW(impl->handle, text); break;
+        #endif
+        #if SUPPORT_SDL3 == 1
+        case windowType_sdl3: SetClipboardText_SDL3(text); break;
+        #endif
+        #if SUPPORT_RGFW == 1
+        case windowType_rgfw: SetClipboardText_RGFW(text); break;
+        #endif
+        default: break;
+    }
+}
+
+RGAPI const char *GetClipboardText(void){
+    RGWindowImpl* impl = CreatedWindowMap_get(&g_renderstate.createdSubwindows, GetActiveWindowHandle());
+    if(!impl){
+        return "";
+    }
+    switch(impl->type){
+        #if SUPPORT_GLFW == 1
+        case windowType_glfw: return GetClipboardText_GLFW(impl->handle);
+        #endif
+        #if SUPPORT_SDL3 == 1
+        case windowType_sdl3: return GetClipboardText_SDL3();
+        #endif
+        #if SUPPORT_RGFW == 1
+        case windowType_rgfw: return GetClipboardText_RGFW();
+        #endif
+        default: return "";
     }
 }
 
@@ -2944,8 +3031,12 @@ RGAPI void EndWindowMode(){
 
     PresentSurface(&g_renderstate.activeSubWindow->surface);
     window_input_state* ipstate = &CreatedWindowMap_get(&g_renderstate.createdSubwindows, GetActiveWindowHandle())->input_state;
-    
+
     memcpy(ipstate->keydownPrevious, ipstate->keydown, KEYS_MAX);
+    ipstate->keyPressedQueueCount = 0;
+    ipstate->keyPressedQueueHead = 0;
+    ipstate->keyPressedQueueTail = 0;
+    ipstate->windowResizedThisFrame = false;
     ipstate->mousePosPrevious = ipstate->mousePos;
     ipstate->scrollPreviousFrame = ipstate->scrollThisFrame;
     ipstate->scrollThisFrame = CLITERAL(Vector2){0, 0};

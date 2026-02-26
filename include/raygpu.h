@@ -1272,6 +1272,7 @@ typedef struct PenInputState{
 #define MOUSEBTN_MAX 16
 #define TOUCH_MAX 32
 #define CHARQ_MAX 256
+#define KEYPRESSQ_MAX 32
 #define PEN_MAX 16
 #define GAMEPAD_MAX 4
 #define GAMEPAD_AXIS_MAX 6     // LeftX, LeftY, RightX, RightY, TriggerL, TriggerR
@@ -1319,6 +1320,12 @@ typedef struct window_input_state{
     int charQueue[CHARQ_MAX];
     size_t charQueueHead, charQueueTail, charQueueCount;
 
+    int keyPressedQueue[KEYPRESSQ_MAX];
+    size_t keyPressedQueueHead, keyPressedQueueTail, keyPressedQueueCount;
+
+    bool windowResizedThisFrame;
+    bool windowFocused;
+
     PenState penStates[PEN_MAX];
     size_t penStatesCount;
     GamepadState gamepads[GAMEPAD_MAX];
@@ -1358,6 +1365,9 @@ RGAPI void requestAnimationFrameLoopWithJSPIArg(void (*callback)(void*), void* u
 RGAPI void SetWindowShouldClose(cwoid);
 RGAPI void CloseProgram(cwoid);
 RGAPI bool WindowShouldClose(cwoid);
+RGAPI bool IsWindowReady(void);
+RGAPI bool IsWindowFocused(void);
+RGAPI bool IsWindowResized(void);
 RGAPI void SetWindowTitle(const char* title);
 RGAPI void SetSubWindowTitle(SubWindow window, const char* title);
 RGAPI SubWindow OpenSubWindow (int width, int height, const char* title);
@@ -1384,6 +1394,7 @@ RGAPI void ToggleFullscreen(cwoid);
 RGAPI int GetCurrentMonitor(void);
 RGAPI bool IsKeyDown(int key);
 RGAPI bool IsKeyPressed(int key);
+RGAPI int GetKeyPressed(void);
 RGAPI int GetCharPressed(cwoid);
 RGAPI int GetMouseX(cwoid);
 RGAPI int GetMouseY(cwoid);
@@ -1425,6 +1436,9 @@ RGAPI bool IsCursorHidden(cwoid);               // Check if cursor is not visibl
 RGAPI void EnableCursor(cwoid);                 // Enables cursor (unlock cursor)
 RGAPI void DisableCursor(cwoid);                // Disables cursor (lock cursor)
 RGAPI bool IsCursorOnScreen(cwoid);             // Check if cursor is on the screen
+RGAPI void SetMouseCursor(int cursor);
+RGAPI void SetClipboardText(const char *text);
+RGAPI const char *GetClipboardText(void);
 RGAPI void PollEvents(cwoid);
 RGAPI void PollEvents_SDL3(cwoid);
 RGAPI void PollEvents_GLFW(cwoid);

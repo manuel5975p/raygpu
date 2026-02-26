@@ -180,6 +180,24 @@ bool WindowShouldClose(cwoid){
     return true;
 }
 
+RGAPI bool IsWindowReady(void){
+    return g_renderstate.window != NULL || (g_renderstate.windowFlags & FLAG_HEADLESS);
+}
+RGAPI bool IsWindowFocused(void){
+    const RGWindowImpl* w = CreatedWindowMap_get(&g_renderstate.createdSubwindows, GetActiveWindowHandle());
+    if(w){
+        return w->input_state.windowFocused;
+    }
+    return false;
+}
+RGAPI bool IsWindowResized(void){
+    const RGWindowImpl* w = CreatedWindowMap_get(&g_renderstate.createdSubwindows, GetActiveWindowHandle());
+    if(w){
+        return w->input_state.windowResizedThisFrame;
+    }
+    return false;
+}
+
 extern Texture2D texShapes;
 
 
@@ -484,6 +502,14 @@ static inline void CharQueue_Push(window_input_state* s, int codePoint) {
     } else {
         s->charQueueHead = (s->charQueueHead + 1) % CHARQ_MAX;
     }
+}
+static inline void KeyPressedQueue_Push(window_input_state* s, int key) {
+    if(s->keyPressedQueueCount >= KEYPRESSQ_MAX){
+        return;
+    }
+    s->keyPressedQueue[s->keyPressedQueueTail] = key;
+    s->keyPressedQueueTail = (s->keyPressedQueueTail + 1) % KEYPRESSQ_MAX;
+    s->keyPressedQueueCount++;
 }
 
 void CharCallback(void* window, unsigned int codePoint) {

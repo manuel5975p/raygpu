@@ -305,7 +305,10 @@ void keyfunc_rgfw(RGFW_window* window, u8 key, u8 keyChar, RGFW_keymod keyMod, R
     }
     KeyboardKey kii = keyMappingRGFW_(key);
     CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.keydown[kii] = pressed ? 1 : 0;
-    
+
+    if(pressed){
+        KeyPressedQueue_Push(&CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state, kii);
+    }
     if(key == alt_RGFW_escape && pressed){
         CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->closeRequestedFlag = true;
     }
@@ -321,6 +324,7 @@ void windowQuitfunc_rgfw(RGFW_window* window){
 }
 
 void windowResizedfunc_rgfw(RGFW_window* window, i32 w, i32 h){
+    CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.windowResizedThisFrame = true;
     FullSurface* const surface = &CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->surface;
     ResizeSurface(surface, w, h);
     if((void*)window == (void*)g_renderstate.window){
@@ -403,6 +407,7 @@ SubWindow InitWindow_RGFW(int width, int height, const char* title){
     ret->scaleFactor = monitor.pixelRatio;
     CreatedWindowMap_put(&g_renderstate.createdSubwindows, ret->handle, *ret);
     ret = CreatedWindowMap_get(&g_renderstate.createdSubwindows, ret->handle);
+    ret->input_state.windowFocused = true;
     setupRGFWCallbacks((RGFW_window*)ret->handle);
     return ret;
 }
@@ -429,6 +434,20 @@ void DisableCursor_RGFW(void* window) {
 
 void SetWindowTitle_RGFW(RGFW_window* window, const char* title) {
     RGFW_window_setName(window, (char*)title);
+}
+
+void SetMouseCursor_RGFW(void* window, int cursor){
+    (void)window;
+    (void)cursor;
+    TRACELOG(LOG_WARNING, "SetMouseCursor not implemented for RGFW backend");
+}
+
+void SetClipboardText_RGFW(const char* text){
+    RGFW_writeClipboard(text, (u32)strlen(text));
+}
+
+const char* GetClipboardText_RGFW(void){
+    return (const char*)RGFW_readClipboard(NULL);
 }
 
 // end file src/InitWindow_RGFW.cpp

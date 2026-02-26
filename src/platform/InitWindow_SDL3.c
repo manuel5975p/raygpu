@@ -170,6 +170,7 @@ RGAPI SubWindow InitWindow_SDL3(int width, int height, const char *title) {
     ret = CreatedWindowMap_get(&g_renderstate.createdSubwindows, ret->handle);
     g_renderstate.window = (GLFWwindow*)ret->handle;
     g_renderstate.mainWindow = CreatedWindowMap_get(&g_renderstate.createdSubwindows, ret->handle);
+    g_renderstate.mainWindow->input_state.windowFocused = true;
     SDL_StartTextInput((SDL_Window*)ret->handle);
     #ifdef __EMSCRIPTEN__
     emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, 1, EmscriptenResizeCallback_SDL3);
@@ -376,6 +377,7 @@ void ResizeCallback_SDL3(SDL_Window* window, int width, int height){
     //TRACELOG(LOG_INFO, "SDL3's ResizeCallback called with %d x %d", width, height);
     RGWindowImpl* rgwindow = CreatedWindowMap_get(&g_renderstate.createdSubwindows, window);
     if(rgwindow){
+        rgwindow->input_state.windowResizedThisFrame = true;
         rgwindow->width = width;
         rgwindow->height = height;
         ResizeSurface(&rgwindow->surface, (int)(width * rgwindow->scaleFactor), (int)(height * rgwindow->scaleFactor));
@@ -434,6 +436,7 @@ void KeyUpCallback_SDL3(SDL_Window* window, int key, int scancode, int mods){
 void KeyDownCallback_SDL3(SDL_Window* window, int key, int scancode, int mods){
     if(window){
         CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.keydown[key] = 1;
+        KeyPressedQueue_Push(&CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state, key);
     } else {
         TRACELOG(LOG_WARNING, "keyevent received on stray window");
     }
@@ -542,6 +545,20 @@ RGAPI void PollEvents_SDL3() {
         case SDL_EVENT_WINDOW_MOUSE_LEAVE: {
             SDL_Window* window = SDL_GetWindowFromID(event.window.windowID);
             CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.cursorInWindow = false;
+        } break;
+        case SDL_EVENT_WINDOW_FOCUS_GAINED: {
+            SDL_Window* window = SDL_GetWindowFromID(event.window.windowID);
+            RGWindowImpl* rgwin = CreatedWindowMap_get(&g_renderstate.createdSubwindows, window);
+            if(rgwin){
+                rgwin->input_state.windowFocused = true;
+            }
+        } break;
+        case SDL_EVENT_WINDOW_FOCUS_LOST: {
+            SDL_Window* window = SDL_GetWindowFromID(event.window.windowID);
+            RGWindowImpl* rgwin = CreatedWindowMap_get(&g_renderstate.createdSubwindows, window);
+            if(rgwin){
+                rgwin->input_state.windowFocused = false;
+            }
         } break;
         case SDL_EVENT_JOYSTICK_ADDED:{
         }break;
@@ -735,6 +752,36 @@ float GetGamepadAxisMovement_SDL3(int gamepad, int axis) {
 
 void SetWindowTitle_SDL3(SDL_Window* window, const char* title) {
     SDL_SetWindowTitle(window, title);
+}
+
+void SetMouseCursor_SDL3(void* window, int cursor){
+    SDL_SystemCursor sdlCursor;
+    switch(cursor){
+        default:
+        case 0: sdlCursor = SDL_SYSTEM_CURSOR_DEFAULT; break;
+        case 1: sdlCursor = SDL_SYSTEM_CURSOR_DEFAULT; break;
+        case 2: sdlCursor = SDL_SYSTEM_CURSOR_TEXT; break;
+        case 3: sdlCursor = SDL_SYSTEM_CURSOR_CROSSHAIR; break;
+        case 4: sdlCursor = SDL_SYSTEM_CURSOR_POINTER; break;
+        case 5: sdlCursor = SDL_SYSTEM_CURSOR_EW_RESIZE; break;
+        case 6: sdlCursor = SDL_SYSTEM_CURSOR_NS_RESIZE; break;
+        case 7: sdlCursor = SDL_SYSTEM_CURSOR_NWSE_RESIZE; break;
+        case 8: sdlCursor = SDL_SYSTEM_CURSOR_NESW_RESIZE; break;
+        case 9: sdlCursor = SDL_SYSTEM_CURSOR_MOVE; break;
+        case 10: sdlCursor = SDL_SYSTEM_CURSOR_NOT_ALLOWED; break;
+    }
+    SDL_Cursor* c = SDL_CreateSystemCursor(sdlCursor);
+    if(c){
+        SDL_SetCursor(c);
+    }
+}
+
+void SetClipboardText_SDL3(const char* text){
+    SDL_SetClipboardText(text);
+}
+
+const char* GetClipboardText_SDL3(void){
+    return SDL_GetClipboardText();
 }
 
 // end file src/InitWindow_SDL3.c

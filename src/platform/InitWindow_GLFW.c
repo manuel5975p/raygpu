@@ -42,7 +42,7 @@ float calculateScrollScale(int deltaMode) {
 void setupGLFWCallbacks(GLFWwindow* window);
 
 void ResizeCallback_GLFW(GLFWwindow* window, int width, int height){
-    
+
     TRACELOG(LOG_INFO, "GLFW's ResizeCallback called with %d x %d", width, height);
     RGWindowImpl* rgwindow = CreatedWindowMap_get(&g_renderstate.createdSubwindows, window);
     if (width == 0 || height == 0) {
@@ -50,6 +50,7 @@ void ResizeCallback_GLFW(GLFWwindow* window, int width, int height){
         return;
     }
     else {
+        rgwindow->input_state.windowResizedThisFrame = true;
         //emscripten_set_canvas_element_size("#canvas", width, height);
         //#ifndef __EMSCRIPTEN__
         printf("Scale factor: %f\n", rgwindow->scaleFactor);
@@ -162,11 +163,18 @@ void CursorEnterCallback(GLFWwindow* window, int entered){
 void glfwKeyCallback (GLFWwindow* window, int key, int scancode, int action, int mods){
     if(action == GLFW_PRESS){
         CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.keydown[key] = 1;
+        KeyPressedQueue_Push(&CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state, key);
         if(key == GLFW_KEY_ESCAPE){
             CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->closeRequestedFlag = 1;
         }
     }else if(action == GLFW_RELEASE){
         CreatedWindowMap_get(&g_renderstate.createdSubwindows, window)->input_state.keydown[key] = 0;
+    }
+}
+void focusCallback_GLFW(GLFWwindow* window, int focused){
+    RGWindowImpl* rgwin = CreatedWindowMap_get(&g_renderstate.createdSubwindows, window);
+    if(rgwin){
+        rgwin->input_state.windowFocused = (focused != 0);
     }
 }
 #ifdef __EMSCRIPTEN__
@@ -213,6 +221,7 @@ void setupGLFWCallbacks(GLFWwindow* window){
     glfwSetScrollCallback(window, ScrollCallback);
     glfwSetMouseButtonCallback(window, clickcallback);
     glfwSetWindowCloseCallback(window, closeCallback_GLFW);
+    glfwSetWindowFocusCallback(window, focusCallback_GLFW);
     #ifdef __EMSCRIPTEN__
     emscripten_set_mousedown_callback("#canvas", NULL, 1, EmscriptenMousedownClickCallback);
     emscripten_set_mouseup_callback("#canvas",   NULL, 1, EmscriptenMouseupClickCallback);
@@ -472,11 +481,12 @@ SubWindow InitWindow_GLFW(int width, int height, const char* title){
     //ret.surface.renderTarget = g_renderstate.mainWindowRenderTarget;
     
     CreatedWindowMap_get(&g_renderstate.createdSubwindows,ret->handle)->input_state = CLITERAL(window_input_state){0};
+    CreatedWindowMap_get(&g_renderstate.createdSubwindows,ret->handle)->input_state.windowFocused = true;
     setupGLFWCallbacks((GLFWwindow*)ret->handle);
     #ifndef __EMSCRIPTEN__
     float xscale, yscale;
     glfwGetWindowContentScale(window, &xscale, &yscale);
-    
+
     const char* platform = NULL;
     switch(glfwGetPlatform()){
         case GLFW_PLATFORM_WAYLAND: 
@@ -548,6 +558,25 @@ bool WindowShouldClose_GLFW(GLFWwindow* win){
 
 void SetWindowTitle_GLFW(GLFWwindow* window, const char* title) {
     glfwSetWindowTitle(window, title);
+}
+
+void SetMouseCursor_GLFW(void* window, int cursor){
+    if(cursor == 0){
+        glfwSetCursor((GLFWwindow*)window, NULL);
+    } else {
+        GLFWcursor* c = glfwCreateStandardCursor(GLFW_ARROW_CURSOR + cursor - 1);
+        if(c){
+            glfwSetCursor((GLFWwindow*)window, c);
+        }
+    }
+}
+
+void SetClipboardText_GLFW(void* window, const char* text){
+    glfwSetClipboardString((GLFWwindow*)window, text);
+}
+
+const char* GetClipboardText_GLFW(void* window){
+    return glfwGetClipboardString((GLFWwindow*)window);
 }
 
 int emscripten_to_glfw_key(const char *key_name) {
