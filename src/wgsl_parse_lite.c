@@ -106,6 +106,7 @@ static inline access_type sw_parse_access_token(const char* tkn) {
 
 typedef struct SW_ParsedTextureMeta {
     bool is_storage;
+    bool is_cube;
     bool is_array;
     bool is_3d;
     format_or_sample_type fmt_or_sample;
@@ -118,6 +119,7 @@ static inline SW_ParsedTextureMeta sw_parse_texture_typenode(const WgslAstNode* 
     const char* name = T->type_node.name ? T->type_node.name : "";
 
     m.is_storage = sw_starts_with(name, "texture_storage_");
+    m.is_cube    = sw_starts_with(name, "texture_cube");
     m.is_array   = sw_starts_with(name, "texture_2d_array") || sw_starts_with(name, "texture_storage_2d_array");
     m.is_3d      = sw_starts_with(name, "texture_3d") || sw_starts_with(name, "texture_storage_3d");
 
@@ -248,7 +250,8 @@ StringToUniformMap* getBindingsWGSL_Simple(ShaderSources sources) {
                     desc.fstype = meta.fmt_or_sample;
                     desc.access = meta.access;
                 } else {
-                    if (meta.is_array)      desc.type = texture2d_array;
+                    if (meta.is_cube)       desc.type = texture_cube;
+                    else if (meta.is_array) desc.type = texture2d_array;
                     else if (meta.is_3d)    desc.type = texture3d;
                     else                    desc.type = texture2d;
                     desc.fstype = meta.fmt_or_sample; // sample type

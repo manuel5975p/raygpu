@@ -279,6 +279,18 @@ StringToUniformMap* getBindingsWGSL_Tint(ShaderSources sources) {
                 out.emplace(name, desc);
                 continue;
             }
+            if (tname.rfind("texture_cube", 0) == 0) {
+                desc.type = texture_cube;
+
+                if (auto* tid = id->As<tint::ast::TemplatedIdentifier>()) {
+                    if (tid->arguments.Length() >= 1) {
+                        if (auto* a0 = tid->arguments[0]->As<tint::ast::IdentifierExpression>())
+                            desc.fstype = ti_parse_format(a0->identifier->symbol.Name());
+                    }
+                }
+                out.emplace(name, desc);
+                continue;
+            }
             if (tname.rfind("texture_2d", 0) == 0 || tname.rfind("texture_3d", 0) == 0) {
                 bool is2d = tname.rfind("texture_2d", 0) == 0;
                 bool is3d = tname.rfind("texture_3d", 0) == 0;
