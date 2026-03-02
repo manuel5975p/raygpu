@@ -142,6 +142,9 @@ extern int zsinflate(void *out, int cap, const void *in, int size);
 
 #include <string.h> /* memcpy, memset */
 #include <assert.h> /* assert */
+#if defined(_WIN32) || defined(_WIN64)
+#include <intrin.h> /* _BitScanReverse */
+#endif
 
 #if defined(__GNUC__) || defined(__clang__)
 #define sinfl_likely(x)       __builtin_expect((x),1)
@@ -626,4 +629,3 @@ zsinflate(void *out, int cap, const void *mem, int size) {
   }
 }
 #endif
-
