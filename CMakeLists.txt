@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
 include(FetchContent)
 project(webgpu_standalone)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
 if(APPLE)
     enable_language(OBJC)
     enable_language(OBJCXX)
@@ -31,7 +33,7 @@ else()
 endif()
 
 
-if(NOT MSVC AND NOT EMSCRIPTEN)
+if(UNIX AND NOT EMSCRIPTEN)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
     
@@ -123,8 +125,19 @@ else()
     endif()
 endif()
 
+# workaround for
+# CMake Error at build/_deps/dawn-src/third_party/abseil-cpp/CMake/AbseilDll.cmake:730 (message):
+#  The compiler defaults to or is configured for C++ < 17.  C++ >= 17 is
+#  required and Abseil and all libraries that use Abseil must use the same C++
+#  language standard
+if(SUPPORT_WGPU_BACKEND)
+    set(ABSL_INTERNAL_AT_LEAST_CXX17 ON CACHE BOOL "Force C++17 check" FORCE)
+    set(ABSL_INTERNAL_AT_LEAST_CXX20 ON CACHE BOOL "Force C++20 check" FORCE)
+endif()
 
-
+if(WIN32)
+    add_compile_definitions(NOMINMAX _CRT_SECURE_NO_WARNINGS) # fix dawn error and silence warnings
+endif()
 
 if((SUPPORT_WGPU_BACKEND OR SUPPORT_WGSL_PARSER) AND NOT EMSCRIPTEN)
     set(DAWN_IS_IN_USE True)
