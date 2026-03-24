@@ -1884,34 +1884,35 @@ TextureCubemap LoadTextureCubemap(Image image, int layout){
     };
 
     uint32_t bytesPerPixel = 4;
-    uint8_t* faceBuffer = (uint8_t*)RL_CALLOC(faceSize * faceSize * bytesPerPixel, 1);
+    uint64_t faceBytes = (uint64_t)faceSize * faceSize * bytesPerPixel;
+    uint8_t* allFaces = (uint8_t*)RL_CALLOC(faceBytes * 6, 1);
 
     for(int face = 0; face < 6; face++){
-        // Extract face pixels row by row from the full image
+        uint8_t* faceDst = allFaces + face * faceBytes;
         for(uint32_t y = 0; y < faceSize; y++){
             uint8_t* src = (uint8_t*)imgCopy.data + ((faceY[face] + y) * imgCopy.rowStrideInBytes) + (faceX[face] * bytesPerPixel);
-            uint8_t* dst = faceBuffer + (y * faceSize * bytesPerPixel);
+            uint8_t* dst = faceDst + (y * faceSize * bytesPerPixel);
             memcpy(dst, src, faceSize * bytesPerPixel);
         }
-
-        const WGPUTexelCopyTextureInfo destination = {
-            .texture = (WGPUTexture)ret.id,
-            .mipLevel = 0,
-            .origin = {0, 0, (uint32_t)face},
-            .aspect = WGPUTextureAspect_All,
-        };
-
-        const WGPUTexelCopyBufferLayout source = {
-            .offset = 0,
-            .bytesPerRow = faceSize * bytesPerPixel,
-            .rowsPerImage = faceSize,
-        };
-
-        const WGPUExtent3D writeSize = {faceSize, faceSize, 1};
-        wgpuQueueWriteTexture(GetQueue(), &destination, faceBuffer, (uint64_t)faceSize * faceSize * bytesPerPixel, &source, &writeSize);
     }
 
-    RL_FREE(faceBuffer);
+    const WGPUTexelCopyTextureInfo destination = {
+        .texture = (WGPUTexture)ret.id,
+        .mipLevel = 0,
+        .origin = {0, 0, 0},
+        .aspect = WGPUTextureAspect_All,
+    };
+
+    const WGPUTexelCopyBufferLayout source = {
+        .offset = 0,
+        .bytesPerRow = faceSize * bytesPerPixel,
+        .rowsPerImage = faceSize,
+    };
+
+    const WGPUExtent3D writeSize = {faceSize, faceSize, 6};
+    wgpuQueueWriteTexture(GetQueue(), &destination, allFaces, faceBytes * 6, &source, &writeSize);
+
+    RL_FREE(allFaces);
     UnloadImage(imgCopy);
 
     const WGPUTextureViewDescriptor vDesc = {
