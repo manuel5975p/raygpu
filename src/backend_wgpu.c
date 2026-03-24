@@ -460,6 +460,11 @@ WGPUBindGroupLayoutEntry toWGPUBindGroupLayoutEntry(const ResourceTypeDescriptor
             ret.texture.sampleType = toTextureSampleType(rtd->fstype);
             ret.texture.viewDimension = WGPUTextureViewDimension_3D;
             break;
+        case texture_cube:
+            ret.visibility = shaderStage;
+            ret.texture.sampleType = toTextureSampleType(rtd->fstype);
+            ret.texture.viewDimension = WGPUTextureViewDimension_Cube;
+            break;
         case storage_texture2d:
             ret.storageTexture.access = toStorageTextureAccess(rtd->access);
             ret.visibility = shaderStage;
@@ -1758,6 +1763,174 @@ Texture LoadTextureFromImage(Image img) {
     TRACELOG(LOG_INFO, "Successfully loaded %u x %u texture from image", (unsigned)img.width, (unsigned)img.height);
     return ret;
 }
+
+TextureCubemap LoadTextureCubemap(Image image, int layout){
+    if(image.data == NULL){
+        TRACELOG(LOG_WARNING, "LoadTextureCubemap: image data is NULL");
+        return (TextureCubemap){0};
+    }
+
+    // Auto-detect layout from aspect ratio
+    if(layout == CUBEMAP_LAYOUT_AUTO_DETECT){
+        if(image.width > image.height){
+            if((image.width / 6) == image.height){
+                layout = CUBEMAP_LAYOUT_LINE_HORIZONTAL;
+            } else if((image.width / 4) == (image.height / 3)){
+                layout = CUBEMAP_LAYOUT_CROSS_FOUR_BY_THREE;
+            } else {
+                layout = CUBEMAP_LAYOUT_LINE_HORIZONTAL;
+            }
+        } else {
+            if((image.height / 6) == image.width){
+                layout = CUBEMAP_LAYOUT_LINE_VERTICAL;
+            } else if((image.width / 3) == (image.height / 4)){
+                layout = CUBEMAP_LAYOUT_CROSS_THREE_BY_FOUR;
+            } else {
+                layout = CUBEMAP_LAYOUT_LINE_VERTICAL;
+            }
+        }
+    }
+
+    uint32_t faceSize = 0;
+
+    // Face positions: [col, row] for each of the 6 faces (+X, -X, +Y, -Y, +Z, -Z)
+    int faceX[6] = {0};
+    int faceY[6] = {0};
+
+    switch(layout){
+        case CUBEMAP_LAYOUT_LINE_VERTICAL: {
+            faceSize = image.width;
+            for(int i = 0; i < 6; i++){
+                faceX[i] = 0;
+                faceY[i] = (int)faceSize * i;
+            }
+        } break;
+        case CUBEMAP_LAYOUT_LINE_HORIZONTAL: {
+            faceSize = image.height;
+            for(int i = 0; i < 6; i++){
+                faceX[i] = (int)faceSize * i;
+                faceY[i] = 0;
+            }
+        } break;
+        case CUBEMAP_LAYOUT_CROSS_THREE_BY_FOUR: {
+            // 3 cols x 4 rows:
+            //      [+Y]        (row 0, col 1)
+            // [-X] [+Z] [+X]  (row 1, cols 0,1,2)
+            //      [-Y]        (row 2, col 1)
+            //      [-Z]        (row 3, col 1)
+            faceSize = image.width / 3;
+            faceX[0] = (int)faceSize * 2; faceY[0] = (int)faceSize * 1; // +X
+            faceX[1] = (int)faceSize * 0; faceY[1] = (int)faceSize * 1; // -X
+            faceX[2] = (int)faceSize * 1; faceY[2] = (int)faceSize * 0; // +Y
+            faceX[3] = (int)faceSize * 1; faceY[3] = (int)faceSize * 2; // -Y
+            faceX[4] = (int)faceSize * 1; faceY[4] = (int)faceSize * 1; // +Z
+            faceX[5] = (int)faceSize * 1; faceY[5] = (int)faceSize * 3; // -Z
+        } break;
+        case CUBEMAP_LAYOUT_CROSS_FOUR_BY_THREE: {
+            // 4 cols x 3 rows:
+            //      [+Y]             (row 0, col 1)
+            // [-X] [+Z] [+X] [-Z]  (row 1, cols 0,1,2,3)
+            //      [-Y]             (row 2, col 1)
+            faceSize = image.width / 4;
+            faceX[0] = (int)faceSize * 2; faceY[0] = (int)faceSize * 1; // +X
+            faceX[1] = (int)faceSize * 0; faceY[1] = (int)faceSize * 1; // -X
+            faceX[2] = (int)faceSize * 1; faceY[2] = (int)faceSize * 0; // +Y
+            faceX[3] = (int)faceSize * 1; faceY[3] = (int)faceSize * 2; // -Y
+            faceX[4] = (int)faceSize * 1; faceY[4] = (int)faceSize * 1; // +Z
+            faceX[5] = (int)faceSize * 3; faceY[5] = (int)faceSize * 1; // -Z
+        } break;
+        default: {
+            TRACELOG(LOG_WARNING, "LoadTextureCubemap: unknown layout %d", layout);
+            return (TextureCubemap){0};
+        }
+    }
+
+    if(faceSize == 0){
+        TRACELOG(LOG_WARNING, "LoadTextureCubemap: face size is zero");
+        return (TextureCubemap){0};
+    }
+
+    // Ensure image is RGBA8 for upload
+    Image imgCopy = ImageFromImage(image, CLITERAL(Rectangle){0, 0, (float)image.width, (float)image.height});
+    ImageFormat(&imgCopy, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+
+    WGPUTextureFormat wgpuFormat = WGPUTextureFormat_RGBA8Unorm;
+
+    WGPUTextureDescriptor tDesc = {
+        .usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc,
+        .dimension = WGPUTextureDimension_2D,
+        .size = {faceSize, faceSize, 6},
+        .format = wgpuFormat,
+        .mipLevelCount = 1,
+        .sampleCount = 1,
+        .viewFormatCount = 1,
+        .viewFormats = &wgpuFormat,
+    };
+
+    WGPUTexture gpuTex = wgpuDeviceCreateTexture(GetDevice(), &tDesc);
+    if(gpuTex == NULL){
+        TRACELOG(LOG_WARNING, "LoadTextureCubemap: wgpuDeviceCreateTexture failed");
+        UnloadImage(imgCopy);
+        return (TextureCubemap){0};
+    }
+
+    TextureCubemap ret = {
+        .id = gpuTex,
+        .width = faceSize,
+        .height = faceSize,
+        .format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8,
+        .sampleCount = 1,
+        .mipmaps = 1,
+    };
+
+    uint32_t bytesPerPixel = 4;
+    uint64_t faceBytes = (uint64_t)faceSize * faceSize * bytesPerPixel;
+    uint8_t* allFaces = (uint8_t*)RL_CALLOC(faceBytes * 6, 1);
+
+    for(int face = 0; face < 6; face++){
+        uint8_t* faceDst = allFaces + face * faceBytes;
+        for(uint32_t y = 0; y < faceSize; y++){
+            uint8_t* src = (uint8_t*)imgCopy.data + ((faceY[face] + y) * imgCopy.rowStrideInBytes) + (faceX[face] * bytesPerPixel);
+            uint8_t* dst = faceDst + (y * faceSize * bytesPerPixel);
+            memcpy(dst, src, faceSize * bytesPerPixel);
+        }
+    }
+
+    const WGPUTexelCopyTextureInfo destination = {
+        .texture = (WGPUTexture)ret.id,
+        .mipLevel = 0,
+        .origin = {0, 0, 0},
+        .aspect = WGPUTextureAspect_All,
+    };
+
+    const WGPUTexelCopyBufferLayout source = {
+        .offset = 0,
+        .bytesPerRow = faceSize * bytesPerPixel,
+        .rowsPerImage = faceSize,
+    };
+
+    const WGPUExtent3D writeSize = {faceSize, faceSize, 6};
+    wgpuQueueWriteTexture(GetQueue(), &destination, allFaces, faceBytes * 6, &source, &writeSize);
+
+    RL_FREE(allFaces);
+    UnloadImage(imgCopy);
+
+    const WGPUTextureViewDescriptor vDesc = {
+        .format = wgpuFormat,
+        .dimension = WGPUTextureViewDimension_Cube,
+        .baseMipLevel = 0,
+        .mipLevelCount = 1,
+        .baseArrayLayer = 0,
+        .arrayLayerCount = 6,
+        .aspect = WGPUTextureAspect_All,
+    };
+
+    ret.view = wgpuTextureCreateView((WGPUTexture)ret.id, &vDesc);
+
+    TRACELOG(LOG_INFO, "Successfully loaded %u x %u cubemap texture", faceSize, faceSize);
+    return ret;
+}
+
 void ResizeSurface(FullSurface *fsurface, int newWidth, int newHeight) {
     fsurface->renderTarget.colorMultisample.width = newWidth;
     fsurface->renderTarget.colorMultisample.height = newHeight;
@@ -2762,6 +2935,8 @@ static inline uniform_type uniform_type_from_binding(const SpvReflectDescriptorB
         switch (b->image.dim) {
         case SpvDim3D:
             return texture3d;
+        case SpvDimCube:
+            return texture_cube;
         default:
             return b->image.arrayed ? texture2d_array : texture2d;
         }
@@ -2769,6 +2944,8 @@ static inline uniform_type uniform_type_from_binding(const SpvReflectDescriptorB
         switch (b->image.dim) {
         case SpvDim3D:
             return texture3d;
+        case SpvDimCube:
+            return texture_cube;
         default:
             return b->image.arrayed ? texture2d_array : texture2d;
         }

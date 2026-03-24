@@ -327,6 +327,7 @@ typedef struct Texture2D{
 }Texture2D;
 
 typedef Texture2D Texture;
+typedef Texture TextureCubemap;
 
 typedef struct Texture3D{
     WGPUTexture id;
@@ -451,6 +452,7 @@ typedef enum uniform_type {
     texture3d,
     storage_texture3d,
     storage_texture2d_array,
+    texture_cube,
     acceleration_structure,
     combined_image_sampler,
     uniform_type_enumcount,
@@ -1103,6 +1105,14 @@ typedef enum {
 
 #define MATERIAL_MAP_DIFFUSE      MATERIAL_MAP_ALBEDO
 #define MATERIAL_MAP_SPECULAR     MATERIAL_MAP_METALNESS
+
+typedef enum {
+    CUBEMAP_LAYOUT_AUTO_DETECT = 0,
+    CUBEMAP_LAYOUT_LINE_VERTICAL,
+    CUBEMAP_LAYOUT_LINE_HORIZONTAL,
+    CUBEMAP_LAYOUT_CROSS_THREE_BY_FOUR,
+    CUBEMAP_LAYOUT_CROSS_FOUR_BY_THREE,
+} CubemapLayout;
 
 typedef enum {
     FONT_DEFAULT = 0,   // Default font generation, anti-aliased
@@ -1767,6 +1777,7 @@ RGAPI void UnloadRenderTexture(RenderTexture tex);                              
 RGAPI size_t GetPixelSizeInBytes(PixelFormat format);
 RGAPI Texture LoadBlankTexture(uint32_t width, uint32_t height);
 RGAPI Texture LoadTexture(const char* filename);
+RGAPI TextureCubemap LoadTextureCubemap(Image image, int layout);
 RGAPI Texture LoadDepthTexture(uint32_t width, uint32_t height);
 RGAPI Texture LoadTextureEx(uint32_t width, uint32_t height, PixelFormat format, bool to_be_used_as_rendertarget);
 RGAPI Texture LoadTexturePro(uint32_t width, uint32_t height, PixelFormat format, RGTextureUsage usage, uint32_t sampleCount, uint32_t mipmaps);
