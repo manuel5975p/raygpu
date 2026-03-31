@@ -233,7 +233,7 @@ const char shaderSource[] = "...";
 DescribedPipeline* pl = LoadPipeline(shaderSource);
 ```
 ## Setting Uniforms
-The shader sourse might contain a uniform or storage binding entry:
+The shader source might contain a uniform or storage binding entry:
 ```wgsl
 @group(0) @binding(0) var<uniform> Perspective_View: mat4x4f
 ```
@@ -332,14 +332,14 @@ More examples can be found in [here](https://github.com/manuel5975p/raygpu/tree/
 - Metal (includes iOS)
 - Most importantly, [browsers](https://caniuse.com/webgpu).
 
-It also includes a [specification of WGSL](https://www.w3.org/TR/WGSL/), a shading language that will can translated into any native shading language, like MSL, HLSL, GLSL and most importantly SPIR-V. This library includes an optional GLSL parser, making GLSL another option for input to be translated.
+It also includes a [specification of WGSL](https://www.w3.org/TR/WGSL/), a shading language that can be translated into any native shading language, like MSL, HLSL, GLSL and most importantly SPIR-V. This library includes an optional GLSL parser, making GLSL another option for input to be translated.
 
 Mobile support is done with SDL, Web support for C++/ wasm programs is done by [Emscripten](https://emscripten.org/). 
 - **Pros**
   - Full support for OpenGL(ES), Vulkan, DirectX 12 and Metal
   - Compute shaders and storage buffers **on all platforms**
   - Multi-windowing support
-  - True Headless Support (glfw, sdl, xlib etc. all **not** required)
+  - True Headless Support (glfw, sdl, xlib etc. are **not** required)
   - Highly portable, rendering backend is discovered at runtime
 - **Cons**
   - Not as lightweight and ubiquitous as OpenGL
