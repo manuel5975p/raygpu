@@ -30,4 +30,5 @@ jobs:
     - name: Run Tests
       working-directory: build/
       # --output-on-failure prints the error log if a test fails
-      run: ctest --output-on-failure
+      # --timeout bounds each test so a hang cannot stall the job
+      run: ctest --output-on-failure --timeout 120

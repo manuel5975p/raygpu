@@ -23,6 +23,24 @@ EntryPointSet                                           getEntryPointsWGSL      
 #if !defined(SUPPORT_TINT_WGSL_PARSER) || (SUPPORT_TINT_WGSL_PARSER != 1)
 
 
+// WGVK's SIMPLE_WGSL backend links the upstream simple_wgsl library, which
+// defines the same symbols; prefix this vendored copy so both coexist in one link.
+#define wgsl_parse                            rg_wgsl_parse
+#define wgsl_free_ast                         rg_wgsl_free_ast
+#define wgsl_debug_print                      rg_wgsl_debug_print
+#define wgsl_node_type_name                   rg_wgsl_node_type_name
+#define wgsl_resolver_build                   rg_wgsl_resolver_build
+#define wgsl_resolver_free                    rg_wgsl_resolver_free
+#define wgsl_resolve_free                     rg_wgsl_resolve_free
+#define wgsl_resolver_all_symbols             rg_wgsl_resolver_all_symbols
+#define wgsl_resolver_globals                 rg_wgsl_resolver_globals
+#define wgsl_resolver_binding_vars            rg_wgsl_resolver_binding_vars
+#define wgsl_resolver_ident_symbol_id         rg_wgsl_resolver_ident_symbol_id
+#define wgsl_resolver_vertex_inputs           rg_wgsl_resolver_vertex_inputs
+#define wgsl_resolver_entrypoints             rg_wgsl_resolver_entrypoints
+#define wgsl_resolver_entrypoint_globals      rg_wgsl_resolver_entrypoint_globals
+#define wgsl_resolver_entrypoint_binding_vars rg_wgsl_resolver_entrypoint_binding_vars
+
 #include "simple_wgsl/wgsl_parser.c"
 #include "simple_wgsl/wgsl_resolve.c"
 

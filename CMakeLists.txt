@@ -72,6 +72,14 @@ function(cst_bundle_libraries output_target)
     get_dependencies(${dependency})
     endif()
   endforeach()
+  # Bundle targets (e.g. WGVK's 'wgvk') attach their constituents via
+  # add_dependencies only; without this their objects would be missed.
+  get_target_property(manual_dependencies ${input_target} MANUALLY_ADDED_DEPENDENCIES)
+  foreach(dependency IN LISTS manual_dependencies)
+    if(TARGET ${dependency})
+    get_dependencies(${dependency})
+    endif()
+  endforeach()
   set(all_dependencies ${all_dependencies} PARENT_SCOPE)
   endfunction()
   foreach(input_target IN LISTS ARG_UNPARSED_ARGUMENTS)
@@ -241,9 +249,9 @@ if(SUPPORT_SDL3)
         
         list(APPEND SDL_DISABLED_FEATURES
             ALTIVEC ARMNEON ASAN DIALOG GPU ASSEMBLY AVX AVX2 AVX512F BACKGROUNDING_SIGNAL
-            CCACHE CLANG_TIDY CLOCK_GETTIME DBUS DEPS_SHARED DIRECTX POWER HAPTIC AUDIO DISKAUDIO DUMMYAUDIO
+            CCACHE CLANG_TIDY CLOCK_GETTIME DBUS DIRECTX POWER HAPTIC AUDIO DISKAUDIO DUMMYAUDIO
             DUMMYCAMERA DUMMYVIDEO EXAMPLES EXAMPLES_LINK_SHARED FOREGROUNDING_SIGNAL X11_XSCRNSAVER
-            GCC_ATOMICS GPU_DXVK PULSEAUDIO PIPEWIRE RENDER SENSOR HIDAPI_LIBUSB_SHARED
+            GCC_ATOMICS GPU_DXVK PULSEAUDIO PIPEWIRE RENDER SENSOR
             IBUS INSTALL INSTALL_TESTS JACK JACK_SHARED KMSDRM KMSDRM_SHARED LASX LIBICONV
             LIBUDEV LIBURING LSX METAL MMX OFFSCREEN OPENGL OPENGLES OPENVR OSS RENDER_D3D
             RENDER_D3D11 X11_XTEST RENDER_D3D12 RENDER_GPU RENDER_METAL RENDER_VULKAN ROCKCHIP RPATH
@@ -320,7 +328,8 @@ if(SUPPORT_WGPU_BACKEND)
 endif()
 
 if(SUPPORT_VULKAN_BACKEND)
-    set(WGVK_BUILD_WGSL_SUPPORT ${SUPPORT_WGSL_PARSER})
+    # raygpu submits WGSL sources directly to the device, so WGVK needs its WGSL frontend
+    set(WGVK_WGSL_SUPPORT "SIMPLE_WGSL")
     set(WGVK_BUILD_GLSL_SUPPORT ${SUPPORT_GLSL_PARSER})
     
     if(NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/../WGVK")
@@ -542,7 +551,48 @@ if(core_compile_defs)
 endif()
 
 
-target_link_libraries(raygpu INTERFACE raygpu_core)
+# Build-tree consumers get dependency usage requirements (include dirs of wgvk,
+# SDL3, ...) through raygpu_core; the installed package must not reference it.
+if(RAYGPU_BUILD_SHARED_LIBRARY OR BUILD_SHARED_LIBS)
+    if(CMAKE_VERSION VERSION_LESS 3.27)
+        message(FATAL_ERROR "Shared raygpu builds require CMake >= 3.27 (COMPILE_ONLY generator expression)")
+    endif()
+    # The bundle already contains every raygpu_core object; also linking
+    # libraygpu_core.so would load the same global state twice and corrupt the
+    # heap at exit. Propagate compile usage requirements only.
+    target_link_libraries(raygpu INTERFACE $<BUILD_INTERFACE:$<COMPILE_ONLY:raygpu_core>>)
+else()
+    target_link_libraries(raygpu INTERFACE $<BUILD_INTERFACE:raygpu_core>)
+endif()
+
+# The bundle only contains objects, not system link dependencies. Shared builds
+# must resolve them themselves; static consumers need them on their link line.
+set(RAYGPU_SYSTEM_LINK_LIBS "")
+if(WIN32)
+    list(APPEND RAYGPU_SYSTEM_LINK_LIBS
+        user32 gdi32 winmm imm32 ole32 oleaut32 version uuid advapi32 setupapi shell32)
+elseif(APPLE)
+    list(APPEND RAYGPU_SYSTEM_LINK_LIBS
+        "-framework Cocoa" "-framework IOKit" "-framework Metal" "-framework QuartzCore"
+        "-framework CoreVideo" "-framework GameController" "-framework CoreHaptics"
+        "-framework UniformTypeIdentifiers" "-framework AVFoundation" "-framework CoreMedia"
+        "-framework CoreAudio" "-framework AudioToolbox" "-framework Carbon"
+        "-framework ForceFeedback" c++)
+elseif(UNIX)
+    # stdc++ because the bundle contains C++ objects but consumers may link with a C driver
+    list(APPEND RAYGPU_SYSTEM_LINK_LIBS m pthread dl stdc++)
+    if(RAYGPU_USE_X11)
+        list(APPEND RAYGPU_SYSTEM_LINK_LIBS X11)
+    endif()
+endif()
+if(RAYGPU_BUILD_SHARED_LIBRARY OR BUILD_SHARED_LIBS)
+    target_link_libraries(raygpu PRIVATE ${RAYGPU_SYSTEM_LINK_LIBS})
+    # Build-tree consumers no longer inherit system libs through raygpu_core
+    # (see COMPILE_ONLY above), but examples use e.g. libm directly.
+    target_link_libraries(raygpu INTERFACE "$<BUILD_INTERFACE:${RAYGPU_SYSTEM_LINK_LIBS}>")
+else()
+    target_link_libraries(raygpu INTERFACE "$<INSTALL_INTERFACE:${RAYGPU_SYSTEM_LINK_LIBS}>")
+endif()
 if((RAYGPU_BUILD_SHARED_LIBRARY OR BUILD_SHARED_LIBS) AND APPLE)
   target_link_libraries(raygpu PUBLIC "-framework Cocoa" "-framework IOKit" "-framework Metal" "-framework QuartzCore")
 endif()
@@ -564,14 +614,11 @@ if(RAYGPU_ENABLE_INSTALL)
   set(RAYGPU_INSTALL_EXPORT RaygpuTargets)
   set(RAYGPU_NAMESPACE raygpu::)
 
-  # 1) Install libraries
-  if(SUPPORT_GLFW)
-    set(GLFW_MAYBE glfw)
-  endif()
-  
+  # Only the bundled library is installed and exported: it already contains
+  # the objects of raygpu_core and every bundled dependency (wgvk, glslang,
+  # SDL3, glfw, ...), and its install interface references no other targets.
   install(
-    TARGETS
-      raygpu raygpu_core wgvk glslang ${GLFW_MAYBE}
+    TARGETS raygpu
     EXPORT ${RAYGPU_INSTALL_EXPORT}
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib
@@ -615,11 +662,27 @@ if(RAYGPU_ENABLE_INSTALL)
     DESTINATION ${RAYGPU_CONFIG_INSTALL_DIR}
   )
 
-  export(
-    EXPORT ${RAYGPU_INSTALL_EXPORT}
-    NAMESPACE ${RAYGPU_NAMESPACE}
-    FILE "${CMAKE_CURRENT_BINARY_DIR}/raygpuTargets.cmake"
-  )
+  # Runs after WGVK's install rules, replacing its package README with ours.
+  install(CODE "
+    file(WRITE \"\${CMAKE_INSTALL_PREFIX}/README.txt\"
+\"raygpu Release Build
+
+This package contains:
+- lib/libraygpu.a (or .so/.dll/.lib): raygpu with all dependencies bundled
+- include/: Header files
+- lib/cmake/raygpu/: CMake package (find_package(raygpu CONFIG), target raygpu::raygpu)
+
+Basic usage:
+gcc your_program.c -I./include -L./lib -lraygpu -lm -lpthread -ldl -lstdc++ -lX11 -o your_program
+
+Or with CMake:
+find_package(raygpu CONFIG REQUIRED)
+target_link_libraries(your_target PRIVATE raygpu::raygpu)
+
+For more examples and documentation, visit:
+https://github.com/manuel5975p/raygpu
+\")
+  ")
 endif()
 
 

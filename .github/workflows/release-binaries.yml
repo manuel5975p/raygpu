@@ -1,0 +1,225 @@
+name: Release Binaries
+
+# Real releases run on version tags. Pushing to the 'citest' branch or manually
+# dispatching builds and validates the exact same artifacts without publishing
+# a GitHub Release (see WGVK's CI_TESTING.md for the pattern).
+on:
+  push:
+    branches:
+      - citest
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.library_type }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x86_64 (static + shared)
+          - os: linux
+            arch: x86_64
+            runner: ubuntu-latest
+            library_type: static
+            shared: "OFF"
+          - os: linux
+            arch: x86_64
+            runner: ubuntu-latest
+            library_type: shared
+            shared: "ON"
+
+          # macOS ARM64 (static only)
+          - os: macos
+            arch: aarch64
+            runner: macos-latest
+            library_type: static
+            shared: "OFF"
+
+          # Windows x86_64 MSVC (static + shared)
+          # Shared requires WGVK master without its former public RG_STATIC=1
+          # define, which suppressed dllexport in raygpu's headers.
+          - os: windows
+            arch: x86_64
+            runner: windows-latest
+            library_type: static
+            shared: "OFF"
+          - os: windows
+            arch: x86_64
+            runner: windows-latest
+            library_type: shared
+            shared: "ON"
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Linux dependencies
+      if: matrix.os == 'linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wayland-protocols libwayland-dev libxkbcommon-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev mesa-vulkan-drivers
+
+    - name: Install macOS dependencies
+      if: matrix.os == 'macos'
+      run: |
+        brew install molten-vk
+
+    - name: Set release tag
+      shell: bash
+      run: |
+        if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+          echo "RELEASE_TAG=${GITHUB_REF#refs/tags/}" >> "$GITHUB_ENV"
+        else
+          echo "RELEASE_TAG=dev-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+        fi
+
+    - name: Configure, build and install
+      shell: bash
+      run: |
+        cmake -B build-release \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DSUPPORT_SDL3=ON \
+          -DRAYGPU_ENABLE_INSTALL=ON \
+          -DRAYGPU_BUILD_SHARED_LIBRARY=${{ matrix.shared }} \
+          -DCMAKE_INSTALL_PREFIX="${PWD}/dist"
+        cmake --build build-release --config Release --parallel 4
+        cmake --install build-release --config Release
+
+    - name: Verify install layout
+      shell: bash
+      run: |
+        ls -laR dist
+        # Every release archive must contain the library, headers and CMake package.
+        [[ -e dist/lib/libraygpu.a || -e dist/lib/libraygpu.so || -e dist/lib/raygpu.lib || -e dist/bin/raygpu.dll ]]
+        [[ -f dist/include/raygpu.h ]]
+        [[ -f dist/include/config.h ]]
+        [[ -f dist/include/macros_and_constants.h ]]
+        [[ -f dist/include/mathutils.h ]]
+        [[ -f dist/lib/cmake/raygpu/raygpuConfig.cmake ]]
+        [[ -f dist/lib/cmake/raygpu/RaygpuTargets.cmake ]]
+
+    - name: Smoke test installed package
+      shell: bash
+      run: |
+        cmake -S cmake/test_package -B build-test \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_PREFIX_PATH="${PWD}/dist"
+        cmake --build build-test --config Release
+
+    - name: Prepare artifact
+      shell: bash
+      run: |
+        ARCHIVE_NAME="raygpu-${RELEASE_TAG}-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.library_type }}"
+        if [[ "${{ matrix.os }}" == "windows" ]]; then
+          FULL_ARCHIVE_NAME="${ARCHIVE_NAME}.zip"
+          powershell -NoProfile -Command "Compress-Archive -Path 'dist/*' -DestinationPath '${FULL_ARCHIVE_NAME}'"
+        else
+          FULL_ARCHIVE_NAME="${ARCHIVE_NAME}.tar.gz"
+          tar -czf "${FULL_ARCHIVE_NAME}" -C dist .
+        fi
+        echo "ARCHIVE_PATH=${FULL_ARCHIVE_NAME}" >> "$GITHUB_ENV"
+        ls -la "${FULL_ARCHIVE_NAME}"
+
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.library_type }}-binaries
+        path: ${{ env.ARCHIVE_PATH }}
+        if-no-files-found: error
+        retention-days: 30
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set release info
+      shell: bash
+      run: |
+        RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+        echo "RELEASE_TAG=${RELEASE_TAG}" >> "$GITHUB_ENV"
+
+        TAG_MESSAGE=$(git tag -l --format='%(contents)' "${RELEASE_TAG}" | head -20)
+        if [[ -z "$TAG_MESSAGE" ]]; then
+          TAG_MESSAGE="Release ${RELEASE_TAG}"
+        fi
+
+        {
+          printf '%s\n\n' "$TAG_MESSAGE"
+          cat << 'EOF'
+        ## Platform Binaries
+
+        Each archive contains the raygpu library with all dependencies bundled
+        (WGVK Vulkan backend, SDL3 windowing, glslang GLSL frontend), the public
+        headers, and a CMake package.
+        Pick `static` for a single-file link, or `shared` for a `.so`/`.dll`.
+
+        EOF
+          printf -- '- **Linux x86_64 (static)**: `raygpu-%s-linux-x86_64-static.tar.gz`\n' "$RELEASE_TAG"
+          printf -- '- **Linux x86_64 (shared)**: `raygpu-%s-linux-x86_64-shared.tar.gz`\n' "$RELEASE_TAG"
+          printf -- '- **macOS ARM64 (static)**: `raygpu-%s-macos-aarch64-static.tar.gz`\n' "$RELEASE_TAG"
+          printf -- '- **Windows x86_64 (static)**: `raygpu-%s-windows-x86_64-static.zip`\n' "$RELEASE_TAG"
+          printf -- '- **Windows x86_64 (shared)**: `raygpu-%s-windows-x86_64-shared.zip`\n\n' "$RELEASE_TAG"
+          cat << 'EOF'
+        ## Quick Start
+
+        ```bash
+        # Extract the archive
+        tar -xzf raygpu-*.tar.gz  # Linux/macOS
+        # or unzip raygpu-*.zip   # Windows
+
+        # Compile your program (Linux)
+        gcc your_program.c -I./include -L./lib -lraygpu -lm -lpthread -ldl -lstdc++ -lX11 -o your_program
+        ```
+
+        Or with CMake:
+
+        ```cmake
+        find_package(raygpu CONFIG REQUIRED) # pass -DCMAKE_PREFIX_PATH=<extracted dir>
+        target_link_libraries(your_target PRIVATE raygpu::raygpu)
+        ```
+
+        For more examples and documentation, see the [README](https://github.com/manuel5975p/raygpu/blob/master/README.md).
+        EOF
+        } > RELEASE_BODY.md
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts/
+
+    - name: Collect release assets
+      shell: bash
+      run: |
+        find artifacts/ -type f \( -name "*.tar.gz" -o -name "*.zip" \) -exec mv {} . \;
+        echo "Release assets:"
+        ls -la ./*.tar.gz ./*.zip
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ env.RELEASE_TAG }}
+        name: ${{ env.RELEASE_TAG }}
+        body_path: RELEASE_BODY.md
+        draft: false
+        prerelease: ${{ contains(env.RELEASE_TAG, '-') || contains(env.RELEASE_TAG, 'alpha') || contains(env.RELEASE_TAG, 'beta') || contains(env.RELEASE_TAG, 'rc') }}
+        files: |
+          *.tar.gz
+          *.zip
+        fail_on_unmatched_files: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

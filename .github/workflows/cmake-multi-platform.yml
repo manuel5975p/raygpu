@@ -11,7 +11,7 @@ jobs:
   build:
     runs-on: ${{ matrix.os }}
     permissions:
-      contents: write
+      contents: read
 
     strategy:
       fail-fast: false
@@ -20,6 +20,8 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         build_type: [Release]
         c_compiler: [gcc, clang, cl]
+        # Every configuration is built once as a static and once as a shared library
+        library_type: [static, shared]
         include:
           # Windows MSVC
           - os: windows-latest
@@ -41,36 +43,73 @@ jobs:
             c_compiler: clang
             cpp_compiler: clang++
             build_type: Release
+          # MSYS2 jobs don't expand with the base matrix, so each carries an
+          # explicit library_type and exists in a static and a shared variant.
           # MSYS2 MINGW64 + GCC
           - os: windows-latest
             c_compiler: gcc
             cpp_compiler: g++
             build_type: Release
             msys2_env: MINGW64
+            library_type: static
+          - os: windows-latest
+            c_compiler: gcc
+            cpp_compiler: g++
+            build_type: Release
+            msys2_env: MINGW64
+            library_type: shared
           # MSYS2 MINGW64 + Clang
           - os: windows-latest
             c_compiler: clang
             cpp_compiler: clang++
             build_type: Release
             msys2_env: MINGW64
+            library_type: static
+          - os: windows-latest
+            c_compiler: clang
+            cpp_compiler: clang++
+            build_type: Release
+            msys2_env: MINGW64
+            library_type: shared
           # MSYS2 UCRT64 + GCC
           - os: windows-latest
             c_compiler: gcc
             cpp_compiler: g++
             build_type: Release
             msys2_env: UCRT64
+            library_type: static
+          - os: windows-latest
+            c_compiler: gcc
+            cpp_compiler: g++
+            build_type: Release
+            msys2_env: UCRT64
+            library_type: shared
           # MSYS2 UCRT64 + Clang
           - os: windows-latest
             c_compiler: clang
             cpp_compiler: clang++
             build_type: Release
             msys2_env: UCRT64
+            library_type: static
+          - os: windows-latest
+            c_compiler: clang
+            cpp_compiler: clang++
+            build_type: Release
+            msys2_env: UCRT64
+            library_type: shared
           # MSYS2 CLANG64 + Clang
           - os: windows-latest
             c_compiler: clang
             cpp_compiler: clang++
             build_type: Release
             msys2_env: CLANG64
+            library_type: static
+          - os: windows-latest
+            c_compiler: clang
+            cpp_compiler: clang++
+            build_type: Release
+            msys2_env: CLANG64
+            library_type: shared
         exclude:
           - os: windows-latest
             c_compiler: gcc
@@ -106,7 +145,6 @@ jobs:
         install: >-
           base-devel
           git
-          zip
         pacboy: >-
           toolchain:p
           cmake:p
@@ -122,7 +160,6 @@ jobs:
         install: >-
           base-devel
           git
-          zip
         pacboy: >-
           clang:p
           cmake:p
@@ -152,6 +189,7 @@ jobs:
         -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
         -DSUPPORT_SDL3=ON
+        -DRAYGPU_BUILD_SHARED_LIBRARY=${{ matrix.library_type == 'shared' && 'ON' || 'OFF' }}
         -S ${{ steps.msys2_strings.outputs.source-dir }}
 
     - name: Configure CMake (Regular)
@@ -162,6 +200,7 @@ jobs:
         -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
         -DSUPPORT_SDL3=ON
+        -DRAYGPU_BUILD_SHARED_LIBRARY=${{ matrix.library_type == 'shared' && 'ON' || 'OFF' }}
         -S ${{ github.workspace }}
 
     - name: Build (MSYS2)
@@ -177,37 +216,3 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       working-directory: ${{ steps.strings.outputs.build-output-dir }}
       run: ctest --build-config ${{ matrix.build_type }} --verbose
-
-    - name: Archive build (MSYS2)
-      if: ${{ matrix.msys2_env && startsWith(github.ref, 'refs/tags/v') }}
-      shell: msys2 {0}
-      run: |
-        zip -r build-${{ matrix.os }}-${{ matrix.msys2_env }}-${{ matrix.c_compiler }}.zip ${{ steps.msys2_strings.outputs.build-output-dir }}
-
-    - name: Archive build (Regular Windows)
-      if: ${{ !matrix.msys2_env && matrix.os == 'windows-latest' && startsWith(github.ref, 'refs/tags/v') }}
-      run: |
-        powershell Compress-Archive -Path ${{ steps.strings.outputs.build-output-dir }}\* -DestinationPath build-${{ matrix.os }}-${{ matrix.c_compiler }}.zip
-
-    - name: Archive build (Regular non-Windows)
-      if: ${{ !matrix.msys2_env && matrix.os != 'windows-latest' && startsWith(github.ref, 'refs/tags/v') }}
-      run: |
-        tar -czf build-${{ matrix.os }}-${{ matrix.c_compiler }}.tar.gz -C ${{ steps.strings.outputs.build-output-dir }} .
-
-    - name: Upload release asset (MSYS2)
-      if: ${{ matrix.msys2_env && startsWith(github.ref, 'refs/tags/v') }}
-      uses: softprops/action-gh-release@v2
-      with:
-        files: build-${{ matrix.os }}-${{ matrix.msys2_env }}-${{ matrix.c_compiler }}.zip
-
-    - name: Upload release asset (Regular Windows)
-      if: ${{ !matrix.msys2_env && matrix.os == 'windows-latest' && startsWith(github.ref, 'refs/tags/v') }}
-      uses: softprops/action-gh-release@v2
-      with:
-        files: build-${{ matrix.os }}-${{ matrix.c_compiler }}.zip
-
-    - name: Upload release asset (Regular non-Windows)
-      if: ${{ !matrix.msys2_env && matrix.os != 'windows-latest' && startsWith(github.ref, 'refs/tags/v') }}
-      uses: softprops/action-gh-release@v2
-      with:
-        files: build-${{ matrix.os }}-${{ matrix.c_compiler }}.tar.gz
