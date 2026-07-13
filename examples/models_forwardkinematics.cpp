@@ -2,6 +2,10 @@
 #include <vector>      // For storing points dynamically (optional but clean)
 #include <cmath>       // For sinf
 
+#ifndef M_PI_2
+#define M_PI_2 1.57079632679489661923f
+#endif
+
 // --- FK Function adapted for MathUtils.h ---
 
 // Helper to compute the transformation matrix for a single joint (MDH)

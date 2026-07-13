@@ -272,7 +272,6 @@ const int keyMappingRGFW_(int RGFWKey){
 #endif
 #include <external/volk.h>
 #define RGFW_VULKAN
-#include <external/RGFW.h>
 #ifdef _WIN32
 #undef AdapterType
 #undef ShowCursor
@@ -286,7 +285,7 @@ const int keyMappingRGFW_(int RGFWKey){
         #define RGFW_WASM
     #endif
 #endif
-
+#include <external/RGFW.h>
 
 #include <internals.h>
 #include <renderstate.h>
